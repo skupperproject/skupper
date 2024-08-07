@@ -1,13 +1,15 @@
 # Installing the skupper controller
 
 ```
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_access_grant_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_access_token_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_attached_connector_anchor_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_attached_connector_crd.yaml
 kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_certificate_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_claim_crd.yaml
 kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_connector_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_grant_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_link_access_crd.yaml
 kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_link_crd.yaml
 kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_listener_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_router_access_crd.yaml
 kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_secured_access_crd.yaml
 kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_site_crd.yaml
 kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/deploy_cluster_scope.yaml
@@ -51,37 +53,19 @@ kubectl apply -n west -f https://raw.githubusercontent.com/skupperproject/skuppe
 
 # Link sites
 
-## Option 1: work directly with yaml
-
 Create a Grant in east site:
 
 ```
-kubectl apply -n east -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/grant.yaml
+kubectl apply -n east -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/access_grant.yaml
 ```
 
 Wait until url and ca fields in status are set:
 
 ```
-kubectl get grant my-grant -n east -o yaml
+kubectl wait --for=condition=ready accessgrant/my-grant && kubectl get accessgrant my-grant -n east -o yaml
 ```
 
-Copy ca, url and secret fields from grant status into the spec section of a claim, and apply that in site west
-
-## Option 2: use CLI to generate token
-
-```
-skupper token create --token-type=cert -n west token.yaml
-```
-
-```
-kubectl apply -n east -f token.yaml
-```
-
-or, combined
-
-```
-skupper token create --token-type=cert -n west - | kubectl apply -n east -f -
-```
+Copy ca, url and secret fields from grant status into the spec section of an accesstoken (see access_token.yaml), and apply that in site west
 
 # Test connectivity
 
