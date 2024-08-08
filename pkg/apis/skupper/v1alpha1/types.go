@@ -190,14 +190,14 @@ func (s *Site) setReady(err error) bool {
 	if err != nil {
 		s.Status.StatusMessage = err.Error()
 		return s.Status.SetCondition(CONDITION_TYPE_READY, err, s.ObjectMeta.Generation)
-	} else if s.isReady() {
+	} else if s.IsReady() {
 		s.Status.StatusMessage = STATUS_OK
 		return s.Status.SetCondition(CONDITION_TYPE_READY, nil, s.ObjectMeta.Generation)
 	}
 	return false
 }
 
-func (s *Site) isReady() bool {
+func (s *Site) IsReady() bool {
 	return meta.IsStatusConditionTrue(s.Status.Conditions, CONDITION_TYPE_CONFIGURED) &&
 		(!s.resolutionRequired() || meta.IsStatusConditionTrue(s.Status.Conditions, CONDITION_TYPE_RESOLVED)) &&
 		meta.IsStatusConditionTrue(s.Status.Conditions, CONDITION_TYPE_RUNNING)
@@ -477,6 +477,10 @@ func (l *Link) SetConfigured(err error) bool {
 	return false
 }
 
+func (l *Link) IsConfigured() bool {
+	return meta.IsStatusConditionTrue(l.Status.Conditions, CONDITION_TYPE_CONFIGURED)
+}
+
 func (l *Link) SetOperational(operational bool, remoteSiteId string, remoteSiteName string) bool {
 	var err error
 	if !operational {
@@ -502,14 +506,14 @@ func (l *Link) setReady(err error) bool {
 	if err != nil {
 		l.Status.StatusMessage = err.Error()
 		return l.Status.SetCondition(CONDITION_TYPE_READY, err, l.ObjectMeta.Generation)
-	} else if l.isReady() {
+	} else if l.IsReady() {
 		l.Status.StatusMessage = STATUS_OK
 		return l.Status.SetCondition(CONDITION_TYPE_READY, nil, l.ObjectMeta.Generation)
 	}
 	return false
 }
 
-func (l *Link) isReady() bool {
+func (l *Link) IsReady() bool {
 	return meta.IsStatusConditionTrue(l.Status.Conditions, CONDITION_TYPE_CONFIGURED) &&
 		meta.IsStatusConditionTrue(l.Status.Conditions, CONDITION_TYPE_OPERATIONAL)
 }

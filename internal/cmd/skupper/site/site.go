@@ -15,7 +15,7 @@ func NewCmdSite() *cobra.Command {
 		Short: "A site is where skupper is deployed and components of your application are running.",
 		Long:  `A site is a place where components of your application are running. Sites are linked to form application networks.`,
 		Example: `skupper site create my-site
-skupper site get my-site`,
+skupper site status`,
 	}
 
 	siteCreateCommand := kube.NewCmdSiteCreate()
