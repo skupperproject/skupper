@@ -182,6 +182,7 @@ create_sed_script() {
     # note that this is processed a golang template prior to
     # being inserted into the bundle
     # shellcheck disable=SC1083
+    rm script.sed
     {
         echo "s#{{"{{"}}.SiteNameSuffix{{"}}"}}#${SITE_ID}#g"
         echo "s#{{"{{"}}.Platform{{"}}"}}#${SKUPPER_PLATFORM}#g"
@@ -229,7 +230,7 @@ create_site() {
     mkdir -p "${SITES_PATH}"
 
     # Installing site definition files
-    mv "./${SITE_NAME}" "${SITES_PATH}/${SITE_NAME}"
+    cp -rf "./${SITE_NAME}" "${SITES_PATH}/${SITE_NAME}"
 
     # Creating platform.yaml
     echo "platform: ${SKUPPER_PLATFORM}" > "${PLATFORM_FILE}"

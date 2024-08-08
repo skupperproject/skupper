@@ -107,7 +107,7 @@ create_service() {
 
     # Moving it to the appropriate location
     if [ "${UID}" -eq 0 ]; then
-        mv "${service_file}" /etc/systemd/system/
+        cp -f "${service_file}" /etc/systemd/system/
         systemctl enable --now "${service_name}"
         systemctl daemon-reload
     else
@@ -115,7 +115,7 @@ create_service() {
             echo "Unable to define path to SystemD service"
             return
         fi
-        mv "${service_file}" "${SERVICE_DIR}"
+        cp -f "${service_file}" "${SERVICE_DIR}"
         systemctl --user enable --now "${service_name}"
         systemctl --user daemon-reload
     fi
