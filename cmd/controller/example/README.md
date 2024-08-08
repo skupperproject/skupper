@@ -53,19 +53,19 @@ kubectl apply -n west -f https://raw.githubusercontent.com/skupperproject/skuppe
 
 # Link sites
 
-Create a Grant in east site:
+Create a Grant in west site:
 
 ```
-kubectl apply -n east -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/access_grant.yaml
+kubectl apply -n west -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/access_grant.yaml
 ```
 
 Wait until url and ca fields in status are set:
 
 ```
-kubectl wait --for=condition=ready accessgrant/my-grant && kubectl get accessgrant my-grant -n east -o yaml
+kubectl wait --for=condition=ready accessgrant/my-grant -n west && kubectl get accessgrant my-grant -n west -o yaml
 ```
 
-Copy ca, url and secret fields from grant status into the spec section of an accesstoken (see access_token.yaml), and apply that in site west
+Copy ca, code and url fields from grant status into the spec section of an accesstoken (see access_token.yaml), and apply that in site east
 
 # Test connectivity
 
