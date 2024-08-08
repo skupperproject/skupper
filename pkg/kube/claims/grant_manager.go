@@ -59,6 +59,7 @@ type UrlFromSecuredAccess struct {
 }
 
 func (s *UrlFromSecuredAccess) SecuredAccessChanged(key string, se *skupperv1alpha1.SecuredAccess) {
+	log.Printf("Grant Manager handling SecuredAccess event for %s", key)
 	if se != nil && s.key == key && len(se.Status.Endpoints) > 0 && s.grants.getUrl() != se.Status.Endpoints[0].Url() {
 		if s.grants.setUrl(se.Status.Endpoints[0].Url()) {
 			s.grants.recheckUrl()

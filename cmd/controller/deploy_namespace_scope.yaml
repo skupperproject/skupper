@@ -1,0 +1,223 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: skupper-controller
+  labels:
+    application: skupper-controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    application: skupper-controller
+  name: skupper-controller
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - pods
+  - pods/exec
+  - services
+  - secrets
+  - serviceaccounts
+  - events
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+  - patch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+  - patch
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - update
+- apiGroups:
+    - apps.openshift.io
+  resources:
+    - deploymentconfigs
+  verbs:
+    - get
+    - list
+    - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  - networkpolicies
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+- apiGroups:
+  - projectcontour.io
+  resources:
+  - httpproxies
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - update
+- apiGroups:
+  - skupper.io
+  resources:
+  - sites
+  - sites/status
+  - links
+  - links/status
+  - accesstokens
+  - accesstokens/status
+  - accessgrants
+  - accessgrants/status
+  - listeners
+  - listeners/status
+  - connectors
+  - connectors/status
+  - attachedconnectors
+  - attachedconnectors/status
+  - attachedconnectoranchors
+  - attachedconnectoranchors/status
+  - routeraccesses
+  - routeraccesses/status
+  - securedaccesses
+  - securedaccesses/status
+  - certificates
+  - certificates/status
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    application: skupper-controller
+  name: skupper-controller
+subjects:
+- kind: ServiceAccount
+  name: skupper-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: skupper-controller
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skupper-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      application: skupper-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: skupper
+        application: skupper-controller
+    spec:
+      serviceAccountName: skupper-controller
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: controller
+        image: quay.io/gordons/controller:v2-route-fix
+        imagePullPolicy: Always
+        env:
+        - name: SKUPPER_ENABLE_GRANTS
+          value: "true"
+        - name: SKUPPER_CLAIMS_GET_BASE_URL_FROM
+          value: grs/skupper-grant-server
+        - name: SKUPPER_CLAIMS_TLS_CREDENTIALS_SECRET
+          value: skupper-grant-server
+        - name: SKUPPER_CONFIG_SYNC_IMAGE
+          value: quay.io/gordons/config-sync:v2-status
+        - name: WATCH_NAMESPACE
+          valueFrom:
+             fieldRef:
+               fieldPath: metadata.namespace
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        - name: tls-credentials
+          mountPath: /etc/controller
+      volumes:
+      - name: tls-credentials
+        emptyDir: {}
+---
+apiVersion: skupper.io/v1alpha1
+kind: Certificate
+metadata:
+  name: skupper-grant-server-ca
+spec:
+  signing: true
+  ca:      ""
+  subject: "grant server CA"
+---
+apiVersion: skupper.io/v1alpha1
+kind: SecuredAccess
+metadata:
+  name: skupper-grant-server
+spec:
+  selector:
+      application: skupper-controller
+  ports:
+  - name: https
+    port: 9090
+  issuer: skupper-grant-server-ca
+  certificate: skupper-grant-server

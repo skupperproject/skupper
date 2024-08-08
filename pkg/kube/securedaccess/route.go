@@ -2,6 +2,7 @@ package securedaccess
 
 import (
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 
@@ -64,7 +65,7 @@ func desiredRouteForPort(sa *skupperv1alpha1.SecuredAccess, port skupperv1alpha1
 	name := fmt.Sprintf("%s-%s", sa.Name, port.Name)
 	host := sa.Spec.Options["domain"]
 	if host != "" {
-		host = fmt.Sprintf("%s.%s", sa.Namespace, host)
+		host = fmt.Sprintf("%s.%s.%s", name, sa.Namespace, host)
 	}
 	route := &routev1.Route{
 		TypeMeta: metav1.TypeMeta{
@@ -98,4 +99,21 @@ func desiredRouteForPort(sa *skupperv1alpha1.SecuredAccess, port skupperv1alpha1
 		},
 	}
 	return route
+}
+
+func desiredRouteForPortName(sa *skupperv1alpha1.SecuredAccess, port string) *routev1.Route {
+	for _, p := range sa.Spec.Ports {
+		if p.Name == port {
+			return desiredRouteForPort(sa, p)
+		}
+	}
+	log.Printf("Port %s not found in SecuredAccess %s/%s", port, sa.Namespace, sa.Name)
+	return nil
+}
+
+func equivalentRoute(actual *routev1.Route, desired *routev1.Route) bool {
+	return (desired.Spec.Host == "" || desired.Spec.Host == actual.Spec.Host) &&
+		reflect.DeepEqual(desired.Spec.Port, actual.Spec.Port) &&
+		reflect.DeepEqual(desired.Spec.To, actual.Spec.To) &&
+		reflect.DeepEqual(desired.Spec.TLS, actual.Spec.TLS)
 }
