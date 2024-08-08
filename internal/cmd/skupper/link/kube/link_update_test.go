@@ -549,7 +549,7 @@ func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 
 	testTable := []test{
 		{
-			name: "link is not ready",
+			name: "link is not configured",
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
@@ -577,7 +577,7 @@ func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "link is ready",
+			name: "link is configured",
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{

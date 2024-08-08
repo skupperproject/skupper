@@ -477,6 +477,10 @@ func (l *Link) SetConfigured(err error) bool {
 	return false
 }
 
+func (l *Link) IsConfigured() bool {
+	return meta.IsStatusConditionTrue(l.Status.Conditions, CONDITION_TYPE_CONFIGURED)
+}
+
 func (l *Link) SetOperational(operational bool, remoteSiteId string, remoteSiteName string) bool {
 	var err error
 	if !operational {
