@@ -239,21 +239,25 @@ func (m *SecuredAccessManager) SecuredAccessDeleted(key string) error {
 func (m *SecuredAccessManager) ensureRoute(namespace string, route *routev1.Route) (error, *routev1.Route) {
 	key := fmt.Sprintf("%s/%s", namespace, route.Name)
 	if existing, ok := m.routes[key]; ok {
-		if reflect.DeepEqual(existing.Spec, route.Spec) {
+		if equivalentRoute(existing, route) {
 			return nil, existing
 		}
 		existing.Spec = route.Spec
 		updated, err := m.clients.GetRouteClient().Routes(namespace).Update(context.Background(), existing, metav1.UpdateOptions{})
 		if err != nil {
+			log.Printf("Error on update for route %s/%s: %s", namespace, route.Name, err)
 			return err, nil
 		}
+		log.Printf("Route %s/%s updated successfully", namespace, route.Name)
 		m.routes[key] = updated
 		return nil, updated
 	}
 	created, err := m.clients.GetRouteClient().Routes(namespace).Create(context.Background(), route, metav1.CreateOptions{})
 	if err != nil {
+		log.Printf("Error on create for route %s/%s: %s", namespace, route.Name, err)
 		return err, nil
 	}
+	log.Printf("Route %s/%s created successfully", namespace, route.Name)
 	m.routes[key] = created
 	return nil, created
 }
@@ -284,28 +288,31 @@ func (m *SecuredAccessManager) CheckRoute(routeKey string, route *routev1.Route)
 		// TODO: should it be recreated?
 		return nil
 	}
+	m.routes[routeKey] = route
 	port := route.Spec.Port.TargetPort.String()
-	key, matched := strings.CutSuffix(routeKey, port)
+	key, matched := strings.CutSuffix(routeKey, "-" + port)
 	if !matched {
 		log.Printf("Malformed Route name %s for SecuredAccess, expected suffix of %s", routeKey, port)
 		return nil
 	}
 	sa, ok := m.definitions[key]
-	var latest *routev1.Route
-	if ok && sa.Spec.AccessType == "route" {
-		for _, p := range sa.Spec.Ports {
-			if p.Name == port {
-				latest = desiredRouteForPort(sa, p)
-			}
+	var desired *routev1.Route
+	if ok && m.actualAccessType(sa) == "route" {
+		desired = desiredRouteForPortName(sa, port)
+	}
+	if desired == nil {
+		// delete this route instance
+		parts := strings.Split(routeKey, "/")
+		if len(parts) > 0 {
+			name := parts[1]
+			log.Printf("Deleting route %s/%s as no matching ServiceAccess definition found", route.Namespace, name)
+			return m.clients.GetRouteClient().Routes(route.Namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+		} else {
+			return nil
 		}
 	}
-	if latest == nil {
-		// delete this route instance
-		name := strings.Split(routeKey, "/")[0]
-		return m.clients.GetRouteClient().Routes(route.Namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
-	}
 
-	err, latest := m.ensureRoute(sa.Namespace, latest)
+	err, latest := m.ensureRoute(sa.Namespace, desired)
 	if err != nil {
 		return err
 	}
