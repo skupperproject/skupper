@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"fmt"
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -28,12 +30,6 @@ func NewTarball() *Tarball {
 	tb.tw = tar.NewWriter(tb.gz)
 	tb.mutex = &sync.Mutex{}
 	return tb
-}
-
-func (t *Tarball) SetBuf(buf *bytes.Buffer) {
-	t.buf = buf
-	t.gz = gzip.NewWriter(t.buf)
-	t.tw = tar.NewWriter(t.gz)
 }
 
 // Save saves tarball based on added directories.
@@ -177,4 +173,63 @@ func (t *Tarball) AddFileData(fileName string, mode int64, data []byte) error {
 		return err
 	}
 	return nil
+}
+
+// Extract extracts the given tar.gz filename into the provided outputPath
+func (t *Tarball) Extract(fileName, outputPath string) error {
+	// Validating outputPath
+	if outputPath == "" {
+		return fmt.Errorf("outputPath is empty")
+	}
+	outputPathStat, err := os.Stat(outputPath)
+	if err != nil {
+		err = os.MkdirAll(outputPath, 0755)
+		if err != nil {
+			return err
+		}
+	} else if !outputPathStat.Mode().IsDir() {
+		return fmt.Errorf("outputPath is not a directory")
+	}
+
+	tgzFile, err := os.Open(fileName)
+	if err != nil {
+		return err
+	}
+	gzipReader, err := gzip.NewReader(tgzFile)
+	if err != nil {
+		return err
+	}
+	tarReader := tar.NewReader(gzipReader)
+	for {
+		header, err := tarReader.Next()
+		switch {
+		case err == io.EOF:
+			return nil
+		case err != nil:
+			return err
+		case header == nil:
+			continue
+		}
+		targetFilePath := path.Join(outputPath, header.Name)
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if _, err := os.Stat(targetFilePath); err != nil {
+				if err := os.MkdirAll(targetFilePath, 0755); err != nil {
+					return err
+				}
+			}
+		case tar.TypeReg:
+			file, err := os.OpenFile(targetFilePath, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			if err != nil {
+				return err
+			}
+			if _, err := io.Copy(file, tarReader); err != nil {
+				return err
+			}
+			err = file.Close()
+			if err != nil {
+				return err
+			}
+		}
+	}
 }
