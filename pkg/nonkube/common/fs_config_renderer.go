@@ -50,7 +50,10 @@ const (
 
 func GetDefaultOutputPath(siteName string) string {
 	if apis.IsRunningInContainer() {
-		return path.Join("/output", "sites", siteName)
+		outputStat, err := os.Stat("/output")
+		if err == nil && outputStat.IsDir() {
+			return path.Join("/output", "sites", siteName)
+		}
 	}
 	return path.Join(apis.GetDataHome(), "sites", siteName)
 }
@@ -72,7 +75,7 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *apis.SiteState) erro
 	if c.OutputPath == "" {
 		c.OutputPath = GetDefaultOutputPath(siteState.Site.Name)
 	} else {
-		_ = os.Setenv("OUTPUT_PATH", c.OutputPath)
+		_ = os.Setenv("SKUPPER_OUTPUT_PATH", c.OutputPath)
 	}
 	if c.SslProfileBasePath == "" {
 		c.SslProfileBasePath = DefaultSslProfileBasePath

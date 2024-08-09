@@ -77,22 +77,47 @@ func TestSiteState_CreateRouterAccess(t *testing.T) {
 }
 
 func TestSiteState_ToRouterConfig(t *testing.T) {
-	ss := fakeSiteState()
-	sslProfileBasePath := "${SSL_PROFILE_BASE_PATH}"
-	routerConfig := ss.ToRouterConfig(sslProfileBasePath)
-	assert.Equal(t, len(routerConfig.Listeners), 3)
-	rolesFound := map[string]bool{}
-	for _, listener := range routerConfig.Listeners {
-		rolesFound[string(listener.Role)] = true
+	for _, test := range []struct {
+		name   string
+		bundle bool
+	}{
+		{
+			name:   "regular-config",
+			bundle: false,
+		},
+		{
+			name:   "bundle-config",
+			bundle: true,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ss := fakeSiteState()
+			ss.bundle = test.bundle
+			sslProfileBasePath := "${SSL_PROFILE_BASE_PATH}"
+			routerConfig := ss.ToRouterConfig(sslProfileBasePath)
+			if test.bundle {
+				assert.Assert(t, strings.HasSuffix(routerConfig.Metadata.Id, "-{{.SiteNameSuffix}}"))
+				assert.Assert(t, strings.Contains(routerConfig.Metadata.Metadata, `"id":"{{.SiteId}}"`), routerConfig.Metadata.Metadata)
+				assert.Assert(t, ss.IsBundle())
+			} else {
+				assert.Assert(t, !strings.HasSuffix(routerConfig.Metadata.Id, "-{{.SiteNameSuffix}}"))
+				assert.Assert(t, strings.Contains(routerConfig.Metadata.Metadata, `"id":"site-id"`), routerConfig.Metadata.Metadata)
+			}
+			assert.Equal(t, len(routerConfig.Listeners), 3)
+			rolesFound := map[string]bool{}
+			for _, listener := range routerConfig.Listeners {
+				rolesFound[string(listener.Role)] = true
+			}
+			assert.Equal(t, len(rolesFound), 3, "expecting normal, inter-router and edge, found: %s", rolesFound)
+			assert.Equal(t, len(routerConfig.Connectors), 1)
+			assert.Equal(t, len(routerConfig.SslProfiles), 3)
+			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["link-access-one"].CaCertFile, sslProfileBasePath))
+			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["link-one-profile"].CaCertFile, sslProfileBasePath))
+			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["local-access-one"].CaCertFile, sslProfileBasePath))
+			assert.Equal(t, len(routerConfig.Bridges.TcpListeners), 2)
+			assert.Equal(t, len(routerConfig.Bridges.TcpConnectors), 1)
+		})
 	}
-	assert.Equal(t, len(rolesFound), 3, "expecting normal, inter-router and edge, found: %s", rolesFound)
-	assert.Equal(t, len(routerConfig.Connectors), 1)
-	assert.Equal(t, len(routerConfig.SslProfiles), 3)
-	assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["link-access-one"].CaCertFile, sslProfileBasePath))
-	assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["link-one-profile"].CaCertFile, sslProfileBasePath))
-	assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["local-access-one"].CaCertFile, sslProfileBasePath))
-	assert.Equal(t, len(routerConfig.Bridges.TcpListeners), 2)
-	assert.Equal(t, len(routerConfig.Bridges.TcpConnectors), 1)
 }
 
 func TestMarshalSiteState(t *testing.T) {

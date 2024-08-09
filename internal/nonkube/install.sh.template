@@ -16,7 +16,7 @@ if [ -z "${UID:-}" ]; then
     UID="$(id -u)"
     export UID
 fi
-export OUTPUT_PATH="${XDG_DATA_HOME:-${HOME}/.local/share}/skupper"
+export SKUPPER_OUTPUT_PATH="${XDG_DATA_HOME:-${HOME}/.local/share}/skupper"
 export SERVICE_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
 export RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/${UID}}"
 export SYSTEMCTL="systemctl --user"
@@ -24,14 +24,14 @@ export USERNS="keep-id"
 GID=$(id -g "${UID}")
 export RUNAS="${UID}:${GID}"
 if [ "${UID}" -eq 0 ]; then
-    export OUTPUT_PATH="/usr/local/share/skupper"
+    export SKUPPER_OUTPUT_PATH="/usr/local/share/skupper"
     export SERVICE_DIR="/etc/systemd/system"
     export RUNTIME_DIR="/run"
     export SYSTEMCTL="systemctl"
     # shellcheck disable=SC2089
     export USERNS="''"
 fi
-export SITES_PATH="${OUTPUT_PATH}/sites"
+export SITES_PATH="${SKUPPER_OUTPUT_PATH}/sites"
 export PLATFORM_FILE="${SITES_PATH}/${SITE_NAME}/runtime/state/platform.yaml"
 SITE_ID="$(hostname -s)-${USER}-$(date +%s)"
 export SITE_ID
@@ -80,12 +80,12 @@ parse_opts() {
                 ;;
             d)
                 export DUMP_TOKENS=true
-                export TOKEN_OUTPUT_PATH="${OPTARG}"
-                if [ -z "${TOKEN_OUTPUT_PATH}" ] || [ ! -d "${TOKEN_OUTPUT_PATH}" ]; then
+                export SKUPPER_TOKEN_OUTPUT_PATH="${OPTARG}"
+                if [ -z "${SKUPPER_TOKEN_OUTPUT_PATH}" ] || [ ! -d "${SKUPPER_TOKEN_OUTPUT_PATH}" ]; then
                     echo "Output directory is not valid"
                     usage
                 fi
-                if [ ! -w "${TOKEN_OUTPUT_PATH}" ]; then
+                if [ ! -w "${SKUPPER_TOKEN_OUTPUT_PATH}" ]; then
                     echo "No permission to write tokens to provided output directory"
                     usage
                 fi
@@ -109,7 +109,7 @@ create_service() {
     service_name="skupper-site-${SITE_NAME}.service"
     service_file_suffix="container"
     [ "${SKUPPER_PLATFORM}" = "systemd" ] && service_file_suffix="systemd"
-    service_file="${OUTPUT_PATH}/sites/${SITE_NAME}/runtime/scripts/${service_name}.${service_file_suffix}"
+    service_file="${SKUPPER_OUTPUT_PATH}/sites/${SITE_NAME}/runtime/scripts/${service_name}.${service_file_suffix}"
 
     if [ ! -f "${service_file}" ]; then
         echo "SystemD service has not been defined"
@@ -162,7 +162,7 @@ dump_tokens() {
         echo "No tokens defined in this site bundle"
         return
     fi
-    token_out_dir="${TOKEN_OUTPUT_PATH:?}/${SITE_NAME:?}"
+    token_out_dir="${SKUPPER_TOKEN_OUTPUT_PATH:?}/${SITE_NAME:?}"
     mkdir -p "${token_out_dir}"
     cp "./${SITE_NAME}/runtime/token/"*.yaml "${token_out_dir}"
     echo "Tokens for site \"${SITE_NAME}\" have been saved into ${token_out_dir}"
@@ -255,7 +255,7 @@ create_site() {
 }
 
 sanity_check() {
-    required_fields="SITE_NAME OUTPUT_PATH SERVICE_DIR SITES_PATH SKUPPER_PLATFORM"
+    required_fields="SITE_NAME SKUPPER_OUTPUT_PATH SERVICE_DIR SITES_PATH SKUPPER_PLATFORM"
     required_commands="python sed find grep xargs tar getent id ${PLATFORM_COMMAND}"
 
     for field_name in ${required_fields}; do

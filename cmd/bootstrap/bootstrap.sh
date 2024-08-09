@@ -4,7 +4,7 @@ set -Ceu
 
 IMAGE="quay.io/skupper/bootstrap"
 INPUT_PATH="${1:-${PWD}}"
-OUTPUT_PATH="${XDG_DATA_HOME:-${HOME}/.local/share}/skupper"
+SKUPPER_OUTPUT_PATH="${XDG_DATA_HOME:-${HOME}/.local/share}/skupper"
 SERVICE_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
 if [ -z "${UID:-}" ]; then
     UID="$(id -u)"
@@ -30,12 +30,16 @@ is_sock_endpoint() {
 }
 
 is_container_platform() {
-    [ "${SKUPPER_PLATFORM}" != "systemd" ] && [ "${SKUPPER_PLATFORM}" != "bundle" ] && return 0
+    if [ "${SKUPPER_PLATFORM}" = "podman" ] || [ "${SKUPPER_PLATFORM}" = "docker" ]; then
+        return 0
+    fi
     return 1
 }
 
 is_bundle_platform() {
-    [ "${SKUPPER_PLATFORM}" = "bundle" ] && return 0
+    if [ "${SKUPPER_PLATFORM}" = "bundle" ] || [ "${SKUPPER_PLATFORM}" = "tarball" ]; then
+        return 0
+    fi
     return 1
 }
 
@@ -72,10 +76,10 @@ container_env() {
             export CONTAINER_ENDPOINT_DEFAULT="unix:///run/podman/podman.sock"
         fi
         export USERNS=""
-        export OUTPUT_PATH="/usr/local/share/skupper"
+        export SKUPPER_OUTPUT_PATH="/usr/local/share/skupper"
         export SERVICE_DIR="/etc/systemd/system"
     fi
-    mkdir -p "${OUTPUT_PATH}"
+    mkdir -p "${SKUPPER_OUTPUT_PATH}"
     export CONTAINER_ENDPOINT="${CONTAINER_ENDPOINT:-${CONTAINER_ENDPOINT_DEFAULT}}"
 }
 
@@ -99,7 +103,7 @@ create_service() {
         return
     fi
     service_name="skupper-site-${site_name}.service"
-    service_file="${OUTPUT_PATH}/sites/${site_name}/runtime/scripts/${service_name}"
+    service_file="${SKUPPER_OUTPUT_PATH}/sites/${site_name}/runtime/scripts/${service_name}"
     if [ ! -f "${service_file}" ]; then
         echo "SystemD service has not been defined"
         return
@@ -139,7 +143,7 @@ main() {
         MOUNTS="${MOUNTS} -v '${file_container_endpoint}:/${CONTAINER_ENGINE}.sock:z'"
     fi
     MOUNTS="${MOUNTS} -v '${INPUT_PATH}:/input:z'"
-    MOUNTS="${MOUNTS} -v '${OUTPUT_PATH}:/output:z'"
+    MOUNTS="${MOUNTS} -v '${SKUPPER_OUTPUT_PATH}:/output:z'"
     
     # Env vars
     if is_container_platform; then
@@ -149,7 +153,7 @@ main() {
             ENV_VARS="${ENV_VARS} -e 'CONTAINER_ENDPOINT=${CONTAINER_ENDPOINT}'"
         fi
     fi
-    ENV_VARS="${ENV_VARS} -e 'OUTPUT_PATH=${OUTPUT_PATH}'"
+    ENV_VARS="${ENV_VARS} -e 'SKUPPER_OUTPUT_PATH=${SKUPPER_OUTPUT_PATH}'"
     ENV_VARS="${ENV_VARS} -e 'SKUPPER_PLATFORM=${SKUPPER_PLATFORM}'"
 
     # Running the bootstrap

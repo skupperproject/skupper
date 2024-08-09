@@ -13,11 +13,11 @@ import (
 )
 
 func TestSystemdService(t *testing.T) {
-	outputPathOrig := os.Getenv("OUTPUT_PATH")
+	outputPathOrig := os.Getenv("SKUPPER_OUTPUT_PATH")
 	xdgConfigHomeOrig := os.Getenv("XDG_CONFIG_HOME")
 	platformOrig := os.Getenv("SKUPPER_PLATFORM")
 	defer func() {
-		_ = os.Setenv("OUTPUT_PATH", outputPathOrig)
+		_ = os.Setenv("SKUPPER_OUTPUT_PATH", outputPathOrig)
 		_ = os.Setenv("XDG_CONFIG_HOME", xdgConfigHomeOrig)
 		_ = os.Setenv("SKUPPER_PLATFORM", platformOrig)
 	}()
@@ -25,7 +25,7 @@ func TestSystemdService(t *testing.T) {
 
 	outputPath := t.TempDir()
 	assert.Assert(t, os.MkdirAll(outputPath, 0755))
-	assert.Assert(t, os.Setenv("OUTPUT_PATH", outputPath))
+	assert.Assert(t, os.Setenv("SKUPPER_OUTPUT_PATH", outputPath))
 	assert.Assert(t, os.Setenv("XDG_CONFIG_HOME", outputPath))
 
 	for _, platform := range []string{"systemd", "podman", "docker"} {

@@ -45,13 +45,13 @@ func GetRuntimeDir() string {
 	return runtimeDir
 }
 
-// GetHostDataHome returns the value of the OUTPUT_PATH environment
+// GetHostDataHome returns the value of the SKUPPER_OUTPUT_PATH environment
 // variable when running via container or the result of GetDataHome() otherwise.
 // This is only useful during the bootstrap process.
 func GetHostDataHome() (string, error) {
-	// If container provides OUTPUT_PATH use it
-	if os.Getenv("OUTPUT_PATH") != "" {
-		return os.Getenv("OUTPUT_PATH"), nil
+	// If container provides SKUPPER_OUTPUT_PATH use it
+	if os.Getenv("SKUPPER_OUTPUT_PATH") != "" {
+		return os.Getenv("SKUPPER_OUTPUT_PATH"), nil
 	}
 	return GetDataHome(), nil
 }
