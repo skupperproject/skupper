@@ -320,9 +320,9 @@ type Platform string
 
 const (
 	PlatformKubernetes Platform = "kubernetes"
-	PlatformPodman              = "podman"
-	PlatformDocker              = "docker"
-	PlatformSystemd             = "systemd"
+	PlatformPodman     Platform = "podman"
+	PlatformDocker     Platform = "docker"
+	PlatformSystemd    Platform = "systemd"
 )
 
 func (p Platform) IsKubernetes() bool {
@@ -337,8 +337,8 @@ type ConsoleAuthMode string
 
 const (
 	ConsoleAuthModeOpenshift ConsoleAuthMode = "openshift"
-	ConsoleAuthModeInternal                  = "internal"
-	ConsoleAuthModeUnsecured                 = "unsecured"
+	ConsoleAuthModeInternal  ConsoleAuthMode = "internal"
+	ConsoleAuthModeUnsecured ConsoleAuthMode = "unsecured"
 )
 
 const (
@@ -351,8 +351,8 @@ type PrometheusAuthMode string
 
 const (
 	PrometheusAuthModeTls       PrometheusAuthMode = "tls"
-	PrometheusAuthModeBasic                        = "basic"
-	PrometheusAuthModeUnsecured                    = "unsecured"
+	PrometheusAuthModeBasic     PrometheusAuthMode = "basic"
+	PrometheusAuthModeUnsecured PrometheusAuthMode = "unsecured"
 )
 
 // Prometheus server constants (note: use console auth mode)
@@ -539,7 +539,7 @@ type ConnectorRole string
 
 const (
 	ConnectorRoleInterRouter ConnectorRole = "inter-router"
-	ConnectorRoleEdge                      = "edge"
+	ConnectorRoleEdge        ConnectorRole = "edge"
 )
 
 const (
