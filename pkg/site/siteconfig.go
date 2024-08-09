@@ -128,7 +128,7 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 			SiteConfigClusterPermissionsKey:    "false",
 			SiteConfigRouterConsoleKey:         "false",
 			SiteConfigRouterLoggingKey:         "",
-			SiteConfigConsoleAuthenticationKey: types.ConsoleAuthModeInternal,
+			SiteConfigConsoleAuthenticationKey: string(types.ConsoleAuthModeInternal),
 			SiteConfigConsoleUserKey:           "",
 			SiteConfigConsolePasswordKey:       "",
 			SiteConfigIngressKey:               types.IngressLoadBalancerString,
@@ -551,7 +551,7 @@ func ReadSiteConfigFrom(siteConfig *metav1.ObjectMeta, typeMeta *metav1.TypeMeta
 	if authMode, ok := data[SiteConfigConsoleAuthenticationKey]; ok {
 		result.Spec.AuthMode = authMode
 	} else {
-		result.Spec.AuthMode = types.ConsoleAuthModeInternal
+		result.Spec.AuthMode = string(types.ConsoleAuthModeInternal)
 	}
 	if user, ok := data[SiteConfigConsoleUserKey]; ok {
 		result.Spec.User = user

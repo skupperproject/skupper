@@ -316,11 +316,17 @@ func updateIngressRuleServiceNameV1(client dynamic.Interface, namespace string, 
 		return err
 	}
 	routes, err := readIngressRules(obj)
+	if err != nil {
+		return err
+	}
 	for index, route := range routes {
 		if strings.HasPrefix(route.Host, hostPrefix) {
 			route.ServiceName = serviceName
 			routes[index] = route
 			err = writeIngressRules(routes, obj)
+			if err != nil {
+				return err
+			}
 			_, err = client.Resource(ingressResource).Namespace(namespace).Update(context.TODO(), obj, metav1.UpdateOptions{})
 			if err != nil {
 				return err
@@ -396,7 +402,7 @@ func (r *IngressRoute) fromUntypedRule(u interface{}) error {
 	if len(paths) == 0 {
 		return fmt.Errorf("No paths in rule")
 	}
-	path, ok := paths[0].(map[string]interface{})
+	path := paths[0].(map[string]interface{})
 	serviceName, _, err := unstructured.NestedString(path, "backend", "service", "name")
 	if err != nil {
 		return err

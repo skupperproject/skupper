@@ -242,9 +242,8 @@ func TestPlatformInfo_Load(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f, err := os.CreateTemp(os.TempDir(), "platform-*.yaml")
-			tempFile := f.Name()
 			assert.Assert(t, err, "error creating temporary platform config file")
-			tempFile = f.Name()
+			tempFile := f.Name()
 			defer func(name string) {
 				_ = os.Remove(name)
 			}(tempFile)
