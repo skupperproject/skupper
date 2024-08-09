@@ -839,7 +839,7 @@ func (a ByServiceInterfaceAddress) Len() int {
 }
 
 func (a ByServiceInterfaceAddress) Less(i, j int) bool {
-	return a[i].Address > a[i].Address
+	return a[i].Address < a[j].Address
 }
 
 func (a ByServiceInterfaceAddress) Swap(i, j int) {
