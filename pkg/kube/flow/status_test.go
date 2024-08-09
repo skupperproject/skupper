@@ -123,7 +123,7 @@ func TestStatusSyncEndToEnd(t *testing.T) {
 								},
 							},
 							{Router: network.RouterInfo{Name: "RouterB"},
-								Links: []network.LinkInfo{{Name: "auto-mesh-connector/0"}},
+								Links: []network.LinkInfo{{Name: "auto-mesh-connector/0", Peer: "routeraccess-a"}},
 							},
 						},
 					},

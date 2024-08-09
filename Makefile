@@ -1,4 +1,5 @@
 VERSION := $(shell git describe --tags --dirty=-modified --always)
+CONTROLLER_IMAGE := quay.io/skupper/controller
 BOOTSTRAP_IMAGE := quay.io/skupper/bootstrap
 CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync
 NETWORK_CONSOLE_COLLECTOR_IMAGE := quay.io/skupper/network-console-collector
@@ -47,6 +48,8 @@ docker-build-test-image:
 	${DOCKER} buildx build --load -t ${TEST_IMAGE} -f Dockerfile.ci-test .
 
 docker-build: docker-build-test-image
+	${DOCKER} buildx build --platform ${PLATFORMS} -t ${CONTROLLER_IMAGE} -f Dockerfile.controller .
+	${DOCKER} buildx build --load  -t ${CONTROLLER_IMAGE} -f Dockerfile.controller .
 	${DOCKER} buildx build --platform ${PLATFORMS} -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
 	${DOCKER} buildx build --load  -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
 
