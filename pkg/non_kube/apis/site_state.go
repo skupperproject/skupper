@@ -218,10 +218,10 @@ func (s *SiteState) linkMap(sslProfileBasePath string) site.LinkMap {
 func (s *SiteState) bindings() *site.Bindings {
 	b := site.NewBindings()
 	for name, connector := range s.Connectors {
-		_, _ = b.UpdateConnector(name, connector)
+		_ = b.UpdateConnector(name, connector)
 	}
 	for name, listener := range s.Listeners {
-		_, _ = b.UpdateListener(name, listener)
+		_ = b.UpdateListener(name, listener)
 	}
 	return b
 }

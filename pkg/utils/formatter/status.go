@@ -2,11 +2,12 @@ package formatter
 
 import (
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/network"
 	"os"
 	"strconv"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/skupperproject/skupper/pkg/network"
 )
 
 type PlatformSupport struct {
@@ -175,7 +176,7 @@ func PrintNetworkStatus(currentSite string, currentNetworkStatus *network.Networ
 					if len(mapSiteLink) > 0 {
 						siteLinks := siteLevel.NewChild("Linked sites:")
 						for key, value := range mapSiteLink {
-							siteLinks.NewChildWithDetail(fmt.Sprintln(key), map[string]string{"direction": value.Direction})
+							siteLinks.NewChildWithDetail(fmt.Sprintln(key), map[string]string{"peer": value.Peer})
 						}
 					}
 
@@ -197,7 +198,7 @@ func PrintNetworkStatus(currentSite string, currentNetworkStatus *network.Networ
 									links := routerLevel.NewChild("Links:")
 									for _, link := range printableLinks {
 										linkItem := fmt.Sprintf("name:  %s\n", link.Name)
-										detailsLink := map[string]string{"direction": link.Direction}
+										detailsLink := map[string]string{"peer": link.Peer}
 										if link.LinkCost > 0 {
 											detailsLink["cost"] = strconv.FormatUint(link.LinkCost, 10)
 										}
