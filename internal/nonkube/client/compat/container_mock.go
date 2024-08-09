@@ -13,6 +13,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/google/uuid"
 	"github.com/skupperproject/skupper-libpod/v4/client/containers_compat"
+	"github.com/skupperproject/skupper-libpod/v4/client/images_compat"
 	"github.com/skupperproject/skupper-libpod/v4/client/networks_compat"
 	"github.com/skupperproject/skupper-libpod/v4/client/system_compat"
 	"github.com/skupperproject/skupper-libpod/v4/client/volumes_compat"
@@ -40,6 +41,7 @@ func NewCompatClientMock(containers []*container.Container) *CompatClient {
 // performed by the mock implementation.
 type RestClientMock struct {
 	Containers   []*container.Container
+	Images       []*container.Image
 	networks     map[string]*container.Network
 	Volumes      map[string]*container.Volume
 	VolumesFiles map[string]map[string]string
@@ -107,6 +109,8 @@ func (r *RestClientMock) Submit(operation *runtime.ClientOperation) (interface{}
 		res, err = r.HandleSystemInfo(operation, r.ErrorHook)
 	case "ImageCreate":
 		res, err = r.HandleImageCreate(operation, r.ErrorHook)
+	case "ImageList":
+		res, err = r.HandleImageList(operation, r.ErrorHook)
 	case "ContainerList":
 		res, err = r.HandleContainerList(operation, r.ErrorHook)
 	case "ContainerInspect":
@@ -772,7 +776,40 @@ func (r *RestClientMock) HandleImageCreate(operation *runtime.ClientOperation, h
 			return nil, err
 		}
 	}
+	params := operation.Params.(*images_compat.ImageCreateParams)
+	imageName := fmt.Sprintf("%s:%s", *params.FromImage, *params.Tag)
+	for _, img := range r.Images {
+		if img.Id == imageName {
+			return nil, nil
+		}
+	}
+	r.Images = append(r.Images, &container.Image{
+		Id:         imageName,
+		Repository: imageName,
+		Digest:     imageName,
+		Created:    strconv.FormatInt(time.Now().Unix(), 10),
+	})
 	return nil, nil
+}
+
+func (r *RestClientMock) HandleImageList(operation *runtime.ClientOperation, hook func(operation *runtime.ClientOperation) error) (interface{}, error) {
+	if hook != nil {
+		if err := hook(operation); err != nil {
+			return nil, err
+		}
+	}
+	res := new(images_compat.ImageListOK)
+	for _, img := range r.Images {
+		var created int64
+		created, _ = strconv.ParseInt(img.Created, 10, 64)
+		res.Payload = append(res.Payload, &models.ImageSummary{
+			Created:     &created,
+			ID:          &img.Id,
+			RepoDigests: []string{img.Digest},
+			RepoTags:    []string{img.Repository},
+		})
+	}
+	return res, nil
 }
 
 func mockContainers(image string) []*container.Container {
