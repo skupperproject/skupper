@@ -32,6 +32,9 @@ func RedeemAccessToken(claim *skupperv1alpha1.AccessToken, site *skupperv1alpha1
 		Transport: transport,
 	}
 	request, err := http.NewRequest(http.MethodPost, claim.Spec.Url, bytes.NewReader([]byte(claim.Spec.Code)))
+	if err != nil {
+		return err
+	}
 	request.Header.Add("name", claim.Name)
 	request.Header.Add("subject", string(site.ObjectMeta.UID))
 	response, err := client.Do(request)
