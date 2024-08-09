@@ -142,5 +142,5 @@ func UpdateContourProxyService(clients internalclient.Clients, namespace string,
 		return err
 	}
 	_, err = client.Resource(httpProxyResource).Namespace(namespace).Update(context.TODO(), obj, metav1.UpdateOptions{})
-	return nil
+	return err
 }

@@ -100,7 +100,7 @@ func (r *RestClientMock) CleanupMockVolumeDir() error {
 
 func (r *RestClientMock) Submit(operation *runtime.ClientOperation) (interface{}, error) {
 	var res interface{}
-	var err error = nil
+	var err error
 
 	switch operation.ID {
 	case "SystemInfo":

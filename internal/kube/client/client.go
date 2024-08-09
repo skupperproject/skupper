@@ -94,6 +94,9 @@ func NewClient(namespace string, context string, kubeConfigPath string) (*KubeCl
 		return c, err
 	}
 	dc, err := discovery.NewDiscoveryClientForConfig(restconfig)
+	if err != nil {
+		return c, err
+	}
 	resources, err := dc.ServerResourcesForGroupVersion("route.openshift.io/v1")
 	if err == nil && len(resources.APIResources) > 0 {
 		c.Route, err = openshiftroute.NewForConfig(restconfig)

@@ -331,7 +331,7 @@ func (fc *FlowCollector) annotateFlowTrace(flow *FlowRecord) *string {
 }
 
 func (fc *FlowCollector) linkFlowPair(flow *FlowRecord) (*FlowPairRecord, bool) {
-	var sourceSiteId, destSiteId, sourceSiteName, destSiteName string = "", "", "sourceSite", "destSite"
+	var sourceSiteName, destSiteName string = "sourceSite", "destSite"
 	var sourceFlow, destFlow *FlowRecord = nil, nil
 	var ok bool
 
@@ -360,11 +360,11 @@ func (fc *FlowCollector) linkFlowPair(flow *FlowRecord) (*FlowPairRecord, bool) 
 		return nil, false
 	}
 
-	sourceSiteId = fc.getRecordSiteId(*sourceFlow)
+	sourceSiteId := fc.getRecordSiteId(*sourceFlow)
 	if sourceSite, ok := fc.Sites[sourceSiteId]; ok {
 		sourceSiteName = *sourceSite.Name
 	}
-	destSiteId = fc.getRecordSiteId(*destFlow)
+	destSiteId := fc.getRecordSiteId(*destFlow)
 	if destSite, ok := fc.Sites[destSiteId]; ok {
 		destSiteName = *destSite.Name
 	}
