@@ -45,22 +45,34 @@ func TestSelfExtractingBundle_Generate(t *testing.T) {
 		}
 		assert.Equal(t, len(errors), 0, "No errors expected during cleanup, but found: %v", errors)
 	}()
+	var sitePath string
+	var err error
 
-	sitePath, err := fakeSiteCrs(true)
-	assert.Assert(t, err)
-	cleanupPaths = append(cleanupPaths, sitePath)
-	tb := NewTarball()
-	assert.Assert(t, tb.AddFiles(sitePath))
-	assert.Assert(t, b.Generate(tb))
-	cleanupPaths = append(cleanupPaths, b.InstallFile())
-	installFileStat, err := os.Stat(b.InstallFile())
-	assert.Assert(t, err)
-	assert.Assert(t, installFileStat.Mode().IsRegular())
-	assert.Assert(t, installFileStat.Mode().Perm() == os.FileMode(0755))
-	helpCommand := exec.Command(b.InstallFile(), "-h")
-	output, err := helpCommand.CombinedOutput()
-	assert.Assert(t, err != nil)
-	assert.Assert(t, strings.Contains(string(output), fmt.Sprintf("Usage: %s", b.InstallFile())))
+	t.Run("generate-fake-crs", func(t *testing.T) {
+		sitePath, err = fakeSiteCrs(true)
+		assert.Assert(t, err)
+		cleanupPaths = append(cleanupPaths, sitePath)
+	})
+
+	t.Run("generate-self-extracting-bundle", func(t *testing.T) {
+		tb := NewTarball()
+		assert.Assert(t, tb.AddFiles(sitePath))
+		assert.Assert(t, b.Generate(tb))
+		cleanupPaths = append(cleanupPaths, b.InstallFile())
+	})
+
+	t.Run("validate-install-file", func(t *testing.T) {
+		installFileStat, err := os.Stat(b.InstallFile())
+		assert.Assert(t, err)
+		assert.Assert(t, installFileStat.Mode().IsRegular())
+		assert.Assert(t, installFileStat.Mode().Perm() == os.FileMode(0755))
+
+		helpCommand := exec.Command(b.InstallFile(), "-h")
+		output, err := helpCommand.CombinedOutput()
+		assert.Assert(t, err != nil)
+		assert.Assert(t, strings.Contains(string(output), fmt.Sprintf("Usage: %s", b.InstallFile())))
+	})
+
 }
 
 func fakeSiteCrs(routerAccess bool) (string, error) {

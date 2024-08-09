@@ -182,7 +182,6 @@ create_sed_script() {
     # note that this is processed a golang template prior to
     # being inserted into the bundle
     # shellcheck disable=SC1083
-    rm script.sed
     {
         echo "s#{{"{{"}}.SiteNameSuffix{{"}}"}}#${SITE_ID}#g"
         echo "s#{{"{{"}}.Platform{{"}}"}}#${SKUPPER_PLATFORM}#g"
@@ -200,6 +199,7 @@ create_sed_script() {
 
 render_sed_templates() {
     grep -rl '{{"{{"}}' "${SITES_PATH}/${SITE_NAME}" | xargs -r -i sed -f script.sed -i {}
+    rm -f script.sed
 }
 
 show_token_info() {
