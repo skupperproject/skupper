@@ -113,7 +113,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "link access type is not valid",
 			args:  []string{"my-site"},
-			flags: &CreateFlags{linkAccessType: "not-valid"},
+			flags: &CreateFlags{LinkAccessType: "not-valid"},
 			expectedErrors: []string{
 				"link access type is not valid: value not-valid not allowed. It should be one of this options: [route loadbalancer default]",
 				"for the site to work with this type of linkAccess, the --enable-link-access option must be set to true",
@@ -122,7 +122,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "output format is not valid",
 			args:  []string{"my-site"},
-			flags: &CreateFlags{output: "not-valid"},
+			flags: &CreateFlags{Output: "not-valid"},
 			expectedErrors: []string{
 				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 			},
@@ -134,7 +134,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 			command := &CmdSiteCreate{}
 
 			if test.flags != nil {
-				command.flags = *test.flags
+				command.Flags = *test.flags
 			}
 
 			actualErrors := command.ValidateInput(test.args)
@@ -172,7 +172,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 		{
 			name:  "options with link access enabled but using a type by default and link access host specified",
 			args:  []string{"my-site"},
-			flags: CreateFlags{enableLinkAccess: true},
+			flags: CreateFlags{EnableLinkAccess: true},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
@@ -182,7 +182,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 		{
 			name:  "options with link access enabled using the nodeport type",
 			args:  []string{"my-site"},
-			flags: CreateFlags{enableLinkAccess: true, linkAccessType: "nodeport"},
+			flags: CreateFlags{EnableLinkAccess: true, LinkAccessType: "nodeport"},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
@@ -192,7 +192,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 		{
 			name:  "options with link access options not well specified",
 			args:  []string{"my-site"},
-			flags: CreateFlags{enableLinkAccess: false, linkAccessType: "nodeport"},
+			flags: CreateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport"},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
@@ -202,7 +202,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 		{
 			name:  "options output type",
 			args:  []string{"my-site"},
-			flags: CreateFlags{enableLinkAccess: false, linkAccessType: "nodeport", output: "yaml"},
+			flags: CreateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport", Output: "yaml"},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
@@ -214,7 +214,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			cmd := CmdSiteCreate{}
-			cmd.flags = test.flags
+			cmd.Flags = test.flags
 			cmd.siteName = "my-site"
 
 			cmd.InputToOptions()
@@ -389,7 +389,7 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 
 	for _, test := range testTable {
 		command := &CmdSiteCreate{}
-		
+
 		command.siteName = "my-site"
 
 		t.Run(test.name, func(t *testing.T) {

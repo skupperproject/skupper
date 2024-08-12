@@ -11,13 +11,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	siteDeleteLong = `Delete a site by name`
-)
-
 type CmdSiteDelete struct {
 	Client    skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd  cobra.Command
+	CobraCmd  *cobra.Command
 	Namespace string
 	siteName  string
 }
@@ -25,23 +21,6 @@ type CmdSiteDelete struct {
 func NewCmdSiteDelete() *CmdSiteDelete {
 
 	skupperCmd := CmdSiteDelete{}
-
-	cmd := cobra.Command{
-		Use:     "delete",
-		Short:   "Delete a site",
-		Long:    siteDeleteLong,
-		Example: "skupper site delete my-site",
-		PreRun:  skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.Run())
-		},
-		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntil()
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
 
 	return &skupperCmd
 }

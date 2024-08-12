@@ -12,31 +12,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func TestCmdSiteDelete_NewCmdSiteDelete(t *testing.T) {
-
-	t.Run("delete command", func(t *testing.T) {
-
-		result := NewCmdSiteDelete()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-		assert.Check(t, result.CobraCmd.PostRunE != nil)
-		assert.Check(t, result.CobraCmd.Flags() != nil)
-
-	})
-
-}
-
 func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		flags          *CreateFlags
 		expectedErrors []string
 		skupperError   string
 	}

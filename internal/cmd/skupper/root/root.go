@@ -1,6 +1,7 @@
 package root
 
 import (
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/connector"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/link"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/listener"
@@ -10,23 +11,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type SkupperCommand interface {
-	NewClient(cobraCommand *cobra.Command, args []string)
-	AddFlags()
-	ValidateInput(args []string) []error
-	InputToOptions()
-	Run() error
-	WaitUntil() error
+var SelectedNamespace string
+var SelectedContext string
+var KubeConfigPath string
+
+var rootCmd = &cobra.Command{
+	Use:   "skupper",
+	Short: "Skupper is a tool for secure, cross-cluster Kubernetes communication",
+	Long: `Skupper is an open-source tool that enables secure communication across clusters with no VPNs or special firewall rules.
+For more information visit https://skupperproject.github.io/refdog/index.html`,
 }
 
 func NewSkupperRootCommand() *cobra.Command {
-
-	rootCmd := &cobra.Command{
-		Use:   "skupper",
-		Short: "Skupper is a tool for secure, cross-cluster Kubernetes communication",
-		Long: `Skupper is an open-source tool that enables secure communication across clusters with no VPNs or special firewall rules.
-For more information visit https://skupperproject.github.io/refdog/index.html`,
-	}
 
 	rootCmd.AddCommand(site.NewCmdSite())
 	rootCmd.AddCommand(token.NewCmdToken())
@@ -34,7 +30,12 @@ For more information visit https://skupperproject.github.io/refdog/index.html`,
 	rootCmd.AddCommand(link.NewCmdLink())
 	rootCmd.AddCommand(connector.NewCmdConnector())
 
-	rootCmd.PersistentFlags().StringVarP(&config.Platform, "platform", "p", "", "Set the platform type to use [kubernetes, podman, docker, systemd]")
-
 	return rootCmd
+}
+
+func init() {
+	rootCmd.PersistentFlags().StringVarP(&config.Platform, common.FlagNamePlatform, "p", "", common.FlagDescPlatform)
+	rootCmd.PersistentFlags().StringVarP(&SelectedNamespace, common.FlagNameNamespace, "n", "", common.FlagDescNamespace)
+	rootCmd.PersistentFlags().StringVarP(&SelectedContext, common.FlagNameContext, "c", "", common.FlagDescContext)
+	rootCmd.PersistentFlags().StringVarP(&KubeConfigPath, common.FlagNameKubeconfig, "", "", common.FlagDescKubeconfig)
 }

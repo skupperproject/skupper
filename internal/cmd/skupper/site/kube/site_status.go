@@ -13,33 +13,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	siteStatusLong = `Display the current status of a site.`
-)
-
 type CmdSiteStatus struct {
 	Client    skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd  cobra.Command
+	CobraCmd  *cobra.Command
 	Namespace string
 }
 
 func NewCmdSiteStatus() *CmdSiteStatus {
 
 	skupperCmd := CmdSiteStatus{}
-
-	cmd := cobra.Command{
-		Use:     "status",
-		Short:   "Get the site status",
-		Long:    siteStatusLong,
-		Example: "skupper site status",
-		PreRun:  skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.Run())
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
 
 	return &skupperCmd
 }

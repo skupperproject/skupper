@@ -5,6 +5,7 @@ package non_kube
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/site"
@@ -14,21 +15,9 @@ import (
 	"os"
 )
 
-var (
-	siteCreateLong = `A site is a place where components of your application are running. 
-Sites are linked to form application networks. This command will create a file in the specified input path 
-for storing non-kube resources`
-)
-
-type CreateFlags struct {
-	enableLinkAccess bool
-	linkAccessType   string
-	output           string
-}
-
 type CmdSiteCreate struct {
-	CobraCmd       cobra.Command
-	flags          CreateFlags
+	CobraCmd       *cobra.Command
+	Flags          *common.CommandSiteCreateFlags
 	options        map[string]string
 	siteName       string
 	linkAccessType string
@@ -39,37 +28,16 @@ type CmdSiteCreate struct {
 func NewCmdSiteCreate() *CmdSiteCreate {
 
 	options := make(map[string]string)
-	skupperCmd := CmdSiteCreate{options: options, flags: CreateFlags{}}
-
-	cmd := cobra.Command{
-		Use:    "create <name> <input-path>",
-		Short:  "Create a new site",
-		Long:   siteCreateLong,
-		PreRun: skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			skupperCmd.InputToOptions()
-			utils.HandleError(skupperCmd.Run())
-		},
-		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntilReady()
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
-	skupperCmd.AddFlags()
+	skupperCmd := CmdSiteCreate{options: options}
 
 	return &skupperCmd
 }
 
-func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) {}
+func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) {
+	//TODO
+}
 
 func (cmd *CmdSiteCreate) AddFlags() {
-	cmd.CobraCmd.Flags().BoolVar(&cmd.flags.enableLinkAccess, "enable-link-access", false, "allow access for incoming links from remote sites (default: false)")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.linkAccessType, "link-access-type", "", `configure external access for links from remote sites.
-Choices: [route|loadbalancer]. Default: On OpenShift, route is the default; 
-for other Kubernetes flavors, loadbalancer is the default.`)
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
 }
 
 func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
@@ -97,19 +65,19 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		cmd.inputPath = args[1]
 	}
 
-	if cmd.flags.linkAccessType != "" {
-		ok, err := linkAccessTypeValidator.Evaluate(cmd.flags.linkAccessType)
+	if cmd.Flags.LinkAccessType != "" {
+		ok, err := linkAccessTypeValidator.Evaluate(cmd.Flags.LinkAccessType)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("link access type is not valid: %s", err))
 		}
 	}
 
-	if !cmd.flags.enableLinkAccess && len(cmd.flags.linkAccessType) > 0 {
+	if !cmd.Flags.EnableLinkAccess && len(cmd.Flags.LinkAccessType) > 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("for the site to work with this type of linkAccess, the --enable-link-access option must be set to true"))
 	}
 
-	if cmd.flags.output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.flags.output)
+	if cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
@@ -120,11 +88,11 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 
 func (cmd *CmdSiteCreate) InputToOptions() {
 
-	if cmd.flags.enableLinkAccess {
-		if cmd.flags.linkAccessType == "" {
+	if cmd.Flags.EnableLinkAccess {
+		if cmd.Flags.LinkAccessType == "" {
 			cmd.linkAccessType = "default"
 		} else {
-			cmd.linkAccessType = cmd.flags.linkAccessType
+			cmd.linkAccessType = cmd.Flags.LinkAccessType
 		}
 	} else {
 		cmd.linkAccessType = "none"
@@ -135,7 +103,7 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 
 	cmd.options = options
 
-	cmd.output = cmd.flags.output
+	cmd.output = cmd.Flags.Output
 
 }
 
@@ -174,7 +142,7 @@ func (cmd *CmdSiteCreate) Run() error {
 
 }
 
-func (cmd *CmdSiteCreate) WaitUntilReady() error {
+func (cmd *CmdSiteCreate) WaitUntil() error {
 	//TODO check status of the site
 	return nil
 }

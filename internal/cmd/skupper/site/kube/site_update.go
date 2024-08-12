@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
@@ -15,22 +16,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	siteUpdateLong = `Change site settings of a given site.`
-)
-
-type UpdateFlags struct {
-	enableLinkAccess bool
-	linkAccessType   string
-	serviceAccount   string
-	output           string
-}
-
 type CmdSiteUpdate struct {
 	Client             skupperv1alpha1.SkupperV1alpha1Interface
 	KubeClient         kubernetes.Interface
-	CobraCmd           cobra.Command
-	flags              UpdateFlags
+	CobraCmd           *cobra.Command
+	Flags              *common.CommandSiteUpdateFlags
 	options            map[string]string
 	siteName           string
 	serviceAccountName string
@@ -42,25 +32,6 @@ type CmdSiteUpdate struct {
 func NewCmdSiteUpdate() *CmdSiteUpdate {
 
 	skupperCmd := CmdSiteUpdate{}
-
-	cmd := cobra.Command{
-		Use:     "update <name>",
-		Short:   "Change site settings",
-		Long:    siteUpdateLong,
-		Example: "skupper site update my-site --enable-link-access",
-		PreRun:  skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			skupperCmd.InputToOptions()
-			utils.HandleError(skupperCmd.Run())
-		},
-		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntil()
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
-	skupperCmd.AddFlags()
 
 	return &skupperCmd
 }
@@ -75,12 +46,6 @@ func (cmd *CmdSiteUpdate) NewClient(cobraCommand *cobra.Command, args []string) 
 }
 
 func (cmd *CmdSiteUpdate) AddFlags() {
-	cmd.CobraCmd.Flags().BoolVar(&cmd.flags.enableLinkAccess, "enable-link-access", false, "allow access for incoming links from remote sites (default: false)")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.linkAccessType, "link-access-type", "", `configure external access for links from remote sites.
-Choices: [route|loadbalancer]. Default: On OpenShift, route is the default; 
-for other Kubernetes flavors, loadbalancer is the default.`)
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.serviceAccount, "service-account", "", "the Kubernetes service account under which to run the Skupper controller")
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
 }
 
 func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
@@ -118,26 +83,26 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 		}
 	}
 
-	if cmd.flags.linkAccessType != "" {
-		ok, err := linkAccessTypeValidator.Evaluate(cmd.flags.linkAccessType)
+	if cmd.Flags.LinkAccessType != "" {
+		ok, err := linkAccessTypeValidator.Evaluate(cmd.Flags.LinkAccessType)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("link access type is not valid: %s", err))
 		}
 	}
 
-	if !cmd.flags.enableLinkAccess && len(cmd.flags.linkAccessType) > 0 {
+	if !cmd.Flags.EnableLinkAccess && len(cmd.Flags.LinkAccessType) > 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("for the site to work with this type of linkAccess, the --enable-link-access option must be set to true"))
 	}
 
-	if cmd.flags.serviceAccount != "" {
-		svcAccount, err := cmd.KubeClient.CoreV1().ServiceAccounts(cmd.Namespace).Get(context.TODO(), cmd.flags.serviceAccount, metav1.GetOptions{})
+	if cmd.Flags.ServiceAccount != "" {
+		svcAccount, err := cmd.KubeClient.CoreV1().ServiceAccounts(cmd.Namespace).Get(context.TODO(), cmd.Flags.ServiceAccount, metav1.GetOptions{})
 		if err != nil || svcAccount == nil {
 			validationErrors = append(validationErrors, fmt.Errorf("service account name is not valid: %s", err))
 		}
 	}
 
-	if cmd.flags.output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.flags.output)
+	if cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
@@ -146,13 +111,13 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 	return validationErrors
 }
 func (cmd *CmdSiteUpdate) InputToOptions() {
-	cmd.serviceAccountName = cmd.flags.serviceAccount
+	cmd.serviceAccountName = cmd.Flags.ServiceAccount
 
-	if cmd.flags.enableLinkAccess {
-		if cmd.flags.linkAccessType == "" {
+	if cmd.Flags.EnableLinkAccess {
+		if cmd.Flags.LinkAccessType == "" {
 			cmd.linkAccessType = "default"
 		} else {
-			cmd.linkAccessType = cmd.flags.linkAccessType
+			cmd.linkAccessType = cmd.Flags.LinkAccessType
 		}
 	} else {
 		cmd.linkAccessType = "none"
@@ -165,7 +130,7 @@ func (cmd *CmdSiteUpdate) InputToOptions() {
 
 	cmd.options = options
 
-	cmd.output = cmd.flags.output
+	cmd.output = cmd.Flags.Output
 
 }
 func (cmd *CmdSiteUpdate) Run() error {

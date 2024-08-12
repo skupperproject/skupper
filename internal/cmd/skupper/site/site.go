@@ -4,8 +4,8 @@ Copyright © 2024 Skupper Team <skupper@googlegroups.com>
 package site
 
 import (
-	"fmt"
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/site/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/site/non_kube"
 	"github.com/skupperproject/skupper/pkg/config"
@@ -14,15 +14,6 @@ import (
 
 func NewCmdSite() *cobra.Command {
 
-	return NewCmdSiteFactory(config.GetPlatform())
-
-}
-
-var SelectedNamespace string
-var SelectedContext string
-var KubeConfigPath string
-
-func NewCmdSiteFactory(selectedPlatform types.Platform) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "site",
 		Short: "A site is where skupper is deployed and components of your application are running.",
@@ -31,34 +22,105 @@ func NewCmdSiteFactory(selectedPlatform types.Platform) *cobra.Command {
 skupper site status`,
 	}
 
-	switch selectedPlatform {
-	case "kubernetes":
-		return AddKubeSiteCommands(cmd)
-	case "podman", "docker", "systemd":
-		return AddNonKubeSiteCommands(cmd)
-	default:
-		{
-			fmt.Printf("unsupported platform: %s\n", selectedPlatform)
-			return nil
-		}
-	}
-}
+	cmd.AddCommand(CmdSiteCreateFactory(config.GetPlatform()))
+	cmd.AddCommand(CmdSiteUpdateFactory(config.GetPlatform()))
+	cmd.AddCommand(CmdSiteStatusFactory(config.GetPlatform()))
+	cmd.AddCommand(CmdSiteDeleteFactory(config.GetPlatform()))
 
-func AddKubeSiteCommands(cmd *cobra.Command) *cobra.Command {
-
-	cmd.PersistentFlags().StringVarP(&SelectedNamespace, "namespace", "n", "", "Set the namespace")
-	cmd.PersistentFlags().StringVarP(&SelectedContext, "context", "c", "", "Set the kubeconfig context")
-	cmd.PersistentFlags().StringVarP(&KubeConfigPath, "kubeconfig", "", "", "Path to the kubeconfig file to use")
-
-	cmd.AddCommand(&kube.NewCmdSiteCreate().CobraCmd)
-	cmd.AddCommand(&kube.NewCmdSiteStatus().CobraCmd)
-	cmd.AddCommand(&kube.NewCmdSiteUpdate().CobraCmd)
-	cmd.AddCommand(&kube.NewCmdSiteDelete().CobraCmd)
 	return cmd
 }
 
-func AddNonKubeSiteCommands(cmd *cobra.Command) *cobra.Command {
+func CmdSiteCreateFactory(configuredPlatform types.Platform) *cobra.Command {
+	kubeCommand := kube.NewCmdSiteCreate()
+	nonKubeCommand := non_kube.NewCmdSiteCreate()
 
-	cmd.AddCommand(&non_kube.NewCmdSiteCreate().CobraCmd)
+	cmdSiteCreateDesc := common.SkupperCmdDescription{
+		Use:   "create <name>",
+		Short: "Create a new site",
+		Long: `A site is a place where components of your application are running.
+Sites are linked to form application networks.
+There can be only one site definition per namespace.`,
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSiteCreateDesc, kubeCommand, nonKubeCommand)
+
+	cmdFlags := common.CommandSiteCreateFlags{}
+
+	cmd.Flags().BoolVar(&cmdFlags.EnableLinkAccess, common.FlagNameEnableLinkAccess, false, common.FlagDescEnableLinkAccess)
+	cmd.Flags().StringVar(&cmdFlags.LinkAccessType, common.FlagNameLinkAccessType, "", common.FlagDescLinkAccessType)
+	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
+	cmd.Flags().StringVar(&cmdFlags.ServiceAccount, common.FlagNameServiceAccount, "", common.FlagDescServiceAccount)
+
+	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
+	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
+
+	return cmd
+
+}
+
+func CmdSiteUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
+	kubeCommand := kube.NewCmdSiteUpdate()
+	nonKubeCommand := non_kube.NewCmdSiteUpdate()
+
+	cmdSiteUpdateDesc := common.SkupperCmdDescription{
+		Use:     "update <name>",
+		Short:   "Change site settings",
+		Long:    `Change site settings of a given site.`,
+		Example: "skupper site update my-site --enable-link-access",
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSiteUpdateDesc, kubeCommand, nonKubeCommand)
+	cmdFlags := common.CommandSiteUpdateFlags{}
+
+	cmd.Flags().BoolVar(&cmdFlags.EnableLinkAccess, common.FlagNameEnableLinkAccess, false, common.FlagDescEnableLinkAccess)
+	cmd.Flags().StringVar(&cmdFlags.LinkAccessType, common.FlagNameLinkAccessType, "", common.FlagDescLinkAccessType)
+	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
+	cmd.Flags().StringVar(&cmdFlags.ServiceAccount, common.FlagNameServiceAccount, "", common.FlagDescServiceAccount)
+
+	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
+	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
+
+	return cmd
+}
+
+func CmdSiteStatusFactory(configuredPlatform types.Platform) *cobra.Command {
+	kubeCommand := kube.NewCmdSiteStatus()
+	nonKubeCommand := non_kube.NewCmdSiteStatus()
+
+	cmdSiteStatusDesc := common.SkupperCmdDescription{
+		Use:   "status",
+		Short: "Get the site status",
+		Long:  `Display the current status of a site.`,
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSiteStatusDesc, kubeCommand, nonKubeCommand)
+
+	kubeCommand.CobraCmd = cmd
+	nonKubeCommand.CobraCmd = cmd
+
+	return cmd
+
+}
+
+func CmdSiteDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
+	kubeCommand := kube.NewCmdSiteDelete()
+	nonKubeCommand := non_kube.NewCmdSiteDelete()
+
+	cmdSiteDeleteDesc := common.SkupperCmdDescription{
+		Use:     "delete",
+		Short:   "Delete a site",
+		Long:    `Delete a site by name`,
+		Example: "skupper site delete my-site",
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSiteDeleteDesc, kubeCommand, nonKubeCommand)
+
+	kubeCommand.CobraCmd = cmd
+	nonKubeCommand.CobraCmd = cmd
+
 	return cmd
 }
