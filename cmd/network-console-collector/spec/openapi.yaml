@@ -510,7 +510,7 @@ components:
                 message: "site '123' not found"
                 code: "ErrResourceNotFound"
     errorBadRequest:
-      description: resource not found
+      description: bad request
       content:
         application/json:
           schema:
