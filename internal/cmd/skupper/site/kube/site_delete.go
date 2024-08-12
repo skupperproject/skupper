@@ -44,7 +44,7 @@ func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
 	if err != nil {
 		validationErrors = append(validationErrors, err)
 	} else if siteList == nil || (siteList != nil && len(siteList.Items) == 0) {
-		validationErrors = append(validationErrors, fmt.Errorf("there is no existing Skupper site resource to update"))
+		validationErrors = append(validationErrors, fmt.Errorf("there is no existing Skupper site resource to delete"))
 	} else {
 
 		if len(args) > 1 {
