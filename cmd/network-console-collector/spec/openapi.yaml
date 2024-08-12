@@ -863,16 +863,15 @@ components:
       properties:
         identity:
           type: string
+          description: The unique identifier for the record.
         startTime:
           type: integer
           format: uint64
+          description: The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
         endTime:
           type: integer
           format: uint64
-        parent:
-          type: string
-        source:
-          type: string
+          description: The end time in microseconds of the record in Unix timestamp format.
     SiteRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
@@ -886,20 +885,23 @@ components:
             - siteVersion
             - policy
           properties:
-            location:
-              type: string
             provider:
               type: string
+              description: Possible values are 'AWS', 'IBM', 'Azure' ecc.
             platform:
               type: string
+              enum:
+                - kubernetes
+                - podman
+                - docker
+              description: The platform used for the site.
             name:
               type: string
             nameSpace:
               type: string
             siteVersion:
               type: string
-            policy:
-              type: string
+              description: The current skupper version installed.
     ProcessRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
