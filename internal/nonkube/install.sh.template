@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -Ceu
+
 {{.SelfExtractPart}}
 
 # Bundle installation and removal script
