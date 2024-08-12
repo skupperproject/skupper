@@ -33,6 +33,7 @@ if [ "${UID}" -eq 0 ]; then
 fi
 export SITES_PATH="${SKUPPER_OUTPUT_PATH}/sites"
 export PLATFORM_FILE="${SITES_PATH}/${SITE_NAME}/runtime/state/platform.yaml"
+export USER="${USER:-$(id -un)}"
 SITE_ID="$(hostname -s)-${USER}-$(date +%s)"
 export SITE_ID
 
