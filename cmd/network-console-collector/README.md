@@ -15,6 +15,8 @@ stable.
 
 ## API
 
+Status: dev/doc only (server not in full compliance)
+
 The Skupper Network Console HTTP API is described in an openapi 3.0
 specification file inside the `spec` directory. To view the API, either import
 this document into an online swagger editor, or start the collector locally and
@@ -25,9 +27,10 @@ editor)[https://editor-next.swagger.io/], open the editor in your browser, and
 import the spec by URL (File -> Import URL) from
 `https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/network-console-collector/spec/openapi.yaml`.
 
+### Code generation
 
-Adoption of this specification is still a work in progress, the server is not
-presently in full compliance with the document.
+An API server interface is generated based off of the specification. Run `go
+generate .` to update the generated code.
 
 ## Metrics
 

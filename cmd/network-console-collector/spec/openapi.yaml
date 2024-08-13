@@ -872,12 +872,25 @@ components:
           type: integer
           format: uint64
           description: The end time in microseconds of the record in Unix timestamp format.
+    sitePlatformType:
+      type: string
+      description: The platform used for the site.
+      enum:
+        - kubernetes
+        - podman
+        - docker
+        - unknown
+    processBindingType:
+      type: string
+      description: Indicates whether a process is exposed or not in a skupper network
+      enum:
+        - bound
+        - unbound
     SiteRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
-            - location
             - provider
             - platform
             - name
@@ -889,13 +902,7 @@ components:
               type: string
               description: Possible values are 'AWS', 'IBM', 'Azure' ecc. Can be any string or 'unknown'
             platform:
-              type: string
-              enum:
-                - kubernetes
-                - podman
-                - docker
-                - unknown
-              description: The platform used for the site
+              $ref: '#/components/schemas/sitePlatformType'
             name:
               type: string
             nameSpace:
@@ -951,22 +958,20 @@ components:
                 - remote
               description: Internal processes are processes related to Skupper. Remote processes are processes indirectly connected, such as a proxy
             processBinding:
-              type: string
-              enum:
-                - bound
-                - unbound
-              description: Indicates whether a process is exposed or not in a skupper network
+              $ref: '#/components/schemas/processBindingType'
             addresses:
               type: array
               nullable: true
+              description: >-
+                addresses associated with a process in the form `name@identity@protocol`
               items:
                 type: string
-              description: Indicates whether a process is exposed or not in a skupper network
     RouterRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
+            - parent
             - name
             - mode
             - imageName
@@ -974,6 +979,8 @@ components:
             - hostName
             - buildVersion
           properties:
+            parent:
+              type: string
             name:
               type: string
             mode:
@@ -993,12 +1000,15 @@ components:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
+            - parent
             - name
             - destHost
             - destPort
             - protocol
             - address
           properties:
+            parent:
+              type: string
             name:
               type: string
             destHost:
@@ -1016,6 +1026,7 @@ components:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
+            - parent
             - name
             - destHost
             - destPort
@@ -1024,6 +1035,8 @@ components:
             - processId
             - target
           properties:
+            parent:
+              type: string
             name:
               type: string
             destHost:
@@ -1125,6 +1138,7 @@ components:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
+            - parent
             - name
             - linkCost
             - mode
@@ -1132,6 +1146,8 @@ components:
             - sourceSiteId
             - destinationSiteId
           properties:
+            parent:
+              type: string
             name:
               type: string
             linkCost:
@@ -1150,6 +1166,7 @@ components:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
+            - routerId
             - name
             - linkCost
             - role
@@ -1160,6 +1177,8 @@ components:
             - sourceSiteId
             - destinationSiteId
           properties:
+            routerId:
+              type: string
             name:
               type: string
             linkCost:
@@ -1186,10 +1205,13 @@ components:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
+            - routerId
             - name
             - linkCount
             - role
           properties:
+            routerId:
+              type: string
             name:
               type: string
             linkCount:
