@@ -290,7 +290,7 @@ func (m *SecuredAccessManager) CheckRoute(routeKey string, route *routev1.Route)
 	}
 	m.routes[routeKey] = route
 	port := route.Spec.Port.TargetPort.String()
-	key, matched := strings.CutSuffix(routeKey, "-" + port)
+	key, matched := strings.CutSuffix(routeKey, "-"+port)
 	if !matched {
 		log.Printf("Malformed Route name %s for SecuredAccess, expected suffix of %s", routeKey, port)
 		return nil
