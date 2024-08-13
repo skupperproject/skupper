@@ -1,4 +1,4 @@
-package site
+package link
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestCmdSiteFactory(t *testing.T) {
+func TestCmdLinkFactory(t *testing.T) {
 
 	type test struct {
 		name                          string
@@ -20,34 +20,39 @@ func TestCmdSiteFactory(t *testing.T) {
 
 	testTable := []test{
 		{
-			name: "CmdSiteCreateFactory",
+			name: "CmdLinkGenerateFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
-				common.FlagNameEnableLinkAccess: "false",
-				common.FlagNameLinkAccessType:   "",
-				common.FlagNameServiceAccount:   "",
-				common.FlagNameOutput:           "",
+				common.FlagNameTlsSecret:          "",
+				common.FlagNameCost:               "1",
+				common.FlagNameOutput:             "yaml",
+				common.FlagNameGenerateCredential: "true",
+				common.FlagNameTimeout:            "60",
 			},
-			command: CmdSiteCreateFactory(types.PlatformKubernetes),
+			command: CmdLinkGenerateFactory(types.PlatformKubernetes),
 		},
 		{
-			name: "CmdSiteUpdateFactory",
+			name: "CmdLinkUpdateFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
-				common.FlagNameEnableLinkAccess: "false",
-				common.FlagNameLinkAccessType:   "",
-				common.FlagNameServiceAccount:   "",
-				common.FlagNameOutput:           "",
+				common.FlagNameTlsSecret: "",
+				common.FlagNameCost:      "1",
+				common.FlagNameOutput:    "yaml",
+				common.FlagNameTimeout:   "60",
 			},
-			command: CmdSiteUpdateFactory(types.PlatformKubernetes),
+			command: CmdLinkUpdateFactory(types.PlatformKubernetes),
 		},
 		{
-			name:                          "CmdSiteDeleteFactory",
-			expectedFlagsWithDefaultValue: map[string]interface{}{},
-			command:                       CmdSiteDeleteFactory(types.PlatformKubernetes),
+			name: "CmdLinkStatusFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameOutput: "yaml",
+			},
+			command: CmdLinkStatusFactory(types.PlatformKubernetes),
 		},
 		{
-			name:                          "CmdSiteStatusFactory",
-			expectedFlagsWithDefaultValue: map[string]interface{}{},
-			command:                       CmdSiteStatusFactory(types.PlatformKubernetes),
+			name: "CmdLinkDeleteFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameTimeout: "60",
+			},
+			command: CmdLinkDeleteFactory(types.PlatformKubernetes),
 		},
 	}
 
@@ -59,7 +64,7 @@ func TestCmdSiteFactory(t *testing.T) {
 			test.command.Flags().VisitAll(func(flag *pflag.Flag) {
 				flagList = append(flagList, flag.Name)
 				assert.Check(t, test.expectedFlagsWithDefaultValue[flag.Name] != nil, fmt.Sprintf("flag %q not expected", flag.Name))
-				assert.Check(t, test.expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue)
+				assert.Check(t, test.expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue, fmt.Sprintf("default value %q for flag %q not expected", flag.DefValue, flag.Name))
 			})
 
 			assert.Check(t, len(flagList) == len(test.expectedFlagsWithDefaultValue))

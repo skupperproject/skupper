@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -10,28 +11,11 @@ import (
 	"testing"
 )
 
-func TestCmdLinkStatus_NewCmdLinkStatus(t *testing.T) {
-
-	t.Run("link status command", func(t *testing.T) {
-
-		result := NewCmdLinkStatus()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-		assert.Check(t, result.CobraCmd.Flags() != nil)
-
-	})
-
-}
-
 func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 	type test struct {
 		name                string
 		args                []string
-		flags               CmdLinkStatusFlags
+		flags               common.CommandLinkStatusFlags
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
@@ -64,7 +48,7 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 		{
 			name:  "output format is not valid",
 			args:  []string{"my-link"},
-			flags: CmdLinkStatusFlags{output: "not-valid"},
+			flags: common.CommandLinkStatusFlags{Output: "not-valid"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -95,7 +79,7 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 			command, err := newCmdLinkStatusWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
 			assert.Assert(t, err)
 
-			command.flags = test.flags
+			command.Flags = &test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -114,7 +98,7 @@ func TestCmdLinkStatus_InputToOptions(t *testing.T) {
 		cmd, err := newCmdLinkStatusWithMocks("test", nil, nil, "")
 		assert.Assert(t, err)
 
-		cmd.flags.output = "json"
+		cmd.Flags = &common.CommandLinkStatusFlags{"json"}
 
 		cmd.InputToOptions()
 

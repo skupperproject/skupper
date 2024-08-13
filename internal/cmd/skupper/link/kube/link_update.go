@@ -6,6 +6,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -17,22 +18,11 @@ import (
 	"strconv"
 )
 
-var (
-	linkUpdateLong = "Change link settings"
-)
-
-type UpdateLinkFlags struct {
-	tlsSecret string
-	cost      string
-	output    string
-	timeout   string
-}
-
 type CmdLinkUpdate struct {
 	Client     skupperv1alpha1.SkupperV1alpha1Interface
 	KubeClient kubernetes.Interface
-	CobraCmd   cobra.Command
-	flags      UpdateLinkFlags
+	CobraCmd   *cobra.Command
+	Flags      *common.CommandLinkUpdateFlags
 	linkName   string
 	Namespace  string
 	tlsSecret  string
@@ -42,28 +32,7 @@ type CmdLinkUpdate struct {
 }
 
 func NewCmdLinkUpdate() *CmdLinkUpdate {
-
-	skupperCmd := CmdLinkUpdate{flags: UpdateLinkFlags{}}
-
-	cmd := cobra.Command{
-		Use:    "update <name>",
-		Short:  "Change link settings",
-		Long:   linkUpdateLong,
-		PreRun: skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			skupperCmd.InputToOptions()
-			utils.HandleError(skupperCmd.Run())
-		},
-		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntil()
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
-	skupperCmd.AddFlags()
-
-	return &skupperCmd
+	return &CmdLinkUpdate{}
 }
 
 func (cmd *CmdLinkUpdate) NewClient(cobraCommand *cobra.Command, args []string) {
@@ -75,12 +44,7 @@ func (cmd *CmdLinkUpdate) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdLinkUpdate) AddFlags() {
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.tlsSecret, "tls-secret", "t", "", "the name of a Kubernetes secret containing TLS credentials.")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.cost, "cost", "1", "the configured \"expense\" of sending traffic over the link. ")
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.timeout, "timeout", "60", "raise an error if the operation does not complete in the given period of time (expressed in seconds).")
-}
+func (cmd *CmdLinkUpdate) AddFlags() {}
 
 func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 
@@ -107,14 +71,14 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 		cmd.linkName = args[0]
 	}
 
-	if cmd.flags.tlsSecret != "" {
-		secret, err := cmd.KubeClient.CoreV1().Secrets(cmd.Namespace).Get(context.TODO(), cmd.flags.tlsSecret, metav1.GetOptions{})
+	if cmd.Flags.TlsSecret != "" {
+		secret, err := cmd.KubeClient.CoreV1().Secrets(cmd.Namespace).Get(context.TODO(), cmd.Flags.TlsSecret, metav1.GetOptions{})
 		if secret == nil || err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("the TLS secret %q is not available in the namespace: %s", cmd.flags.tlsSecret, err))
+			validationErrors = append(validationErrors, fmt.Errorf("the TLS secret %q is not available in the namespace: %s", cmd.Flags.TlsSecret, err))
 		}
 	}
 
-	selectedCost, err := strconv.Atoi(cmd.flags.cost)
+	selectedCost, err := strconv.Atoi(cmd.Flags.Cost)
 	if err != nil {
 		validationErrors = append(validationErrors, fmt.Errorf("link cost is not valid: %s", err))
 	}
@@ -123,14 +87,14 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("link cost is not valid: %s", err))
 	}
 
-	if cmd.flags.output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.flags.output)
+	if cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
 	}
 
-	selectedTimeout, convErr := strconv.Atoi(cmd.flags.timeout)
+	selectedTimeout, convErr := strconv.Atoi(cmd.Flags.Timeout)
 	if convErr != nil {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", convErr))
 	} else {
@@ -145,10 +109,10 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 
 func (cmd *CmdLinkUpdate) InputToOptions() {
 
-	cmd.cost, _ = strconv.Atoi(cmd.flags.cost)
-	cmd.tlsSecret = cmd.flags.tlsSecret
-	cmd.output = cmd.flags.output
-	cmd.timeout, _ = strconv.Atoi(cmd.flags.timeout)
+	cmd.cost, _ = strconv.Atoi(cmd.Flags.Cost)
+	cmd.tlsSecret = cmd.Flags.TlsSecret
+	cmd.output = cmd.Flags.Output
+	cmd.timeout, _ = strconv.Atoi(cmd.Flags.Timeout)
 
 }
 

@@ -20,6 +20,15 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagDescOutput         = "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml"
 	FlagNameServiceAccount = "service-account"
 	FlagDescServiceAccount = "the Kubernetes service account under which to run the Skupper controller"
+
+	FlagNameTlsSecret          = "tls-secret"
+	FlagDescTlsSecret          = "the name of a Kubernetes secret containing the generated or externally-supplied TLS credentials."
+	FlagNameCost               = "cost"
+	FlagDescCost               = "the configured \"expense\" of sending traffic over the link."
+	FlagNameGenerateCredential = "generate-credential"
+	FlagDescGenerateCredential = "generate the necessary credentials to create the link"
+	FlagNameTimeout            = "timeout"
+	FlagDescTimeout            = "raise an error if the operation does not complete in the given period of time (expressed in seconds)."
 )
 
 type CommandSiteCreateFlags struct {
@@ -34,4 +43,25 @@ type CommandSiteUpdateFlags struct {
 	LinkAccessType   string
 	ServiceAccount   string
 	Output           string
+}
+
+type CommandLinkGenerateFlags struct {
+	TlsSecret          string
+	Cost               string
+	Output             string
+	GenerateCredential bool
+	Timeout            string
+}
+type CommandLinkUpdateFlags struct {
+	TlsSecret string
+	Cost      string
+	Output    string
+	Timeout   string
+}
+
+type CommandLinkDeleteFlags struct {
+	Timeout string
+}
+type CommandLinkStatusFlags struct {
+	Output string
 }

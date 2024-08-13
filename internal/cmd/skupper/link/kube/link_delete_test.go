@@ -1,72 +1,22 @@
 package kube
 
 import (
-	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"testing"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"testing"
 )
-
-func TestCmdLinkDelete_NewCmdLinkDelete(t *testing.T) {
-
-	t.Run("link delete command", func(t *testing.T) {
-
-		result := NewCmdLinkDelete()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-		assert.Check(t, result.CobraCmd.PostRunE != nil)
-		assert.Check(t, result.CobraCmd.Flags() != nil)
-
-	})
-
-}
-
-func TestCmdLinkDelete_AddFlags(t *testing.T) {
-
-	expectedFlagsWithDefaultValue := map[string]interface{}{
-		"timeout": "60",
-	}
-	var flagList []string
-
-	cmd, err := newCmdLinkDeleteWithMocks("test", nil, nil, "")
-	assert.Assert(t, err)
-
-	t.Run("add flags", func(t *testing.T) {
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-		})
-
-		assert.Check(t, len(flagList) == 0)
-
-		cmd.AddFlags()
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] != nil, fmt.Sprintf("flag %q not expected", flag.Name))
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue, fmt.Sprintf("flag %q witn not expected default value %q", flag.Name, flag.DefValue))
-		})
-
-		assert.Check(t, len(flagList) == len(expectedFlagsWithDefaultValue))
-
-	})
-
-}
 
 func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		flags          DeleteLinkFlags
+		flags          common.CommandLinkDeleteFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedErrors []string
@@ -76,13 +26,13 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 		{
 			name:           "there is no active skupper site in this namespace",
 			args:           []string{"my-link"},
-			flags:          DeleteLinkFlags{timeout: "60"},
+			flags:          common.CommandLinkDeleteFlags{Timeout: "60"},
 			expectedErrors: []string{"there is no skupper site in this namespace", "the link \"my-link\" is not available in the namespace"},
 		},
 		{
 			name:  "link is not deleted because it does not exist",
 			args:  []string{"my-link"},
-			flags: DeleteLinkFlags{timeout: "60"},
+			flags: common.CommandLinkDeleteFlags{Timeout: "60"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -100,7 +50,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 		{
 			name:  "more than one argument was specified",
 			args:  []string{"my", "link"},
-			flags: DeleteLinkFlags{timeout: "60"},
+			flags: common.CommandLinkDeleteFlags{Timeout: "60"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -118,7 +68,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 		{
 			name:  "trying to delete without specifying a name",
 			args:  []string{""},
-			flags: DeleteLinkFlags{timeout: "60"},
+			flags: common.CommandLinkDeleteFlags{Timeout: "60"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -136,7 +86,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 		{
 			name:  "link deleted successfully",
 			args:  []string{"my-link"},
-			flags: DeleteLinkFlags{timeout: "60"},
+			flags: common.CommandLinkDeleteFlags{Timeout: "60"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -160,7 +110,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 		{
 			name:  "timeout is not valid because it is negative",
 			args:  []string{"my-link"},
-			flags: DeleteLinkFlags{timeout: "-1"},
+			flags: common.CommandLinkDeleteFlags{Timeout: "-1"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -184,7 +134,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 		{
 			name:  "timeout is not valid because it is zero",
 			args:  []string{"my-link"},
-			flags: DeleteLinkFlags{timeout: "0"},
+			flags: common.CommandLinkDeleteFlags{Timeout: "0"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -208,7 +158,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 		{
 			name:  "timeout is not valid because it is not a number",
 			args:  []string{"my-link"},
-			flags: DeleteLinkFlags{timeout: "one"},
+			flags: common.CommandLinkDeleteFlags{Timeout: "one"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -236,7 +186,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 
 			command, err := newCmdLinkDeleteWithMocks("test", test.k8sObjects, test.skupperObjects, "")
 			assert.Assert(t, err)
-			command.flags = test.flags
+			command.Flags = &test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -252,14 +202,14 @@ func TestCmdLinkDelete_InputToOptions(t *testing.T) {
 
 	type test struct {
 		name            string
-		flags           DeleteLinkFlags
+		flags           common.CommandLinkDeleteFlags
 		expectedTimeout int
 	}
 
 	testTable := []test{
 		{
 			name:            "check options",
-			flags:           DeleteLinkFlags{"60"},
+			flags:           common.CommandLinkDeleteFlags{"60"},
 			expectedTimeout: 60,
 		},
 	}
@@ -269,7 +219,7 @@ func TestCmdLinkDelete_InputToOptions(t *testing.T) {
 
 			cmd, err := newCmdLinkDeleteWithMocks("test", nil, nil, "")
 			assert.Assert(t, err)
-			cmd.flags = test.flags
+			cmd.Flags = &test.flags
 
 			cmd.InputToOptions()
 

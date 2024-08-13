@@ -1,70 +1,17 @@
 package non_kube
 
 import (
-	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 
 	"testing"
 
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
-
-func TestCmdSiteCreate_NewCmdSiteCreate(t *testing.T) {
-
-	t.Run("create command", func(t *testing.T) {
-
-		result := NewCmdSiteCreate()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-		assert.Check(t, result.CobraCmd.PostRunE != nil)
-		assert.Check(t, result.CobraCmd.Flags() != nil)
-
-	})
-
-}
-
-func TestCmdSiteCreate_AddFlags(t *testing.T) {
-
-	expectedFlagsWithDefaultValue := map[string]interface{}{
-		"enable-link-access": "false",
-		"link-access-type":   "",
-		"service-account":    "",
-		"output":             "",
-	}
-	var flagList []string
-
-	cmd := CmdSiteCreate{}
-
-	t.Run("add flags", func(t *testing.T) {
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-		})
-
-		assert.Check(t, len(flagList) == 0)
-
-		cmd.AddFlags()
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] != nil, fmt.Sprintf("flag %q not expected", flag.Name))
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue)
-		})
-
-		assert.Check(t, len(flagList) == len(expectedFlagsWithDefaultValue))
-
-	})
-
-}
 
 func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 	type test struct {
@@ -72,7 +19,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 		args           []string
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		flags          *CreateFlags
+		flags          *common.CommandSiteCreateFlags
 		expectedErrors []string
 	}
 
@@ -113,7 +60,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "link access type is not valid",
 			args:  []string{"my-site"},
-			flags: &CreateFlags{LinkAccessType: "not-valid"},
+			flags: &common.CommandSiteCreateFlags{LinkAccessType: "not-valid"},
 			expectedErrors: []string{
 				"link access type is not valid: value not-valid not allowed. It should be one of this options: [route loadbalancer default]",
 				"for the site to work with this type of linkAccess, the --enable-link-access option must be set to true",
@@ -122,7 +69,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "output format is not valid",
 			args:  []string{"my-site"},
-			flags: &CreateFlags{Output: "not-valid"},
+			flags: &common.CommandSiteCreateFlags{Output: "not-valid"},
 			expectedErrors: []string{
 				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 			},
@@ -134,7 +81,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 			command := &CmdSiteCreate{}
 
 			if test.flags != nil {
-				command.Flags = *test.flags
+				command.Flags = test.flags
 			}
 
 			actualErrors := command.ValidateInput(test.args)
@@ -152,7 +99,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 	type test struct {
 		name               string
 		args               []string
-		flags              CreateFlags
+		flags              common.CommandSiteCreateFlags
 		expectedSettings   map[string]string
 		expectedLinkAccess string
 		expectedOutput     string
@@ -162,7 +109,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 		{
 			name:  "options without link access enabled",
 			args:  []string{"my-site"},
-			flags: CreateFlags{},
+			flags: common.CommandSiteCreateFlags{},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
@@ -172,7 +119,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 		{
 			name:  "options with link access enabled but using a type by default and link access host specified",
 			args:  []string{"my-site"},
-			flags: CreateFlags{EnableLinkAccess: true},
+			flags: common.CommandSiteCreateFlags{EnableLinkAccess: true},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
@@ -182,7 +129,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 		{
 			name:  "options with link access enabled using the nodeport type",
 			args:  []string{"my-site"},
-			flags: CreateFlags{EnableLinkAccess: true, LinkAccessType: "nodeport"},
+			flags: common.CommandSiteCreateFlags{EnableLinkAccess: true, LinkAccessType: "nodeport"},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
@@ -192,7 +139,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 		{
 			name:  "options with link access options not well specified",
 			args:  []string{"my-site"},
-			flags: CreateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport"},
+			flags: common.CommandSiteCreateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport"},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
@@ -202,7 +149,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 		{
 			name:  "options output type",
 			args:  []string{"my-site"},
-			flags: CreateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport", Output: "yaml"},
+			flags: common.CommandSiteCreateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport", Output: "yaml"},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
@@ -214,7 +161,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			cmd := CmdSiteCreate{}
-			cmd.Flags = test.flags
+			cmd.Flags = &test.flags
 			cmd.siteName = "my-site"
 
 			cmd.InputToOptions()
@@ -394,7 +341,7 @@ func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
-			err := command.WaitUntilReady()
+			err := command.WaitUntil()
 
 			if test.expectError {
 				assert.Check(t, err != nil)

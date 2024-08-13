@@ -6,6 +6,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -21,24 +22,11 @@ import (
 	"time"
 )
 
-var (
-	linkGenerateLong = `Generate a new link resource with the data needed from the target site. The resultant
-output needs to be applied in the site in which we want to create the link.`
-)
-
-type GenerateLinkFlags struct {
-	tlsSecret          string
-	cost               string
-	output             string
-	generateCredential bool
-	timeout            string
-}
-
 type CmdLinkGenerate struct {
 	Client             skupperv1alpha1.SkupperV1alpha1Interface
 	KubeClient         kubernetes.Interface
-	CobraCmd           cobra.Command
-	flags              GenerateLinkFlags
+	CobraCmd           *cobra.Command
+	Flags              *common.CommandLinkGenerateFlags
 	linkName           string
 	Namespace          string
 	tlsSecret          string
@@ -52,25 +40,7 @@ type CmdLinkGenerate struct {
 
 func NewCmdLinkGenerate() *CmdLinkGenerate {
 
-	skupperCmd := CmdLinkGenerate{flags: GenerateLinkFlags{}}
-
-	cmd := cobra.Command{
-		Use:    "generate",
-		Short:  "Generate a new link resource in a yaml file",
-		Long:   linkGenerateLong,
-		PreRun: skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			skupperCmd.InputToOptions()
-			utils.HandleError(skupperCmd.Run())
-		},
-		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntil()
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
-	skupperCmd.AddFlags()
+	skupperCmd := CmdLinkGenerate{}
 
 	return &skupperCmd
 }
@@ -85,11 +55,6 @@ func (cmd *CmdLinkGenerate) NewClient(cobraCommand *cobra.Command, args []string
 }
 
 func (cmd *CmdLinkGenerate) AddFlags() {
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.tlsSecret, "tls-secret", "", "the name of a Kubernetes secret containing the generated or externally-supplied TLS credentials.")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.cost, "cost", "1", "the configured \"expense\" of sending traffic over the link. ")
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "yaml", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
-	cmd.CobraCmd.Flags().BoolVar(&cmd.flags.generateCredential, "generate-credential", true, "generate the necessary credentials to create the link")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.timeout, "timeout", "60", "raise an error if the operation does not complete in the given period of time (expressed in seconds).")
 }
 
 func (cmd *CmdLinkGenerate) ValidateInput(args []string) []error {
@@ -120,16 +85,16 @@ func (cmd *CmdLinkGenerate) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("arguments are not allowed in this command"))
 	}
 
-	if cmd.flags.tlsSecret == "" && !cmd.flags.generateCredential {
+	if cmd.Flags.TlsSecret == "" && !cmd.Flags.GenerateCredential {
 		validationErrors = append(validationErrors, fmt.Errorf("the TLS secret name was not specified"))
-	} else if cmd.flags.tlsSecret != "" {
-		ok, err := resourceStringValidator.Evaluate(cmd.flags.tlsSecret)
+	} else if cmd.Flags.TlsSecret != "" {
+		ok, err := resourceStringValidator.Evaluate(cmd.Flags.TlsSecret)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("the name of the tls secret is not valid: %s", err))
 		}
 	}
 
-	selectedCost, err := strconv.Atoi(cmd.flags.cost)
+	selectedCost, err := strconv.Atoi(cmd.Flags.Cost)
 	if err != nil {
 		validationErrors = append(validationErrors, fmt.Errorf("link cost is not valid: %s", err))
 	}
@@ -138,14 +103,14 @@ func (cmd *CmdLinkGenerate) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("link cost is not valid: %s", err))
 	}
 
-	if cmd.flags.output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.flags.output)
+	if cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
 	}
 
-	selectedTimeout, convErr := strconv.Atoi(cmd.flags.timeout)
+	selectedTimeout, convErr := strconv.Atoi(cmd.Flags.Timeout)
 	if convErr != nil {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", convErr))
 	} else {
@@ -160,10 +125,10 @@ func (cmd *CmdLinkGenerate) ValidateInput(args []string) []error {
 
 func (cmd *CmdLinkGenerate) InputToOptions() {
 
-	cmd.cost, _ = strconv.Atoi(cmd.flags.cost)
-	cmd.output = cmd.flags.output
-	cmd.generateCredential = cmd.flags.generateCredential
-	cmd.timeout, _ = strconv.Atoi(cmd.flags.timeout)
+	cmd.cost, _ = strconv.Atoi(cmd.Flags.Cost)
+	cmd.output = cmd.Flags.Output
+	cmd.generateCredential = cmd.Flags.GenerateCredential
+	cmd.timeout, _ = strconv.Atoi(cmd.Flags.Timeout)
 
 	var generatedLinkName string
 	if cmd.activeSite != nil {
@@ -172,10 +137,10 @@ func (cmd *CmdLinkGenerate) InputToOptions() {
 
 	cmd.linkName = generatedLinkName
 
-	if cmd.flags.tlsSecret == "" {
+	if cmd.Flags.TlsSecret == "" {
 		cmd.tlsSecret = generatedLinkName
 	} else {
-		cmd.tlsSecret = cmd.flags.tlsSecret
+		cmd.tlsSecret = cmd.Flags.TlsSecret
 	}
 
 }
