@@ -135,7 +135,7 @@ func fakeSiteState() *apis.SiteState {
 		RouterAccesses: map[string]*v1alpha1.RouterAccess{
 			"link-access-one": {
 				TypeMeta: metav1.TypeMeta{
-					Kind:       "LinkAccess",
+					Kind:       "RouterAccess",
 					APIVersion: "skupper.io/v1alpha1",
 				},
 				ObjectMeta: metav1.ObjectMeta{

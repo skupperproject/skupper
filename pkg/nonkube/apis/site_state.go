@@ -80,7 +80,7 @@ func (s *SiteState) CreateRouterAccess(name string, port int) {
 	s.RouterAccesses[name] = &v1alpha1.RouterAccess{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v1alpha1",
-			Kind:       "LinkAccess",
+			Kind:       "RouterAccess",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
