@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1243,12 +1244,17 @@ func asConnector(record Record) Connector {
 	}
 }
 
+func asInt32(s string) int32 {
+	ival, _ := strconv.Atoi(s)
+	return int32(ival)
+}
+
 func asListener(record Record) Listener {
 	return Listener{
 		Name:             record.AsString("name"),
 		Role:             asRole(record.AsString("role")),
 		Host:             record.AsString("host"),
-		Port:             int32(record.AsInt("port")),
+		Port:             asInt32(record.AsString("port")),
 		Cost:             int32(record.AsInt("cost")),
 		LinkCapacity:     int32(record.AsInt("linkCapacity")),
 		AuthenticatePeer: record.AsBool("authenticatePeer"),
@@ -1383,7 +1389,7 @@ func asListenerRecord(listener Listener) Record {
 	record["name"] = listener.Name
 	record["role"] = string(listener.Role)
 	record["host"] = listener.Host
-	record["port"] = listener.Port
+	record["port"] = strconv.Itoa(int(listener.Port))
 	if listener.Cost > 0 {
 		record["cost"] = listener.Cost
 	}

@@ -1130,11 +1130,32 @@ type ListenerDifference struct {
 	Added   []Listener
 }
 
+func (desired Listener) Equivalent(actual Listener) bool {
+	return desired.Name == actual.Name &&
+		desired.Role == actual.Role &&
+		desired.Host == actual.Host &&
+		desired.Port == actual.Port &&
+		desired.RouteContainer == actual.RouteContainer &&
+		desired.Http == actual.Http &&
+		desired.SslProfile == actual.SslProfile &&
+		desired.SaslMechanisms == actual.SaslMechanisms &&
+		desired.AuthenticatePeer == actual.AuthenticatePeer &&
+		(desired.Cost == 0 || desired.Cost == actual.Cost) &&
+		(desired.MaxFrameSize == 0 || desired.MaxFrameSize == actual.MaxFrameSize) &&
+		(desired.MaxSessionFrames == 0 || desired.MaxSessionFrames == actual.MaxSessionFrames) &&
+		(desired.LinkCapacity == 0 || desired.LinkCapacity == actual.LinkCapacity) &&
+		(desired.HttpRootDir == "" || desired.HttpRootDir == actual.HttpRootDir)
+	//Skip check for Websockets, Healthz and Metrics as they are
+	//always coming back as true at present and are not used where
+	//this method is required at present.
+}
+
 func ListenersDifference(actual map[string]Listener, desired map[string]Listener) *ListenerDifference {
 	result := ListenerDifference{}
 	for key, desiredValue := range desired {
 		if actualValue, ok := actual[key]; ok {
-			if actualValue != desiredValue {
+			if !desiredValue.Equivalent(actualValue) {
+				log.Printf("Listener definition does not match. Have %v want %v", actualValue, desiredValue)
 				// handle change as delete then add, so it also works over management protocol
 				result.Deleted = append(result.Deleted, desiredValue)
 				result.Added = append(result.Added, desiredValue)
