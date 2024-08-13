@@ -49,6 +49,12 @@ func run(cfg Config) error {
 
 	var mux = mux.NewRouter().StrictSlash(true)
 
+	specFS, err := getSpecFS()
+	if err != nil {
+		return fmt.Errorf("could not load spec filesystem: %s", err)
+	}
+	mux.PathPrefix("/swagger").Handler(http.StripPrefix("/swagger", http.FileServer(http.FS(specFS))))
+
 	var api = mux.PathPrefix("/api").Subrouter()
 	api.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)

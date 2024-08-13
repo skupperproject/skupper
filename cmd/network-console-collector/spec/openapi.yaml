@@ -1,0 +1,1187 @@
+openapi: 3.0.0
+info:
+  contact:
+    url: https://skupper.io/
+  description: >-
+    The Skupper network console collector exposes a read only HTTP API. This
+    API is used by the network console frontend to display information about a
+    skupper netwrok.
+  title: Skupper Network Console HTTP API.
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  version: 0.0.1
+
+paths:
+  /api/v1alpha1/sites/:
+    get:
+      tags: [site]
+      operationId: sites
+      responses:
+        '200':
+          $ref: '#/components/responses/getSites'
+        '400':
+          $ref: '#/components/responses/errorBadRequest'
+  /api/v1alpha1/sites/{id}/:
+    get:
+      tags: [site]
+      operationId: siteById
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getSiteByID'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/processes/:
+    get:
+      tags: [process]
+      operationId: processes
+      responses:
+        '200':
+          $ref: '#/components/responses/getProcesses'
+        '400':
+          $ref: '#/components/responses/errorBadRequest'
+  /api/v1alpha1/processes/{id}/:
+    get:
+      tags: [process]
+      operationId: processById
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getProcessByID'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/routers/:
+    get:
+      tags: [router]
+      operationId: routers
+      responses:
+        '200':
+          $ref: '#/components/responses/getRouters'
+        '400':
+          $ref: '#/components/responses/errorBadRequest'
+  /api/v1alpha1/routers/{id}/:
+    get:
+      tags: [router]
+      operationId: routerByID
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getRouterByID'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/listeners/:
+    get:
+      tags: [listener]
+      operationId: listeners
+      responses:
+        '200':
+          $ref: '#/components/responses/getListeners'
+        '400':
+          $ref: '#/components/responses/errorBadRequest'
+  /api/v1alpha1/listeners/{id}/:
+    get:
+      tags: [listener]
+      operationId: listenerByID
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getListenerByID'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/connectors/:
+    get:
+      tags: [connector]
+      operationId: connectors
+      responses:
+        '200':
+          $ref: '#/components/responses/getConnectors'
+        '400':
+          $ref: '#/components/responses/errorBadRequest'
+  /api/v1alpha1/connectors/{id}/:
+    get:
+      tags: [connector]
+      operationId: connectorByID
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getConnectorByID'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/addresses/:
+    get:
+      tags: [address]
+      operationId: addresses
+      responses:
+        '200':
+          $ref: '#/components/responses/getAddresses'
+        '400':
+          $ref: '#/components/responses/errorBadRequest'
+  /api/v1alpha1/addresses/{id}/:
+    get:
+      tags: [address]
+      operationId: addressByID
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getAddressByID'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/processgroups/:
+    get:
+      tags: ["process group"]
+      operationId: processgroups
+      responses:
+        '200':
+          $ref: '#/components/responses/getProcessGroups'
+        '400':
+          $ref: '#/components/responses/errorBadRequest'
+  /api/v1alpha1/processgroups/{id}/:
+    get:
+      tags: ["process group"]
+      operationId: processgroupByID
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getProcessGroupByID'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/sitepairs/:
+    get:
+      tags: ["flow aggregate"]
+      operationId: sitepairs
+      responses:
+        '200':
+          $ref: '#/components/responses/getFlowAggregates'
+        '400':
+          $ref: '#/components/responses/errorBadRequest'
+  /api/v1alpha1/sitepairs/{id}/:
+    get:
+      tags: ["flow aggregate"]
+      operationId: sitepairByID
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getFlowAggregateByID'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/processgrouppairs/:
+    get:
+      tags: ["flow aggregate"]
+      operationId: processgrouppairs
+      responses:
+        '200':
+          $ref: '#/components/responses/getFlowAggregates'
+        '400':
+          $ref: '#/components/responses/errorBadRequest'
+  /api/v1alpha1/processgrouppairs/{id}/:
+    get:
+      tags: ["flow aggregate"]
+      operationId: processgrouppairByID
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getFlowAggregateByID'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/processpairs/:
+    get:
+      tags: ["flow aggregate"]
+      operationId: processpairs
+      responses:
+        '200':
+          $ref: '#/components/responses/getFlowAggregates'
+        '400':
+          $ref: '#/components/responses/errorBadRequest'
+  /api/v1alpha1/processpairs/{id}/:
+    get:
+      tags: ["flow aggregate"]
+      operationId: processpairByID
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getFlowAggregateByID'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/routerlinks/:
+    get:
+      tags: [link]
+      operationId: routerlinks
+      responses:
+        '200':
+          $ref: '#/components/responses/getRouterLinks'
+        '400':
+          $ref: '#/components/responses/errorBadRequest'
+  /api/v1alpha1/routerlinks/{id}/:
+    get:
+      tags: [link]
+      operationId: routerlinkByID
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getRouterLinkByID'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/routeraccess/:
+    get:
+      tags: [link]
+      operationId: routeraccess
+      responses:
+        '200':
+          $ref: '#/components/responses/getRouterAccess'
+        '400':
+          $ref: '#/components/responses/errorBadRequest'
+  /api/v1alpha1/routeraccess/{id}/:
+    get:
+      tags: [link]
+      operationId: routeraccessByID
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getRouterAccessByID'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/links/:
+    get:
+      tags: [link]
+      deprecated: true
+      operationId: links
+      responses:
+        '200':
+          $ref: '#/components/responses/getLinks'
+        '400':
+          $ref: '#/components/responses/errorBadRequest'
+  /api/v1alpha1/links/{id}/:
+    get:
+      tags: [link]
+      deprecated: true
+      operationId: linkByID
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getLinkByID'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/hosts/:
+    get:
+      tags: [deprecated]
+      deprecated: true
+      operationId: hosts
+      responses:
+        '410':
+          $ref: '#/components/responses/notSupported'
+  /api/v1alpha1/hosts/{id}/:
+    get:
+      tags: [deprecated]
+      deprecated: true
+      operationId: hostsByID
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/notSupported'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+
+  /api/v1alpha1/sites/{id}/processes/:
+    get:
+      tags: [site, process]
+      operationId: processesBySite
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getProcesses'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/listeners/{id}/flows:
+    get:
+      tags: [listener]
+      deprecated: true
+      operationId: flowsByListener
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '410':
+          $ref: '#/components/responses/notSupported'
+  /api/v1alpha1/sites/{id}/routers/:
+    get:
+      tags: [site, router]
+      operationId: routersBySite
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getRouters'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/sites/{id}/flows/:
+    get:
+      tags: [site]
+      operationId: flowsBySite
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '410':
+          $ref: '#/components/responses/notSupported'
+  /api/v1alpha1/sites/{id}/hosts/:
+    get:
+      tags: [site]
+      operationId: hostsBySite
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '410':
+          $ref: '#/components/responses/notSupported'
+  /api/v1alpha1/sites/{id}/links/:
+    get:
+      tags: [site]
+      operationId: linksBySite
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '410':
+          $ref: '#/components/responses/notSupported'
+  /api/v1alpha1/routers/{id}/listeners/:
+    get:
+      tags: [listener, router]
+      operationId: listenersByRouter
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getListeners'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/routers/{id}/connectors/:
+    get:
+      tags: [listener, router]
+      operationId: connectorsByRouter
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getConnectors'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/routers/{id}/flows/:
+    get:
+      tags: [router]
+      operationId: flowsByRouter
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '410':
+          $ref: '#/components/responses/notSupported'
+  /api/v1alpha1/routers/{id}/links/:
+    get:
+      tags: [router]
+      operationId: linksByRouter
+      deprecated: true
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '410':
+          $ref: '#/components/responses/notSupported'
+  /api/v1alpha1/processes/{id}/addresses/:
+    get:
+      tags: [address, process]
+      operationId: addressesByProcess
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getAddresses'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/processes/{id}/connector/:
+    get:
+      tags: [address, process]
+      operationId: connectorByProcess
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getConnectorByID'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/addresses/{id}/processes/:
+    get:
+      tags: [address, process]
+      operationId: processesByAddress
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getProcesses'
+        '400':
+          $ref: '#/components/responses/errorBadRequest'
+  /api/v1alpha1/addresses/{id}/listeners/:
+    get:
+      tags: [address, listener]
+      operationId: listenersByAddress
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getListeners'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/addresses/{id}/connectors/:
+    get:
+      tags: [address, connector]
+      operationId: connectorsByAddress
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getConnectors'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/addresses/{id}/processpairs/:
+    get:
+      tags: [address, "flow aggregate"]
+      operationId: processPairsByAddress
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getFlowAggregates'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/processgroups/{id}/processes/:
+    get:
+      tags: ["process group"]
+      operationId: processesByProcessGroup
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getProcesses'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
+
+components:
+  parameters:
+    pathID:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+  responses:
+    notSupported:
+      description: response from unsupported endpoint
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            deprecated:
+              value:
+                message: "the 'utils' endpoint has been deprecated and will not be replaced."
+                code: "ErrDeprecated"
+    errorNotFound:
+      description: resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            notfound:
+              value:
+                message: "site '123' not found"
+                code: "ErrResourceNotFound"
+    errorBadRequest:
+      description: bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    getSites:
+      description: response with a list of sites
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SiteListResponse'
+    getRouters:
+      description: response with a list of routers
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RouterListResponse'
+    getProcesses:
+      description: response with a list of processes
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProcessListResponse'
+    getListeners:
+      description: response with a list of listeners
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ListenerListResponse'
+    getConnectors:
+      description: response with a list of connectors
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ConnectorListResponse'
+    getAddresses:
+      description: response with a list of addresses
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AddressListResponse'
+    getProcessGroups:
+      description: response with a list of process groups
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProcessGroupListResponse'
+    getFlowAggregates:
+      description: response with a list of flow aggregates
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FlowAggregateListResponse'
+    getLinks:
+      description: response with a list of links
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/LinkListResponse'
+    getRouterLinks:
+      description: response with a list of router links
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RouterLinkListResponse'
+    getRouterAccess:
+      description: response with a list of router access
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RouterAccessListResponse'
+    getSiteByID:
+      description: response with a single site
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SiteResponse'
+    getProcessByID:
+      description: response with a single process
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProcessResponse'
+    getRouterByID:
+      description: response with a single router
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RouterResponse'
+    getListenerByID:
+      description: response with a single listener
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ListenerResponse'
+    getConnectorByID:
+      description: response with a single connector
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ConnectorResponse'
+    getAddressByID:
+      description: response with a single address
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AddressResponse'
+    getProcessGroupByID:
+      description: response with a single process group
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProcessGroupResponse'
+    getFlowAggregateByID:
+      description: response with a single flow aggregate
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FlowAggregateResponse'
+    getLinkByID:
+      description: response with a single link
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/LinkResponse'
+    getRouterLinkByID:
+      description: response with a single router link
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RouterLinkResponse'
+    getRouterAccessByID:
+      description: response with a single router link
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RouterAccessResponse'
+  schemas:
+    collectionResponse:
+      type: object
+      required:
+        - count
+        - timeRangeCount
+      properties:
+        count:
+          type: integer
+          format: int64
+          default: 0
+          minimum: 0
+          description: number of results in response
+        timeRangeCount:
+          type: integer
+          format: int64
+          default: 0
+          minimum: 0
+          description: >-
+            number of results matching filtering and time range constraints before
+            any limit or offset is applied.
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+    SiteResponse:
+        type: object
+        required: [results]
+        properties:
+          results:
+            $ref: '#/components/schemas/SiteRecord' 
+    SiteListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/SiteRecord'
+    ProcessResponse:
+        type: object
+        required: [results]
+        properties:
+          results:
+            $ref: '#/components/schemas/ProcessRecord' 
+    ProcessListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProcessRecord'
+    ListenerResponse:
+        type: object
+        required: [results]
+        properties:
+          results:
+            $ref: '#/components/schemas/ListenerRecord'
+    ListenerListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/ListenerRecord'
+    ConnectorResponse:
+        type: object
+        required: [results]
+        properties:
+          results:
+            $ref: '#/components/schemas/ConnectorRecord'
+    ConnectorListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/ConnectorRecord'
+    RouterListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/RouterRecord'
+    RouterResponse:
+        type: object
+        required: [results]
+        properties:
+          results:
+            $ref: '#/components/schemas/RouterRecord'
+    AddressListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/AddressRecord'
+    AddressResponse:
+        type: object
+        required: [results]
+        properties:
+          results:
+            $ref: '#/components/schemas/AddressRecord'
+    ProcessGroupListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProcessGroupRecord'
+    ProcessGroupResponse:
+        type: object
+        required: [results]
+        properties:
+          results:
+            $ref: '#/components/schemas/ProcessGroupRecord'
+    FlowAggregateListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/FlowAggregateRecord'
+    FlowAggregateResponse:
+        type: object
+        required: [results]
+        properties:
+          results:
+            $ref: '#/components/schemas/FlowAggregateRecord'
+    LinkListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/LinkRecord'
+    LinkResponse:
+        type: object
+        required: [results]
+        properties:
+          results:
+            $ref: '#/components/schemas/LinkRecord'
+    RouterLinkListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/RouterLinkRecord'
+    RouterLinkResponse:
+        type: object
+        required: [results]
+        properties:
+          results:
+            $ref: '#/components/schemas/RouterLinkRecord'
+    RouterAccessListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/RouterAccessRecord'
+    RouterAccessResponse:
+        type: object
+        required: [results]
+        properties:
+          results:
+            $ref: '#/components/schemas/RouterAccessRecord'
+    baseRecord:
+      type: object
+      required:
+        - identity
+        - startTime
+        - endTime
+      properties:
+        identity:
+          type: string
+          description: The unique identifier for the record.
+        startTime:
+          type: integer
+          format: uint64
+          description: The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
+        endTime:
+          type: integer
+          format: uint64
+          description: The end time in microseconds of the record in Unix timestamp format.
+    SiteRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          required:
+            - location
+            - provider
+            - platform
+            - name
+            - nameSpace
+            - siteVersion
+            - policy
+          properties:
+            provider:
+              type: string
+              description: Possible values are 'AWS', 'IBM', 'Azure' ecc.
+            platform:
+              type: string
+              enum:
+                - kubernetes
+                - podman
+                - docker
+              description: The platform used for the site.
+            name:
+              type: string
+            nameSpace:
+              type: string
+            siteVersion:
+              type: string
+              description: The current skupper version installed.
+    ProcessRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          properties:
+            name:
+              type: string
+            parentName:
+              type: string
+            imageName:
+              type: string
+            image:
+              type: string
+            groupName:
+              type: string
+            groupIdentity:
+              type: string
+            hostName:
+              type: string
+            sourceHost:
+              type: string
+            processRole:
+              type: string
+            processBinding:
+              type: string
+            addresses:
+              type: array
+              items:
+                type: string
+    RouterRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          required:
+            - name
+            - mode
+            - imageName
+            - imageVersion
+            - hostName
+            - buildVersion
+          properties:
+            name:
+              type: string
+            mode:
+              type: string
+            namespace:
+              type: string
+            imageName:
+              type: string
+            imageVersion:
+              type: string
+            hostName:
+              type: string
+            buildVersion:
+              type: string
+    ListenerRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          required:
+            - name
+            - destHost
+            - destPort
+            - protocol
+            - address
+          properties:
+            name:
+              type: string
+            destHost:
+              type: string
+            destPort:
+              type: string
+            protocol:
+              type: string
+            address:
+              type: string
+            addressId:
+              type: string
+    ConnectorRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          required:
+            - name
+            - destHost
+            - destPort
+            - protocol
+            - address
+            - processId
+            - target
+          properties:
+            name:
+              type: string
+            destHost:
+              type: string
+            destPort:
+              type: string
+            protocol:
+              type: string
+            address:
+              type: string
+            addressId:
+              type: string
+            processId:
+              type: string
+            target:
+              type: string
+    AddressRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          required:
+            - name
+            - protocol
+            - listenerCount
+            - connectorCount
+          properties:
+            name:
+              type: string
+            protocol:
+              type: string
+            listenerCount:
+              type: integer
+            connectorCount:
+              type: integer
+    ProcessGroupRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          required:
+            - name
+            - processGroupRole
+            - processCount
+          properties:
+            name:
+              type: string
+            processGroupRole:
+              type: string
+            processCount:
+              type: integer
+    flowAggregatePairType:
+      type: string
+      enum:
+        - SITE
+        - PROCESS
+        - PROCESS_GROUP
+    FlowAggregateRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          required:
+            - pairType
+            - recordCount
+            - sourceId
+            - destinationId
+            - sourceName
+            - destinationName
+            - protocol
+          properties:
+            pairType:
+              $ref: '#/components/schemas/flowAggregatePairType'
+            recordCount:
+              type: integer
+              format: uint64
+            sourceId:
+              type: string
+            destinationId:
+              type: string
+            sourceName:
+              type: string
+            destinationName:
+              type: string
+            sourceSiteId:
+              type: string
+            destinationSiteId:
+              type: string
+            sourceSiteName:
+              type: string
+            destinationSiteName:
+              type: string
+            protocol:
+              type: string
+    operStatusType:
+      type: string
+      enum:
+        - up
+        - down
+    LinkRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          required:
+            - name
+            - linkCost
+            - mode
+            - direction
+            - sourceSiteId
+            - destinationSiteId
+          properties:
+            name:
+              type: string
+            linkCost:
+              type: integer
+              format: uint64
+            mode:
+              type: string
+            direction:
+              type: string
+            sourceSiteId:
+              type: string
+            destinationSiteId:
+              type: string
+    RouterLinkRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          required:
+            - name
+            - linkCost
+            - role
+            - peer
+            - status
+            - octets
+            - octetsReverse
+            - sourceSiteId
+            - destinationSiteId
+          properties:
+            name:
+              type: string
+            linkCost:
+              type: integer
+              format: uint64
+            role:
+              type: string
+            peer:
+              type: string
+            status:
+              $ref: '#/components/schemas/operStatusType'
+            octets:
+              type: integer
+              format: uint64
+            octetsReverse:
+              type: integer
+              format: uint64
+            sourceSiteId:
+              type: string
+            destinationSiteId:
+              type: string
+    RouterAccessRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          required:
+            - name
+            - linkCount
+            - role
+          properties:
+            name:
+              type: string
+            linkCount:
+              type: integer
+              format: uint64
+            role:
+              type: string
+tags:
+  - name: site
+    description: requests involving Site records
+  - name: process
+    description: requests involving Process records
+  - name: router
+    description: requests involving Router records
+  - name: listener
+    description: requests involving Listener records
+  - name: connector
+    description: requests involving Connector records
+  - name: address
+    description: requests involving Address records
+  - name: process group
+    description: requests involving ProcessGroup records
+  - name: flow aggregate
+    description: >
+      requests involving flow aggregates:
+      pairs of peers communicating through the skupper network
