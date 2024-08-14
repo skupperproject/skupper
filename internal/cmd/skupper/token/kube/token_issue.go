@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"os"
 	"time"
 
@@ -16,21 +17,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	tokenIssueLong    = "Issue a token file redeemable for a link to the current site."
-	tokenIssueExample = "skupper token issue tokenName ~/token1.yaml"
-)
-
-type TokenIssue struct {
-	timeout     time.Duration
-	expiration  time.Duration
-	redemptions int
-}
-
 type CmdTokenIssue struct {
 	client    skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd  cobra.Command
-	flags     TokenIssue
+	CobraCmd  *cobra.Command
+	Flags     *common.CommandTokenIssueFlags
 	namespace string
 	grantName string
 	fileName  string
@@ -38,27 +28,8 @@ type CmdTokenIssue struct {
 
 func NewCmdTokenIssue() *CmdTokenIssue {
 
-	skupperCmd := CmdTokenIssue{}
+	return &CmdTokenIssue{}
 
-	cmd := cobra.Command{
-		Use:     "issue <name> <fileName>",
-		Short:   "issue a token",
-		Long:    tokenIssueLong,
-		Example: tokenIssueExample,
-		PreRun:  skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.Run())
-		},
-		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntil()
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
-	skupperCmd.AddFlags()
-
-	return &skupperCmd
 }
 
 func (cmd *CmdTokenIssue) NewClient(cobraCommand *cobra.Command, args []string) {
@@ -69,11 +40,7 @@ func (cmd *CmdTokenIssue) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.namespace = cli.Namespace
 }
 
-func (cmd *CmdTokenIssue) AddFlags() {
-	cmd.CobraCmd.Flags().IntVarP(&cmd.flags.redemptions, "redemptions-allowed", "r", 1, "The number of times an access token for this grant can be redeemed.")
-	cmd.CobraCmd.Flags().DurationVarP(&cmd.flags.expiration, "expiration-window", "e", 15*time.Minute, "The period of time in which an access token for this grant can be redeeme.")
-	cmd.CobraCmd.Flags().DurationVarP(&cmd.flags.timeout, "timeout", "t", 60*time.Second, "Raise an error if the operation does not complete in the given period of time.")
-}
+func (cmd *CmdTokenIssue) AddFlags() {}
 
 func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 	var validationErrors []error
@@ -125,17 +92,17 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 
 	// Validate flags
 	//TBD is there a limit to number of redemptions
-	if cmd.flags.redemptions < 1 {
+	if cmd.Flags.RedemptionsAllowed < 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("number of redemptions is not valid"))
 	}
 
 	//TBD what is valid times
-	if cmd.flags.expiration <= 0*time.Minute {
+	if cmd.Flags.ExpirationWindow <= 0*time.Minute {
 		validationErrors = append(validationErrors, fmt.Errorf("expiration time is not valid"))
 	}
 
-	//TBD what is valid timeout
-	if cmd.flags.timeout <= 0*time.Minute {
+	//TBD what is valid timeout --> use timeoutValidator
+	if cmd.Flags.Timeout <= 0*time.Minute {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
 	}
 
@@ -152,8 +119,8 @@ func (cmd *CmdTokenIssue) Run() error {
 			Name: cmd.grantName,
 		},
 		Spec: v1alpha1.AccessGrantSpec{
-			RedemptionsAllowed: cmd.flags.redemptions,
-			ExpirationWindow:   cmd.flags.expiration.String(),
+			RedemptionsAllowed: cmd.Flags.RedemptionsAllowed,
+			ExpirationWindow:   cmd.Flags.ExpirationWindow.String(),
 		},
 	}
 
@@ -163,7 +130,7 @@ func (cmd *CmdTokenIssue) Run() error {
 }
 
 func (cmd *CmdTokenIssue) WaitUntil() error {
-	err := utils.NewSpinnerWithTimeout("Waiting for token status ...", int(cmd.flags.timeout.Seconds()), func() error {
+	err := utils.NewSpinnerWithTimeout("Waiting for token status ...", int(cmd.Flags.Timeout.Seconds()), func() error {
 
 		accessGrant, err := cmd.client.AccessGrants(cmd.namespace).Get(context.TODO(), cmd.grantName, metav1.GetOptions{})
 		if err != nil {
@@ -212,7 +179,7 @@ func (cmd *CmdTokenIssue) WaitUntil() error {
 	fmt.Printf("\nTransfer this file to a remote site. At the remote site,\n")
 	fmt.Printf("create a link to this site using the \"skupper token redeem\" command:\n")
 	fmt.Printf("\n\tskupper token redeem <file>\n")
-	fmt.Printf("\nThe token expires after %d use(s) or after %s.\n", cmd.flags.redemptions, cmd.flags.expiration.String())
+	fmt.Printf("\nThe token expires after %d use(s) or after %s.\n", cmd.Flags.RedemptionsAllowed, cmd.Flags.ExpirationWindow.String())
 	return nil
 }
 

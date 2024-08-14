@@ -2,6 +2,7 @@ package kube
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"os"
 	"testing"
 	"time"
@@ -10,7 +11,6 @@ import (
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/scheme"
-	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,62 +18,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 )
 
-func TestCmdTokenRedeem_NewCmdTokenRedeem(t *testing.T) {
-
-	t.Run("connector command", func(t *testing.T) {
-
-		result := NewCmdTokenRedeem()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.Example != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-		assert.Check(t, result.CobraCmd.PostRunE != nil)
-		assert.Check(t, result.CobraCmd.Flags() != nil)
-	})
-
-}
-
-func TestCmdTokenRedeem_AddFlags(t *testing.T) {
-
-	expectedFlagsWithDefaultValue := map[string]interface{}{
-		"timeout": "1m0s",
-	}
-	var flagList []string
-
-	cmd, err := newCmdTokenRedeemWithMocks("test", nil, nil, "")
-	assert.Assert(t, err)
-
-	t.Run("add flags", func(t *testing.T) {
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-		})
-
-		assert.Check(t, len(flagList) == 0)
-
-		cmd.AddFlags()
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] != nil)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue)
-
-		})
-
-		assert.Check(t, len(flagList) == len(expectedFlagsWithDefaultValue))
-
-	})
-
-}
-
 func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		flags          TokenRedeem
+		flags          common.CommandTokenRedeemFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedErrors []string
@@ -89,13 +38,13 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 		{
 			name:           "token no site",
 			args:           []string{"/tmp/token-redeem.yaml"},
-			flags:          TokenRedeem{timeout: 60 * time.Second},
+			flags:          common.CommandTokenRedeemFlags{Timeout: 60 * time.Second},
 			expectedErrors: []string{"A site must exist in namespace test before a token can be redeemed"},
 		},
 		{
 			name:  "token not site ok",
 			args:  []string{"/tmp/token-redeem.yaml"},
-			flags: TokenRedeem{timeout: 60 * time.Second},
+			flags: common.CommandTokenRedeemFlags{Timeout: 60 * time.Second},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -118,7 +67,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 		{
 			name:  "file name is not specified",
 			args:  []string{},
-			flags: TokenRedeem{timeout: 60 * time.Second},
+			flags: common.CommandTokenRedeemFlags{Timeout: 60 * time.Second},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -150,7 +99,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 		{
 			name:  "file name empty",
 			args:  []string{""},
-			flags: TokenRedeem{timeout: 60 * time.Second},
+			flags: common.CommandTokenRedeemFlags{Timeout: 60 * time.Second},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -182,7 +131,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 		{
 			name:  "more than one argument is specified",
 			args:  []string{"my-grant", "/home/user/my-grant.yaml"},
-			flags: TokenRedeem{timeout: 60 * time.Second},
+			flags: common.CommandTokenRedeemFlags{Timeout: 60 * time.Second},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -214,7 +163,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 		{
 			name:  "token file name is not valid.",
 			args:  []string{"my new file"},
-			flags: TokenRedeem{timeout: 60 * time.Second},
+			flags: common.CommandTokenRedeemFlags{Timeout: 60 * time.Second},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -246,7 +195,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 		{
 			name:  "timeout is not valid",
 			args:  []string{"~/token.yaml"},
-			flags: TokenRedeem{timeout: 0 * time.Second},
+			flags: common.CommandTokenRedeemFlags{Timeout: 0 * time.Second},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -280,7 +229,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 		{
 			name:  "flags all valid",
 			args:  []string{"/tmp/token-redeem.yaml"},
-			flags: TokenRedeem{timeout: 50 * time.Second},
+			flags: common.CommandTokenRedeemFlags{Timeout: 50 * time.Second},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -317,7 +266,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 			command, err := newCmdTokenRedeemWithMocks("test", test.k8sObjects, test.skupperObjects, "")
 			assert.Assert(t, err)
 
-			command.flags = test.flags
+			command.Flags = &test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -446,7 +395,7 @@ func TestCmdTokenRedeem_WaitUntil(t *testing.T) {
 
 		cmd.name = "my-grant"
 		cmd.fileName = "/tmp/token.yaml"
-		cmd.flags = TokenRedeem{timeout: 1 * time.Second}
+		cmd.Flags = &common.CommandTokenRedeemFlags{Timeout: 1 * time.Second}
 		cmd.namespace = "test"
 
 		t.Run(test.name, func(t *testing.T) {

@@ -78,7 +78,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			command := &CmdSiteCreate{}
+			command := &CmdSiteCreate{Flags: &common.CommandSiteCreateFlags{}}
 
 			if test.flags != nil {
 				command.Flags = test.flags

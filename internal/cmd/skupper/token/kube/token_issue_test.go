@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"os"
 	"testing"
 	"time"
@@ -8,70 +9,16 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func TestCmdTokenIssue_NewCmdTokenIssue(t *testing.T) {
-
-	t.Run("connector command", func(t *testing.T) {
-
-		result := NewCmdTokenIssue()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.Example != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-		assert.Check(t, result.CobraCmd.PostRunE != nil)
-		assert.Check(t, result.CobraCmd.Flags() != nil)
-	})
-
-}
-
-func TestCmdTokenIssue_AddFlags(t *testing.T) {
-
-	expectedFlagsWithDefaultValue := map[string]interface{}{
-		"redemptions-allowed": "1",
-		"expiration-window":   "15m0s",
-		"timeout":             "1m0s",
-	}
-	var flagList []string
-
-	cmd, err := newCmdTokenIssueWithMocks("test", nil, nil, "")
-	assert.Assert(t, err)
-
-	t.Run("add flags", func(t *testing.T) {
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-		})
-
-		assert.Check(t, len(flagList) == 0)
-
-		cmd.AddFlags()
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] != nil)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue)
-
-		})
-
-		assert.Check(t, len(flagList) == len(expectedFlagsWithDefaultValue))
-
-	})
-
-}
-
 func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		flags          TokenIssue
+		flags          common.CommandTokenIssueFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedErrors []string
@@ -81,10 +28,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		{
 			name: "token is not issued because there is already the same token in the namespace",
 			args: []string{"my-token", "~/token.yaml"},
-			flags: TokenIssue{
-				expiration:  15 * time.Minute,
-				redemptions: 1,
-				timeout:     60 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -137,10 +84,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		{
 			name: "token no site",
 			args: []string{"token", "filename"},
-			flags: TokenIssue{
-				expiration:  15 * time.Minute,
-				redemptions: 1,
-				timeout:     60 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.AccessGrant{
@@ -165,10 +112,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		{
 			name: "token no site with OK status",
 			args: []string{"token", "filename"},
-			flags: TokenIssue{
-				expiration:  15 * time.Minute,
-				redemptions: 1,
-				timeout:     60 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -196,10 +143,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		{
 			name: "token name and file name are not specified",
 			args: []string{},
-			flags: TokenIssue{
-				expiration:  15 * time.Minute,
-				redemptions: 1,
-				timeout:     60 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -232,10 +179,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		{
 			name: "token name empty",
 			args: []string{"", "~/token.yaml"},
-			flags: TokenIssue{
-				expiration:  15 * time.Minute,
-				redemptions: 1,
-				timeout:     60 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -268,10 +215,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		{
 			name: "token file name empty",
 			args: []string{"my-grant-file-empty", ""},
-			flags: TokenIssue{
-				expiration:  15 * time.Minute,
-				redemptions: 1,
-				timeout:     60 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -304,10 +251,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		{
 			name: "token filename is not specified",
 			args: []string{"my-name"},
-			flags: TokenIssue{
-				expiration:  15 * time.Minute,
-				redemptions: 1,
-				timeout:     60 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -340,10 +287,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		{
 			name: "more than two arguments are specified",
 			args: []string{"my-grant", "/home/user/my-grant.yaml", "test"},
-			flags: TokenIssue{
-				expiration:  15 * time.Minute,
-				redemptions: 1,
-				timeout:     60 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -376,10 +323,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		{
 			name: "token name is not valid.",
 			args: []string{"my new token", "~/token.yaml"},
-			flags: TokenIssue{
-				expiration:  15 * time.Minute,
-				redemptions: 1,
-				timeout:     60 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -412,10 +359,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		{
 			name: "token file name is not valid.",
 			args: []string{"my-grant", "ab cd"},
-			flags: TokenIssue{
-				expiration:  15 * time.Minute,
-				redemptions: 1,
-				timeout:     60 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -448,10 +395,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		{
 			name: "redemptions is not valid",
 			args: []string{"my-token-redemptions", "~/token.yaml"},
-			flags: TokenIssue{
-				expiration:  15 * time.Minute,
-				redemptions: 0,
-				timeout:     60 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 0,
+				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -485,10 +432,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		{
 			name: "expiration is not valid",
 			args: []string{"my-token-expiration", "~/token.yaml"},
-			flags: TokenIssue{
-				expiration:  0 * time.Minute,
-				redemptions: 1,
-				timeout:     60 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   0 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -521,10 +468,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		{
 			name: "timeout is not valid",
 			args: []string{"token-timeout", "~/token.yaml"},
-			flags: TokenIssue{
-				expiration:  15 * time.Minute,
-				redemptions: 1,
-				timeout:     0 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            0 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -557,10 +504,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		{
 			name: "flags all valid",
 			args: []string{"my-token-flags", "~/token.yaml"},
-			flags: TokenIssue{
-				expiration:  15 * time.Minute,
-				redemptions: 1,
-				timeout:     60 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -618,7 +565,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 			command, err := newCmdTokenIssueWithMocks("test", test.k8sObjects, test.skupperObjects, "")
 			assert.Assert(t, err)
 
-			command.flags = test.flags
+			command.Flags = &test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -639,7 +586,7 @@ func TestCmdTokenIssue_Run(t *testing.T) {
 		fileName            string
 		errorMessage        string
 		skupperErrorMessage string
-		flags               TokenIssue
+		flags               common.CommandTokenIssueFlags
 	}
 
 	testTable := []test{
@@ -647,10 +594,10 @@ func TestCmdTokenIssue_Run(t *testing.T) {
 			name:      "runs ok",
 			grantName: "run-token",
 			fileName:  "/tmp/token.yaml",
-			flags: TokenIssue{
-				expiration:  20 * time.Minute,
-				redemptions: 2,
-				timeout:     60 * time.Second,
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   20 * time.Minute,
+				RedemptionsAllowed: 2,
+				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.AccessGrant{
@@ -685,8 +632,9 @@ func TestCmdTokenIssue_Run(t *testing.T) {
 
 		cmd.grantName = test.grantName
 		cmd.fileName = test.fileName
-		cmd.flags.expiration = test.flags.expiration
-		cmd.flags.redemptions = test.flags.redemptions
+		cmd.Flags = &common.CommandTokenIssueFlags{}
+		cmd.Flags.ExpirationWindow = test.flags.ExpirationWindow
+		cmd.Flags.RedemptionsAllowed = test.flags.RedemptionsAllowed
 
 		t.Run(test.name, func(t *testing.T) {
 
@@ -765,10 +713,10 @@ func TestCmdTokenIssue_WaitUntil(t *testing.T) {
 
 		cmd.grantName = "my-token"
 		cmd.fileName = "/tmp/token.yaml"
-		cmd.flags = TokenIssue{
-			expiration:  20 * time.Minute,
-			redemptions: 2,
-			timeout:     1 * time.Second,
+		cmd.Flags = &common.CommandTokenIssueFlags{
+			ExpirationWindow:   20 * time.Minute,
+			RedemptionsAllowed: 2,
+			Timeout:            1 * time.Second,
 		}
 		cmd.namespace = "test"
 

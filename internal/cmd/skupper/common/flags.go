@@ -1,5 +1,7 @@
 package common
 
+import "time"
+
 const (
 	FlagNamePlatform   = "platform"
 	FlagDescPlatform   = "Set the platform type to use [kubernetes, podman, docker, systemd]"
@@ -29,6 +31,11 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagDescGenerateCredential = "generate the necessary credentials to create the link"
 	FlagNameTimeout            = "timeout"
 	FlagDescTimeout            = "raise an error if the operation does not complete in the given period of time (expressed in seconds)."
+
+	FlagNameRedemptionsAllowed = "redemptions-allowed"
+	FlagDescRedemptionsAllowed = "The number of times an access token for this grant can be redeemed."
+	FlagNameExpirationWindow   = "expiration-window"
+	FlagDescExpirationWindow   = "The period of time in which an access token for this grant can be redeemed."
 )
 
 type CommandSiteCreateFlags struct {
@@ -64,4 +71,14 @@ type CommandLinkDeleteFlags struct {
 }
 type CommandLinkStatusFlags struct {
 	Output string
+}
+
+type CommandTokenIssueFlags struct {
+	Timeout            time.Duration
+	ExpirationWindow   time.Duration
+	RedemptionsAllowed int
+}
+
+type CommandTokenRedeemFlags struct {
+	Timeout time.Duration
 }

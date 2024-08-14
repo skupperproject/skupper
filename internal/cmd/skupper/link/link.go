@@ -115,7 +115,7 @@ func CmdLinkDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdLinkGenerateDesc, kubeCommand, nonKubeCommand)
 	cmdFlags := common.CommandLinkDeleteFlags{}
-	cmd.Flags().StringVar(&cmdFlags.Timeout, common.FlagNameTimeout, "60", common.FlagDescCost)
+	cmd.Flags().StringVar(&cmdFlags.Timeout, common.FlagNameTimeout, "60", common.FlagDescTimeout)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags

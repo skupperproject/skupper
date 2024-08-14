@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"os"
 	"time"
 
@@ -17,47 +18,17 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 )
 
-var (
-	tokenRedeemLong    = "Redeem a token file in order to create a link to a remote site."
-	tokenRedeemExample = "skupper token redeem ~/token1.yaml"
-)
-
-type TokenRedeem struct {
-	timeout time.Duration
-}
-
 type CmdTokenRedeem struct {
 	client    skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd  cobra.Command
-	flags     TokenRedeem
+	CobraCmd  *cobra.Command
+	Flags     *common.CommandTokenRedeemFlags
 	name      string
 	namespace string
 	fileName  string
 }
 
 func NewCmdTokenRedeem() *CmdTokenRedeem {
-
-	skupperCmd := CmdTokenRedeem{}
-
-	cmd := cobra.Command{
-		Use:     "redeem <filename>",
-		Short:   "redeem a token",
-		Long:    tokenRedeemLong,
-		Example: tokenRedeemExample,
-		PreRun:  skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.Run())
-		},
-		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntil()
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
-	skupperCmd.AddFlags()
-
-	return &skupperCmd
+	return &CmdTokenRedeem{}
 }
 
 func (cmd *CmdTokenRedeem) NewClient(cobraCommand *cobra.Command, args []string) {
@@ -68,9 +39,7 @@ func (cmd *CmdTokenRedeem) NewClient(cobraCommand *cobra.Command, args []string)
 	cmd.namespace = cli.Namespace
 }
 
-func (cmd *CmdTokenRedeem) AddFlags() {
-	cmd.CobraCmd.Flags().DurationVarP(&cmd.flags.timeout, "timeout", "t", 60*time.Second, "Raise an error if the operation does not complete in the given period of time.")
-}
+func (cmd *CmdTokenRedeem) AddFlags() {}
 
 func (cmd *CmdTokenRedeem) ValidateInput(args []string) []error {
 	var validationErrors []error
@@ -110,8 +79,8 @@ func (cmd *CmdTokenRedeem) ValidateInput(args []string) []error {
 		}
 	}
 
-	//TBD what is valid times
-	if cmd.flags.timeout <= 0*time.Minute {
+	//TBD what is valid times --> use TimeoutValidator
+	if cmd.Flags.Timeout <= 0*time.Minute {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
 	}
 
@@ -140,7 +109,7 @@ func (cmd *CmdTokenRedeem) Run() error {
 
 func (cmd *CmdTokenRedeem) WaitUntil() error {
 
-	err := utils.NewSpinnerWithTimeout("Waiting for token status ...", int(cmd.flags.timeout.Seconds()), func() error {
+	err := utils.NewSpinnerWithTimeout("Waiting for token status ...", int(cmd.Flags.Timeout.Seconds()), func() error {
 
 		token, err := cmd.client.AccessTokens(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
 		if err != nil {
