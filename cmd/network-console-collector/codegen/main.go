@@ -21,27 +21,40 @@ package {{ .PackageName }}
 // response objects
 
 {{range .ResponseTypes}}{{$typeName := .TypeName}}
-{{- range .SetterFields}}
+{{- range .Fields}}
 // Set{{ .FieldName }}
 func (r *{{ $typeName }}) Set{{ .FieldName }}(v {{ .FieldType }}) {
   r.{{ .FieldName }} = v
 }
 {{- end}}{{end}}
+
+// Implements Record interface for the generated record objects
+{{range .RecordTypes}}{{$typeName := .TypeName}}
+{{- range .Fields}}
+// Get{{ .FieldName }}
+func (r {{ $typeName }}) Get{{ .FieldName }}() {{ .FieldType }} {
+  return r.{{ .FieldName }}
+}
+{{- end}}{{end}}
 `
 
-var tagsFilterRegexp = regexp.MustCompile(`json:"(results|count|timeRangeCount)[,"]`)
+var (
+	responseFieldTagRegexp = regexp.MustCompile(`json:"(results|count|timeRangeCount)[,"]`)
+	recordFieldTagRegexp   = regexp.MustCompile(`json:"(startTime|endTime)[,"]`)
+)
 
 type Codegen struct {
 	PackageName   string
-	ResponseTypes []ResponseType
+	ResponseTypes []StructType
+	RecordTypes   []StructType
 }
 
-type ResponseType struct {
-	TypeName     string
-	SetterFields []SetterConfig
+type StructType struct {
+	TypeName string
+	Fields   []FieldInfo
 }
 
-type SetterConfig struct {
+type FieldInfo struct {
 	FieldName string
 	FieldType string
 }
@@ -52,7 +65,7 @@ func main() {
 	flags.StringVar(&output, "o", "", "file to write output to. Defaults to stdout")
 	flags.Usage = func() {
 		fmt.Println("codegen [options...] <source file>")
-		fmt.Println(`generates setters for fields on Response structs: results, count and timeRangeCount.`)
+		fmt.Println(`generates getters and setters on openapi generated types.`)
 		flags.PrintDefaults()
 	}
 	flags.Parse(os.Args[1:])
@@ -82,49 +95,29 @@ func main() {
 		if !ok {
 			return true
 		}
-		if !strings.HasSuffix(ts.Name.String(), "Response") {
-			return false
-		}
 		st, ok := ts.Type.(*ast.StructType)
 		if !ok {
 			return false
 		}
-		var setters []SetterConfig
-		for _, field := range st.Fields.List {
-			if len(field.Names) != 1 {
-				continue
+		switch {
+		case strings.HasSuffix(ts.Name.String(), "Response"):
+			setters := fieldsMatchingType(st, responseFieldTagRegexp)
+			if len(setters) > 0 {
+				codegen.ResponseTypes = append(codegen.ResponseTypes, StructType{
+					TypeName: ts.Name.String(),
+					Fields:   setters,
+				})
 			}
-			if field.Tag != nil {
-				if tagsFilterRegexp.MatchString(field.Tag.Value) {
-					var rt string
-
-					for typ := field.Type; typ != nil; {
-						switch f := typ.(type) {
-						case *ast.Ident:
-							rt += f.Name
-							typ = nil
-						case *ast.ArrayType:
-							rt += "[]"
-							typ = f.Elt
-						case *ast.StarExpr:
-							rt += "*"
-							typ = f.X
-						default:
-							log.Fatalf("unexpected field type: %s.%s %T", ts.Name.String(), field.Names[0], f)
-						}
-					}
-					setters = append(setters, SetterConfig{
-						FieldName: field.Names[0].String(),
-						FieldType: rt,
-					})
-				}
+		case strings.HasSuffix(ts.Name.String(), "Record"):
+			getters := fieldsMatchingType(st, recordFieldTagRegexp)
+			if len(getters) > 0 {
+				codegen.RecordTypes = append(codegen.RecordTypes, StructType{
+					TypeName: ts.Name.String(),
+					Fields:   getters,
+				})
 			}
-		}
-		if len(setters) > 0 {
-			codegen.ResponseTypes = append(codegen.ResponseTypes, ResponseType{
-				TypeName:     ts.Name.String(),
-				SetterFields: setters,
-			})
+		default:
+			//return false
 		}
 		return true
 	})
@@ -140,4 +133,39 @@ func main() {
 		f = of
 	}
 	t.Execute(f, codegen)
+}
+
+func fieldsMatchingType(st *ast.StructType, re *regexp.Regexp) []FieldInfo {
+	var fields []FieldInfo
+	for _, field := range st.Fields.List {
+		if len(field.Names) != 1 {
+			continue
+		}
+		if field.Tag != nil {
+			if re.MatchString(field.Tag.Value) {
+				var rt string
+
+				for typ := field.Type; typ != nil; {
+					switch f := typ.(type) {
+					case *ast.Ident:
+						rt += f.Name
+						typ = nil
+					case *ast.ArrayType:
+						rt += "[]"
+						typ = f.Elt
+					case *ast.StarExpr:
+						rt += "*"
+						typ = f.X
+					default:
+						log.Fatalf("unexpected field type: %s %T", field.Names[0], f)
+					}
+				}
+				fields = append(fields, FieldInfo{
+					FieldName: field.Names[0].String(),
+					FieldType: rt,
+				})
+			}
+		}
+	}
+	return fields
 }

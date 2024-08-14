@@ -11,7 +11,13 @@ type CollectionResponseSetter[T any] interface {
 	SetTimeRangeCount(int64)
 }
 
+type Record interface {
+	GetStartTime() uint64
+	GetEndTime() uint64
+}
+
 var (
 	_ ResponseSetter[SiteRecord]           = (*SiteResponse)(nil)
 	_ CollectionResponseSetter[SiteRecord] = (*SiteListResponse)(nil)
+	_ Record                               = (*SiteRecord)(nil)
 )

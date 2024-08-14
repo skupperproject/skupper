@@ -233,3 +233,125 @@ func (r *CollectionResponse) SetCount(v int64) {
 func (r *CollectionResponse) SetTimeRangeCount(v int64) {
 	r.TimeRangeCount = v
 }
+
+// Implements Record interface for the generated record objects
+
+// GetEndTime
+func (r AddressRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r AddressRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
+func (r ConnectorRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r ConnectorRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
+func (r FlowAggregateRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r FlowAggregateRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
+func (r LinkRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r LinkRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
+func (r ListenerRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r ListenerRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
+func (r ProcessGroupRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r ProcessGroupRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
+func (r ProcessRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r ProcessRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
+func (r RouterAccessRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r RouterAccessRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
+func (r RouterLinkRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r RouterLinkRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
+func (r RouterRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r RouterRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
+func (r SiteRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r SiteRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
+func (r BaseRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r BaseRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
