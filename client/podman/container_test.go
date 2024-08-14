@@ -117,7 +117,7 @@ func TestContainer(t *testing.T) {
 	// Pulling image
 	t.Run("image-pull", func(t *testing.T) {
 		assert.Assert(t, cli.ImagePull(ctx, image))
-		tagOrDig := regexp.MustCompile("(@.*$|:[-a-zA-Z_.]*$|$)")
+		tagOrDig := regexp.MustCompile("(@.*$|:[-a-zA-Z0-9_.]*$|$)")
 		invalidImage := tagOrDig.ReplaceAllString(images.GetSiteControllerImageName(), ":") + "invalid"
 		invalidImageErr := cli.ImagePull(ctx, invalidImage)
 		assert.Assert(t, invalidImageErr != nil)
