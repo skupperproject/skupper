@@ -125,6 +125,7 @@ type ConnectorRecord struct {
 	Protocol    *string `vflow:"16"`
 	DestPort    *string `vflow:"18"`
 	Address     *string `vflow:"19"`
+	Name        *string `vflow:"30"`
 	FlowCountL4 *uint64 `vflow:"40"`
 	FlowCountL7 *uint64 `vflow:"41"`
 	FlowRateL4  *uint64 `vflow:"42"`

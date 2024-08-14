@@ -18,6 +18,9 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/api"
+	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/collector"
+	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/server"
+	"github.com/skupperproject/skupper/pkg/vanflow/session"
 	"github.com/skupperproject/skupper/pkg/version"
 )
 
@@ -30,19 +33,20 @@ func run(cfg Config) error {
 	logger.Info("Network Console Collector starting", slog.String("skupper_version", version.Version))
 
 	reg := prometheus.NewRegistry()
-	promAPI, err := parsePrometheusAPI(cfg.PrometheusAPI)
-	if err != nil {
-		return fmt.Errorf("error parsing prometheus-api as URL: %s", err)
-	}
 
 	specFS, err := getSpecFS()
 	if err != nil {
 		return fmt.Errorf("could not load spec filesystem: %s", err)
 	}
 
-	collectorAPI := &struct {
-		api.ServerInterface
-	}{}
+	sessionConfig, err := configureSession(cfg.RouterTLS)
+	if err != nil {
+		return fmt.Errorf("failed to load router tls configuration: %s", err)
+	}
+
+	collector := collector.New(logger.With(slog.String("component", "collector")), session.NewContainerFactory(cfg.RouterURL, sessionConfig), reg)
+
+	collectorAPI := server.New(logger.With(slog.String("component", "api")), collector.Records)
 
 	var apiMiddlewares []api.MiddlewareFunc
 	if cfg.CORSAllowAll {
@@ -58,6 +62,10 @@ func run(cfg Config) error {
 	})
 
 	if cfg.EnableConsole {
+		promAPI, err := parsePrometheusAPI(cfg.PrometheusAPI)
+		if err != nil {
+			return fmt.Errorf("error parsing prometheus-api as URL: %s", err)
+		}
 		// add unspec'd api routes
 		mux.Path("/api/v1alpha1/user").Handler(handleNoContent(apiMiddlewares))
 		mux.Path("/api/v1alpha1/logout").Handler(handleNoContent(apiMiddlewares))
@@ -144,6 +152,14 @@ func run(cfg Config) error {
 		})
 	}
 
+	g.Go(func() error {
+		logger.Debug("Starting Network Console Collector")
+		if err := collector.Run(runCtx); err != nil {
+			return fmt.Errorf("collector error: %w", err)
+		}
+		return nil
+	})
+
 	if err := g.Wait(); err != nil && !errors.Is(err, ctx.Err()) {
 		return err
 	}
@@ -185,4 +201,16 @@ func main() {
 		slog.Error("network console collector run error", slog.Any("error", err))
 		os.Exit(1)
 	}
+}
+
+func configureSession(tlsCfg TLSSpec) (ctrCfg session.ContainerConfig, err error) {
+	ctrCfg.TLSConfig, err = tlsCfg.config()
+	if err != nil {
+		return
+	}
+	if tlsCfg.hasCert() {
+		ctrCfg.SASLType = session.SASLTypeExternal
+	}
+
+	return ctrCfg, err
 }

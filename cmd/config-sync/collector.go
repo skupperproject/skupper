@@ -87,6 +87,7 @@ func startFlowController(ctx context.Context, cli *internalclient.KubeClient) er
 			Namespace:  &cli.Namespace,
 			Platform:   &platform,
 			Version:    &version.Version,
+			Provider:   &platform, //todo(ck) Not really correct. involved with nodes access (below)
 		},
 	})
 	go informer.Run(ctx.Done())
