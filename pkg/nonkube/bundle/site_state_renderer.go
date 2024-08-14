@@ -84,7 +84,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 		return err
 	}
 	if err = s.removeSiteFiles(); err != nil {
-
+		return err
 	}
 	return nil
 }

@@ -24,13 +24,13 @@ func (s *SelfExtractingBundle) Generate(tarBall *Tarball) error {
 
 	write := func(buf interface{}) error {
 		var size, written int
-		switch buf.(type) {
+		switch b := buf.(type) {
 		case string:
-			size = len(buf.(string))
-			written, err = data.WriteString(buf.(string))
+			size = len(b)
+			written, err = data.WriteString(b)
 		case []byte:
-			size = len(buf.([]byte))
-			written, err = data.Write(buf.([]byte))
+			size = len(b)
+			written, err = data.Write(b)
 		}
 		if err != nil || written != size {
 			return fmt.Errorf("error writing data (size: %d - written: %d): %w", size, written, err)
