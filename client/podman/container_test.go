@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -116,7 +117,8 @@ func TestContainer(t *testing.T) {
 	// Pulling image
 	t.Run("image-pull", func(t *testing.T) {
 		assert.Assert(t, cli.ImagePull(ctx, image))
-		invalidImage := strings.Replace(images.GetSiteControllerImageName(), ":main", ":invalid", 1)
+		tagOrDig := regexp.MustCompile("(@.*$|:[-a-zA-Z_.]*$|$)")
+		invalidImage := tagOrDig.ReplaceAllString(images.GetSiteControllerImageName(), ":") + "invalid"
 		invalidImageErr := cli.ImagePull(ctx, invalidImage)
 		assert.Assert(t, invalidImageErr != nil)
 		assert.Assert(t, strings.Contains(invalidImageErr.Error(), "Recommendation:"))
