@@ -36,6 +36,25 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagDescRedemptionsAllowed = "The number of times an access token for this grant can be redeemed."
 	FlagNameExpirationWindow   = "expiration-window"
 	FlagDescExpirationWindow   = "The period of time in which an access token for this grant can be redeemed."
+
+	FlagNameRoutingKey      = "routing-key"
+	FlagDescRoutingKey      = "The identifier used to route traffic from Connectors to connectors"
+	FlagNameHost            = "host"
+	FlagDescHost            = "The hostname or IP address of the local Connector"
+	FlagNameConnectorType   = "type"
+	FlagDescConnectorType   = "The Connector type. Choices: [tcp]."
+	FlagNameIncludeNotReady = "include-not-ready"
+	FlagDescIncludeNotRead  = "If true, include server pods that are not in the ready state."
+	FlagNameSelector        = "selector"
+	FlagDescSelector        = "A Kubernetes label selector for specifying target server pods."
+	FlagNameWorkload        = "workload"
+	FlagDescWorkload        = "A Kubernetes label selector for specifying target server pods."
+
+	FlagNameConnectorPort = "port"
+	FlagDescConnectorPort = "The port of the local connector"
+
+	FlagNameConnectorStatusOutput = "output"
+	FlagDescConnectorStatusOutput = "print status of connectors Choices: json, yaml"
 )
 
 type CommandSiteCreateFlags struct {
@@ -81,4 +100,37 @@ type CommandTokenIssueFlags struct {
 
 type CommandTokenRedeemFlags struct {
 	Timeout time.Duration
+}
+
+type CommandConnectorCreateFlags struct {
+	RoutingKey      string
+	Host            string
+	Selector        string
+	TlsSecret       string
+	ConnectorType   string
+	IncludeNotReady bool
+	Workload        string
+	Timeout         time.Duration
+	Output          string
+}
+
+type CommandConnectorUpdateFlags struct {
+	RoutingKey      string
+	Host            string
+	TlsSecret       string
+	ConnectorType   string
+	Port            int
+	Workload        string
+	Selector        string
+	IncludeNotReady bool
+	Timeout         time.Duration
+	Output          string
+}
+
+type CommandConnectorDeleteFlags struct {
+	Timeout time.Duration
+}
+
+type CommandConnectorStatusFlags struct {
+	Output string
 }

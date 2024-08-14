@@ -28,7 +28,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			args:           []string{"my-site"},
 			k8sObjects:     nil,
 			skupperObjects: nil,
-			expectedErrors: []string{"there is no existing Skupper site resource to update"},
+			expectedErrors: []string{"there is no existing Skupper site resource to delete"},
 			skupperError:   "",
 		},
 		{

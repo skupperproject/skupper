@@ -149,7 +149,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"link Cost is not valid: strconv.Atoi: parsing \"one\": invalid syntax"},
+			expectedErrors: []string{"link cost is not valid: strconv.Atoi: parsing \"one\": invalid syntax"},
 		},
 		{
 			name:  "Cost is not positive",
@@ -174,7 +174,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 				},
 			},
 			expectedErrors: []string{
-				"link Cost is not valid: value is not positive",
+				"link cost is not valid: value is not positive",
 			},
 		},
 		{
@@ -260,7 +260,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 				},
 			},
 			expectedErrors: []string{
-				"Timeout is not valid: value 0 is not allowed",
+				"timeout is not valid: value 0 is not allowed",
 			},
 		},
 		{
@@ -294,7 +294,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 				},
 			},
 			expectedErrors: []string{
-				"Timeout is not valid: value is not positive",
+				"timeout is not valid: value is not positive",
 			},
 		},
 		{

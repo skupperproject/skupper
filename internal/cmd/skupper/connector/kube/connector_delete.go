@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
@@ -13,45 +14,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	connectorDeleteLong    = "Delete a connector <name>"
-	connectorDeleteExample = "skupper connector delete database"
-)
-
-type ConnectorDelete struct {
-	timeout time.Duration
-}
-
 type CmdConnectorDelete struct {
 	client    skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd  cobra.Command
-	flags     ConnectorDelete
+	CobraCmd  *cobra.Command
+	Flags     *common.CommandConnectorDeleteFlags
 	namespace string
 	name      string
 }
 
 func NewCmdConnectorDelete() *CmdConnectorDelete {
 
-	skupperCmd := CmdConnectorDelete{}
-
-	cmd := cobra.Command{
-		Use:     "delete <name>",
-		Short:   "delete a connector",
-		Long:    connectorDeleteLong,
-		Example: connectorDeleteExample,
-		PreRun:  skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.Run())
-		},
-		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntil()
-		},
-	}
-	skupperCmd.CobraCmd = cmd
-	skupperCmd.AddFlags()
-
-	return &skupperCmd
+	return &CmdConnectorDelete{}
 }
 
 func (cmd *CmdConnectorDelete) NewClient(cobraCommand *cobra.Command, args []string) {
@@ -62,9 +35,7 @@ func (cmd *CmdConnectorDelete) NewClient(cobraCommand *cobra.Command, args []str
 	cmd.namespace = cli.Namespace
 }
 
-func (cmd *CmdConnectorDelete) AddFlags() {
-	cmd.CobraCmd.Flags().DurationVarP(&cmd.flags.timeout, "timeout", "t", 60*time.Second, "Raise an error if the operation does not complete in the given period of time.")
-}
+func (cmd *CmdConnectorDelete) AddFlags() {}
 
 func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
 	var validationErrors []error
@@ -92,8 +63,8 @@ func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
 			}
 		}
 
-		//TBD what is valid timeout
-		if cmd.flags.timeout <= 0*time.Minute {
+		//TBD what is valid timeout --> use timeout validator
+		if cmd.Flags.Timeout <= 0*time.Minute {
 			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
 		}
 	}
@@ -107,7 +78,7 @@ func (cmd *CmdConnectorDelete) Run() error {
 }
 
 func (cmd *CmdConnectorDelete) WaitUntil() error {
-	waitTime := int(cmd.flags.timeout.Seconds())
+	waitTime := int(cmd.Flags.Timeout.Seconds())
 	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})

@@ -1,82 +1,24 @@
 package kube
 
 import (
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"testing"
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func TestCmdConnectorCreate_NewCmdConnectorCreate(t *testing.T) {
-
-	t.Run("connector command", func(t *testing.T) {
-
-		result := NewCmdConnectorCreate()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.Example != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-		assert.Check(t, result.CobraCmd.PostRunE != nil)
-		assert.Check(t, result.CobraCmd.Flags() != nil)
-	})
-
-}
-
-func TestCmdConnectorCreate_AddFlags(t *testing.T) {
-
-	expectedFlagsWithDefaultValue := map[string]interface{}{
-		"routing-key":       "",
-		"host":              "",
-		"tls-secret":        "",
-		"type":              "tcp",
-		"workload":          "",
-		"selector":          "",
-		"include-not-ready": "false",
-		"timeout":           "1m0s",
-		"output":            "",
-	}
-	var flagList []string
-
-	cmd, err := newCmdConnectorCreateWithMocks("test", nil, nil, "")
-	assert.Assert(t, err)
-
-	t.Run("add flags", func(t *testing.T) {
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-		})
-
-		assert.Check(t, len(flagList) == 0)
-
-		cmd.AddFlags()
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] != nil)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue)
-		})
-
-		assert.Check(t, len(flagList) == len(expectedFlagsWithDefaultValue))
-
-	})
-
-}
-
 func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		flags          ConnectorCreate
+		flags          common.CommandConnectorCreateFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedErrors []string
@@ -86,9 +28,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "connector is not created because there is already the same connector in the namespace",
 			args: []string{"my-connector", "8080"},
-			flags: ConnectorCreate{
-				selector: "backend",
-				timeout:  1 * time.Minute,
+			flags: common.CommandConnectorCreateFlags{
+				Selector: "backend",
+				Timeout:  1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Connector{
@@ -139,18 +81,18 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "connector no site",
 			args: []string{"connector-site", "8090"},
-			flags: ConnectorCreate{
-				host:    "127.0.0.1",
-				timeout: 1 * time.Minute,
+			flags: common.CommandConnectorCreateFlags{
+				Host:    "127.0.0.1",
+				Timeout: 1 * time.Minute,
 			},
 			expectedErrors: []string{"A site must exist in namespace test before a connector can be created"},
 		},
 		{
 			name: "Connector no site with ok status",
 			args: []string{"connector-site", "8090"},
-			flags: ConnectorCreate{
-				timeout:  1 * time.Minute,
-				selector: "backend",
+			flags: common.CommandConnectorCreateFlags{
+				Timeout:  1 * time.Minute,
+				Selector: "backend",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -169,9 +111,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "connector name and port are not specified",
 			args: []string{},
-			flags: ConnectorCreate{
-				selector: "backend",
-				timeout:  1 * time.Minute,
+			flags: common.CommandConnectorCreateFlags{
+				Selector: "backend",
+				Timeout:  1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -200,9 +142,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "connector name empty",
 			args: []string{"", "8090"},
-			flags: ConnectorCreate{
-				selector: "backend",
-				timeout:  1 * time.Minute,
+			flags: common.CommandConnectorCreateFlags{
+				Selector: "backend",
+				Timeout:  1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -231,9 +173,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "connector port empty",
 			args: []string{"my-name-port-empty", ""},
-			flags: ConnectorCreate{
-				selector: "backend",
-				timeout:  1 * time.Minute,
+			flags: common.CommandConnectorCreateFlags{
+				Selector: "backend",
+				Timeout:  1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -262,9 +204,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "connector port not positive",
 			args: []string{"my-port-positive", "-45"},
-			flags: ConnectorCreate{
-				selector: "backend",
-				timeout:  1 * time.Minute,
+			flags: common.CommandConnectorCreateFlags{
+				Selector: "backend",
+				Timeout:  1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -293,9 +235,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "connector name and port are not specified",
 			args: []string{},
-			flags: ConnectorCreate{
-				selector: "backend",
-				timeout:  1 * time.Minute,
+			flags: common.CommandConnectorCreateFlags{
+				Selector: "backend",
+				Timeout:  1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -324,9 +266,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "connector port is not specified",
 			args: []string{"my-name"},
-			flags: ConnectorCreate{
-				selector: "backend",
-				timeout:  1 * time.Minute,
+			flags: common.CommandConnectorCreateFlags{
+				Selector: "backend",
+				Timeout:  1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -355,9 +297,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "more than two arguments are specified",
 			args: []string{"my", "connector", "8080"},
-			flags: ConnectorCreate{
-				selector: "backend",
-				timeout:  1 * time.Minute,
+			flags: common.CommandConnectorCreateFlags{
+				Selector: "backend",
+				Timeout:  1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -386,9 +328,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "connector name is not valid.",
 			args: []string{"my new connector", "8080"},
-			flags: ConnectorCreate{
-				selector: "backend",
-				timeout:  1 * time.Minute,
+			flags: common.CommandConnectorCreateFlags{
+				Selector: "backend",
+				Timeout:  1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -417,9 +359,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "port is not valid.",
 			args: []string{"my-connector-port", "abcd"},
-			flags: ConnectorCreate{
-				selector: "backend",
-				timeout:  1 * time.Minute,
+			flags: common.CommandConnectorCreateFlags{
+				Selector: "backend",
+				Timeout:  1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -448,10 +390,10 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "connector type is not valid",
 			args: []string{"my-connector-type", "8080"},
-			flags: ConnectorCreate{
-				connectorType: "not-valid",
-				timeout:       1 * time.Minute,
-				selector:      "backend",
+			flags: common.CommandConnectorCreateFlags{
+				ConnectorType: "not-valid",
+				Timeout:       1 * time.Minute,
+				Selector:      "backend",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -481,10 +423,10 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "routing key is not valid",
 			args: []string{"my-connector-rk", "8080"},
-			flags: ConnectorCreate{
-				routingKey: "not-valid$",
-				timeout:    1 * time.Minute,
-				selector:   "backend",
+			flags: common.CommandConnectorCreateFlags{
+				RoutingKey: "not-valid$",
+				Timeout:    1 * time.Minute,
+				Selector:   "backend",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -514,10 +456,10 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "tls-secret does not exist",
 			args: []string{"my-connector-tls", "8080"},
-			flags: ConnectorCreate{
-				tlsSecret: "not-valid",
-				timeout:   1 * time.Minute,
-				selector:  "backend",
+			flags: common.CommandConnectorCreateFlags{
+				TlsSecret: "not-valid",
+				Timeout:   1 * time.Minute,
+				Selector:  "backend",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -546,9 +488,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "workload is not valid",
 			args: []string{"bad-workload", "1234"},
-			flags: ConnectorCreate{
-				workload: "@345",
-				timeout:  1 * time.Minute,
+			flags: common.CommandConnectorCreateFlags{
+				Workload: "@345",
+				Timeout:  1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -578,9 +520,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "selector is not valid",
 			args: []string{"bad-selector", "1234"},
-			flags: ConnectorCreate{
-				selector: "@#$%",
-				timeout:  20 * time.Second,
+			flags: common.CommandConnectorCreateFlags{
+				Selector: "@#$%",
+				Timeout:  20 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -610,9 +552,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "timeout is not valid",
 			args: []string{"bad-timeout", "8080"},
-			flags: ConnectorCreate{
-				workload: "workload",
-				timeout:  0 * time.Second,
+			flags: common.CommandConnectorCreateFlags{
+				Workload: "workload",
+				Timeout:  0 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -641,10 +583,10 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "output is not valid",
 			args: []string{"bad-output", "1234"},
-			flags: ConnectorCreate{
-				workload: "workload",
-				timeout:  1 * time.Second,
-				output:   "not-supported",
+			flags: common.CommandConnectorCreateFlags{
+				Workload: "workload",
+				Timeout:  1 * time.Second,
+				Output:   "not-supported",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -673,9 +615,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		},
 		{
 			name: "missing selector/host/workload",
-			args: []string{"missing", "1234"}, flags: ConnectorCreate{
-				timeout: 1 * time.Second,
-				output:  "json",
+			args: []string{"missing", "1234"}, flags: common.CommandConnectorCreateFlags{
+				Timeout: 1 * time.Second,
+				Output:  "json",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -705,15 +647,15 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name: "flags all valid",
 			args: []string{"my-connector-flags", "8080"},
-			flags: ConnectorCreate{
-				host:            "hostname",
-				routingKey:      "routingkeyname",
-				tlsSecret:       "secretname",
-				connectorType:   "tcp",
-				selector:        "backend",
-				includeNotReady: true,
-				timeout:         30 * time.Second,
-				output:          "json",
+			flags: common.CommandConnectorCreateFlags{
+				Host:            "hostname",
+				RoutingKey:      "routingkeyname",
+				TlsSecret:       "secretname",
+				ConnectorType:   "tcp",
+				Selector:        "backend",
+				IncludeNotReady: true,
+				Timeout:         30 * time.Second,
+				Output:          "json",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -755,7 +697,7 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			command, err := newCmdConnectorCreateWithMocks("test", test.k8sObjects, test.skupperObjects, "")
 			assert.Assert(t, err)
 
-			command.flags = test.flags
+			command.Flags = &test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -772,7 +714,7 @@ func TestCmdConnectorCreate_Run(t *testing.T) {
 		name                string
 		connectorName       string
 		connectorPort       int
-		flags               ConnectorCreate
+		flags               common.CommandConnectorCreateFlags
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
@@ -784,31 +726,31 @@ func TestCmdConnectorCreate_Run(t *testing.T) {
 			name:          "runs ok",
 			connectorName: "my-connector-ok",
 			connectorPort: 8080,
-			flags: ConnectorCreate{
-				connectorType:   "tcp",
-				host:            "hostname",
-				routingKey:      "keyname",
-				tlsSecret:       "secretname",
-				includeNotReady: true,
-				workload:        "deployment/backend",
-				selector:        "backend",
-				timeout:         1 * time.Second,
+			flags: common.CommandConnectorCreateFlags{
+				ConnectorType:   "tcp",
+				Host:            "hostname",
+				RoutingKey:      "keyname",
+				TlsSecret:       "secretname",
+				IncludeNotReady: true,
+				Workload:        "deployment/backend",
+				Selector:        "backend",
+				Timeout:         1 * time.Second,
 			},
 		},
 		{
 			name:          "run output json",
 			connectorName: "my-connector-json",
 			connectorPort: 8080,
-			flags: ConnectorCreate{
-				connectorType:   "tcp",
-				host:            "hostname",
-				routingKey:      "keyname",
-				tlsSecret:       "secretname",
-				includeNotReady: true,
-				workload:        "deployment/backend",
-				selector:        "backend",
-				timeout:         1 * time.Second,
-				output:          "json",
+			flags: common.CommandConnectorCreateFlags{
+				ConnectorType:   "tcp",
+				Host:            "hostname",
+				RoutingKey:      "keyname",
+				TlsSecret:       "secretname",
+				IncludeNotReady: true,
+				Workload:        "deployment/backend",
+				Selector:        "backend",
+				Timeout:         1 * time.Second,
+				Output:          "json",
 			},
 		},
 	}
@@ -819,9 +761,10 @@ func TestCmdConnectorCreate_Run(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
+			cmd.Flags = &common.CommandConnectorCreateFlags{}
 			cmd.name = test.connectorName
 			cmd.port = test.connectorPort
-			cmd.output = test.flags.output
+			cmd.output = test.flags.Output
 			cmd.namespace = "test"
 
 			err := cmd.Run()
@@ -914,7 +857,7 @@ func TestCmdConnectorCreate_WaitUntil(t *testing.T) {
 		assert.Assert(t, err)
 
 		cmd.name = "my-connector"
-		cmd.flags = ConnectorCreate{timeout: 1 * time.Second}
+		cmd.Flags = &common.CommandConnectorCreateFlags{Timeout: 1 * time.Second}
 		cmd.output = test.output
 		cmd.namespace = "test"
 
