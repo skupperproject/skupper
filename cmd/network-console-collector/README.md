@@ -29,8 +29,11 @@ import the spec by URL (File -> Import URL) from
 
 ### Code generation
 
-An API server interface is generated based off of the specification. Run `go
-generate .` to update the generated code.
+The code generated based off of the openapi specification document provides an
+API Client (presently used for unit testing the service) as well as a Server
+Interface for us to implement. To update the generated code after updates to
+the openapi specification run `go generate` targeting this package. This should
+update the types_gen.go and extras_gen.go files in the internal/api package.
 
 ## Metrics
 

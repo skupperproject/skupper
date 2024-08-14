@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
-	"net/url"
 	"os"
 	"os/signal"
 	"time"
@@ -16,262 +15,62 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/skupperproject/skupper/pkg/qdr"
+	"golang.org/x/sync/errgroup"
 
-	"github.com/skupperproject/skupper/pkg/certs"
+	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/api"
 	"github.com/skupperproject/skupper/pkg/version"
 )
 
 func run(cfg Config) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+	logger := slog.New(slog.Default().Handler())
 
 	// Startup message
-	slog.Info("Network Console Collector starting", slog.String("skupper_version", version.Version))
-
-	var tlsConfig qdr.TlsConfigRetriever
-	if cfg.RouterTLS.Key != "" || cfg.RouterTLS.CA != "" {
-		tlsConfig = certs.GetTlsConfigRetriever(true, cfg.RouterTLS.Cert, cfg.RouterTLS.Key, cfg.RouterTLS.CA)
-	}
+	logger.Info("Network Console Collector starting", slog.String("skupper_version", version.Version))
 
 	reg := prometheus.NewRegistry()
-	c, err := NewController("", reg, cfg.RouterURL, tlsConfig, cfg.FlowRecordTTL)
+	promAPI, err := parsePrometheusAPI(cfg.PrometheusAPI)
 	if err != nil {
-		return fmt.Errorf("error initializing flow collector %s", err.Error())
+		return fmt.Errorf("error parsing prometheus-api as URL: %s", err)
 	}
-
-	promURL, err := url.JoinPath(cfg.PrometheusAPI, "/api/v1/")
-	if err != nil {
-		return fmt.Errorf("error parsing prometheus api endpoint: %s", err.Error())
-	}
-	c.FlowCollector.Collector.PrometheusUrl = promURL
-
-	var mux = mux.NewRouter().StrictSlash(true)
 
 	specFS, err := getSpecFS()
 	if err != nil {
 		return fmt.Errorf("could not load spec filesystem: %s", err)
 	}
-	mux.PathPrefix("/swagger").Handler(http.StripPrefix("/swagger", http.FileServer(http.FS(specFS))))
 
-	var api = mux.PathPrefix("/api").Subrouter()
-	api.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	})
+	collectorAPI := &struct {
+		api.ServerInterface
+	}{}
+
+	var apiMiddlewares []api.MiddlewareFunc
 	if cfg.CORSAllowAll {
-		api.Use(handlers.CORS())
+		apiMiddlewares = append(apiMiddlewares, handlers.CORS())
 	}
 
-	var api1 = api.PathPrefix("/v1alpha1").Subrouter()
-	api1.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
+	var mux = mux.NewRouter().StrictSlash(true)
+	mux.Handle("/metrics", handleMetrics(reg))
+	mux.PathPrefix("/swagger").Handler(handleSwagger("/swagger", specFS))
+	api.HandlerWithOptions(collectorAPI, api.GorillaServerOptions{
+		BaseRouter:  mux,
+		Middlewares: apiMiddlewares,
 	})
+
+	if cfg.EnableConsole {
+		// add unspec'd api routes
+		mux.Path("/api/v1alpha1/user").Handler(handleNoContent(apiMiddlewares))
+		mux.Path("/api/v1alpha1/logout").Handler(handleNoContent(apiMiddlewares))
+		mux.PathPrefix("/api/v1alpha1/internal/prom").Handler(handleProxyPrometheusAPI("/api/v1alpha1/internal/prom", promAPI))
+
+		mux.PathPrefix("/").Handler(handleConsoleAssets(cfg.ConsoleLocation))
+	}
+
 	if !cfg.APIDisableAccessLogs {
-		api1.Use(func(next http.Handler) http.Handler {
+		mux.Use(func(next http.Handler) http.Handler {
 			return handlers.LoggingHandler(os.Stdout, next)
 		})
 	}
-
-	var api1Internal = api1.PathPrefix("/internal").Subrouter()
-	api1Internal.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	})
-
-	var promApi = api1Internal.PathPrefix("/prom").Subrouter()
-	promApi.StrictSlash(true)
-	promApi.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	})
-
-	var promqueryApi = promApi.PathPrefix("/query").Subrouter()
-	promqueryApi.StrictSlash(true)
-	promqueryApi.HandleFunc("/", http.HandlerFunc(c.promqueryHandler))
-	promqueryApi.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	})
-
-	var promqueryrangeApi = promApi.PathPrefix("/rangequery").Subrouter()
-	promqueryrangeApi.StrictSlash(true)
-	promqueryrangeApi.HandleFunc("/", (http.HandlerFunc(c.promqueryrangeHandler)))
-	promqueryrangeApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	metricsHandler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg})
-	mux.Path("/metrics").Handler(metricsHandler)
-	var metricsApi = api1.PathPrefix("/metrics").Subrouter()
-	metricsApi.StrictSlash(true)
-	metricsApi.Handle("/", metricsHandler)
-
-	var eventsourceApi = api1.PathPrefix("/eventsources").Subrouter()
-	eventsourceApi.StrictSlash(true)
-	eventsourceApi.HandleFunc("/", http.HandlerFunc(c.eventsourceHandler)).Name("list")
-	eventsourceApi.HandleFunc("/{id}", http.HandlerFunc(c.eventsourceHandler)).Name("item")
-	eventsourceApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	var userApi = api1.PathPrefix("/user").Subrouter()
-	userApi.StrictSlash(true)
-	userApi.HandleFunc("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	}))
-
-	var userLogout = api1.PathPrefix("/logout").Subrouter()
-	userLogout.StrictSlash(true)
-	userLogout.HandleFunc("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	}))
-
-	var siteApi = api1.PathPrefix("/sites").Subrouter()
-	siteApi.StrictSlash(true)
-	siteApi.HandleFunc("/", (http.HandlerFunc(c.siteHandler))).Name("list")
-	siteApi.HandleFunc("/{id}", (http.HandlerFunc(c.siteHandler))).Name("item")
-	siteApi.HandleFunc("/{id}/processes", (http.HandlerFunc(c.siteHandler))).Name("processes")
-	siteApi.HandleFunc("/{id}/routers", (http.HandlerFunc(c.siteHandler))).Name("routers")
-	siteApi.HandleFunc("/{id}/links", (http.HandlerFunc(c.siteHandler))).Name("links")
-	siteApi.HandleFunc("/{id}/hosts", (http.HandlerFunc(c.siteHandler))).Name("hosts")
-	siteApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	var hostApi = api1.PathPrefix("/hosts").Subrouter()
-	hostApi.StrictSlash(true)
-	hostApi.HandleFunc("/", (http.HandlerFunc(c.hostHandler))).Name("list")
-	hostApi.HandleFunc("/{id}", (http.HandlerFunc(c.hostHandler))).Name("item")
-	hostApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	var routerApi = api1.PathPrefix("/routers").Subrouter()
-	routerApi.StrictSlash(true)
-	routerApi.HandleFunc("/", (http.HandlerFunc(c.routerHandler))).Name("list")
-	routerApi.HandleFunc("/{id}", (http.HandlerFunc(c.routerHandler))).Name("item")
-	routerApi.HandleFunc("/{id}/flows", (http.HandlerFunc(c.routerHandler))).Name("flows")
-	routerApi.HandleFunc("/{id}/links", (http.HandlerFunc(c.routerHandler))).Name("links")
-	routerApi.HandleFunc("/{id}/listeners", (http.HandlerFunc(c.routerHandler))).Name("listeners")
-	routerApi.HandleFunc("/{id}/connectors", (http.HandlerFunc(c.routerHandler))).Name("connectors")
-	routerApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	var linkApi = api1.PathPrefix("/links").Subrouter()
-	linkApi.StrictSlash(true)
-	linkApi.HandleFunc("/", (http.HandlerFunc(c.linkHandler))).Name("list")
-	linkApi.HandleFunc("/{id}", (http.HandlerFunc(c.linkHandler))).Name("item")
-	linkApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	var listenerApi = api1.PathPrefix("/listeners").Subrouter()
-	listenerApi.StrictSlash(true)
-	listenerApi.HandleFunc("/", (http.HandlerFunc(c.listenerHandler))).Name("list")
-	listenerApi.HandleFunc("/{id}", (http.HandlerFunc(c.listenerHandler))).Name("item")
-	listenerApi.HandleFunc("/{id}/flows", (http.HandlerFunc(c.listenerHandler))).Name("flows")
-	listenerApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	var connectorApi = api1.PathPrefix("/connectors").Subrouter()
-	connectorApi.StrictSlash(true)
-	connectorApi.HandleFunc("/", (http.HandlerFunc(c.connectorHandler))).Name("list")
-	connectorApi.HandleFunc("/{id}", (http.HandlerFunc(c.connectorHandler))).Name("item")
-	connectorApi.HandleFunc("/{id}/flows", (http.HandlerFunc(c.connectorHandler))).Name("flows")
-	connectorApi.HandleFunc("/{id}/process", (http.HandlerFunc(c.connectorHandler))).Name("process")
-	connectorApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	var addressApi = api1.PathPrefix("/addresses").Subrouter()
-	addressApi.StrictSlash(true)
-	addressApi.HandleFunc("/", (http.HandlerFunc(c.addressHandler))).Name("list")
-	addressApi.HandleFunc("/{id}", (http.HandlerFunc(c.addressHandler))).Name("item")
-	addressApi.HandleFunc("/{id}/processes", (http.HandlerFunc(c.addressHandler))).Name("processes")
-	addressApi.HandleFunc("/{id}/processpairs", (http.HandlerFunc(c.addressHandler))).Name("processpairs")
-	addressApi.HandleFunc("/{id}/flows", (http.HandlerFunc(c.addressHandler))).Name("flows")
-	addressApi.HandleFunc("/{id}/flowpairs", (http.HandlerFunc(c.addressHandler))).Name("flowpairs")
-	addressApi.HandleFunc("/{id}/listeners", (http.HandlerFunc(c.addressHandler))).Name("listeners")
-	addressApi.HandleFunc("/{id}/connectors", (http.HandlerFunc(c.addressHandler))).Name("connectors")
-	addressApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	var processApi = api1.PathPrefix("/processes").Subrouter()
-	processApi.StrictSlash(true)
-	processApi.HandleFunc("/", (http.HandlerFunc(c.processHandler))).Name("list")
-	processApi.HandleFunc("/{id}", (http.HandlerFunc(c.processHandler))).Name("item")
-	processApi.HandleFunc("/{id}/flows", (http.HandlerFunc(c.processHandler))).Name("flows")
-	processApi.HandleFunc("/{id}/addresses", (http.HandlerFunc(c.processHandler))).Name("addresses")
-	processApi.HandleFunc("/{id}/connector", (http.HandlerFunc(c.processHandler))).Name("connector")
-	processApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	var processGroupApi = api1.PathPrefix("/processgroups").Subrouter()
-	processGroupApi.StrictSlash(true)
-	processGroupApi.HandleFunc("/", (http.HandlerFunc(c.processGroupHandler))).Name("list")
-	processGroupApi.HandleFunc("/{id}", (http.HandlerFunc(c.processGroupHandler))).Name("item")
-	processGroupApi.HandleFunc("/{id}/processes", (http.HandlerFunc(c.processGroupHandler))).Name("processes")
-	processGroupApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	var flowApi = api1.PathPrefix("/flows").Subrouter()
-	flowApi.StrictSlash(true)
-	flowApi.HandleFunc("/", (http.HandlerFunc(c.flowHandler))).Name("list")
-	flowApi.HandleFunc("/{id}", (http.HandlerFunc(c.flowHandler))).Name("item")
-	flowApi.HandleFunc("/{id}/process", (http.HandlerFunc(c.flowHandler))).Name("process")
-	flowApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	var flowpairApi = api1.PathPrefix("/flowpairs").Subrouter()
-	flowpairApi.StrictSlash(true)
-	flowpairApi.HandleFunc("/", (http.HandlerFunc(c.flowPairHandler))).Name("list")
-	flowpairApi.HandleFunc("/{id}", (http.HandlerFunc(c.flowPairHandler))).Name("item")
-	flowpairApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	var sitepairApi = api1.PathPrefix("/sitepairs").Subrouter()
-	sitepairApi.StrictSlash(true)
-	sitepairApi.HandleFunc("/", (http.HandlerFunc(c.sitePairHandler))).Name("list")
-	sitepairApi.HandleFunc("/{id}", (http.HandlerFunc(c.sitePairHandler))).Name("item")
-	sitepairApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	var processgrouppairApi = api1.PathPrefix("/processgrouppairs").Subrouter()
-	processgrouppairApi.StrictSlash(true)
-	processgrouppairApi.HandleFunc("/", (http.HandlerFunc(c.processGroupPairHandler))).Name("list")
-	processgrouppairApi.HandleFunc("/{id}", (http.HandlerFunc(c.processGroupPairHandler))).Name("item")
-	processgrouppairApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	var processpairApi = api1.PathPrefix("/processpairs").Subrouter()
-	processpairApi.StrictSlash(true)
-	processpairApi.HandleFunc("/", (http.HandlerFunc(c.processPairHandler))).Name("list")
-	processpairApi.HandleFunc("/{id}", (http.HandlerFunc(c.processPairHandler))).Name("item")
-	processpairApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-
-	if cfg.EnableConsole {
-		mux.PathPrefix("/").Handler(http.FileServer(http.Dir(cfg.ConsoleLocation)))
-	}
-
-	var collectorApi = api1.PathPrefix("/collectors").Subrouter()
-	collectorApi.StrictSlash(true)
-	collectorApi.HandleFunc("/", (http.HandlerFunc(c.collectorHandler))).Name("list")
-	collectorApi.HandleFunc("/{id}", (http.HandlerFunc(c.collectorHandler))).Name("item")
-	collectorApi.HandleFunc("/{id}/connectors-to-process", (http.HandlerFunc(c.collectorHandler))).Name("connectors-to-process")
-	collectorApi.HandleFunc("/{id}/flows-to-pair", (http.HandlerFunc(c.collectorHandler))).Name("flows-to-pair")
-	collectorApi.HandleFunc("/{id}/flows-to-process", (http.HandlerFunc(c.collectorHandler))).Name("flows-to-process")
-	collectorApi.HandleFunc("/{id}/pair-to-aggregate", (http.HandlerFunc(c.collectorHandler))).Name("pair-to-aggregate")
-	collectorApi.NotFoundHandler = (http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
 
 	s := &http.Server{
 		Addr:         cfg.APIListenAddress,
@@ -279,21 +78,17 @@ func run(cfg Config) error {
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
-	tlsEnabled := cfg.APITLS.Cert != ""
+	tlsEnabled := cfg.APITLS.hasCert()
 	if tlsEnabled {
-		cert, err := tls.LoadX509KeyPair(cfg.APITLS.Cert, cfg.APITLS.Key)
+		s.TLSConfig, err = cfg.APITLS.config()
 		if err != nil {
 			return fmt.Errorf("could not set up certs for api server: %s", err)
 		}
-		s.TLSConfig = &tls.Config{
-			MinVersion:   tls.VersionTLS13,
-			Certificates: []tls.Certificate{cert},
-		}
 	}
 
-	runErrors := make(chan error, 1)
-	go func() {
-		slog.Info("Starting Network Console API Server",
+	g, runCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		logger.Info("Starting Network Console API Server",
 			slog.String("address", cfg.APIListenAddress),
 			slog.Bool("tls", tlsEnabled),
 			slog.Bool("console", cfg.EnableConsole))
@@ -304,42 +99,54 @@ func run(cfg Config) error {
 			err = s.ListenAndServe()
 		}
 		if err != nil {
-			runErrors <- fmt.Errorf("server error running api server: %s", err)
+			return fmt.Errorf("server error running api server: %s", err)
 		}
-	}()
+		return nil
+	})
+	g.Go(func() error {
+		<-runCtx.Done()
+		logger.Debug("Shutting down Network Console API Server")
+		shutdownCtx, sCancel := context.WithTimeout(context.Background(), time.Second)
+		defer sCancel()
+		if err := s.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("api server shutdown did not complete gracefully: %s", err)
+		}
+		logger.Debug("Network Console API Server shutdown clean")
+		return nil
+	})
 
 	if cfg.EnableProfile {
 		// serve only over localhost loopback
 		const pprofAddr = "localhost:9970"
-		go func() {
-			slog.Info("Starting Network Console Profiling Server",
-				slog.String("address", pprofAddr))
-			if err := http.ListenAndServe(pprofAddr, nil); err != nil {
-				runErrors <- fmt.Errorf("server error running profiler server: %s", err)
-			}
-		}()
-	}
-
-	stopController := make(chan struct{})
-	defer close(stopController)
-	go func() {
-		if err = c.Run(stopController); err != nil {
-			runErrors <- fmt.Errorf("collector error: %s", err)
+		pprofSrv := &http.Server{
+			Addr: pprofAddr,
 		}
-	}()
+		g.Go(func() error {
+			logger.Info("Starting Network Console Profiling Server",
+				slog.String("address", pprofAddr))
 
-	select {
-	case err := <-runErrors:
+			err := pprofSrv.ListenAndServe()
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				return fmt.Errorf("server error running profiler server: %s", err)
+			}
+			return nil
+		})
+		g.Go(func() error {
+			<-runCtx.Done()
+			logger.Debug("Shutting down Network Console Profiling Server")
+			shutdownCtx, sCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer sCancel()
+			if err := pprofSrv.Shutdown(shutdownCtx); err != nil {
+				return fmt.Errorf("pprof server shutdown did not complete gracefully: %s", err)
+			}
+			logger.Debug("Network Console Profiling Server shutdown clean")
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil && !errors.Is(err, ctx.Err()) {
 		return err
-	case <-ctx.Done():
 	}
-
-	shutdownCtx, sCancel := context.WithTimeout(context.Background(), time.Second)
-	defer sCancel()
-	if err := s.Shutdown(shutdownCtx); err != nil {
-		return fmt.Errorf("shutdown did not complete gracefully: %s", err)
-	}
-
 	return nil
 }
 
@@ -353,7 +160,7 @@ func main() {
 	flags.StringVar(&cfg.RouterTLS.Cert, "router-tls-cert", "", "Path to the client certificate for the router endpoint")
 	flags.StringVar(&cfg.RouterTLS.Key, "router-tls-key", "", "Path to the client key for the router endpoint")
 	flags.StringVar(&cfg.RouterTLS.CA, "router-tls-ca", "", "Path to the CA certificate file for the router endpoint")
-	flags.BoolVar(&cfg.RouterTLS.Verify, "router-tls-verify", true, "Set to false to skip verifying the router tls ca")
+	flags.BoolVar(&cfg.RouterTLS.SkipVerify, "router-tls-insecure", false, "Set to skip verification of the router certificate and host name")
 
 	flags.StringVar(&cfg.APIListenAddress, "listen", ":8080", "The address that the API Server will listen on")
 	flags.BoolVar(&cfg.APIDisableAccessLogs, "disable-access-logs", false, "Disables access logging for the API Server")
