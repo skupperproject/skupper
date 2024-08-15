@@ -1,4 +1,4 @@
-package nonkube
+package bundle
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/skupperproject/skupper/internal/utils"
 	"gotest.tools/assert"
 )
 
@@ -46,7 +47,7 @@ func TestTarballBundle_Generate(t *testing.T) {
 	var sitePath string
 	var extractPath string
 	var err error
-	tb := NewTarball()
+	tb := utils.NewTarball()
 
 	t.Run("generate-fake-crs", func(t *testing.T) {
 		sitePath, err = fakeSiteCrs(true)

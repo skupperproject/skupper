@@ -1,4 +1,4 @@
-package nonkube
+package bundle
 
 import (
 	"bytes"
@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 	"text/template"
+
+	"github.com/skupperproject/skupper/internal/utils"
 )
 
 type SelfExtractingBundle struct {
@@ -18,7 +20,7 @@ func (s *SelfExtractingBundle) InstallFile() string {
 	return path.Join(s.OutputPath, fmt.Sprintf("skupper-install-%s.sh", s.SiteName))
 }
 
-func (s *SelfExtractingBundle) Generate(tarBall *Tarball) error {
+func (s *SelfExtractingBundle) Generate(tarBall *utils.Tarball) error {
 	var data = new(bytes.Buffer)
 	var err error
 

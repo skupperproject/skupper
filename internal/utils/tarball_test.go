@@ -1,4 +1,4 @@
-package nonkube
+package utils
 
 import (
 	"fmt"

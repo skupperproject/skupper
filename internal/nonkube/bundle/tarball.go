@@ -1,4 +1,4 @@
-package nonkube
+package bundle
 
 import (
 	"bytes"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"path"
 	"text/template"
+
+	"github.com/skupperproject/skupper/internal/utils"
 )
 
 type TarballBundle struct {
@@ -17,7 +19,7 @@ func (s *TarballBundle) InstallFile() string {
 	return path.Join(s.OutputPath, fmt.Sprintf("skupper-install-%s.tar.gz", s.SiteName))
 }
 
-func (s *TarballBundle) Generate(tarBall *Tarball) error {
+func (s *TarballBundle) Generate(tarBall *utils.Tarball) error {
 	var err error
 
 	installScriptTemplate := template.Must(template.New("install").Parse(installScript))

@@ -1,4 +1,4 @@
-package nonkube
+package bundle
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/apis"
 	"gotest.tools/assert"
@@ -55,7 +56,7 @@ func TestSelfExtractingBundle_Generate(t *testing.T) {
 	})
 
 	t.Run("generate-self-extracting-bundle", func(t *testing.T) {
-		tb := NewTarball()
+		tb := utils.NewTarball()
 		assert.Assert(t, tb.AddFiles(sitePath))
 		assert.Assert(t, b.Generate(tb))
 		cleanupPaths = append(cleanupPaths, b.InstallFile())

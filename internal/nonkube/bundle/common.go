@@ -1,7 +1,9 @@
-package nonkube
+package bundle
 
 import (
 	_ "embed"
+
+	"github.com/skupperproject/skupper/internal/utils"
 )
 
 const (
@@ -17,5 +19,5 @@ var (
 )
 
 type BundleGenerator interface {
-	Generate(tarball *Tarball) error
+	Generate(tarball *utils.Tarball) error
 }
