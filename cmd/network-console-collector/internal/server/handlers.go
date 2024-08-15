@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/api"
+	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/collector"
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/server/views"
 	"github.com/skupperproject/skupper/pkg/vanflow"
 )
@@ -11,10 +12,20 @@ import (
 var _ api.ServerInterface = (*server)(nil)
 
 // (GET /api/v1alpha1/addresses/)
-func (s *server) Addresses(w http.ResponseWriter, r *http.Request) {}
+func (s *server) Addresses(w http.ResponseWriter, r *http.Request) {
+	results := views.NewAddressesProvider(s.graph)(listByType[collector.AddressRecord](s.records))
+	if err := handleCollection(w, r, &api.AddressListResponse{}, results); err != nil {
+		s.logWriteError(r, err)
+	}
+}
 
 // (GET /api/v1alpha1/addresses/{id}/)
-func (s *server) AddressByID(w http.ResponseWriter, r *http.Request, id string) {}
+func (s *server) AddressByID(w http.ResponseWriter, r *http.Request, id string) {
+	getRecord := fetchAndConditionalMap(s.records, views.NewAddressProvider(s.graph), id)
+	if err := handleSingle(w, r, &api.AddressResponse{}, getRecord); err != nil {
+		s.logWriteError(r, err)
+	}
+}
 
 // (GET /api/v1alpha1/addresses/{id}/connectors/)
 func (s *server) ConnectorsByAddress(w http.ResponseWriter, r *http.Request, id string) {}
@@ -41,10 +52,20 @@ func (s *server) Hosts(w http.ResponseWriter, r *http.Request) {}
 func (s *server) HostsByID(w http.ResponseWriter, r *http.Request, id string) {}
 
 // (GET /api/v1alpha1/links/)
-func (s *server) Links(w http.ResponseWriter, r *http.Request) {}
+func (s *server) Links(w http.ResponseWriter, r *http.Request) {
+	results := views.NewLinksProvider(s.graph)(listByType[vanflow.LinkRecord](s.records))
+	if err := handleCollection(w, r, &api.LinkListResponse{}, results); err != nil {
+		s.logWriteError(r, err)
+	}
+}
 
 // (GET /api/v1alpha1/links/{id}/)
-func (s *server) LinkByID(w http.ResponseWriter, r *http.Request, id string) {}
+func (s *server) LinkByID(w http.ResponseWriter, r *http.Request, id string) {
+	getRecord := fetchAndConditionalMap(s.records, views.NewLinkProvider(s.graph), id)
+	if err := handleSingle(w, r, &api.LinkResponse{}, getRecord); err != nil {
+		s.logWriteError(r, err)
+	}
+}
 
 // (GET /api/v1alpha1/listeners/)
 func (s *server) Listeners(w http.ResponseWriter, r *http.Request) {}
@@ -56,10 +77,20 @@ func (s *server) ListenerByID(w http.ResponseWriter, r *http.Request, id string)
 func (s *server) FlowsByListener(w http.ResponseWriter, r *http.Request, id string) {}
 
 // (GET /api/v1alpha1/processes/)
-func (s *server) Processes(w http.ResponseWriter, r *http.Request) {}
+func (s *server) Processes(w http.ResponseWriter, r *http.Request) {
+	results := views.NewProcessesProvider(s.records, s.graph)(listByType[vanflow.ProcessRecord](s.records))
+	if err := handleCollection(w, r, &api.ProcessListResponse{}, results); err != nil {
+		s.logWriteError(r, err)
+	}
+}
 
 // (GET /api/v1alpha1/processes/{id}/)
-func (s *server) ProcessById(w http.ResponseWriter, r *http.Request, id string) {}
+func (s *server) ProcessById(w http.ResponseWriter, r *http.Request, id string) {
+	getRecord := fetchAndConditionalMap(s.records, views.NewProcessProvider(s.records, s.graph), id)
+	if err := handleSingle(w, r, &api.ProcessResponse{}, getRecord); err != nil {
+		s.logWriteError(r, err)
+	}
+}
 
 // (GET /api/v1alpha1/processes/{id}/addresses/)
 func (s *server) AddressesByProcess(w http.ResponseWriter, r *http.Request, id string) {}
@@ -89,22 +120,52 @@ func (s *server) Processpairs(w http.ResponseWriter, r *http.Request) {}
 func (s *server) ProcesspairByID(w http.ResponseWriter, r *http.Request, id string) {}
 
 // (GET /api/v1alpha1/routeraccess/)
-func (s *server) Routeraccess(w http.ResponseWriter, r *http.Request) {}
+func (s *server) Routeraccess(w http.ResponseWriter, r *http.Request) {
+	results := views.RouterAccessList(listByType[vanflow.RouterAccessRecord](s.records))
+	if err := handleCollection(w, r, &api.RouterAccessListResponse{}, results); err != nil {
+		s.logWriteError(r, err)
+	}
+}
 
 // (GET /api/v1alpha1/routeraccess/{id}/)
-func (s *server) RouteraccessByID(w http.ResponseWriter, r *http.Request, id string) {}
+func (s *server) RouteraccessByID(w http.ResponseWriter, r *http.Request, id string) {
+	getRecord := fetchAndMap(s.records, views.RouterAccess, id)
+	if err := handleSingle(w, r, &api.RouterAccessResponse{}, getRecord); err != nil {
+		s.logWriteError(r, err)
+	}
+}
 
 // (GET /api/v1alpha1/routerlinks/)
-func (s *server) Routerlinks(w http.ResponseWriter, r *http.Request) {}
+func (s *server) Routerlinks(w http.ResponseWriter, r *http.Request) {
+	results := views.NewRotuerLinksProvider(s.graph)(listByType[vanflow.LinkRecord](s.records))
+	if err := handleCollection(w, r, &api.RouterLinkListResponse{}, results); err != nil {
+		s.logWriteError(r, err)
+	}
+}
 
 // (GET /api/v1alpha1/routerlinks/{id}/)
-func (s *server) RouterlinkByID(w http.ResponseWriter, r *http.Request, id string) {}
+func (s *server) RouterlinkByID(w http.ResponseWriter, r *http.Request, id string) {
+	getRecord := fetchAndConditionalMap(s.records, views.NewRouterLinkProvider(s.graph), id)
+	if err := handleSingle(w, r, &api.RouterLinkResponse{}, getRecord); err != nil {
+		s.logWriteError(r, err)
+	}
+}
 
 // (GET /api/v1alpha1/routers/)
-func (s *server) Routers(w http.ResponseWriter, r *http.Request) {}
+func (s *server) Routers(w http.ResponseWriter, r *http.Request) {
+	results := views.Routers(listByType[vanflow.RouterRecord](s.records))
+	if err := handleCollection(w, r, &api.RouterListResponse{}, results); err != nil {
+		s.logWriteError(r, err)
+	}
+}
 
 // (GET /api/v1alpha1/routers/{id}/)
-func (s *server) RouterByID(w http.ResponseWriter, r *http.Request, id string) {}
+func (s *server) RouterByID(w http.ResponseWriter, r *http.Request, id string) {
+	getRecord := fetchAndMap(s.records, views.Router, id)
+	if err := handleSingle(w, r, &api.RouterResponse{}, getRecord); err != nil {
+		s.logWriteError(r, err)
+	}
+}
 
 // (GET /api/v1alpha1/routers/{id}/connectors/)
 func (s *server) ConnectorsByRouter(w http.ResponseWriter, r *http.Request, id string) {}

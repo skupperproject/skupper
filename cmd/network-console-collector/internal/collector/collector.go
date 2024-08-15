@@ -27,6 +27,12 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 		events:        make(chan changeEvent, 64),
 		purgeQueue:    make(chan store.SourceRef, 8),
 		recordRouting: make(eventsource.RecordStoreMap),
+		eventProcessingTime: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "skupper",
+			Subsystem: "internal",
+			Name:      "flow_processing_seconds",
+			Buckets:   []float64{0.001, 0.002, .005, .01, .025, .05, .1, .25, .5, 1, 2.5},
+		}, []string{"type"}),
 	}
 
 	collector.Records = store.NewSyncMapStore(store.SyncMapStoreConfig{
@@ -45,6 +51,9 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 			IndexByTypeName:        indexByTypeName,
 		},
 	})
+	collector.Graph = NewGraph(collector.Records)
+	collector.processManager = newProcessManager(logger, collector.Records, collector.Graph, newStableIdentityProvider())
+	collector.addressManager = newAddressManager(collector.logger, collector.Records)
 	routerCfg := collector.recordRouting
 	for _, typ := range standardRecordTypes {
 		routerCfg[typ.String()] = collector.Records
@@ -61,10 +70,16 @@ type Collector struct {
 	mu            sync.Mutex
 	clients       map[string]*eventsource.Client
 	Records       store.Interface
+	Graph         *Graph
 	recordRouting eventsource.RecordStoreMap
+
+	processManager *processManager
+	addressManager *addressManager
 
 	events     chan changeEvent
 	purgeQueue chan store.SourceRef
+
+	eventProcessingTime *prometheus.HistogramVec
 }
 
 func (c *Collector) Run(ctx context.Context) error {
@@ -74,10 +89,35 @@ func (c *Collector) Run(ctx context.Context) error {
 	g.Go(c.runWorkQueue(ctx))
 	g.Go(c.runDiscovery(ctx))
 	g.Go(c.runRecordCleanup(ctx))
+	g.Go(c.processManager.run(ctx))
+	g.Go(c.addressManager.run(ctx))
 	return g.Wait()
 }
 
+func (c *Collector) updateGraph(event changeEvent, stor readonly) {
+	if dEvent, ok := event.(deleteEvent); ok {
+		c.Graph.Unindex(dEvent.Record)
+		return
+	}
+	entry, ok := stor.Get(event.ID())
+	if !ok {
+		return
+	}
+	c.Graph.Reindex(entry.Record)
+}
+
 func (c *Collector) runWorkQueue(ctx context.Context) func() error {
+	// reactors respond to record changes. Should be quick, and perform minimal
+	// read-only store ops. Handle any changes out of band.
+	reactors := map[vanflow.TypeMeta][]func(event changeEvent, stor readonly){}
+	for _, r := range standardRecordTypes {
+		reactors[r] = append(reactors[r], c.updateGraph)
+	}
+
+	reactors[AddressRecord{}.GetTypeMeta()] = append(reactors[AddressRecord{}.GetTypeMeta()], c.updateGraph)
+	reactors[vanflow.ListenerRecord{}.GetTypeMeta()] = append(reactors[vanflow.ListenerRecord{}.GetTypeMeta()], c.addressManager.handleChangeEvent)
+	reactors[vanflow.ConnectorRecord{}.GetTypeMeta()] = append(reactors[vanflow.ConnectorRecord{}.GetTypeMeta()], c.addressManager.handleChangeEvent, c.processManager.handleChangeEvent)
+	reactors[vanflow.ProcessRecord{}.GetTypeMeta()] = append(reactors[vanflow.ProcessRecord{}.GetTypeMeta()], c.processManager.handleChangeEvent)
 
 	return func() error {
 		defer func() {
@@ -88,7 +128,12 @@ func (c *Collector) runWorkQueue(ctx context.Context) func() error {
 			case <-ctx.Done():
 				return nil
 			case event := <-c.events:
-				c.logger.Info("FLOW EVENT", slog.Any("event", event))
+				start := time.Now()
+				typ := event.GetTypeMeta()
+				for _, reactor := range reactors[typ] {
+					reactor(event, c.Records)
+				}
+				c.eventProcessingTime.WithLabelValues(typ.String()).Observe(time.Since(start).Seconds())
 			}
 		}
 	}

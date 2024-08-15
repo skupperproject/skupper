@@ -23,6 +23,21 @@ func fetchAndMap[V vanflow.Record, R any](stor store.Interface, mapping func(V) 
 	}
 }
 
+func fetchAndConditionalMap[V vanflow.Record, R any](stor store.Interface, mapping func(V) (R, bool), id string) func() (R, bool) {
+	return func() (R, bool) {
+		var record R
+		entry, ok := stor.Get(id)
+		if !ok {
+			return record, false
+		}
+		flowRecord, ok := entry.Record.(V)
+		if !ok {
+			return record, false
+		}
+		return mapping(flowRecord)
+	}
+}
+
 func listByType[T vanflow.Record](stor store.Interface) []store.Entry {
 	var r T
 	return ordered(stor.Index(store.TypeIndex, store.Entry{Record: r}))

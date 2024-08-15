@@ -1,6 +1,9 @@
 package collector
 
-import "github.com/skupperproject/skupper/pkg/vanflow"
+import (
+	"github.com/skupperproject/skupper/pkg/vanflow"
+	"github.com/skupperproject/skupper/pkg/vanflow/store"
+)
 
 type changeEvent interface {
 	ID() string
@@ -28,3 +31,10 @@ type updateEvent struct {
 
 func (i updateEvent) ID() string                    { return i.Curr.Identity() }
 func (i updateEvent) GetTypeMeta() vanflow.TypeMeta { return i.Curr.GetTypeMeta() }
+
+type readonly interface {
+	Get(id string) (store.Entry, bool)
+	List() []store.Entry
+	Index(index string, exemplar store.Entry) []store.Entry
+	IndexValues(index string) []string
+}

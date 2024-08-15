@@ -7,19 +7,22 @@ import (
 	"net/http"
 
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/api"
+	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/collector"
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
 )
 
-func New(logger *slog.Logger, records store.Interface) api.ServerInterface {
+func New(logger *slog.Logger, records store.Interface, graph *collector.Graph) api.ServerInterface {
 	return &server{
 		logger:  logger,
 		records: records,
+		graph:   graph,
 	}
 }
 
 type server struct {
 	logger  *slog.Logger
 	records store.Interface
+	graph   *collector.Graph
 }
 
 func (c *server) logWriteError(r *http.Request, err error) {

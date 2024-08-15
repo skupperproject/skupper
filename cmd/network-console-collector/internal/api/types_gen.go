@@ -30,6 +30,13 @@ const (
 	SITE         FlowAggregatePairType = "SITE"
 )
 
+// Defines values for LinkRoleType.
+const (
+	LinkRoleTypeEdge        LinkRoleType = "edge"
+	LinkRoleTypeInterRouter LinkRoleType = "inter-router"
+	LinkRoleTypeUnknown     LinkRoleType = "unknown"
+)
+
 // Defines values for OperStatusType.
 const (
 	Down OperStatusType = "down"
@@ -44,10 +51,10 @@ const (
 
 // Defines values for SitePlatformType.
 const (
-	Docker     SitePlatformType = "docker"
-	Kubernetes SitePlatformType = "kubernetes"
-	Podman     SitePlatformType = "podman"
-	Unknown    SitePlatformType = "unknown"
+	SitePlatformTypeDocker     SitePlatformType = "docker"
+	SitePlatformTypeKubernetes SitePlatformType = "kubernetes"
+	SitePlatformTypePodman     SitePlatformType = "podman"
+	SitePlatformTypeUnknown    SitePlatformType = "unknown"
 )
 
 // AddressListResponse defines model for AddressListResponse.
@@ -362,21 +369,28 @@ type RouterLinkListResponse struct {
 
 // RouterLinkRecord defines model for RouterLinkRecord.
 type RouterLinkRecord struct {
-	DestinationSiteId string `json:"destinationSiteId"`
+	// Cost When connected, cost will be set to the link cost attribute
+	Cost *uint64 `json:"cost"`
+
+	// DestinationSiteId When connected, the identity of the destitation (peer) site.
+	DestinationSiteId *string `json:"destinationSiteId"`
 
 	// EndTime The end time in microseconds of the record in Unix timestamp format.
 	EndTime uint64 `json:"endTime"`
 
 	// Identity The unique identifier for the record.
 	Identity      string `json:"identity"`
-	LinkCost      uint64 `json:"linkCost"`
 	Name          string `json:"name"`
 	Octets        uint64 `json:"octets"`
 	OctetsReverse uint64 `json:"octetsReverse"`
-	Peer          string `json:"peer"`
-	Role          string `json:"role"`
-	RouterId      string `json:"routerId"`
-	SourceSiteId  string `json:"sourceSiteId"`
+
+	// Peer When connected, peer will be set to the identity of a peer router access
+	Peer *string `json:"peer"`
+
+	// Role The class of skupper link
+	Role         LinkRoleType `json:"role"`
+	RouterId     string       `json:"routerId"`
+	SourceSiteId string       `json:"sourceSiteId"`
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64         `json:"startTime"`
@@ -485,6 +499,9 @@ type CollectionResponse struct {
 
 // FlowAggregatePairType defines model for flowAggregatePairType.
 type FlowAggregatePairType string
+
+// LinkRoleType The class of skupper link
+type LinkRoleType string
 
 // OperStatusType defines model for operStatusType.
 type OperStatusType string

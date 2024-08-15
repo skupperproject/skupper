@@ -235,6 +235,7 @@ func (r LogRecord) GetTypeMeta() TypeMeta {
 type RouterAccessRecord struct {
 	BaseRecord
 	Parent    *string `vflow:"2"`
+	Name      *string `vflow:"30"`
 	LinkCount *uint64 `vflow:"52"`
 	Role      *string `vflow:"54"`
 }

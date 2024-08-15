@@ -886,6 +886,13 @@ components:
       enum:
         - bound
         - unbound
+    linkRoleType:
+      type: string
+      description: The class of skupper link
+      enum:
+        - inter-router
+        - edge
+        - unknown
     SiteRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
@@ -1168,7 +1175,7 @@ components:
           required:
             - routerId
             - name
-            - linkCost
+            - cost
             - role
             - peer
             - status
@@ -1181,13 +1188,17 @@ components:
               type: string
             name:
               type: string
-            linkCost:
+            cost:
               type: integer
               format: uint64
+              nullable: true
+              description: When connected, cost will be set to the link cost attribute
             role:
-              type: string
+              $ref: '#/components/schemas/linkRoleType'
             peer:
               type: string
+              nullable: true
+              description: When connected, peer will be set to the identity of a peer router access
             status:
               $ref: '#/components/schemas/operStatusType'
             octets:
@@ -1200,6 +1211,8 @@ components:
               type: string
             destinationSiteId:
               type: string
+              nullable: true
+              description: When connected, the identity of the destitation (peer) site.
     RouterAccessRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'

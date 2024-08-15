@@ -34,6 +34,8 @@ func indexByTypeName(e store.Entry) []string {
 		return nil
 	}
 	switch record := e.Record.(type) {
+	case ProcessGroupRecord:
+		return optionalSingle(record.GetTypeMeta().String(), &record.Name)
 	case vanflow.SiteRecord:
 		return optionalSingle(record.GetTypeMeta().String(), record.Name)
 	case vanflow.RouterRecord:
