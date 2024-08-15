@@ -355,6 +355,7 @@ func TestCmdSiteDelete_WaitUntil(t *testing.T) {
 	}
 
 	for _, test := range testTable {
+		test := test
 		command := &CmdSiteDelete{
 			Namespace: "test",
 		}
@@ -364,7 +365,7 @@ func TestCmdSiteDelete_WaitUntil(t *testing.T) {
 		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
 		command.siteName = "my-site"
 		t.Run(test.name, func(t *testing.T) {
-
+			t.Parallel()
 			err := command.WaitUntil()
 			if err != nil {
 				assert.Check(t, test.expectError)

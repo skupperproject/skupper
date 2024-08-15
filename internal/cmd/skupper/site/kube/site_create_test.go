@@ -2,6 +2,7 @@ package kube
 
 import (
 	"fmt"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 
 	"testing"
@@ -420,6 +421,7 @@ func TestCmdSiteCreate_WaitUntil(t *testing.T) {
 	}
 
 	for _, test := range testTable {
+		test := test
 		command := &CmdSiteCreate{
 			Namespace: "test",
 		}
@@ -431,6 +433,7 @@ func TestCmdSiteCreate_WaitUntil(t *testing.T) {
 		command.output = test.output
 
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 
 			err := command.WaitUntil()
 
