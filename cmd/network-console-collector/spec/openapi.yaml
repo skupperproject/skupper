@@ -910,52 +910,53 @@ components:
         - type: object
           required:
               - name
-              - siteIdentity
-              - siteName
+              - parent
+              - parentName
               - imageName
               - groupIdentity
               - groupName
-              - hostIP
+              - sourceHost
               - hostName
               - processRole
               - processBinding
-              - services
+              - addresses
           properties:
             name:
               type: string
-            siteIdentity:
+            parent:
               type: string
               description: Id of the site associated to the process. this is a parent of the process
-            siteName:
+            parentName:
               type: string
-            componentIdentity:
+            groupIdentity:
               type: string
               description: Id of the component associated to the process. this is a parent of the process
-            componentName:
+            groupName:
               type: string
             hostName:
               type: string
               nullable: true
-              description: K8s pod name
-            hostIP:
+              description: The IP address of the pod within the Kubernetes cluster
+            sourceHost:
               type: string
+              description: The IP address of the node where the pod is running
             imageName:
               type: string
               nullable: true
-            role:
+            processRole:
               type: string
               enum:
                 - internal
                 - external
                 - remote
               description: Internal processes are processes related to Skupper. Remote processes are processes indirectly connected, such as a proxy
-            binding:
+            processBinding:
               type: string
               enum:
                 - bound
                 - unbound
               description: Indicates whether a process is exposed or not in a skupper network
-            services:
+            addresses:
               type: array
               nullable: true
               items:
