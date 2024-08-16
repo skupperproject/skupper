@@ -597,6 +597,31 @@ func main() {
 			}
 		}
 	}()
+	if metricsPort := os.Getenv("FLOW_METRICS_PORT"); metricsPort != "" {
+		pn, err := strconv.Atoi(metricsPort)
+		if err != nil {
+			log.Fatalf("invalid FLOW_METRICS_PORT %q should be number", metricsPort)
+		}
+		if pn < 0 || (1<<16-1) < pn {
+			log.Fatalf("invalid FLOW_METRICS_PORT %q soutside range", metricsPort)
+		}
+
+		maddr := fmt.Sprintf(":%d", pn)
+		log.Printf("COLLECTOR: metrics server listening on %s", maddr)
+		metricsSrv := &http.Server{
+			Addr:         maddr,
+			Handler:      handlers.LoggingHandler(os.Stdout, promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg})),
+			ReadTimeout:  60 * time.Second,
+			WriteTimeout: 60 * time.Second,
+		}
+		go func() {
+			err := metricsSrv.ListenAndServe()
+			if err != nil {
+				log.Printf("metrics server error: %s", err)
+			}
+		}()
+	}
+
 	if *isProf {
 		// serve only over localhost loopback
 		go func() {

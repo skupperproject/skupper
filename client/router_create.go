@@ -331,6 +331,8 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		mounts = append(mounts, []corev1.VolumeMount{})
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			csp := strconv.Itoa(int(types.ConsoleOpenShiftServicePort))
+			metricsPort := strconv.Itoa(int(types.FlowCollectorDefaultServicePort))
+			envVars = append(envVars, corev1.EnvVar{Name: "FLOW_METRICS_PORT", Value: metricsPort})
 			envVars = append(envVars, corev1.EnvVar{Name: "FLOW_PORT", Value: csp})
 			envVars = append(envVars, corev1.EnvVar{Name: "FLOW_HOST", Value: "localhost"})
 			mounts = append(mounts, []corev1.VolumeMount{})
