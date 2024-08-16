@@ -887,50 +887,81 @@ components:
           properties:
             provider:
               type: string
-              description: Possible values are 'AWS', 'IBM', 'Azure' ecc.
+              description: Possible values are 'AWS', 'IBM', 'Azure' ecc. Can be any string or 'unknown'
             platform:
               type: string
               enum:
                 - kubernetes
                 - podman
                 - docker
-              description: The platform used for the site.
+                - unknown
+              description: The platform used for the site
             name:
               type: string
             nameSpace:
               type: string
+              nullable: true
             siteVersion:
               type: string
-              description: The current skupper version installed.
+              description: The current skupper version installed. Can be any string or 'unknown'
     ProcessRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
+          required:
+              - name
+              - parent
+              - parentName
+              - imageName
+              - groupIdentity
+              - groupName
+              - sourceHost
+              - hostName
+              - processRole
+              - processBinding
+              - addresses
           properties:
             name:
               type: string
+            parent:
+              type: string
+              description: Id of the site associated to the process. this is a parent of the process
             parentName:
-              type: string
-            imageName:
-              type: string
-            image:
-              type: string
-            groupName:
               type: string
             groupIdentity:
               type: string
+              description: Id of the component associated to the process. this is a parent of the process
+            groupName:
+              type: string
             hostName:
               type: string
+              nullable: true
+              description: The IP address of the pod within the Kubernetes cluster
             sourceHost:
               type: string
+              description: The IP address of the node where the pod is running
+            imageName:
+              type: string
+              nullable: true
             processRole:
               type: string
+              enum:
+                - internal
+                - external
+                - remote
+              description: Internal processes are processes related to Skupper. Remote processes are processes indirectly connected, such as a proxy
             processBinding:
               type: string
+              enum:
+                - bound
+                - unbound
+              description: Indicates whether a process is exposed or not in a skupper network
             addresses:
               type: array
+              nullable: true
               items:
                 type: string
+              description: Indicates whether a process is exposed or not in a skupper network
     RouterRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
