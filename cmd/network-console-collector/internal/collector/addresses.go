@@ -17,6 +17,7 @@ type addressManager struct {
 	idp             idProvider
 	addresses       map[string]struct{}
 	updateAddresses chan AddressRecord
+	source          store.SourceRef
 }
 
 func newAddressManager(logger *slog.Logger, stor store.Interface) *addressManager {
@@ -26,6 +27,10 @@ func newAddressManager(logger *slog.Logger, stor store.Interface) *addressManage
 		addresses:       make(map[string]struct{}),
 		updateAddresses: make(chan AddressRecord, 16),
 		idp:             newStableIdentityProvider(),
+		source: store.SourceRef{
+			Version: "0.1",
+			ID:      "self",
+		},
 	}
 }
 
@@ -42,7 +47,7 @@ func (m *addressManager) run(ctx context.Context) func() error {
 					if _, ok := m.addresses[addr.ID]; ok {
 						return
 					}
-					m.stor.Add(addr, store.SourceRef{ID: "self"})
+					m.stor.Add(addr, m.source)
 					m.addresses[addr.ID] = struct{}{}
 					m.logger.Info("Creating address record",
 						slog.String("id", addr.ID),

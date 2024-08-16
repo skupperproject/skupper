@@ -43,6 +43,10 @@ func listByType[T vanflow.Record](stor store.Interface) []store.Entry {
 	return ordered(stor.Index(store.TypeIndex, store.Entry{Record: r}))
 }
 
+func index(stor store.Interface, index string, exemplar store.Entry) []store.Entry {
+	return ordered(stor.Index(index, exemplar))
+}
+
 func ordered(entries []store.Entry) []store.Entry {
 	sort.Slice(entries, func(i, j int) bool {
 		return strings.Compare(entries[i].Record.Identity(), entries[j].Record.Identity()) < 0

@@ -75,7 +75,7 @@ func TestSites(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run("", func(t *testing.T) {
 			stor.Replace(tc.Records)
-			graph.(interface{ Reset() }).Reset()
+			graph.(reset).Reset()
 			resp, err := c.SitesWithResponse(context.TODO(), func(ctx context.Context, r *http.Request) error {
 				values := r.URL.Query()
 				for k, vs := range tc.Parameters {
@@ -126,4 +126,8 @@ func wrapRecords(records ...vanflow.Record) []store.Entry {
 		entries[i].Record = records[i]
 	}
 	return entries
+}
+
+type reset interface {
+	Reset()
 }
