@@ -3,8 +3,8 @@ package kube
 import (
 	"context"
 	"fmt"
+	utils2 "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/spf13/cobra"
@@ -27,7 +27,7 @@ func NewCmdSiteDelete() *CmdSiteDelete {
 
 func (cmd *CmdSiteDelete) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils2.HandleError(err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.Namespace = cli.Namespace
@@ -77,7 +77,7 @@ func (cmd *CmdSiteDelete) Run() error {
 	return err
 }
 func (cmd *CmdSiteDelete) WaitUntil() error {
-	err := utils.NewSpinner("Waiting for deletion to complete...", 5, func() error {
+	err := utils2.NewSpinner("Waiting for deletion to complete...", 5, func() error {
 
 		resource, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
 

@@ -6,7 +6,7 @@ package non_kube
 import (
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	utils2 "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
@@ -41,8 +41,8 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
-	linkAccessTypeValidator := validator.NewOptionValidator(utils.LinkAccessTypes)
-	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
+	linkAccessTypeValidator := validator.NewOptionValidator(common.LinkAccessTypes)
+	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
 	if len(args) < 2 || args[0] == "" || args[1] == "" {
 		validationErrors = append(validationErrors, fmt.Errorf("site name and input path must be provided"))
@@ -121,18 +121,18 @@ func (cmd *CmdSiteCreate) Run() error {
 	}
 
 	if cmd.output != "" {
-		encodedOutput, err := utils.Encode(cmd.output, resource)
+		encodedOutput, err := utils2.Encode(cmd.output, resource)
 		fmt.Println(encodedOutput)
 
 		return err
 
 	} else {
-		encodedOutput, err := utils.Encode("yaml", resource)
+		encodedOutput, err := utils2.Encode("yaml", resource)
 		if err != nil {
 			return err
 		}
 		fileName := fmt.Sprintf("%s/site-%s.yaml", cmd.inputPath, cmd.siteName)
-		err = utils.WriteFile(fileName, encodedOutput)
+		err = utils2.WriteFile(fileName, encodedOutput)
 
 		return err
 	}

@@ -2,14 +2,13 @@ package kube
 
 import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"testing"
-
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"testing"
 )
 
 func TestCmdLinkDelete_ValidateInput(t *testing.T) {

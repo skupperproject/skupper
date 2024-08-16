@@ -2,8 +2,7 @@ package non_kube
 
 import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	"testing"
 

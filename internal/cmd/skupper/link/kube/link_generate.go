@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	utils3 "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
@@ -47,7 +47,7 @@ func NewCmdLinkGenerate() *CmdLinkGenerate {
 
 func (cmd *CmdLinkGenerate) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils3.HandleError(err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.KubeClient = cli.GetKubeClient()
@@ -60,7 +60,7 @@ func (cmd *CmdLinkGenerate) ValidateInput(args []string) []error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
-	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
+	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
 	//Validate if there is already a site defined in the namespace
 	siteList, _ := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
@@ -200,7 +200,7 @@ func (cmd *CmdLinkGenerate) Run() error {
 func (cmd *CmdLinkGenerate) WaitUntil() error {
 
 	var resourcesToPrint []string
-	encodedOutput, err := utils.Encode(cmd.output, cmd.generatedLink)
+	encodedOutput, err := utils3.Encode(cmd.output, cmd.generatedLink)
 	if err != nil {
 		return err
 	}
@@ -235,7 +235,7 @@ func (cmd *CmdLinkGenerate) WaitUntil() error {
 					},
 				}
 
-				encodedSecret, _ := utils.Encode(cmd.output, secretResource)
+				encodedSecret, _ := utils3.Encode(cmd.output, secretResource)
 				resourcesToPrint = append(resourcesToPrint, encodedSecret)
 			}
 			return nil

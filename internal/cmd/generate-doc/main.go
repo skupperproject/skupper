@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"os"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/root"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/spf13/cobra/doc"
 )
 

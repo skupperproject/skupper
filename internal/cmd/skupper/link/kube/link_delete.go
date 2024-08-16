@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	utils2 "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
@@ -28,7 +28,7 @@ func NewCmdLinkDelete() *CmdLinkDelete {
 
 func (cmd *CmdLinkDelete) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils2.HandleError(err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.Namespace = cli.Namespace
@@ -77,7 +77,7 @@ func (cmd *CmdLinkDelete) Run() error {
 	return err
 }
 func (cmd *CmdLinkDelete) WaitUntil() error {
-	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", cmd.timeout, func() error {
+	err := utils2.NewSpinnerWithTimeout("Waiting for deletion to complete...", cmd.timeout, func() error {
 
 		resource, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
 

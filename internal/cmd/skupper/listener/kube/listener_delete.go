@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	utils2 "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"time"
 
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
@@ -29,7 +29,7 @@ func NewCmdListenerDelete() *CmdListenerDelete {
 
 func (cmd *CmdListenerDelete) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils2.HandleError(err)
 
 	cmd.client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.namespace = cli.Namespace
@@ -78,7 +78,7 @@ func (cmd *CmdListenerDelete) Run() error {
 
 func (cmd *CmdListenerDelete) WaitUntil() error {
 	waitTime := int(cmd.Flags.Timeout.Seconds())
-	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
+	err := utils2.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
 		if err == nil && resource != nil {

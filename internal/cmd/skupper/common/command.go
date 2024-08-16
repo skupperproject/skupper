@@ -3,7 +3,7 @@ package common
 import (
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/spf13/cobra"
 )
 

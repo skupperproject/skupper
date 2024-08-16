@@ -3,8 +3,7 @@ package kube
 import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
-
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"

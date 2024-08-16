@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	utils2 "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"strconv"
 	"time"
 
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
@@ -48,7 +48,7 @@ func NewCmdConnectorCreate() *CmdConnectorCreate {
 
 func (cmd *CmdConnectorCreate) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils2.HandleError(err)
 
 	cmd.client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.namespace = cli.Namespace
@@ -59,8 +59,8 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
-	connectorTypeValidator := validator.NewOptionValidator(utils.ConnectorTypes)
-	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
+	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
+	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	workloadStringValidator := validator.NewWorkloadStringValidator()
 
 	// Validate arguments name and port
@@ -95,7 +95,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	if siteList == nil || len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a connector can be created", cmd.namespace))
 	} else {
-		if !utils.SiteConfigured(siteList) {
+		if !utils2.SiteConfigured(siteList) {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 		}
 	}
@@ -186,7 +186,7 @@ func (cmd *CmdConnectorCreate) Run() error {
 	}
 
 	if cmd.output != "" {
-		encodedOutput, err := utils.Encode(cmd.output, resource)
+		encodedOutput, err := utils2.Encode(cmd.output, resource)
 		fmt.Println(encodedOutput)
 		return err
 	} else {
@@ -202,7 +202,7 @@ func (cmd *CmdConnectorCreate) WaitUntil() error {
 	}
 
 	waitTime := int(cmd.Flags.Timeout.Seconds())
-	err := utils.NewSpinnerWithTimeout("Waiting for create to complete...", waitTime, func() error {
+	err := utils2.NewSpinnerWithTimeout("Waiting for create to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
 		if err != nil {

@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	utils2 "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"os"
 	"time"
 
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
@@ -34,7 +34,7 @@ func NewCmdTokenIssue() *CmdTokenIssue {
 
 func (cmd *CmdTokenIssue) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils2.HandleError(err)
 
 	cmd.client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.namespace = cli.Namespace
@@ -75,7 +75,7 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 	if siteList == nil || len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a token can be created", cmd.namespace))
 	} else {
-		if !utils.SiteReady(siteList) {
+		if !utils2.SiteReady(siteList) {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 		}
 	}
@@ -128,7 +128,7 @@ func (cmd *CmdTokenIssue) Run() error {
 }
 
 func (cmd *CmdTokenIssue) WaitUntil() error {
-	err := utils.NewSpinnerWithTimeout("Waiting for token status ...", int(cmd.Flags.Timeout.Seconds()), func() error {
+	err := utils2.NewSpinnerWithTimeout("Waiting for token status ...", int(cmd.Flags.Timeout.Seconds()), func() error {
 
 		accessGrant, err := cmd.client.AccessGrants(cmd.namespace).Get(context.TODO(), cmd.grantName, metav1.GetOptions{})
 		if err != nil {

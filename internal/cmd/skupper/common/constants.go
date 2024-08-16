@@ -1,4 +1,4 @@
-package utils
+package common
 
 var (
 	LinkAccessTypes = []string{"route", "loadbalancer", "default"}
