@@ -8,47 +8,68 @@ import (
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
 )
 
-type Graph struct {
+// Graph exposes more complex relations between record types than can be
+// represented by store indexes and is more concice than would be possible
+// fetching each individual record from a store along a chain of relations.
+//
+// Each node type has a set of exposed relations, none of which are guaranteed
+// to exist or be present in the backing store. To keep error checking to a
+// minimum, all relations will return a valid node regardless if the relation
+// exists or is present in the store. As an example, with an empty graph
+// `graph.Link("doesnotexist").Parent().Parent() will return a Site node, but
+// calling Get() on that node will return false.
+type Graph interface {
+	Address(id string) Address
+	Connector(id string) Connector
+	ConnectorTarget(id string) ConnectorTarget
+	Link(id string) Link
+	Listener(id string) Listener
+	Process(id string) Process
+	RouterAccess(id string) RouterAccess
+	Site(id string) Site
+}
+
+type graph struct {
 	dag  *dag.DAG
 	stor store.Interface
 }
 
-func NewGraph(stor store.Interface) *Graph {
-	return &Graph{
+func NewGraph(stor store.Interface) Graph {
+	return &graph{
 		dag:  dag.NewDAG(),
 		stor: stor,
 	}
 }
 
-func (g *Graph) Reset() {
+func (g *graph) Reset() {
 	g.dag = dag.NewDAG()
 	for _, e := range g.stor.List() {
 		g.Reindex(e.Record)
 	}
 }
 
-func (g *Graph) Site(id string) Site {
+func (g *graph) Site(id string) Site {
 	return vertexByType[Site](g.dag, id)
 }
-func (g *Graph) Process(id string) Process {
+func (g *graph) Process(id string) Process {
 	return vertexByType[Process](g.dag, id)
 }
-func (g *Graph) Link(id string) Link {
+func (g *graph) Link(id string) Link {
 	return vertexByType[Link](g.dag, id)
 }
-func (g *Graph) RouterAccess(id string) RouterAccess {
+func (g *graph) RouterAccess(id string) RouterAccess {
 	return vertexByType[RouterAccess](g.dag, id)
 }
-func (g *Graph) Connector(id string) Connector {
+func (g *graph) Connector(id string) Connector {
 	return vertexByType[Connector](g.dag, id)
 }
-func (g *Graph) Listener(id string) Listener {
+func (g *graph) Listener(id string) Listener {
 	return vertexByType[Listener](g.dag, id)
 }
-func (g *Graph) Address(id string) Address {
+func (g *graph) Address(id string) Address {
 	return vertexByType[Address](g.dag, id)
 }
-func (g *Graph) ConnectorTarget(id string) ConnectorTarget {
+func (g *graph) ConnectorTarget(id string) ConnectorTarget {
 	return vertexByType[ConnectorTarget](g.dag, id)
 }
 
@@ -64,11 +85,11 @@ func vertexByType[T Node](dag *dag.DAG, id string) T {
 	return out
 }
 
-func (g *Graph) Unindex(in vanflow.Record) {
+func (g *graph) Unindex(in vanflow.Record) {
 	g.dag.DeleteVertex(in.Identity())
 }
 
-func (g *Graph) Reindex(in vanflow.Record) {
+func (g *graph) Reindex(in vanflow.Record) {
 	id := in.Identity()
 	vertex, _ := g.dag.GetVertex(id)
 	switch record := in.(type) {
@@ -153,7 +174,7 @@ func (g *Graph) Reindex(in vanflow.Record) {
 	}
 }
 
-func (g *Graph) ensureParents(id string, nodes []Node) {
+func (g *graph) ensureParents(id string, nodes []Node) {
 	nm := make(map[string]Node, len(nodes))
 	for _, n := range nodes {
 		nm[n.ID()] = n
@@ -173,7 +194,7 @@ func (g *Graph) ensureParents(id string, nodes []Node) {
 	}
 }
 
-func (g *Graph) newBase(id string) baseNode {
+func (g *graph) newBase(id string) baseNode {
 	return baseNode{
 		dag:      g.dag,
 		identity: id,
@@ -209,6 +230,19 @@ func (b baseNode) Get() (entry store.Entry, found bool) {
 
 type Site struct {
 	baseNode
+}
+
+func (n Site) GetRecord() (record vanflow.SiteRecord, found bool) {
+	return getrecord[vanflow.SiteRecord](n)
+}
+
+func getrecord[R vanflow.Record, N Node](n N) (record R, found bool) {
+	e, ok := n.Get()
+	if !ok {
+		return record, false
+	}
+	record, found = e.Record.(R)
+	return record, found
 }
 
 func (n Site) Routers() []Router {
@@ -263,12 +297,20 @@ type Router struct {
 	baseNode
 }
 
+func (n Router) GetRecord() (record vanflow.RouterRecord, found bool) {
+	return getrecord[vanflow.RouterRecord](n)
+}
+
 func (n Router) Parent() Site            { return parentOfType[Site](n.dag, n.identity) }
 func (n Router) Listeners() []Listener   { return childrenByType[Listener](n.dag, n.identity) }
 func (n Router) Connectors() []Connector { return childrenByType[Connector](n.dag, n.identity) }
 
 type Link struct {
 	baseNode
+}
+
+func (n Link) GetRecord() (record vanflow.LinkRecord, found bool) {
+	return getrecord[vanflow.LinkRecord](n)
 }
 
 func (n Link) Parent() Router { return parentOfType[Router](n.dag, n.identity) }
@@ -314,6 +356,9 @@ type Process struct {
 	baseNode
 }
 
+func (n Process) GetRecord() (record vanflow.ProcessRecord, found bool) {
+	return getrecord[vanflow.ProcessRecord](n)
+}
 func (n Process) Parent() Site         { return parentOfType[Site](n.dag, n.identity) }
 func (n Process) Addresses() []Address { return nil }
 func (n Process) Connectors() []Connector {
@@ -355,5 +400,8 @@ type Address struct {
 	baseNode
 }
 
+func (n Address) GetRecord() (record AddressRecord, found bool) {
+	return getrecord[AddressRecord](n)
+}
 func (n Address) Connectors() []Connector { return childrenByType[Connector](n.dag, n.identity) }
 func (n Address) Listeners() []Listener   { return childrenByType[Listener](n.dag, n.identity) }

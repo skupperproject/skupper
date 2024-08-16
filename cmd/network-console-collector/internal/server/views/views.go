@@ -12,7 +12,7 @@ import (
 
 const unknownStr = "unknown"
 
-func NewProcessesProvider(stor store.Interface, graph *collector.Graph) func(entries []store.Entry) []api.ProcessRecord {
+func NewProcessesProvider(stor store.Interface, graph collector.Graph) func(entries []store.Entry) []api.ProcessRecord {
 	provider := NewProcessProvider(stor, graph)
 	return func(entries []store.Entry) []api.ProcessRecord {
 		results := make([]api.ProcessRecord, 0, len(entries))
@@ -29,7 +29,7 @@ func NewProcessesProvider(stor store.Interface, graph *collector.Graph) func(ent
 	}
 }
 
-func NewProcessProvider(stor store.Interface, graph *collector.Graph) func(vanflow.ProcessRecord) (api.ProcessRecord, bool) {
+func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflow.ProcessRecord) (api.ProcessRecord, bool) {
 	return func(record vanflow.ProcessRecord) (api.ProcessRecord, bool) {
 		out := defaultProcess(record.ID)
 		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
@@ -53,16 +53,12 @@ func NewProcessProvider(stor store.Interface, graph *collector.Graph) func(vanfl
 
 		var addresses []string
 		for _, cNode := range node.Connectors() {
-			if addressEntry, ok := cNode.Address().Get(); ok {
-				address, ok := addressEntry.Record.(collector.AddressRecord)
-				if !ok {
-					continue
-				}
+			if address, ok := cNode.Address().GetRecord(); ok {
 				addresses = append(addresses, fmt.Sprintf("%s@%s@%s", address.Name, address.ID, address.Protocol))
 			}
 		}
-		if site, ok := node.Parent().Get(); ok {
-			setOpt(&out.ParentName, site.Record.(vanflow.SiteRecord).Name)
+		if site, ok := node.Parent().GetRecord(); ok {
+			setOpt(&out.ParentName, site.Name)
 		}
 
 		if len(addresses) > 0 {
@@ -118,7 +114,7 @@ func defaultRouterAccess(id string) api.RouterAccessRecord {
 		RouterId: unknownStr,
 	}
 }
-func NewRotuerLinksProvider(graph *collector.Graph) func(entries []store.Entry) []api.RouterLinkRecord {
+func NewRotuerLinksProvider(graph collector.Graph) func(entries []store.Entry) []api.RouterLinkRecord {
 	provider := NewRouterLinkProvider(graph)
 	return func(entries []store.Entry) []api.RouterLinkRecord {
 		results := make([]api.RouterLinkRecord, 0, len(entries))
@@ -135,7 +131,7 @@ func NewRotuerLinksProvider(graph *collector.Graph) func(entries []store.Entry) 
 	}
 }
 
-func NewRouterLinkProvider(graph *collector.Graph) func(vanflow.LinkRecord) (api.RouterLinkRecord, bool) {
+func NewRouterLinkProvider(graph collector.Graph) func(vanflow.LinkRecord) (api.RouterLinkRecord, bool) {
 	return func(link vanflow.LinkRecord) (api.RouterLinkRecord, bool) {
 		out := defaultRouterLink(link.ID)
 		out.StartTime, out.EndTime = vanflowTimes(link.BaseRecord)
@@ -192,7 +188,7 @@ func defaultRouterLink(id string) api.RouterLinkRecord {
 	}
 }
 
-func NewAddressesProvider(graph *collector.Graph) func(entries []store.Entry) []api.AddressRecord {
+func NewAddressesProvider(graph collector.Graph) func(entries []store.Entry) []api.AddressRecord {
 	provider := NewAddressProvider(graph)
 	return func(entries []store.Entry) []api.AddressRecord {
 		results := make([]api.AddressRecord, 0, len(entries))
@@ -209,7 +205,7 @@ func NewAddressesProvider(graph *collector.Graph) func(entries []store.Entry) []
 	}
 }
 
-func NewAddressProvider(graph *collector.Graph) func(collector.AddressRecord) (api.AddressRecord, bool) {
+func NewAddressProvider(graph collector.Graph) func(collector.AddressRecord) (api.AddressRecord, bool) {
 	return func(record collector.AddressRecord) (api.AddressRecord, bool) {
 		node := graph.Address(record.ID)
 		return api.AddressRecord{
@@ -223,7 +219,7 @@ func NewAddressProvider(graph *collector.Graph) func(collector.AddressRecord) (a
 	}
 }
 
-func NewLinksProvider(graph *collector.Graph) func(entries []store.Entry) []api.LinkRecord {
+func NewLinksProvider(graph collector.Graph) func(entries []store.Entry) []api.LinkRecord {
 	provider := NewLinkProvider(graph)
 	return func(entries []store.Entry) []api.LinkRecord {
 		results := make([]api.LinkRecord, 0, len(entries))
@@ -240,7 +236,7 @@ func NewLinksProvider(graph *collector.Graph) func(entries []store.Entry) []api.
 	}
 }
 
-func NewLinkProvider(graph *collector.Graph) func(vanflow.LinkRecord) (api.LinkRecord, bool) {
+func NewLinkProvider(graph collector.Graph) func(vanflow.LinkRecord) (api.LinkRecord, bool) {
 	return func(link vanflow.LinkRecord) (api.LinkRecord, bool) {
 		out := defaultLink(link.ID)
 		out.StartTime, out.EndTime = vanflowTimes(link.BaseRecord)

@@ -51,8 +51,8 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 			IndexByTypeName:        indexByTypeName,
 		},
 	})
-	collector.Graph = NewGraph(collector.Records)
-	collector.processManager = newProcessManager(logger, collector.Records, collector.Graph, newStableIdentityProvider())
+	collector.graph = NewGraph(collector.Records).(*graph)
+	collector.processManager = newProcessManager(logger, collector.Records, collector.graph, newStableIdentityProvider())
 	collector.addressManager = newAddressManager(collector.logger, collector.Records)
 	routerCfg := collector.recordRouting
 	for _, typ := range standardRecordTypes {
@@ -70,7 +70,7 @@ type Collector struct {
 	mu            sync.Mutex
 	clients       map[string]*eventsource.Client
 	Records       store.Interface
-	Graph         *Graph
+	graph         *graph
 	recordRouting eventsource.RecordStoreMap
 
 	processManager *processManager
@@ -80,6 +80,10 @@ type Collector struct {
 	purgeQueue chan store.SourceRef
 
 	eventProcessingTime *prometheus.HistogramVec
+}
+
+func (c *Collector) GetGraph() Graph {
+	return c.graph
 }
 
 func (c *Collector) Run(ctx context.Context) error {
@@ -96,14 +100,14 @@ func (c *Collector) Run(ctx context.Context) error {
 
 func (c *Collector) updateGraph(event changeEvent, stor readonly) {
 	if dEvent, ok := event.(deleteEvent); ok {
-		c.Graph.Unindex(dEvent.Record)
+		c.graph.Unindex(dEvent.Record)
 		return
 	}
 	entry, ok := stor.Get(event.ID())
 	if !ok {
 		return
 	}
-	c.Graph.Reindex(entry.Record)
+	c.graph.Reindex(entry.Record)
 }
 
 func (c *Collector) runWorkQueue(ctx context.Context) func() error {

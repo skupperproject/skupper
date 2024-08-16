@@ -15,7 +15,7 @@ import (
 type processManager struct {
 	logger *slog.Logger
 	stor   store.Interface
-	graph  *Graph
+	graph  *graph
 	idp    idProvider
 	source store.SourceRef
 
@@ -36,7 +36,7 @@ type processManager struct {
 	rebuildProcesses  chan struct{}
 }
 
-func newProcessManager(logger *slog.Logger, stor store.Interface, graph *Graph, idp idProvider) *processManager {
+func newProcessManager(logger *slog.Logger, stor store.Interface, graph *graph, idp idProvider) *processManager {
 	return &processManager{
 		logger: logger,
 		idp:    idp,

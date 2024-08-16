@@ -75,7 +75,7 @@ func TestSites(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run("", func(t *testing.T) {
 			stor.Replace(tc.Records)
-			graph.Reset()
+			graph.(interface{ Reset() }).Reset()
 			resp, err := c.SitesWithResponse(context.TODO(), func(ctx context.Context, r *http.Request) error {
 				values := r.URL.Query()
 				for k, vs := range tc.Parameters {

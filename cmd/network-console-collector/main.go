@@ -46,7 +46,7 @@ func run(cfg Config) error {
 
 	collector := collector.New(logger.With(slog.String("component", "collector")), session.NewContainerFactory(cfg.RouterURL, sessionConfig), reg)
 
-	collectorAPI := server.New(logger.With(slog.String("component", "api")), collector.Records, collector.Graph)
+	collectorAPI := server.New(logger.With(slog.String("component", "api")), collector.Records, collector.GetGraph())
 
 	var apiMiddlewares []api.MiddlewareFunc
 	if cfg.CORSAllowAll {
