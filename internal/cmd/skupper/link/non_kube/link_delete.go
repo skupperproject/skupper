@@ -21,7 +21,6 @@ func (cmd *CmdLinkDelete) NewClient(cobraCommand *cobra.Command, args []string) 
 	//TODO
 }
 
-func (cmd *CmdLinkDelete) AddFlags()                           {}
 func (cmd *CmdLinkDelete) ValidateInput(args []string) []error { return nil }
 func (cmd *CmdLinkDelete) InputToOptions()                     {}
 func (cmd *CmdLinkDelete) Run() error {

@@ -25,7 +25,6 @@ func (cmd *CmdLinkUpdate) NewClient(cobraCommand *cobra.Command, args []string) 
 	//TODO
 }
 
-func (cmd *CmdLinkUpdate) AddFlags()                           {}
 func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error { return nil }
 func (cmd *CmdLinkUpdate) InputToOptions()                     {}
 func (cmd *CmdLinkUpdate) Run() error {

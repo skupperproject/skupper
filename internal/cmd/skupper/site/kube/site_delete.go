@@ -33,8 +33,6 @@ func (cmd *CmdSiteDelete) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdSiteDelete) AddFlags() {}
-
 func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
 	var validationErrors []error
 

@@ -45,10 +45,6 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdSiteCreate) AddFlags() {
-
-}
-
 func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 
 	var validationErrors []error

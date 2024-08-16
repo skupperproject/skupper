@@ -21,7 +21,6 @@ func (cmd *CmdListenerCreate) NewClient(cobraCommand *cobra.Command, args []stri
 	//TODO
 }
 
-func (cmd *CmdListenerCreate) AddFlags()                           {}
 func (cmd *CmdListenerCreate) ValidateInput(args []string) []error { return nil }
 func (cmd *CmdListenerCreate) InputToOptions()                     {}
 func (cmd *CmdListenerCreate) Run() error {

@@ -37,9 +37,6 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 	//TODO
 }
 
-func (cmd *CmdSiteCreate) AddFlags() {
-}
-
 func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 
 	var validationErrors []error

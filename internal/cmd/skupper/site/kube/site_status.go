@@ -33,7 +33,7 @@ func (cmd *CmdSiteStatus) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.Namespace = cli.Namespace
 }
-func (cmd *CmdSiteStatus) AddFlags() {}
+
 func (cmd *CmdSiteStatus) ValidateInput(args []string) []error {
 	var validationErrors []error
 

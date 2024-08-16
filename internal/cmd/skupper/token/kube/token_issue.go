@@ -40,8 +40,6 @@ func (cmd *CmdTokenIssue) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.namespace = cli.Namespace
 }
 
-func (cmd *CmdTokenIssue) AddFlags() {}
-
 func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()

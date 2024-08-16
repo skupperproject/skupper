@@ -44,8 +44,6 @@ func (cmd *CmdLinkUpdate) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdLinkUpdate) AddFlags() {}
-
 func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 
 	var validationErrors []error

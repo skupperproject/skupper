@@ -39,8 +39,6 @@ func (cmd *CmdTokenRedeem) NewClient(cobraCommand *cobra.Command, args []string)
 	cmd.namespace = cli.Namespace
 }
 
-func (cmd *CmdTokenRedeem) AddFlags() {}
-
 func (cmd *CmdTokenRedeem) ValidateInput(args []string) []error {
 	var validationErrors []error
 	tokenStringValidator := validator.NewFilePathStringValidator()

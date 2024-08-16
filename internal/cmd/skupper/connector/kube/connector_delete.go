@@ -35,8 +35,6 @@ func (cmd *CmdConnectorDelete) NewClient(cobraCommand *cobra.Command, args []str
 	cmd.namespace = cli.Namespace
 }
 
-func (cmd *CmdConnectorDelete) AddFlags() {}
-
 func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()

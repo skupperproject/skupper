@@ -21,7 +21,6 @@ func (cmd *CmdListenerDelete) NewClient(cobraCommand *cobra.Command, args []stri
 	//TODO
 }
 
-func (cmd *CmdListenerDelete) AddFlags()                           {}
 func (cmd *CmdListenerDelete) ValidateInput(args []string) []error { return nil }
 func (cmd *CmdListenerDelete) InputToOptions()                     {}
 func (cmd *CmdListenerDelete) Run() error {

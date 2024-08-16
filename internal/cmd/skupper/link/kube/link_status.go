@@ -36,8 +36,7 @@ func (cmd *CmdLinkStatus) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.Namespace = cli.Namespace
 }
-func (cmd *CmdLinkStatus) AddFlags() {
-}
+
 func (cmd *CmdLinkStatus) ValidateInput(args []string) []error {
 	var validationErrors []error
 	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)

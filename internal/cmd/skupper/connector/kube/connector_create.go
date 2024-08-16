@@ -55,8 +55,6 @@ func (cmd *CmdConnectorCreate) NewClient(cobraCommand *cobra.Command, args []str
 	cmd.KubeClient = cli.Kube
 }
 
-func (cmd *CmdConnectorCreate) AddFlags() {}
-
 func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()

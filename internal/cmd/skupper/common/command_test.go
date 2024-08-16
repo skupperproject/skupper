@@ -38,8 +38,6 @@ func (m *MockSkupperCommand) WaitUntil() error {
 	return nil
 }
 
-func (m *MockSkupperCommand) AddFlags() {}
-
 func TestConfigureCobraCommand(t *testing.T) {
 	t.Run("Test with kubernetes platform", func(t *testing.T) {
 		kubeCmd := &MockSkupperCommand{}

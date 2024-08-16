@@ -34,8 +34,6 @@ func (cmd *CmdLinkDelete) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdLinkDelete) AddFlags() {}
-
 func (cmd *CmdLinkDelete) ValidateInput(args []string) []error {
 	var validationErrors []error
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
