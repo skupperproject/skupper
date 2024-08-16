@@ -8,7 +8,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/api"
 )
 
 func handleMetrics(reg *prometheus.Registry) http.Handler {
@@ -22,14 +21,10 @@ func handleConsoleAssets(consoleDir string) http.Handler {
 	return http.FileServer(http.Dir(consoleDir))
 }
 
-func handleNoContent(mws []api.MiddlewareFunc) http.Handler {
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func handleNoContent() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
-	for _, mw := range mws {
-		handler = mw(handler)
-	}
-	return handler
 }
 
 func handleProxyPrometheusAPI(prefix string, target *url.URL) http.Handler {

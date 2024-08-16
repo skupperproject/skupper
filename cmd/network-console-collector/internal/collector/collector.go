@@ -24,7 +24,7 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 		session:       sessionCtr,
 		discovery:     eventsource.NewDiscovery(sessionCtr, eventsource.DiscoveryOptions{}),
 		clients:       make(map[string]*eventsource.Client),
-		events:        make(chan changeEvent, 64),
+		events:        make(chan changeEvent, 128),
 		purgeQueue:    make(chan store.SourceRef, 8),
 		recordRouting: make(eventsource.RecordStoreMap),
 		eventProcessingTime: prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -33,7 +33,14 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 			Name:      "flow_processing_seconds",
 			Buckets:   []float64{0.001, 0.002, .005, .01, .025, .05, .1, .25, .5, 1, 2.5},
 		}, []string{"type"}),
+		eventQueueSpace: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: "skupper",
+			Subsystem: "internal",
+			Name:      "queue_utilization_percentage",
+			Help:      "percentage of flow event processing queue full",
+		}),
 	}
+	reg.MustRegister(collector.eventQueueSpace, collector.eventProcessingTime)
 
 	collector.Records = store.NewSyncMapStore(store.SyncMapStoreConfig{
 		Handlers: store.EventHandlerFuncs{
@@ -41,15 +48,7 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 			OnChange: collector.handleStoreChange,
 			OnDelete: collector.handleStoreDelete,
 		},
-		Indexers: map[string]store.Indexer{
-			store.SourceIndex:      store.SourceIndexer,
-			store.TypeIndex:        store.TypeIndexer,
-			IndexByTypeParent:      indexByTypeParent,
-			IndexByAddress:         indexByAddress,
-			IndexByParentHost:      indexByParentHost,
-			IndexByLifecycleStatus: indexByLifecycleStatus,
-			IndexByTypeName:        indexByTypeName,
-		},
+		Indexers: RecordIndexers(),
 	})
 	collector.graph = NewGraph(collector.Records).(*graph)
 	collector.processManager = newProcessManager(logger, collector.Records, collector.graph, newStableIdentityProvider())
@@ -80,6 +79,7 @@ type Collector struct {
 	purgeQueue chan store.SourceRef
 
 	eventProcessingTime *prometheus.HistogramVec
+	eventQueueSpace     prometheus.Gauge
 }
 
 func (c *Collector) GetGraph() Graph {
@@ -91,6 +91,7 @@ func (c *Collector) Run(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(c.runSession(ctx))
 	g.Go(c.runWorkQueue(ctx))
+	g.Go(c.monitoring(ctx))
 	g.Go(c.runDiscovery(ctx))
 	g.Go(c.runRecordCleanup(ctx))
 	g.Go(c.processManager.run(ctx))
@@ -108,6 +109,28 @@ func (c *Collector) updateGraph(event changeEvent, stor readonly) {
 		return
 	}
 	c.graph.Reindex(entry.Record)
+}
+
+func (c *Collector) monitoring(ctx context.Context) func() error {
+	return func() error {
+		defer func() {
+			c.logger.Info("collector monitoring shutdown complete")
+		}()
+		capacity := float64(cap(c.events))
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(time.Second * 5):
+				events := float64(len(c.events))
+				utilization := events / capacity
+				if utilization > 0.90 {
+					c.logger.Error("work queue nearly full", slog.Float64("cap", capacity), slog.Float64("events", events))
+				}
+				c.eventQueueSpace.Set(utilization)
+			}
+		}
+	}
 }
 
 func (c *Collector) runWorkQueue(ctx context.Context) func() error {

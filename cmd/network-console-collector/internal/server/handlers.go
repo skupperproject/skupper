@@ -22,7 +22,7 @@ func (s *server) Addresses(w http.ResponseWriter, r *http.Request) {
 
 // (GET /api/v1alpha1/addresses/{id}/)
 func (s *server) AddressByID(w http.ResponseWriter, r *http.Request, id string) {
-	getRecord := fetchAndConditionalMap(s.records, views.NewAddressProvider(s.graph), id)
+	getRecord := fetchAndMap(s.records, views.NewAddressProvider(s.graph), id)
 	if err := handleSingle(w, r, &api.AddressResponse{}, getRecord); err != nil {
 		s.logWriteError(r, err)
 	}
@@ -38,14 +38,26 @@ func (s *server) ListenersByAddress(w http.ResponseWriter, r *http.Request, id s
 
 // (GET /api/v1alpha1/addresses/{id}/processes/)
 func (s *server) ProcessesByAddress(w http.ResponseWriter, r *http.Request, id string) {
+	//TODO(ck) implement
+	if err := handleCollection(w, r, &api.ProcessListResponse{}, []api.ProcessRecord{}); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/addresses/{id}/processpairs/)
 func (s *server) ProcessPairsByAddress(w http.ResponseWriter, r *http.Request, id string) {
+	//TODO(ck) implement
+	if err := handleCollection(w, r, &api.FlowAggregateListResponse{}, []api.FlowAggregateRecord{}); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/connectors/)
 func (s *server) Connectors(w http.ResponseWriter, r *http.Request) {
+	//TODO(ck) implement
+	if err := handleCollection(w, r, &api.ConnectorListResponse{}, []api.ConnectorRecord{}); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/connectors/{id}/)
@@ -54,6 +66,10 @@ func (s *server) ConnectorByID(w http.ResponseWriter, r *http.Request, id string
 
 // (GET /api/v1alpha1/hosts/)
 func (s *server) Hosts(w http.ResponseWriter, r *http.Request) {
+	//TODO(ck) implement
+	if err := handleCollection(w, r, &api.SiteListResponse{}, []api.SiteRecord{}); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/hosts/{id}/)
@@ -98,7 +114,7 @@ func (s *server) Processes(w http.ResponseWriter, r *http.Request) {
 
 // (GET /api/v1alpha1/processes/{id}/)
 func (s *server) ProcessById(w http.ResponseWriter, r *http.Request, id string) {
-	getRecord := fetchAndConditionalMap(s.records, views.NewProcessProvider(s.records, s.graph), id)
+	getRecord := fetchAndMap(s.records, views.NewProcessProvider(s.records, s.graph), id)
 	if err := handleSingle(w, r, &api.ProcessResponse{}, getRecord); err != nil {
 		s.logWriteError(r, err)
 	}
@@ -106,6 +122,10 @@ func (s *server) ProcessById(w http.ResponseWriter, r *http.Request, id string) 
 
 // (GET /api/v1alpha1/processes/{id}/addresses/)
 func (s *server) AddressesByProcess(w http.ResponseWriter, r *http.Request, id string) {
+	//TODO(ck) implement
+	if err := handleCollection(w, r, &api.AddressListResponse{}, []api.AddressRecord{}); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/processes/{id}/connector/)
@@ -114,6 +134,10 @@ func (s *server) ConnectorByProcess(w http.ResponseWriter, r *http.Request, id s
 
 // (GET /api/v1alpha1/processgrouppairs/)
 func (s *server) Processgrouppairs(w http.ResponseWriter, r *http.Request) {
+	//TODO(ck) implement
+	if err := handleCollection(w, r, &api.FlowAggregateListResponse{}, []api.FlowAggregateRecord{}); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/processgrouppairs/{id}/)
@@ -122,10 +146,18 @@ func (s *server) ProcessgrouppairByID(w http.ResponseWriter, r *http.Request, id
 
 // (GET /api/v1alpha1/processgroups/)
 func (s *server) Processgroups(w http.ResponseWriter, r *http.Request) {
+	results := views.NewProcessGroupsProvider(s.records)(listByType[collector.ProcessGroupRecord](s.records))
+	if err := handleCollection(w, r, &api.ProcessGroupListResponse{}, results); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/processgroups/{id}/)
 func (s *server) ProcessgroupByID(w http.ResponseWriter, r *http.Request, id string) {
+	getRecord := fetchAndMap(s.records, views.NewProcessGroupProvider(s.records), id)
+	if err := handleSingle(w, r, &api.ProcessGroupResponse{}, getRecord); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/processgroups/{id}/processes/)
@@ -134,6 +166,10 @@ func (s *server) ProcessesByProcessGroup(w http.ResponseWriter, r *http.Request,
 
 // (GET /api/v1alpha1/processpairs/)
 func (s *server) Processpairs(w http.ResponseWriter, r *http.Request) {
+	//TODO(ck) implement
+	if err := handleCollection(w, r, &api.FlowAggregateListResponse{}, []api.FlowAggregateRecord{}); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/processpairs/{id}/)
@@ -198,6 +234,10 @@ func (s *server) FlowsByRouter(w http.ResponseWriter, r *http.Request, id string
 
 // (GET /api/v1alpha1/routers/{id}/links/)
 func (s *server) LinksByRouter(w http.ResponseWriter, r *http.Request, id string) {
+	//TODO(ck) implement
+	if err := handleCollection(w, r, &api.LinkListResponse{}, []api.LinkRecord{}); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/routers/{id}/listeners/)
@@ -206,6 +246,10 @@ func (s *server) ListenersByRouter(w http.ResponseWriter, r *http.Request, id st
 
 // (GET /api/v1alpha1/sitepairs/)
 func (s *server) Sitepairs(w http.ResponseWriter, r *http.Request) {
+	//TODO(ck) implement
+	if err := handleCollection(w, r, &api.FlowAggregateListResponse{}, []api.FlowAggregateRecord{}); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/sitepairs/{id}/)
@@ -234,6 +278,10 @@ func (s *server) FlowsBySite(w http.ResponseWriter, r *http.Request, id string) 
 
 // (GET /api/v1alpha1/sites/{id}/hosts/)
 func (s *server) HostsBySite(w http.ResponseWriter, r *http.Request, id string) {
+	//TODO(ck) implement
+	if err := handleCollection(w, r, &api.SiteListResponse{}, []api.SiteRecord{}); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/sites/{id}/links/)

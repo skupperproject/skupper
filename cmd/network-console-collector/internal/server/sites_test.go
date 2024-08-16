@@ -3,8 +3,6 @@ package server
 import (
 	"context"
 	"log/slog"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -76,16 +74,7 @@ func TestSites(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			stor.Replace(tc.Records)
 			graph.(reset).Reset()
-			resp, err := c.SitesWithResponse(context.TODO(), func(ctx context.Context, r *http.Request) error {
-				values := r.URL.Query()
-				for k, vs := range tc.Parameters {
-					for _, v := range vs {
-						values.Add(k, v)
-					}
-				}
-				r.URL.RawQuery = values.Encode()
-				return nil
-			})
+			resp, err := c.SitesWithResponse(context.TODO(), WithParameters(tc.Parameters))
 			assert.Check(t, err)
 			if tc.ExpectOK {
 				assert.Equal(t, resp.StatusCode(), 200)
@@ -106,28 +95,57 @@ func TestSites(t *testing.T) {
 	}
 }
 
-func requireTestClient(t *testing.T, impl api.ServerInterface) (*httptest.Server, api.ClientWithResponsesInterface) {
-	t.Helper()
-	htsrv := httptest.NewTLSServer(api.Handler(impl))
-	client, err := api.NewClientWithResponses(htsrv.URL, api.WithHTTPClient(htsrv.Client()))
-	if err != nil {
-		t.Fatalf("unexpected error setting up test http client: %s", err)
+func TestSiteByID(t *testing.T) {
+	tlog := slog.Default()
+	stor := store.NewSyncMapStore(store.SyncMapStoreConfig{})
+	graph := collector.NewGraph(stor)
+	srv, c := requireTestClient(t, New(tlog, stor, graph))
+	defer srv.Close()
+
+	testcases := []struct {
+		ID           string
+		Records      []store.Entry
+		ExpectOK     bool
+		ExpectResult func(t *testing.T, results api.SiteRecord)
+	}{
+		{
+			ID:       "testing",
+			ExpectOK: false,
+		}, {
+			ID: "site-1",
+			Records: wrapRecords(
+				vanflow.SiteRecord{BaseRecord: vanflow.NewBase("site-1")},
+				vanflow.SiteRecord{BaseRecord: vanflow.NewBase("site-2")},
+				vanflow.SiteRecord{BaseRecord: vanflow.NewBase("site-3")},
+			),
+			ExpectOK: true,
+			ExpectResult: func(t *testing.T, results api.SiteRecord) {
+				assert.DeepEqual(t, results, api.SiteRecord{
+					Identity:    "site-1",
+					Name:        "unknown",
+					Platform:    "unknown",
+					SiteVersion: "unknown",
+				})
+			},
+		},
 	}
-	return htsrv, client
-}
 
-func ptrTo[T any](c T) *T {
-	return &c
-}
+	for _, tc := range testcases {
+		t.Run("", func(t *testing.T) {
+			stor.Replace(tc.Records)
+			graph.(reset).Reset()
+			resp, err := c.SiteByIdWithResponse(context.TODO(), tc.ID)
+			assert.Check(t, err)
+			if tc.ExpectOK {
+				assert.Equal(t, resp.StatusCode(), 200)
+				if tc.ExpectResult != nil {
+					tc.ExpectResult(t, resp.JSON200.Results)
+				}
+			} else {
+				assert.Check(t, resp.JSON404 != nil)
+				assert.Equal(t, resp.JSON404.Code, "ErrNotFound")
+			}
+		})
 
-func wrapRecords(records ...vanflow.Record) []store.Entry {
-	entries := make([]store.Entry, len(records))
-	for i := range records {
-		entries[i].Record = records[i]
 	}
-	return entries
-}
-
-type reset interface {
-	Reset()
 }

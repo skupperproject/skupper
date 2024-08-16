@@ -159,6 +159,7 @@ func (g *graph) Reindex(in vanflow.Record) {
 		if record.ProcessID != nil {
 			edges = append(edges, Process{g.newBase(*record.ProcessID)})
 		} else if record.DestHost != nil && record.Parent != nil {
+			// TODO(ck) Fix race - if a connector came in before its router parent record we'd miss this relation
 			snode := vertexByType[Router](g.dag, *record.Parent).Parent()
 			if snode.IsKnown() {
 				edges = append(edges, ConnectorTarget{g.newBase(ConnectorTargetID(snode.ID(), *record.DestHost))})

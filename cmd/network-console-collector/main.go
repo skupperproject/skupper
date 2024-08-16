@@ -48,17 +48,16 @@ func run(cfg Config) error {
 
 	collectorAPI := server.New(logger.With(slog.String("component", "api")), collector.Records, collector.GetGraph())
 
-	var apiMiddlewares []api.MiddlewareFunc
-	if cfg.CORSAllowAll {
-		apiMiddlewares = append(apiMiddlewares, handlers.CORS())
-	}
-
 	var mux = mux.NewRouter().StrictSlash(true)
+	promSubrouter := mux.PathPrefix("/api/v1alpha1/internal/prom")
 	mux.Handle("/metrics", handleMetrics(reg))
 	mux.PathPrefix("/swagger").Handler(handleSwagger("/swagger", specFS))
+	apiMux := mux.PathPrefix("/").Subrouter()
+	if cfg.CORSAllowAll {
+		apiMux.Use(handlers.CORS())
+	}
 	api.HandlerWithOptions(collectorAPI, api.GorillaServerOptions{
-		BaseRouter:  mux,
-		Middlewares: apiMiddlewares,
+		BaseRouter: apiMux,
 	})
 
 	if cfg.EnableConsole {
@@ -67,11 +66,11 @@ func run(cfg Config) error {
 			return fmt.Errorf("error parsing prometheus-api as URL: %s", err)
 		}
 		// add unspec'd api routes
-		mux.Path("/api/v1alpha1/user").Handler(handleNoContent(apiMiddlewares))
-		mux.Path("/api/v1alpha1/logout").Handler(handleNoContent(apiMiddlewares))
-		mux.PathPrefix("/api/v1alpha1/internal/prom").Handler(handleProxyPrometheusAPI("/api/v1alpha1/internal/prom", promAPI))
+		apiMux.Path("/api/v1alpha1/user").Handler(handleNoContent())
+		apiMux.Path("/api/v1alpha1/logout").Handler(handleNoContent())
+		promSubrouter.Handler(handleProxyPrometheusAPI("/api/v1alpha1/internal/prom", promAPI))
 
-		mux.PathPrefix("/").Handler(handleConsoleAssets(cfg.ConsoleLocation))
+		apiMux.PathPrefix("/").Handler(handleConsoleAssets(cfg.ConsoleLocation))
 	}
 
 	if !cfg.APIDisableAccessLogs {

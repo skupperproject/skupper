@@ -26,6 +26,18 @@ const (
 	IndexByTypeName        = "ByTypeAndName"
 )
 
+func RecordIndexers() map[string]store.Indexer {
+	return map[string]store.Indexer{
+		store.SourceIndex:      store.SourceIndexer,
+		store.TypeIndex:        store.TypeIndexer,
+		IndexByTypeParent:      indexByTypeParent,
+		IndexByAddress:         indexByAddress,
+		IndexByParentHost:      indexByParentHost,
+		IndexByLifecycleStatus: indexByLifecycleStatus,
+		IndexByTypeName:        indexByTypeName,
+	}
+}
+
 func indexByTypeName(e store.Entry) []string {
 	optionalSingle := func(prefix string, s *string) []string {
 		if s != nil {

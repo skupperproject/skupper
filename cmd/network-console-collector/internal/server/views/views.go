@@ -12,6 +12,54 @@ import (
 
 const unknownStr = "unknown"
 
+func NewProcessGroupsProvider(stor store.Interface) func(entries []store.Entry) []api.ProcessGroupRecord {
+	provider := NewProcessGroupProvider(stor)
+	return func(entries []store.Entry) []api.ProcessGroupRecord {
+		results := make([]api.ProcessGroupRecord, 0, len(entries))
+		for _, e := range entries {
+			link, ok := e.Record.(collector.ProcessGroupRecord)
+			if !ok {
+				continue
+			}
+			results = append(results, provider(link))
+		}
+		return results
+	}
+}
+
+func NewProcessGroupProvider(stor store.Interface) func(collector.ProcessGroupRecord) api.ProcessGroupRecord {
+	// todo(ck) not v efficient
+	allProcesses := stor.Index(store.TypeIndex, store.Entry{Record: vanflow.ProcessRecord{}})
+	return func(record collector.ProcessGroupRecord) api.ProcessGroupRecord {
+		group := defaultProcessGroup(record.ID)
+		group.StartTime = uint64(record.Start.UnixMicro())
+		group.Name = record.Name
+		var (
+			pCount int
+			role   string
+		)
+		for _, p := range allProcesses {
+			if proc := p.Record.(vanflow.ProcessRecord); proc.Group != nil && *proc.Group == group.Name {
+				pCount++
+				if role == "" && proc.Mode != nil {
+					role = *proc.Mode
+				}
+			}
+		}
+		group.ProcessGroupRole = role
+		group.ProcessCount = pCount
+		return group
+	}
+}
+
+func defaultProcessGroup(id string) api.ProcessGroupRecord {
+	return api.ProcessGroupRecord{
+		Identity:         id,
+		Name:             unknownStr,
+		ProcessGroupRole: string(api.External),
+	}
+}
+
 func NewProcessesProvider(stor store.Interface, graph collector.Graph) func(entries []store.Entry) []api.ProcessRecord {
 	provider := NewProcessProvider(stor, graph)
 	return func(entries []store.Entry) []api.ProcessRecord {
@@ -21,16 +69,14 @@ func NewProcessesProvider(stor store.Interface, graph collector.Graph) func(entr
 			if !ok {
 				continue
 			}
-			if l, ok := provider(link); ok {
-				results = append(results, l)
-			}
+			results = append(results, provider(link))
 		}
 		return results
 	}
 }
 
-func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflow.ProcessRecord) (api.ProcessRecord, bool) {
-	return func(record vanflow.ProcessRecord) (api.ProcessRecord, bool) {
+func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflow.ProcessRecord) api.ProcessRecord {
+	return func(record vanflow.ProcessRecord) api.ProcessRecord {
 		out := defaultProcess(record.ID)
 		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
 		out.ImageName = record.ImageName
@@ -66,7 +112,7 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 			out.Addresses = &addresses
 		}
 
-		return out, true
+		return out
 	}
 }
 
@@ -197,16 +243,14 @@ func NewAddressesProvider(graph collector.Graph) func(entries []store.Entry) []a
 			if !ok {
 				continue
 			}
-			if l, ok := provider(record); ok {
-				results = append(results, l)
-			}
+			results = append(results, provider(record))
 		}
 		return results
 	}
 }
 
-func NewAddressProvider(graph collector.Graph) func(collector.AddressRecord) (api.AddressRecord, bool) {
-	return func(record collector.AddressRecord) (api.AddressRecord, bool) {
+func NewAddressProvider(graph collector.Graph) func(collector.AddressRecord) api.AddressRecord {
+	return func(record collector.AddressRecord) api.AddressRecord {
 		node := graph.Address(record.ID)
 		return api.AddressRecord{
 			Identity:       record.ID,
@@ -215,7 +259,7 @@ func NewAddressProvider(graph collector.Graph) func(collector.AddressRecord) (ap
 			Name:           record.Name,
 			ListenerCount:  len(node.Listeners()),
 			ConnectorCount: len(node.Connectors()),
-		}, true
+		}
 	}
 }
 
