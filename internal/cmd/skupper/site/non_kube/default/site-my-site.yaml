@@ -1,0 +1,36 @@
+apiVersion: skupper.io/v1alpha1
+kind: Site
+metadata:
+  creationTimestamp: null
+  name: my-site
+spec:
+  settings:
+    name: my-site
+status: {}
+apiVersion: skupper.io/v1alpha1
+kind: Site
+metadata:
+  creationTimestamp: null
+  name: my-site
+spec:
+  settings:
+    name: my-site
+status: {}
+apiVersion: skupper.io/v1alpha1
+kind: Site
+metadata:
+  creationTimestamp: null
+  name: my-site
+spec:
+  settings:
+    name: my-site
+status: {}
+apiVersion: skupper.io/v1alpha1
+kind: Site
+metadata:
+  creationTimestamp: null
+  name: my-site
+spec:
+  settings:
+    name: my-site
+status: {}

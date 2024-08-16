@@ -80,6 +80,10 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 		}
 	}
 
+	if cmd.Flags != nil && cmd.Flags.Host != "" {
+		validationErrors = append(validationErrors, fmt.Errorf("--host flag is not supported on this platform"))
+	}
+
 	if cmd.Flags.LinkAccessType != "" {
 		ok, err := linkAccessTypeValidator.Evaluate(cmd.Flags.LinkAccessType)
 		if !ok {

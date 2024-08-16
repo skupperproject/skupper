@@ -6,23 +6,27 @@ package non_kube
 import (
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	utils2 "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/non-kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
 )
 
 type CmdSiteCreate struct {
-	CobraCmd       *cobra.Command
-	Flags          *common.CommandSiteCreateFlags
-	options        map[string]string
-	siteName       string
-	linkAccessType string
-	output         string
-	inputPath      string
+	pathProvider     client.PathProvider
+	CobraCmd         *cobra.Command
+	Flags            *common.CommandSiteCreateFlags
+	options          map[string]string
+	siteName         string
+	linkAccessType   string
+	output           string
+	inputPath        string
+	namespace        string
+	host             string
+	routerAccessName string
 }
 
 func NewCmdSiteCreate() *CmdSiteCreate {
@@ -34,20 +38,38 @@ func NewCmdSiteCreate() *CmdSiteCreate {
 }
 
 func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) {
-	//TODO
+	cmd.pathProvider = client.PathProvider{}
+
+	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace) != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String() != "" {
+		cmd.pathProvider.Namespace = cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String()
+		cmd.namespace = cmd.pathProvider.Namespace
+	}
 }
 
 func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 
 	var validationErrors []error
+
+	if cmd.Flags.ServiceAccount != "" {
+		validationErrors = append(validationErrors, fmt.Errorf("--service-account flag is not supported on this platform"))
+	}
+
+	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
+		validationErrors = append(validationErrors, fmt.Errorf("--context flag is not supported on this platform"))
+	}
+
+	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameKubeconfig) != nil && cmd.CobraCmd.Flag(common.FlagNameKubeconfig).Value.String() != "" {
+		validationErrors = append(validationErrors, fmt.Errorf("--kubeconfig flag is not supported on this platform"))
+	}
+
 	resourceStringValidator := validator.NewResourceStringValidator()
 	linkAccessTypeValidator := validator.NewOptionValidator(common.LinkAccessTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
-	if len(args) < 2 || args[0] == "" || args[1] == "" {
-		validationErrors = append(validationErrors, fmt.Errorf("site name and input path must be provided"))
-	} else if len(args) > 3 {
-		validationErrors = append(validationErrors, fmt.Errorf("only two arguments are allowed for this command."))
+	if len(args) == 0 || args[0] == "" {
+		validationErrors = append(validationErrors, fmt.Errorf("site name must not be empty"))
+	} else if len(args) > 1 {
+		validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
 	} else {
 		ok, err := resourceStringValidator.Evaluate(args[0])
 		if !ok {
@@ -55,11 +77,6 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		}
 		cmd.siteName = args[0]
 
-		_, err = os.Stat(args[1])
-		if err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("input path does not exist: %s", err))
-		}
-		cmd.inputPath = args[1]
 	}
 
 	if cmd.Flags.LinkAccessType != "" {
@@ -78,6 +95,10 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
+	}
+
+	if cmd.Flags.Host == "" {
+		validationErrors = append(validationErrors, fmt.Errorf("host should not be empty"))
 	}
 
 	return validationErrors
@@ -99,20 +120,27 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 	options[site.SiteConfigNameKey] = cmd.siteName
 
 	cmd.options = options
-
 	cmd.output = cmd.Flags.Output
+
+	if cmd.namespace == "" {
+		cmd.namespace = "default"
+	}
+	cmd.inputPath = cmd.pathProvider.GetDefaultNamespace()
+	cmd.host = cmd.Flags.Host
+	cmd.routerAccessName = "router-access-" + cmd.siteName
 
 }
 
 func (cmd *CmdSiteCreate) Run() error {
 
-	resource := v1alpha1.Site{
+	siteResource := v1alpha1.Site{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v1alpha1",
 			Kind:       "Site",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: cmd.siteName,
+			Name:      cmd.siteName,
+			Namespace: cmd.namespace,
 		},
 		Spec: v1alpha1.SiteSpec{
 			Settings:   cmd.options,
@@ -120,20 +148,56 @@ func (cmd *CmdSiteCreate) Run() error {
 		},
 	}
 
+	routerAccessResource := v1alpha1.RouterAccess{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v1alpha1",
+			Kind:       "RouterAccess",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cmd.routerAccessName,
+			Namespace: cmd.namespace,
+		},
+		Spec: v1alpha1.RouterAccessSpec{
+			Roles: []v1alpha1.RouterAccessRole{
+				{
+					Port: 55671,
+					Name: "inter-router",
+				},
+				{
+					Port: 55671,
+					Name: "inter-router",
+				},
+			},
+			BindHost: cmd.host,
+		},
+	}
+
 	if cmd.output != "" {
-		encodedOutput, err := utils2.Encode(cmd.output, resource)
-		fmt.Println(encodedOutput)
+		encodedSiteOutput, err := utils.Encode(cmd.output, siteResource)
+		fmt.Println(encodedSiteOutput)
+		fmt.Println("---")
+		encodedRouterAccessOutput, err := utils.Encode(cmd.output, routerAccessResource)
+		fmt.Println(encodedRouterAccessOutput)
 
 		return err
 
 	} else {
-		encodedOutput, err := utils2.Encode("yaml", resource)
+		encodedSite, err := utils.Encode("yaml", siteResource)
 		if err != nil {
 			return err
 		}
 		fileName := fmt.Sprintf("%s/site-%s.yaml", cmd.inputPath, cmd.siteName)
-		err = utils2.WriteFile(fileName, encodedOutput)
+		err = utils.WriteFile(fileName, encodedSite)
+		if err != nil {
+			return err
+		}
 
+		encodedRouterAccess, err := utils.Encode("yaml", routerAccessResource)
+		if err != nil {
+			return err
+		}
+		fileName = fmt.Sprintf("%s/%s.yaml", cmd.inputPath, cmd.routerAccessName)
+		err = utils.WriteFile(fileName, encodedRouterAccess)
 		return err
 	}
 

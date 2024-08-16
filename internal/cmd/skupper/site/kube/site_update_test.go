@@ -110,6 +110,25 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"service account name is not valid: serviceaccounts \"not valid service account name\" not found"},
 		},
 		{
+			name:  "host name was specified, but this flag does not work on kube platforms",
+			args:  []string{"my-site"},
+			flags: &common.CommandSiteUpdateFlags{Host: "host"},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
+						},
+					},
+				},
+			},
+			expectedErrors: []string{"--host flag is not supported on this platform"},
+		},
+		{
 			name:       "link access type is not valid",
 			args:       []string{"my-site"},
 			flags:      &common.CommandSiteUpdateFlags{LinkAccessType: "not-valid"},

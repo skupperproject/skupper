@@ -1,6 +1,8 @@
 package common
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	FlagNamePlatform   = "platform"
@@ -67,6 +69,7 @@ type CommandSiteCreateFlags struct {
 	LinkAccessType   string
 	ServiceAccount   string
 	Output           string
+	Host             string
 }
 
 type CommandSiteUpdateFlags struct {
@@ -74,6 +77,7 @@ type CommandSiteUpdateFlags struct {
 	LinkAccessType   string
 	ServiceAccount   string
 	Output           string
+	Host             string
 }
 
 type CommandLinkGenerateFlags struct {

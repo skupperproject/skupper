@@ -65,6 +65,12 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"service account name is not valid: serviceaccounts \"not valid service account name\" not found"},
 		},
 		{
+			name:           "host name was specified, but this flag does not work on kube platforms",
+			args:           []string{"my-site"},
+			flags:          &common.CommandSiteCreateFlags{Host: "host"},
+			expectedErrors: []string{"--host flag is not supported on this platform"},
+		},
+		{
 			name:  "link access type is not valid",
 			args:  []string{"my-site"},
 			flags: &common.CommandSiteCreateFlags{LinkAccessType: "not-valid"},

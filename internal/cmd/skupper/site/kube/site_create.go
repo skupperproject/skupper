@@ -58,6 +58,10 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("there is already a site created for this namespace"))
 	}
 
+	if cmd.Flags != nil && cmd.Flags.Host != "" {
+		validationErrors = append(validationErrors, fmt.Errorf("--host flag is not supported on this platform"))
+	}
+
 	if len(args) == 0 || args[0] == "" {
 		validationErrors = append(validationErrors, fmt.Errorf("site name must not be empty"))
 	} else if len(args) > 1 {
