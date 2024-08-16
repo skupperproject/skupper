@@ -1,4 +1,4 @@
-package connector
+package listener
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestCmdConnectorFactory(t *testing.T) {
+func TestCmdLinkFactory(t *testing.T) {
 
 	type test struct {
 		name                          string
@@ -20,49 +20,43 @@ func TestCmdConnectorFactory(t *testing.T) {
 
 	testTable := []test{
 		{
-			name: "CmdConnectorCreateFactory",
+			name: "CmdListenerCreateFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
-				common.FlagNameRoutingKey:      "",
-				common.FlagNameHost:            "",
-				common.FlagNameTlsSecret:       "",
-				common.FlagNameConnectorType:   "tcp",
-				common.FlagNameIncludeNotReady: "false",
-				common.FlagNameSelector:        "",
-				common.FlagNameWorkload:        "",
-				common.FlagNameOutput:          "",
-				common.FlagNameTimeout:         "1m0s",
+				common.FlagNameRoutingKey:   "",
+				common.FlagNameHost:         "",
+				common.FlagNameTlsSecret:    "",
+				common.FlagNameListenerType: "tcp",
+				common.FlagNameOutput:       "",
+				common.FlagNameTimeout:      "1m0s",
 			},
-			command: CmdConnectorCreateFactory(types.PlatformKubernetes),
+			command: CmdListenerCreateFactory(types.PlatformKubernetes),
 		},
 		{
-			name: "CmdConnectorUpdateFactory",
+			name: "CmdListenerUpdateFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
-				common.FlagNameRoutingKey:      "",
-				common.FlagNameHost:            "",
-				common.FlagNameTlsSecret:       "",
-				common.FlagNameConnectorType:   "tcp",
-				common.FlagNameIncludeNotReady: "false",
-				common.FlagNameSelector:        "",
-				common.FlagNameWorkload:        "",
-				common.FlagNameOutput:          "",
-				common.FlagNameTimeout:         "1m0s",
-				common.FlagNameConnectorPort:   "0",
+				common.FlagNameRoutingKey:   "",
+				common.FlagNameHost:         "",
+				common.FlagNameTlsSecret:    "",
+				common.FlagNameListenerType: "tcp",
+				common.FlagNameOutput:       "",
+				common.FlagNameTimeout:      "1m0s",
+				common.FlagNameListenerPort: "0",
 			},
-			command: CmdConnectorUpdateFactory(types.PlatformKubernetes),
+			command: CmdListenerUpdateFactory(types.PlatformKubernetes),
 		},
 		{
-			name: "CmdConnectorStatusFactory",
+			name: "CmdListenerStatusFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameConnectorStatusOutput: "",
 			},
-			command: CmdConnectorStatusFactory(types.PlatformKubernetes),
+			command: CmdListenerStatusFactory(types.PlatformKubernetes),
 		},
 		{
-			name: "CmdConnectorDeleteFactory",
+			name: "CmdListenerDeleteFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameTimeout: "1m0s",
 			},
-			command: CmdConnectorDeleteFactory(types.PlatformKubernetes),
+			command: CmdListenerDeleteFactory(types.PlatformKubernetes),
 		},
 	}
 

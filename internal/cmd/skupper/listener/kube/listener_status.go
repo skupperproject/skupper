@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"os"
 	"text/tabwriter"
 
@@ -15,19 +16,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	listenerStatusLong    = "Display status of all listeners or a specific listener"
-	listenerStatusExample = "skupper listener status backend"
-)
-
-type ListenerStatus struct {
-	output string
-}
-
 type CmdListenerStatus struct {
 	client    skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd  cobra.Command
-	flags     ListenerStatus
+	CobraCmd  *cobra.Command
+	Flags     *common.CommandListenerStatusFlags
 	namespace string
 	name      string
 	output    string
@@ -35,24 +27,7 @@ type CmdListenerStatus struct {
 
 func NewCmdListenerStatus() *CmdListenerStatus {
 
-	skupperCmd := CmdListenerStatus{flags: ListenerStatus{}}
-
-	cmd := cobra.Command{
-		Use:     "status <name>",
-		Short:   "get status of listeners",
-		Long:    listenerStatusLong,
-		Example: listenerStatusExample,
-		PreRun:  skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.Run())
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
-	skupperCmd.AddFlags()
-
-	return &skupperCmd
+	return &CmdListenerStatus{}
 }
 
 func (cmd *CmdListenerStatus) NewClient(cobraCommand *cobra.Command, args []string) {
@@ -63,9 +38,7 @@ func (cmd *CmdListenerStatus) NewClient(cobraCommand *cobra.Command, args []stri
 	cmd.namespace = cli.Namespace
 }
 
-func (cmd *CmdListenerStatus) AddFlags() {
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print status of listeners Choices: json, yaml")
-}
+func (cmd *CmdListenerStatus) AddFlags() {}
 
 func (cmd *CmdListenerStatus) ValidateInput(args []string) []error {
 	var validationErrors []error
@@ -96,12 +69,12 @@ func (cmd *CmdListenerStatus) ValidateInput(args []string) []error {
 		}
 	}
 
-	if cmd.flags.output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.flags.output)
+	if cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		} else {
-			cmd.output = cmd.flags.output
+			cmd.output = cmd.Flags.Output
 		}
 	}
 

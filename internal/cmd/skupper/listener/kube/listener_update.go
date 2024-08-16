@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
@@ -16,12 +17,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-var (
-	listenerUpdateLong = `Clients at this site use the listener host and port to establish connections to the remote service.
-	The user can change port, host name, TLS secret, listener type and routing key`
-	listenerUpdateExample = "skupper listener update database --host mysql --port 3306"
-)
-
 type ListenerUpdates struct {
 	routingKey   string
 	host         string
@@ -31,11 +26,10 @@ type ListenerUpdates struct {
 	timeout      time.Duration
 	output       string
 }
-
 type CmdListenerUpdate struct {
 	client          skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd        cobra.Command
-	flags           ListenerUpdates
+	CobraCmd        *cobra.Command
+	Flags           *common.CommandListenerUpdateFlags
 	namespace       string
 	name            string
 	resourceVersion string
@@ -45,27 +39,7 @@ type CmdListenerUpdate struct {
 
 func NewCmdListenerUpdate() *CmdListenerUpdate {
 
-	skupperCmd := CmdListenerUpdate{flags: ListenerUpdates{}}
-
-	cmd := cobra.Command{
-		Use:     "update <name>",
-		Short:   "update a listener",
-		Long:    listenerUpdateLong,
-		Example: listenerUpdateExample,
-		PreRun:  skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.Run())
-		},
-		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntil()
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
-	skupperCmd.AddFlags()
-
-	return &skupperCmd
+	return &CmdListenerUpdate{}
 }
 
 func (cmd *CmdListenerUpdate) NewClient(cobraCommand *cobra.Command, args []string) {
@@ -77,15 +51,7 @@ func (cmd *CmdListenerUpdate) NewClient(cobraCommand *cobra.Command, args []stri
 	cmd.KubeClient = cli.Kube
 }
 
-func (cmd *CmdListenerUpdate) AddFlags() {
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.routingKey, "routing-key", "r", "", "The identifier used to route traffic from listeners to connectors")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.host, "host", "", "The hostname or IP address of the local listener")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.tlsSecret, "tls-secret", "", "The name of a Kubernetes secret containing TLS credentials")
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.listenerType, "type", "t", "tcp", "The listener type. Choices: [tcp|http].")
-	cmd.CobraCmd.Flags().IntVar(&cmd.flags.port, "port", 0, "The port of the local listener")
-	cmd.CobraCmd.Flags().DurationVar(&cmd.flags.timeout, "timeout", 60*time.Second, "Raise an error if the operation does not complete in the given period of time.")
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
-}
+func (cmd *CmdListenerUpdate) AddFlags() {}
 
 func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 	var validationErrors []error
@@ -126,52 +92,52 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 	}
 
 	// Validate flags
-	if cmd.flags.routingKey != "" {
-		ok, err := resourceStringValidator.Evaluate(cmd.flags.routingKey)
+	if cmd.Flags.RoutingKey != "" {
+		ok, err := resourceStringValidator.Evaluate(cmd.Flags.RoutingKey)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("routing key is not valid: %s", err))
 		} else {
-			cmd.newSettings.routingKey = cmd.flags.routingKey
+			cmd.newSettings.routingKey = cmd.Flags.RoutingKey
 		}
 	}
 	// TBD what validation should be done
-	if cmd.flags.host != "" {
-		cmd.newSettings.host = cmd.flags.host
+	if cmd.Flags.Host != "" {
+		cmd.newSettings.host = cmd.Flags.Host
 	}
-	if cmd.flags.tlsSecret != "" {
-		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.flags.tlsSecret, metav1.GetOptions{})
+	if cmd.Flags.TlsSecret != "" {
+		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsSecret, metav1.GetOptions{})
 		if err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("tls-secret is not valid: does not exist"))
 		} else {
-			cmd.newSettings.tlsSecret = cmd.flags.tlsSecret
+			cmd.newSettings.tlsSecret = cmd.Flags.TlsSecret
 		}
 	}
-	if cmd.flags.listenerType != "" {
-		ok, err := listenerTypeValidator.Evaluate(cmd.flags.listenerType)
+	if cmd.Flags.ListenerType != "" {
+		ok, err := listenerTypeValidator.Evaluate(cmd.Flags.ListenerType)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("listener type is not valid: %s", err))
 		} else {
-			cmd.newSettings.listenerType = cmd.flags.listenerType
+			cmd.newSettings.listenerType = cmd.Flags.ListenerType
 		}
 	}
-	if cmd.flags.port != 0 {
-		ok, err := numberValidator.Evaluate(cmd.flags.port)
+	if cmd.Flags.Port != 0 {
+		ok, err := numberValidator.Evaluate(cmd.Flags.Port)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("listener port is not valid: %s", err))
 		} else {
-			cmd.newSettings.port = cmd.flags.port
+			cmd.newSettings.port = cmd.Flags.Port
 		}
 	}
-	//TBD what is valid timeout
-	if cmd.flags.timeout <= 0*time.Minute {
+	//TBD what is valid timeout --> use timeoutvalidator
+	if cmd.Flags.Timeout <= 0*time.Minute {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
 	}
-	if cmd.flags.output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.flags.output)
+	if cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		} else {
-			cmd.newSettings.output = cmd.flags.output
+			cmd.newSettings.output = cmd.Flags.Output
 		}
 	}
 
@@ -215,7 +181,7 @@ func (cmd *CmdListenerUpdate) WaitUntil() error {
 		return nil
 	}
 
-	waitTime := int(cmd.flags.timeout.Seconds())
+	waitTime := int(cmd.Flags.Timeout.Seconds())
 	err := utils.NewSpinnerWithTimeout("Waiting for update to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})

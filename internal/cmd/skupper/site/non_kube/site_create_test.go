@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func TestCmdSiteCreate_ValidateInput(t *testing.T) {
+func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
@@ -94,7 +94,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 	}
 }
 
-func TestCmdSiteCreate_InputToOptions(t *testing.T) {
+func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 
 	type test struct {
 		name               string
@@ -173,7 +173,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 	}
 }
 
-func TestCmdSiteCreate_Run(t *testing.T) {
+func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 	type test struct {
 		name               string
 		k8sObjects         []runtime.Object
@@ -259,7 +259,7 @@ func TestCmdSiteCreate_Run(t *testing.T) {
 		})
 	}
 }
-func TestCmdSiteCreate_WaitUntilReady(t *testing.T) {
+func TestNonKubeCmdSiteCreate_WaitUntil(t *testing.T) {
 	type test struct {
 		name           string
 		k8sObjects     []runtime.Object

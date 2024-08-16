@@ -1,79 +1,24 @@
 package kube
 
 import (
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"testing"
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func TestCmdListenerCreate_NewCmdListenerCreate(t *testing.T) {
-
-	t.Run("listener command", func(t *testing.T) {
-
-		result := NewCmdListenerCreate()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.Example != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-		assert.Check(t, result.CobraCmd.PostRunE != nil)
-		assert.Check(t, result.CobraCmd.Flags() != nil)
-	})
-
-}
-
-func TestCmdListenerCreate_AddFlags(t *testing.T) {
-
-	expectedFlagsWithDefaultValue := map[string]interface{}{
-		"routing-key": "",
-		"host":        "",
-		"tls-secret":  "",
-		"type":        "tcp",
-		"timeout":     "1m0s",
-		"output":      "",
-	}
-	var flagList []string
-
-	cmd, err := newCmdListenerCreateWithMocks("test", nil, nil, "")
-	assert.Assert(t, err)
-
-	t.Run("add flags", func(t *testing.T) {
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-		})
-
-		assert.Check(t, len(flagList) == 0)
-
-		cmd.AddFlags()
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] != nil)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue)
-		})
-
-		assert.Check(t, len(flagList) == len(expectedFlagsWithDefaultValue))
-
-	})
-
-}
-
 func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 	type test struct {
 		name                string
 		args                []string
-		flags               ListenerCreate
+		flags               common.CommandListenerCreateFlags
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
@@ -84,7 +29,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "listener is not created because there is already the same listener in the namespace",
 			args:  []string{"my-listener", "8080"},
-			flags: ListenerCreate{timeout: 1 * time.Minute},
+			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -130,13 +75,13 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name:           "listener no site",
 			args:           []string{"listener-site", "8090"},
-			flags:          ListenerCreate{timeout: 1 * time.Minute},
+			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"A site must exist in namespace test before a listener can be created"},
 		},
 		{
 			name:  "listener no site with ok status",
 			args:  []string{"listener-site", "8090"},
-			flags: ListenerCreate{timeout: 1 * time.Minute},
+			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -159,7 +104,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "listener name and port are not specified",
 			args:  []string{},
-			flags: ListenerCreate{timeout: 1 * time.Minute},
+			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -187,7 +132,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "listener name empty",
 			args:  []string{"", "8090"},
-			flags: ListenerCreate{timeout: 1 * time.Minute},
+			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -215,7 +160,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "listener port empty",
 			args:  []string{"my-name-port-empty", ""},
-			flags: ListenerCreate{timeout: 1 * time.Minute},
+			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -243,7 +188,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "listener port not positive",
 			args:  []string{"my-port-positive", "-45"},
-			flags: ListenerCreate{timeout: 1 * time.Minute},
+			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -271,7 +216,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "listener name and port are not specified",
 			args:  []string{},
-			flags: ListenerCreate{timeout: 1 * time.Minute},
+			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -299,7 +244,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "listener port is not specified",
 			args:  []string{"my-name"},
-			flags: ListenerCreate{timeout: 1 * time.Minute},
+			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -327,7 +272,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "more than two arguments are specified",
 			args:  []string{"my", "listener", "8080"},
-			flags: ListenerCreate{timeout: 1 * time.Minute},
+			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -355,7 +300,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "listener name is not valid.",
 			args:  []string{"my new listener", "8080"},
-			flags: ListenerCreate{timeout: 1 * time.Minute},
+			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -384,7 +329,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "port is not valid.",
 			args:  []string{"my-listener-port", "abcd"},
-			flags: ListenerCreate{timeout: 1 * time.Minute},
+			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -413,9 +358,9 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name: "listener type is not valid",
 			args: []string{"my-listener-type", "8080"},
-			flags: ListenerCreate{
-				timeout:      1 * time.Minute,
-				listenerType: "not-valid",
+			flags: common.CommandListenerCreateFlags{
+				Timeout:      1 * time.Minute,
+				ListenerType: "not-valid",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -445,9 +390,9 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name: "routing key is not valid",
 			args: []string{"my-listener-rk", "8080"},
-			flags: ListenerCreate{
-				timeout:    60 * time.Second,
-				routingKey: "not-valid$",
+			flags: common.CommandListenerCreateFlags{
+				Timeout:    60 * time.Second,
+				RoutingKey: "not-valid$",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -477,9 +422,9 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name: "tls-secret does not exist",
 			args: []string{"my-listener-tls", "8080"},
-			flags: ListenerCreate{
-				timeout:   1 * time.Minute,
-				tlsSecret: "not-valid",
+			flags: common.CommandListenerCreateFlags{
+				Timeout:   1 * time.Minute,
+				TlsSecret: "not-valid",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -508,7 +453,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "timeout is not valid",
 			args:  []string{"bad-timeout", "8080"},
-			flags: ListenerCreate{timeout: 0 * time.Second},
+			flags: common.CommandListenerCreateFlags{Timeout: 0 * time.Second},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -536,9 +481,9 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name: "output is not valid",
 			args: []string{"bad-output", "1234"},
-			flags: ListenerCreate{
-				timeout: 30 * time.Second,
-				output:  "not-supported",
+			flags: common.CommandListenerCreateFlags{
+				Timeout: 30 * time.Second,
+				Output:  "not-supported",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -568,13 +513,13 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		{
 			name: "flags all valid",
 			args: []string{"my-listener-flags", "8080"},
-			flags: ListenerCreate{
-				host:         "hostname",
-				routingKey:   "routingkeyname",
-				tlsSecret:    "secretname",
-				listenerType: "tcp",
-				timeout:      1 * time.Minute,
-				output:       "json",
+			flags: common.CommandListenerCreateFlags{
+				Host:         "hostname",
+				RoutingKey:   "routingkeyname",
+				TlsSecret:    "secretname",
+				ListenerType: "tcp",
+				Timeout:      1 * time.Minute,
+				Output:       "json",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -632,7 +577,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 			command, err := newCmdListenerCreateWithMocks("test", test.k8sObjects, test.skupperObjects, "")
 			assert.Assert(t, err)
 
-			command.flags = test.flags
+			command.Flags = &test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -649,7 +594,7 @@ func TestCmdListenerCreate_Run(t *testing.T) {
 		name                string
 		listenerName        string
 		listenerPort        int
-		flags               ListenerCreate
+		flags               common.CommandListenerCreateFlags
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
@@ -661,23 +606,23 @@ func TestCmdListenerCreate_Run(t *testing.T) {
 			name:         "runs ok",
 			listenerName: "run-listener",
 			listenerPort: 8080,
-			flags: ListenerCreate{
-				listenerType: "tcp",
-				host:         "hostname",
-				routingKey:   "keyname",
-				tlsSecret:    "secretname",
+			flags: common.CommandListenerCreateFlags{
+				ListenerType: "tcp",
+				Host:         "hostname",
+				RoutingKey:   "keyname",
+				TlsSecret:    "secretname",
 			},
 		},
 		{
 			name:         "output yaml",
 			listenerName: "run-listener",
 			listenerPort: 8080,
-			flags: ListenerCreate{
-				listenerType: "tcp",
-				host:         "hostname",
-				routingKey:   "keyname",
-				tlsSecret:    "secretname",
-				output:       "yaml",
+			flags: common.CommandListenerCreateFlags{
+				ListenerType: "tcp",
+				Host:         "hostname",
+				RoutingKey:   "keyname",
+				TlsSecret:    "secretname",
+				Output:       "yaml",
 			},
 		},
 	}
@@ -687,8 +632,8 @@ func TestCmdListenerCreate_Run(t *testing.T) {
 		assert.Assert(t, err)
 		cmd.name = test.listenerName
 		cmd.port = test.listenerPort
-		cmd.flags = test.flags
-		cmd.output = cmd.flags.output
+		cmd.Flags = &test.flags
+		cmd.output = cmd.Flags.Output
 		cmd.namespace = "test"
 
 		t.Run(test.name, func(t *testing.T) {
@@ -785,11 +730,11 @@ func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 
 		cmd.name = "my-listener"
 		cmd.port = 8080
-		cmd.flags = ListenerCreate{
-			timeout: 1 * time.Second,
-			output:  test.output,
+		cmd.Flags = &common.CommandListenerCreateFlags{
+			Timeout: 1 * time.Second,
+			Output:  test.output,
 		}
-		cmd.output = cmd.flags.output
+		cmd.output = cmd.Flags.Output
 		cmd.namespace = "test"
 
 		t.Run(test.name, func(t *testing.T) {

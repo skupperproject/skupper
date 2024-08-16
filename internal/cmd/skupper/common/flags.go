@@ -42,7 +42,7 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagNameHost            = "host"
 	FlagDescHost            = "The hostname or IP address of the local Connector"
 	FlagNameConnectorType   = "type"
-	FlagDescConnectorType   = "The Connector type. Choices: [tcp]."
+	FlagDescConnectorType   = "The connector type. Choices: [tcp]."
 	FlagNameIncludeNotReady = "include-not-ready"
 	FlagDescIncludeNotRead  = "If true, include server pods that are not in the ready state."
 	FlagNameSelector        = "selector"
@@ -55,6 +55,11 @@ for other Kubernetes flavors, loadbalancer is the default.`
 
 	FlagNameConnectorStatusOutput = "output"
 	FlagDescConnectorStatusOutput = "print status of connectors Choices: json, yaml"
+
+	FlagNameListenerType = "type"
+	FlagDescListenerType = "The listener type. Choices: [tcp]."
+	FlagNameListenerPort = "port"
+	FlagDescListenerPort = "The port of the local listener"
 )
 
 type CommandSiteCreateFlags struct {
@@ -133,4 +138,31 @@ type CommandConnectorDeleteFlags struct {
 
 type CommandConnectorStatusFlags struct {
 	Output string
+}
+
+type CommandListenerCreateFlags struct {
+	RoutingKey   string
+	Host         string
+	TlsSecret    string
+	ListenerType string
+	Timeout      time.Duration
+	Output       string
+}
+
+type CommandListenerUpdateFlags struct {
+	RoutingKey   string
+	Host         string
+	TlsSecret    string
+	ListenerType string
+	Timeout      time.Duration
+	Port         int
+	Output       string
+}
+
+type CommandListenerStatusFlags struct {
+	Output string
+}
+
+type CommandListenerDeleteFlags struct {
+	Timeout time.Duration
 }

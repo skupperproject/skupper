@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"strconv"
 	"time"
 
@@ -17,11 +18,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-var (
-	listenerCreateLong    = "Clients at this site use the listener host and port to establish connections to the remote service."
-	listenerCreateExample = "skupper listener create database 5432"
-)
-
 type ListenerCreate struct {
 	routingKey   string
 	host         string
@@ -33,8 +29,8 @@ type ListenerCreate struct {
 
 type CmdListenerCreate struct {
 	client     skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd   cobra.Command
-	flags      ListenerCreate
+	CobraCmd   *cobra.Command
+	Flags      *common.CommandListenerCreateFlags
 	namespace  string
 	name       string
 	port       int
@@ -44,27 +40,8 @@ type CmdListenerCreate struct {
 
 func NewCmdListenerCreate() *CmdListenerCreate {
 
-	skupperCmd := CmdListenerCreate{flags: ListenerCreate{}}
+	return &CmdListenerCreate{}
 
-	cmd := cobra.Command{
-		Use:     "create <name> <port>",
-		Short:   "create a listener",
-		Long:    listenerCreateLong,
-		Example: listenerCreateExample,
-		PreRun:  skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.Run())
-		},
-		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntil()
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
-	skupperCmd.AddFlags()
-
-	return &skupperCmd
 }
 
 func (cmd *CmdListenerCreate) NewClient(cobraCommand *cobra.Command, args []string) {
@@ -76,14 +53,7 @@ func (cmd *CmdListenerCreate) NewClient(cobraCommand *cobra.Command, args []stri
 	cmd.KubeClient = cli.Kube
 }
 
-func (cmd *CmdListenerCreate) AddFlags() {
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.routingKey, "routing-key", "r", "", "The identifier used to route traffic from listeners to connectors")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.host, "host", "", "The hostname or IP address of the local listener")
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.tlsSecret, "tls-secret", "t", "", "The name of a Kubernetes secret containing TLS credentials")
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.listenerType, "type", "tcp", "The listener type. Choices: [tcp].")
-	cmd.CobraCmd.Flags().DurationVar(&cmd.flags.timeout, "timeout", 60*time.Second, "Raise an error if the operation does not complete in the given period of time.")
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
-}
+func (cmd *CmdListenerCreate) AddFlags() {}
 
 func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 	var validationErrors []error
@@ -138,8 +108,8 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 	}
 
 	// Validate flags
-	if cmd.flags.routingKey != "" {
-		ok, err := resourceStringValidator.Evaluate(cmd.flags.routingKey)
+	if cmd.Flags.RoutingKey != "" {
+		ok, err := resourceStringValidator.Evaluate(cmd.Flags.RoutingKey)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("routing key is not valid: %s", err))
 		}
@@ -147,32 +117,32 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 
 	//TBD what characters are not allowed for host flag
 
-	if cmd.flags.tlsSecret != "" {
+	if cmd.Flags.TlsSecret != "" {
 		// check that the secret exists
-		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.flags.tlsSecret, metav1.GetOptions{})
+		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsSecret, metav1.GetOptions{})
 		if err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("tls-secret is not valid: does not exist"))
 		}
 	}
 
-	if cmd.flags.listenerType != "" {
-		ok, err := listenerTypeValidator.Evaluate(cmd.flags.listenerType)
+	if cmd.Flags.ListenerType != "" {
+		ok, err := listenerTypeValidator.Evaluate(cmd.Flags.ListenerType)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("listener type is not valid: %s", err))
 		}
 	}
 
 	//TBD what is valid timeout
-	if cmd.flags.timeout <= 0*time.Minute {
+	if cmd.Flags.Timeout <= 0*time.Minute {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
 	}
 
-	if cmd.flags.output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.flags.output)
+	if cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		} else {
-			cmd.output = cmd.flags.output
+			cmd.output = cmd.Flags.Output
 		}
 	}
 	return validationErrors
@@ -190,11 +160,11 @@ func (cmd *CmdListenerCreate) Run() error {
 			Namespace: cmd.namespace,
 		},
 		Spec: v1alpha1.ListenerSpec{
-			Host:           cmd.flags.host,
+			Host:           cmd.Flags.Host,
 			Port:           cmd.port,
-			RoutingKey:     cmd.flags.routingKey,
-			TlsCredentials: cmd.flags.tlsSecret,
-			Type:           cmd.flags.listenerType,
+			RoutingKey:     cmd.Flags.RoutingKey,
+			TlsCredentials: cmd.Flags.TlsSecret,
+			Type:           cmd.Flags.ListenerType,
 		},
 	}
 
@@ -214,7 +184,7 @@ func (cmd *CmdListenerCreate) WaitUntil() error {
 		return nil
 	}
 
-	waitTime := int(cmd.flags.timeout.Seconds())
+	waitTime := int(cmd.Flags.Timeout.Seconds())
 	err := utils.NewSpinnerWithTimeout("Waiting for create to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})

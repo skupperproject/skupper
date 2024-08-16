@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
@@ -11,27 +12,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func TestCmdListenerStatus_NewCmdListenerStatus(t *testing.T) {
-
-	t.Run("Status command", func(t *testing.T) {
-
-		result := NewCmdListenerStatus()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.Example != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-	})
-
-}
-
 func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		flags          ListenerStatus
+		flags          common.CommandListenerStatusFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedErrors []string
@@ -65,7 +50,7 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 		{
 			name:  "bad output status",
 			args:  []string{"out-listener"},
-			flags: ListenerStatus{output: "not-supported"},
+			flags: common.CommandListenerStatusFlags{Output: "not-supported"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.ListenerList{
 					Items: []v1alpha1.Listener{
@@ -97,7 +82,7 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 		},
 		{
 			name:           "good output status",
-			flags:          ListenerStatus{output: "json"},
+			flags:          common.CommandListenerStatusFlags{Output: "json"},
 			expectedErrors: []string{},
 		},
 	}
@@ -108,7 +93,7 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 			command, err := newCmdListenerStatusWithMocks("test", test.k8sObjects, test.skupperObjects, "")
 			assert.Assert(t, err)
 
-			command.flags = test.flags
+			command.Flags = &test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -123,7 +108,7 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 	type test struct {
 		name                string
 		listenerName        string
-		flags               ListenerStatus
+		flags               common.CommandListenerStatusFlags
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
@@ -171,7 +156,7 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 		{
 			name:         "returns 1 listener output yaml",
 			listenerName: "listener-yaml",
-			flags:        ListenerStatus{output: "yaml"},
+			flags:        common.CommandListenerStatusFlags{Output: "yaml"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.ListenerList{
 					Items: []v1alpha1.Listener{
@@ -243,7 +228,7 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 		},
 		{
 			name:  "returns all listeners output json",
-			flags: ListenerStatus{output: "json"},
+			flags: common.CommandListenerStatusFlags{Output: "json"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.ListenerList{
 					Items: []v1alpha1.Listener{
@@ -285,7 +270,7 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 		},
 		{
 			name:  "returns all listeners output bad",
-			flags: ListenerStatus{output: "bad-value"},
+			flags: common.CommandListenerStatusFlags{Output: "bad-value"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.ListenerList{
 					Items: []v1alpha1.Listener{
@@ -329,7 +314,7 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 		{
 			name:         "returns 1 listeners output bad",
 			listenerName: "my-listener",
-			flags:        ListenerStatus{output: "bad-value"},
+			flags:        common.CommandListenerStatusFlags{Output: "bad-value"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.ListenerList{
 					Items: []v1alpha1.Listener{
@@ -360,8 +345,8 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 		cmd, err := newCmdListenerStatusWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
 		assert.Assert(t, err)
 		cmd.name = test.listenerName
-		cmd.flags = test.flags
-		cmd.output = cmd.flags.output
+		cmd.Flags = &test.flags
+		cmd.output = cmd.Flags.Output
 		cmd.namespace = "test"
 
 		t.Run(test.name, func(t *testing.T) {
