@@ -100,6 +100,29 @@ func TryUntil(maxWindowTime time.Duration, f ResultFunc) (interface{}, error) {
 	}
 }
 
+func TryUntilWithContext(ctx context.Context, interval time.Duration, maxRetries int, f CheckedFunc) error {
+	if maxRetries <= 0 {
+		return fmt.Errorf("maxRetries (%d) should be > 0", maxRetries)
+	}
+	tick := time.NewTicker(interval)
+	defer tick.Stop()
+
+	for i := 0; ; i++ {
+		err := f()
+		if err == nil {
+			return nil
+		}
+		if i == maxRetries {
+			return err
+		}
+		select {
+		case <-tick.C:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 // RetryWithContext retries f every interval until the specified context times out.
 func RetryWithContext(ctx context.Context, interval time.Duration, f ConditionFunc) error {
 	tick := time.NewTicker(interval)
