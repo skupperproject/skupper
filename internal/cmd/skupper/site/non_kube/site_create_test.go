@@ -3,6 +3,7 @@ package non_kube
 import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/non-kube/client"
 	"github.com/spf13/cobra"
 	"os"
 
@@ -126,6 +127,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 		expectedLinkAccess string
 		expectedOutput     string
 		expectedNamespace  string
+		expectedInputPath  string
 	}
 
 	testTable := []test{
@@ -139,6 +141,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedLinkAccess: "none",
 			expectedOutput:     "",
 			expectedNamespace:  "default",
+			expectedInputPath:  ".local/share/skupper/default",
 		},
 		{
 			name:  "options with link access enabled but using a type by default and link access host specified",
@@ -150,6 +153,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedLinkAccess: "loadbalancer",
 			expectedOutput:     "",
 			expectedNamespace:  "default",
+			expectedInputPath:  ".local/share/skupper/default",
 		},
 		{
 			name:  "options with link access enabled using the nodeport type",
@@ -161,6 +165,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedLinkAccess: "nodeport",
 			expectedOutput:     "",
 			expectedNamespace:  "default",
+			expectedInputPath:  ".local/share/skupper/default",
 		},
 		{
 			name:  "options with link access options not well specified",
@@ -172,6 +177,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedLinkAccess: "none",
 			expectedOutput:     "",
 			expectedNamespace:  "default",
+			expectedInputPath:  ".local/share/skupper/default",
 		},
 		{
 			name:  "options output type",
@@ -183,6 +189,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedLinkAccess: "none",
 			expectedOutput:     "yaml",
 			expectedNamespace:  "default",
+			expectedInputPath:  ".local/share/skupper/default",
 		},
 		{
 			name:      "options with specific namespace",
@@ -193,6 +200,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 				"name": "my-site",
 			},
 			expectedNamespace: "test",
+			expectedInputPath: ".local/share/skupper/test",
 		},
 	}
 
@@ -202,6 +210,9 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			cmd.Flags = &test.flags
 			cmd.siteName = "my-site"
 			cmd.namespace = test.namespace
+			cmd.pathProvider = client.PathProvider{
+				Namespace: cmd.namespace,
+			}
 
 			cmd.InputToOptions()
 
@@ -209,6 +220,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 
 			assert.Check(t, cmd.output == test.expectedOutput)
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
+			assert.Check(t, cmd.inputPath == test.expectedInputPath, cmd.inputPath, test.expectedInputPath)
 		})
 	}
 }

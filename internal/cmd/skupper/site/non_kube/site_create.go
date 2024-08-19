@@ -124,8 +124,10 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 
 	if cmd.namespace == "" {
 		cmd.namespace = "default"
+		cmd.inputPath = cmd.pathProvider.GetDefaultNamespace()
+	} else {
+		cmd.inputPath = cmd.pathProvider.GetNamespace()
 	}
-	cmd.inputPath = cmd.pathProvider.GetDefaultNamespace()
 	cmd.host = cmd.Flags.Host
 	cmd.routerAccessName = "router-access-" + cmd.siteName
 
