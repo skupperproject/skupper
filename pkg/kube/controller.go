@@ -46,6 +46,7 @@ import (
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
+	skupperv1alpha1interfaces "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/internalinterfaces"
 	skupperv1alpha1informer "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/skupper/v1alpha1"
 )
 
@@ -158,6 +159,10 @@ func (c *Controller) Start(stopCh <-chan struct{}) {
 func (c *Controller) run() {
 	for c.process() {
 	}
+}
+
+func (c *Controller) TestProcess() bool {
+	return c.process()
 }
 
 func (c *Controller) process() bool {
@@ -1241,6 +1246,22 @@ func (c *Controller) WatchSecuredAccesses(namespace string, handler SecuredAcces
 	return watcher
 }
 
+func (c *Controller) WatchSecuredAccessesWithOptions(options skupperv1alpha1interfaces.TweakListOptionsFunc, namespace string, handler SecuredAccessHandler) *SecuredAccessWatcher {
+	watcher := &SecuredAccessWatcher{
+		handler: handler,
+		informer: skupperv1alpha1informer.NewFilteredSecuredAccessInformer(
+			c.skupperClient,
+			namespace,
+			time.Second*30,
+			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+			options),
+		namespace: namespace,
+	}
+	watcher.informer.AddEventHandler(c.newEventHandler(watcher))
+	c.addWatcher(watcher)
+	return watcher
+}
+
 type SecuredAccessHandler func(string, *skupperv1alpha1.SecuredAccess) error
 
 type SecuredAccessWatcher struct {
@@ -1569,6 +1590,12 @@ func (w *RouterAccessWatcher) List() []*skupperv1alpha1.RouterAccess {
 }
 
 func ByName(name string) internalinterfaces.TweakListOptionsFunc {
+	return func(options *metav1.ListOptions) {
+		options.FieldSelector = "metadata.name=" + name
+	}
+}
+
+func SkupperResourceByName(name string) skupperv1alpha1interfaces.TweakListOptionsFunc {
 	return func(options *metav1.ListOptions) {
 		options.FieldSelector = "metadata.name=" + name
 	}

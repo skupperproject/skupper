@@ -163,6 +163,8 @@ func generateSecret(name string, subject string, hosts string, ca *CertificateAu
 	secret.Data["tls.key"] = []byte(keyString)
 	if ca != nil {
 		secret.Data["ca.crt"] = ca.CrtData
+	} else {
+		secret.Data["ca.crt"] = secret.Data["tls.crt"] //self.signed
 	}
 
 	return secret
