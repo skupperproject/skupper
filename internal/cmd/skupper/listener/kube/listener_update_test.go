@@ -507,6 +507,7 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 	}
 
 	for _, test := range testTable {
+		test := test
 		cmd, err := newCmdListenerUpdateWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
 		assert.Assert(t, err)
 
@@ -519,6 +520,7 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 		cmd.newSettings.output = cmd.flags.output
 
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			err := cmd.WaitUntil()
 			if test.expectError {
 				assert.Check(t, err != nil)

@@ -910,6 +910,7 @@ func TestCmdConnectorCreate_WaitUntil(t *testing.T) {
 	}
 
 	for _, test := range testTable {
+		test := test
 		cmd, err := newCmdConnectorCreateWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
 		assert.Assert(t, err)
 
@@ -919,6 +920,7 @@ func TestCmdConnectorCreate_WaitUntil(t *testing.T) {
 		cmd.namespace = "test"
 
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 
 			err := cmd.WaitUntil()
 			if test.expectError {

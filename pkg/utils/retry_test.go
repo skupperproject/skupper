@@ -253,21 +253,21 @@ type TestTryUntilItem struct {
 func TestTryUntil(t *testing.T) {
 	testTable := []TestTryUntilItem{
 		{
-			workOnSecond:  time.Second,
+			workOnSecond:  100 * time.Millisecond,
 			funcError:     nil,
 			funcValue:     []string{"first", "second", "third"},
-			maxDuration:   5 * time.Second,
+			maxDuration:   500 * time.Millisecond,
 			expectTimeout: false,
 		},
 		{
-			workOnSecond:  4 * time.Second,
+			workOnSecond:  400 * time.Millisecond,
 			funcError:     nil,
 			funcValue:     5,
-			maxDuration:   5 * time.Second,
+			maxDuration:   1000 * time.Millisecond,
 			expectTimeout: false,
 		},
 		{
-			workOnSecond:  time.Second,
+			workOnSecond:  100 * time.Millisecond,
 			funcError:     fmt.Errorf("function is not working"),
 			funcValue:     nil,
 			maxDuration:   5 * time.Second,
@@ -277,7 +277,7 @@ func TestTryUntil(t *testing.T) {
 			workOnSecond:  30 * time.Second,
 			funcError:     nil,
 			funcValue:     nil,
-			maxDuration:   5 * time.Second,
+			maxDuration:   500 * time.Millisecond,
 			expectTimeout: true,
 		},
 	}
@@ -285,8 +285,9 @@ func TestTryUntil(t *testing.T) {
 	for _, item := range testTable {
 		name := fmt.Sprintf("workOnSecond: %v maxDuration: %v expectTimeout: %v",
 			item.workOnSecond, item.maxDuration, item.expectTimeout)
+		item := item
 		t.Run(name, func(t *testing.T) {
-
+			t.Parallel()
 			resp, err := TryUntil(item.maxDuration, func() Result {
 				time.Sleep(item.workOnSecond)
 				return Result{
@@ -327,31 +328,31 @@ func TestRetryErrorWithContext(t *testing.T) {
 	testTable := []TestRetryErrorWithContextItem{
 		{
 			doc:           "The execution should work at the first try",
-			timeout:       time.Second * 2,
+			timeout:       time.Millisecond * 200,
 			workOnTry:     1,
 			expectedTries: 1,
 			expectSuccess: true,
 		}, {
 			doc:           "The execution should work at the second try",
-			timeout:       time.Second * 3,
+			timeout:       time.Millisecond * 300,
 			workOnTry:     2,
 			expectedTries: 2,
 			expectSuccess: true,
 		}, {
 			doc:           "The execution should work after many tries",
-			timeout:       time.Second * 5,
+			timeout:       time.Millisecond * 500,
 			workOnTry:     4,
 			expectedTries: 4,
 			expectSuccess: true,
 		}, {
 			doc:           "The execution should time out after one retry due the context",
-			timeout:       time.Second,
+			timeout:       time.Millisecond * 100,
 			workOnTry:     5,
 			expectedTries: 1,
 			expectSuccess: false,
 		}, {
 			doc:           "The execution should time out after many retries due the context",
-			timeout:       time.Second * 4,
+			timeout:       time.Millisecond * 400,
 			workOnTry:     5,
 			expectedTries: 4,
 			expectSuccess: false,
@@ -359,8 +360,10 @@ func TestRetryErrorWithContext(t *testing.T) {
 	}
 
 	for _, item := range testTable {
+		item := item
 
 		t.Run(item.doc, func(t *testing.T) {
+			t.Parallel()
 			var currentTry int
 
 			ctx, cancel := context.WithTimeout(context.Background(), item.timeout)
@@ -368,7 +371,7 @@ func TestRetryErrorWithContext(t *testing.T) {
 
 			start := time.Now()
 
-			resp := RetryErrorWithContext(ctx, time.Second, func() (err error) {
+			resp := RetryErrorWithContext(ctx, 100*time.Millisecond, func() (err error) {
 				currentTry++
 				if currentTry == item.workOnTry {
 					return nil
