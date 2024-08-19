@@ -54,6 +54,16 @@ func (s *Site) GetSiteId() string {
 	return string(s.ObjectMeta.UID)
 }
 
+func (s *Site) DefaultIssuer() string {
+	if s.Spec.DefaultIssuer != "" {
+		return s.Spec.DefaultIssuer
+	}
+	if s.Status.DefaultIssuer != "" {
+		return s.Status.DefaultIssuer
+	}
+	return "skupper-site-ca"
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // SiteList contains a List of Site instances

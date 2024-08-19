@@ -1,4 +1,4 @@
-package claims
+package grants
 
 import (
 	"context"
@@ -123,15 +123,10 @@ func (g *Grants) getUrl() string {
 func (g *Grants) recheckUrl() {
 	for _, grant := range g.getAll() {
 		key := fmt.Sprintf("%s/%s", grant.Namespace, grant.Name)
-		if changed, message := g.checkUrl(key, grant); changed {
-			if message == "" {
-				message = skupperv1alpha1.STATUS_OK
-			}
+		if g.checkUrl(key, grant) {
 			grant.SetResolved()
-			if grant.Status.SetStatusMessage(message) {
-				if err := g.updateGrantStatus(grant); err != nil {
-					log.Printf("Error updating grant %s after setting url: %s", key, err)
-				}
+			if err := g.updateGrantStatus(grant); err != nil {
+				log.Printf("Error updating grant %s after setting url: %s", key, err)
 			}
 		}
 	}
@@ -156,18 +151,14 @@ func (g *Grants) claimUrl(grant *skupperv1alpha1.AccessGrant) string {
 	return ""
 }
 
-func (g *Grants) checkUrl(key string, grant *skupperv1alpha1.AccessGrant) (bool, string) {
+func (g *Grants) checkUrl(key string, grant *skupperv1alpha1.AccessGrant) bool {
 	url := g.claimUrl(grant)
-	if url == "" {
-		log.Printf("URL pending for AccessGrant %s", key)
-		return true, "Url pending"
-	} else if grant.Status.Url != url {
-		log.Printf("Setting URL for AccessGrant %s to %s", key, url)
-		grant.Status.Url = url
-		return true, ""
-	} else {
-		return false, ""
+	if grant.Status.Url == url {
+		return false
 	}
+	log.Printf("Setting URL for AccessGrant %s to %s", key, url)
+	grant.Status.Url = url
+	return true
 }
 
 func (g *Grants) checkCa(key string, grant *skupperv1alpha1.AccessGrant) bool {
@@ -187,11 +178,8 @@ func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.AccessGrant) erro
 	g.record(key, grant)
 	changed := false
 	var status []string
-	if updated, message := g.checkUrl(key, grant); updated {
+	if g.checkUrl(key, grant) {
 		changed = true
-		if message != "" {
-			status = append(status, message)
-		}
 	}
 	if g.checkCa(key, grant) {
 		changed = true
@@ -237,7 +225,6 @@ func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.AccessGrant) erro
 	if !changed {
 		return nil
 	}
-	log.Printf("Updating status for AccessGrant %s", key)
 	return g.updateGrantStatus(grant)
 }
 

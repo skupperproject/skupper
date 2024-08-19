@@ -22,10 +22,9 @@ import (
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/kube/certificates"
-	"github.com/skupperproject/skupper/pkg/kube/claims"
+	"github.com/skupperproject/skupper/pkg/kube/grants"
 	"github.com/skupperproject/skupper/pkg/kube/securedaccess"
 	"github.com/skupperproject/skupper/pkg/kube/site"
-	"github.com/skupperproject/skupper/pkg/kube/tokens"
 	"github.com/skupperproject/skupper/pkg/network"
 )
 
@@ -38,7 +37,7 @@ type Controller struct {
 	linkAccessWatcher    *kube.RouterAccessWatcher
 	grantWatcher         *kube.AccessGrantWatcher
 	sites                map[string]*site.Site
-	grants               claims.GrantManager
+	startGrantServer     func()
 	accessMgr            *securedaccess.SecuredAccessManager
 	accessRecovery       AccessRecovery
 	certMgr              *certificates.CertificateManagerImpl
@@ -107,7 +106,7 @@ func dynamicSecuredAccess() dynamicinformer.TweakListOptionsFunc {
 	return dynamicWatcherOptions("internal.skupper.io/secured-access")
 }
 
-func NewController(cli internalclient.Clients, watchNamespace string, currentNamespace string) (*Controller, error) {
+func NewController(cli internalclient.Clients, grantConfig *grants.GrantConfig, watchNamespace string, currentNamespace string) (*Controller, error) {
 	controller := &Controller{
 		controller:           kube.NewController("Controller", cli),
 		sites:                map[string]*site.Site{},
@@ -135,9 +134,7 @@ func NewController(cli internalclient.Clients, watchNamespace string, currentNam
 	controller.accessRecovery.routeWatcher = controller.controller.WatchRoutes(routeSecuredAccess(), watchNamespace, controller.checkSecuredAccessRoute)
 	controller.accessRecovery.httpProxyWatcher = controller.controller.WatchContourHttpProxies(dynamicSecuredAccess(), watchNamespace, controller.checkSecuredAccessHttpProxy)
 
-	controller.grants = claims.NewGrantManager(controller.controller, claims.GrantConfigFromEnv(), controller.generateLinkConfig)
-	controller.grantWatcher = controller.controller.WatchAccessGrants(watchNamespace, controller.grants.GrantChanged)
-	controller.grants.Watch(controller.controller, currentNamespace)
+	controller.startGrantServer = grants.Initialise(controller.controller, currentNamespace, watchNamespace, grantConfig, controller.generateLinkConfig)
 
 	return controller, nil
 }
@@ -174,12 +171,11 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 		site := c.getSite(la.ObjectMeta.Namespace)
 		site.CheckRouterAccess(la.ObjectMeta.Name, la)
 	}
-	for _, grant := range c.grantWatcher.List() {
-		c.grants.GrantChanged(fmt.Sprintf("%s/%s", grant.Namespace, grant.Name), grant)
-	}
 	c.certMgr.Recover()
 	c.accessRecovery.recoverAll(c.accessMgr)
-	c.grants.Start()
+	if c.startGrantServer != nil {
+		c.startGrantServer()
+	}
 
 	log.Println("Starting event loop")
 	c.controller.Start(stopCh)
@@ -265,7 +261,7 @@ func (c *Controller) checkAccessToken(key string, token *skupperv1alpha1.AccessT
 	if site == nil {
 		return nil
 	}
-	return claims.RedeemAccessToken(token, site, c.controller)
+	return grants.RedeemAccessToken(token, site, c.controller)
 }
 
 func (c *Controller) routerPodEvent(key string, pod *corev1.Pod) error {
@@ -281,7 +277,7 @@ func (c *Controller) generateLinkConfig(namespace string, name string, subject s
 	if site == nil {
 		return fmt.Errorf("Site not yet defined for %s", namespace)
 	}
-	generator, err := tokens.NewTokenGeneratorForSite(site, c.controller)
+	generator, err := grants.NewTokenGenerator(site, c.controller)
 	if err != nil {
 		return err
 	}
@@ -294,7 +290,6 @@ func (c *Controller) checkSecuredAccess(key string, se *skupperv1alpha1.SecuredA
 		return c.accessMgr.SecuredAccessDeleted(key)
 	}
 	c.getSite(se.ObjectMeta.Namespace).CheckSecuredAccess(se)
-	c.grants.SecuredAccessChanged(key, se)
 	return c.accessMgr.SecuredAccessChanged(key, se)
 }
 

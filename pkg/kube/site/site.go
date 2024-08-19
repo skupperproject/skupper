@@ -728,7 +728,7 @@ func (s *Site) Deleted() {
 }
 
 func (s *Site) setDefaultIssuerInStatus() bool {
-	if issuer := s.defaultIssuer(); s.site.Status.DefaultIssuer != issuer {
+	if issuer := s.site.DefaultIssuer(); s.site.Status.DefaultIssuer != issuer {
 		s.site.Status.DefaultIssuer = issuer
 		return true
 	}
@@ -861,10 +861,6 @@ func (s *Site) updateRouterAccessStatus(la *skupperv1alpha1.RouterAccess) {
 	}
 }
 
-func (s *Site) defaultIssuer() string {
-	return site.DefaultIssuer(s.site)
-}
-
 func asSecuredAccessSpec(la *skupperv1alpha1.RouterAccess, group string, defaultIssuer string) skupperv1alpha1.SecuredAccessSpec {
 	issuer := la.Spec.Issuer
 	if issuer == "" {
@@ -906,7 +902,7 @@ func (s *Site) checkSecuredAccess() error {
 				"internal.skupper.io/controlled":   "true",
 				"internal.skupper.io/routeraccess": la.Name,
 			}
-			if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.defaultIssuer()), annotations, s.ownerReferences()); err != nil {
+			if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.site.DefaultIssuer()), annotations, s.ownerReferences()); err != nil {
 				//TODO: add message to site status
 				log.Printf("Error ensuring SecuredAccess for RouterAccess %s: %s", la.Key(), err)
 			}
@@ -947,7 +943,7 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv1alpha1.RouterAccess) 
 					"internal.skupper.io/controlled":   "true",
 					"internal.skupper.io/routeraccess": la.Name,
 				}
-				if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.defaultIssuer()), annotations, s.ownerReferences()); err != nil {
+				if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.site.DefaultIssuer()), annotations, s.ownerReferences()); err != nil {
 					log.Printf("Error ensuring SecuredAccess for RouterAccess %s: %s", la.Key(), err)
 					errors = append(errors, err.Error())
 				}

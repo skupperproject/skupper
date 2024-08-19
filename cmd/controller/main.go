@@ -10,7 +10,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	iflag "github.com/skupperproject/skupper/internal/flag"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/pkg/kube/grants"
 	"github.com/skupperproject/skupper/pkg/version"
 )
 
@@ -39,37 +41,43 @@ func SetupSignalHandler() (stopCh <-chan struct{}) {
 }
 
 func main() {
+	flags := flag.NewFlagSet("", flag.ExitOnError)
+	grantConfig, err := grants.BoundGrantConfig(flags)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+
+	var namespace string
+	var kubeconfig string
+	iflag.StringVar(flags, &namespace, "namespace", "NAMESPACE", "", "The Kubernetes namespace scope for the controller")
+	iflag.StringVar(flags, &kubeconfig, "kubeconfig", "KUBECONFIG", "", "A path to the kubeconfig file to use")
+
+	var watchNamespace string
+	iflag.StringVar(flags, &watchNamespace, "watch-namespace", "WATCH_NAMESPACE", metav1.NamespaceAll, "The Kubernetes namespace the controller should monitor for controlled resources (will monitor all if not specified)")
 	// if -version used, report and exit
-	isVersion := flag.Bool("version", false, "Report the version of the Skupper Site Controller")
-	flag.Parse()
+	isVersion := flags.Bool("version", false, "Report the version of the Skupper Controller")
+	flags.Parse(os.Args[1:])
 	if *isVersion {
 		fmt.Println(version.Version)
 		os.Exit(0)
 	}
-
-	namespace := os.Getenv("NAMESPACE")
-	kubeconfig := os.Getenv("KUBECONFIG")
+	log.Printf("Version: %s", version.Version)
+	if watchNamespace == metav1.NamespaceAll {
+		log.Println("Skupper controller watching all namespaces")
+	} else {
+		log.Println("Skupper controller watching namespace", watchNamespace)
+	}
 
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
 
-	// todo, get context from env?
 	cli, err := internalclient.NewClient(namespace, "", kubeconfig)
 	if err != nil {
 		log.Fatal("Error getting van client ", err.Error())
 	}
 
-	var watchNamespace string
-	if os.Getenv("WATCH_NAMESPACE") != "" {
-		watchNamespace = os.Getenv("WATCH_NAMESPACE")
-		log.Println("Skupper controller watching current namespace ", watchNamespace)
-	} else {
-		watchNamespace = metav1.NamespaceAll
-		log.Println("Skupper controller watching all namespaces")
-	}
-	log.Printf("Version: %s", version.Version)
-
-	controller, err := NewController(cli, watchNamespace, cli.Namespace)
+	controller, err := NewController(cli, grantConfig, watchNamespace, cli.Namespace)
 	if err != nil {
 		log.Fatal("Error getting new site controller ", err.Error())
 	}

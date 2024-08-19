@@ -1,7 +1,8 @@
-package tokens
+package grants
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -15,7 +16,6 @@ import (
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/certs"
-	sitepkg "github.com/skupperproject/skupper/pkg/site"
 )
 
 type CertToken struct {
@@ -38,24 +38,18 @@ type TokenGenerator struct {
 	hosts     []string
 }
 
-func NewTokenGenerator(namespace string, clients internalclient.Clients) (*TokenGenerator, error) {
-	site, err := getActiveSite(namespace, clients)
-	if err != nil {
-		return nil, err
-	}
-	return NewTokenGeneratorForSite(site, clients)
-}
-
-func NewTokenGeneratorForSite(site *skupperv1alpha1.Site, clients internalclient.Clients) (*TokenGenerator, error) {
+func NewTokenGenerator(site *skupperv1alpha1.Site, clients internalclient.Clients) (*TokenGenerator, error) {
 	generator := &TokenGenerator{
 		namespace: site.Namespace,
 		clients:   clients,
 	}
-	if err := generator.loadCA(sitepkg.DefaultIssuer(site)); err != nil {
-		return nil, err
+	if err := generator.loadCA(site.DefaultIssuer()); err != nil {
+		log.Printf("Error retrieving default issuer %s for site %s in %s: %s", site.DefaultIssuer(), site.Name, site.Namespace, err)
+		return nil, errors.New("Could not get issuer for requested certficate")
 	}
-	if err := generator.setValidHostsFromSite(site); err != nil {
-		return nil, err
+	if ok := generator.setValidHostsFromSite(site); !ok {
+		log.Printf("Could not resolve any target endpoints for site %s in %s", site.Name, site.Namespace)
+		return nil, errors.New("Could not resolve any endpoints for requested link")
 	}
 	return generator, nil
 }
@@ -69,20 +63,7 @@ func (g *TokenGenerator) loadCA(name string) error {
 	return nil
 }
 
-func getActiveSite(namespace string, clients internalclient.Clients) (*skupperv1alpha1.Site, error) {
-	sites, err := clients.GetSkupperClient().SkupperV1alpha1().Sites(namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	for _, site := range sites.Items {
-		if site.IsConfigured() {
-			return &site, nil
-		}
-	}
-	return nil, fmt.Errorf("No active site in %s", namespace)
-}
-
-func (g *TokenGenerator) setValidHostsFromSite(site *skupperv1alpha1.Site) error {
+func (g *TokenGenerator) setValidHostsFromSite(site *skupperv1alpha1.Site) bool {
 	//TODO: if site is edge site, then return an error as it
 	//cannot issue certificates
 	var hosts []string
@@ -90,7 +71,7 @@ func (g *TokenGenerator) setValidHostsFromSite(site *skupperv1alpha1.Site) error
 		hosts = append(hosts, endpoint.Host)
 	}
 	if len(hosts) == 0 {
-		return fmt.Errorf("Endpoints for site in %s not yet resolved", g.namespace)
+		return false
 	}
 	byGroup := map[string][]skupperv1alpha1.Endpoint{}
 	//TODO: should only include groups that are valid for the defined issuer
@@ -104,7 +85,7 @@ func (g *TokenGenerator) setValidHostsFromSite(site *skupperv1alpha1.Site) error
 	}
 	log.Printf("Endpoints for grant: %v (by group: %v)", g.endpoints, byGroup)
 	g.hosts = hosts
-	return nil
+	return true
 }
 
 func (g *TokenGenerator) NewCertToken(name string, subject string) Token {
