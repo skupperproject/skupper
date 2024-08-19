@@ -19,6 +19,7 @@ var (
 type PrometheusInfo struct {
 	BasicAuth   bool
 	TlsAuth     bool
+	Scheme      string
 	ServiceName string
 	Namespace   string
 	Port        string

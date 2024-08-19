@@ -461,6 +461,12 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		if options.IsConsoleIngressRoute() {
 			annotations = getServingSecretAnnotations(types.ConsoleServerSecret)
 			if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+				controllerPorts = append(controllerPorts, corev1.ServicePort{
+					Name:       "cluster-metrics",
+					Protocol:   "TCP",
+					Port:       types.FlowCollectorDefaultServicePort,
+					TargetPort: intstr.FromInt(int(types.FlowCollectorDefaultServiceTargetPort)),
+				})
 				metricsPort = corev1.ServicePort{
 					Name:       "metrics",
 					Protocol:   "TCP",
@@ -1756,12 +1762,14 @@ func (cli *VanClient) createPrometheus(ctx context.Context, siteConfig *types.Si
 	promInfo := config.PrometheusInfo{
 		BasicAuth:   false,
 		TlsAuth:     false,
+		Scheme:      "https",
 		ServiceName: types.ControllerServiceName,
 		Namespace:   van.Namespace,
 		Port:        strconv.Itoa(int(types.FlowCollectorDefaultServicePort)),
-		User:        "admin",
-		Password:    "admin",
 		Hash:        "",
+	}
+	if siteConfig.Spec.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+		promInfo.Scheme = "http"
 	}
 	if siteConfig.Spec.PrometheusServer.AuthMode == string(types.PrometheusAuthModeBasic) {
 		promInfo.BasicAuth = true

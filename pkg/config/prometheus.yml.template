@@ -10,7 +10,7 @@ rule_files:
 scrape_configs:
   - job_name: 'prometheus'
     metrics_path: "/api/v1alpha1/metrics"
-    scheme: "https"
+    scheme: "{{.Scheme}}"
     tls_config:
       insecure_skip_verify: true
     static_configs:
