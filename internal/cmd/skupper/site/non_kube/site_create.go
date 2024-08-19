@@ -186,8 +186,8 @@ func (cmd *CmdSiteCreate) Run() error {
 		if err != nil {
 			return err
 		}
-		fileName := fmt.Sprintf("%s/site-%s.yaml", cmd.inputPath, cmd.siteName)
-		err = utils.WriteFile(fileName, encodedSite)
+		fileName := fmt.Sprintf("site-%s.yaml", cmd.siteName)
+		err = utils.WriteFile(cmd.inputPath, fileName, encodedSite)
 		if err != nil {
 			return err
 		}
@@ -196,11 +196,14 @@ func (cmd *CmdSiteCreate) Run() error {
 		if err != nil {
 			return err
 		}
-		fileName = fmt.Sprintf("%s/%s.yaml", cmd.inputPath, cmd.routerAccessName)
-		err = utils.WriteFile(fileName, encodedRouterAccess)
-		return err
+		fileName = fmt.Sprintf("%s.yaml", cmd.routerAccessName)
+		err = utils.WriteFile(cmd.inputPath, fileName, encodedRouterAccess)
+		if err != nil {
+			return err
+		}
 	}
 
+	return nil
 }
 
 func (cmd *CmdSiteCreate) WaitUntil() error {

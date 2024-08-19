@@ -6,18 +6,27 @@ import (
 	"path/filepath"
 )
 
-func WriteFile(name string, content string) error {
+func WriteFile(path string, name string, content string) error {
 
-	// Ensure the directory exists
-	dir := filepath.Dir(name)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("Failed to create directories: %s", err)
+	// Resolve the home directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return err
 	}
 
-	// Open the file, create if it does not exist
-	file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	fullPath := filepath.Join(homeDir, path)
+
+	completeFilePath := fullPath + "/" + name
+
+	// Create the directories recursively
+	err = os.MkdirAll(fullPath, 0775)
 	if err != nil {
-		return fmt.Errorf("Failed to open or create file: %s", err)
+		return fmt.Errorf("failed to create directories: %s", err)
+	}
+
+	file, err := os.Create(completeFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %s", err)
 	}
 	defer file.Close()
 
@@ -26,10 +35,9 @@ func WriteFile(name string, content string) error {
 		return err
 	}
 
-	err = file.Sync()
-	if err != nil {
-		return err
-	}
+	defer file.Sync()
+
+	fmt.Println("File written to", completeFilePath)
 
 	return nil
 }

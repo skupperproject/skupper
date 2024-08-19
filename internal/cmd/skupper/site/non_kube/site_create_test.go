@@ -4,7 +4,6 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 	"os"
 
 	"testing"
@@ -272,7 +271,7 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 		command.inputPath = test.inputPath
 		command.routerAccessName = test.routerAccessName
 
-		tmpDir, err := ioutil.TempDir("", test.inputPath)
+		tmpDir, err := os.MkdirTemp("", test.inputPath)
 		if err != nil {
 			t.Fatalf("Failed to create temp directory: %s", err)
 		}
