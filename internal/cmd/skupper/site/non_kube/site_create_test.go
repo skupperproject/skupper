@@ -3,10 +3,8 @@ package non_kube
 import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	"github.com/skupperproject/skupper/internal/non-kube/client"
+	"github.com/skupperproject/skupper/internal/non-kube/client/fs"
 	"github.com/spf13/cobra"
-	"os"
-
 	"testing"
 
 	"gotest.tools/assert"
@@ -210,9 +208,8 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			cmd.Flags = &test.flags
 			cmd.siteName = "my-site"
 			cmd.namespace = test.namespace
-			cmd.pathProvider = client.PathProvider{
-				Namespace: cmd.namespace,
-			}
+			cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
+			cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.namespace)
 
 			cmd.InputToOptions()
 
@@ -220,7 +217,6 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 
 			assert.Check(t, cmd.output == test.expectedOutput)
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
-			assert.Check(t, cmd.inputPath == test.expectedInputPath, cmd.inputPath, test.expectedInputPath)
 		})
 	}
 }
@@ -233,7 +229,6 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 		skupperError     string
 		siteName         string
 		host             string
-		inputPath        string
 		options          map[string]string
 		output           string
 		errorMessage     string
@@ -247,7 +242,6 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 			skupperObjects:   nil,
 			siteName:         "my-site",
 			host:             "host",
-			inputPath:        "default",
 			routerAccessName: "ra-test",
 			options:          map[string]string{"name": "my-site"},
 		},
@@ -280,14 +274,9 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 		command.siteName = test.siteName
 		command.options = test.options
 		command.output = test.output
-		command.inputPath = test.inputPath
 		command.routerAccessName = test.routerAccessName
-
-		tmpDir, err := os.MkdirTemp("", test.inputPath)
-		if err != nil {
-			t.Fatalf("Failed to create temp directory: %s", err)
-		}
-		defer os.RemoveAll(tmpDir)
+		command.siteHandler = fs.NewSiteHandler(command.namespace)
+		command.routerAccessHandler = fs.NewRouterAccessHandler(command.namespace)
 
 		t.Run(test.name, func(t *testing.T) {
 

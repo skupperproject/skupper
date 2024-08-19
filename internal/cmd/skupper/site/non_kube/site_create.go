@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	"github.com/skupperproject/skupper/internal/non-kube/client"
+	"github.com/skupperproject/skupper/internal/non-kube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
@@ -16,17 +16,17 @@ import (
 )
 
 type CmdSiteCreate struct {
-	pathProvider     client.PathProvider
-	CobraCmd         *cobra.Command
-	Flags            *common.CommandSiteCreateFlags
-	options          map[string]string
-	siteName         string
-	linkAccessType   string
-	output           string
-	inputPath        string
-	namespace        string
-	host             string
-	routerAccessName string
+	siteHandler         *fs.SiteHandler
+	routerAccessHandler *fs.RouterAccessHandler
+	CobraCmd            *cobra.Command
+	Flags               *common.CommandSiteCreateFlags
+	options             map[string]string
+	siteName            string
+	linkAccessType      string
+	output              string
+	namespace           string
+	host                string
+	routerAccessName    string
 }
 
 func NewCmdSiteCreate() *CmdSiteCreate {
@@ -38,12 +38,13 @@ func NewCmdSiteCreate() *CmdSiteCreate {
 }
 
 func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) {
-	cmd.pathProvider = client.PathProvider{}
-
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace) != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String() != "" {
-		cmd.pathProvider.Namespace = cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String()
-		cmd.namespace = cmd.pathProvider.Namespace
+		cmd.namespace = cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String()
 	}
+
+	cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
+	cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.namespace)
+
 }
 
 func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
@@ -124,10 +125,8 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 
 	if cmd.namespace == "" {
 		cmd.namespace = "default"
-		cmd.inputPath = cmd.pathProvider.GetDefaultNamespace()
-	} else {
-		cmd.inputPath = cmd.pathProvider.GetNamespace()
 	}
+
 	cmd.host = cmd.Flags.Host
 	cmd.routerAccessName = "router-access-" + cmd.siteName
 
@@ -184,25 +183,16 @@ func (cmd *CmdSiteCreate) Run() error {
 		return err
 
 	} else {
-		encodedSite, err := utils.Encode("yaml", siteResource)
-		if err != nil {
-			return err
-		}
-		fileName := fmt.Sprintf("site-%s.yaml", cmd.siteName)
-		err = utils.WriteFile(cmd.inputPath, fileName, encodedSite)
+		err := cmd.siteHandler.Add(siteResource)
 		if err != nil {
 			return err
 		}
 
-		encodedRouterAccess, err := utils.Encode("yaml", routerAccessResource)
+		err = cmd.routerAccessHandler.Add(routerAccessResource)
 		if err != nil {
 			return err
 		}
-		fileName = fmt.Sprintf("%s.yaml", cmd.routerAccessName)
-		err = utils.WriteFile(cmd.inputPath, fileName, encodedRouterAccess)
-		if err != nil {
-			return err
-		}
+
 	}
 
 	return nil
