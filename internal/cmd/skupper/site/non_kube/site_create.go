@@ -160,12 +160,12 @@ func (cmd *CmdSiteCreate) Run() error {
 		Spec: v1alpha1.RouterAccessSpec{
 			Roles: []v1alpha1.RouterAccessRole{
 				{
-					Port: 55671,
 					Name: "inter-router",
+					Port: 55671,
 				},
 				{
-					Port: 55671,
-					Name: "inter-router",
+					Name: "edge",
+					Port: 45671,
 				},
 			},
 			BindHost: cmd.host,

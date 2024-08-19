@@ -3,6 +3,7 @@ package non_kube
 import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
 
@@ -14,12 +15,13 @@ import (
 
 func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 	type test struct {
-		name           string
-		args           []string
-		k8sObjects     []runtime.Object
-		skupperObjects []runtime.Object
-		flags          *common.CommandSiteCreateFlags
-		expectedErrors []string
+		name              string
+		args              []string
+		k8sObjects        []runtime.Object
+		skupperObjects    []runtime.Object
+		flags             *common.CommandSiteCreateFlags
+		cobraGenericFlags map[string]string
+		expectedErrors    []string
 	}
 
 	testTable := []test{
@@ -66,14 +68,42 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 				"host should not be empty",
 			},
 		},
+		{
+			name:  "service-account is not valid on this platform",
+			args:  []string{"my-site"},
+			flags: &common.CommandSiteCreateFlags{ServiceAccount: "service-account", Host: "host"},
+			expectedErrors: []string{
+				"--service-account flag is not supported on this platform",
+			},
+		},
+		{
+			name:  "kubernetes flags are not valid on this platform",
+			args:  []string{"my-site"},
+			flags: &common.CommandSiteCreateFlags{Host: "host"},
+			expectedErrors: []string{
+				"--context flag is not supported on this platform",
+				"--kubeconfig flag is not supported on this platform",
+			},
+			cobraGenericFlags: map[string]string{
+				common.FlagNameContext:    "test",
+				common.FlagNameKubeconfig: "test",
+			},
+		},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			command := &CmdSiteCreate{Flags: &common.CommandSiteCreateFlags{}}
+			command.CobraCmd = &cobra.Command{Use: "test"}
 
 			if test.flags != nil {
 				command.Flags = test.flags
+			}
+
+			if test.cobraGenericFlags != nil && len(test.cobraGenericFlags) > 0 {
+				for name, value := range test.cobraGenericFlags {
+					command.CobraCmd.Flags().String(name, value, "")
+				}
 			}
 
 			actualErrors := command.ValidateInput(test.args)
@@ -91,10 +121,12 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 	type test struct {
 		name               string
 		args               []string
+		namespace          string
 		flags              common.CommandSiteCreateFlags
 		expectedSettings   map[string]string
 		expectedLinkAccess string
 		expectedOutput     string
+		expectedNamespace  string
 	}
 
 	testTable := []test{
@@ -107,6 +139,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			},
 			expectedLinkAccess: "none",
 			expectedOutput:     "",
+			expectedNamespace:  "default",
 		},
 		{
 			name:  "options with link access enabled but using a type by default and link access host specified",
@@ -117,6 +150,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			},
 			expectedLinkAccess: "loadbalancer",
 			expectedOutput:     "",
+			expectedNamespace:  "default",
 		},
 		{
 			name:  "options with link access enabled using the nodeport type",
@@ -127,6 +161,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			},
 			expectedLinkAccess: "nodeport",
 			expectedOutput:     "",
+			expectedNamespace:  "default",
 		},
 		{
 			name:  "options with link access options not well specified",
@@ -137,6 +172,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			},
 			expectedLinkAccess: "none",
 			expectedOutput:     "",
+			expectedNamespace:  "default",
 		},
 		{
 			name:  "options output type",
@@ -147,6 +183,17 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			},
 			expectedLinkAccess: "none",
 			expectedOutput:     "yaml",
+			expectedNamespace:  "default",
+		},
+		{
+			name:      "options with specific namespace",
+			args:      []string{"my-site"},
+			namespace: "test",
+			flags:     common.CommandSiteCreateFlags{},
+			expectedSettings: map[string]string{
+				"name": "my-site",
+			},
+			expectedNamespace: "test",
 		},
 	}
 
@@ -155,12 +202,14 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			cmd := CmdSiteCreate{}
 			cmd.Flags = &test.flags
 			cmd.siteName = "my-site"
+			cmd.namespace = test.namespace
 
 			cmd.InputToOptions()
 
 			assert.DeepEqual(t, cmd.options, test.expectedSettings)
 
 			assert.Check(t, cmd.output == test.expectedOutput)
+			assert.Check(t, cmd.namespace == test.expectedNamespace)
 		})
 	}
 }

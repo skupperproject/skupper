@@ -58,3 +58,78 @@ spec:
     port: 55671
   tlsCredentials: ""
 status: {}
+apiVersion: skupper.io/v1alpha1
+kind: RouterAccess
+metadata:
+  creationTimestamp: null
+  name: ra-test
+spec:
+  generateTlsCredentials: false
+  issuer: ""
+  roles:
+  - name: inter-router
+    port: 55671
+  - name: inter-router
+    port: 55671
+  tlsCredentials: ""
+status: {}
+apiVersion: skupper.io/v1alpha1
+kind: RouterAccess
+metadata:
+  creationTimestamp: null
+  name: ra-test
+spec:
+  generateTlsCredentials: false
+  issuer: ""
+  roles:
+  - name: inter-router
+    port: 55671
+  - name: inter-router
+    port: 55671
+  tlsCredentials: ""
+status: {}
+apiVersion: skupper.io/v1alpha1
+kind: RouterAccess
+metadata:
+  creationTimestamp: null
+  name: ra-test
+spec:
+  generateTlsCredentials: false
+  issuer: ""
+  roles:
+  - name: inter-router
+    port: 55671
+  - name: inter-router
+    port: 55671
+  tlsCredentials: ""
+status: {}
+apiVersion: skupper.io/v1alpha1
+kind: RouterAccess
+metadata:
+  creationTimestamp: null
+  name: ra-test
+spec:
+  generateTlsCredentials: false
+  issuer: ""
+  roles:
+  - name: inter-router
+    port: 55671
+  - name: inter-router
+    port: 55671
+  tlsCredentials: ""
+status: {}
+apiVersion: skupper.io/v1alpha1
+kind: RouterAccess
+metadata:
+  creationTimestamp: null
+  name: ra-test
+spec:
+  generateTlsCredentials: false
+  issuer: ""
+  roles:
+  - name: inter-router
+    port: 55671
+  - name: inter-router
+    port: 55671
+  tlsCredentials: ""
+status: {}

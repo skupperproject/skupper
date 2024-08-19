@@ -87,6 +87,14 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 			},
 		},
+		{
+			name:  "host flag is not valid for this platform",
+			args:  []string{"my-site"},
+			flags: &common.CommandSiteCreateFlags{Host: "host"},
+			expectedErrors: []string{
+				"--host flag is not supported on this platform",
+			},
+		},
 	}
 
 	for _, test := range testTable {
