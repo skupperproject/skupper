@@ -1762,14 +1762,10 @@ func (cli *VanClient) createPrometheus(ctx context.Context, siteConfig *types.Si
 	promInfo := config.PrometheusInfo{
 		BasicAuth:   false,
 		TlsAuth:     false,
-		Scheme:      "https",
 		ServiceName: types.ControllerServiceName,
 		Namespace:   van.Namespace,
 		Port:        strconv.Itoa(int(types.FlowCollectorDefaultServicePort)),
 		Hash:        "",
-	}
-	if siteConfig.Spec.AuthMode == string(types.ConsoleAuthModeOpenshift) {
-		promInfo.Scheme = "http"
 	}
 	if siteConfig.Spec.PrometheusServer.AuthMode == string(types.PrometheusAuthModeBasic) {
 		promInfo.BasicAuth = true

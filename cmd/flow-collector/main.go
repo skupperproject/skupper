@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -606,6 +607,14 @@ func main() {
 			log.Fatalf("invalid FLOW_METRICS_PORT %q soutside range", metricsPort)
 		}
 
+		tlsCfg := tlscfg.Modern()
+		secret := certs.GenerateCASecret("collector-ca", "collector-api")
+		cert, err := tls.X509KeyPair(secret.Data["tls.crt"], secret.Data["tls.key"])
+		if err != nil {
+			log.Fatalf("error generating tls certificates for metrics server: %s", err)
+		}
+		tlsCfg.Certificates = []tls.Certificate{cert}
+
 		maddr := fmt.Sprintf(":%d", pn)
 		log.Printf("COLLECTOR: metrics server listening on %s", maddr)
 		metricsSrv := &http.Server{
@@ -613,9 +622,10 @@ func main() {
 			Handler:      handlers.LoggingHandler(os.Stdout, promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg})),
 			ReadTimeout:  60 * time.Second,
 			WriteTimeout: 60 * time.Second,
+			TLSConfig:    tlsCfg,
 		}
 		go func() {
-			err := metricsSrv.ListenAndServe()
+			err := metricsSrv.ListenAndServeTLS("", "")
 			if err != nil {
 				log.Printf("metrics server error: %s", err)
 			}
