@@ -117,8 +117,8 @@ type ConnectorRecord struct {
 	Protocol  string `json:"protocol"`
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
-	StartTime uint64 `json:"startTime"`
-	Target    string `json:"target"`
+	StartTime uint64  `json:"startTime"`
+	Target    *string `json:"target"`
 }
 
 // ConnectorResponse defines model for ConnectorResponse.

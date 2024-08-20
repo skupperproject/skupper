@@ -1060,6 +1060,7 @@ components:
               type: string
             target:
               type: string
+              nullable: true
     AddressRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'

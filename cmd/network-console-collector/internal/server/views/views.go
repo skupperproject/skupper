@@ -12,7 +12,103 @@ import (
 
 const unknownStr = "unknown"
 
-func NewProcessGroupsProvider(stor store.Interface) func(entries []store.Entry) []api.ProcessGroupRecord {
+func NewListenerSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.ListenerRecord {
+	provider := NewListenerProvider(graph)
+	return func(entries []store.Entry) []api.ListenerRecord {
+		results := make([]api.ListenerRecord, 0, len(entries))
+		for _, e := range entries {
+			record, ok := e.Record.(vanflow.ListenerRecord)
+			if !ok {
+				continue
+			}
+			results = append(results, provider(record))
+		}
+		return results
+	}
+}
+
+func NewListenerProvider(graph collector.Graph) func(vanflow.ListenerRecord) api.ListenerRecord {
+	return func(record vanflow.ListenerRecord) api.ListenerRecord {
+		out := defaultListener(record.ID)
+		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
+		setOpt(&out.Name, record.Name)
+		setOpt(&out.Parent, record.Parent)
+		setOpt(&out.Protocol, record.Protocol)
+		setOpt(&out.DestHost, record.DestHost)
+		setOpt(&out.DestPort, record.DestPort)
+		setOpt(&out.Address, record.Address)
+
+		node := graph.Listener(record.ID)
+		if addressID := node.Address().ID(); addressID != "" {
+			out.AddressId = &addressID
+		}
+		return out
+	}
+}
+
+func defaultListener(id string) api.ListenerRecord {
+	return api.ListenerRecord{
+		Identity: id,
+		Name:     unknownStr,
+		Parent:   unknownStr,
+		Protocol: unknownStr,
+		Address:  unknownStr,
+		DestHost: unknownStr,
+		DestPort: unknownStr,
+	}
+}
+
+func NewConnectorSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.ConnectorRecord {
+	provider := NewConnectorProvider(graph)
+	return func(entries []store.Entry) []api.ConnectorRecord {
+		results := make([]api.ConnectorRecord, 0, len(entries))
+		for _, e := range entries {
+			record, ok := e.Record.(vanflow.ConnectorRecord)
+			if !ok {
+				continue
+			}
+			results = append(results, provider(record))
+		}
+		return results
+	}
+}
+
+func NewConnectorProvider(graph collector.Graph) func(vanflow.ConnectorRecord) api.ConnectorRecord {
+	return func(record vanflow.ConnectorRecord) api.ConnectorRecord {
+		out := defaultConnector(record.ID)
+		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
+		setOpt(&out.Name, record.Name)
+		setOpt(&out.Parent, record.Parent)
+		setOpt(&out.Protocol, record.Protocol)
+		setOpt(&out.DestHost, record.DestHost)
+		setOpt(&out.DestPort, record.DestPort)
+		setOpt(&out.ProcessId, record.ProcessID)
+		setOpt(&out.Address, record.Address)
+
+		node := graph.Connector(record.ID)
+		if addressID := node.Address().ID(); addressID != "" {
+			out.AddressId = &addressID
+		}
+		if proc, ok := node.Target().GetRecord(); ok {
+			out.Target = proc.Name
+		}
+		return out
+	}
+}
+
+func defaultConnector(id string) api.ConnectorRecord {
+	return api.ConnectorRecord{
+		Identity: id,
+		Name:     unknownStr,
+		Parent:   unknownStr,
+		Protocol: unknownStr,
+		Address:  unknownStr,
+		DestHost: unknownStr,
+		DestPort: unknownStr,
+	}
+}
+
+func NewProcessGroupSliceProvider(stor store.Interface) func(entries []store.Entry) []api.ProcessGroupRecord {
 	provider := NewProcessGroupProvider(stor)
 	return func(entries []store.Entry) []api.ProcessGroupRecord {
 		results := make([]api.ProcessGroupRecord, 0, len(entries))
@@ -60,7 +156,7 @@ func defaultProcessGroup(id string) api.ProcessGroupRecord {
 	}
 }
 
-func NewProcessesProvider(stor store.Interface, graph collector.Graph) func(entries []store.Entry) []api.ProcessRecord {
+func NewProcessSliceProvider(stor store.Interface, graph collector.Graph) func(entries []store.Entry) []api.ProcessRecord {
 	provider := NewProcessProvider(stor, graph)
 	return func(entries []store.Entry) []api.ProcessRecord {
 		results := make([]api.ProcessRecord, 0, len(entries))
@@ -160,7 +256,7 @@ func defaultRouterAccess(id string) api.RouterAccessRecord {
 		RouterId: unknownStr,
 	}
 }
-func NewRotuerLinksProvider(graph collector.Graph) func(entries []store.Entry) []api.RouterLinkRecord {
+func NewRotuerLinkSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.RouterLinkRecord {
 	provider := NewRouterLinkProvider(graph)
 	return func(entries []store.Entry) []api.RouterLinkRecord {
 		results := make([]api.RouterLinkRecord, 0, len(entries))
@@ -234,7 +330,7 @@ func defaultRouterLink(id string) api.RouterLinkRecord {
 	}
 }
 
-func NewAddressesProvider(graph collector.Graph) func(entries []store.Entry) []api.AddressRecord {
+func NewAddressSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.AddressRecord {
 	provider := NewAddressProvider(graph)
 	return func(entries []store.Entry) []api.AddressRecord {
 		results := make([]api.AddressRecord, 0, len(entries))
@@ -263,7 +359,7 @@ func NewAddressProvider(graph collector.Graph) func(collector.AddressRecord) api
 	}
 }
 
-func NewLinksProvider(graph collector.Graph) func(entries []store.Entry) []api.LinkRecord {
+func NewLinkSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.LinkRecord {
 	provider := NewLinkProvider(graph)
 	return func(entries []store.Entry) []api.LinkRecord {
 		results := make([]api.LinkRecord, 0, len(entries))

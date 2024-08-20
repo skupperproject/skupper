@@ -14,7 +14,7 @@ var _ api.ServerInterface = (*server)(nil)
 
 // (GET /api/v1alpha1/addresses/)
 func (s *server) Addresses(w http.ResponseWriter, r *http.Request) {
-	results := views.NewAddressesProvider(s.graph)(listByType[collector.AddressRecord](s.records))
+	results := views.NewAddressSliceProvider(s.graph)(listByType[collector.AddressRecord](s.records))
 	if err := handleCollection(w, r, &api.AddressListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
@@ -54,31 +54,41 @@ func (s *server) ProcessPairsByAddress(w http.ResponseWriter, r *http.Request, i
 
 // (GET /api/v1alpha1/connectors/)
 func (s *server) Connectors(w http.ResponseWriter, r *http.Request) {
-	//TODO(ck) implement
-	if err := handleCollection(w, r, &api.ConnectorListResponse{}, []api.ConnectorRecord{}); err != nil {
+	results := views.NewConnectorSliceProvider(s.graph)(listByType[vanflow.ConnectorRecord](s.records))
+	if err := handleCollection(w, r, &api.ConnectorListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
 }
 
 // (GET /api/v1alpha1/connectors/{id}/)
 func (s *server) ConnectorByID(w http.ResponseWriter, r *http.Request, id string) {
+	getRecord := fetchAndMap(s.records, views.NewConnectorProvider(s.graph), id)
+	if err := handleSingle(w, r, &api.ConnectorResponse{}, getRecord); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
+// Hosts deprecated
 // (GET /api/v1alpha1/hosts/)
 func (s *server) Hosts(w http.ResponseWriter, r *http.Request) {
-	//TODO(ck) implement
 	if err := handleCollection(w, r, &api.SiteListResponse{}, []api.SiteRecord{}); err != nil {
 		s.logWriteError(r, err)
 	}
 }
 
+// HostsByID deprecated
 // (GET /api/v1alpha1/hosts/{id}/)
 func (s *server) HostsByID(w http.ResponseWriter, r *http.Request, id string) {
+	if err := handleSingle(w, r, &api.SiteResponse{}, func() (r api.SiteRecord, found bool) {
+		return r, false
+	}); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/links/)
 func (s *server) Links(w http.ResponseWriter, r *http.Request) {
-	results := views.NewLinksProvider(s.graph)(listByType[vanflow.LinkRecord](s.records))
+	results := views.NewLinkSliceProvider(s.graph)(listByType[vanflow.LinkRecord](s.records))
 	if err := handleCollection(w, r, &api.LinkListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
@@ -94,10 +104,18 @@ func (s *server) LinkByID(w http.ResponseWriter, r *http.Request, id string) {
 
 // (GET /api/v1alpha1/listeners/)
 func (s *server) Listeners(w http.ResponseWriter, r *http.Request) {
+	results := views.NewListenerSliceProvider(s.graph)(listByType[vanflow.ListenerRecord](s.records))
+	if err := handleCollection(w, r, &api.ListenerListResponse{}, results); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/listeners/{id}/)
 func (s *server) ListenerByID(w http.ResponseWriter, r *http.Request, id string) {
+	getRecord := fetchAndMap(s.records, views.NewListenerProvider(s.graph), id)
+	if err := handleSingle(w, r, &api.ListenerResponse{}, getRecord); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/listeners/{id}/flows)
@@ -106,7 +124,7 @@ func (s *server) FlowsByListener(w http.ResponseWriter, r *http.Request, id stri
 
 // (GET /api/v1alpha1/processes/)
 func (s *server) Processes(w http.ResponseWriter, r *http.Request) {
-	results := views.NewProcessesProvider(s.records, s.graph)(listByType[vanflow.ProcessRecord](s.records))
+	results := views.NewProcessSliceProvider(s.records, s.graph)(listByType[vanflow.ProcessRecord](s.records))
 	if err := handleCollection(w, r, &api.ProcessListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
@@ -146,7 +164,7 @@ func (s *server) ProcessgrouppairByID(w http.ResponseWriter, r *http.Request, id
 
 // (GET /api/v1alpha1/processgroups/)
 func (s *server) Processgroups(w http.ResponseWriter, r *http.Request) {
-	results := views.NewProcessGroupsProvider(s.records)(listByType[collector.ProcessGroupRecord](s.records))
+	results := views.NewProcessGroupSliceProvider(s.records)(listByType[collector.ProcessGroupRecord](s.records))
 	if err := handleCollection(w, r, &api.ProcessGroupListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
@@ -194,7 +212,7 @@ func (s *server) RouteraccessByID(w http.ResponseWriter, r *http.Request, id str
 
 // (GET /api/v1alpha1/routerlinks/)
 func (s *server) Routerlinks(w http.ResponseWriter, r *http.Request) {
-	results := views.NewRotuerLinksProvider(s.graph)(listByType[vanflow.LinkRecord](s.records))
+	results := views.NewRotuerLinkSliceProvider(s.graph)(listByType[vanflow.LinkRecord](s.records))
 	if err := handleCollection(w, r, &api.RouterLinkListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
@@ -294,7 +312,7 @@ func (s *server) LinksBySite(w http.ResponseWriter, r *http.Request, id string) 
 			linkEntries = append(linkEntries, le)
 		}
 	}
-	results := views.NewLinksProvider(s.graph)(linkEntries)
+	results := views.NewLinkSliceProvider(s.graph)(linkEntries)
 	if err := handleCollection(w, r, &api.LinkListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
@@ -303,7 +321,7 @@ func (s *server) LinksBySite(w http.ResponseWriter, r *http.Request, id string) 
 // (GET /api/v1alpha1/sites/{id}/processes/)
 func (s *server) ProcessesBySite(w http.ResponseWriter, r *http.Request, id string) {
 	exemplar := store.Entry{Record: vanflow.ProcessRecord{Parent: &id}}
-	results := views.NewProcessesProvider(s.records, s.graph)(index(s.records, collector.IndexByTypeParent, exemplar))
+	results := views.NewProcessSliceProvider(s.records, s.graph)(index(s.records, collector.IndexByTypeParent, exemplar))
 	if err := handleCollection(w, r, &api.ProcessListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}

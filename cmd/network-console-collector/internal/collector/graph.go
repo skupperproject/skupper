@@ -333,7 +333,7 @@ type Listener struct {
 }
 
 func (n Listener) Parent() Router { return parentOfType[Router](n.dag, n.identity) }
-func (n Listener) Address() Node  { return nil }
+func (n Listener) Address() Node  { return parentOfType[RoutingKey](n.dag, n.identity).Parent() }
 
 type Connector struct {
 	baseNode
