@@ -2,8 +2,6 @@ package kube
 
 import (
 	"fmt"
-	"testing"
-
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -12,6 +10,7 @@ import (
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"testing"
 )
 
 func TestCmdLinkUpdate_NewCmdLinkUpdate(t *testing.T) {
@@ -608,7 +607,6 @@ func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 	}
 
 	for _, test := range testTable {
-		test := test
 		cmd, err := newCmdLinkUpdateWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
 		assert.Assert(t, err)
 		cmd.linkName = test.linkName
@@ -616,7 +614,7 @@ func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 		cmd.timeout = test.timeout
 
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
+
 			err := cmd.WaitUntil()
 
 			if test.expectError {

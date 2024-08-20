@@ -596,7 +596,6 @@ func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 	}
 
 	for _, test := range testTable {
-		test := test
 		command := &CmdSiteUpdate{
 			Namespace: "test",
 		}
@@ -607,7 +606,6 @@ func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 		command.siteName = test.siteName
 
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
 
 			err := command.WaitUntil()
 			if err != nil {
