@@ -2,8 +2,6 @@ package kube
 
 import (
 	"fmt"
-	"testing"
-
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -11,6 +9,7 @@ import (
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"testing"
 )
 
 func TestCmdLinkDelete_NewCmdLinkDelete(t *testing.T) {
@@ -369,13 +368,12 @@ func TestCmdLinkDelete_WaitUntil(t *testing.T) {
 	}
 
 	for _, test := range testTable {
-		test := test
 		cmd, err := newCmdLinkDeleteWithMocks("test", nil, test.skupperObjects, "")
 		assert.Assert(t, err)
 		cmd.linkName = "my-link"
 		cmd.timeout = test.timeout
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
+
 			err := cmd.WaitUntil()
 			if err != nil {
 				assert.Check(t, test.expectError)

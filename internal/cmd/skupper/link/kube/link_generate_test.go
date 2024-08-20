@@ -2,8 +2,6 @@ package kube
 
 import (
 	"fmt"
-	"testing"
-
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -13,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"testing"
 )
 
 func TestCmdLinkGenerate_NewCmdLinkGenerate(t *testing.T) {
@@ -952,12 +951,11 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 	}
 
 	for _, test := range testTable {
-		test := test
 		command, err := newCmdLinkGenerateWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperError)
 		assert.Assert(t, err)
 
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
+
 			command.output = test.outputType
 			command.generateCredential = test.generateCredential
 			command.tlsSecret = test.tlsSecret
