@@ -303,7 +303,6 @@ func TestSecuredAccessManagerCheckService(t *testing.T) {
 				},
 				annotations: &map[string]string{
 					"internal.skupper.io/controlled": "true",
-					//"internal.skupper.io/routeraccess": "name",
 				},
 				refs: &[]metav1.OwnerReference{
 					{
@@ -427,9 +426,6 @@ func TestSecuredAccessManagerCheckService(t *testing.T) {
 				if tt.expectErr {
 					// expected error since service doesn't exist so create one
 					m.RecoverService(tt.svc)
-					//if err = m.createService(m.definitions["test/skupper"]); err != nil {
-					//	t.Errorf("SecuredAccessManager.createService error = %v", err)
-					//}
 				} else {
 					t.Errorf("SecuredAccessManager.CheckService error = %v", err)
 				}
