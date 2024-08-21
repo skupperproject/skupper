@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -40,6 +41,42 @@ var (
 	}
 )
 
+// Hipstershop is currently supported only on amd64
+//
+// https://github.com/GoogleCloudPlatform/microservices-demo/issues/622#issuecomment-2066712947
+//
+// # If the target clusters are found to contain any non-amd64 nodes, the test is skipped
+//
+// Notice that it is perfectly valid to run this test from an arm64 machine; only the cluster
+// needs to be amd64
+//
+// TODO: make it more granular, allow for hibrid clusters?
+// TODO: move this to a shared package, allow for list of accepted archs?
+func checkArch(t *testing.T, clusters ...*base.ClusterContext) error {
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
+	defer cancel()
+
+	for _, c := range clusters {
+		list, err := c.VanClient.KubeClient.CoreV1().Nodes().List(ctx, v1.ListOptions{})
+		if err != nil {
+			return err
+		}
+		for _, node := range list.Items {
+			arch := node.Labels["beta.kubernetes.io/arch"]
+			if arch != "amd64" {
+				t.Skipf(
+					"at least one cluster node is not amd64 -- skipping (%s at %s is %s)",
+					node.Name,
+					c.VanClient.RestConfig.Host,
+					arch,
+				)
+			}
+		}
+	}
+	return nil
+}
+
 func Setup(t *testing.T, testRunner base.ClusterTestRunner) {
 	var err error
 
@@ -49,6 +86,8 @@ func Setup(t *testing.T, testRunner base.ClusterTestRunner) {
 	assert.Assert(t, err)
 	prv1, err := testRunner.GetPrivateContext(1)
 	assert.Assert(t, err)
+
+	assert.Assert(t, checkArch(t, pub1, pub2, prv1))
 
 	// creating namespaces
 	assert.Assert(t, pub1.CreateNamespace())
