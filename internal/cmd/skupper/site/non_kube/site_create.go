@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	"github.com/skupperproject/skupper/internal/non-kube/client/fs"
+	fs2 "github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
@@ -16,8 +16,8 @@ import (
 )
 
 type CmdSiteCreate struct {
-	siteHandler         *fs.SiteHandler
-	routerAccessHandler *fs.RouterAccessHandler
+	siteHandler         *fs2.SiteHandler
+	routerAccessHandler *fs2.RouterAccessHandler
 	CobraCmd            *cobra.Command
 	Flags               *common.CommandSiteCreateFlags
 	options             map[string]string
@@ -42,8 +42,8 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 		cmd.namespace = cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String()
 	}
 
-	cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
-	cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.namespace)
+	cmd.siteHandler = fs2.NewSiteHandler(cmd.namespace)
+	cmd.routerAccessHandler = fs2.NewRouterAccessHandler(cmd.namespace)
 
 }
 

@@ -3,7 +3,7 @@ package non_kube
 import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	"github.com/skupperproject/skupper/internal/non-kube/client/fs"
+	fs2 "github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/spf13/cobra"
 	"testing"
 
@@ -208,8 +208,8 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			cmd.Flags = &test.flags
 			cmd.siteName = "my-site"
 			cmd.namespace = test.namespace
-			cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
-			cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.namespace)
+			cmd.siteHandler = fs2.NewSiteHandler(cmd.namespace)
+			cmd.routerAccessHandler = fs2.NewRouterAccessHandler(cmd.namespace)
 
 			cmd.InputToOptions()
 
@@ -275,8 +275,8 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 		command.options = test.options
 		command.output = test.output
 		command.routerAccessName = test.routerAccessName
-		command.siteHandler = fs.NewSiteHandler(command.namespace)
-		command.routerAccessHandler = fs.NewRouterAccessHandler(command.namespace)
+		command.siteHandler = fs2.NewSiteHandler(command.namespace)
+		command.routerAccessHandler = fs2.NewRouterAccessHandler(command.namespace)
 
 		t.Run(test.name, func(t *testing.T) {
 
