@@ -8,7 +8,7 @@ import (
 func HandleError(err error) {
 	if err != nil {
 		fmt.Println(err)
-		syscall.Exit(0)
+		syscall.Exit(1)
 	}
 }
 
@@ -18,7 +18,7 @@ func HandleErrorList(errList []error) {
 			fmt.Println(err)
 		}
 
-		syscall.Exit(0)
+		syscall.Exit(2)
 	}
 }
 
