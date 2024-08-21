@@ -68,7 +68,7 @@ func TestCmdSiteFactory(t *testing.T) {
 
 			assert.Assert(t, test.command.PreRunE != nil)
 			assert.Assert(t, test.command.Run != nil)
-			assert.Assert(t, test.command.PostRunE != nil)
+			assert.Assert(t, test.command.PostRun != nil)
 			assert.Assert(t, test.command.Use != "")
 			assert.Assert(t, test.command.Short != "")
 			assert.Assert(t, test.command.Long != "")
