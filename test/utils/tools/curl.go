@@ -204,7 +204,7 @@ func DeployCurl(kubeClient kubernetes.Interface, ns, pod string) (*v1.Pod, error
 		},
 		Spec: v1.PodSpec{
 			Containers: []v1.Container{
-				{Name: "curl", Image: "curlimages/curl", Command: strings.Split("tail -f /dev/null", " ")},
+				{Name: "curl", Image: "quay.io/curl/curl", Command: strings.Split("tail -f /dev/null", " ")},
 			},
 			RestartPolicy:                 v1.RestartPolicyAlways,
 			TerminationGracePeriodSeconds: &terminationPeriodSecs,
