@@ -87,6 +87,15 @@ func TestClient(t *testing.T) {
 		t.Error("expected client.Close() to promptly return")
 	}
 
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("client.Close() should be safe to call multiple times but paniced: %v", r)
+			}
+		}()
+		client.Close()
+	}()
+
 	msg, err := record.Encode()
 	assert.Check(t, err)
 	sender.Send(tstCtx, msg)
