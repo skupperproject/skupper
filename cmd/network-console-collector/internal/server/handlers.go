@@ -252,8 +252,9 @@ func (s *server) FlowsByRouter(w http.ResponseWriter, r *http.Request, id string
 
 // (GET /api/v1alpha1/routers/{id}/links/)
 func (s *server) LinksByRouter(w http.ResponseWriter, r *http.Request, id string) {
-	//TODO(ck) implement
-	if err := handleCollection(w, r, &api.LinkListResponse{}, []api.LinkRecord{}); err != nil {
+	exemplar := store.Entry{Record: vanflow.LinkRecord{Parent: &id}}
+	results := views.NewLinkSliceProvider(s.graph)(index(s.records, collector.IndexByTypeParent, exemplar))
+	if err := handleCollection(w, r, &api.LinkListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
 }
