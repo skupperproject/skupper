@@ -13,6 +13,7 @@ import (
 
 type SelfExtractingBundle struct {
 	SiteName   string
+	Namespace  string
 	OutputPath string
 }
 
@@ -44,6 +45,7 @@ func (s *SelfExtractingBundle) Generate(tarBall *utils.Tarball) error {
 	var parsedInstallScript = new(bytes.Buffer)
 	err = installScriptTemplate.Execute(parsedInstallScript, map[string]interface{}{
 		"SiteName":        s.SiteName,
+		"Namespace":       s.Namespace,
 		"SelfExtractPart": selfExtractPart,
 	})
 	if err != nil {

@@ -4,20 +4,20 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 type SiteStateRenderer struct {
-	loadedSiteState *apis.SiteState
-	siteState       *apis.SiteState
+	loadedSiteState *api.SiteState
+	siteState       *api.SiteState
 	configRenderer  *common.FileSystemConfigurationRenderer
 }
 
-func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
+func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState) error {
 	var err error
-	var validator apis.SiteStateValidator = &common.SiteStateValidator{}
+	var validator api.SiteStateValidator = &common.SiteStateValidator{}
 	err = validator.Validate(loadedSiteState)
 	if err != nil {
 		return err
@@ -29,19 +29,18 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 	if err != nil {
 		return fmt.Errorf("failed to redeem claims: %v", err)
 	}
-	// TODO verify if needed in phase 0
 	if err = common.CreateRouterAccess(s.siteState); err != nil {
 		return err
 	}
 	s.siteState.CreateLinkAccessesCertificates()
 	s.siteState.CreateBridgeCertificates()
 	// rendering non-kube configuration files and certificates
-	siteHome, err := apis.GetHostSiteHome(s.siteState.Site)
+	siteHome, err := api.GetHostSiteHome(s.siteState.Site)
 	if err != nil {
 		return fmt.Errorf("failed to get site home: %w", err)
 	}
 	s.configRenderer = &common.FileSystemConfigurationRenderer{
-		Force:              false, // TODO discuss how this should be handled?
+		Force:              false,
 		SslProfileBasePath: siteHome,
 	}
 	err = s.configRenderer.Render(s.siteState)
@@ -72,7 +71,7 @@ func (s *SiteStateRenderer) createSystemdService() error {
 	}
 
 	// Validate if lingering is enabled for current user
-	if !apis.IsRunningInContainer() {
+	if !api.IsRunningInContainer() {
 		username := utils.ReadUsername()
 		if os.Getuid() != 0 && !common.IsLingeringEnabled(username) {
 			fmt.Printf("It is recommended to enable lingering for %s, otherwise Skupper may not start on boot.\n", username)

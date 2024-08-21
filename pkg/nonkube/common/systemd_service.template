@@ -1,5 +1,5 @@
 [Unit]
-Description=skupper-site-{{.Site.Name}}.service
+Description=skupper-{{.Namespace}}.service
 Wants=network-online.target
 After=network-online.target
 

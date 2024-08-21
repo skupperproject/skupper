@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,18 +16,18 @@ func TestFileSystemConfigurationRenderer_Render(t *testing.T) {
 	ss := fakeSiteState()
 	ss.CreateLinkAccessesCertificates()
 	ss.CreateBridgeCertificates()
-	outputPath, err := os.MkdirTemp("", "fs-config-renderer-*")
+	customOutputPath, err := os.MkdirTemp("", "fs-config-renderer-*")
 	assert.Assert(t, err)
 	defer func() {
-		err := os.RemoveAll(outputPath)
+		err := os.RemoveAll(customOutputPath)
 		assert.Assert(t, err)
 	}()
-	fsConfigRenderer := &FileSystemConfigurationRenderer{
-		OutputPath: outputPath,
-	}
+	fsConfigRenderer := new(FileSystemConfigurationRenderer)
+	fsConfigRenderer.customOutputPath = customOutputPath
 	assert.Assert(t, fsConfigRenderer.Render(ss))
-	for _, dirName := range []string{"certificates", "config", "loaded", "runtime"} {
-		file, err := os.Stat(path.Join(outputPath, dirName))
+	customOutputPath = fsConfigRenderer.GetOutputPath(ss)
+	for _, dirName := range []string{"certificates", "config", "sources", "runtime"} {
+		file, err := os.Stat(path.Join(customOutputPath, dirName))
 		assert.Assert(t, err)
 		assert.Assert(t, file.IsDir())
 	}
@@ -60,15 +60,15 @@ func TestFileSystemConfigurationRenderer_Render(t *testing.T) {
 		"runtime/token/link-link-access-one.yaml",
 	}
 	for _, fileName := range expectedFiles {
-		fs, err := os.Stat(path.Join(outputPath, fileName))
+		fs, err := os.Stat(path.Join(customOutputPath, fileName))
 		assert.Assert(t, err)
 		assert.Assert(t, fs.Mode().IsRegular())
 		assert.Assert(t, fs.Size() > 0)
 	}
 }
 
-func fakeSiteState() *apis.SiteState {
-	return &apis.SiteState{
+func fakeSiteState() *api.SiteState {
+	return &api.SiteState{
 		SiteId: "site-id",
 		Site: &v1alpha1.Site{
 			TypeMeta: metav1.TypeMeta{

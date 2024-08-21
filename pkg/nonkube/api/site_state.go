@@ -1,4 +1,4 @@
-package apis
+package api
 
 import (
 	encodingjson "encoding/json"
@@ -260,6 +260,34 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string) qdr.RouterConfig {
 
 	return routerConfig
 }
+
+func setNamespaceOnMap[T metav1.Object](objMap map[string]T, namespace string) {
+	for _, obj := range objMap {
+		obj.SetNamespace(namespace)
+	}
+}
+
+func (s *SiteState) SetNamespace(namespace string) {
+	currentNamespace := s.Site.Namespace
+	if namespace == "" {
+		namespace = "default"
+	}
+	// equals
+	if currentNamespace == namespace {
+		return
+	}
+	s.Site.SetNamespace(namespace)
+	setNamespaceOnMap(s.Listeners, namespace)
+	setNamespaceOnMap(s.Connectors, namespace)
+	setNamespaceOnMap(s.RouterAccesses, namespace)
+	setNamespaceOnMap(s.Grants, namespace)
+	setNamespaceOnMap(s.Links, namespace)
+	setNamespaceOnMap(s.Secrets, namespace)
+	setNamespaceOnMap(s.Claims, namespace)
+	setNamespaceOnMap(s.Certificates, namespace)
+	setNamespaceOnMap(s.SecuredAccesses, namespace)
+}
+
 func marshal(outputDirectory, resourceType, resourceName string, resource interface{}) error {
 	var err error
 	writeDirectory := path.Join(outputDirectory, resourceType)

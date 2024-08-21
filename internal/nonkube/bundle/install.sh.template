@@ -8,6 +8,8 @@ set -Ceu
 
 # site name to be provided by bundle generation
 export SITE_NAME="{{.SiteName}}"
+export SOURCE_NAMESPACE="{{.Namespace}}"
+export NAMESPACE="${SOURCE_NAMESPACE}"
 export SKUPPER_PLATFORM="podman"
 export PLATFORM_COMMAND="podman"
 export REMOVE=false
@@ -33,8 +35,8 @@ if [ "${UID}" -eq 0 ]; then
     # shellcheck disable=SC2089
     export USERNS="''"
 fi
-export SITES_PATH="${SKUPPER_OUTPUT_PATH}/sites"
-export PLATFORM_FILE="${SITES_PATH}/${SITE_NAME}/runtime/state/platform.yaml"
+export NAMESPACES_PATH="${SKUPPER_OUTPUT_PATH}/namespaces"
+export PLATFORM_FILE="${NAMESPACES_PATH}/${NAMESPACE}/runtime/state/platform.yaml"
 export USER="${USER:-$(id -un)}"
 SITE_ID="$(hostname -s)-${USER}-$(date +%s)"
 export SITE_ID
@@ -53,7 +55,7 @@ usage() {
 }
 
 parse_opts() {
-    while getopts "xhd:p:" opt; do
+    while getopts "xhd:p:n:" opt; do
         case "${opt}" in
             p)
                 valid_platforms="podman docker systemd"
@@ -80,6 +82,12 @@ parse_opts() {
                 elif [ "${SKUPPER_PLATFORM}" = "systemd" ]; then
                     export PLATFORM_COMMAND="skrouterd"
                 fi
+                ;;
+            n)
+                if [ -n "${OPTARG}" ]; then
+                    export NAMESPACE="${OPTARG}"
+                fi
+                export PLATFORM_FILE="${NAMESPACES_PATH}/${NAMESPACE}/runtime/state/platform.yaml"
                 ;;
             d)
                 export DUMP_TOKENS=true
@@ -109,10 +117,10 @@ parse_opts() {
 create_service() {
     # if systemd is not available, skip it
     ${SYSTEMCTL} list-units > /dev/null 2>&1 || return
-    service_name="skupper-site-${SITE_NAME}.service"
+    service_name="skupper-${NAMESPACE}.service"
     service_file_suffix="container"
     [ "${SKUPPER_PLATFORM}" = "systemd" ] && service_file_suffix="systemd"
-    service_file="${SKUPPER_OUTPUT_PATH}/sites/${SITE_NAME}/runtime/scripts/${service_name}.${service_file_suffix}"
+    service_file="${SKUPPER_OUTPUT_PATH}/namespaces/${NAMESPACE}/runtime/scripts/skupper.service.${service_file_suffix}"
 
     if [ ! -f "${service_file}" ]; then
         echo "SystemD service has not been defined"
@@ -135,50 +143,56 @@ create_service() {
 }
 
 remove_service() {
-    service="skupper-site-${SITE_NAME}.service"
-    ${SYSTEMCTL} stop ${service}
-    ${SYSTEMCTL} disable ${service}
+    service="skupper-${NAMESPACE}.service"
+    ${SYSTEMCTL} stop "${service}"
+    ${SYSTEMCTL} disable "${service}"
     rm -f "${SERVICE_DIR:?}/${service}"
     ${SYSTEMCTL} daemon-reload
     ${SYSTEMCTL} reset-failed
 }
 
 remove_site() {
-    if [ ! -d "${SITES_PATH}/${SITE_NAME}" ]; then
-        echo "Site \"${SITE_NAME}\" does not exist"
+    if [ ! -d "${NAMESPACES_PATH}/${NAMESPACE}" ]; then
+        echo "Namespace \"${NAMESPACE}\" does not exist"
         exit 0
     fi
 
-    echo "Removing Skupper site definition for: ${SITE_NAME}"
+    SITE_PATH="${NAMESPACES_PATH}/${NAMESPACE}/runtime/state/site/"
+    if ! grep -qr "name: ${SITE_NAME}\$" "${SITE_PATH}"; then
+        echo "Site \"${SITE_NAME}\" is not defined on namespace \"${NAMESPACE}\""
+        exit 0
+    fi
+
+    echo "Removing Skupper site definition for ${SITE_NAME} from namespace ${NAMESPACE}"
     SKUPPER_PLATFORM=$(grep '^platform: ' "${PLATFORM_FILE}" | sed -e 's/.*: //g')
     if [ "${SKUPPER_PLATFORM}" != "systemd" ]; then
         # removing router container
-        ${SKUPPER_PLATFORM} rm -f ${SITE_NAME}-skupper-router
+        ${SKUPPER_PLATFORM} rm -f "${NAMESPACE}-skupper-router"
     fi
     # removing site definition
-    rm -rf "${SITES_PATH:?}/${SITE_NAME:?}/"
+    rm -rf "${NAMESPACES_PATH:?}/${NAMESPACE:?}/"
 }
 
 dump_tokens() {
-    tokens="$(ls "./${SITE_NAME}/runtime/token/")"
+    tokens="$(ls "./${SOURCE_NAMESPACE}/runtime/token/")"
     if [ -z "${tokens}" ]; then
         echo "No tokens defined in this site bundle"
         return
     fi
     token_out_dir="${SKUPPER_TOKEN_OUTPUT_PATH:?}/${SITE_NAME:?}"
     mkdir -p "${token_out_dir}"
-    cp "./${SITE_NAME}/runtime/token/"*.yaml "${token_out_dir}"
+    cp "./${SOURCE_NAMESPACE}/runtime/token/"*.yaml "${token_out_dir}"
     echo "Tokens for site \"${SITE_NAME}\" have been saved into ${token_out_dir}"
 }
 
 set_router_access_port() {
-    config_file="${SITES_PATH}/${SITE_NAME}/config/router/skrouterd.json"
-    python "${SITES_PATH:?}/${SITE_NAME:?}/runtime/scripts/router_free_port.py" "${config_file}"
+    config_file="${NAMESPACES_PATH}/${NAMESPACE}/config/router/skrouterd.json"
+    python "${NAMESPACES_PATH:?}/${NAMESPACE:?}/runtime/scripts/router_free_port.py" "${config_file}"
 }
 
 create_sed_script() {
     ssl_profile_base_path="\${SSL_PROFILE_BASE_PATH}"
-    [ "${SKUPPER_PLATFORM}" = "systemd" ] && ssl_profile_base_path="${SITES_PATH}/${SITE_NAME}"
+    [ "${SKUPPER_PLATFORM}" = "systemd" ] && ssl_profile_base_path="${NAMESPACES_PATH}/${NAMESPACE}"
     container_engine="podman"
     [ "${SKUPPER_PLATFORM}" != "systemd" ] && container_engine="${SKUPPER_PLATFORM}"
     # populating sed script
@@ -187,26 +201,27 @@ create_sed_script() {
     # shellcheck disable=SC1083
     {
         echo "s#{{"{{"}}.SiteNameSuffix{{"}}"}}#${SITE_ID}#g"
+        echo "s#{{"{{"}}.Namespace{{"}}"}}#${NAMESPACE}#g"
         echo "s#{{"{{"}}.Platform{{"}}"}}#${SKUPPER_PLATFORM}#g"
         echo "s#{{"{{"}}.SslProfileBasePath{{"}}"}}#${ssl_profile_base_path}#g"
         echo "s#{{"{{"}}.ContainerEngine{{"}}"}}#${container_engine}#g"
         echo "s#{{"{{"}}.SiteId{{"}}"}}#${SITE_ID}#g"
-        echo "s#{{"{{"}}.SitesPath{{"}}"}}#${SITES_PATH}#g"
+        echo "s#{{"{{"}}.NamespacesPath{{"}}"}}#${NAMESPACES_PATH}#g"
         echo "s#{{"{{"}}.RuntimeDir{{"}}"}}#${RUNTIME_DIR}#g"
-        echo "s#{{"{{"}}.SiteScriptPath{{"}}"}}#${SITES_PATH}/${SITE_NAME}/runtime/scripts#g"
-        echo "s#{{"{{"}}.SiteConfigPath{{"}}"}}#${SITES_PATH}/${SITE_NAME}/config/router#g"
+        echo "s#{{"{{"}}.SiteScriptPath{{"}}"}}#${NAMESPACES_PATH}/${NAMESPACE}/runtime/scripts#g"
+        echo "s#{{"{{"}}.SiteConfigPath{{"}}"}}#${NAMESPACES_PATH}/${NAMESPACE}/config/router#g"
         echo "s#{{"{{"}}.RunAs{{"}}"}}#${RUNAS}#g"
         echo "s#{{"{{"}}.UserNamespace{{"}}"}}#${USERNS}#g"
     } >> script.sed
 }
 
 render_sed_templates() {
-    grep -rl '{{"{{"}}' "${SITES_PATH}/${SITE_NAME}" | xargs -r -i sed -f script.sed -i {}
+    grep -rl '{{"{{"}}' "${NAMESPACES_PATH}/${NAMESPACE}" | xargs -r -i sed -f script.sed -i {}
     rm -f script.sed
 }
 
 show_token_info() {
-    token_path="${SITES_PATH:?}/${SITE_NAME:?}/runtime/token"
+    token_path="${NAMESPACES_PATH:?}/${NAMESPACE:?}/runtime/token"
     [ ! -d "${token_path}" ] && return
     tokens_found=$(find "${token_path}" -type f | wc -l)
     if [ "${tokens_found}" -gt 0 ]; then
@@ -216,24 +231,26 @@ show_token_info() {
 
 create_containers() {
     [ "${SKUPPER_PLATFORM}" = "systemd" ] && return
-    "${SITES_PATH:?}/${SITE_NAME:?}/runtime/scripts/containers_create.sh"
+    "${NAMESPACES_PATH:?}/${NAMESPACE:?}/runtime/scripts/containers_create.sh"
 }
 
 create_site() {
-    if [ -d "${SITES_PATH}/${SITE_NAME}" ]; then
-        echo "Failed: site \"${SITE_NAME}\" is already defined"
+    if [ -d "${NAMESPACES_PATH}/${NAMESPACE}" ]; then
+        echo "Failed: namespace \"${NAMESPACE}\" is already defined"
+        echo "Location: ${NAMESPACES_PATH}/${NAMESPACE}"
         exit 1
     fi
 
     echo "Skupper site bundle installation"
+    echo "Namespace: ${NAMESPACE}"
     echo "Site name: ${SITE_NAME}"
     echo "Platform : ${SKUPPER_PLATFORM}"
 
     # Create base directory tree
-    mkdir -p "${SITES_PATH}"
+    mkdir -p "${NAMESPACES_PATH}"
 
     # Installing site definition files
-    cp -rf "./${SITE_NAME}" "${SITES_PATH}/${SITE_NAME}"
+    cp -rf "./${SOURCE_NAMESPACE}" "${NAMESPACES_PATH}/${NAMESPACE}"
 
     # Creating platform.yaml
     echo "platform: ${SKUPPER_PLATFORM}" > "${PLATFORM_FILE}"
@@ -254,11 +271,11 @@ create_site() {
     # Create systemd service
     create_service
 
-    echo "Site \"${SITE_NAME}\" is now running"
+    echo "Site \"${SITE_NAME}\" is now running on namespace \"${NAMESPACE}\""
 }
 
 sanity_check() {
-    required_fields="SITE_NAME SKUPPER_OUTPUT_PATH SERVICE_DIR SITES_PATH SKUPPER_PLATFORM"
+    required_fields="SITE_NAME SOURCE_NAMESPACE NAMESPACE SKUPPER_OUTPUT_PATH SERVICE_DIR NAMESPACES_PATH SKUPPER_PLATFORM"
     required_commands="python sed find grep xargs tar getent id ${PLATFORM_COMMAND}"
 
     for field_name in ${required_fields}; do

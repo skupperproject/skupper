@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"strings"
 
+	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
@@ -18,16 +19,17 @@ import (
 )
 
 type FileSystemSiteStateLoader struct {
-	Path   string
-	Bundle bool
+	Path      string
+	Namespace string
+	Bundle    bool
 }
 
-func (f *FileSystemSiteStateLoader) Load() (*apis.SiteState, error) {
-	var siteState = apis.NewSiteState(f.Bundle)
+func (f *FileSystemSiteStateLoader) Load() (*api.SiteState, error) {
+	var siteState = api.NewSiteState(f.Bundle)
 	filter := func(filename string) bool {
 		return strings.HasSuffix(filename, ".yaml") || strings.HasSuffix(filename, ".yml")
 	}
-	dirReader := new(DirectoryReader)
+	dirReader := new(utils.DirectoryReader)
 	yamlFileNames, err := dirReader.ReadDir(f.Path, filter)
 	if err != nil {
 		return nil, err
@@ -41,14 +43,16 @@ func (f *FileSystemSiteStateLoader) Load() (*apis.SiteState, error) {
 		reader := bufio.NewReader(yamlFile)
 		err = LoadIntoSiteState(reader, siteState)
 		if err != nil {
-			return siteState, err
+			return siteState, fmt.Errorf("error loading %q: %v", yamlFileName, err)
 		}
+		siteState.SetNamespace(f.Namespace)
 	}
 	return siteState, nil
 }
 
-func LoadIntoSiteState(reader *bufio.Reader, siteState *apis.SiteState) error {
+func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 	var err error
+	var namespacesFound = make(map[string]bool)
 	yamlDecoder := yamlutil.NewYAMLOrJSONDecoder(reader, 1024)
 	// allow reading multiple-document yaml
 	for {
@@ -65,6 +69,14 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *apis.SiteState) error {
 		if err != nil {
 			return err
 		}
+		// Saving all namespaces found to ensure a unique namespace is used across all loaded resources
+		var objectMeta metav1.ObjectMeta
+		runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &objectMeta)
+		if objectMeta.Namespace == "default" {
+			objectMeta.Namespace = ""
+		}
+		namespacesFound[objectMeta.Namespace] = true
+
 		// We only care about our v1alpha1 types
 		if v1alpha1.SchemeGroupVersion == gvk.GroupVersion() {
 			switch gvk.Kind {
@@ -115,41 +127,9 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *apis.SiteState) error {
 			}
 		}
 	}
+	if len(namespacesFound) > 1 {
+		return fmt.Errorf("multiple namespaces found, but only a unique namespace must be used across all "+
+			"resources - namespaces found: %v", namespacesFound)
+	}
 	return nil
-}
-
-type FilenameFilter func(string) bool
-type DirectoryReader struct{}
-
-func (f *DirectoryReader) ReadDir(dirname string, filter FilenameFilter) ([]string, error) {
-	dir, err := os.Open(dirname)
-	if err != nil {
-		return nil, err
-	}
-	dirInfo, err := dir.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if !dirInfo.IsDir() {
-		return nil, fmt.Errorf("%s is not a directory", dirname)
-	}
-	files, err := dir.ReadDir(0)
-	if err != nil {
-		return nil, err
-	}
-	var fileNames []string
-	for _, file := range files {
-		if file.IsDir() {
-			recursiveFiles, err := f.ReadDir(path.Join(dirname, file.Name()), filter)
-			if err != nil {
-				return nil, err
-			}
-			fileNames = append(fileNames, recursiveFiles...)
-		} else {
-			if filter == nil || filter(file.Name()) {
-				fileNames = append(fileNames, path.Join(dirname, file.Name()))
-			}
-		}
-	}
-	return fileNames, nil
 }

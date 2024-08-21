@@ -97,13 +97,13 @@ create_service() {
     fi
 
     # generated service file
-    site_name="$(grep -E 'Site ".*" has been created' "${LOG_FILE}" | awk -F'"' '{print $2}')"
-    if [ -z "${site_name}" ]; then
-        echo "Unable to create SystemD service (site name could not be identified)"
+    namespace="$(grep -E 'Site ".*" has been created on namespace ".*"' "${LOG_FILE}" | awk -F'"' '{print $4}')"
+    if [ -z "${namespace}" ]; then
+        echo "Unable to create SystemD service (namespace could not be identified)"
         return
     fi
-    service_name="skupper-site-${site_name}.service"
-    service_file="${SKUPPER_OUTPUT_PATH}/sites/${site_name}/runtime/scripts/${service_name}"
+    service_name="skupper-${namespace}.service"
+    service_file="${SKUPPER_OUTPUT_PATH}/namespaces/${namespace}/runtime/scripts/${service_name}"
     if [ ! -f "${service_file}" ]; then
         echo "SystemD service has not been defined"
         return

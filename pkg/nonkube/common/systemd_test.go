@@ -33,10 +33,10 @@ func TestSystemdService(t *testing.T) {
 			assert.Assert(t, os.Setenv("SKUPPER_PLATFORM", platform))
 			systemdService, err := NewSystemdServiceInfo(siteState.Site)
 			assert.Assert(t, err)
-			assert.Equal(t, systemdService.GetServiceName(), "skupper-site-site-name.service")
+			assert.Equal(t, systemdService.GetServiceName(), "skupper-default.service")
 			systemdServiceImpl := systemdService.(*systemdServiceInfo)
-			assert.Equal(t, systemdServiceImpl.SiteScriptPath, path.Join(outputPath, "sites/site-name/runtime/scripts"))
-			assert.Equal(t, systemdServiceImpl.SiteConfigPath, path.Join(outputPath, "sites/site-name/config/router"))
+			assert.Equal(t, systemdServiceImpl.SiteScriptPath, path.Join(outputPath, "namespaces/default/runtime/scripts"))
+			assert.Equal(t, systemdServiceImpl.SiteConfigPath, path.Join(outputPath, "namespaces/default/config/router"))
 			systemdServiceImpl.command = func(name string, arg ...string) *exec.Cmd {
 				assert.Assert(t, utils.StringSliceContains(arg, "--user") == (uid != 0))
 				t.Logf("mocking command: %s %s", name, strings.Join(arg, " "))

@@ -13,6 +13,7 @@ import (
 type TarballBundle struct {
 	SiteName   string
 	OutputPath string
+	Namespace  string
 }
 
 func (s *TarballBundle) InstallFile() string {
@@ -26,6 +27,7 @@ func (s *TarballBundle) Generate(tarBall *utils.Tarball) error {
 	var parsedInstallScript = new(bytes.Buffer)
 	err = installScriptTemplate.Execute(parsedInstallScript, map[string]interface{}{
 		"SiteName":        s.SiteName,
+		"Namespace":       s.Namespace,
 		"SelfExtractPart": "",
 	})
 	if err != nil {

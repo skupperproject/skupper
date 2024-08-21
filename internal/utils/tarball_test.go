@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skupperproject/skupper/pkg/nonkube/common"
 	"gotest.tools/assert"
 )
 
@@ -55,7 +54,7 @@ func TestTarball(t *testing.T) {
 			err = createFiles(baseDir, tc.files, []byte(testFileContent), tree)
 			assert.Assert(t, err, "unable to create files")
 			generatedFilesExpected := tc.files * (len(tree) + 1)
-			dirReader := new(common.DirectoryReader)
+			dirReader := new(DirectoryReader)
 			filesFound, err := dirReader.ReadDir(baseDir, nil)
 			assert.Assert(t, err)
 			assert.Equal(t, generatedFilesExpected, len(filesFound))

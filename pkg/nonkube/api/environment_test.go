@@ -1,4 +1,4 @@
-package apis
+package api
 
 import (
 	"bytes"
@@ -386,9 +386,9 @@ func TestGetHostSiteHome(t *testing.T) {
 	}
 	homeDir, err := os.UserHomeDir()
 	assert.Assert(t, err)
-	defaultSiteHome := path.Join(homeDir, ".local/share/skupper/sites/my-test-site")
+	defaultSiteHome := path.Join(homeDir, ".local/share/skupper/namespaces/default")
 	const fakeXdgDataHome = "/fake/xdg/home"
-	xdgSiteHome := path.Join(fakeXdgDataHome, "/skupper/sites/my-test-site")
+	xdgSiteHome := path.Join(fakeXdgDataHome, "/skupper/namespaces/default")
 
 	envXdgDataHome := "XDG_DATA_HOME"
 	originalXdgDataHome := os.Getenv(envXdgDataHome)

@@ -13,7 +13,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/config"
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
 var (
@@ -37,27 +37,33 @@ type CommandExecutor func(name string, arg ...string) *exec.Cmd
 
 type systemdServiceInfo struct {
 	Site                *v1alpha1.Site
+	Namespace           string
 	SiteScriptPath      string
 	SiteConfigPath      string
 	SiteHomePath        string
 	RuntimeDir          string
-	getUid              apis.IdGetter
+	getUid              api.IdGetter
 	command             CommandExecutor
 	rootSystemdBasePath string
 }
 
 func NewSystemdServiceInfo(site *v1alpha1.Site) (SystemdService, error) {
-	siteHomePath, err := apis.GetHostSiteHome(site)
+	siteHomePath, err := api.GetHostSiteHome(site)
 	if err != nil {
 		return nil, err
 	}
-	siteScriptPath := path.Join(siteHomePath, RuntimeScriptsPath)
-	siteConfigPath := path.Join(siteHomePath, ConfigRouterPath)
+	siteScriptPath := path.Join(siteHomePath, string(api.RuntimeScriptsPath))
+	siteConfigPath := path.Join(siteHomePath, string(api.ConfigRouterPath))
+	namespace := site.Namespace
+	if namespace == "" {
+		namespace = "default"
+	}
 	return &systemdServiceInfo{
 		Site:                site,
+		Namespace:           namespace,
 		SiteScriptPath:      siteScriptPath,
 		SiteConfigPath:      siteConfigPath,
-		RuntimeDir:          apis.GetRuntimeDir(),
+		RuntimeDir:          api.GetRuntimeDir(),
 		getUid:              os.Getuid,
 		command:             exec.Command,
 		rootSystemdBasePath: rootSystemdBasePath,
@@ -65,11 +71,11 @@ func NewSystemdServiceInfo(site *v1alpha1.Site) (SystemdService, error) {
 }
 
 func (s *systemdServiceInfo) GetServiceName() string {
-	return fmt.Sprintf("skupper-site-%s.service", s.Site.Name)
+	return fmt.Sprintf("skupper-%s.service", s.Namespace)
 }
 
 func (s *systemdServiceInfo) Create() error {
-	if !apis.IsRunningInContainer() && !s.isSystemdEnabled() {
+	if !api.IsRunningInContainer() && !s.isSystemdEnabled() {
 		msg := "SystemD is not enabled"
 		if s.getUid() != 0 {
 			msg += " at user level"
@@ -106,7 +112,7 @@ func (s *systemdServiceInfo) Create() error {
 	}
 
 	// Only enable when running locally
-	if !apis.IsRunningInContainer() {
+	if !api.IsRunningInContainer() {
 		return s.enableService(serviceName)
 	}
 
@@ -114,22 +120,22 @@ func (s *systemdServiceInfo) Create() error {
 }
 
 func (s *systemdServiceInfo) getServiceFile() string {
-	if apis.IsRunningInContainer() {
-		return path.Join(GetDefaultOutputPath(s.Site.Name), RuntimeScriptsPath, s.GetServiceName())
+	if api.IsRunningInContainer() {
+		return path.Join(api.GetInternalOutputPath(s.Site.Namespace, api.RuntimeScriptsPath), s.GetServiceName())
 	}
 	if s.getUid() == 0 {
 		return path.Join(s.rootSystemdBasePath, s.GetServiceName())
 	}
-	return path.Join(apis.GetConfigHome(), "systemd/user", s.GetServiceName())
+	return path.Join(api.GetConfigHome(), "systemd/user", s.GetServiceName())
 }
 
 func (s *systemdServiceInfo) Remove() error {
-	if !apis.IsRunningInContainer() && !s.isSystemdEnabled() {
+	if !api.IsRunningInContainer() && !s.isSystemdEnabled() {
 		return fmt.Errorf("SystemD is not enabled at user level")
 	}
 
 	// Stopping systemd user service
-	if !apis.IsRunningInContainer() {
+	if !api.IsRunningInContainer() {
 		cmd := s.getCmdStopSystemdService(s.GetServiceName())
 		_ = cmd.Run()
 
@@ -142,7 +148,7 @@ func (s *systemdServiceInfo) Remove() error {
 	_ = os.Remove(s.getServiceFile())
 
 	// Reloading systemd user daemon
-	if !apis.IsRunningInContainer() {
+	if !api.IsRunningInContainer() {
 		cmd := s.getCmdReloadSystemdDaemon()
 		_ = cmd.Run()
 

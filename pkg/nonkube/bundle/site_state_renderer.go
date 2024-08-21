@@ -12,7 +12,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/images"
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"
 )
 
@@ -22,15 +22,15 @@ var (
 )
 
 type SiteStateRenderer struct {
-	loadedSiteState *apis.SiteState
-	siteState       *apis.SiteState
+	loadedSiteState *api.SiteState
+	siteState       *api.SiteState
 	configRenderer  *common.FileSystemConfigurationRenderer
 	containers      map[string]container.Container
 }
 
-func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
+func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState) error {
 	var err error
-	var validator apis.SiteStateValidator = &common.SiteStateValidator{}
+	var validator api.SiteStateValidator = &common.SiteStateValidator{}
 	err = validator.Validate(loadedSiteState)
 	if err != nil {
 		return err
@@ -53,7 +53,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 	// rendering non-kube configuration files and certificates
 	s.configRenderer = &common.FileSystemConfigurationRenderer{
 		SslProfileBasePath: "{{.SslProfileBasePath}}",
-		Force:              false, // TODO discuss how this should be handled?
+		Force:              false,
 	}
 	err = s.configRenderer.Render(s.siteState)
 	if err != nil {
@@ -93,7 +93,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 func (s *SiteStateRenderer) prepareContainers() error {
 	s.containers = make(map[string]container.Container)
 	s.containers[types.RouterComponent] = container.Container{
-		Name:  fmt.Sprintf("%s-skupper-router", s.siteState.Site.Name),
+		Name:  "{{.Namespace}}-skupper-router",
 		Image: images.GetRouterImageName(),
 		Env: map[string]string{
 			"APPLICATION_NAME":      "skupper-router",
@@ -108,12 +108,12 @@ func (s *SiteStateRenderer) prepareContainers() error {
 		},
 		FileMounts: []container.FileMount{
 			{
-				Source:      path.Join("{{.SitesPath}}", s.siteState.Site.Name, "config/router"),
+				Source:      path.Join("{{.NamespacesPath}}", "{{.Namespace}}", "config/router"),
 				Destination: "/etc/skupper-router/config",
 				Options:     []string{"z"},
 			},
 			{
-				Source:      path.Join("{{.SitesPath}}", s.siteState.Site.Name, "certificates"),
+				Source:      path.Join("{{.NamespacesPath}}", "{{.Namespace}}", "certificates"),
 				Destination: "/etc/skupper-router/certificates",
 				Options:     []string{"z"},
 			},
@@ -128,16 +128,9 @@ func (s *SiteStateRenderer) prepareContainers() error {
 }
 
 func (s *SiteStateRenderer) createContainerScript() error {
-	siteHome, err := apis.GetHostSiteHome(s.siteState.Site)
-	if err != nil {
-		return err
-	}
-	scriptsPath := path.Join(siteHome, common.RuntimeScriptsPath)
-	if apis.IsRunningInContainer() {
-		scriptsPath = path.Join(common.GetDefaultOutputPath(s.siteState.Site.Name), common.RuntimeScriptsPath)
-	}
+	scriptsPath := api.GetInternalOutputPath(s.siteState.Site.Namespace, api.RuntimeScriptsPath)
 	scriptContent := containersToShell(s.containers)
-	err = os.WriteFile(path.Join(scriptsPath, "containers_create.sh"), scriptContent, 0755)
+	err := os.WriteFile(path.Join(scriptsPath, "containers_create.sh"), scriptContent, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create containers script: %v", err)
 	}
@@ -145,17 +138,10 @@ func (s *SiteStateRenderer) createContainerScript() error {
 }
 
 func (s *SiteStateRenderer) createBundle() error {
-	dataHome, err := apis.GetHostDataHome()
-	if err != nil {
-		return err
-	}
-	sitesHomeDir := path.Join(dataHome, "sites")
-	if apis.IsRunningInContainer() {
-		sitesHomeDir = path.Join("/output", "sites")
-	}
-	siteHomeDir := path.Join(sitesHomeDir, s.siteState.Site.Name)
+	namespacesHomeDir := api.GetDefaultOutputNamespacesPath()
+	siteHomeDir := api.GetDefaultOutputPath(s.siteState.Site.Namespace)
 	tarball := utils.NewTarball()
-	err = tarball.AddFiles(sitesHomeDir, s.siteState.Site.Name)
+	err := tarball.AddFiles(namespacesHomeDir, s.siteState.Site.Namespace)
 	if err != nil {
 		return fmt.Errorf("failed to add files to tarball (%q): %v", siteHomeDir, err)
 	}
@@ -163,12 +149,14 @@ func (s *SiteStateRenderer) createBundle() error {
 	if !config.GetPlatform().IsTarball() {
 		generator = &internalbundle.SelfExtractingBundle{
 			SiteName:   s.siteState.Site.Name,
-			OutputPath: sitesHomeDir,
+			Namespace:  s.siteState.Site.Namespace,
+			OutputPath: namespacesHomeDir,
 		}
 	} else {
 		generator = &internalbundle.TarballBundle{
 			SiteName:   s.siteState.Site.Name,
-			OutputPath: sitesHomeDir,
+			Namespace:  s.siteState.Site.Namespace,
+			OutputPath: namespacesHomeDir,
 		}
 	}
 	err = generator.Generate(tarball)
@@ -179,14 +167,8 @@ func (s *SiteStateRenderer) createBundle() error {
 }
 
 func (s *SiteStateRenderer) removeSiteFiles() error {
-	siteHomeDir, err := apis.GetHostSiteHome(s.siteState.Site)
-	if err != nil {
-		return err
-	}
-	if apis.IsRunningInContainer() {
-		siteHomeDir = path.Join("/output", "sites", s.siteState.Site.Name)
-	}
-	err = os.RemoveAll(siteHomeDir)
+	siteHomeDir := api.GetDefaultOutputPath(s.siteState.Site.Namespace)
+	err := os.RemoveAll(siteHomeDir)
 	if err != nil {
 		return fmt.Errorf("file to remove temporary site directory %q: %v", siteHomeDir, err)
 	}
@@ -194,15 +176,8 @@ func (s *SiteStateRenderer) removeSiteFiles() error {
 }
 
 func (s *SiteStateRenderer) createFreePortScript() error {
-	siteHome, err := apis.GetHostSiteHome(s.siteState.Site)
-	if err != nil {
-		return err
-	}
-	scriptsPath := path.Join(siteHome, common.RuntimeScriptsPath)
-	if apis.IsRunningInContainer() {
-		scriptsPath = path.Join(common.GetDefaultOutputPath(s.siteState.Site.Name), common.RuntimeScriptsPath)
-	}
-	err = os.WriteFile(path.Join(scriptsPath, "router_free_port.py"), []byte(FreePortScript), 0755)
+	scriptsPath := api.GetInternalOutputPath(s.siteState.Site.Namespace, api.RuntimeScriptsPath)
+	err := os.WriteFile(path.Join(scriptsPath, "router_free_port.py"), []byte(FreePortScript), 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create router_free_port.py script: %v", err)
 	}

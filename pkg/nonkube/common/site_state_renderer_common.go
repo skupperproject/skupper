@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"maps"
 
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
-func CopySiteState(siteState *apis.SiteState) *apis.SiteState {
+func CopySiteState(siteState *api.SiteState) *api.SiteState {
 	// Preserving loaded state
-	var activeSiteState = apis.NewSiteState(siteState.IsBundle())
+	var activeSiteState = api.NewSiteState(siteState.IsBundle())
 	siteState.Site.DeepCopyInto(activeSiteState.Site)
 	activeSiteState.SiteId = siteState.SiteId
 	activeSiteState.Listeners = maps.Clone(siteState.Listeners)
@@ -25,7 +25,7 @@ func CopySiteState(siteState *apis.SiteState) *apis.SiteState {
 	return activeSiteState
 }
 
-func CreateRouterAccess(siteState *apis.SiteState) error {
+func CreateRouterAccess(siteState *api.SiteState) error {
 	if !siteState.HasRouterAccess() {
 		name := fmt.Sprintf("skupper-local")
 		var port = 5671

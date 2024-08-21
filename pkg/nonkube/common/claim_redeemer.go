@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 
@@ -18,7 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-func RedeemClaims(siteState *apis.SiteState) error {
+func RedeemClaims(siteState *api.SiteState) error {
 	var errs []error
 
 	for name, claim := range siteState.Claims {
@@ -37,7 +37,7 @@ func RedeemClaims(siteState *apis.SiteState) error {
 }
 
 // Redeem logic that populates siteState.Secrets and siteState.Links
-func redeemAccessToken(claim *skupperv1alpha1.AccessToken, siteState *apis.SiteState) error {
+func redeemAccessToken(claim *skupperv1alpha1.AccessToken, siteState *api.SiteState) error {
 	transport := &http.Transport{}
 	if claim.Spec.Ca != "" {
 		caPool := x509.NewCertPool()

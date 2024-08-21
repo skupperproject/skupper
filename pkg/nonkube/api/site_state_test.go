@@ -1,4 +1,4 @@
-package apis
+package api
 
 import (
 	"os"
@@ -285,4 +285,73 @@ func fakeSiteState() *SiteState {
 		Certificates:    make(map[string]*v1alpha1.Certificate),
 		SecuredAccesses: make(map[string]*v1alpha1.SecuredAccess),
 	}
+}
+
+func TestSetNamespace(t *testing.T) {
+	ss := fakeSiteState()
+
+	for _, test := range []struct {
+		description   string
+		curNamespace  string
+		newNamespace  string
+		expectChanged bool
+	}{
+		{
+			description:   "empty-to-default",
+			curNamespace:  "",
+			newNamespace:  "default",
+			expectChanged: true,
+		},
+		{
+			description:   "default-to-my-namespace",
+			curNamespace:  "default",
+			newNamespace:  "my-namespace",
+			expectChanged: true,
+		},
+		{
+			description:   "my-namespace-to-other-namespace",
+			curNamespace:  "my-namespace",
+			newNamespace:  "other-namespace",
+			expectChanged: true,
+		},
+		{
+			description:   "other-namespace-to-default",
+			curNamespace:  "other-namespace",
+			newNamespace:  "default",
+			expectChanged: true,
+		},
+	} {
+		t.Run(test.description, func(t *testing.T) {
+			assertNamespaceOnSiteState(t, ss, test.curNamespace)
+			ss.SetNamespace(test.newNamespace)
+			if test.expectChanged {
+				assertNamespaceOnSiteState(t, ss, test.newNamespace)
+			} else {
+				assertNamespaceOnSiteState(t, ss, test.curNamespace)
+			}
+		})
+	}
+}
+
+func assertNamespaceOnSiteState(t *testing.T, ss *SiteState, namespace string) {
+	t.Helper()
+	assert.Equal(t, ss.Site.GetNamespace(), namespace)
+	assert.Assert(t, assertNamespaceOnMap(ss.Listeners, namespace))
+	assert.Assert(t, assertNamespaceOnMap(ss.Connectors, namespace))
+	assert.Assert(t, assertNamespaceOnMap(ss.RouterAccesses, namespace))
+	assert.Assert(t, assertNamespaceOnMap(ss.Grants, namespace))
+	assert.Assert(t, assertNamespaceOnMap(ss.Links, namespace))
+	assert.Assert(t, assertNamespaceOnMap(ss.Secrets, namespace))
+	assert.Assert(t, assertNamespaceOnMap(ss.Claims, namespace))
+	assert.Assert(t, assertNamespaceOnMap(ss.Certificates, namespace))
+	assert.Assert(t, assertNamespaceOnMap(ss.SecuredAccesses, namespace))
+}
+
+func assertNamespaceOnMap[T metav1.Object](objMap map[string]T, namespace string) bool {
+	for _, obj := range objMap {
+		if obj.GetNamespace() != namespace {
+			return false
+		}
+	}
+	return true
 }

@@ -2,8 +2,9 @@
 
 set -Ceu
 
-if [ $# -eq 0 ] || [ -z "${1}" ]; then
-    echo "Use: ${0##*/} <site-name>"
+namespace=${1:-default}
+if [ -z "${namespace}" ]; then
+    echo "Use: ${0##*/} <namespace>"
     exit 1
 fi
 
@@ -11,27 +12,30 @@ if [ -z "${UID:-}" ]; then
     UID="$(id -u)"
     export UID
 fi
-site=$1
-sites_path="${HOME}/.local/share/skupper/sites"
+namespaces_path="${HOME}/.local/share/skupper/namespaces"
 service_path="${HOME}/.config/systemd/user"
 systemctl="systemctl --user"
 if [ "${UID}" -eq 0 ]; then
-    sites_path="/usr/local/share/skupper/sites"
+    namespaces_path="/usr/local/share/skupper/sites"
     service_path="/etc/systemd/system"
     systemctl="systemctl"
 fi
 
+usage() {
+    echo "Use: remove.sh <namespace>"
+}
+
 remove_definition() {
-    platform_file="${sites_path}/${site}/runtime/state/platform.yaml"
+    platform_file="${namespaces_path}/${namespace}/runtime/state/platform.yaml"
     SKUPPER_PLATFORM=$(grep '^platform: ' "${platform_file}" | sed -e 's/.*: //g')
     if [ "${SKUPPER_PLATFORM}" != "systemd" ]; then
-        ${SKUPPER_PLATFORM} rm -f "${site}-skupper-router"
+        ${SKUPPER_PLATFORM} rm -f "${namespace}-skupper-router"
     fi
-    rm -rf "${sites_path:?}/${site:?}/"
+    rm -rf "${namespaces_path:?}/${namespace:?}/"
 }
 
 remove_service() {
-    service="skupper-site-${site}.service"
+    service="skupper-${namespace}.service"
     ${systemctl} stop "${service}"
     ${systemctl} disable "${service}"
     rm -f "${service_path:?}/${service:?}"
@@ -40,12 +44,13 @@ remove_service() {
 }
 
 main () {
-    if ! echo "${site:?}" | grep -E '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'; then
-        echo "Invalid site name"
+    if ! echo "${namespace:?}" | grep -qE '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'; then
+        echo "Invalid namespace"
+        usage
         exit 0
     fi
-    if [ ! -d "${sites_path:?}/${site:?}" ]; then
-        echo "Site does not exist"
+    if [ ! -d "${namespaces_path:?}/${namespace:?}" ]; then
+        echo "Namespace \"${namespace}\" does not exist"
         exit 0
     fi
     remove_definition

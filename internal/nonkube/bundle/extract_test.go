@@ -10,7 +10,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -81,7 +81,7 @@ func fakeSiteCrs(routerAccess bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	ss := &apis.SiteState{
+	ss := &api.SiteState{
 		Site: &v1alpha1.Site{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "skupper.io/v1alpha1",
@@ -159,6 +159,6 @@ func fakeSiteCrs(routerAccess bool) (string, error) {
 	if err != nil {
 		return tempDir, err
 	}
-	err = apis.MarshalSiteState(*ss, siteDir)
+	err = api.MarshalSiteState(*ss, siteDir)
 	return tempDir, err
 }

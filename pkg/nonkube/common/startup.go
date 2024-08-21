@@ -10,7 +10,7 @@ import (
 
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/config"
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
 var (
@@ -57,14 +57,7 @@ func GetStartupScripts(site *v1alpha1.Site, siteId string) (StartupScript, error
 	if platform.IsBundle() {
 		scripts.ContainerEngine = "{{.ContainerEngine}}"
 	}
-	siteHome, err := apis.GetHostSiteHome(site)
-	if err != nil {
-		return nil, err
-	}
-	scripts.path = path.Join(siteHome, RuntimeScriptsPath)
-	if apis.IsRunningInContainer() {
-		scripts.path = path.Join(GetDefaultOutputPath(site.Name), RuntimeScriptsPath)
-	}
+	scripts.path = api.GetInternalOutputPath(site.Namespace, api.RuntimeScriptsPath)
 	return scripts, nil
 }
 

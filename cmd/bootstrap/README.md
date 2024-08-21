@@ -216,7 +216,7 @@ Now that the `west` site has been created, copy the generated token into
 the `east` site local directory. Example:
 
 ```shell
-cp ${HOME}/.local/share/skupper/sites/west/runtime/token/link-go-west.yaml ./east/links/link-go-west.yaml
+cp ${HOME}/.local/share/skupper/namespaces/default/runtime/token/link-go-west.yaml ./east/links/link-go-west.yaml
 ```
 
 #### East

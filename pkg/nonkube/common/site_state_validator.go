@@ -6,7 +6,7 @@ import (
 	"regexp"
 
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -21,15 +21,14 @@ const (
 	rfc1123Error = `a lowercase RFC 1123 name must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?')`
 )
 
-type SiteStateValidator struct {
-}
+type SiteStateValidator struct{}
 
 // Validate provides a common validation for non-kubernetes sites
 // which do not benefit from the Kubernetes API. The goal is not
 // to validate the site state against the spec (CRD), but to a more
 // basic level, like to ensure that mandatory fields for each resource are
 // populated and users will be able to operate the non-k8s site.
-func (s *SiteStateValidator) Validate(siteState *apis.SiteState) error {
+func (s *SiteStateValidator) Validate(siteState *api.SiteState) error {
 	var err error
 	if err = s.validateSite(siteState.Site); err != nil {
 		return err
@@ -57,6 +56,12 @@ func (s *SiteStateValidator) Validate(siteState *apis.SiteState) error {
 }
 
 func (s *SiteStateValidator) validateSite(site *v1alpha1.Site) error {
+	namespace := site.Namespace
+	if namespace != "" {
+		if err := ValidateName(namespace); err != nil {
+			return fmt.Errorf("invalid namespace %q: %w", namespace, err)
+		}
+	}
 	if err := ValidateName(site.Name); err != nil {
 		return fmt.Errorf("invalid site name: %w", err)
 	}

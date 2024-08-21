@@ -12,35 +12,23 @@ import (
 
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/config"
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	ConfigRouterPath       = "config/router"
-	CertificatesCaPath     = "certificates/ca"
-	CertificatesClientPath = "certificates/client"
-	CertificatesServerPath = "certificates/server"
-	CertificatesLinkPath   = "certificates/link"
-	LoadedSiteStatePath    = "loaded/state"
-	RuntimeSiteStatePath   = "runtime/state"
-	RuntimeTokenPath       = "runtime/token"
-	RuntimeScriptsPath     = "runtime/scripts"
-)
-
 var (
-	configurationDirectories = []string{
-		ConfigRouterPath,
-		CertificatesCaPath,
-		CertificatesClientPath,
-		CertificatesServerPath,
-		CertificatesLinkPath,
-		LoadedSiteStatePath,
-		RuntimeSiteStatePath,
-		RuntimeTokenPath,
-		RuntimeScriptsPath,
+	configurationDirectories = []api.InternalPath{
+		api.ConfigRouterPath,
+		api.CertificatesCaPath,
+		api.CertificatesClientPath,
+		api.CertificatesServerPath,
+		api.CertificatesLinkPath,
+		api.LoadedSiteStatePath,
+		api.RuntimeSiteStatePath,
+		api.RuntimeTokenPath,
+		api.RuntimeScriptsPath,
 	}
 )
 
@@ -48,68 +36,49 @@ const (
 	DefaultSslProfileBasePath = "${SSL_PROFILE_BASE_PATH}"
 )
 
-func GetDefaultOutputPath(siteName string) string {
-	if apis.IsRunningInContainer() {
-		outputStat, err := os.Stat("/output")
-		if err == nil && outputStat.IsDir() {
-			return path.Join("/output", "sites", siteName)
-		}
-	}
-	return path.Join(apis.GetDataHome(), "sites", siteName)
-}
-
 type FileSystemConfigurationRenderer struct {
-	// OutputPath destination directory where configuration will be rendered into
-	OutputPath string
 	// SslProfileBasePath path where configuration will be read from in runtime
 	SslProfileBasePath string
 	// Force creation even if directory already exists
-	Force        bool
-	RouterConfig qdr.RouterConfig
+	Force            bool
+	RouterConfig     qdr.RouterConfig
+	customOutputPath string
+}
+
+func NewFileSystemConfigurationRenderer(outputPath string) *FileSystemConfigurationRenderer {
+	return &FileSystemConfigurationRenderer{}
 }
 
 // Render simply renders the given site state as configuration files.
-func (c *FileSystemConfigurationRenderer) Render(siteState *apis.SiteState) error {
+func (c *FileSystemConfigurationRenderer) Render(siteState *api.SiteState) error {
 	var err error
-	// Set the default output path
-	if c.OutputPath == "" {
-		c.OutputPath = GetDefaultOutputPath(siteState.Site.Name)
-	} else {
-		_ = os.Setenv("SKUPPER_OUTPUT_PATH", c.OutputPath)
-	}
+	outputPath := c.GetOutputPath(siteState)
 	if c.SslProfileBasePath == "" {
 		c.SslProfileBasePath = DefaultSslProfileBasePath
 	}
 	// Proceed only if output path does not exist
-	outputDir, err := os.Open(c.OutputPath)
+	outputDir, err := os.Open(outputPath)
 	if err == nil {
 		defer outputDir.Close()
 		if !c.Force {
-			siteConfigPath, err := apis.GetHostSiteHome(siteState.Site)
-			if err != nil {
-				return err
-			}
-			_, err = os.Stat(siteConfigPath)
-			if err == nil {
-				return fmt.Errorf("site %s already exists (path: %s)", siteState.Site.Name, siteConfigPath)
-			}
+			return fmt.Errorf("namespace is already in use (path: %s)", outputPath)
 		}
 		outputDirStat, err := outputDir.Stat()
 		if err != nil {
-			return fmt.Errorf("failed to check if output directory exists (%s): %w", c.OutputPath, err)
+			return fmt.Errorf("failed to check if output directory exists (%s): %w", outputPath, err)
 		}
 		if !outputDirStat.IsDir() {
-			return fmt.Errorf("output path must be a directory (%s)", c.OutputPath)
+			return fmt.Errorf("output path must be a directory (%s)", outputPath)
 		}
 	} else {
 		var pathErr *os.PathError
 		if ok := errors.As(err, &pathErr); ok && !errors.Is(pathErr.Err, syscall.ENOENT) {
-			return fmt.Errorf("unable to use output path %s: %v", c.OutputPath, err)
+			return fmt.Errorf("unable to use output path %s: %v", outputPath, err)
 		}
 	}
 	// Creating internal configuration directories
 	for _, dir := range configurationDirectories {
-		configDir := path.Join(c.OutputPath, dir)
+		configDir := path.Join(outputPath, string(dir))
 		err := os.MkdirAll(configDir, 0755)
 		if err != nil && !os.IsExist(err) {
 			return fmt.Errorf("unable to create configuration directory %s: %v", configDir, err)
@@ -140,7 +109,7 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *apis.SiteState) erro
 	}
 	if !platform.IsBundle() {
 		content := fmt.Sprintf("platform: %s\n", string(platform))
-		err = os.WriteFile(path.Join(c.OutputPath, RuntimeSiteStatePath, "platform.yaml"), []byte(content), 0644)
+		err = os.WriteFile(path.Join(outputPath, string(api.RuntimeSiteStatePath), "platform.yaml"), []byte(content), 0644)
 		if err != nil {
 			return fmt.Errorf("failed to write runtime platform: %w", err)
 		}
@@ -149,18 +118,26 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *apis.SiteState) erro
 	return nil
 }
 
-func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, runtimeSiteState apis.SiteState) error {
-	if err := apis.MarshalSiteState(loadedSiteState, path.Join(c.OutputPath, LoadedSiteStatePath)); err != nil {
+func (c *FileSystemConfigurationRenderer) GetOutputPath(siteState *api.SiteState) string {
+	if c.customOutputPath != "" {
+		return api.GetCustomSiteHome(siteState.Site, c.customOutputPath)
+	}
+	return api.GetDefaultOutputPath(siteState.Site.Namespace)
+}
+
+func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, runtimeSiteState api.SiteState) error {
+	outputPath := c.GetOutputPath(&loadedSiteState)
+	if err := api.MarshalSiteState(loadedSiteState, path.Join(outputPath, string(api.LoadedSiteStatePath))); err != nil {
 		return err
 	}
-	if err := apis.MarshalSiteState(runtimeSiteState, path.Join(c.OutputPath, RuntimeSiteStatePath)); err != nil {
+	if err := api.MarshalSiteState(runtimeSiteState, path.Join(outputPath, string(api.RuntimeSiteStatePath))); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *FileSystemConfigurationRenderer) createTokens(siteState *apis.SiteState) error {
-	tokens := make([]apis.Token, 0)
+func (c *FileSystemConfigurationRenderer) createTokens(siteState *api.SiteState) error {
+	tokens := make([]api.Token, 0)
 	for name, linkAccess := range siteState.RouterAccesses {
 		noInterRouterRole := linkAccess.FindRole("inter-router") == nil
 		noEdgeRole := linkAccess.FindRole("edge") == nil
@@ -172,19 +149,20 @@ func (c *FileSystemConfigurationRenderer) createTokens(siteState *apis.SiteState
 			certName = linkAccess.Spec.TlsCredentials
 		}
 		secretName := fmt.Sprintf("client-%s", certName)
-		secret, err := c.loadClientSecret(secretName)
+		secret, err := c.loadClientSecret(siteState, secretName)
 		if err != nil {
 			return fmt.Errorf("unable to load client secret %s: %v", secretName, err)
 		}
-		token := apis.CreateToken(linkAccess, secret)
+		token := api.CreateToken(linkAccess, secret)
 		// routerAccess is not valid (no inter-router or edge endpoints)
 		if token == nil {
 			continue
 		}
 		tokens = append(tokens, *token)
 	}
+	outputPath := c.GetOutputPath(siteState)
 	for _, token := range tokens {
-		tokenPath := path.Join(c.OutputPath, RuntimeTokenPath, fmt.Sprintf("%s.yaml", token.Links[0].Name))
+		tokenPath := path.Join(outputPath, string(api.RuntimeTokenPath), fmt.Sprintf("%s.yaml", token.Links[0].Name))
 		tokenYaml, err := token.Marshal()
 		if err != nil {
 			return fmt.Errorf("unable to marshal token: %v", err)
@@ -196,7 +174,7 @@ func (c *FileSystemConfigurationRenderer) createTokens(siteState *apis.SiteState
 	return nil
 }
 
-func (c *FileSystemConfigurationRenderer) createRouterConfig(siteState *apis.SiteState) error {
+func (c *FileSystemConfigurationRenderer) createRouterConfig(siteState *api.SiteState) error {
 	c.RouterConfig = siteState.ToRouterConfig(c.SslProfileBasePath)
 
 	// Saving router config
@@ -204,7 +182,8 @@ func (c *FileSystemConfigurationRenderer) createRouterConfig(siteState *apis.Sit
 	if err != nil {
 		return fmt.Errorf("unable to marshal router config: %v", err)
 	}
-	routerConfigFileName := path.Join(c.OutputPath, "config/router", "skrouterd.json")
+	outputPath := c.GetOutputPath(siteState)
+	routerConfigFileName := path.Join(outputPath, string(api.ConfigRouterPath), "skrouterd.json")
 	err = os.WriteFile(routerConfigFileName, []byte(routerConfigJson), 0644)
 	if err != nil {
 		return fmt.Errorf("unable to write router config file: %v", err)
@@ -212,9 +191,9 @@ func (c *FileSystemConfigurationRenderer) createRouterConfig(siteState *apis.Sit
 	return nil
 }
 
-func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *apis.SiteState) error {
+func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.SiteState) error {
 	var err error
-	writeSecretFiles := func(basePath string, secret *corev1.Secret) error {
+	writeSecretFilesIgnore := func(basePath string, secret *corev1.Secret, ignoreExisting bool) error {
 		baseDir, err := os.Open(basePath)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -238,8 +217,10 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *apis.
 			if certFile, err := os.Open(certFileName); err == nil {
 				// ignoring existing certificate
 				_ = certFile.Close()
-				log.Printf("warning: %s already existing (ignoring)", certFileName)
-				continue
+				if ignoreExisting {
+					log.Printf("warning: %s already existing (ignoring)", certFileName)
+					continue
+				}
 			}
 			err = os.WriteFile(certFileName, data, 0640)
 			if err != nil {
@@ -248,14 +229,18 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *apis.
 		}
 		return nil
 	}
+	writeSecretFiles := func(basePath string, secret *corev1.Secret) error {
+		return writeSecretFilesIgnore(basePath, secret, false)
+	}
 	// create certificate authorities first
+	outputPath := c.GetOutputPath(siteState)
 	for name, certificate := range siteState.Certificates {
 		if certificate.Spec.Signing == false {
 			continue
 		}
 		secret := certs.GenerateCASecret(name, certificate.Spec.Subject)
-		caPath := path.Join(c.OutputPath, "certificates/ca", name)
-		err = writeSecretFiles(caPath, &secret)
+		caPath := path.Join(outputPath, string(api.CertificatesCaPath), name)
+		err = writeSecretFilesIgnore(caPath, &secret, true)
 		if err != nil {
 			return err
 		}
@@ -266,7 +251,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *apis.
 		var secret corev1.Secret
 		var caSecret *corev1.Secret
 		if certificate.Spec.Ca != "" {
-			caSecret, err = c.loadCASecret(certificate.Spec.Ca)
+			caSecret, err = c.loadCASecret(siteState, certificate.Spec.Ca)
 			if err != nil {
 				return fmt.Errorf("unable to load CA secret %s: %v", certificate.Spec.Ca, err)
 			}
@@ -284,7 +269,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *apis.
 		} else {
 			continue
 		}
-		certPath := path.Join(c.OutputPath, "certificates", purpose, name)
+		certPath := path.Join(outputPath, "certificates", purpose, name)
 		err = writeSecretFiles(certPath, &secret)
 		if err != nil {
 			return err
@@ -297,7 +282,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *apis.
 		if !ok {
 			return fmt.Errorf("secret %s not found", secretName)
 		}
-		certPath := path.Join(c.OutputPath, "certificates", "link", secretName+"-profile")
+		certPath := path.Join(outputPath, "certificates", "link", secretName+"-profile")
 		err = writeSecretFiles(certPath, secret)
 		if err != nil {
 			return err
@@ -306,7 +291,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *apis.
 	return nil
 }
 
-func (c *FileSystemConfigurationRenderer) connectJson(siteState *apis.SiteState) *string {
+func (c *FileSystemConfigurationRenderer) connectJson(siteState *api.SiteState) *string {
 	var host string
 	port := 0
 	for _, la := range siteState.RouterAccesses {
@@ -339,16 +324,17 @@ func (c *FileSystemConfigurationRenderer) connectJson(siteState *apis.SiteState)
 	return &content
 }
 
-func (c *FileSystemConfigurationRenderer) loadCASecret(name string) (*corev1.Secret, error) {
-	return c.loadCertAsSecret("ca", name)
+func (c *FileSystemConfigurationRenderer) loadCASecret(siteState *api.SiteState, name string) (*corev1.Secret, error) {
+	return c.loadCertAsSecret(siteState, "ca", name)
 }
 
-func (c *FileSystemConfigurationRenderer) loadClientSecret(name string) (*corev1.Secret, error) {
-	return c.loadCertAsSecret("client", name)
+func (c *FileSystemConfigurationRenderer) loadClientSecret(siteState *api.SiteState, name string) (*corev1.Secret, error) {
+	return c.loadCertAsSecret(siteState, "client", name)
 }
 
-func (c *FileSystemConfigurationRenderer) loadCertAsSecret(purpose, name string) (*corev1.Secret, error) {
-	certPath := path.Join(c.OutputPath, fmt.Sprintf("certificates/%s", purpose), name)
+func (c *FileSystemConfigurationRenderer) loadCertAsSecret(siteState *api.SiteState, purpose, name string) (*corev1.Secret, error) {
+	outputPath := c.GetOutputPath(siteState)
+	certPath := path.Join(outputPath, fmt.Sprintf("certificates/%s", purpose), name)
 	var secret *corev1.Secret
 	certDir, err := os.Open(certPath)
 	if err != nil {
