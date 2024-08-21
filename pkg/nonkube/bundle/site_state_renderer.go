@@ -141,7 +141,7 @@ func (s *SiteStateRenderer) createBundle() error {
 	namespacesHomeDir := api.GetDefaultOutputNamespacesPath()
 	siteHomeDir := api.GetDefaultOutputPath(s.siteState.Site.Namespace)
 	tarball := utils.NewTarball()
-	err := tarball.AddFiles(namespacesHomeDir, s.siteState.Site.Namespace)
+	err := tarball.AddFiles(namespacesHomeDir, s.siteState.GetNamespace())
 	if err != nil {
 		return fmt.Errorf("failed to add files to tarball (%q): %v", siteHomeDir, err)
 	}
@@ -149,13 +149,13 @@ func (s *SiteStateRenderer) createBundle() error {
 	if !config.GetPlatform().IsTarball() {
 		generator = &internalbundle.SelfExtractingBundle{
 			SiteName:   s.siteState.Site.Name,
-			Namespace:  s.siteState.Site.Namespace,
+			Namespace:  s.siteState.GetNamespace(),
 			OutputPath: namespacesHomeDir,
 		}
 	} else {
 		generator = &internalbundle.TarballBundle{
 			SiteName:   s.siteState.Site.Name,
-			Namespace:  s.siteState.Site.Namespace,
+			Namespace:  s.siteState.GetNamespace(),
 			OutputPath: namespacesHomeDir,
 		}
 	}

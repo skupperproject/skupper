@@ -45,14 +45,50 @@ func (f *FileSystemSiteStateLoader) Load() (*api.SiteState, error) {
 		if err != nil {
 			return siteState, fmt.Errorf("error loading %q: %v", yamlFileName, err)
 		}
+	}
+	namespacesFound := GetNamespacesFound(siteState)
+	if len(namespacesFound) > 1 {
+		return nil, fmt.Errorf("multiple namespaces found, but only a unique namespace must be used across all "+
+			"resources - namespaces found: %v", namespacesFound)
+	}
+	if f.Namespace != "" {
 		siteState.SetNamespace(f.Namespace)
 	}
 	return siteState, nil
 }
 
+func addNamespacesFromMap[T metav1.Object](objMap map[string]T, nsMap map[string]bool) {
+	for _, obj := range objMap {
+		ns := obj.GetNamespace()
+		if ns == "" {
+			ns = "default"
+		}
+		nsMap[ns] = true
+	}
+}
+
+func GetNamespacesFound(s *api.SiteState) []string {
+	var namespaces []string
+	var nsMap = make(map[string]bool)
+	siteNamespace := s.GetNamespace()
+	nsMap[siteNamespace] = true
+	addNamespacesFromMap(s.Listeners, nsMap)
+	addNamespacesFromMap(s.Connectors, nsMap)
+	addNamespacesFromMap(s.RouterAccesses, nsMap)
+	addNamespacesFromMap(s.Grants, nsMap)
+	addNamespacesFromMap(s.Links, nsMap)
+	addNamespacesFromMap(s.Secrets, nsMap)
+	addNamespacesFromMap(s.Claims, nsMap)
+	addNamespacesFromMap(s.Certificates, nsMap)
+	addNamespacesFromMap(s.SecuredAccesses, nsMap)
+	for ns := range nsMap {
+		namespaces = append(namespaces, ns)
+	}
+	return namespaces
+}
+
 func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 	var err error
-	var namespacesFound = make(map[string]bool)
 	yamlDecoder := yamlutil.NewYAMLOrJSONDecoder(reader, 1024)
 	// allow reading multiple-document yaml
 	for {
@@ -69,14 +105,6 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 		if err != nil {
 			return err
 		}
-		// Saving all namespaces found to ensure a unique namespace is used across all loaded resources
-		var objectMeta metav1.ObjectMeta
-		runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &objectMeta)
-		if objectMeta.Namespace == "default" {
-			objectMeta.Namespace = ""
-		}
-		namespacesFound[objectMeta.Namespace] = true
-
 		// We only care about our v1alpha1 types
 		if v1alpha1.SchemeGroupVersion == gvk.GroupVersion() {
 			switch gvk.Kind {
@@ -126,10 +154,6 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 				siteState.Secrets[secret.Name] = &secret
 			}
 		}
-	}
-	if len(namespacesFound) > 1 {
-		return fmt.Errorf("multiple namespaces found, but only a unique namespace must be used across all "+
-			"resources - namespaces found: %v", namespacesFound)
 	}
 	return nil
 }

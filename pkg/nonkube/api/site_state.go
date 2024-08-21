@@ -54,6 +54,14 @@ func NewSiteState(bundle bool) *SiteState {
 	}
 }
 
+func (s *SiteState) GetNamespace() string {
+	ns := s.Site.GetNamespace()
+	if ns == "" {
+		return "default"
+	}
+	return ns
+}
+
 func (s *SiteState) IsBundle() bool {
 	return s.bundle
 }
@@ -268,12 +276,11 @@ func setNamespaceOnMap[T metav1.Object](objMap map[string]T, namespace string) {
 }
 
 func (s *SiteState) SetNamespace(namespace string) {
-	currentNamespace := s.Site.Namespace
 	if namespace == "" {
 		namespace = "default"
 	}
 	// equals
-	if currentNamespace == namespace {
+	if s.GetNamespace() == namespace {
 		return
 	}
 	s.Site.SetNamespace(namespace)

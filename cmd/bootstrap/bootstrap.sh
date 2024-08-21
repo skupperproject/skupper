@@ -3,7 +3,8 @@
 set -Ceu
 
 IMAGE="quay.io/skupper/bootstrap:v2-latest"
-INPUT_PATH="${1:-${PWD}}"
+export INPUT_PATH="${PWD}"
+export NAMESPACE=""
 SKUPPER_OUTPUT_PATH="${XDG_DATA_HOME:-${HOME}/.local/share}/skupper"
 SERVICE_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
 if [ -z "${UID:-}" ]; then
@@ -125,10 +126,39 @@ create_service() {
     fi
 }
 
+usage() {
+    echo "Use: bootstrap.sh [-p <path>] [-n <namespace>]"
+    echo "     -p Custom resources location on the file system"
+    echo "     -n The target namespace used for installation (overrides the namespace from custom resources when -p is provided)"
+    exit 1
+}
+
+parse_opts() {
+    while getopts "p:n:" opt; do
+        case "${opt}" in
+            p)
+                export INPUT_PATH="${OPTARG}"
+                if [ -z "${INPUT_PATH}" ] || [ ! -d "${INPUT_PATH}" ]; then
+                    echo "Invalid custom resources path (it must be a directory)"
+                    usage
+                fi
+                ;;
+            n)
+                export NAMESPACE="${OPTARG}"
+                if ! echo "${NAMESPACE:?}" | grep -qE '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'; then
+                    echo "Invalid namespace"
+                    usage
+                fi
+                ;;
+            *)
+                usage
+                ;;
+        esac
+    done
+}
+
 main() {
-    if [ -z "${INPUT_PATH}" ] || [ ! -d "${INPUT_PATH}" ]; then
-        exit_error "Use: bootstrap.sh <local path to CRs>"
-    fi
+    parse_opts "$@"
 
     # Parse Skupper Platform and Container Engine settings
     container_env
@@ -162,7 +192,8 @@ main() {
         --network host --security-opt label=disable -u \""${RUNAS}"\" --userns=\""${USERNS}"\" \
         "${MOUNTS}" \
         "${ENV_VARS}" \
-        "${IMAGE}" 2>&1 | tee "${LOG_FILE}"; then
+        "${IMAGE}" \
+        /app/bootstrap --namespace="${NAMESPACE}" 2>&1 | tee "${LOG_FILE}"; then
         create_service
     fi
 }

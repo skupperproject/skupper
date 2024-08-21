@@ -36,10 +36,6 @@ func main() {
 		os.Exit(0)
 	}
 	// if user overrides and force empty, use it as default
-	namespace := userNamespace
-	if namespace == "" {
-		namespace = "default"
-	}
 	if inputPath != "" {
 		var err error
 		inputPath, err = filepath.Abs(inputPath)
@@ -104,7 +100,7 @@ func main() {
 		}
 	}
 
-	siteState, err := bootstrap(inputPath, namespace)
+	siteState, err := bootstrap(inputPath, userNamespace)
 	if err != nil {
 		fmt.Println("Failed to bootstrap:", err)
 		os.Exit(1)
@@ -113,7 +109,7 @@ func main() {
 	if platform.IsBundle() {
 		bundleSuffix = " (as a distributable bundle)"
 	} else {
-		bundleSuffix = fmt.Sprintf(" on namespace %q", namespace)
+		bundleSuffix = fmt.Sprintf(" on namespace %q", siteState.GetNamespace())
 	}
 	fmt.Printf("Site %q has been created%s\n", siteState.Site.Name, bundleSuffix)
 	if !platform.IsBundle() {

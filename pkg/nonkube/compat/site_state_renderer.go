@@ -90,7 +90,7 @@ func (s *SiteStateRenderer) prepareContainers() error {
 	}
 	s.containers = make(map[string]container.Container)
 	s.containers[types.RouterComponent] = container.Container{
-		Name:  fmt.Sprintf("%s-skupper-router", s.siteState.Site.Namespace),
+		Name:  fmt.Sprintf("%s-skupper-router", s.siteState.GetNamespace()),
 		Image: images.GetRouterImageName(),
 		Env: map[string]string{
 			"APPLICATION_NAME":      "skupper-router",
