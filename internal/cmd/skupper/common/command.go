@@ -55,9 +55,8 @@ func ConfigureCobraCommand(configuredPlatform types.Platform, description Skuppe
 			skupperCommand.InputToOptions()
 			utils.HandleError(skupperCommand.Run())
 		},
-		PostRunE: func(cmd *cobra.Command, args []string) error {
-
-			return skupperCommand.WaitUntil()
+		PostRun: func(cmd *cobra.Command, args []string) {
+			utils.HandleError(skupperCommand.WaitUntil())
 		},
 	}
 
