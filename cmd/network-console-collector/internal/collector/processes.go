@@ -17,11 +17,12 @@ type hostInfo struct {
 	Server bool
 }
 type processManager struct {
-	logger *slog.Logger
-	stor   store.Interface
-	graph  *graph
-	idp    idProvider
-	source store.SourceRef
+	logger  *slog.Logger
+	stor    store.Interface
+	graph   *graph
+	idp     idProvider
+	source  store.SourceRef
+	metrics metrics
 
 	mu     sync.Mutex
 	groups map[string]int
@@ -42,12 +43,13 @@ type processManager struct {
 	rebuildProcesses  chan struct{}
 }
 
-func newProcessManager(logger *slog.Logger, stor store.Interface, graph *graph, idp idProvider) *processManager {
+func newProcessManager(logger *slog.Logger, stor store.Interface, graph *graph, idp idProvider, m metrics) *processManager {
 	return &processManager{
-		logger: logger,
-		idp:    idp,
-		stor:   stor,
-		graph:  graph,
+		logger:  logger,
+		idp:     idp,
+		stor:    stor,
+		graph:   graph,
+		metrics: m,
 		source: store.SourceRef{
 			Version: "0.1",
 			ID:      "self",
@@ -72,6 +74,10 @@ func (m *processManager) run(ctx context.Context) func() error {
 		rebuild := time.NewTicker(60 * time.Second)
 		var selector bool
 		defer rebuild.Stop()
+
+		reconcileProcesses := m.metrics.internal.reconcileTime.WithLabelValues("process_processes")
+		reconcileHosts := m.metrics.internal.reconcileTime.WithLabelValues("process_desired_hosts")
+		reconcileGroups := m.metrics.internal.reconcileTime.WithLabelValues("process_groups")
 		for {
 			select {
 			case <-ctx.Done():
@@ -85,6 +91,10 @@ func (m *processManager) run(ctx context.Context) func() error {
 				selector = !selector
 			case <-m.rebuildProcesses:
 				func() {
+					start := time.Now()
+					defer func() {
+						reconcileProcesses.Observe(time.Since(start).Seconds())
+					}()
 					m.mu.Lock()
 					defer m.mu.Unlock()
 
@@ -180,6 +190,10 @@ func (m *processManager) run(ctx context.Context) func() error {
 				}()
 			case <-m.rebuildConnectors:
 				func() {
+					start := time.Now()
+					defer func() {
+						reconcileHosts.Observe(time.Since(start).Seconds())
+					}()
 					m.mu.Lock()
 					defer m.mu.Unlock()
 					next := make(map[string]string, len(m.connectors))
@@ -257,6 +271,10 @@ func (m *processManager) run(ctx context.Context) func() error {
 				}()
 			case groupName := <-m.checkGroup:
 				func() {
+					start := time.Now()
+					defer func() {
+						reconcileGroups.Observe(time.Since(start).Seconds())
+					}()
 					m.mu.Lock()
 					defer m.mu.Unlock()
 					ct := m.groups[groupName]
@@ -305,7 +323,7 @@ func (m *processManager) handleChangeEvent(event changeEvent, stor readonly) {
 			m.ensureConnector(record.ID, *record.DestHost, isDelete)
 		}
 	case FlowSourceRecord:
-		m.ensureConnector(record.ID, record.Host, isDelete)
+		m.ensureFlowSource(record.ID, record.Host, isDelete)
 	case vanflow.ProcessRecord:
 		if record.Group != nil {
 			m.ensureGroup(*record.Group, !isDelete)

@@ -28,20 +28,8 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 		flows:         make(chan changeEvent, 256),
 		purgeQueue:    make(chan store.SourceRef, 8),
 		recordRouting: make(eventsource.RecordStoreMap),
-		eventProcessingTime: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Namespace: "skupper",
-			Subsystem: "internal",
-			Name:      "flow_processing_seconds",
-			Buckets:   []float64{0.001, 0.002, .005, .01, .025, .05, .1, .25, .5, 1, 2.5},
-		}, []string{"type"}),
-		eventQueueSpace: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: "skupper",
-			Subsystem: "internal",
-			Name:      "queue_utilization_percentage",
-			Help:      "percentage of flow event processing queue full",
-		}),
+		metrics:       register(reg),
 	}
-	reg.MustRegister(collector.eventQueueSpace, collector.eventProcessingTime)
 
 	collector.Records = store.NewSyncMapStore(store.SyncMapStoreConfig{
 		Handlers: store.EventHandlerFuncs{
@@ -64,9 +52,9 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 		},
 	})
 	collector.graph = NewGraph(collector.Records).(*graph)
-	collector.processManager = newProcessManager(logger, collector.Records, collector.graph, newStableIdentityProvider())
+	collector.processManager = newProcessManager(logger, collector.Records, collector.graph, newStableIdentityProvider(), collector.metrics)
 	collector.addressManager = newAddressManager(collector.logger, collector.Records)
-	collector.flowManager = newFlowManager(collector.logger, collector.graph, collector.FlowRecords, collector.Records, reg)
+	collector.flowManager = newFlowManager(collector.logger, collector.graph, collector.FlowRecords, collector.Records, collector.metrics)
 	routerCfg := collector.recordRouting
 	for _, typ := range standardRecordTypes {
 		routerCfg[typ.String()] = collector.Records
@@ -96,8 +84,7 @@ type Collector struct {
 	flows      chan changeEvent
 	purgeQueue chan store.SourceRef
 
-	eventProcessingTime *prometheus.HistogramVec
-	eventQueueSpace     prometheus.Gauge
+	metrics metrics
 }
 
 func (c *Collector) GetGraph() Graph {
@@ -139,22 +126,28 @@ func (c *Collector) updateGraph(event changeEvent, stor readonly) {
 }
 
 func (c *Collector) monitoring(ctx context.Context) func() error {
+	eventQueueSpace := c.metrics.internal.queueUtilization.WithLabelValues("records")
+	flowQueueSpace := c.metrics.internal.queueUtilization.WithLabelValues("flows")
 	return func() error {
 		defer func() {
 			c.logger.Info("collector monitoring shutdown complete")
 		}()
-		capacity := float64(cap(c.events))
+		recordsCapacity := float64(cap(c.events))
+		flowCapacity := float64(cap(c.flows))
+
+		utilization := func(queue chan changeEvent, capacity float64) float64 {
+			events := float64(len(queue))
+			return events / capacity
+		}
 		for {
 			select {
 			case <-ctx.Done():
 				return nil
 			case <-time.After(time.Second * 5):
-				events := float64(len(c.events))
-				utilization := events / capacity
-				if utilization > 0.90 {
-					c.logger.Error("work queue nearly full", slog.Float64("cap", capacity), slog.Float64("events", events))
-				}
-				c.eventQueueSpace.Set(utilization)
+				recordsUtil := utilization(c.events, recordsCapacity)
+				flowUtil := utilization(c.flows, flowCapacity)
+				eventQueueSpace.Set(recordsUtil)
+				flowQueueSpace.Set(flowUtil)
 			}
 		}
 	}
@@ -193,14 +186,14 @@ func (c *Collector) runWorkQueue(ctx context.Context) func() error {
 				start := time.Now()
 				typ := event.GetTypeMeta()
 				c.flowManager.processEvent(event)
-				c.eventProcessingTime.WithLabelValues(typ.String()).Observe(time.Since(start).Seconds())
+				c.metrics.internal.flowProcessingTime.WithLabelValues(typ.String()).Observe(time.Since(start).Seconds())
 			case event := <-c.events:
 				start := time.Now()
 				typ := event.GetTypeMeta()
 				for _, reactor := range reactors[typ] {
 					reactor(event, c.Records)
 				}
-				c.eventProcessingTime.WithLabelValues(typ.String()).Observe(time.Since(start).Seconds())
+				c.metrics.internal.flowProcessingTime.WithLabelValues(typ.String()).Observe(time.Since(start).Seconds())
 			}
 		}
 	}

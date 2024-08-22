@@ -12,8 +12,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
 )
 
-var flowMetricLables = []string{"source_site_id", "dest_site_id", "source_site_name", "dest_site_name", "routing_key", "protocol", "source_process", "dest_process"}
-
 type flowManager struct {
 	logger  *slog.Logger
 	flows   store.Interface
@@ -31,11 +29,7 @@ type flowManager struct {
 	processesCache  map[string]processAttributes
 	connectorsCache map[string]connectorAttrs
 
-	reconcileJobTime         *prometheus.HistogramVec
-	flowOpenedCounter        *prometheus.CounterVec
-	flowClosedCounter        *prometheus.CounterVec
-	flowBytesSentCounter     *prometheus.CounterVec
-	flowBytesReceivedCounter *prometheus.CounterVec
+	metrics metrics
 }
 
 type pair struct {
@@ -55,7 +49,7 @@ type connectorAttrs struct {
 	Address  string
 }
 
-func newFlowManager(log *slog.Logger, graph *graph, flows, records store.Interface, reg *prometheus.Registry) *flowManager {
+func newFlowManager(log *slog.Logger, graph *graph, flows, records store.Interface, m metrics) *flowManager {
 	manager := &flowManager{
 		logger:  log,
 		graph:   graph,
@@ -73,39 +67,8 @@ func newFlowManager(log *slog.Logger, graph *graph, flows, records store.Interfa
 		processPairs:    make(map[pair]bool),
 		processesCache:  make(map[string]processAttributes),
 		connectorsCache: make(map[string]connectorAttrs),
-
-		reconcileJobTime: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Namespace: "skupper",
-			Subsystem: "internal",
-			Name:      "flow_reconcile_seconds",
-			Buckets:   []float64{0.001, 0.002, .005, .01, .025, .05, .1, .25, .5, 1, 2.5},
-		}, []string{"type"}),
-		flowOpenedCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: "skupper",
-			Name:      "connections_opened_total",
-		}, flowMetricLables),
-		flowClosedCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: "skupper",
-			Name:      "connections_closed_total",
-		}, flowMetricLables),
-		flowBytesSentCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: "skupper",
-			Name:      "sent_bytes_total",
-			Help:      "Bytes sent through the application network from client to service",
-		}, flowMetricLables),
-		flowBytesReceivedCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
-			Namespace: "skupper",
-			Name:      "received_bytes_total",
-			Help:      "Bytes sent through the application network from service to client",
-		}, flowMetricLables),
+		metrics:         m,
 	}
-	reg.MustRegister(
-		manager.reconcileJobTime,
-		manager.flowOpenedCounter,
-		manager.flowClosedCounter,
-		manager.flowBytesSentCounter,
-		manager.flowBytesReceivedCounter,
-	)
 
 	return manager
 }
@@ -123,9 +86,9 @@ func (m *flowManager) run(ctx context.Context) func() error {
 		reconcileFlowSource := time.NewTicker(time.Second)
 		defer reconcileFlowSource.Stop()
 
-		reconcileSources := m.reconcileJobTime.WithLabelValues("sources")
-		reconcilePairs := m.reconcileJobTime.WithLabelValues("pairs")
-		reconcileEvictions := m.reconcileJobTime.WithLabelValues("evictions")
+		reconcileSources := m.metrics.internal.reconcileTime.WithLabelValues("flow_sources")
+		reconcilePairs := m.metrics.internal.reconcileTime.WithLabelValues("flow_pairs")
+		reconcileEvictions := m.metrics.internal.reconcileTime.WithLabelValues("flow_evictions")
 
 		flowSources := make(map[string]struct{})
 		for {
@@ -385,18 +348,18 @@ func (m *flowManager) processEvent(event changeEvent) {
 		if !prev.Conditions.FullyQualified() {
 			prevOctets, prevOctetsRev = 0, 0
 			previouslyActive = true
-			m.flowOpenedCounter.With(labels).Inc()
-			m.flowClosedCounter.With(labels).Add(0)
+			m.metrics.flowOpenedCounter.With(labels).Inc()
+			m.metrics.flowClosedCounter.With(labels).Add(0)
 		}
 
 		if state.Conditions.Terminated && previouslyActive {
-			m.flowClosedCounter.With(labels).Inc()
+			m.metrics.flowClosedCounter.With(labels).Inc()
 		}
 
 		sentInc := float64(dref(record.Octets) - prevOctets)
 		receivedInc := float64(dref(record.OctetsReverse) - prevOctetsRev)
-		m.flowBytesSentCounter.With(labels).Add(sentInc)
-		m.flowBytesReceivedCounter.With(labels).Add(receivedInc)
+		m.metrics.flowBytesSentCounter.With(labels).Add(sentInc)
+		m.metrics.flowBytesReceivedCounter.With(labels).Add(receivedInc)
 
 		log.Debug("FLOW",
 			slog.Float64("bytes_out", sentInc),
