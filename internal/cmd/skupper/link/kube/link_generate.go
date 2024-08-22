@@ -5,9 +5,14 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	commonutils "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	pkgutils "github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/internal/utils/validator"
@@ -17,9 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type CmdLinkGenerate struct {
@@ -47,14 +49,14 @@ func NewCmdLinkGenerate() *CmdLinkGenerate {
 
 func (cmd *CmdLinkGenerate) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	commonutils.HandleError(err)
+	utils.HandleError(utils.GenericError, err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.KubeClient = cli.GetKubeClient()
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdLinkGenerate) ValidateInput(args []string) []error {
+func (cmd *CmdLinkGenerate) ValidateInput(args []string) error {
 
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
@@ -112,7 +114,7 @@ func (cmd *CmdLinkGenerate) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdLinkGenerate) InputToOptions() {
@@ -195,7 +197,7 @@ func (cmd *CmdLinkGenerate) Run() error {
 func (cmd *CmdLinkGenerate) WaitUntil() error {
 
 	var resourcesToPrint []string
-	encodedOutput, err := commonutils.Encode(cmd.output, cmd.generatedLink)
+	encodedOutput, err := utils.Encode(cmd.output, cmd.generatedLink)
 	if err != nil {
 		return err
 	}
@@ -230,7 +232,7 @@ func (cmd *CmdLinkGenerate) WaitUntil() error {
 					},
 				}
 
-				encodedSecret, _ := commonutils.Encode(cmd.output, secretResource)
+				encodedSecret, _ := utils.Encode(cmd.output, secretResource)
 				resourcesToPrint = append(resourcesToPrint, encodedSecret)
 			}
 			return nil

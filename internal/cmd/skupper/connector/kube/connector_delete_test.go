@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
@@ -21,39 +22,39 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 		flags          common.CommandConnectorDeleteFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		expectedErrors []string
+		expectedError  string
 	}
 
 	testTable := []test{
 		{
-			name:           "connector is not Deleted because connector does not exist in the namespace",
-			args:           []string{"my-connector"},
-			flags:          common.CommandConnectorDeleteFlags{Timeout: 30 * time.Second},
-			expectedErrors: []string{"connector my-connector does not exist in namespace test"},
+			name:          "connector is not Deleted because connector does not exist in the namespace",
+			args:          []string{"my-connector"},
+			flags:         common.CommandConnectorDeleteFlags{Timeout: 30 * time.Second},
+			expectedError: "connector my-connector does not exist in namespace test",
 		},
 		{
-			name:           "connector name is not specified",
-			args:           []string{},
-			flags:          common.CommandConnectorDeleteFlags{Timeout: 10 * time.Second},
-			expectedErrors: []string{"connector name must be specified"},
+			name:          "connector name is not specified",
+			args:          []string{},
+			flags:         common.CommandConnectorDeleteFlags{Timeout: 10 * time.Second},
+			expectedError: "connector name must be specified",
 		},
 		{
-			name:           "connector name is nil",
-			args:           []string{""},
-			flags:          common.CommandConnectorDeleteFlags{Timeout: 10 * time.Second},
-			expectedErrors: []string{"connector name must not be empty"},
+			name:          "connector name is nil",
+			args:          []string{""},
+			flags:         common.CommandConnectorDeleteFlags{Timeout: 10 * time.Second},
+			expectedError: "connector name must not be empty",
 		},
 		{
-			name:           "connector name is not valid",
-			args:           []string{"my name"},
-			flags:          common.CommandConnectorDeleteFlags{Timeout: 10 * time.Second},
-			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "connector name is not valid",
+			args:          []string{"my name"},
+			flags:         common.CommandConnectorDeleteFlags{Timeout: 10 * time.Second},
+			expectedError: "connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "connector"},
-			flags:          common.CommandConnectorDeleteFlags{Timeout: 10 * time.Second},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "connector"},
+			flags:         common.CommandConnectorDeleteFlags{Timeout: 10 * time.Second},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
 			name:  "timeout is not valid",
@@ -77,7 +78,7 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 5s"},
+			expectedError: "timeout is not valid: duration must not be less than 10s; got 5s",
 		},
 	}
 
@@ -89,12 +90,7 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 
 			command.Flags = &test.flags
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

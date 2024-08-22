@@ -1,14 +1,15 @@
 package kube
 
 import (
+	"testing"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/v3/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"testing"
 )
 
 func TestCmdLinkStatus_ValidateInput(t *testing.T) {
@@ -19,7 +20,7 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
-		expectedErrors      []string
+		expectedError       string
 	}
 
 	testTable := []test{
@@ -38,12 +39,12 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"this command only accepts one argument"},
+			expectedError: "this command only accepts one argument",
 		},
 		{
-			name:           "there are no sites",
-			args:           []string{},
-			expectedErrors: []string{"there is no skupper site available"},
+			name:          "there are no sites",
+			args:          []string{},
+			expectedError: "there is no skupper site available",
 		},
 		{
 			name:  "output format is not valid",
@@ -67,9 +68,7 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
-			},
+			expectedError: "output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 		},
 	}
 
@@ -81,12 +80,7 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 
 			command.Flags = &test.flags
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

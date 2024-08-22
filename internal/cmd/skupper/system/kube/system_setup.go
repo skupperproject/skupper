@@ -2,6 +2,7 @@ package kube
 
 import (
 	"fmt"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/spf13/cobra"
@@ -25,7 +26,7 @@ func NewCmdSystemSetup() *CmdSystemSetup {
 
 func (cmd *CmdSystemSetup) NewClient(cobraCommand *cobra.Command, args []string) {}
 
-func (cmd *CmdSystemSetup) ValidateInput(args []string) []error { return nil }
+func (cmd *CmdSystemSetup) ValidateInput(args []string) error { return nil }
 
 func (cmd *CmdSystemSetup) InputToOptions() {}
 

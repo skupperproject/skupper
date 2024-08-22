@@ -3,6 +3,7 @@ package compat
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -249,9 +250,7 @@ func TestContainer(t *testing.T) {
 		cleanupErrors = append(cleanupErrors, cli.ContainerRemove(name))
 		cleanupErrors = append(cleanupErrors, cli.VolumeRemove(name))
 		cleanupErrors = append(cleanupErrors, cli.NetworkRemove(name))
-		for _, e := range cleanupErrors {
-			assert.Assert(t, e)
-		}
+		assert.NilError(t, errors.Join(cleanupErrors...))
 	})
 }
 

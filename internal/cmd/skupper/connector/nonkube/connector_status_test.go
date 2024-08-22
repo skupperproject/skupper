@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
@@ -23,7 +23,7 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 		cobraGenericFlags map[string]string
 		k8sObjects        []runtime.Object
 		skupperObjects    []runtime.Object
-		expectedErrors    []string
+		expectedError     string
 	}
 
 	homeDir, err := os.UserHomeDir()
@@ -32,45 +32,45 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:           "connector is not shown because connector does not exist in the namespace",
-			args:           []string{"no-connector"},
-			flags:          &common.CommandConnectorStatusFlags{},
-			expectedErrors: []string{"connector no-connector does not exist in namespace test"},
+			name:          "connector is not shown because connector does not exist in the namespace",
+			args:          []string{"no-connector"},
+			flags:         &common.CommandConnectorStatusFlags{},
+			expectedError: "connector no-connector does not exist in namespace test",
 		},
 		{
-			name:           "connector name is nil",
-			args:           []string{""},
-			flags:          &common.CommandConnectorStatusFlags{},
-			expectedErrors: []string{"connector name must not be empty"},
+			name:          "connector name is nil",
+			args:          []string{""},
+			flags:         &common.CommandConnectorStatusFlags{},
+			expectedError: "connector name must not be empty",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "connector"},
-			flags:          &common.CommandConnectorStatusFlags{},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "connector"},
+			flags:         &common.CommandConnectorStatusFlags{},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:           "connector name is not valid.",
-			args:           []string{"my new connector"},
-			flags:          &common.CommandConnectorStatusFlags{},
-			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "connector name is not valid.",
+			args:          []string{"my new connector"},
+			flags:         &common.CommandConnectorStatusFlags{},
+			expectedError: "connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "no args",
-			flags:          &common.CommandConnectorStatusFlags{},
-			expectedErrors: []string{},
+			name:          "no args",
+			flags:         &common.CommandConnectorStatusFlags{},
+			expectedError: "",
 		},
 		{
-			name:           "bad output status",
-			args:           []string{"my-connector"},
-			flags:          &common.CommandConnectorStatusFlags{Output: "not-supported"},
-			expectedErrors: []string{"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
+			name:          "bad output status",
+			args:          []string{"my-connector"},
+			flags:         &common.CommandConnectorStatusFlags{Output: "not-supported"},
+			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
 		},
 		{
-			name:           "good output status",
-			args:           []string{"my-connector"},
-			flags:          &common.CommandConnectorStatusFlags{Output: "json"},
-			expectedErrors: []string{},
+			name:          "good output status",
+			args:          []string{"my-connector"},
+			flags:         &common.CommandConnectorStatusFlags{Output: "json"},
+			expectedError: "",
 		},
 	}
 
@@ -110,12 +110,7 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 				}
 			}
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

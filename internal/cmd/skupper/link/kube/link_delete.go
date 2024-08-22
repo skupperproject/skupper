@@ -2,7 +2,10 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
@@ -10,7 +13,6 @@ import (
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
 )
 
 type CmdLinkDelete struct {
@@ -29,13 +31,13 @@ func NewCmdLinkDelete() *CmdLinkDelete {
 
 func (cmd *CmdLinkDelete) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils.HandleError(utils.GenericError, err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdLinkDelete) ValidateInput(args []string) []error {
+func (cmd *CmdLinkDelete) ValidateInput(args []string) error {
 	var validationErrors []error
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 
@@ -63,7 +65,7 @@ func (cmd *CmdLinkDelete) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 func (cmd *CmdLinkDelete) InputToOptions() {
 	cmd.timeout = cmd.Flags.Timeout

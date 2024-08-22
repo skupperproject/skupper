@@ -1,6 +1,7 @@
 package nonkube
 
 import (
+	"errors"
 	"fmt"
 	"net"
 
@@ -42,7 +43,7 @@ func (cmd *CmdConnectorUpdate) NewClient(cobraCommand *cobra.Command, args []str
 	cmd.connectorHandler = fs.NewConnectorHandler(cmd.namespace)
 }
 
-func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
+func (cmd *CmdConnectorUpdate) ValidateInput(args []string) error {
 	var validationErrors []error
 	opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
 	resourceStringValidator := validator.NewResourceStringValidator()
@@ -140,7 +141,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.tlsCredentials = cmd.Flags.TlsCredentials
 		}
 	}
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdConnectorUpdate) InputToOptions() {

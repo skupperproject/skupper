@@ -4,6 +4,7 @@ Copyright © 2024 Skupper Team <skupper@googlegroups.com>
 package nonkube
 
 import (
+	"errors"
 	"fmt"
 	"net"
 
@@ -45,7 +46,7 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 
 }
 
-func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
+func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 	var validationErrors []error
 	hostStringValidator := validator.NewHostStringValidator()
 	resourceStringValidator := validator.NewResourceStringValidator()
@@ -99,7 +100,7 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdSiteCreate) InputToOptions() {

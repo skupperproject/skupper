@@ -5,7 +5,11 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
+	"time"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
@@ -16,8 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"strconv"
-	"time"
 )
 
 type CmdLinkUpdate struct {
@@ -40,14 +42,14 @@ func NewCmdLinkUpdate() *CmdLinkUpdate {
 
 func (cmd *CmdLinkUpdate) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils.HandleError(utils.GenericError, err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.KubeClient = cli.GetKubeClient()
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
+func (cmd *CmdLinkUpdate) ValidateInput(args []string) error {
 
 	var validationErrors []error
 	numberValidator := validator.NewNumberValidator()
@@ -108,7 +110,7 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdLinkUpdate) InputToOptions() {

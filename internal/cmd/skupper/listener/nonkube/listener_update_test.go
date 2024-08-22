@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
@@ -24,7 +24,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 		k8sObjects        []runtime.Object
 		skupperObjects    []runtime.Object
 		cobraGenericFlags map[string]string
-		expectedErrors    []string
+		expectedError     string
 	}
 
 	homeDir, err := os.UserHomeDir()
@@ -33,70 +33,70 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:           "Listener is not updated because get listener returned error",
-			args:           []string{"no-listener"},
-			flags:          &common.CommandListenerUpdateFlags{},
-			expectedErrors: []string{"listener no-listener must exist in namespace test to be updated"},
+			name:          "Listener is not updated because get listener returned error",
+			args:          []string{"no-listener"},
+			flags:         &common.CommandListenerUpdateFlags{},
+			expectedError: "listener no-listener must exist in namespace test to be updated",
 		},
 		{
-			name:           "listener name is not specified",
-			args:           []string{},
-			flags:          &common.CommandListenerUpdateFlags{},
-			expectedErrors: []string{"listener name must be configured"},
+			name:          "listener name is not specified",
+			args:          []string{},
+			flags:         &common.CommandListenerUpdateFlags{},
+			expectedError: "listener name must be configured",
 		},
 		{
-			name:           "listener name is nil",
-			args:           []string{""},
-			flags:          &common.CommandListenerUpdateFlags{},
-			expectedErrors: []string{"listener name must not be empty"},
+			name:          "listener name is nil",
+			args:          []string{""},
+			flags:         &common.CommandListenerUpdateFlags{},
+			expectedError: "listener name must not be empty",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "listener"},
-			flags:          &common.CommandListenerUpdateFlags{},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "listener"},
+			flags:         &common.CommandListenerUpdateFlags{},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:           "listener name is not valid.",
-			args:           []string{"my new listener"},
-			flags:          &common.CommandListenerUpdateFlags{},
-			expectedErrors: []string{"listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "listener name is not valid.",
+			args:          []string{"my new listener"},
+			flags:         &common.CommandListenerUpdateFlags{},
+			expectedError: "listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "listener type is not valid",
-			args:           []string{"my-listener"},
-			flags:          &common.CommandListenerUpdateFlags{ListenerType: "not-valid"},
-			expectedErrors: []string{"listener type is not valid: value not-valid not allowed. It should be one of this options: [tcp]"},
+			name:          "listener type is not valid",
+			args:          []string{"my-listener"},
+			flags:         &common.CommandListenerUpdateFlags{ListenerType: "not-valid"},
+			expectedError: "listener type is not valid: value not-valid not allowed. It should be one of this options: [tcp]",
 		},
 		{
-			name:           "routing key is not valid",
-			args:           []string{"my-listener"},
-			flags:          &common.CommandListenerUpdateFlags{RoutingKey: "not-valid$"},
-			expectedErrors: []string{"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "routing key is not valid",
+			args:          []string{"my-listener"},
+			flags:         &common.CommandListenerUpdateFlags{RoutingKey: "not-valid$"},
+			expectedError: "routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "TlsCredentials key is not valid",
-			args:           []string{"my-listener"},
-			flags:          &common.CommandListenerUpdateFlags{TlsCredentials: "not-valid$", Host: "1.2.3.4"},
-			expectedErrors: []string{"tlsCredentials value is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "TlsCredentials key is not valid",
+			args:          []string{"my-listener"},
+			flags:         &common.CommandListenerUpdateFlags{TlsCredentials: "not-valid$", Host: "1.2.3.4"},
+			expectedError: "tlsCredentials value is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "port is not valid",
-			args:           []string{"my-listener"},
-			flags:          &common.CommandListenerUpdateFlags{Port: -1},
-			expectedErrors: []string{"listener port is not valid: value is not positive"},
+			name:          "port is not valid",
+			args:          []string{"my-listener"},
+			flags:         &common.CommandListenerUpdateFlags{Port: -1},
+			expectedError: "listener port is not valid: value is not positive",
 		},
 		{
-			name:           "host is not valid",
-			args:           []string{"my-listener"},
-			flags:          &common.CommandListenerUpdateFlags{Host: "not-valid$"},
-			expectedErrors: []string{"host is not valid: a valid IP address or hostname is expected"},
+			name:          "host is not valid",
+			args:          []string{"my-listener"},
+			flags:         &common.CommandListenerUpdateFlags{Host: "not-valid$"},
+			expectedError: "host is not valid: a valid IP address or hostname is expected",
 		},
 		{
-			name:           "output is not valid",
-			args:           []string{"my-listener"},
-			flags:          &common.CommandListenerUpdateFlags{Output: "not-supported"},
-			expectedErrors: []string{"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
+			name:          "output is not valid",
+			args:          []string{"my-listener"},
+			flags:         &common.CommandListenerUpdateFlags{Output: "not-supported"},
+			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
 		},
 		{
 			name:  "kubernetes flags are not valid on this platform",
@@ -106,7 +106,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				common.FlagNameContext:    "test",
 				common.FlagNameKubeconfig: "test",
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 		{
 			name: "flags all valid",
@@ -119,7 +119,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				Output:         "json",
 				Host:           "1.2.3.4",
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 	}
 
@@ -160,12 +160,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				}
 			}
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

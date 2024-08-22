@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -20,33 +20,33 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 		flags          common.CommandConnectorStatusFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		expectedErrors []string
+		expectedError  string
 	}
 
 	testTable := []test{
 		{
-			name:           "connector is not shown because connector does not exist in the namespace",
-			args:           []string{"my-connector"},
-			expectedErrors: []string{"connector my-connector does not exist in namespace test"},
+			name:          "connector is not shown because connector does not exist in the namespace",
+			args:          []string{"my-connector"},
+			expectedError: "connector my-connector does not exist in namespace test",
 		},
 		{
-			name:           "connector name is nil",
-			args:           []string{""},
-			expectedErrors: []string{"connector name must not be empty"},
+			name:          "connector name is nil",
+			args:          []string{""},
+			expectedError: "connector name must not be empty",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "connector"},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "connector"},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:           "connector name is not valid.",
-			args:           []string{"my new connector"},
-			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "connector name is not valid.",
+			args:          []string{"my new connector"},
+			expectedError: "connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "no args",
-			expectedErrors: []string{},
+			name:          "no args",
+			expectedError: "",
 		},
 		{
 			name:  "bad output status",
@@ -74,7 +74,7 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
+			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
 		},
 		{
 			name:  "good output status",
@@ -102,7 +102,7 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 	}
 
@@ -114,12 +114,7 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 
 			command.Flags = &test.flags
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

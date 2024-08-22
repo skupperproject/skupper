@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
@@ -23,7 +23,7 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 		cobraGenericFlags map[string]string
 		k8sObjects        []runtime.Object
 		skupperObjects    []runtime.Object
-		expectedErrors    []string
+		expectedError     string
 	}
 
 	homeDir, err := os.UserHomeDir()
@@ -32,40 +32,40 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:           "site does not exist in the namespace",
-			args:           []string{"no-site"},
-			expectedErrors: []string{"site no-site does not exist"},
+			name:          "site does not exist in the namespace",
+			args:          []string{"no-site"},
+			expectedError: "site no-site does not exist",
 		},
 		{
-			name:           "site name is nil",
-			args:           []string{""},
-			expectedErrors: []string{"site name must not be empty"},
+			name:          "site name is nil",
+			args:          []string{""},
+			expectedError: "site name must not be empty",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "site"},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "site"},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:           "site name is not valid.",
-			args:           []string{"my new site"},
-			expectedErrors: []string{"site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "site name is not valid.",
+			args:          []string{"my new site"},
+			expectedError: "site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "no args",
-			expectedErrors: []string{},
+			name:          "no args",
+			expectedError: "",
 		},
 		{
-			name:           "bad output",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteStatusFlags{Output: "yaml$"},
-			expectedErrors: []string{"output type is not valid: value yaml$ not allowed. It should be one of this options: [json yaml]"},
+			name:          "bad output",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteStatusFlags{Output: "yaml$"},
+			expectedError: "output type is not valid: value yaml$ not allowed. It should be one of this options: [json yaml]",
 		},
 		{
-			name:           "good flags",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteStatusFlags{Output: "yaml"},
-			expectedErrors: []string{},
+			name:          "good flags",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteStatusFlags{Output: "yaml"},
+			expectedError: "",
 		},
 	}
 
@@ -104,12 +104,7 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 				}
 			}
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -30,13 +31,13 @@ func NewCmdListenerDelete() *CmdListenerDelete {
 
 func (cmd *CmdListenerDelete) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils.HandleError(utils.GenericError, err)
 
 	cmd.client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.namespace = cli.Namespace
 }
 
-func (cmd *CmdListenerDelete) ValidateInput(args []string) []error {
+func (cmd *CmdListenerDelete) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
@@ -72,7 +73,7 @@ func (cmd *CmdListenerDelete) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdListenerDelete) Run() error {

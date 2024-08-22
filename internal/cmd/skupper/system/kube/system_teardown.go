@@ -2,6 +2,7 @@ package kube
 
 import (
 	"fmt"
+
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -23,7 +24,7 @@ func NewCmdSystemTeardown() *CmdSystemTeardown {
 
 func (cmd *CmdSystemTeardown) NewClient(cobraCommand *cobra.Command, args []string) {}
 
-func (cmd *CmdSystemTeardown) ValidateInput(args []string) []error { return nil }
+func (cmd *CmdSystemTeardown) ValidateInput(args []string) error { return nil }
 
 func (cmd *CmdSystemTeardown) InputToOptions() {}
 

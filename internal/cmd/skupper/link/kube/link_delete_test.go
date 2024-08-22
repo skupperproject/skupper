@@ -1,15 +1,17 @@
 package kube
 
 import (
+	"testing"
+	"time"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/v3/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"testing"
-	"time"
 )
 
 func TestCmdLinkDelete_ValidateInput(t *testing.T) {
@@ -19,15 +21,16 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 		flags          common.CommandLinkDeleteFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		expectedErrors []string
+		expectedError  string
 	}
 
 	testTable := []test{
 		{
-			name:           "there is no active skupper site in this namespace",
-			args:           []string{"my-link"},
-			flags:          common.CommandLinkDeleteFlags{Timeout: time.Minute},
-			expectedErrors: []string{"there is no skupper site in this namespace", "the link \"my-link\" is not available in the namespace"},
+			name:  "there is no active skupper site in this namespace",
+			args:  []string{"my-link"},
+			flags: common.CommandLinkDeleteFlags{Timeout: time.Minute},
+			expectedError: "there is no skupper site in this namespace\n" +
+				"the link \"my-link\" is not available in the namespace",
 		},
 		{
 			name:  "link is not deleted because it does not exist",
@@ -45,7 +48,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"the link \"my-link\" is not available in the namespace"},
+			expectedError: "the link \"my-link\" is not available in the namespace",
 		},
 		{
 			name:  "more than one argument was specified",
@@ -63,7 +66,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
 			name:  "trying to delete without specifying a name",
@@ -81,7 +84,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"link name must not be empty"},
+			expectedError: "link name must not be empty",
 		},
 		{
 			name:  "link deleted successfully",
@@ -105,7 +108,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 		{
 			name:  "timeout is not valid because it is zero",
@@ -129,7 +132,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 0s"},
+			expectedError: "timeout is not valid: duration must not be less than 10s; got 0s",
 		},
 	}
 
@@ -140,12 +143,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 			assert.Assert(t, err)
 			command.Flags = &test.flags
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

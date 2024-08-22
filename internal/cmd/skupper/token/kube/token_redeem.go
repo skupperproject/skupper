@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -33,13 +34,13 @@ func NewCmdTokenRedeem() *CmdTokenRedeem {
 
 func (cmd *CmdTokenRedeem) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils.HandleError(utils.GenericError, err)
 
 	cmd.client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.namespace = cli.Namespace
 }
 
-func (cmd *CmdTokenRedeem) ValidateInput(args []string) []error {
+func (cmd *CmdTokenRedeem) ValidateInput(args []string) error {
 	var validationErrors []error
 	tokenStringValidator := validator.NewFilePathStringValidator()
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
@@ -86,7 +87,7 @@ func (cmd *CmdTokenRedeem) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdTokenRedeem) Run() error {

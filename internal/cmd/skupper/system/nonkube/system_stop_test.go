@@ -2,9 +2,10 @@ package nonkube
 
 import (
 	"fmt"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"gotest.tools/v3/assert"
 
 	"testing"
@@ -12,16 +13,16 @@ import (
 
 func TestCmdSystemStop_ValidateInput(t *testing.T) {
 	type test struct {
-		name           string
-		args           []string
-		expectedErrors []string
+		name          string
+		args          []string
+		expectedError string
 	}
 
 	testTable := []test{
 		{
-			name:           "arg-not-accepted",
-			args:           []string{"namespace"},
-			expectedErrors: []string{"this command does not accept arguments"},
+			name:          "arg-not-accepted",
+			args:          []string{"namespace"},
+			expectedError: "this command does not accept arguments",
 		},
 	}
 
@@ -31,10 +32,7 @@ func TestCmdSystemStop_ValidateInput(t *testing.T) {
 			command := &CmdSystemStop{}
 			command.CobraCmd = common.ConfigureCobraCommand(types.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
 
-			actualErrors := command.ValidateInput(test.args)
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

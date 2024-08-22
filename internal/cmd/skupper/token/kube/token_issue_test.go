@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
@@ -22,7 +23,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		flags          common.CommandTokenIssueFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		expectedErrors []string
+		expectedError  string
 	}
 
 	testTable := []test{
@@ -86,7 +87,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"there is already a token my-token created in namespace test"},
+			expectedError: "there is already a token my-token created in namespace test",
 		},
 		{
 			name: "token no site",
@@ -115,7 +116,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"A site must exist in namespace test before a token can be created"},
+			expectedError: "A site must exist in namespace test before a token can be created",
 		},
 		{
 			name: "token no site with OK status",
@@ -147,7 +148,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"there is no active skupper site in this namespace"},
+			expectedError: "there is no active skupper site in this namespace",
 		},
 		{
 			name: "file name is not specified",
@@ -188,7 +189,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"file name must be configured"},
+			expectedError: "file name must be configured",
 		},
 		{
 			name: "token file name empty",
@@ -229,7 +230,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"file name must not be empty"},
+			expectedError: "file name must not be empty",
 		},
 		{
 			name: "more than one arguments is specified",
@@ -270,7 +271,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
 			name: "token name is not valid.",
@@ -312,7 +313,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"token name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			expectedError: "token name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name: "token file name is not valid.",
@@ -353,7 +354,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"token file name is not valid: value does not match this regular expression: ^[A-Za-z0-9./~-]+$"},
+			expectedError: "token file name is not valid: value does not match this regular expression: ^[A-Za-z0-9./~-]+$",
 		},
 		{
 			name: "token name is a directory.",
@@ -394,7 +395,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"token file name is a directory"},
+			expectedError: "token file name is a directory",
 		},
 		{
 			name: "redemptions is not valid",
@@ -435,8 +436,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"number of redemptions is not valid"},
+			expectedError: "number of redemptions is not valid",
 		},
 		{
 			name: "expiration is not valid",
@@ -477,7 +477,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"expiration time is not valid: duration must not be less than 1m0s; got 10s"},
+			expectedError: "expiration time is not valid: duration must not be less than 1m0s; got 10s",
 		},
 		{
 			name: "timeout is not valid",
@@ -518,7 +518,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 0s"},
+			expectedError: "timeout is not valid: duration must not be less than 10s; got 0s",
 		},
 		{
 			name: "cost is not valid",
@@ -559,8 +559,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				`link cost is not valid: strconv.Atoi: parsing "Not-valid": invalid syntax`},
+			expectedError: `link cost is not valid: strconv.Atoi: parsing "Not-valid": invalid syntax`,
 		},
 		{
 			name: "flags all valid",
@@ -621,7 +620,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 	}
 
@@ -633,12 +632,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 
 			command.Flags = &test.flags
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

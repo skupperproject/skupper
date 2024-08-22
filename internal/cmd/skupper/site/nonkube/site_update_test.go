@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
@@ -24,7 +24,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		k8sObjects        []runtime.Object
 		skupperObjects    []runtime.Object
 		cobraGenericFlags map[string]string
-		expectedErrors    []string
+		expectedError     string
 	}
 
 	homeDir, err := os.UserHomeDir()
@@ -33,52 +33,52 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:           "site is not updated because get site returned error",
-			args:           []string{"no-site"},
-			flags:          &common.CommandSiteUpdateFlags{},
-			expectedErrors: []string{"site no-site must exist to be updated"},
+			name:          "site is not updated because get site returned error",
+			args:          []string{"no-site"},
+			flags:         &common.CommandSiteUpdateFlags{},
+			expectedError: "site no-site must exist to be updated",
 		},
 		{
-			name:           "site name is not specified",
-			args:           []string{},
-			flags:          &common.CommandSiteUpdateFlags{},
-			expectedErrors: []string{"site name must be configured"},
+			name:          "site name is not specified",
+			args:          []string{},
+			flags:         &common.CommandSiteUpdateFlags{},
+			expectedError: "site name must be configured",
 		},
 		{
-			name:           "site name is nil",
-			args:           []string{""},
-			flags:          &common.CommandSiteUpdateFlags{},
-			expectedErrors: []string{"site name must not be empty"},
+			name:          "site name is nil",
+			args:          []string{""},
+			flags:         &common.CommandSiteUpdateFlags{},
+			expectedError: "site name must not be empty",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "site"},
-			flags:          &common.CommandSiteUpdateFlags{},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "site"},
+			flags:         &common.CommandSiteUpdateFlags{},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:           "site name is not valid.",
-			args:           []string{"my new site"},
-			flags:          &common.CommandSiteUpdateFlags{},
-			expectedErrors: []string{"site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "site name is not valid.",
+			args:          []string{"my new site"},
+			flags:         &common.CommandSiteUpdateFlags{},
+			expectedError: "site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "bind-host is not valid",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteUpdateFlags{BindHost: "not-valid$"},
-			expectedErrors: []string{"bindhost is not valid: a valid IP address or hostname is expected"},
+			name:          "bind-host is not valid",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteUpdateFlags{BindHost: "not-valid$"},
+			expectedError: "bindhost is not valid: a valid IP address or hostname is expected",
 		},
 		{
-			name:           "subjectAlternativeNames are not valid",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteUpdateFlags{SubjectAlternativeNames: []string{"not-valid$"}},
-			expectedErrors: []string{"SubjectAlternativeNames are not valid: a valid IP address or hostname is expected"},
+			name:          "subjectAlternativeNames are not valid",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteUpdateFlags{SubjectAlternativeNames: []string{"not-valid$"}},
+			expectedError: "SubjectAlternativeNames are not valid: a valid IP address or hostname is expected",
 		},
 		{
-			name:           "output is not valid",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteUpdateFlags{Output: "not-supported"},
-			expectedErrors: []string{"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
+			name:          "output is not valid",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteUpdateFlags{Output: "not-supported"},
+			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
 		},
 		{
 			name:  "kubernetes flags are not valid on this platform",
@@ -88,7 +88,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 				common.FlagNameContext:    "test",
 				common.FlagNameKubeconfig: "test",
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 		{
 			name: "flags all valid",
@@ -99,7 +99,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 				EnableLinkAccess:        true,
 				SubjectAlternativeNames: []string{"3.3.3.3"},
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 	}
 
@@ -170,12 +170,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 				}
 			}
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

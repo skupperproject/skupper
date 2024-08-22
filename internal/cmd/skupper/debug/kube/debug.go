@@ -2,6 +2,7 @@ package kube
 
 import (
 	"fmt"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
@@ -33,7 +34,7 @@ func (cmd *CmdDebug) NewClient(cobraCommand *cobra.Command, args []string) {
 	}
 }
 
-func (cmd *CmdDebug) ValidateInput(args []string) []error { return nil }
+func (cmd *CmdDebug) ValidateInput(args []string) error { return nil }
 
 func (cmd *CmdDebug) InputToOptions() {}
 

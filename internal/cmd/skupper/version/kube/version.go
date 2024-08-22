@@ -2,10 +2,12 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"text/tabwriter"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -44,7 +46,7 @@ func (cmd *CmdVersion) NewClient(cobraCommand *cobra.Command, args []string) {
 	}
 }
 
-func (cmd *CmdVersion) ValidateInput(args []string) []error {
+func (cmd *CmdVersion) ValidateInput(args []string) error {
 	var validationErrors []error
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
@@ -57,7 +59,7 @@ func (cmd *CmdVersion) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdVersion) InputToOptions() {

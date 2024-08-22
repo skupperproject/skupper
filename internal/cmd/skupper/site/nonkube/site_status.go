@@ -1,6 +1,7 @@
 package nonkube
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -33,7 +34,7 @@ func (cmd *CmdSiteStatus) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
 }
 
-func (cmd *CmdSiteStatus) ValidateInput(args []string) []error {
+func (cmd *CmdSiteStatus) ValidateInput(args []string) error {
 	var validationErrors []error
 	opts := fs.GetOptions{RuntimeFirst: true, LogWarning: false}
 	resourceStringValidator := validator.NewResourceStringValidator()
@@ -71,7 +72,7 @@ func (cmd *CmdSiteStatus) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdSiteStatus) Run() error {

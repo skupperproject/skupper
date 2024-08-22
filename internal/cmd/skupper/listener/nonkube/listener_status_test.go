@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
@@ -23,7 +23,7 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 		cobraGenericFlags map[string]string
 		k8sObjects        []runtime.Object
 		skupperObjects    []runtime.Object
-		expectedErrors    []string
+		expectedError     string
 	}
 
 	homeDir, err := os.UserHomeDir()
@@ -32,45 +32,45 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:           "listener is not shown because listener does not exist in the namespace",
-			args:           []string{"no-listener"},
-			flags:          &common.CommandListenerStatusFlags{},
-			expectedErrors: []string{"listener no-listener does not exist in namespace test"},
+			name:          "listener is not shown because listener does not exist in the namespace",
+			args:          []string{"no-listener"},
+			flags:         &common.CommandListenerStatusFlags{},
+			expectedError: "listener no-listener does not exist in namespace test",
 		},
 		{
-			name:           "listener name is nil",
-			args:           []string{""},
-			flags:          &common.CommandListenerStatusFlags{},
-			expectedErrors: []string{"listener name must not be empty"},
+			name:          "listener name is nil",
+			args:          []string{""},
+			flags:         &common.CommandListenerStatusFlags{},
+			expectedError: "listener name must not be empty",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "listener"},
-			flags:          &common.CommandListenerStatusFlags{},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "listener"},
+			flags:         &common.CommandListenerStatusFlags{},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:           "listener name is not valid.",
-			args:           []string{"my new listener"},
-			flags:          &common.CommandListenerStatusFlags{},
-			expectedErrors: []string{"listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "listener name is not valid.",
+			args:          []string{"my new listener"},
+			flags:         &common.CommandListenerStatusFlags{},
+			expectedError: "listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "no args",
-			flags:          &common.CommandListenerStatusFlags{},
-			expectedErrors: []string{},
+			name:          "no args",
+			flags:         &common.CommandListenerStatusFlags{},
+			expectedError: "",
 		},
 		{
-			name:           "bad output status",
-			args:           []string{"my-listener"},
-			flags:          &common.CommandListenerStatusFlags{Output: "not-supported"},
-			expectedErrors: []string{"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
+			name:          "bad output status",
+			args:          []string{"my-listener"},
+			flags:         &common.CommandListenerStatusFlags{Output: "not-supported"},
+			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
 		},
 		{
-			name:           "good output status",
-			args:           []string{"my-listener"},
-			flags:          &common.CommandListenerStatusFlags{Output: "json"},
-			expectedErrors: []string{},
+			name:          "good output status",
+			args:          []string{"my-listener"},
+			flags:         &common.CommandListenerStatusFlags{Output: "json"},
+			expectedError: "",
 		},
 	}
 
@@ -110,12 +110,7 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 				}
 			}
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

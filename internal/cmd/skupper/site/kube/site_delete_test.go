@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
@@ -21,7 +22,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 		args           []string
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		expectedErrors []string
+		expectedError  string
 		skupperError   string
 		flags          *common.CommandSiteDeleteFlags
 	}
@@ -32,7 +33,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			args:           []string{"my-site"},
 			k8sObjects:     nil,
 			skupperObjects: nil,
-			expectedErrors: []string{"there is no existing Skupper site resource to delete"},
+			expectedError:  "there is no existing Skupper site resource to delete",
 			skupperError:   "",
 		},
 		{
@@ -40,7 +41,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			args:           []string{"my-site"},
 			k8sObjects:     nil,
 			skupperObjects: nil,
-			expectedErrors: []string{"error getting the site"},
+			expectedError:  "error getting the site",
 			skupperError:   "error getting the site",
 		},
 		{
@@ -60,8 +61,8 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"only one argument is allowed for this command"},
-			skupperError:   "",
+			expectedError: "only one argument is allowed for this command",
+			skupperError:  "",
 		},
 		{
 			name:       "there are several skupper sites and no site name was specified",
@@ -91,8 +92,8 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"site name is required because there are several sites in this namespace"},
-			skupperError:   "",
+			expectedError: "site name is required because there are several sites in this namespace",
+			skupperError:  "",
 		},
 		{
 			name:       "there are several skupper sites but not the one specified by the user",
@@ -122,8 +123,8 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"site with name \"special-site\" is not available"},
-			skupperError:   "",
+			expectedError: "site with name \"special-site\" is not available",
+			skupperError:  "",
 		},
 		{
 			name:       "there are several skupper sites and the user specifies one of them",
@@ -153,8 +154,8 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{},
-			skupperError:   "",
+			expectedError: "",
+			skupperError:  "",
 		},
 		{
 			name:       "trying to delete a site that does not exist",
@@ -173,8 +174,8 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"site with name \"siteb\" is not available"},
-			skupperError:   "",
+			expectedError: "site with name \"siteb\" is not available",
+			skupperError:  "",
 		},
 		{
 			name:       "deleting the site successfully",
@@ -193,8 +194,8 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{},
-			skupperError:   "",
+			expectedError: "",
+			skupperError:  "",
 		},
 		{
 			name:       "timeout is not valid",
@@ -214,8 +215,8 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 0s"},
-			skupperError:   "",
+			expectedError: "timeout is not valid: duration must not be less than 10s; got 0s",
+			skupperError:  "",
 		},
 	}
 
@@ -235,12 +236,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 				command.Flags = test.flags
 			}
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }
