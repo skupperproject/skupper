@@ -180,8 +180,8 @@ func (cmd *CmdConnectorCreate) Run() error {
 			TlsCredentials:  cmd.Flags.TlsSecret,
 			Type:            cmd.Flags.ConnectorType,
 			IncludeNotReady: cmd.Flags.IncludeNotReady,
+			Selector:        cmd.Flags.Selector,
 			//Workload:       cmd.Flags.workload,
-			Selector: cmd.Flags.Selector,
 		},
 	}
 

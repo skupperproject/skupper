@@ -33,10 +33,11 @@ func CmdConnectorCreateFactory(configuredPlatform types.Platform) *cobra.Command
 	nonKubeCommand := non_kube.NewCmdConnectorCreate()
 
 	cmdConnectorCreateDesc := common.SkupperCmdDescription{
-		Use:     "create <name> <port>",
-		Short:   "create a connector",
-		Long:    "Clients at this site use the connector host and port to establish connections to the remote service.",
-		Example: "skupper connector create database 5432",
+		Use:   "create <name> <port>",
+		Short: "create a connector",
+		Long:  "Clients at this site use the connector host and port to establish connections to the remote service.",
+		Example: `skupper connector create database 5432
+			"skupper connector create backend 8080 --workload deployment/backend`,
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdConnectorCreateDesc, kubeCommand, nonKubeCommand)

@@ -50,7 +50,7 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagNameSelector        = "selector"
 	FlagDescSelector        = "A Kubernetes label selector for specifying target server pods."
 	FlagNameWorkload        = "workload"
-	FlagDescWorkload        = "A Kubernetes label selector for specifying target server pods."
+	FlagDescWorkload        = "A Kubernetes resource name that identifies a workload expressed like resource-type/resource-name. Expected resource types: services, daemonsets, deployments, and statefulsets."
 
 	FlagNameConnectorPort = "port"
 	FlagDescConnectorPort = "The port of the local connector"
