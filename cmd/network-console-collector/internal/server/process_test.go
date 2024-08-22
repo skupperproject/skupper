@@ -16,7 +16,7 @@ func TestProcesses(t *testing.T) {
 	tlog := slog.Default()
 	stor := store.NewSyncMapStore(store.SyncMapStoreConfig{Indexers: collector.RecordIndexers()})
 	graph := collector.NewGraph(stor)
-	srv, c := requireTestClient(t, New(tlog, stor, graph))
+	srv, c := requireTestClient(t, New(tlog, stor, nil, nil, graph))
 	defer srv.Close()
 
 	testcases := []struct {
