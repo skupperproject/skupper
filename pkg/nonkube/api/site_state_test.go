@@ -300,7 +300,7 @@ func TestSetNamespace(t *testing.T) {
 			description:   "empty-to-default",
 			curNamespace:  "",
 			newNamespace:  "default",
-			expectChanged: true,
+			expectChanged: false,
 		},
 		{
 			description:   "default-to-my-namespace",
@@ -313,6 +313,12 @@ func TestSetNamespace(t *testing.T) {
 			curNamespace:  "my-namespace",
 			newNamespace:  "other-namespace",
 			expectChanged: true,
+		},
+		{
+			description:   "other-namespace-to-other-namespace",
+			curNamespace:  "other-namespace",
+			newNamespace:  "other-namespace",
+			expectChanged: false,
 		},
 		{
 			description:   "other-namespace-to-default",
@@ -335,7 +341,7 @@ func TestSetNamespace(t *testing.T) {
 
 func assertNamespaceOnSiteState(t *testing.T, ss *SiteState, namespace string) {
 	t.Helper()
-	assert.Equal(t, ss.Site.GetNamespace(), namespace)
+	assert.Equal(t, ss.GetNamespace(), getDefaultNs(namespace))
 	assert.Assert(t, assertNamespaceOnMap(ss.Listeners, namespace))
 	assert.Assert(t, assertNamespaceOnMap(ss.Connectors, namespace))
 	assert.Assert(t, assertNamespaceOnMap(ss.RouterAccesses, namespace))
@@ -349,9 +355,16 @@ func assertNamespaceOnSiteState(t *testing.T, ss *SiteState, namespace string) {
 
 func assertNamespaceOnMap[T metav1.Object](objMap map[string]T, namespace string) bool {
 	for _, obj := range objMap {
-		if obj.GetNamespace() != namespace {
+		if getDefaultNs(obj.GetNamespace()) != getDefaultNs(namespace) {
 			return false
 		}
 	}
 	return true
+}
+
+func getDefaultNs(ns string) string {
+	if ns == "" {
+		return "default"
+	}
+	return ns
 }

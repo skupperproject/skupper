@@ -5,6 +5,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/assert"
@@ -31,7 +32,9 @@ func TestFileSystemConfigurationRenderer_Render(t *testing.T) {
 		assert.Assert(t, err)
 		assert.Assert(t, file.IsDir())
 	}
-
+	if envPlatform := os.Getenv(types.ENV_PLATFORM); envPlatform != "" {
+		t.Skipf("The %s environment variable is set to: %s", types.ENV_PLATFORM, envPlatform)
+	}
 	expectedFiles := []string{
 		"config/router/skrouterd.json",
 		"certificates/ca/skupper-site-ca/tls.crt",
