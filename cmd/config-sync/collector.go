@@ -15,6 +15,7 @@ import (
 	kubeflow "github.com/skupperproject/skupper/pkg/kube/flow"
 	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/session"
+	"github.com/skupperproject/skupper/pkg/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1informer "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -85,6 +86,7 @@ func startFlowController(ctx context.Context, cli *internalclient.KubeClient) er
 			Name:       &siteName,
 			Namespace:  &cli.Namespace,
 			Platform:   &platform,
+			Version:    &version.Version,
 		},
 	})
 	go informer.Run(ctx.Done())
