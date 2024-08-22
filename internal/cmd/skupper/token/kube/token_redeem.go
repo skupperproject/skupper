@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -46,7 +47,7 @@ func NewCmdTokenRedeem() *CmdTokenRedeem {
 		Example: tokenRedeemExample,
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.ValidateInput(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
@@ -72,7 +73,7 @@ func (cmd *CmdTokenRedeem) AddFlags() {
 	cmd.CobraCmd.Flags().DurationVarP(&cmd.flags.timeout, "timeout", "t", 60*time.Second, "Raise an error if the operation does not complete in the given period of time.")
 }
 
-func (cmd *CmdTokenRedeem) ValidateInput(args []string) []error {
+func (cmd *CmdTokenRedeem) ValidateInput(args []string) error {
 	var validationErrors []error
 	tokenStringValidator := validator.NewFilePathStringValidator()
 
@@ -115,7 +116,7 @@ func (cmd *CmdTokenRedeem) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdTokenRedeem) Run() error {

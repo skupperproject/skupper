@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -34,7 +35,7 @@ func NewCmdSiteStatus() *CmdSiteStatus {
 		Example: "skupper site status",
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.ValidateInput(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -52,14 +53,14 @@ func (cmd *CmdSiteStatus) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.Namespace = cli.Namespace
 }
 func (cmd *CmdSiteStatus) AddFlags() {}
-func (cmd *CmdSiteStatus) ValidateInput(args []string) []error {
+func (cmd *CmdSiteStatus) ValidateInput(args []string) error {
 	var validationErrors []error
 
 	if len(args) > 0 {
-		validationErrors = append(validationErrors, fmt.Errorf("this command does not need any arguments"))
+		validationErrors = append(validationErrors, errors.New("this command does not need any arguments"))
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdSiteStatus) InputToOptions() {}

@@ -2,14 +2,16 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strconv"
 )
 
 var (
@@ -40,7 +42,7 @@ func NewCmdLinkDelete() *CmdLinkDelete {
 		Example: "skupper site delete my-link",
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.ValidateInput(args))
 			skupperCmd.InputToOptions()
 			utils.HandleError(skupperCmd.Run())
 		},
@@ -67,7 +69,7 @@ func (cmd *CmdLinkDelete) AddFlags() {
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.timeout, "timeout", "60", "raise an error if the operation does not complete in the given period of time (expressed in seconds).")
 }
 
-func (cmd *CmdLinkDelete) ValidateInput(args []string) []error {
+func (cmd *CmdLinkDelete) ValidateInput(args []string) error {
 	var validationErrors []error
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 
@@ -99,7 +101,7 @@ func (cmd *CmdLinkDelete) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 func (cmd *CmdLinkDelete) InputToOptions() {
 	cmd.timeout, _ = strconv.Atoi(cmd.flags.timeout)

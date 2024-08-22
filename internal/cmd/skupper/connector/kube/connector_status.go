@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -11,7 +12,7 @@ import (
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -44,7 +45,7 @@ func NewCmdConnectorStatus() *CmdConnectorStatus {
 		Example: connectorStatusExample,
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.ValidateInput(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -67,7 +68,7 @@ func (cmd *CmdConnectorStatus) AddFlags() {
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print status of connectors Choices: json, yaml")
 }
 
-func (cmd *CmdConnectorStatus) ValidateInput(args []string) []error {
+func (cmd *CmdConnectorStatus) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
@@ -91,7 +92,7 @@ func (cmd *CmdConnectorStatus) ValidateInput(args []string) []error {
 	// Validate that there is a connector with this name in the namespace
 	if cmd.name != "" {
 		connector, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if connector == nil || errors.IsNotFound(err) {
+		if connector == nil || k8serrs.IsNotFound(err) {
 			validationErrors = append(validationErrors, fmt.Errorf("connector %s does not exist in namespace %s", cmd.name, cmd.namespace))
 		}
 	}
@@ -105,7 +106,7 @@ func (cmd *CmdConnectorStatus) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 func (cmd *CmdConnectorStatus) Run() error {
 	if cmd.name == "" {

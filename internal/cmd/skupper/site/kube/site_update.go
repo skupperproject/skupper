@@ -2,7 +2,9 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
+
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
@@ -50,7 +52,7 @@ func NewCmdSiteUpdate() *CmdSiteUpdate {
 		Example: "skupper site update my-site --enable-link-access",
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.ValidateInput(args))
 			skupperCmd.InputToOptions()
 			utils.HandleError(skupperCmd.Run())
 		},
@@ -83,7 +85,7 @@ for other Kubernetes flavors, loadbalancer is the default.`)
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
 }
 
-func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
+func (cmd *CmdSiteUpdate) ValidateInput(args []string) error {
 
 	var validationErrors []error
 	linkAccessTypeValidator := validator.NewOptionValidator(utils.LinkAccessTypes)
@@ -143,7 +145,7 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 func (cmd *CmdSiteUpdate) InputToOptions() {
 	cmd.serviceAccountName = cmd.flags.serviceAccount

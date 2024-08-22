@@ -1,13 +1,14 @@
 package kube
 
 import (
+	"testing"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"testing"
 )
 
 func TestCmdLinkStatus_NewCmdLinkStatus(t *testing.T) {
@@ -99,10 +100,7 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 
 			actualErrors := command.ValidateInput(test.args)
 
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			utils.AssertErrorMessagesMatch(t, test.expectedErrors, actualErrors)
 		})
 	}
 }

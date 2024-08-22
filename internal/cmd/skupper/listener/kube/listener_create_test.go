@@ -636,10 +636,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 
 			actualErrors := command.ValidateInput(test.args)
 
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			utils.AssertErrorMessagesMatch(t, test.expectedErrors, actualErrors)
 		})
 	}
 }

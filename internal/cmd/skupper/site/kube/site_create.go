@@ -5,6 +5,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
@@ -51,7 +52,7 @@ func NewCmdSiteCreate() *CmdSiteCreate {
 		Long:   siteCreateLong,
 		PreRun: skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.ValidateInput(args))
 			skupperCmd.InputToOptions()
 			utils.HandleError(skupperCmd.Run())
 		},
@@ -84,7 +85,7 @@ for other Kubernetes flavors, loadbalancer is the default.`)
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
 }
 
-func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
+func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
@@ -135,7 +136,7 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdSiteCreate) InputToOptions() {
