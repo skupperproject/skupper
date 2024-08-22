@@ -37,4 +37,68 @@ update the types_gen.go and extras_gen.go files in the internal/api package.
 
 ## Metrics
 
-TBD
+The network console collector exposes a set of prometheus metrics alongside the
+API at `/metrics`.
+
+### Application Network Traffic
+
+This set of metrics exposes details about service traffic though the skupper
+network. These metrics have a shared set of labels that allow us to expose
+traffic patterns on a per client/service basis.
+
+
+Signals:
+
+All metric names are prefixed with the `skupper` namespace.
+
+| metric name | description |
+| ------------------------ | ------------------------  |
+| connections_opened_total | Number of connections opened through the application network |
+| connections_closed_total | Number of connections opened through the application network that have been closed |
+| sent_bytes_total         | Bytes sent through the application network from client to service |
+| received_bytes_total     | Bytes sent through the application network back from service to client |
+
+Dimensions:
+
+| label name | description |
+| -------------- | ------------------------  |
+| source_site_id | ID of the site where the connection was established |
+| source_site_name | Name of the source site |
+| dest_site_id | ID of the site where the connection exited the skupper network through a connector |
+| dest_site_name | Name of the distination site |
+| routing_key | The routing key of the service |
+| protocol | The protocol used in the exchange (TCP) |
+| source_process | The name of the client process as reflected in the collector API |
+| dest_process | The name of the server process as reflected in the collector API |
+
+### Application Network Request Traffic (Application Layer)
+
+A proposed (unimplemented) set of metrics that expose details about HTTP and
+HTTP/2 exchanges when enabled in the router.
+
+Signals:
+
+Like application traffic metrics, these are prefixed with `skupper`.
+
+| metric name | description |
+| ------------------------ | ------------------------  |
+| requests_total | Counter incremented for each request handled through the skupper network |
+
+Dimensions:
+
+Request metrics share the same set of dimensions as the network traffic metrics
+above, but includes several additional labels.
+
+| label name | description |
+| -------------- | ------------------------  |
+| method | HTTP request method |
+| code | HTTP response code class (for example, a response code 201 would be counted towards code='2xx') |
+
+### Internal Metrics
+
+TBD.
+
+We expose a set of metrics prefixed `skupper_internal` to help us observe the
+collector itself. Moving forward we may end up recommending anyone scraping
+skupper metrics from the collector exclude these when storage space is a
+concern.
