@@ -358,7 +358,8 @@ func (c *FileSystemConfigurationRenderer) loadCertAsSecret(siteState *api.SiteSt
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:      name,
+			Namespace: siteState.GetNamespace(),
 		},
 		Data: map[string][]byte{},
 	}

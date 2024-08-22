@@ -91,7 +91,8 @@ func (s *SiteState) CreateRouterAccess(name string, port int) {
 			Kind:       "RouterAccess",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:      name,
+			Namespace: s.GetNamespace(),
 		},
 		Spec: v1alpha1.RouterAccessSpec{
 			Roles: []v1alpha1.RouterAccessRole{
@@ -207,7 +208,8 @@ func (s *SiteState) newCertificate(name string, spec *v1alpha1.CertificateSpec) 
 			Kind:       "Certificate",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:      name,
+			Namespace: s.GetNamespace(),
 		},
 		Spec: *spec,
 	}

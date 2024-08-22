@@ -5,6 +5,9 @@ can be bootstrapped using a locally built binary, that can be produced by runnin
 `make build-bootstrap`, or using the (eventually outdated) quay.io/skupper/bootstrap
 container image by calling `./cmd/bootstrap/bootstrap.sh`.
 
+It is important to mention that bootstrap procedure executed by the provided binary
+will be incorporated into the Skupper CLI in the short term.
+
 Non-kubernetes sites can be created using the standard V2 site declaration
 approach, which is based on the new set of Custom Resource Definitions (CRDs).
 
@@ -59,6 +62,7 @@ Both scripts accept flags:
 ```
 -h               help
 -p <platform>    podman, docker, systemd
+-n <namespace>   if not provided, the namespace defined in the bundle is used
 -x               remove
 -d <directory>   dump static tokens
 ```
@@ -77,7 +81,10 @@ at present, you have to explicitly provide a `RouterAccess` (CR).
 If you want your non-kubernetes site to establish links to other sites, make
 sure you also provide `AccessToken` or `Link` (CRs).
 
-***NOTE:** A V2 representation of the **"Hello world example"** is available below
+If the CRs have no namespace set, Skupper assumes "default" as the namespace
+to be used, otherwise it will use the namespace defined in the CRs.
+
+***NOTES:** A V2 representation of the **"Hello world example"** is available below
 to provide initial guidance.*
 
 Now that you have all your CRs placed on a local directory, just run:
@@ -87,16 +94,21 @@ Now that you have all your CRs placed on a local directory, just run:
 ```shell
 # To bootstrap your site using the binary
 export SKUPPER_PLATFORM=podman
-./bootstrap ./
+./bootstrap --path ./
 ```
+
+You can also use `--namespace=<name>` to override the namespace specified in the CRs.
 
 Alternatively you can also run the `bootstrap.sh` script:
 
 ```shell
 # To bootstrap your site using the shell script
 export SKUPPER_PLATFORM=podman
-./cmd/bootstrap/bootstrap.sh ./
+./cmd/bootstrap/bootstrap.sh -p ./
 ```
+
+Similarly to the binary, you can also use `-n <namespace>` to override the namespace
+defined in the source CRs.
 
 Remember that you can set the `SKUPPER_PLATFORM` environment variable to
 any of the platforms mentioned earlier.
@@ -114,12 +126,14 @@ to the location where it has been saved.
 
 #### Removing
 
-To remove your site, you can run a local script, that takes the site name
+To remove your site, you can run a local script, that takes the namespace
 as an argument. The platform is identified by the script so you don't need
 to export it.
 
+If the namespace is omitted, the "default" namespace is used. 
+
 ```shell
-./cmd/bootstrap/remove.sh <site-name>
+./cmd/bootstrap/remove.sh [namespace]
 ```
 
 ## Example
@@ -137,13 +151,13 @@ This example basically runs a **frontend** application on the `west` site,
 which depends on a **backend** that is meant to run on the `east` site.
 
 To simulate it, the frontend application will be executed using podman,
-it will be exporting port 7070 in the loopback interface of the host machine,
+it exposes port 7070 in the loopback interface of the host machine,
 and we will tell it to expect that the backend service will be available
 at `http://host.containers.internal:8080`, which from inside the container,
 means the host machine at port 8080.
 
-The backend will also run on the host machine with podman, and it will be
-exporting port 9090 to the loopback interface of the host machine. So after
+The backend will also run on the host machine with podman, and it
+exposes port 9090 to the loopback interface of the host machine. So after
 both `frontend` and `backend` containers are running, they won't be able
 to communicate.
 
@@ -155,7 +169,7 @@ at port 9090, in the host machine.
 
 The ideal scenario would be to run each component on different machines,
 where Skupper could add real value, but just for the purpose of making it
-simple to run, the example is defined to work at a single machine.
+simple to run locally, the example has been defined to run on a single machine.
 
 #### Workloads
 
@@ -173,6 +187,8 @@ podman run --name backend -d --rm -p 127.0.0.1:9090:8080 quay.io/skupper/hello-w
 
 #### West
 
+##### Preparing the CRs
+
 The `west` site will be defined using the following CRs:
 
 ##### Site
@@ -181,6 +197,7 @@ apiVersion: skupper.io/v1alpha1
 kind: Site
 metadata:
   name: west
+  namespace: west
 ```
 
 ##### Listener
@@ -190,6 +207,7 @@ apiVersion: skupper.io/v1alpha1
 kind: Listener
 metadata:
   name: backend
+  namespace: west
 spec:
   host: 0.0.0.0
   port: 8080
@@ -203,6 +221,7 @@ apiVersion: skupper.io/v1alpha1
 kind: RouterAccess
 metadata:
   name: go-west
+  namespace: west
 spec:
   roles:
     - port: 55671
@@ -212,11 +231,29 @@ spec:
   bindHost: 127.0.0.1
 ```
 
+##### Bootstrap the west site
+
+Considering all your CRs have been saved to a directory named `west`, use:
+
+```shell
+./bootstrap --path ./west
+```
+
+The CRs are defined using the `west` namespace, so it will be used by default.
+If the namespace was empty, skupper would try to set it to `default`.
+
 Now that the `west` site has been created, copy the generated token into
 the `east` site local directory. Example:
 
 ```shell
-cp ${HOME}/.local/share/skupper/namespaces/default/runtime/token/link-go-west.yaml ./east/links/link-go-west.yaml
+cp ${HOME}/.local/share/skupper/namespaces/west/runtime/token/link-go-west.yaml ./east/link-go-west.yaml
+```
+
+Make sure to update the namespace on the generated `link` that will be used
+in the `east` site. To do that, run:
+
+```shell
+sed -i 's/namespace: west/namespace: east/g' ./east/link-go-west.yaml
 ```
 
 #### East
@@ -229,6 +266,7 @@ apiVersion: skupper.io/v1alpha1
 kind: Site
 metadata:
   name: east
+  namespace: east
 ```
 
 **Connector**
@@ -238,6 +276,7 @@ apiVersion: skupper.io/v1alpha1
 kind: Connector
 metadata:
   name: backend
+  namespace: east
 spec:
   host: 127.0.0.1
   port: 9090
@@ -256,11 +295,13 @@ data:
 kind: Secret
 metadata:
   name: link-go-west
+  namespace: east
 ---
 apiVersion: skupper.io/v1alpha1
 kind: Link
 metadata:
   name: link-go-west
+  namespace: east
 spec:
   cost: 1
   endpoints:
@@ -273,7 +314,81 @@ spec:
   tlsCredentials: link-go-west
 ```
 
+##### Bootstrap the east site
+
+Considering all your CRs have been saved to a directory named `east`, use:
+
+```shell
+./bootstrap --path ./east
+```
+
+Now that the `west` site has been created, copy the generated token into
+the `east` site local directory. Example:
+
 ### Testing the scenario
 
 Once both sites have been initialized, open **http://127.0.0.1:7070**
 in your browser and it should work.
+
+### Cleanup
+
+To remove both namespaces, run:
+
+```shell
+./cmd/bootstrap/remove.sh west
+./cmd/bootstrap/remove.sh east
+```
+
+### Producing site bundles
+
+As an alternative, you can also produce site bundles to try this example.
+
+#### Creating the west bundle
+
+```shell
+$ export SKUPPER_PLATFORM=bundle
+$ bootstrap --path ./west/
+Skupper nonkube bootstrap (version: main-release-153-gc1ed3730-modified)
+Site "west" has been created (as a distributable bundle)
+Installation bundle available at: /home/user/.local/share/skupper/namespaces/skupper-install-west.sh
+```
+
+#### Extracting the token
+
+To extract the token, run:
+
+```shell
+/home/user/.local/share/skupper/namespaces/skupper-install-west.sh -d /tmp
+Tokens for site "west" have been saved into /tmp/west
+```
+
+Copy the token to the `east` site definition and update the namespace.
+
+```shell
+cp /tmp/west/link-go-west.yaml ./east/link-go-west.yaml
+sed -i 's/namespace: west/namespace: east/g' ./east/link-go-west.yaml
+```
+
+#### Creating the east bundle
+
+```shell
+$ export SKUPPER_PLATFORM=bundle
+$ bootstrap --path ./east
+Skupper nonkube bootstrap (version: main-release-153-gc1ed3730-modified)
+Site "east" has been created (as a distributable bundle)
+Installation bundle available at: /home/user/.local/share/skupper/namespaces/skupper-install-east.sh
+```
+
+#### Installing both bundles
+
+```shell
+/home/user/.local/share/skupper/namespaces/skupper-install-west.sh
+/home/user/.local/share/skupper/namespaces/skupper-install-east.sh
+```
+
+#### Cleanup bundle installation
+
+```shell
+/home/user/.local/share/skupper/namespaces/skupper-install-west.sh -x
+/home/user/.local/share/skupper/namespaces/skupper-install-east.sh -x
+```

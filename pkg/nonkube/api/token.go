@@ -67,7 +67,8 @@ func CreateToken(routerAccess *v1alpha1.RouterAccess, secret *v1.Secret) *Token 
 					Kind:       "Link",
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name: linkName,
+					Name:      linkName,
+					Namespace: routerAccess.Namespace,
 				},
 				Spec: v1alpha1.LinkSpec{
 					TlsCredentials: secret.Name,
