@@ -295,6 +295,13 @@ paths:
           $ref: '#/components/responses/notSupported'
         '404':
           $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/connections/:
+    get:
+      tags: [flows]
+      operationId: connections
+      responses:
+        '200':
+          $ref: '#/components/responses/getConnections'
 
   /api/v1alpha1/sites/{id}/processes/:
     get:
@@ -581,6 +588,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/RouterAccessListResponse'
+    getConnections:
+      description: response with a list of connections
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ConnectionListResponse'
     getSiteByID:
       description: response with a single site
       content:
@@ -854,6 +867,22 @@ components:
         properties:
           results:
             $ref: '#/components/schemas/RouterAccessRecord'
+    ConnectionListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/ConnectionRecord'
+    ConnectionResponse:
+        type: object
+        required: [results]
+        properties:
+          results:
+            $ref: '#/components/schemas/ConnectionRecord'
     baseRecord:
       type: object
       required:
@@ -1233,6 +1262,110 @@ components:
               format: uint64
             role:
               type: string
+    ConnectionRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          required:
+            - active
+            - sourceSiteId
+            - sourceSiteName
+            - destSiteId
+            - destSiteName
+            - sourceProcessId
+            - sourceProcessName
+            - destProcessId
+            - destProcessName
+            - duration
+            - processPairId
+            - processGroupPairId
+            - sitePairId
+            - protocol
+            - address
+            - trace
+            - listenerId
+            - connectorId
+            - sourceHost
+            - sourcePort
+            - proxyHost
+            - proxyPort
+            - octets
+            - octetsReverse
+            - latency
+            - latencyReverse
+            - listenerError
+            - connectorError
+          properties:
+            active:
+              type: boolean
+              description: connection state
+            duration:
+              type: integer
+              format: uint64
+              nullable: true
+            processPairId:
+              type: string
+              nullable: true
+            processGroupPairId:
+              type: string
+              nullable: true
+            sitePairId:
+              type: string
+              nullable: true
+            sourceSiteId:
+              type: string
+            sourceSiteName:
+              type: string
+            destSiteId:
+              type: string
+            destSiteName:
+              type: string
+            sourceProcessId:
+              type: string
+            sourceProcessName:
+              type: string
+            destProcessId:
+              type: string
+            destProcessName:
+              type: string
+            address:
+              type: string
+            protocol:
+              type: string
+              example: tcp
+            trace:
+              type: string
+            listenerId:
+              type: string
+            connectorId:
+              type: string
+            sourceHost:
+              type: string
+            sourcePort:
+              type: string
+            proxyHost:
+              type: string
+            proxyPort:
+              type: string
+            octets:
+              type: integer
+              format: uint64
+            octetsReverse:
+              type: integer
+              format: uint64
+            latency:
+              type: integer
+              format: uint64
+            latencyReverse:
+              type: integer
+              format: uint64
+            listenerError:
+              type: string
+              nullable: true
+            connectorError:
+              type: string
+              nullable: true
+
 tags:
   - name: site
     description: requests involving Site records
@@ -1252,3 +1385,4 @@ tags:
     description: >
       requests involving flow aggregates:
       pairs of peers communicating through the skupper network
+

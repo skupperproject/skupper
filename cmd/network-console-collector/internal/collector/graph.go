@@ -332,6 +332,10 @@ type Listener struct {
 	baseNode
 }
 
+func (n Listener) GetRecord() (record vanflow.ListenerRecord, found bool) {
+	return getrecord[vanflow.ListenerRecord](n)
+}
+
 func (n Listener) Parent() Router { return parentOfType[Router](n.dag, n.identity) }
 func (n Listener) Address() Node  { return parentOfType[RoutingKey](n.dag, n.identity).Parent() }
 

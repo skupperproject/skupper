@@ -12,6 +12,14 @@ import (
 
 var _ api.ServerInterface = (*server)(nil)
 
+// (GET /api/v1alpha1/connections/)
+func (s *server) Connections(w http.ResponseWriter, r *http.Request) {
+	results := views.NewConnectionsSliceProvider(s.flowState)(listByType[vanflow.TransportBiflowRecord](s.flows))
+	if err := handleCollection(w, r, &api.ConnectionListResponse{}, results); err != nil {
+		s.logWriteError(r, err)
+	}
+}
+
 // (GET /api/v1alpha1/addresses/)
 func (s *server) Addresses(w http.ResponseWriter, r *http.Request) {
 	results := views.NewAddressSliceProvider(s.graph)(listByType[collector.AddressRecord](s.records))
@@ -152,14 +160,18 @@ func (s *server) ConnectorByProcess(w http.ResponseWriter, r *http.Request, id s
 
 // (GET /api/v1alpha1/processgrouppairs/)
 func (s *server) Processgrouppairs(w http.ResponseWriter, r *http.Request) {
-	//TODO(ck) implement
-	if err := handleCollection(w, r, &api.FlowAggregateListResponse{}, []api.FlowAggregateRecord{}); err != nil {
+	results := views.NewProcessGroupPairSliceProvider()(listByType[collector.ProcGroupPairRecord](s.records))
+	if err := handleCollection(w, r, &api.FlowAggregateListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
 }
 
 // (GET /api/v1alpha1/processgrouppairs/{id}/)
 func (s *server) ProcessgrouppairByID(w http.ResponseWriter, r *http.Request, id string) {
+	getRecord := fetchAndMap(s.records, views.NewProcessGroupPairProvider(), id)
+	if err := handleSingle(w, r, &api.FlowAggregateResponse{}, getRecord); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/processgroups/)
@@ -184,14 +196,18 @@ func (s *server) ProcessesByProcessGroup(w http.ResponseWriter, r *http.Request,
 
 // (GET /api/v1alpha1/processpairs/)
 func (s *server) Processpairs(w http.ResponseWriter, r *http.Request) {
-	//TODO(ck) implement
-	if err := handleCollection(w, r, &api.FlowAggregateListResponse{}, []api.FlowAggregateRecord{}); err != nil {
+	results := views.NewProcessPairSliceProvider(s.graph)(listByType[collector.ProcPairRecord](s.records))
+	if err := handleCollection(w, r, &api.FlowAggregateListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
 }
 
 // (GET /api/v1alpha1/processpairs/{id}/)
 func (s *server) ProcesspairByID(w http.ResponseWriter, r *http.Request, id string) {
+	getRecord := fetchAndMap(s.records, views.NewProcessPairProvider(s.graph), id)
+	if err := handleSingle(w, r, &api.FlowAggregateResponse{}, getRecord); err != nil {
+		s.logWriteError(r, err)
+	}
 }
 
 // (GET /api/v1alpha1/routeraccess/)

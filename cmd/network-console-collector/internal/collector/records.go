@@ -49,7 +49,6 @@ type SitePairRecord struct {
 	Source   string
 	Dest     string
 	Start    time.Time
-	Count    uint64
 }
 
 func (r SitePairRecord) Identity() string {
@@ -62,13 +61,33 @@ func (r SitePairRecord) GetTypeMeta() vanflow.TypeMeta {
 	}
 }
 
+type ProcGroupPairRecord struct {
+	ID       string
+	Protocol string
+	Source   string
+	Dest     string
+	Start    time.Time
+}
+
+func (r ProcGroupPairRecord) Identity() string {
+	return r.ID
+}
+
+func (r ProcGroupPairRecord) GetTypeMeta() vanflow.TypeMeta {
+	return vanflow.TypeMeta{
+		Type:       "ProcGroupPairRecord",
+		APIVersion: "v1alpha1",
+	}
+}
+
+var _ vanflow.Record = (*ProcGroupPairRecord)(nil)
+
 type ProcPairRecord struct {
 	ID       string
 	Start    time.Time
 	Source   string
 	Dest     string
 	Protocol string
-	Count    uint64
 }
 
 func (r ProcPairRecord) Identity() string {
@@ -82,3 +101,21 @@ func (r ProcPairRecord) GetTypeMeta() vanflow.TypeMeta {
 }
 
 var _ vanflow.Record = (*ProcPairRecord)(nil)
+
+type FlowSourceRecord struct {
+	ID    string
+	Site  string
+	Host  string
+	Start time.Time
+}
+
+func (r FlowSourceRecord) Identity() string {
+	return r.ID
+}
+
+func (r FlowSourceRecord) GetTypeMeta() vanflow.TypeMeta {
+	return vanflow.TypeMeta{
+		Type:       "FlowSourceRecord",
+		APIVersion: "v1alpha1",
+	}
+}

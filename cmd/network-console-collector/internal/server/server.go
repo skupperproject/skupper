@@ -11,18 +11,22 @@ import (
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
 )
 
-func New(logger *slog.Logger, records store.Interface, graph collector.Graph) api.ServerInterface {
+func New(logger *slog.Logger, records store.Interface, flows store.Interface, flowState collector.FlowStateAccess, graph collector.Graph) api.ServerInterface {
 	return &server{
-		logger:  logger,
-		records: records,
-		graph:   graph,
+		logger:    logger,
+		records:   records,
+		flows:     flows,
+		flowState: flowState,
+		graph:     graph,
 	}
 }
 
 type server struct {
-	logger  *slog.Logger
-	records store.Interface
-	graph   collector.Graph
+	logger    *slog.Logger
+	records   store.Interface
+	flows     store.Interface
+	flowState collector.FlowStateAccess
+	graph     collector.Graph
 }
 
 func (c *server) logWriteError(r *http.Request, err error) {

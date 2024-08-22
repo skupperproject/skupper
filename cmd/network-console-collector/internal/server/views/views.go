@@ -12,6 +12,78 @@ import (
 
 const unknownStr = "unknown"
 
+func NewProcessPairSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.FlowAggregateRecord {
+	provider := NewProcessPairProvider(graph)
+	return func(entries []store.Entry) []api.FlowAggregateRecord {
+		results := make([]api.FlowAggregateRecord, 0, len(entries))
+		for _, e := range entries {
+			record, ok := e.Record.(collector.ProcPairRecord)
+			if !ok {
+				continue
+			}
+			results = append(results, provider(record))
+		}
+		return results
+	}
+}
+func NewProcessPairProvider(graph collector.Graph) func(collector.ProcPairRecord) api.FlowAggregateRecord {
+	return func(record collector.ProcPairRecord) api.FlowAggregateRecord {
+		out := defaultFlowAggregate(record.ID)
+		out.StartTime = uint64(record.Start.UnixMicro())
+		out.PairType = api.PROCESS
+		out.SourceId = record.Source
+		out.DestinationId = record.Dest
+		out.Protocol = record.Protocol
+
+		if proc, ok := graph.Process(record.Source).GetRecord(); ok {
+			setOpt(&out.SourceName, proc.Name)
+		}
+		if proc, ok := graph.Process(record.Dest).GetRecord(); ok {
+			setOpt(&out.DestinationName, proc.Name)
+		}
+		if site, ok := graph.Process(record.Source).Parent().GetRecord(); ok {
+			out.SourceSiteId = &site.ID
+			out.SourceSiteName = site.Name
+		}
+		if site, ok := graph.Process(record.Dest).Parent().GetRecord(); ok {
+			out.DestinationSiteId = &site.ID
+			out.DestinationSiteName = site.Name
+		}
+		return out
+	}
+}
+func NewProcessGroupPairSliceProvider() func(entries []store.Entry) []api.FlowAggregateRecord {
+	provider := NewProcessGroupPairProvider()
+	return func(entries []store.Entry) []api.FlowAggregateRecord {
+		results := make([]api.FlowAggregateRecord, 0, len(entries))
+		for _, e := range entries {
+			record, ok := e.Record.(collector.ProcGroupPairRecord)
+			if !ok {
+				continue
+			}
+			results = append(results, provider(record))
+		}
+		return results
+	}
+}
+func NewProcessGroupPairProvider() func(collector.ProcGroupPairRecord) api.FlowAggregateRecord {
+	return func(record collector.ProcGroupPairRecord) api.FlowAggregateRecord {
+		out := defaultFlowAggregate(record.ID)
+		out.StartTime = uint64(record.Start.UnixMicro())
+		out.PairType = api.PROCESSGROUP
+		out.SourceId = record.Source
+		out.DestinationId = record.Dest
+		out.Protocol = record.Protocol
+		return out
+	}
+}
+
+func defaultFlowAggregate(id string) api.FlowAggregateRecord {
+	return api.FlowAggregateRecord{
+		Identity: id,
+		Protocol: unknownStr,
+	}
+}
 func NewListenerSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.ListenerRecord {
 	provider := NewListenerProvider(graph)
 	return func(entries []store.Entry) []api.ListenerRecord {

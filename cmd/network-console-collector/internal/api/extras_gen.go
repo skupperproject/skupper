@@ -25,6 +25,21 @@ func (r *AddressResponse) SetResults(v AddressRecord) {
 }
 
 // SetCount
+func (r *ConnectionListResponse) SetCount(v int64) {
+	r.Count = v
+}
+
+// SetResults
+func (r *ConnectionListResponse) SetResults(v []ConnectionRecord) {
+	r.Results = v
+}
+
+// SetTimeRangeCount
+func (r *ConnectionListResponse) SetTimeRangeCount(v int64) {
+	r.TimeRangeCount = v
+}
+
+// SetCount
 func (r *ConnectorListResponse) SetCount(v int64) {
 	r.Count = v
 }
@@ -243,6 +258,16 @@ func (r AddressRecord) GetEndTime() uint64 {
 
 // GetStartTime
 func (r AddressRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
+func (r ConnectionRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r ConnectionRecord) GetStartTime() uint64 {
 	return r.StartTime
 }
 

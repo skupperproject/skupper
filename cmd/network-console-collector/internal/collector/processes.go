@@ -12,6 +12,10 @@ import (
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
 )
 
+type hostInfo struct {
+	ID     string
+	Server bool
+}
 type processManager struct {
 	logger *slog.Logger
 	stor   store.Interface
@@ -26,8 +30,10 @@ type processManager struct {
 
 	// connectors: connectorID -> host
 	connectors map[string]string
+	// flowSources: id -> host
+	flowSources map[string]string
 	// siteID -> host -> connectorID
-	expectedSiteHosts map[string]map[string]string
+	expectedSiteHosts map[string]map[string]hostInfo
 	// processID -> host
 	processHosts map[string]string
 
@@ -50,8 +56,9 @@ func newProcessManager(logger *slog.Logger, stor store.Interface, graph *graph, 
 		siteHosts: make(map[string]map[string]bool),
 
 		connectors:        make(map[string]string),
+		flowSources:       make(map[string]string),
 		processHosts:      make(map[string]string),
-		expectedSiteHosts: make(map[string]map[string]string),
+		expectedSiteHosts: make(map[string]map[string]hostInfo),
 
 		checkGroup:        make(chan string, 32),
 		rebuildConnectors: make(chan struct{}, 1),
@@ -91,20 +98,25 @@ func (m *processManager) run(ctx context.Context) func() error {
 								phosts[sourceHost] = append(phosts[sourceHost], pr.ID)
 							}
 						}
-						expected := make(map[string]string, len(hosts))
-						for host, cnctrID := range hosts {
-							expected[host] = cnctrID
+						expected := make(map[string]hostInfo, len(hosts))
+						for host, info := range hosts {
+							expected[host] = info
 						}
 						for h, cid := range expected {
-							host, cnctrID := h, cid
+							host, hostInfo := h, cid
 							procIDs := phosts[host]
 							switch len(procIDs) {
 							case 1: // this is excellent. carry on.
 								actualProcessHosts[procIDs[0]] = host
 							case 0: // may need a site-process
 								procID := m.idp.ID("siteproc", host, siteID)
-								name := fmt.Sprintf("site-server-%s-%s", host, shortSite(siteID))
-								groupName := fmt.Sprintf("site-servers-%s", shortSite(siteID))
+								processClass := "site-server"
+								if !cid.Server {
+									processClass = "site-client"
+								}
+								siteID := siteID
+								name := fmt.Sprintf("%s-%s-%s", processClass, host, shortSite(siteID))
+								groupName := fmt.Sprintf("%ss-%s", processClass, shortSite(siteID))
 								role := "external"
 								m.stor.Add(vanflow.ProcessRecord{
 									BaseRecord: vanflow.NewBase(procID, time.Now()),
@@ -114,12 +126,12 @@ func (m *processManager) run(ctx context.Context) func() error {
 									SourceHost: &host,
 									Mode:       &role,
 								}, m.source)
-								m.logger.Info("Adding site server process for connector without suitable target",
+								m.logger.Info("Adding site process for connector without suitable target",
 									slog.String("id", procID),
 									slog.String("name", name),
 									slog.String("site_id", siteID),
 									slog.String("host", host),
-									slog.String("connector_id", cnctrID),
+									slog.String("reason", hostInfo.ID),
 								)
 								actualProcessHosts[procID] = host
 							default: // more than one process. see about purging site processes
@@ -171,8 +183,10 @@ func (m *processManager) run(ctx context.Context) func() error {
 					m.mu.Lock()
 					defer m.mu.Unlock()
 					next := make(map[string]string, len(m.connectors))
-					nextSiteHosts := make(map[string]map[string]string, len(m.expectedSiteHosts))
+					nextSources := make(map[string]string, len(m.flowSources))
+					nextSiteHosts := make(map[string]map[string]hostInfo, len(m.expectedSiteHosts))
 					current := m.connectors
+					currentSources := m.flowSources
 					connectors := m.stor.Index(store.TypeIndex, store.Entry{Record: vanflow.ConnectorRecord{}})
 					var hasChange bool
 					for _, c := range connectors {
@@ -185,10 +199,10 @@ func (m *processManager) run(ctx context.Context) func() error {
 							next[cr.ID] = destHost
 							hosts, ok := nextSiteHosts[siteID]
 							if !ok {
-								hosts = make(map[string]string)
+								hosts = make(map[string]hostInfo)
 								nextSiteHosts[siteID] = hosts
 							}
-							hosts[destHost] = cr.ID
+							hosts[destHost] = hostInfo{ID: cr.ID, Server: true}
 							if prev, ok := current[cr.ID]; ok {
 								delete(current, cr.ID)
 								if prev != destHost {
@@ -199,10 +213,42 @@ func (m *processManager) run(ctx context.Context) func() error {
 							}
 						}
 					}
+
+					flowSources := m.stor.Index(store.TypeIndex, store.Entry{Record: FlowSourceRecord{}})
+					for _, s := range flowSources {
+						fs, ok := s.Record.(FlowSourceRecord)
+						if !ok {
+							continue
+						}
+						siteID := fs.Site
+						destHost := fs.Host
+						nextSources[fs.ID] = destHost
+						hosts, ok := nextSiteHosts[siteID]
+						if !ok {
+							hosts = make(map[string]hostInfo)
+							nextSiteHosts[siteID] = hosts
+						}
+						if _, ok := hosts[destHost]; ok {
+							continue
+						}
+						hosts[destHost] = hostInfo{ID: fs.ID, Server: false}
+						if prev, ok := currentSources[fs.ID]; ok {
+							delete(currentSources, fs.ID)
+							if prev != destHost {
+								hasChange = true
+							}
+						} else {
+							hasChange = true
+						}
+					}
 					if len(current) > 0 {
 						hasChange = true
 					}
+					if len(currentSources) > 0 {
+						hasChange = true
+					}
 					m.connectors = next
+					m.flowSources = nextSources
 					m.expectedSiteHosts = nextSiteHosts
 
 					if hasChange {
@@ -257,8 +303,9 @@ func (m *processManager) handleChangeEvent(event changeEvent, stor readonly) {
 	case vanflow.ConnectorRecord:
 		if record.DestHost != nil {
 			m.ensureConnector(record.ID, *record.DestHost, isDelete)
-			// m.processPresent(m.graph.Connector(record.ID).Parent().Parent().ID(), *record.DestHost, !isDelete)
 		}
+	case FlowSourceRecord:
+		m.ensureConnector(record.ID, record.Host, isDelete)
 	case vanflow.ProcessRecord:
 		if record.Group != nil {
 			m.ensureGroup(*record.Group, !isDelete)
@@ -293,6 +340,24 @@ func (m *processManager) ensureConnector(id, host string, deleted bool) {
 	defer m.mu.Unlock()
 	var rebuild bool
 	if expected, ok := m.connectors[id]; ok && deleted {
+		rebuild = true
+	} else if expected != host {
+		rebuild = true
+	}
+	if !rebuild {
+		return
+	}
+	select {
+	case m.rebuildConnectors <- struct{}{}:
+	default: // skip if full
+	}
+}
+
+func (m *processManager) ensureFlowSource(id, host string, deleted bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var rebuild bool
+	if expected, ok := m.flowSources[id]; ok && deleted {
 		rebuild = true
 	} else if expected != host {
 		rebuild = true

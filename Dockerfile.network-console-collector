@@ -11,7 +11,7 @@ RUN go mod download
 
 COPY . .
 
-RUN make GOOS=$TARGETOS GOARCH=$TARGETARCH
+RUN make GOOS=$TARGETOS GOARCH=$TARGETARCH build-network-console-collector
 
 FROM --platform=$BUILDPLATFORM node:18.18.2 AS console-builder
 

@@ -46,7 +46,13 @@ func run(cfg Config) error {
 
 	collector := collector.New(logger.With(slog.String("component", "collector")), session.NewContainerFactory(cfg.RouterURL, sessionConfig), reg)
 
-	collectorAPI := server.New(logger.With(slog.String("component", "api")), collector.Records, collector.GetGraph())
+	collectorAPI := server.New(
+		logger.With(slog.String("component", "api")),
+		collector.Records,
+		collector.FlowRecords,
+		collector.FlowStates(),
+		collector.GetGraph(),
+	)
 
 	var mux = mux.NewRouter().StrictSlash(true)
 	promSubrouter := mux.PathPrefix("/api/v1alpha1/internal/prom")

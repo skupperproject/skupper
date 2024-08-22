@@ -25,6 +25,7 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 		discovery:     eventsource.NewDiscovery(sessionCtr, eventsource.DiscoveryOptions{}),
 		clients:       make(map[string]*eventsource.Client),
 		events:        make(chan changeEvent, 128),
+		flows:         make(chan changeEvent, 256),
 		purgeQueue:    make(chan store.SourceRef, 8),
 		recordRouting: make(eventsource.RecordStoreMap),
 		eventProcessingTime: prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -50,13 +51,27 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 		},
 		Indexers: RecordIndexers(),
 	})
+	collector.FlowRecords = store.NewSyncMapStore(store.SyncMapStoreConfig{
+		Handlers: store.EventHandlerFuncs{
+			OnAdd:    collector.handleFlowAdd,
+			OnChange: collector.handleFlowChange,
+			OnDelete: collector.handleFlowDelete,
+		},
+		Indexers: map[string]store.Indexer{
+			store.SourceIndex: store.SourceIndexer,
+			store.TypeIndex:   store.TypeIndexer,
+			IndexByTypeParent: indexByTypeParent,
+		},
+	})
 	collector.graph = NewGraph(collector.Records).(*graph)
 	collector.processManager = newProcessManager(logger, collector.Records, collector.graph, newStableIdentityProvider())
 	collector.addressManager = newAddressManager(collector.logger, collector.Records)
+	collector.flowManager = newFlowManager(collector.logger, collector.graph, collector.FlowRecords, collector.Records, reg)
 	routerCfg := collector.recordRouting
 	for _, typ := range standardRecordTypes {
 		routerCfg[typ.String()] = collector.Records
 	}
+	routerCfg[vanflow.TransportBiflowRecord{}.GetTypeMeta().String()] = collector.FlowRecords
 	return collector
 }
 
@@ -69,13 +84,16 @@ type Collector struct {
 	mu            sync.Mutex
 	clients       map[string]*eventsource.Client
 	Records       store.Interface
+	FlowRecords   store.Interface
 	graph         *graph
 	recordRouting eventsource.RecordStoreMap
 
 	processManager *processManager
 	addressManager *addressManager
+	flowManager    *flowManager
 
 	events     chan changeEvent
+	flows      chan changeEvent
 	purgeQueue chan store.SourceRef
 
 	eventProcessingTime *prometheus.HistogramVec
@@ -84,6 +102,14 @@ type Collector struct {
 
 func (c *Collector) GetGraph() Graph {
 	return c.graph
+}
+
+type FlowStateAccess interface {
+	Get(id string) (FlowState, bool)
+}
+
+func (c *Collector) FlowStates() FlowStateAccess {
+	return c.flowManager.state
 }
 
 func (c *Collector) Run(ctx context.Context) error {
@@ -96,6 +122,7 @@ func (c *Collector) Run(ctx context.Context) error {
 	g.Go(c.runRecordCleanup(ctx))
 	g.Go(c.processManager.run(ctx))
 	g.Go(c.addressManager.run(ctx))
+	g.Go(c.flowManager.run(ctx))
 	return g.Wait()
 }
 
@@ -142,9 +169,17 @@ func (c *Collector) runWorkQueue(ctx context.Context) func() error {
 	}
 
 	reactors[AddressRecord{}.GetTypeMeta()] = append(reactors[AddressRecord{}.GetTypeMeta()], c.updateGraph)
+	reactors[FlowSourceRecord{}.GetTypeMeta()] = append(reactors[FlowSourceRecord{}.GetTypeMeta()], c.processManager.handleChangeEvent)
 	reactors[vanflow.ListenerRecord{}.GetTypeMeta()] = append(reactors[vanflow.ListenerRecord{}.GetTypeMeta()], c.addressManager.handleChangeEvent)
-	reactors[vanflow.ConnectorRecord{}.GetTypeMeta()] = append(reactors[vanflow.ConnectorRecord{}.GetTypeMeta()], c.addressManager.handleChangeEvent, c.processManager.handleChangeEvent)
-	reactors[vanflow.ProcessRecord{}.GetTypeMeta()] = append(reactors[vanflow.ProcessRecord{}.GetTypeMeta()], c.processManager.handleChangeEvent)
+	reactors[vanflow.ConnectorRecord{}.GetTypeMeta()] = append(reactors[vanflow.ConnectorRecord{}.GetTypeMeta()],
+		c.addressManager.handleChangeEvent,
+		c.processManager.handleChangeEvent,
+		c.flowManager.handleCacheInvalidatingEvent,
+	)
+	reactors[vanflow.ProcessRecord{}.GetTypeMeta()] = append(reactors[vanflow.ProcessRecord{}.GetTypeMeta()],
+		c.processManager.handleChangeEvent,
+		c.flowManager.handleCacheInvalidatingEvent,
+	)
 
 	return func() error {
 		defer func() {
@@ -154,6 +189,11 @@ func (c *Collector) runWorkQueue(ctx context.Context) func() error {
 			select {
 			case <-ctx.Done():
 				return nil
+			case event := <-c.flows:
+				start := time.Now()
+				typ := event.GetTypeMeta()
+				c.flowManager.processEvent(event)
+				c.eventProcessingTime.WithLabelValues(typ.String()).Observe(time.Since(start).Seconds())
 			case event := <-c.events:
 				start := time.Now()
 				typ := event.GetTypeMeta()
@@ -239,6 +279,31 @@ func (c *Collector) runRecordCleanup(ctx context.Context) func() error {
 				)
 			}
 		}
+	}
+}
+
+func (c *Collector) handleFlowAdd(e store.Entry) {
+	select {
+	case c.flows <- addEvent{Record: e.Record}:
+	default:
+		c.logger.Error("Flow event queue full")
+	}
+}
+
+func (c *Collector) handleFlowChange(p, e store.Entry) {
+
+	select {
+	case c.flows <- updateEvent{Prev: p.Record, Curr: e.Record}:
+	default:
+		c.logger.Error("Flow event queue full")
+	}
+}
+func (c *Collector) handleFlowDelete(e store.Entry) {
+
+	select {
+	case c.flows <- deleteEvent{Record: e.Record}:
+	default:
+		c.logger.Error("Flow event queue full")
 	}
 }
 

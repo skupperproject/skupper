@@ -209,6 +209,8 @@ func (m fieldIndex[T]) MatchesFilter(e T, values []string) bool {
 		fallthrough
 	case reflect.Int:
 		return numInStringSlice(val.Int(), values)
+	case reflect.Bool:
+		return boolInStringSlice(val.Bool(), values)
 	}
 	return false
 }
@@ -335,6 +337,23 @@ func numInStringSlice[T int | uint64 | int64 | int32](x T, values []string) bool
 		i, err := strconv.ParseInt(value, 10, 64)
 		if err == nil && x == T(i) {
 			return true
+		}
+	}
+	return false
+}
+
+func boolInStringSlice(cond bool, values []string) bool {
+
+	for _, value := range values {
+		switch value {
+		case "true":
+			if cond {
+				return true
+			}
+		case "false":
+			if !cond {
+				return true
+			}
 		}
 	}
 	return false
