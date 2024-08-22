@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/spf13/cobra"
 
@@ -20,39 +19,39 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 		cobraGenericFlags map[string]string
 		k8sObjects        []runtime.Object
 		skupperObjects    []runtime.Object
-		expectedErrors    []string
+		expectedError     string
 	}
 
 	testTable := []test{
 		{
-			name:           "connector name is not specified",
-			args:           []string{},
-			flags:          &common.CommandConnectorDeleteFlags{},
-			expectedErrors: []string{"connector name must be configured"},
+			name:          "connector name is not specified",
+			args:          []string{},
+			flags:         &common.CommandConnectorDeleteFlags{},
+			expectedError: "connector name must be configured",
 		},
 		{
-			name:           "connector name is nil",
-			args:           []string{""},
-			flags:          &common.CommandConnectorDeleteFlags{},
-			expectedErrors: []string{"connector name must not be empty"},
+			name:          "connector name is nil",
+			args:          []string{""},
+			flags:         &common.CommandConnectorDeleteFlags{},
+			expectedError: "connector name must not be empty",
 		},
 		{
-			name:           "connector name is not valid",
-			args:           []string{"my name"},
-			flags:          &common.CommandConnectorDeleteFlags{},
-			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "connector name is not valid",
+			args:          []string{"my name"},
+			flags:         &common.CommandConnectorDeleteFlags{},
+			expectedError: "connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "connector"},
-			flags:          &common.CommandConnectorDeleteFlags{},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "connector"},
+			flags:         &common.CommandConnectorDeleteFlags{},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:           "kubernetes flags are not valid on this platform",
-			args:           []string{"my-connector"},
-			flags:          &common.CommandConnectorDeleteFlags{},
-			expectedErrors: []string{},
+			name:          "kubernetes flags are not valid on this platform",
+			args:          []string{"my-connector"},
+			flags:         &common.CommandConnectorDeleteFlags{},
+			expectedError: "",
 			cobraGenericFlags: map[string]string{
 				common.FlagNameContext:    "test",
 				common.FlagNameKubeconfig: "test",
@@ -75,11 +74,13 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 				}
 			}
 
-			actualErrors := command.ValidateInput(test.args)
+			actualError := command.ValidateInput(test.args)
 
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
+			if test.expectedError == "" {
+				assert.NilError(t, actualError)
+			} else {
+				assert.Error(t, actualError, test.expectedError)
+			}
 
 		})
 	}

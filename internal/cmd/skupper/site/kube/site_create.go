@@ -5,6 +5,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -41,14 +42,14 @@ func NewCmdSiteCreate() *CmdSiteCreate {
 
 func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils.HandleError(utils.GenericError, err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.KubeClient = cli.GetKubeClient()
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
+func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
@@ -115,7 +116,7 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdSiteCreate) InputToOptions() {

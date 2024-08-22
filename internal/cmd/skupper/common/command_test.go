@@ -1,10 +1,11 @@
 package common
 
 import (
+	"testing"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/spf13/cobra"
 	"gotest.tools/assert"
-	"testing"
 )
 
 type MockSkupperCommand struct {
@@ -19,7 +20,7 @@ func (m *MockSkupperCommand) NewClient(cmd *cobra.Command, args []string) {
 	m.CalledNewClient = true
 }
 
-func (m *MockSkupperCommand) ValidateInput(args []string) []error {
+func (m *MockSkupperCommand) ValidateInput(args []string) error {
 	m.CalledValidateInput = true
 	return nil
 }

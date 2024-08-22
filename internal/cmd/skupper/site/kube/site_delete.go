@@ -2,11 +2,13 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
-	"time"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
@@ -32,13 +34,13 @@ func NewCmdSiteDelete() *CmdSiteDelete {
 
 func (cmd *CmdSiteDelete) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils.HandleError(utils.GenericError, err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
+func (cmd *CmdSiteDelete) ValidateInput(args []string) error {
 	var validationErrors []error
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 
@@ -81,7 +83,7 @@ func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 func (cmd *CmdSiteDelete) InputToOptions() {
 	cmd.timeout = cmd.Flags.Timeout

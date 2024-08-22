@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -45,14 +46,14 @@ func NewCmdListenerUpdate() *CmdListenerUpdate {
 
 func (cmd *CmdListenerUpdate) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils.HandleError(utils.GenericError, err)
 
 	cmd.client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.namespace = cli.Namespace
 	cmd.KubeClient = cli.Kube
 }
 
-func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
+func (cmd *CmdListenerUpdate) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
@@ -79,7 +80,7 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 	// Validate that there is already a listener with this name in the namespace
 	if cmd.name != "" {
 		listener, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if listener == nil || errors.IsNotFound(err) {
+		if listener == nil || k8serrs.IsNotFound(err) {
 			validationErrors = append(validationErrors, fmt.Errorf("listener %s must exist in namespace %s to be updated", cmd.name, cmd.namespace))
 		} else {
 			// save existing values
@@ -143,7 +144,7 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdListenerUpdate) Run() error {

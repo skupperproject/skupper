@@ -1,6 +1,7 @@
 package nonkube
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -29,7 +30,7 @@ func (cmd *CmdConnectorDelete) NewClient(cobraCommand *cobra.Command, args []str
 	cmd.connectorHandler = fs.NewConnectorHandler(cmd.namespace)
 }
 
-func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
+func (cmd *CmdConnectorDelete) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 
@@ -57,7 +58,7 @@ func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdConnectorDelete) InputToOptions() {

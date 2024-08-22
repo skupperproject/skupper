@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"os"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/root"
 	"github.com/spf13/cobra/doc"
@@ -15,7 +16,7 @@ func main() {
 		fmt.Printf("%s\n\nUsage: generate-doc ./docsoutput\n", err)
 		os.Exit(1)
 	}
-	utils.HandleError(doc.GenMarkdownTree(root.NewSkupperRootCommand(), path))
+	utils.HandleError(utils.GenericError, doc.GenMarkdownTree(root.NewSkupperRootCommand(), path))
 
 }
 

@@ -1,6 +1,7 @@
 package nonkube
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -40,7 +41,7 @@ func (cmd *CmdConnectorCreate) NewClient(cobraCommand *cobra.Command, args []str
 	cmd.connectorHandler = fs.NewConnectorHandler(cmd.namespace)
 }
 
-func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
+func (cmd *CmdConnectorCreate) ValidateInput(args []string) error {
 	var validationErrors []error
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
@@ -115,7 +116,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 		// TBD what is valid TlsCredentials
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdConnectorCreate) InputToOptions() {

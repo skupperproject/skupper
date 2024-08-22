@@ -2,10 +2,12 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"os"
 	"text/tabwriter"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
@@ -28,20 +30,18 @@ func NewCmdSiteStatus() *CmdSiteStatus {
 
 func (cmd *CmdSiteStatus) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils.HandleError(utils.GenericError, err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdSiteStatus) ValidateInput(args []string) []error {
-	var validationErrors []error
-
+func (cmd *CmdSiteStatus) ValidateInput(args []string) error {
 	if len(args) > 0 {
-		validationErrors = append(validationErrors, fmt.Errorf("this command does not need any arguments"))
+		return errors.New("this command does not need any arguments")
 	}
 
-	return validationErrors
+	return nil
 }
 
 func (cmd *CmdSiteStatus) InputToOptions() {}

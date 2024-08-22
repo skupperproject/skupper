@@ -13,5 +13,5 @@ func main() {
 	rootCmd := root.NewSkupperRootCommand()
 
 	err := rootCmd.Execute()
-	utils.HandleError(err)
+	utils.HandleError(utils.GenericError, err)
 }
