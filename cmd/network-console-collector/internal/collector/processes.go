@@ -16,6 +16,7 @@ type hostInfo struct {
 	ID     string
 	Server bool
 }
+
 type processManager struct {
 	logger  *slog.Logger
 	stor    store.Interface
@@ -68,12 +69,16 @@ func newProcessManager(logger *slog.Logger, stor store.Interface, graph *graph, 
 	}
 }
 
+// run a very ugly control loop that should calculate a desired set of
+// processes for each site based on connectors and "flow sources" and will
+// create proxy processes for them unless another source has already done so.
 func (m *processManager) run(ctx context.Context) func() error {
 	return func() error {
 		defer m.logger.Info("process manager shutdown complete")
 		rebuild := time.NewTicker(60 * time.Second)
-		var selector bool
 		defer rebuild.Stop()
+
+		reconcileNext, reconcilePrev := m.rebuildConnectors, m.rebuildProcesses
 
 		reconcileProcesses := m.metrics.internal.reconcileTime.WithLabelValues("process_processes")
 		reconcileHosts := m.metrics.internal.reconcileTime.WithLabelValues("process_desired_hosts")
@@ -83,12 +88,11 @@ func (m *processManager) run(ctx context.Context) func() error {
 			case <-ctx.Done():
 				return nil
 			case <-rebuild.C:
-				if selector {
-					m.rebuildConnectors <- struct{}{}
-				} else {
-					m.rebuildProcesses <- struct{}{}
+				select {
+				case reconcileNext <- struct{}{}:
+				default: // do not lock up in case channel already full
 				}
-				selector = !selector
+				reconcileNext, reconcilePrev = reconcilePrev, reconcileNext
 			case <-m.rebuildProcesses:
 				func() {
 					start := time.Now()
