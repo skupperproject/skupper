@@ -2541,12 +2541,7 @@ func (fc *FlowCollector) reconcileConnectorRecords() error {
 				siteId := fc.getRecordSiteId(*connector)
 				var matchHost *string
 				found := false
-				if net.ParseIP(*connector.DestHost) == nil {
-					addrs, err := net.LookupHost(*connector.DestHost)
-					if err == nil && len(addrs) > 0 {
-						matchHost = &addrs[0]
-					}
-				} else {
+				if net.ParseIP(*connector.DestHost) != nil {
 					matchHost = connector.DestHost
 				}
 				for _, process := range fc.Processes {
