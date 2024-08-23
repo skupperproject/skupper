@@ -262,30 +262,22 @@ func (m *flowManager) run(ctx context.Context) func() error {
 					m.state.Purge(func(state FlowState) bool {
 						threshold := -15 * time.Minute
 						if !state.LastSeen.Before(time.Now().Add(threshold)) {
-							return true
+							return false
 						}
 						if state.Conditions.Terminated {
 							terminated[state.ID] = struct{}{}
 						} else {
 							stale[state.ID] = struct{}{}
 						}
-						return false
+						return true
 					})
 					m.pending.Purge(func(state FlowState) bool {
 						threshold := -1 * time.Minute
 						if !state.LastSeen.Before(time.Now().Add(threshold)) {
-							return true
+							return false
 						}
 						pendingStale[state.ID] = struct{}{}
-						return false
-					})
-					m.pending.Purge(func(state FlowState) bool {
-						threshold := -3 * time.Minute
-						if !state.FirstSeen.Before(time.Now().Add(threshold)) {
-							return true
-						}
-						pendingStale[state.ID] = struct{}{}
-						return false
+						return true
 					})
 					if ct := len(terminated); ct > 0 {
 						m.logger.Debug("purging terminated flows", slog.Int("count", ct))
@@ -305,6 +297,61 @@ func (m *flowManager) run(ctx context.Context) func() error {
 							m.flows.Delete(id)
 						}
 					}
+					var (
+						tPendingConnector int
+						tPendingSource    int
+						tPendingDest      int
+						tPendingUnknown   int
+						aPendingTransport int
+						aPendingConnector int
+						aPendingSource    int
+						aPendingDest      int
+						aPendingUnknown   int
+					)
+					for _, pending := range m.pending.Items() {
+						if pending.IsAppFlow {
+							if !pending.Conditions.HasTransportFlow {
+								aPendingTransport++
+								continue
+							}
+							if !pending.Conditions.HasConnectorMatch {
+								aPendingConnector++
+								continue
+							}
+							if !pending.Conditions.HasSourceMatch {
+								aPendingSource++
+								continue
+							}
+							if !pending.Conditions.HasDestMatch {
+								aPendingDest++
+								continue
+							}
+							aPendingUnknown++
+						} else {
+							if !pending.Conditions.HasConnectorMatch {
+								tPendingConnector++
+								continue
+							}
+							if !pending.Conditions.HasSourceMatch {
+								tPendingSource++
+								continue
+							}
+							if !pending.Conditions.HasDestMatch {
+								tPendingDest++
+								continue
+							}
+							tPendingUnknown++
+						}
+					}
+					m.metrics.internal.pendingFlows.WithLabelValues("app", "transport").Set(float64(aPendingTransport))
+					m.metrics.internal.pendingFlows.WithLabelValues("app", "connector").Set(float64(aPendingConnector))
+					m.metrics.internal.pendingFlows.WithLabelValues("app", "source").Set(float64(aPendingSource))
+					m.metrics.internal.pendingFlows.WithLabelValues("app", "dest").Set(float64(aPendingDest))
+					m.metrics.internal.pendingFlows.WithLabelValues("app", "unknown").Set(float64(aPendingUnknown))
+					m.metrics.internal.pendingFlows.WithLabelValues("transport", "connector").Set(float64(tPendingConnector))
+					m.metrics.internal.pendingFlows.WithLabelValues("transport", "source").Set(float64(tPendingSource))
+					m.metrics.internal.pendingFlows.WithLabelValues("transport", "dest").Set(float64(tPendingDest))
+					m.metrics.internal.pendingFlows.WithLabelValues("transport", "unknown").Set(float64(tPendingUnknown))
 				}()
 			}
 		}
@@ -419,6 +466,7 @@ func (m *flowManager) processEvent(event changeEvent) {
 
 func (m *flowManager) updateApplicationFlowState(flow vanflow.AppBiflowRecord, state *FlowState) {
 	state.ID = flow.ID
+	state.IsAppFlow = true
 	state.LastSeen = time.Now()
 	if flow.EndTime != nil {
 		state.Conditions.Terminated = flow.EndTime.Compare(dref(flow.StartTime).Time) >= 0
@@ -543,7 +591,7 @@ func (q *flowStateQueue) Purge(purge func(FlowState) bool) {
 	defer q.mu.Unlock()
 	for q.lru.Front() != nil {
 		head := q.lru.Front()
-		if !purge(head.Value.(FlowState)) {
+		if remove := purge(head.Value.(FlowState)); !remove {
 			return
 		}
 		q.lru.Remove(head)
@@ -628,7 +676,8 @@ func (m *flowManager) processAttrs(id string) (processAttributes, bool) {
 }
 
 type FlowState struct {
-	ID string
+	ID        string
+	IsAppFlow bool
 
 	Conditions FlowStateConditions
 

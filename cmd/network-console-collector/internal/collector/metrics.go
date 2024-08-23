@@ -16,6 +16,7 @@ type metricsInternal struct {
 	flowProcessingTime *prometheus.HistogramVec
 	reconcileTime      *prometheus.HistogramVec
 	queueUtilization   *prometheus.GaugeVec
+	pendingFlows       *prometheus.GaugeVec
 }
 
 func register(reg *prometheus.Registry) metrics {
@@ -66,6 +67,11 @@ func register(reg *prometheus.Registry) metrics {
 				Name:      "queue_utilization_percentage",
 				Help:      "Percentage of vanflow event processing queue full",
 			}, []string{"type"}),
+			pendingFlows: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+				Namespace: "skupper",
+				Subsystem: "internal",
+				Name:      "pending_flows",
+			}, []string{"type", "reason"}),
 		},
 	}
 
@@ -78,6 +84,7 @@ func register(reg *prometheus.Registry) metrics {
 		m.internal.reconcileTime,
 		m.internal.queueUtilization,
 		m.internal.flowProcessingTime,
+		m.internal.pendingFlows,
 	)
 	return m
 }
