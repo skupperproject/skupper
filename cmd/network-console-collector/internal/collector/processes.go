@@ -270,7 +270,10 @@ func (m *processManager) run(ctx context.Context) func() error {
 					m.expectedSiteHosts = nextSiteHosts
 
 					if hasChange {
-						m.rebuildProcesses <- struct{}{}
+						select {
+						case m.rebuildProcesses <- struct{}{}:
+						default:
+						}
 					}
 				}()
 			case groupName := <-m.checkGroup:
