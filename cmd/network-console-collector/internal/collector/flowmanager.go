@@ -84,7 +84,7 @@ func (m *flowManager) run(ctx context.Context) func() error {
 		defer purgeFlows.Stop()
 		rebuildPairs := time.NewTicker(time.Second * 3)
 		defer rebuildPairs.Stop()
-		reconcileFlowSource := time.NewTicker(time.Second)
+		reconcileFlowSource := time.NewTicker(time.Second * 5)
 		defer reconcileFlowSource.Stop()
 
 		reconcileSources := m.metrics.internal.reconcileTime.WithLabelValues("flow_sources")
@@ -123,7 +123,9 @@ func (m *flowManager) run(ctx context.Context) func() error {
 								m.processEvent(addEvent{Record: flow})
 								continue
 							}
-							if sourceSiteID == "" || sourceSiteHost == "" {
+							if sourceSiteID == "" ||
+								sourceSiteHost == "" ||
+								time.Since(state.FirstSeen) < 10*time.Second {
 								continue
 							}
 
@@ -272,6 +274,14 @@ func (m *flowManager) run(ctx context.Context) func() error {
 					m.pending.Purge(func(state FlowState) bool {
 						threshold := -1 * time.Minute
 						if !state.LastSeen.Before(time.Now().Add(threshold)) {
+							return true
+						}
+						pendingStale[state.ID] = struct{}{}
+						return false
+					})
+					m.pending.Purge(func(state FlowState) bool {
+						threshold := -3 * time.Minute
+						if !state.FirstSeen.Before(time.Now().Add(threshold)) {
 							return true
 						}
 						pendingStale[state.ID] = struct{}{}
@@ -436,6 +446,9 @@ func (m *flowManager) updateApplicationFlowState(flow vanflow.AppBiflowRecord, s
 func (m *flowManager) updateTransportFlowState(flow vanflow.TransportBiflowRecord, state *FlowState) {
 	state.ID = flow.ID
 	state.LastSeen = time.Now()
+	if state.FirstSeen.IsZero() {
+		state.FirstSeen = state.LastSeen
+	}
 	if flow.EndTime != nil {
 		state.Conditions.Terminated = flow.EndTime.Compare(dref(flow.StartTime).Time) >= 0
 	}
@@ -641,7 +654,8 @@ type FlowState struct {
 		SiteName string
 	}
 
-	LastSeen time.Time
+	FirstSeen time.Time
+	LastSeen  time.Time
 }
 
 type FlowStateConditions struct {
