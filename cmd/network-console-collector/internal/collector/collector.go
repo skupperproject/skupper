@@ -60,6 +60,7 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 		routerCfg[typ.String()] = collector.Records
 	}
 	routerCfg[vanflow.TransportBiflowRecord{}.GetTypeMeta().String()] = collector.FlowRecords
+	routerCfg[vanflow.AppBiflowRecord{}.GetTypeMeta().String()] = collector.FlowRecords
 	return collector
 }
 

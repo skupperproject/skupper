@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"context"
 	"log/slog"
+	"strconv"
 	"sync"
 	"time"
 
@@ -109,37 +110,50 @@ func (m *flowManager) run(ctx context.Context) func() error {
 						if !ok {
 							continue
 						}
-						flow, ok := entry.Record.(vanflow.TransportBiflowRecord)
-						if !ok {
-							continue
-						}
-						var sourceNode Process
-						listener := m.graph.Listener(state.ListenerID)
-						sourceSiteID := listener.Parent().Parent().ID()
-						sourceSiteHost := dref(flow.SourceHost)
-						if sourceSiteID != "" && sourceSiteHost != "" {
-							sourceNode = m.graph.ConnectorTarget(ConnectorTargetID(sourceSiteID, sourceSiteHost)).Process()
-						}
-						if sourceNode.IsKnown() {
-							m.processEvent(addEvent{Record: flow})
-							continue
-						}
-						if sourceSiteID == "" || sourceSiteHost == "" {
-							continue
-						}
+						switch flow := entry.Record.(type) {
+						case vanflow.TransportBiflowRecord:
+							var sourceNode Process
+							listener := m.graph.Listener(state.ListenerID)
+							sourceSiteID := listener.Parent().Parent().ID()
+							sourceSiteHost := dref(flow.SourceHost)
+							if sourceSiteID != "" && sourceSiteHost != "" {
+								sourceNode = m.graph.ConnectorTarget(ConnectorTargetID(sourceSiteID, sourceSiteHost)).Process()
+							}
+							if sourceNode.IsKnown() {
+								m.processEvent(addEvent{Record: flow})
+								continue
+							}
+							if sourceSiteID == "" || sourceSiteHost == "" {
+								continue
+							}
 
-						flowSourceID := m.idp.ID("flowsource", sourceSiteID, sourceSiteHost)
-						if _, ok := flowSources[flowSourceID]; ok {
+							flowSourceID := m.idp.ID("flowsource", sourceSiteID, sourceSiteHost)
+							if _, ok := flowSources[flowSourceID]; ok {
+								continue
+							}
+							m.logger.Info("registering flow source", slog.String("site", sourceSiteID), slog.String("host", sourceSiteHost))
+							m.records.Add(FlowSourceRecord{
+								ID:    flowSourceID,
+								Site:  sourceSiteID,
+								Host:  sourceSiteHost,
+								Start: time.Now(),
+							}, store.SourceRef{ID: "self"})
+							flowSources[flowSourceID] = struct{}{}
+						case vanflow.AppBiflowRecord:
+							if flow.Parent == nil {
+								continue
+							}
+							parent := *flow.Parent
+							transportState, ok := m.state.Get(parent)
+							if !ok {
+								continue
+							}
+							if transportState.Conditions.FullyQualified() {
+								m.processEvent(addEvent{Record: flow})
+							}
+						default:
 							continue
 						}
-						m.logger.Info("registering flow source", slog.String("site", sourceSiteID), slog.String("host", sourceSiteHost))
-						m.records.Add(FlowSourceRecord{
-							ID:    flowSourceID,
-							Site:  sourceSiteID,
-							Host:  sourceSiteHost,
-							Start: time.Now(),
-						}, store.SourceRef{ID: "self"})
-						flowSources[flowSourceID] = struct{}{}
 
 					}
 				}()
@@ -366,7 +380,57 @@ func (m *flowManager) processEvent(event changeEvent) {
 			slog.Float64("bytes_in", receivedInc),
 		)
 	case vanflow.AppBiflowRecord:
+		prev := state
+		previouslyActive := !prev.Conditions.Terminated
+		m.updateApplicationFlowState(record, &state)
+		m.state.Push(state)
+		log := m.logger.With(state.AppLogFields()...)
+		if !state.Conditions.FullyQualified() {
+			m.pending.Push(state)
+			log.Debug("PENDING APP FLOW")
+			return
+		}
+		m.pending.Pop(state.ID)
+
+		if !prev.Conditions.FullyQualified() {
+			previouslyActive = true
+		}
+
+		if state.Conditions.Terminated && previouslyActive {
+			baseLabels := state.labels()
+			baseLabels["protocol"] = dref(record.Protocol)
+			baseLabels["method"] = dref(record.Method)
+			baseLabels["code"] = httpResponseClass(record.Result)
+			m.metrics.requestsCounter.With(baseLabels).Inc()
+		}
+		log.Debug("APP FLOW")
 	}
+}
+
+func (m *flowManager) updateApplicationFlowState(flow vanflow.AppBiflowRecord, state *FlowState) {
+	state.ID = flow.ID
+	state.LastSeen = time.Now()
+	if flow.EndTime != nil {
+		state.Conditions.Terminated = flow.EndTime.Compare(dref(flow.StartTime).Time) >= 0
+	}
+
+	state.ApplicationProtocol = dref(flow.Protocol)
+	if flow.Parent == nil {
+		return
+	}
+	transportID := *flow.Parent
+	transportState, ok := m.state.Get(transportID)
+	if !ok {
+		return
+	}
+	state.TransportFlowID = transportID
+	state.Conditions.HasConnectorMatch = transportState.Conditions.HasConnectorMatch
+	state.Conditions.HasSourceMatch = transportState.Conditions.HasSourceMatch
+	state.Conditions.HasDestMatch = transportState.Conditions.HasDestMatch
+	state.Conditions.HasTransportFlow = true
+	state.Connector = transportState.Connector
+	state.Source = transportState.Source
+	state.Dest = transportState.Dest
 }
 
 func (m *flowManager) updateTransportFlowState(flow vanflow.TransportBiflowRecord, state *FlowState) {
@@ -551,8 +615,13 @@ func (m *flowManager) processAttrs(id string) (processAttributes, bool) {
 }
 
 type FlowState struct {
-	ID          string
-	Conditions  FlowStateConditions
+	ID string
+
+	Conditions FlowStateConditions
+
+	TransportFlowID     string
+	ApplicationProtocol string
+
 	ListenerID  string
 	ConnectorID string
 	Connector   struct {
@@ -580,6 +649,7 @@ type FlowStateConditions struct {
 	HasConnectorMatch bool
 	HasSourceMatch    bool
 	HasDestMatch      bool
+	HasTransportFlow  bool
 }
 
 func (c FlowStateConditions) FullyQualified() bool {
@@ -597,9 +667,25 @@ func (s FlowState) LogFields() []any {
 		slog.String("source_proc", s.Source.Name),
 		slog.String("dest_site", s.Dest.Name),
 		slog.String("dest_proc", s.Dest.Name),
+		slog.String("routing_key", s.Connector.Address),
 	}
 }
 
+func (s FlowState) AppLogFields() []any {
+	return []any{
+		slog.String("id", s.ID),
+		slog.String("transport", s.TransportFlowID),
+		slog.Bool("active", !s.Conditions.Terminated),
+		slog.String("type", "application"),
+		slog.String("listener", s.ListenerID),
+		slog.String("connector", s.ConnectorID),
+		slog.String("source_site", s.Source.Name),
+		slog.String("source_proc", s.Source.Name),
+		slog.String("dest_site", s.Dest.Name),
+		slog.String("dest_proc", s.Dest.Name),
+		slog.String("protocol", s.ApplicationProtocol),
+	}
+}
 func (s FlowState) labels() prometheus.Labels {
 	return map[string]string{
 		"source_site_id":   s.Source.SiteID,
@@ -610,6 +696,31 @@ func (s FlowState) labels() prometheus.Labels {
 		"protocol":         s.Connector.Protocol,
 		"source_process":   s.Source.Name,
 		"dest_process":     s.Dest.Name,
+	}
+}
+
+func httpResponseClass(result *string) string {
+	class := "unknown"
+	if result == nil {
+		return class
+	}
+	code, err := strconv.Atoi(*result)
+	if err != nil {
+		return class
+	}
+	switch {
+	case code < 200:
+		return "1xx"
+	case code < 300:
+		return "2xx"
+	case code < 400:
+		return "3xx"
+	case code < 500:
+		return "4xx"
+	case code < 600:
+		return "5xx"
+	default:
+		return class
 	}
 }
 

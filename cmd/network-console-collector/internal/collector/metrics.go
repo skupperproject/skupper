@@ -7,6 +7,7 @@ type metrics struct {
 	flowClosedCounter        *prometheus.CounterVec
 	flowBytesSentCounter     *prometheus.CounterVec
 	flowBytesReceivedCounter *prometheus.CounterVec
+	requestsCounter          *prometheus.CounterVec
 
 	internal metricsInternal
 }
@@ -39,6 +40,11 @@ func register(reg *prometheus.Registry) metrics {
 			Name:      "received_bytes_total",
 			Help:      "Bytes sent through the application network back from service to client",
 		}, flowMetricLables),
+		requestsCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: "skupper",
+			Name:      "requests_total",
+			Help:      "Counter incremented for each request handled through the skupper network",
+		}, appFlowMetricLables),
 		internal: metricsInternal{
 			reconcileTime: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: "skupper",
@@ -68,6 +74,7 @@ func register(reg *prometheus.Registry) metrics {
 		m.flowClosedCounter,
 		m.flowBytesSentCounter,
 		m.flowBytesReceivedCounter,
+		m.requestsCounter,
 		m.internal.reconcileTime,
 		m.internal.queueUtilization,
 		m.internal.flowProcessingTime,
@@ -87,4 +94,5 @@ var (
 		"source_process",
 		"dest_process",
 	}
+	appFlowMetricLables = append(flowMetricLables, "method", "code")
 )
