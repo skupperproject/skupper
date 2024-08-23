@@ -25,7 +25,7 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 		discovery:     eventsource.NewDiscovery(sessionCtr, eventsource.DiscoveryOptions{}),
 		clients:       make(map[string]*eventsource.Client),
 		events:        make(chan changeEvent, 128),
-		flows:         make(chan changeEvent, 256),
+		flows:         make(chan changeEvent, 1024),
 		purgeQueue:    make(chan store.SourceRef, 8),
 		recordRouting: make(eventsource.RecordStoreMap),
 		metrics:       register(reg),
