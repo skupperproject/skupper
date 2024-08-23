@@ -72,6 +72,20 @@ type LinkRecord struct {
 	Peer   *string `vflow:"6"`
 	Role   *string `vflow:"54"`
 	Status *string `vflow:"53"`
+
+	DestHost         *string `vflow:"15"`
+	Protocol         *string `vflow:"16"`
+	DestPort         *string `vflow:"18"`
+	Octets           *uint64 `vflow:"23"`
+	OctetRate        *uint64 `vflow:"35"`
+	OctetsReverse    *uint64 `vflow:"58"`
+	OctetRateReverse *uint64 `vflow:"59"`
+
+	Result    *string `vflow:"28"`
+	Reason    *string `vflow:"29"`
+	LastUp    *uint64 `vflow:"55"`
+	LastDown  *uint64 `vflow:"56"`
+	DownCount *uint64 `vflow:"57"`
 }
 
 func (r LinkRecord) GetTypeMeta() TypeMeta {
@@ -278,7 +292,11 @@ func (r TransportBiflowRecord) GetTypeMeta() TypeMeta {
 
 type AppBiflowRecord struct {
 	BaseRecord
-	Parent *string `vflow:"2"`
+	Parent   *string `vflow:"2"`
+	Protocol *string `vflow:"16"`
+	Latency  *uint64 `vflow:"24"`
+	Method   *string `vflow:"27"`
+	Result   *string `vflow:"28"`
 }
 
 func (r AppBiflowRecord) GetTypeMeta() TypeMeta {
