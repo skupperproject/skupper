@@ -74,11 +74,38 @@ func newFlowManager(log *slog.Logger, graph *graph, flows, records store.Interfa
 	return manager
 }
 
-func (m *flowManager) run(ctx context.Context) func() error {
+func (m *flowManager) consumeChangeEvents(ctx context.Context, events <-chan changeEvent) {
+	defer func() {
+		m.logger.Info("flow manager event reader shutdown complete")
+	}()
+	appTyp := vanflow.AppBiflowRecord{}.GetTypeMeta()
+	transportTyp := vanflow.AppBiflowRecord{}.GetTypeMeta()
+	processAppHist := m.metrics.internal.flowProcessingTime.WithLabelValues(appTyp.String())
+	processTransportHist := m.metrics.internal.flowProcessingTime.WithLabelValues(transportTyp.String())
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event := <-events:
+			start := time.Now()
+			m.processEvent(event)
+			switch event.GetTypeMeta() {
+			case appTyp:
+				processAppHist.Observe(time.Since(start).Seconds())
+			case transportTyp:
+				processTransportHist.Observe(time.Since(start).Seconds())
+			}
+		}
+	}
+}
+
+func (m *flowManager) run(ctx context.Context, events <-chan changeEvent) func() error {
 	return func() error {
 		defer func() {
 			m.logger.Info("flow manager shutdown complete")
 		}()
+
+		go m.consumeChangeEvents(ctx, events)
 
 		purgeFlows := time.NewTicker(time.Second * 10)
 		defer purgeFlows.Stop()

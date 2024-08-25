@@ -110,7 +110,7 @@ func (c *Collector) Run(ctx context.Context) error {
 	g.Go(c.runRecordCleanup(ctx))
 	g.Go(c.processManager.run(ctx))
 	g.Go(c.addressManager.run(ctx))
-	g.Go(c.flowManager.run(ctx))
+	g.Go(c.flowManager.run(ctx, c.flows))
 	return g.Wait()
 }
 
@@ -183,11 +183,6 @@ func (c *Collector) runWorkQueue(ctx context.Context) func() error {
 			select {
 			case <-ctx.Done():
 				return nil
-			case event := <-c.flows:
-				start := time.Now()
-				typ := event.GetTypeMeta()
-				c.flowManager.processEvent(event)
-				c.metrics.internal.flowProcessingTime.WithLabelValues(typ.String()).Observe(time.Since(start).Seconds())
 			case event := <-c.events:
 				start := time.Now()
 				typ := event.GetTypeMeta()
