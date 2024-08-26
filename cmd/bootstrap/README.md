@@ -2,18 +2,19 @@
 
 In this current phase of the Skupper V2 implementation, non-kubernetes sites
 can be bootstrapped using a locally built binary, that can be produced by running
-`make build-bootstrap`, or using the (eventually outdated) quay.io/skupper/bootstrap
-container image by calling `./cmd/bootstrap/bootstrap.sh`.
+`make build-bootstrap`, or using the quay.io/skupper/bootstrap
+container image by calling `./cmd/bootstrap/bootstrap.sh` (this image is not yet
+produced automatically in the CI, so it might be eventually outdated).
 
-It is important to mention that bootstrap procedure executed by the provided binary
-will be incorporated into the Skupper CLI in the short term.
+It is important to mention that the bootstrap procedure executed by the provided
+`bootstrap` binary, will be incorporated into the Skupper CLI shortly.
 
 Non-kubernetes sites can be created using the standard V2 site declaration
 approach, which is based on the new set of Custom Resource Definitions (CRDs).
 
 The same CRDs used to create a V2 Skupper site on a Kubernetes cluster can be
 used to create non-kubernetes sites. Some particular options and fields are
-valid or required only on specific platforms, but overall the structure is the
+valid or required only on specific platforms, but the overall structure is the
 same.
 
 Differently than the current Kubernetes implementation, non-kubernetes sites
@@ -54,17 +55,17 @@ The `bundle` platform will produce a self-extracting shell archive that can
 be executed to install your local non-kubernetes site.
 
 If you are not comfortable executing the produced script, you can also choose
-`tarball` as the platform. It produces a tar ball that contains a `install.sh`
+`tarball` as the platform. It produces a tar ball that contains an `install.sh`
 script, that basically performs the same procedure of the `bundle`.
 
-Both scripts accept flags:
+Both scripts accept the following flags:
 
 ```
 -h               help
 -p <platform>    podman, docker, systemd
--n <namespace>   if not provided, the namespace defined in the bundle is used
--x               remove
--d <directory>   dump static tokens
+-n <namespace>   if not provided, the namespace defined in the bundle is used (if none, default is used)
+-x               remove site and namespace
+-d <directory>   dump static tokens into the provided directory 
 ```
 
 ## Usage
@@ -75,14 +76,16 @@ Place all your Custom Resources (CRs) on a local directory.
 You must always provide a `Site` (CR), plus some other resource
 that makes your running site meaningful, like Listeners and/or Connectors.
 
-In case you want your local site to listen for incoming links from other sites,
+In case you want your local site to accept incoming links from other sites,
 at present, you have to explicitly provide a `RouterAccess` (CR).
 
 If you want your non-kubernetes site to establish links to other sites, make
 sure you also provide `AccessToken` or `Link` (CRs).
 
 If the CRs have no namespace set, Skupper assumes "default" as the namespace
-to be used, otherwise it will use the namespace defined in the CRs.
+to be used, otherwise it will use the namespace defined in the CRs, unless you
+force a specific namespace to be used (`--namespace` using the binary or
+`-n` using the bootstrap script).
 
 ***NOTES:** A V2 representation of the **"Hello world example"** is available below
 to provide initial guidance.*
@@ -116,7 +119,7 @@ any of the platforms mentioned earlier.
 After the bootstrap procedure is completed, it will provide you some relevant
 information like:
 
-* Location where static tokens have been defined (when a `RouterAccess` is defined)
+* Location where static tokens have been defined (when a `RouterAccess` is provided)
 * Location where the site bundle has been saved (when using `bundle` or `tarball`)
 
 #### Site bundles
@@ -141,8 +144,8 @@ If the namespace is omitted, the "default" namespace is used.
 Here is a very basic demonstration on how you can run the `Hello World` example
 locally using just non-kubernetes sites.
 
-The example is assuming you are running both `west` and `east` sites on your
-machine. So if you want to run it on different machines, make sure to adjust
+The example assumes you are running both `west` and `east` sites on your
+machine. So if you want to run them on different machines, make sure to adjust
 IP addresses properly.
 
 ### Hello world
@@ -150,16 +153,16 @@ IP addresses properly.
 This example basically runs a **frontend** application on the `west` site,
 which depends on a **backend** that is meant to run on the `east` site.
 
-To simulate it, the frontend application will be executed using podman,
-it exposes port 7070 in the loopback interface of the host machine,
-and we will tell it to expect that the backend service will be available
+To simulate it, the frontend application will be executed using podman.
+It exposes port 7070 in the loopback interface of the host machine,
+and must tell it to expect that the backend service will be available
 at `http://host.containers.internal:8080`, which from inside the container,
 means the host machine at port 8080.
 
-The backend will also run on the host machine with podman, and it
-exposes port 9090 to the loopback interface of the host machine. So after
-both `frontend` and `backend` containers are running, they won't be able
-to communicate.
+The backend also runs on the host machine with podman, and it
+exposes port 9090 to the loopback interface of the host machine.
+So after both `frontend` and `backend` containers are running,
+they won't be able to communicate.
 
 We will use two Skupper sites to resolve that. On the `west` site, Skupper
 will expose a `Listener` (CR), bound to port `8080` of the host machine.
@@ -168,8 +171,10 @@ On the `east` site, we will have a `Connector` (CR) that targets localhost
 at port 9090, in the host machine.
 
 The ideal scenario would be to run each component on different machines,
-where Skupper could add real value, but just for the purpose of making it
-simple to run locally, the example has been defined to run on a single machine.
+where Skupper could add real value.
+But just with the purpose of making it simple to be executed locally,
+this example has been designed so that you can run everything using a
+single machine.
 
 #### Workloads
 
@@ -321,9 +326,6 @@ Considering all your CRs have been saved to a directory named `east`, use:
 ```shell
 ./bootstrap --path ./east
 ```
-
-Now that the `west` site has been created, copy the generated token into
-the `east` site local directory. Example:
 
 ### Testing the scenario
 
