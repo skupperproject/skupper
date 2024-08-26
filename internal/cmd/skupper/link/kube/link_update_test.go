@@ -560,20 +560,20 @@ func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 				},
 			},
 			linkName:    "my-link",
-			timeout:     3,
+			timeout:     1,
 			expectError: true,
 		},
 		{
 			name:        "link is not returned",
 			linkName:    "my-link",
-			timeout:     3,
+			timeout:     1,
 			expectError: true,
 		},
 		{
 			name:        "there is no need to wait for a link, the user just wanted the output",
 			linkName:    "my-link",
 			output:      "json",
-			timeout:     3,
+			timeout:     1,
 			expectError: false,
 		},
 		{
@@ -601,7 +601,7 @@ func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 				},
 			},
 			linkName:    "my-link",
-			timeout:     3,
+			timeout:     1,
 			expectError: false,
 		},
 	}
@@ -630,6 +630,9 @@ func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 // --- helper methods
 
 func newCmdLinkUpdateWithMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*CmdLinkUpdate, error) {
+
+	// We make sure the interval is appropriate
+	utils.SetRetryProfile(utils.TestRetryProfile)
 
 	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
 	if err != nil {

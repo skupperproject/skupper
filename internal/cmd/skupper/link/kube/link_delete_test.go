@@ -357,12 +357,12 @@ func TestCmdLinkDelete_WaitUntil(t *testing.T) {
 					},
 				},
 			},
-			timeout:     3,
+			timeout:     1,
 			expectError: true,
 		},
 		{
 			name:        "link is deleted",
-			timeout:     3,
+			timeout:     1,
 			expectError: false,
 		},
 	}
@@ -387,6 +387,8 @@ func TestCmdLinkDelete_WaitUntil(t *testing.T) {
 
 func newCmdLinkDeleteWithMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*CmdLinkDelete, error) {
 
+	// We make sure the interval is appropriate
+	utils.SetRetryProfile(utils.TestRetryProfile)
 	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
 	if err != nil {
 		return nil, err

@@ -934,6 +934,8 @@ func TestCmdConnectorCreate_WaitUntil(t *testing.T) {
 
 func newCmdConnectorCreateWithMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*CmdConnectorCreate, error) {
 
+	// We make sure the interval is appropriate
+	utils.SetRetryProfile(utils.TestRetryProfile)
 	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
 	if err != nil {
 		return nil, err
