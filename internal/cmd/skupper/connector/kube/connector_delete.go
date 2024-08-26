@@ -119,7 +119,7 @@ func (cmd *CmdConnectorDelete) WaitUntil() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Connector %q not deleted yet, check the logs for more information %s\n", cmd.name, err)
+		return fmt.Errorf("Connector %q not deleted yet, check the status for more information %s\n", cmd.name, err)
 	}
 
 	fmt.Printf("Connector %q deleted\n", cmd.name)

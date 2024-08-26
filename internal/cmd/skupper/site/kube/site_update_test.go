@@ -590,7 +590,7 @@ func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 			},
 			siteName:     "my-site",
 			skupperError: "",
-			errorMessage: "Site \"my-site\" not ready yet, check the logs for more information\n",
+			errorMessage: "Site \"my-site\" not ready yet, check the status for more information\n",
 			expectError:  true,
 		},
 	}

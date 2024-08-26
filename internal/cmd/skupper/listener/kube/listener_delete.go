@@ -120,7 +120,7 @@ func (cmd *CmdListenerDelete) WaitUntil() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Listener %q not deleted yet, check the logs for more information %s\n", cmd.name, err)
+		return fmt.Errorf("Listener %q not deleted yet, check the status for more information %s\n", cmd.name, err)
 	}
 
 	fmt.Printf("Listener %q deleted\n", cmd.name)

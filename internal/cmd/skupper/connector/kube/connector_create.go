@@ -253,7 +253,7 @@ func (cmd *CmdConnectorCreate) WaitUntil() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Connector %q not ready yet, check the logs for more information\n", cmd.name)
+		return fmt.Errorf("Connector %q not ready yet, check the status for more information\n", cmd.name)
 	}
 
 	fmt.Printf("Connector %q is ready\n", cmd.name)

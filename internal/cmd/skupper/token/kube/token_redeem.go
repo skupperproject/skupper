@@ -170,7 +170,7 @@ func (cmd *CmdTokenRedeem) WaitUntil() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Token %q redeem not ready yet, check the logs for more information\n", cmd.name)
+		return fmt.Errorf("Token %q redeem not ready yet, check the status for more information\n", cmd.name)
 	}
 
 	fmt.Printf("Token %q has been redeemed\n", cmd.name)
