@@ -6,16 +6,14 @@ package kube
 import (
 	"context"
 	"fmt"
-	"k8s.io/client-go/kubernetes"
-
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -36,7 +34,6 @@ type CmdSiteCreate struct {
 	KubeClient         kubernetes.Interface
 	CobraCmd           cobra.Command
 	flags              CreateFlags
-	options            map[string]string
 	siteName           string
 	serviceAccountName string
 	Namespace          string
@@ -46,8 +43,7 @@ type CmdSiteCreate struct {
 
 func NewCmdSiteCreate() *CmdSiteCreate {
 
-	options := make(map[string]string)
-	skupperCmd := CmdSiteCreate{options: options, flags: CreateFlags{}}
+	skupperCmd := CmdSiteCreate{flags: CreateFlags{}}
 
 	cmd := cobra.Command{
 		Use:    "create <name>",
@@ -152,14 +148,7 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 		} else {
 			cmd.linkAccessType = cmd.flags.linkAccessType
 		}
-	} else {
-		cmd.linkAccessType = "none"
 	}
-
-	options := make(map[string]string)
-	options[site.SiteConfigNameKey] = cmd.siteName
-
-	cmd.options = options
 
 	cmd.output = cmd.flags.output
 
@@ -177,7 +166,6 @@ func (cmd *CmdSiteCreate) Run() error {
 			Namespace: cmd.Namespace,
 		},
 		Spec: v1alpha1.SiteSpec{
-			Settings:       cmd.options,
 			ServiceAccount: cmd.serviceAccountName,
 			LinkAccess:     cmd.linkAccessType,
 		},

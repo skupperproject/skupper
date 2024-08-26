@@ -27,17 +27,15 @@ func Test_Marshal(t *testing.T) {
 			},
 		},
 			`{
-  "kind": "Site",
   "apiVersion": "skupper.io/v1alpha1",
+  "kind": "Site",
   "metadata": {
     "name": "my-site",
-    "namespace": "test",
-    "creationTimestamp": null
+    "namespace": "test"
   },
   "spec": {
     "linkAccess": "default"
-  },
-  "status": {}
+  }
 }`, false},
 		{"yaml", v1alpha1.Site{
 			TypeMeta: v1.TypeMeta{
@@ -55,12 +53,10 @@ func Test_Marshal(t *testing.T) {
 			`apiVersion: skupper.io/v1alpha1
 kind: Site
 metadata:
-  creationTimestamp: null
   name: my-site
   namespace: test
 spec:
   linkAccess: default
-status: {}
 `,
 			false},
 		{"unsupported", v1alpha1.Site{
