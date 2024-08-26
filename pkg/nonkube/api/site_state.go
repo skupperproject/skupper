@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -247,7 +248,11 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string) qdr.RouterConfig {
 	if s.SiteId == "" {
 		s.SiteId = uuid.New().String()
 	}
-	routerConfig := qdr.InitialConfig(s.Site.Name, s.SiteId, version.Version, !s.IsInterior(), 3)
+	var routerName = s.Site.Name
+	if !s.bundle {
+		routerName = fmt.Sprintf("%s-%d", s.Site.Name, time.Now().Unix())
+	}
+	routerConfig := qdr.InitialConfig(routerName, s.SiteId, version.Version, !s.IsInterior(), 3)
 	// override metadata
 	if s.bundle {
 		routerConfig.Metadata.Id += "-{{.SiteNameSuffix}}"
