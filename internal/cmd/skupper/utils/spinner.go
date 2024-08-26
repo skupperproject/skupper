@@ -38,7 +38,7 @@ func NewSpinnerWithTimeout(message string, timeoutInSeconds int, function func()
 
 	spin.Start()
 
-	err := utils.RetryErrorWithContext(ctx, time.Second, function)
+	err := utils.RetryErrorWithContext(ctx, time.Millisecond, function)
 
 	spin.Stop()
 
