@@ -160,6 +160,21 @@ func (r *ProcessResponse) SetResults(v ProcessRecord) {
 }
 
 // SetCount
+func (r *RequestListResponse) SetCount(v int64) {
+	r.Count = v
+}
+
+// SetResults
+func (r *RequestListResponse) SetResults(v []RequestRecord) {
+	r.Results = v
+}
+
+// SetTimeRangeCount
+func (r *RequestListResponse) SetTimeRangeCount(v int64) {
+	r.TimeRangeCount = v
+}
+
+// SetCount
 func (r *RouterAccessListResponse) SetCount(v int64) {
 	r.Count = v
 }
@@ -328,6 +343,16 @@ func (r ProcessRecord) GetEndTime() uint64 {
 
 // GetStartTime
 func (r ProcessRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
+func (r RequestRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r RequestRecord) GetStartTime() uint64 {
 	return r.StartTime
 }
 

@@ -302,6 +302,13 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/getConnections'
+  /api/v1alpha1/requests/:
+    get:
+      tags: [flows]
+      operationId: requests
+      responses:
+        '200':
+          $ref: '#/components/responses/getRequests'
 
   /api/v1alpha1/sites/{id}/processes/:
     get:
@@ -484,6 +491,17 @@ paths:
           $ref: '#/components/responses/getConnections'
         '404':
           $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/addresses/{id}/requests/:
+    get:
+      tags: [address, flows]
+      operationId: requestsByAddress
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getRequests'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
   /api/v1alpha1/processgroups/{id}/processes/:
     get:
       tags: ["process group"]
@@ -605,6 +623,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ConnectionListResponse'
+    getRequests:
+      description: response with a list of requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RequestListResponse'
     getSiteByID:
       description: response with a single site
       content:
@@ -894,6 +918,16 @@ components:
         properties:
           results:
             $ref: '#/components/schemas/ConnectionRecord'
+    RequestListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/RequestRecord'
     baseRecord:
       type: object
       required:
@@ -1376,6 +1410,80 @@ components:
             connectorError:
               type: string
               nullable: true
+    RequestRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          required:
+            - active
+            - connectionId
+            - sourceSiteId
+            - sourceSiteName
+            - destSiteId
+            - destSiteName
+            - sourceProcessId
+            - sourceProcessName
+            - destProcessId
+            - destProcessName
+            - duration
+            - processPairId
+            - processGroupPairId
+            - sitePairId
+            - protocol
+            - address
+            - listenerId
+            - connectorId
+            - method
+            - result
+          properties:
+            connectionId:
+              type: string
+            active:
+              type: boolean
+            duration:
+              type: integer
+              format: uint64
+              nullable: true
+            processPairId:
+              type: string
+              nullable: true
+            processGroupPairId:
+              type: string
+              nullable: true
+            sitePairId:
+              type: string
+              nullable: true
+            sourceSiteId:
+              type: string
+            sourceSiteName:
+              type: string
+            destSiteId:
+              type: string
+            destSiteName:
+              type: string
+            sourceProcessId:
+              type: string
+            sourceProcessName:
+              type: string
+            destProcessId:
+              type: string
+            destProcessName:
+              type: string
+            listenerId:
+              type: string
+            connectorId:
+              type: string
+            address:
+              type: string
+            protocol:
+              type: string
+              example: tcp
+            method:
+              type: string
+              example: GET
+            result:
+              type: string
+              example: 200
 
 tags:
   - name: site

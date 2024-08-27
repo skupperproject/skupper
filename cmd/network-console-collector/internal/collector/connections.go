@@ -18,13 +18,16 @@ import (
 
 // connectionManager handles flow records for a specific event source.
 type connectionManager struct {
-	logger  *slog.Logger
-	flows   store.Interface
-	records store.Interface
-	source  store.SourceRef
-	graph   *graph
-	idp     idProvider
-	metrics metrics
+	logger                *slog.Logger
+	flows                 store.Interface
+	records               store.Interface
+	source                store.SourceRef
+	graph                 *graph
+	idp                   idProvider
+	metrics               metrics
+	mcMu                  sync.Mutex
+	requestMetricsCache   map[labelSet]appMetrics
+	transportMetricsCache map[labelSet]transportMetrics
 
 	ttl time.Duration
 
@@ -257,17 +260,7 @@ func (c *connectionManager) reconcileRequest(state appState) (RequestRecord, rec
 		return r, missingRecord
 	}
 
-	labels := map[string]string{
-		"source_site_id":   connRecord.SourceSite.ID,
-		"source_site_name": connRecord.SourceSite.Name,
-		"dest_site_id":     connRecord.DestSite.ID,
-		"dest_site_name":   connRecord.DestSite.Name,
-		"routing_key":      connRecord.Address,
-		"source_process":   connRecord.Source.Name,
-		"dest_process":     connRecord.Dest.Name,
-	}
-
-	return RequestRecord{
+	rr := RequestRecord{
 		ID:          record.ID,
 		TransportID: transState.ID,
 		StartTime:   dref(record.StartTime).Time,
@@ -282,10 +275,27 @@ func (c *connectionManager) reconcileRequest(state appState) (RequestRecord, rec
 		DestSite:    connRecord.DestSite,
 
 		stor: c.flows,
-		metrics: appMetrics{
-			requests: c.metrics.requestsCounter.MustCurryWith(labels),
-		},
-	}, success
+	}
+	rr.metrics = c.getAppMetricSet(rr.toLabelSet())
+	return rr, success
+}
+
+func (c *connectionManager) getAppMetricSet(l labelSet) appMetrics {
+	c.mcMu.Lock()
+	defer c.mcMu.Unlock()
+	if c.requestMetricsCache == nil {
+		c.requestMetricsCache = make(map[labelSet]appMetrics)
+	}
+	if m, ok := c.requestMetricsCache[l]; ok {
+		return m
+	}
+	labels := l.asLabels()
+	delete(labels, "protocol") // set protocol at observation time
+	m := appMetrics{
+		requests: c.metrics.requestsCounter.MustCurryWith(labels),
+	}
+	c.requestMetricsCache[l] = m
+	return m
 }
 
 func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, reconcileReason) {
@@ -321,36 +331,7 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 		return cr, missingDest
 	}
 
-	labels := map[string]string{
-		"source_site_id":   sourceproc.SiteID,
-		"source_site_name": sourceproc.SiteName,
-		"dest_site_id":     destproc.SiteID,
-		"dest_site_name":   destproc.SiteName,
-		"routing_key":      cnctr.Address,
-		"protocol":         cnctr.Protocol,
-		"source_process":   sourceproc.Name,
-		"dest_process":     destproc.Name,
-	}
-	legacyLabels := map[string]string{
-		"sourceSite":    sourceproc.SiteName + "@_@" + sourceproc.SiteID,
-		"destSite":      destproc.SiteName + "@_@" + destproc.SiteID,
-		"address":       cnctr.Address,
-		"protocol":      cnctr.Protocol,
-		"sourceProcess": sourceproc.Name,
-		"destProcess":   destproc.Name,
-		"direction":     "incoming",
-	}
-	legacyLabelsReverse := map[string]string{
-		"sourceSite":    destproc.SiteName + "@_@" + destproc.SiteID,
-		"destSite":      sourceproc.SiteName + "@_@" + sourceproc.SiteID,
-		"address":       cnctr.Address,
-		"protocol":      cnctr.Protocol,
-		"sourceProcess": sourceproc.Name,
-		"destProcess":   destproc.Name,
-		"direction":     "outgoing",
-	}
-
-	return ConnectionRecord{
+	cr = ConnectionRecord{
 		ID:        record.ID,
 		StartTime: dref(record.StartTime).Time,
 		EndTime:   dref(record.EndTime).Time,
@@ -374,16 +355,50 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 		},
 
 		stor: c.flows,
-		metrics: transportMetrics{
-			opened:               c.metrics.flowOpenedCounter.With(labels),
-			closed:               c.metrics.flowClosedCounter.With(labels),
-			sent:                 c.metrics.flowBytesSentCounter.With(labels),
-			received:             c.metrics.flowBytesReceivedCounter.With(labels),
-			latency:              c.metrics.internal.flowLatency.With(labels),
-			latencyLegacy:        c.metrics.internal.legancyLatency.With(legacyLabels),
-			latencyLegacyReverse: c.metrics.internal.legancyLatency.With(legacyLabelsReverse),
-		},
-	}, success
+	}
+	cr.metrics = c.getTransportMetricSet(cr.toLabelSet())
+	return cr, success
+}
+
+func (c *connectionManager) getTransportMetricSet(l labelSet) transportMetrics {
+	c.mcMu.Lock()
+	defer c.mcMu.Unlock()
+	if c.transportMetricsCache == nil {
+		c.transportMetricsCache = make(map[labelSet]transportMetrics)
+	}
+	if m, ok := c.transportMetricsCache[l]; ok {
+		return m
+	}
+	labels := l.asLabels()
+	legacyLabels := map[string]string{
+		"sourceSite":    l.SourceSiteName + "@_@" + l.SourceSiteID,
+		"destSite":      l.DestSiteName + "@_@" + l.DestSiteID,
+		"address":       l.RoutingKey,
+		"protocol":      l.Protocol,
+		"sourceProcess": l.SourceProcess,
+		"destProcess":   l.DestProcess,
+		"direction":     "incoming",
+	}
+	legacyLabelsReverse := map[string]string{
+		"sourceSite":    l.DestSiteName + "@_@" + l.DestSiteID,
+		"destSite":      l.SourceSiteName + "@_@" + l.SourceSiteID,
+		"address":       l.RoutingKey,
+		"protocol":      l.Protocol,
+		"sourceProcess": l.SourceProcess,
+		"destProcess":   l.DestProcess,
+		"direction":     "outgoing",
+	}
+	m := transportMetrics{
+		opened:               c.metrics.flowOpenedCounter.With(labels),
+		closed:               c.metrics.flowClosedCounter.With(labels),
+		sent:                 c.metrics.flowBytesSentCounter.With(labels),
+		received:             c.metrics.flowBytesReceivedCounter.With(labels),
+		latency:              c.metrics.internal.flowLatency.With(labels),
+		latencyLegacy:        c.metrics.internal.legancyLatency.With(legacyLabels),
+		latencyLegacyReverse: c.metrics.internal.legancyLatency.With(legacyLabelsReverse),
+	}
+	c.transportMetricsCache[l] = m
+	return m
 }
 
 func (c *connectionManager) run(ctx context.Context) {

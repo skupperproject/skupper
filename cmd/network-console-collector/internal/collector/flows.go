@@ -48,6 +48,19 @@ func (r ConnectionRecord) GetTypeMeta() vanflow.TypeMeta {
 	}
 }
 
+func (r ConnectionRecord) toLabelSet() labelSet {
+	return labelSet{
+		SourceSiteID:   r.SourceSite.ID,
+		DestSiteID:     r.DestSite.ID,
+		SourceSiteName: r.SourceSite.Name,
+		DestSiteName:   r.DestSite.Name,
+		RoutingKey:     r.Address,
+		Protocol:       r.Protocol,
+		SourceProcess:  r.Source.Name,
+		DestProcess:    r.Dest.Name,
+	}
+}
+
 var _ vanflow.Record = (*RequestRecord)(nil)
 
 type RequestRecord struct {
@@ -87,6 +100,18 @@ func (r RequestRecord) GetTypeMeta() vanflow.TypeMeta {
 	return vanflow.TypeMeta{
 		Type:       "RequestRecord",
 		APIVersion: "v1alpha1",
+	}
+}
+
+func (r RequestRecord) toLabelSet() labelSet {
+	return labelSet{
+		SourceSiteID:   r.SourceSite.ID,
+		DestSiteID:     r.DestSite.ID,
+		SourceSiteName: r.SourceSite.Name,
+		DestSiteName:   r.DestSite.Name,
+		RoutingKey:     r.Address,
+		SourceProcess:  r.Source.Name,
+		DestProcess:    r.Dest.Name,
 	}
 }
 

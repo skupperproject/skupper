@@ -32,6 +32,25 @@ func (s *server) ConnectionsByAddress(w http.ResponseWriter, r *http.Request, id
 	}
 }
 
+func (s *server) Requests(w http.ResponseWriter, r *http.Request) {
+	results := views.NewRequestSliceProvider()(listByType[collector.RequestRecord](s.records))
+	if err := handleCollection(w, r, &api.RequestListResponse{}, results); err != nil {
+		s.logWriteError(r, err)
+	}
+}
+
+// (GET /api/v1alpha1/addresses/{id}/requests/)
+func (s *server) RequestsByAddress(w http.ResponseWriter, r *http.Request, id string) {
+	getExemplar := fetchAndMap(s.records, func(a collector.AddressRecord) store.Entry {
+		return store.Entry{Record: collector.RequestRecord{Address: a.Name, Protocol: a.Protocol}}
+	}, id)
+	if err := handleSubCollection(w, r, &api.RequestListResponse{}, getExemplar, func(exemplar store.Entry) []api.RequestRecord {
+		return views.NewRequestSliceProvider()(index(s.records, collector.IndexFlowByAddress, exemplar))
+	}); err != nil {
+		s.logWriteError(r, err)
+	}
+}
+
 // (GET /api/v1alpha1/addresses/)
 func (s *server) Addresses(w http.ResponseWriter, r *http.Request) {
 	results := views.NewAddressSliceProvider(s.graph)(listByType[collector.AddressRecord](s.records))
