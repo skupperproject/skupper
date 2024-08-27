@@ -107,4 +107,9 @@ Related to Network Traffic metrics (and sharing the same label set.)
 | metric name | description |
 | ------------------------ | ------------------------  |
 | latency_seconds | Histogram of connection latency observations - the difference between TTFB on the listener and connector sides. TCP only. |
-| legacy_latency_seconds | Histogram of connection TTFB on the listener side. TCP only. |
+
+Related to the skupper v1 flow metrics (sharing the old label set.)
+
+| metric name | description |
+| ------------------------ | ------------------------  |
+| legacy_flow_latency_microseconds | Histogram of connection time to first byte observations in microseconds. TCP only. Omits the "direction" label. |
