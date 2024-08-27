@@ -9,13 +9,11 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/scheme"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 )
 
 var (
@@ -167,29 +165,39 @@ func (cmd *CmdTokenIssue) Run() error {
 func (cmd *CmdTokenIssue) WaitUntil() error {
 	err := utils.NewSpinnerWithTimeout("Waiting for token status ...", int(cmd.flags.timeout.Seconds()), func() error {
 
-		token, err := cmd.client.AccessGrants(cmd.namespace).Get(context.TODO(), cmd.grantName, metav1.GetOptions{})
+		accessGrant, err := cmd.client.AccessGrants(cmd.namespace).Get(context.TODO(), cmd.grantName, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
 
-		if token != nil && token.IsReady() {
-			token.TypeMeta = metav1.TypeMeta{
-				APIVersion: "skupper.io/v1alpha1",
-				Kind:       "AccessGrant",
+		if accessGrant != nil && accessGrant.IsReady() {
+
+			accessToken := v1alpha1.AccessToken{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "skupper.io/v1alpha1",
+					Kind:       "AccessToken",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: accessGrant.Name,
+				},
+				Spec: v1alpha1.AccessTokenSpec{
+					Url:  accessGrant.Status.Url,
+					Code: accessGrant.Status.Code,
+					Ca:   accessGrant.Status.Ca,
+				},
 			}
 
-			// write token to file
-			s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
-			out, err := os.Create(cmd.fileName)
+			encodedResource, err := utils.Encode("yaml", accessToken)
+			if err != nil {
+				return fmt.Errorf("Could not write out generated token: " + err.Error())
+			}
+
+			err = os.WriteFile(cmd.fileName, []byte(encodedResource), 0644)
 			if err != nil {
 				return fmt.Errorf("Could not write to file " + cmd.fileName + ": " + err.Error())
 			}
-			err = s.Encode(token, out)
-			if err != nil {
-				return fmt.Errorf("Could not write out generated token: " + err.Error())
-			} else {
-				return nil
-			}
+
+			return nil
 		}
 
 		return fmt.Errorf("error getting the resource")
