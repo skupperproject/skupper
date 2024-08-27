@@ -231,7 +231,7 @@ func (cmd *CmdListenerUpdate) WaitUntil() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Listener %q not ready yet, check the logs for more information\n", cmd.name)
+		return fmt.Errorf("Listener %q not ready yet, check the status for more information\n", cmd.name)
 	}
 
 	fmt.Printf("Listener %q is ready\n", cmd.name)

@@ -222,7 +222,7 @@ func (cmd *CmdLinkUpdate) WaitUntil() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Link %q not updated yet, check the logs for more information\n", cmd.linkName)
+		return fmt.Errorf("Link %q not updated yet, check the status for more information\n", cmd.linkName)
 	}
 
 	fmt.Printf("Link %q is updated\n", cmd.linkName)

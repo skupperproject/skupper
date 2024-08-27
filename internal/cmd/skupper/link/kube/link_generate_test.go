@@ -869,7 +869,7 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 		{
 			name:               "secret is not returned",
 			outputType:         "yaml",
-			timeout:            3,
+			timeout:            1,
 			tlsSecret:          "linkSecret",
 			generateCredential: true,
 			expectError:        true,
@@ -878,21 +878,21 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 			name:               "the output only contains the link",
 			generateCredential: false,
 			outputType:         "yaml",
-			timeout:            3,
+			timeout:            1,
 			expectError:        false,
 		},
 		{
 			name:               "bad format for the output",
 			generateCredential: false,
 			outputType:         "not supported",
-			timeout:            3,
+			timeout:            1,
 			expectError:        true,
 		},
 		{
 			name:               "the output contains the link and the secret",
 			generateCredential: true,
 			outputType:         "yaml",
-			timeout:            3,
+			timeout:            1,
 			tlsSecret:          "link-test",
 			k8sObjects: []runtime.Object{
 				&corev1.Secret{
@@ -926,7 +926,7 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 			name:               "the output contains the link and the secret, but it failed while deleting the certificate",
 			generateCredential: true,
 			outputType:         "yaml",
-			timeout:            3,
+			timeout:            1,
 			tlsSecret:          "link-test",
 			k8sObjects: []runtime.Object{
 				&corev1.Secret{
@@ -976,6 +976,9 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 // --- helper methods
 
 func newCmdLinkGenerateWithMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*CmdLinkGenerate, error) {
+
+	// We make sure the interval is appropriate
+	utils.SetRetryProfile(utils.TestRetryProfile)
 
 	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
 	if err != nil {

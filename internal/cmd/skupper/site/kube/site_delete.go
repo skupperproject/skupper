@@ -113,7 +113,7 @@ func (cmd *CmdSiteDelete) WaitUntil() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Site %q not deleted yet, check the logs for more information\n", cmd.siteName)
+		return fmt.Errorf("Site %q not deleted yet, check the status for more information\n", cmd.siteName)
 	}
 
 	fmt.Printf("Site %q is deleted\n", cmd.siteName)

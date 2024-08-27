@@ -280,7 +280,7 @@ func (cmd *CmdLinkGenerate) WaitUntil() error {
 		})
 
 		if err != nil {
-			return fmt.Errorf("TLS secret %q not ready yet, check the logs for more information\n", cmd.tlsSecret)
+			return fmt.Errorf("TLS secret %q not ready yet, check the status for more information\n", cmd.tlsSecret)
 		}
 
 	}

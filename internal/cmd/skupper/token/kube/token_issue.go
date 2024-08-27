@@ -191,7 +191,7 @@ func (cmd *CmdTokenIssue) WaitUntil() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Grant %q not ready yet, check the logs for more information\n", cmd.grantName)
+		return fmt.Errorf("Grant %q not ready yet, check the status for more information\n", cmd.grantName)
 	}
 
 	fmt.Printf("\nGrant %q is ready\n", cmd.grantName)

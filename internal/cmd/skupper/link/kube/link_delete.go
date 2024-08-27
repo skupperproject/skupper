@@ -123,7 +123,7 @@ func (cmd *CmdLinkDelete) WaitUntil() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Link %q not deleted yet, check the logs for more information\n", cmd.linkName)
+		return fmt.Errorf("Link %q not deleted yet, check the status for more information\n", cmd.linkName)
 	}
 
 	fmt.Printf("Link %q is deleted\n", cmd.linkName)
