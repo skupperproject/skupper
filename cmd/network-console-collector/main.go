@@ -44,7 +44,7 @@ func run(cfg Config) error {
 		return fmt.Errorf("failed to load router tls configuration: %s", err)
 	}
 
-	collector := collector.New(logger.With(slog.String("component", "collector")), session.NewContainerFactory(cfg.RouterURL, sessionConfig), reg)
+	collector := collector.New(logger.With(slog.String("component", "collector")), session.NewContainerFactory(cfg.RouterURL, sessionConfig), reg, cfg.FlowRecordTTL)
 
 	collectorAPI := server.New(
 		logger.With(slog.String("component", "api")),

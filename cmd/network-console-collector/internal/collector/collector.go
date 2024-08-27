@@ -17,11 +17,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.Registry) *Collector {
+func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.Registry, flowRecordTTL time.Duration) *Collector {
 	sessionCtr := factory.Create()
 
 	collector := &Collector{
 		logger:        logger,
+		flowRecordTTL: flowRecordTTL,
 		session:       sessionCtr,
 		discovery:     eventsource.NewDiscovery(sessionCtr, eventsource.DiscoveryOptions{}),
 		sources:       make(map[string]eventSource),
@@ -51,7 +52,8 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 }
 
 type Collector struct {
-	logger *slog.Logger
+	logger        *slog.Logger
+	flowRecordTTL time.Duration
 
 	session   session.Container
 	discovery *eventsource.Discovery
@@ -344,6 +346,7 @@ func (c *Collector) discoveryHandler(ctx context.Context) func(eventsource.Info)
 				c.Records,
 				c.graph,
 				c.metrics,
+				c.flowRecordTTL,
 			)
 
 			// route flow records to source-specific stores

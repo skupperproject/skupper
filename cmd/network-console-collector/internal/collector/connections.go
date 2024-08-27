@@ -16,6 +16,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
 )
 
+// connectionManager handles flow records for a specific event source.
 type connectionManager struct {
 	logger  *slog.Logger
 	flows   store.Interface
@@ -24,6 +25,8 @@ type connectionManager struct {
 	graph   *graph
 	idp     idProvider
 	metrics metrics
+
+	ttl time.Duration
 
 	transportProcessingTime prometheus.Observer
 	appProcessingTime       prometheus.Observer
@@ -39,7 +42,7 @@ type connectionManager struct {
 	connectorsCache map[string]connectorAttrs
 }
 
-func newConnectionmanager(ctx context.Context, log *slog.Logger, source store.SourceRef, records store.Interface, graph *graph, metrics metrics) *connectionManager {
+func newConnectionmanager(ctx context.Context, log *slog.Logger, source store.SourceRef, records store.Interface, graph *graph, metrics metrics, ttl time.Duration) *connectionManager {
 	m := &connectionManager{
 		logger:                  log,
 		records:                 records,
@@ -47,6 +50,7 @@ func newConnectionmanager(ctx context.Context, log *slog.Logger, source store.So
 		source:                  source,
 		idp:                     newStableIdentityProvider(),
 		metrics:                 metrics,
+		ttl:                     ttl,
 		transportProcessingTime: metrics.internal.flowProcessingTime.WithLabelValues(vanflow.TransportBiflowRecord{}.GetTypeMeta().String()),
 		appProcessingTime:       metrics.internal.flowProcessingTime.WithLabelValues(vanflow.AppBiflowRecord{}.GetTypeMeta().String()),
 		transportFlows: &keyedLRUCache[transportState]{
@@ -82,6 +86,7 @@ func (c *connectionManager) handleTransportFlow(record vanflow.TransportBiflowRe
 	if !ok || state.metrics == nil {
 		state.ID = record.ID
 		state.FirstSeen = time.Now()
+		state.LastSeen = state.FirstSeen
 		state.Dirty = true
 		c.transportFlows.Push(record.ID, state)
 		return
@@ -89,6 +94,7 @@ func (c *connectionManager) handleTransportFlow(record vanflow.TransportBiflowRe
 	metrics := state.metrics
 	if metrics == nil {
 		state.Dirty = true
+		state.LastSeen = time.Now()
 		c.transportFlows.Push(record.ID, state)
 		return
 	}
@@ -119,11 +125,13 @@ func (c *connectionManager) handleTransportFlow(record vanflow.TransportBiflowRe
 		state.BytesSent = bs
 		state.BytesReceived = br
 	}
+	state.LastSeen = time.Now()
 	c.transportFlows.Push(record.ID, state)
 }
 
 func (c *connectionManager) handleAppFlow(record vanflow.AppBiflowRecord) {
 	state, ok := c.appFlows.Get(record.ID)
+	state.LastSeen = time.Now()
 	if !ok || state.metrics == nil {
 		state.ID = record.ID
 		state.TransportID = dref(record.Parent)
@@ -160,15 +168,11 @@ func (c *connectionManager) handleChange(p, e store.Entry) {
 	start := time.Now()
 	switch record := e.Record.(type) {
 	case vanflow.TransportBiflowRecord:
-		defer func() {
-			c.transportProcessingTime.Observe(time.Since(start).Seconds())
-		}()
 		c.handleTransportFlow(record)
+		c.transportProcessingTime.Observe(time.Since(start).Seconds())
 	case vanflow.AppBiflowRecord:
-		defer func() {
-			c.appProcessingTime.Observe(time.Since(start).Seconds())
-		}()
 		c.handleAppFlow(record)
+		c.appProcessingTime.Observe(time.Since(start).Seconds())
 	default:
 		// ignore
 	}
@@ -204,6 +208,9 @@ func (c *connectionManager) handleDelete(e store.Entry) {
 	switch record := e.Record.(type) {
 	case vanflow.TransportBiflowRecord:
 		c.transportFlows.Pop(record.ID)
+		c.records.Delete(record.ID)
+	case vanflow.AppBiflowRecord:
+		c.appFlows.Pop(record.ID)
 		c.records.Delete(record.ID)
 	default:
 		// ignore
@@ -440,42 +447,64 @@ func (c *connectionManager) run(ctx context.Context) {
 				defer func() {
 					reconcileEvictions.Observe(time.Since(start).Seconds())
 				}()
-				terminated := map[string]struct{}{}
-				stale := map[string]struct{}{}
-				for _, flow := range c.flows.Index(store.TypeIndex, store.Entry{Record: vanflow.TransportBiflowRecord{}}) {
-					threshold := -15 * time.Minute
-					state, _ := c.transportFlows.Get(flow.Record.Identity())
-					if flow.LastUpdate.Before(time.Now().Add(threshold)) {
+				{
+					terminated := map[string]struct{}{}
+					stale := map[string]struct{}{}
+					flowStates := c.transportFlows.Items()
+					for i := len(flowStates) - 1; i >= 0; i-- {
+						state := flowStates[i]
+						if !state.LastSeen.Before(time.Now().Add(-1 * c.ttl)) {
+							break
+						}
 						if state.Terminated {
-							terminated[flow.Record.Identity()] = struct{}{}
+							terminated[state.ID] = struct{}{}
 						} else {
-							stale[flow.Record.Identity()] = struct{}{}
+							stale[state.ID] = struct{}{}
+						}
+					}
+
+					if ct := len(terminated); ct > 0 {
+						c.logger.Info("purging terminated transport flows", slog.Int("count", ct))
+						for id := range terminated {
+							c.flows.Delete(id)
+							c.records.Delete(id)
+						}
+					}
+					if ct := len(stale); ct > 0 {
+						c.logger.Info("purging stale transport flows", slog.Int("count", ct))
+						for id := range stale {
+							c.flows.Delete(id)
+							c.records.Delete(id)
 						}
 					}
 				}
-				for _, flow := range c.flows.Index(store.TypeIndex, store.Entry{Record: vanflow.AppBiflowRecord{}}) {
-					threshold := -15 * time.Minute
-					state, _ := c.appFlows.Get(flow.Record.Identity())
-					if flow.LastUpdate.Before(time.Now().Add(threshold)) {
+				{
+					terminated := map[string]struct{}{}
+					stale := map[string]struct{}{}
+					flowStates := c.appFlows.Items()
+					for i := len(flowStates) - 1; i >= 0; i-- {
+						state := flowStates[i]
+						if !state.LastSeen.Before(time.Now().Add(-1 * c.ttl)) {
+							break
+						}
 						if state.Terminated {
-							terminated[flow.Record.Identity()] = struct{}{}
+							terminated[state.ID] = struct{}{}
 						} else {
-							stale[flow.Record.Identity()] = struct{}{}
+							stale[state.ID] = struct{}{}
 						}
 					}
-				}
-				if ct := len(terminated); ct > 0 {
-					c.logger.Debug("purging terminated flows", slog.Int("count", ct))
-					for id := range terminated {
-						c.flows.Delete(id)
-						c.records.Delete(id)
+
+					if ct := len(terminated); ct > 0 {
+						c.logger.Info("purging terminated app flows", slog.Int("count", ct))
+						for id := range terminated {
+							c.flows.Delete(id)
+						}
 					}
-				}
-				if ct := len(stale); ct > 0 {
-					c.logger.Info("purging stale flows", slog.Int("count", ct))
-					for id := range stale {
-						c.flows.Delete(id)
-						c.records.Delete(id)
+					if ct := len(stale); ct > 0 {
+						c.logger.Info("purging stale app flows", slog.Int("count", ct))
+						for id := range stale {
+							c.flows.Delete(id)
+						}
 					}
 				}
 			}()
@@ -619,7 +648,10 @@ func (c *connectionManager) runReconcileApp(ctx context.Context) {
 				pendingUnknownCt        int
 			)
 			for _, state := range states {
+				var push bool
 				if state.Dirty {
+					push = true
+					state.Dirty = false
 					dirty++
 				}
 
@@ -632,6 +664,7 @@ func (c *connectionManager) runReconcileApp(ctx context.Context) {
 						pendingTransportReconCt++
 					case success:
 						c.records.Add(request, c.source)
+						push = true
 						metrics := request.metrics
 						state.metrics = &metrics
 						reconciled = append(reconciled, request)
@@ -639,9 +672,9 @@ func (c *connectionManager) runReconcileApp(ctx context.Context) {
 						pendingUnknownCt++
 					}
 				}
-
-				state.Dirty = false
-				c.appFlows.Push(state.ID, state)
+				if push {
+					c.appFlows.Push(state.ID, state)
+				}
 			}
 			pendingTransport.Set(float64(pendingTransportCt))
 			pendingReconcile.Set(float64(pendingTransportReconCt))
@@ -704,8 +737,11 @@ func (c *connectionManager) runReconcile(ctx context.Context) {
 				pendingDst  int
 			)
 			for _, state := range states {
+				var push bool
 				if state.Dirty {
 					dirty++
+					push = true
+					state.Dirty = false
 				}
 
 				if state.metrics == nil {
@@ -718,6 +754,7 @@ func (c *connectionManager) runReconcile(ctx context.Context) {
 					case missingDest:
 						pendingDst++
 					case success:
+						push = true
 						c.records.Add(connection, c.source)
 						metrics := connection.metrics
 						state.metrics = &metrics
@@ -735,9 +772,9 @@ func (c *connectionManager) runReconcile(ctx context.Context) {
 						c.pairMu.Unlock()
 					}
 				}
-
-				state.Dirty = false
-				c.transportFlows.Push(state.ID, state)
+				if push {
+					c.transportFlows.Push(state.ID, state)
+				}
 			}
 			pendingConnector.Set(float64(pendingConn))
 			pendingSource.Set(float64(pendingSrc))
@@ -783,6 +820,7 @@ type appState struct {
 	metrics *appMetrics
 
 	FirstSeen time.Time
+	LastSeen  time.Time
 }
 
 type transportState struct {
@@ -798,6 +836,7 @@ type transportState struct {
 	metrics *transportMetrics
 
 	FirstSeen time.Time
+	LastSeen  time.Time
 }
 
 type keyedLRUCache[T any] struct {
