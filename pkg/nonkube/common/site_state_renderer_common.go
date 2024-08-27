@@ -2,10 +2,11 @@ package common
 
 import (
 	"fmt"
-	"maps"
 
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func CopySiteState(siteState *api.SiteState) *api.SiteState {
@@ -13,16 +14,52 @@ func CopySiteState(siteState *api.SiteState) *api.SiteState {
 	var activeSiteState = api.NewSiteState(siteState.IsBundle())
 	siteState.Site.DeepCopyInto(activeSiteState.Site)
 	activeSiteState.SiteId = siteState.SiteId
-	activeSiteState.Listeners = maps.Clone(siteState.Listeners)
-	activeSiteState.Connectors = maps.Clone(siteState.Connectors)
-	activeSiteState.RouterAccesses = maps.Clone(siteState.RouterAccesses)
-	activeSiteState.Claims = maps.Clone(siteState.Claims)
-	activeSiteState.Links = maps.Clone(siteState.Links)
-	activeSiteState.Grants = maps.Clone(siteState.Grants)
-	activeSiteState.SecuredAccesses = maps.Clone(siteState.SecuredAccesses)
-	activeSiteState.Certificates = maps.Clone(siteState.Certificates)
-	activeSiteState.Secrets = maps.Clone(siteState.Secrets)
+	activeSiteState.Listeners = copySiteStateMap(siteState.Listeners)
+	activeSiteState.Connectors = copySiteStateMap(siteState.Connectors)
+	activeSiteState.RouterAccesses = copySiteStateMap(siteState.RouterAccesses)
+	activeSiteState.Claims = copySiteStateMap(siteState.Claims)
+	activeSiteState.Links = copySiteStateMap(siteState.Links)
+	activeSiteState.Grants = copySiteStateMap(siteState.Grants)
+	activeSiteState.SecuredAccesses = copySiteStateMap(siteState.SecuredAccesses)
+	activeSiteState.Certificates = copySiteStateMap(siteState.Certificates)
+	activeSiteState.Secrets = copySiteStateMap(siteState.Secrets)
 	return activeSiteState
+}
+
+func copySiteStateMap[T any](m map[string]T) map[string]T {
+	if m == nil {
+		return nil
+	}
+	newMap := make(map[string]T, len(m))
+	for k, v := range m {
+		var c any
+		switch vv := any(v).(type) {
+		case *v1alpha1.Listener:
+			c = vv.DeepCopy()
+		case *v1alpha1.Connector:
+			c = vv.DeepCopy()
+		case *v1alpha1.RouterAccess:
+			c = vv.DeepCopy()
+		case *v1alpha1.AccessGrant:
+			c = vv.DeepCopy()
+		case *v1alpha1.Link:
+			c = vv.DeepCopy()
+		case *v1alpha1.AccessToken:
+			c = vv.DeepCopy()
+		case *v1alpha1.Certificate:
+			c = vv.DeepCopy()
+		case *v1alpha1.SecuredAccess:
+			c = vv.DeepCopy()
+		case *corev1.Secret:
+			c = vv.DeepCopy()
+		}
+		if c != nil {
+			newMap[k] = c.(T)
+		} else {
+			newMap[k] = v
+		}
+	}
+	return newMap
 }
 
 func CreateRouterAccess(siteState *api.SiteState) error {

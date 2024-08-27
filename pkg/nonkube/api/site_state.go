@@ -107,6 +107,7 @@ func (s *SiteState) CreateRouterAccess(name string, port int) {
 			Issuer:         tlsCaName,
 		},
 	}
+	s.RouterAccesses[name].SetConfigured(nil)
 	s.Certificates[tlsCaName] = s.newCertificate(tlsCaName, &v1alpha1.CertificateSpec{
 		Subject: tlsCaName,
 		Hosts:   []string{"127.0.0.1", "localhost"},
@@ -170,6 +171,7 @@ func (s *SiteState) CreateLinkAccessesCertificates() {
 			Subject: clientCertificateName,
 			Client:  true,
 		})
+		linkAccess.SetConfigured(nil)
 	}
 
 }
@@ -213,6 +215,11 @@ func (s *SiteState) newCertificate(name string, spec *v1alpha1.CertificateSpec) 
 			Namespace: s.GetNamespace(),
 		},
 		Spec: *spec,
+		Status: v1alpha1.CertificateStatus{
+			Status: v1alpha1.Status{
+				StatusMessage: v1alpha1.STATUS_OK,
+			},
+		},
 	}
 }
 
@@ -227,6 +234,7 @@ func (s *SiteState) linkMap(sslProfileBasePath string) site.LinkMap {
 	linkMap := site.LinkMap{}
 	for name, link := range s.Links {
 		siteLink := site.NewLink(name, path.Join(sslProfileBasePath, "certificates/link"))
+		link.SetConfigured(nil)
 		siteLink.Update(link)
 		linkMap[name] = siteLink
 	}
@@ -236,9 +244,11 @@ func (s *SiteState) linkMap(sslProfileBasePath string) site.LinkMap {
 func (s *SiteState) bindings() *site.Bindings {
 	b := site.NewBindings()
 	for name, connector := range s.Connectors {
+		connector.SetConfigured(nil)
 		_ = b.UpdateConnector(name, connector)
 	}
 	for name, listener := range s.Listeners {
+		listener.SetConfigured(nil)
 		_ = b.UpdateListener(name, listener)
 	}
 	return b

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
@@ -114,7 +115,20 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *api.SiteState) error
 			return fmt.Errorf("failed to write runtime platform: %w", err)
 		}
 	}
-
+	siteState.Site.SetConfigured(nil)
+	endpoints := make([]v1alpha1.Endpoint, 0)
+	for raName, ra := range siteState.RouterAccesses {
+		for _, role := range ra.Spec.Roles {
+			if role.Name != "normal" {
+				endpoints = append(endpoints, v1alpha1.Endpoint{
+					Name: fmt.Sprintf("%s-%s", raName, role.Name),
+					Host: ra.Spec.BindHost,
+					Port: strconv.Itoa(role.Port),
+				})
+			}
+		}
+	}
+	siteState.Site.Status.Endpoints = endpoints
 	return nil
 }
 
