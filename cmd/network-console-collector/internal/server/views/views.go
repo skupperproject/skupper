@@ -284,6 +284,9 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 		setOpt(&out.Name, record.Name)
 		setOpt(&out.Parent, record.Parent)
 		setOpt(&out.SourceHost, record.SourceHost)
+		if mode := record.Mode; mode != nil && strings.EqualFold(*mode, "internal") {
+			out.ProcessRole = api.Internal
+		}
 
 		setOpt(&out.GroupName, record.Group)
 		if record.Group != nil {

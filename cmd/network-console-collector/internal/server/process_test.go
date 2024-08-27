@@ -64,6 +64,7 @@ func TestProcesses(t *testing.T) {
 					BaseRecord: vanflow.NewBase("1"),
 					Group:      ptrTo("group-one"),
 					SourceHost: ptrTo("10.99.99.2"),
+					Mode:       ptrTo("internal"),
 				},
 				collector.ProcessGroupRecord{ID: "group-1-id", Name: "group-one"},
 				collector.AddressRecord{ID: "pizza-addr-id", Name: "pizza", Protocol: "tcp"},
@@ -97,7 +98,7 @@ func TestProcesses(t *testing.T) {
 					GroupIdentity:  "group-1-id",
 					ProcessBinding: api.Bound,
 					Name:           "processone",
-					ProcessRole:    api.External,
+					ProcessRole:    api.Internal,
 					SourceHost:     "10.99.99.2",
 				})
 			},
