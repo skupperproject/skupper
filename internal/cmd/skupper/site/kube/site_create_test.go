@@ -148,7 +148,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 			name:               "options with link access enabled but using a type by default",
 			args:               []string{"my-site"},
 			flags:              common.CommandSiteCreateFlags{EnableLinkAccess: true},
-			expectedLinkAccess: "loadbalancer",
+			expectedLinkAccess: "default",
 			expectedOutput:     "",
 		},
 		{
@@ -162,14 +162,14 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 			name:               "options with link access options not well specified",
 			args:               []string{"my-site"},
 			flags:              common.CommandSiteCreateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport"},
-			expectedLinkAccess: "none",
+			expectedLinkAccess: "",
 			expectedOutput:     "",
 		},
 		{
 			name:               "options output type",
 			args:               []string{"my-site"},
 			flags:              common.CommandSiteCreateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport", Output: "yaml"},
-			expectedLinkAccess: "none",
+			expectedLinkAccess: "",
 			expectedOutput:     "yaml",
 		},
 	}
