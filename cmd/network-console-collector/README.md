@@ -96,9 +96,15 @@ above, but includes several additional labels.
 
 ### Internal Metrics
 
-TBD.
-
 We expose a set of metrics prefixed `skupper_internal` to help us observe the
 collector itself. Moving forward we may end up recommending anyone scraping
 skupper metrics from the collector exclude these when storage space is a
 concern.
+
+
+Related to Network Traffic metrics (and sharing the same label set.)
+
+| metric name | description |
+| ------------------------ | ------------------------  |
+| latency_seconds | Histogram of connection latency observations - the difference between TTFB on the listener and connector sides. TCP only. |
+| legacy_latency_seconds | Histogram of connection TTFB on the listener side. TCP only. |

@@ -13,6 +13,8 @@ type metrics struct {
 }
 
 type metricsInternal struct {
+	flowLatency        *prometheus.HistogramVec
+	legancyLatency     *prometheus.HistogramVec
 	flowProcessingTime *prometheus.HistogramVec
 	reconcileTime      *prometheus.HistogramVec
 	queueUtilization   *prometheus.GaugeVec
@@ -47,6 +49,19 @@ func register(reg *prometheus.Registry) metrics {
 			Help:      "Counter incremented for each request handled through the skupper network",
 		}, appFlowMetricLables),
 		internal: metricsInternal{
+			flowLatency: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+				Namespace: "skupper",
+				Subsystem: "internal",
+				Name:      "latency_seconds",
+				Help:      "Latency observed measured as seconds difference between TTFB between listener and connector sides",
+				Buckets:   histBucketsFast,
+			}, flowMetricLables),
+			legancyLatency: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+				Namespace: "legacy",
+				Name:      "flow_latency_microseconds",
+				Help:      "Time to first byte observed from the listener (client) side",
+				Buckets:   []float64{10, 100, 1000, 2000, 5000, 10000, 100000, 1000000, 10000000},
+			}, []string{"sourceSite", "destSite", "address", "protocol", "sourceProcess", "destProcess"}),
 			reconcileTime: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: "skupper",
 				Subsystem: "internal",
@@ -81,6 +96,8 @@ func register(reg *prometheus.Registry) metrics {
 		m.flowBytesSentCounter,
 		m.flowBytesReceivedCounter,
 		m.requestsCounter,
+		m.internal.legancyLatency,
+		m.internal.flowLatency,
 		m.internal.reconcileTime,
 		m.internal.queueUtilization,
 		m.internal.flowProcessingTime,

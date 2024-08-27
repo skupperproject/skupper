@@ -104,6 +104,12 @@ func (c *connectionManager) handleTransportFlow(record vanflow.TransportBiflowRe
 			metrics.closed.Inc()
 		}
 	}
+	if !state.LatencySet && record.Latency != nil && record.LatencyReverse != nil {
+		delta := time.Microsecond * time.Duration(*record.Latency-*record.LatencyReverse)
+		state.LatencySet = true
+		metrics.latency.Observe(delta.Seconds())
+		metrics.latencyLegacy.Observe(float64(*record.Latency))
+	}
 	bs, br := dref(record.Octets), dref(record.OctetsReverse)
 	sentInc := float64(bs - state.BytesSent)
 	receivedInc := float64(br - state.BytesReceived)
@@ -317,6 +323,14 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 		"source_process":   sourceproc.Name,
 		"dest_process":     destproc.Name,
 	}
+	legacyLabels := map[string]string{
+		"sourceSite":    sourceproc.SiteName + "@_@" + sourceproc.SiteID,
+		"destSite":      destproc.SiteName + "@_@" + destproc.SiteID,
+		"address":       cnctr.Address,
+		"protocol":      cnctr.Protocol,
+		"sourceProcess": sourceproc.Name,
+		"destProcess":   destproc.Name,
+	}
 
 	return ConnectionRecord{
 		ID:        record.ID,
@@ -343,10 +357,12 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 
 		stor: c.flows,
 		metrics: transportMetrics{
-			opened:   c.metrics.flowOpenedCounter.With(labels),
-			closed:   c.metrics.flowClosedCounter.With(labels),
-			sent:     c.metrics.flowBytesSentCounter.With(labels),
-			received: c.metrics.flowBytesReceivedCounter.With(labels),
+			opened:        c.metrics.flowOpenedCounter.With(labels),
+			closed:        c.metrics.flowClosedCounter.With(labels),
+			sent:          c.metrics.flowBytesSentCounter.With(labels),
+			received:      c.metrics.flowBytesReceivedCounter.With(labels),
+			latency:       c.metrics.internal.flowLatency.With(labels),
+			latencyLegacy: c.metrics.internal.legancyLatency.With(legacyLabels),
 		},
 	}, success
 }
@@ -426,9 +442,20 @@ func (c *connectionManager) run(ctx context.Context) {
 				}()
 				terminated := map[string]struct{}{}
 				stale := map[string]struct{}{}
-				for _, flow := range c.flows.List() {
+				for _, flow := range c.flows.Index(store.TypeIndex, store.Entry{Record: vanflow.TransportBiflowRecord{}}) {
 					threshold := -15 * time.Minute
 					state, _ := c.transportFlows.Get(flow.Record.Identity())
+					if flow.LastUpdate.Before(time.Now().Add(threshold)) {
+						if state.Terminated {
+							terminated[flow.Record.Identity()] = struct{}{}
+						} else {
+							stale[flow.Record.Identity()] = struct{}{}
+						}
+					}
+				}
+				for _, flow := range c.flows.Index(store.TypeIndex, store.Entry{Record: vanflow.AppBiflowRecord{}}) {
+					threshold := -15 * time.Minute
+					state, _ := c.appFlows.Get(flow.Record.Identity())
 					if flow.LastUpdate.Before(time.Now().Add(threshold)) {
 						if state.Terminated {
 							terminated[flow.Record.Identity()] = struct{}{}
@@ -736,10 +763,12 @@ func (c *connectionManager) Stop() {
 }
 
 type transportMetrics struct {
-	opened   prometheus.Counter
-	closed   prometheus.Counter
-	sent     prometheus.Counter
-	received prometheus.Counter
+	opened        prometheus.Counter
+	closed        prometheus.Counter
+	sent          prometheus.Counter
+	received      prometheus.Counter
+	latency       prometheus.Observer
+	latencyLegacy prometheus.Observer
 }
 type appMetrics struct {
 	requests *prometheus.CounterVec
@@ -764,6 +793,7 @@ type transportState struct {
 	Terminated    bool
 	BytesSent     uint64
 	BytesReceived uint64
+	LatencySet    bool
 
 	metrics *transportMetrics
 
