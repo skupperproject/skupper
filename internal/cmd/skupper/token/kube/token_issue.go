@@ -173,6 +173,11 @@ func (cmd *CmdTokenIssue) WaitUntil() error {
 		}
 
 		if token != nil && token.IsReady() {
+			token.TypeMeta = metav1.TypeMeta{
+				APIVersion: "skupper.io/v1alpha1",
+				Kind:       "AccessGrant",
+			}
+
 			// write token to file
 			s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 			out, err := os.Create(cmd.fileName)
