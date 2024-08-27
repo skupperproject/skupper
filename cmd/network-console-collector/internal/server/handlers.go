@@ -14,7 +14,7 @@ var _ api.ServerInterface = (*server)(nil)
 
 // (GET /api/v1alpha1/connections/)
 func (s *server) Connections(w http.ResponseWriter, r *http.Request) {
-	results := views.NewConnectionsSliceProvider(s.flowState)(listByType[vanflow.TransportBiflowRecord](s.flows))
+	results := views.NewConnectionsSliceProvider()(listByType[collector.ConnectionRecord](s.records))
 	if err := handleCollection(w, r, &api.ConnectionListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
@@ -281,8 +281,8 @@ func (s *server) ListenersByRouter(w http.ResponseWriter, r *http.Request, id st
 
 // (GET /api/v1alpha1/sitepairs/)
 func (s *server) Sitepairs(w http.ResponseWriter, r *http.Request) {
-	//TODO(ck) implement
-	if err := handleCollection(w, r, &api.FlowAggregateListResponse{}, []api.FlowAggregateRecord{}); err != nil {
+	results := views.NewSitePairSliceProvider(s.graph)(listByType[collector.SitePairRecord](s.records))
+	if err := handleCollection(w, r, &api.FlowAggregateListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
 }

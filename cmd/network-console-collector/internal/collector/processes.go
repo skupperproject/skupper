@@ -80,9 +80,9 @@ func (m *processManager) run(ctx context.Context) func() error {
 
 		reconcileNext, reconcilePrev := m.rebuildConnectors, m.rebuildProcesses
 
-		reconcileProcesses := m.metrics.internal.reconcileTime.WithLabelValues("process_processes")
-		reconcileHosts := m.metrics.internal.reconcileTime.WithLabelValues("process_desired_hosts")
-		reconcileGroups := m.metrics.internal.reconcileTime.WithLabelValues("process_groups")
+		reconcileProcesses := m.metrics.internal.reconcileTime.WithLabelValues("self", "process_processes")
+		reconcileHosts := m.metrics.internal.reconcileTime.WithLabelValues("self", "process_desired_hosts")
+		reconcileGroups := m.metrics.internal.reconcileTime.WithLabelValues("self", "process_groups")
 		for {
 			select {
 			case <-ctx.Done():

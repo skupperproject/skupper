@@ -12,6 +12,38 @@ import (
 
 const unknownStr = "unknown"
 
+func NewSitePairSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.FlowAggregateRecord {
+	provider := NewSitePairProvider(graph)
+	return func(entries []store.Entry) []api.FlowAggregateRecord {
+		results := make([]api.FlowAggregateRecord, 0, len(entries))
+		for _, e := range entries {
+			record, ok := e.Record.(collector.SitePairRecord)
+			if !ok {
+				continue
+			}
+			results = append(results, provider(record))
+		}
+		return results
+	}
+}
+func NewSitePairProvider(graph collector.Graph) func(collector.SitePairRecord) api.FlowAggregateRecord {
+	return func(record collector.SitePairRecord) api.FlowAggregateRecord {
+		out := defaultFlowAggregate(record.ID)
+		out.StartTime = uint64(record.Start.UnixMicro())
+		out.PairType = api.SITE
+		out.SourceId = record.Source
+		out.DestinationId = record.Dest
+		out.Protocol = record.Protocol
+
+		if proc, ok := graph.Site(record.Source).GetRecord(); ok {
+			setOpt(&out.SourceName, proc.Name)
+		}
+		if proc, ok := graph.Site(record.Dest).GetRecord(); ok {
+			setOpt(&out.DestinationName, proc.Name)
+		}
+		return out
+	}
+}
 func NewProcessPairSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.FlowAggregateRecord {
 	provider := NewProcessPairProvider(graph)
 	return func(entries []store.Entry) []api.FlowAggregateRecord {

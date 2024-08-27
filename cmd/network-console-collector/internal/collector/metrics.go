@@ -53,7 +53,7 @@ func register(reg *prometheus.Registry) metrics {
 				Name:      "collector_job_seconds",
 				Help:      "Time spent in periodic reconcile jobs in the collector",
 				Buckets:   histBucketsFast,
-			}, []string{"type"}),
+			}, []string{"eventsource", "type"}),
 			flowProcessingTime: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: "skupper",
 				Subsystem: "internal",
@@ -71,7 +71,7 @@ func register(reg *prometheus.Registry) metrics {
 				Namespace: "skupper",
 				Subsystem: "internal",
 				Name:      "pending_flows",
-			}, []string{"type", "reason"}),
+			}, []string{"type", "reason", "eventsource"}),
 		},
 	}
 

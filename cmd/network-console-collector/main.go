@@ -49,8 +49,6 @@ func run(cfg Config) error {
 	collectorAPI := server.New(
 		logger.With(slog.String("component", "api")),
 		collector.Records,
-		collector.FlowRecords,
-		collector.FlowStates(),
 		collector.GetGraph(),
 	)
 

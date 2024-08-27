@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"sync"
 	"time"
 
@@ -23,9 +24,8 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 		logger:        logger,
 		session:       sessionCtr,
 		discovery:     eventsource.NewDiscovery(sessionCtr, eventsource.DiscoveryOptions{}),
-		clients:       make(map[string]*eventsource.Client),
-		events:        make(chan changeEvent, 128),
-		flows:         make(chan changeEvent, 1024),
+		sources:       make(map[string]eventSource),
+		events:        make(chan changeEvent, 1024),
 		purgeQueue:    make(chan store.SourceRef, 8),
 		recordRouting: make(eventsource.RecordStoreMap),
 		metrics:       register(reg),
@@ -39,28 +39,14 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 		},
 		Indexers: RecordIndexers(),
 	})
-	collector.FlowRecords = store.NewSyncMapStore(store.SyncMapStoreConfig{
-		Handlers: store.EventHandlerFuncs{
-			OnAdd:    collector.handleFlowAdd,
-			OnChange: collector.handleFlowChange,
-			OnDelete: collector.handleFlowDelete,
-		},
-		Indexers: map[string]store.Indexer{
-			store.SourceIndex: store.SourceIndexer,
-			store.TypeIndex:   store.TypeIndexer,
-			IndexByTypeParent: indexByTypeParent,
-		},
-	})
 	collector.graph = NewGraph(collector.Records).(*graph)
 	collector.processManager = newProcessManager(logger, collector.Records, collector.graph, newStableIdentityProvider(), collector.metrics)
 	collector.addressManager = newAddressManager(collector.logger, collector.Records)
-	collector.flowManager = newFlowManager(collector.logger, collector.graph, collector.FlowRecords, collector.Records, collector.metrics)
+	collector.pairManager = newPairManager(logger, collector.Records, collector.graph)
 	routerCfg := collector.recordRouting
 	for _, typ := range standardRecordTypes {
 		routerCfg[typ.String()] = collector.Records
 	}
-	routerCfg[vanflow.TransportBiflowRecord{}.GetTypeMeta().String()] = collector.FlowRecords
-	routerCfg[vanflow.AppBiflowRecord{}.GetTypeMeta().String()] = collector.FlowRecords
 	return collector
 }
 
@@ -70,34 +56,30 @@ type Collector struct {
 	session   session.Container
 	discovery *eventsource.Discovery
 
-	mu            sync.Mutex
-	clients       map[string]*eventsource.Client
+	mu      sync.Mutex
+	sources map[string]eventSource
+
 	Records       store.Interface
-	FlowRecords   store.Interface
 	graph         *graph
 	recordRouting eventsource.RecordStoreMap
 
 	processManager *processManager
 	addressManager *addressManager
-	flowManager    *flowManager
+	pairManager    *pairManager
 
 	events     chan changeEvent
-	flows      chan changeEvent
 	purgeQueue chan store.SourceRef
 
 	metrics metrics
 }
 
+type eventSource struct {
+	client  *eventsource.Client
+	manager *connectionManager
+}
+
 func (c *Collector) GetGraph() Graph {
 	return c.graph
-}
-
-type FlowStateAccess interface {
-	Get(id string) (FlowState, bool)
-}
-
-func (c *Collector) FlowStates() FlowStateAccess {
-	return c.flowManager.state
 }
 
 func (c *Collector) Run(ctx context.Context) error {
@@ -110,7 +92,7 @@ func (c *Collector) Run(ctx context.Context) error {
 	g.Go(c.runRecordCleanup(ctx))
 	g.Go(c.processManager.run(ctx))
 	g.Go(c.addressManager.run(ctx))
-	g.Go(c.flowManager.run(ctx, c.flows))
+	g.Go(c.pairManager.run(ctx))
 	return g.Wait()
 }
 
@@ -128,13 +110,11 @@ func (c *Collector) updateGraph(event changeEvent, stor readonly) {
 
 func (c *Collector) monitoring(ctx context.Context) func() error {
 	eventQueueSpace := c.metrics.internal.queueUtilization.WithLabelValues("records")
-	flowQueueSpace := c.metrics.internal.queueUtilization.WithLabelValues("flows")
 	return func() error {
 		defer func() {
 			c.logger.Info("collector monitoring shutdown complete")
 		}()
 		recordsCapacity := float64(cap(c.events))
-		flowCapacity := float64(cap(c.flows))
 
 		utilization := func(queue chan changeEvent, capacity float64) float64 {
 			events := float64(len(queue))
@@ -146,9 +126,7 @@ func (c *Collector) monitoring(ctx context.Context) func() error {
 				return nil
 			case <-time.After(time.Second * 5):
 				recordsUtil := utilization(c.events, recordsCapacity)
-				flowUtil := utilization(c.flows, flowCapacity)
 				eventQueueSpace.Set(recordsUtil)
-				flowQueueSpace.Set(flowUtil)
 			}
 		}
 	}
@@ -168,12 +146,11 @@ func (c *Collector) runWorkQueue(ctx context.Context) func() error {
 	reactors[vanflow.ConnectorRecord{}.GetTypeMeta()] = append(reactors[vanflow.ConnectorRecord{}.GetTypeMeta()],
 		c.addressManager.handleChangeEvent,
 		c.processManager.handleChangeEvent,
-		c.flowManager.handleCacheInvalidatingEvent,
 	)
 	reactors[vanflow.ProcessRecord{}.GetTypeMeta()] = append(reactors[vanflow.ProcessRecord{}.GetTypeMeta()],
 		c.processManager.handleChangeEvent,
-		c.flowManager.handleCacheInvalidatingEvent,
 	)
+	reactors[ProcPairRecord{}.GetTypeMeta()] = append(reactors[ProcPairRecord{}.GetTypeMeta()], c.pairManager.handleChangeEvent)
 
 	return func() error {
 		defer func() {
@@ -186,6 +163,7 @@ func (c *Collector) runWorkQueue(ctx context.Context) func() error {
 			case event := <-c.events:
 				start := time.Now()
 				typ := event.GetTypeMeta()
+				event.ID()
 				for _, reactor := range reactors[typ] {
 					reactor(event, c.Records)
 				}
@@ -271,32 +249,13 @@ func (c *Collector) runRecordCleanup(ctx context.Context) func() error {
 	}
 }
 
-func (c *Collector) handleFlowAdd(e store.Entry) {
-	select {
-	case c.flows <- addEvent{Record: e.Record}:
-	default:
-		c.logger.Error("Flow event queue full")
-	}
-}
-
-func (c *Collector) handleFlowChange(p, e store.Entry) {
-
-	select {
-	case c.flows <- updateEvent{Prev: p.Record, Curr: e.Record}:
-	default:
-		c.logger.Error("Flow event queue full")
-	}
-}
-func (c *Collector) handleFlowDelete(e store.Entry) {
-
-	select {
-	case c.flows <- deleteEvent{Record: e.Record}:
-	default:
-		c.logger.Error("Flow event queue full")
-	}
-}
-
 func (c *Collector) handleStoreAdd(e store.Entry) {
+	switch e.Record.(type) {
+	case RequestRecord:
+		return
+	case ConnectionRecord:
+		return
+	}
 	select {
 	case c.events <- addEvent{Record: e.Record}:
 	default:
@@ -305,7 +264,12 @@ func (c *Collector) handleStoreAdd(e store.Entry) {
 }
 
 func (c *Collector) handleStoreChange(p, e store.Entry) {
-
+	switch e.Record.(type) {
+	case RequestRecord:
+		return
+	case ConnectionRecord:
+		return
+	}
 	select {
 	case c.events <- updateEvent{Prev: p.Record, Curr: e.Record}:
 	default:
@@ -313,7 +277,12 @@ func (c *Collector) handleStoreChange(p, e store.Entry) {
 	}
 }
 func (c *Collector) handleStoreDelete(e store.Entry) {
-
+	switch e.Record.(type) {
+	case RequestRecord:
+		return
+	case ConnectionRecord:
+		return
+	}
 	select {
 	case c.events <- deleteEvent{Record: e.Record}:
 	default:
@@ -350,22 +319,49 @@ func (c *Collector) discoveryHandler(ctx context.Context) func(eventsource.Info)
 			return
 		}
 
+		sourceCtr := eventSource{
+			client: client,
+		}
+
+		addresses := []eventsource.ListenerConfigProvider{
+			eventsource.FromSourceAddress(),
+		}
+
 		router := eventsource.RecordStoreRouter{
 			Stores: c.recordRouting,
 			Source: sourceRef(source),
 		}
-		client.OnRecord(router.Route)
-		client.Listen(ctx, eventsource.FromSourceAddress())
-		if source.Type == "CONTROLLER" {
-			client.Listen(ctx, eventsource.FromSourceAddressHeartbeats())
+
+		switch source.Type {
+		case "CONTROLLER":
+			addresses = append(addresses, eventsource.FromSourceAddressHeartbeats()) // listen to .heartbeats
+		case "ROUTER":
+			addresses = append(addresses, eventsource.FromSourceAddressFlows()) // listen to .flows
+			sourceCtr.manager = newConnectionmanager(
+				ctx,
+				c.logger.With(slog.String("eventsource", fmt.Sprintf("%d/%s", source.Version, source.ID))),
+				sourceRef(source),
+				c.Records,
+				c.graph,
+				c.metrics,
+			)
+
+			// route flow records to source-specific stores
+			router.Stores = maps.Clone(router.Stores)
+			for _, typ := range flowRecordTypes {
+				router.Stores[typ.String()] = sourceCtr.manager.flows
+			}
 		}
-		if source.Type == "ROUTER" {
-			client.Listen(ctx, eventsource.FromSourceAddressFlows())
+
+		client.OnRecord(router.Route)
+
+		for _, address := range addresses {
+			client.Listen(ctx, address)
 		}
 
 		c.mu.Lock()
 		defer c.mu.Unlock()
-		c.clients[source.ID] = client
+		c.sources[source.ID] = sourceCtr
 
 		go func() {
 			ctx, cancel := context.WithTimeout(ctx, time.Second*5)
@@ -387,10 +383,13 @@ func (c *Collector) handleForgotten(source eventsource.Info) {
 	c.logger.Info("handling forgotten source", slog.String("id", source.ID))
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	client, ok := c.clients[source.ID]
+	s, ok := c.sources[source.ID]
 	if ok {
-		client.Close()
-		delete(c.clients, source.ID)
+		s.client.Close()
+		if s.manager != nil {
+			s.manager.Stop()
+		}
+		delete(c.sources, source.ID)
 	}
 	c.purgeQueue <- sourceRef(source)
 }

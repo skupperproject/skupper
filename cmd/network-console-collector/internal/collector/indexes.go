@@ -18,6 +18,11 @@ var standardRecordTypes []vanflow.TypeMeta = []vanflow.TypeMeta{
 	vanflow.ProcessRecord{}.GetTypeMeta(),
 }
 
+var flowRecordTypes []vanflow.TypeMeta = []vanflow.TypeMeta{
+	vanflow.TransportBiflowRecord{}.GetTypeMeta(),
+	vanflow.AppBiflowRecord{}.GetTypeMeta(),
+}
+
 const (
 	IndexByTypeParent      = "ByTypeAndParent"
 	IndexByAddress         = "ByAddress"

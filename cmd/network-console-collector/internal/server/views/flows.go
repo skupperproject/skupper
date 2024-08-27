@@ -5,16 +5,15 @@ import (
 
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/api"
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/collector"
-	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
 )
 
-func NewConnectionsSliceProvider(fs collector.FlowStateAccess) func([]store.Entry) []api.ConnectionRecord {
-	provider := NewConnectionsProvider(fs)
+func NewConnectionsSliceProvider() func([]store.Entry) []api.ConnectionRecord {
+	provider := NewConnectionsProvider()
 	return func(entries []store.Entry) []api.ConnectionRecord {
 		results := make([]api.ConnectionRecord, 0, len(entries))
 		for _, e := range entries {
-			record, ok := e.Record.(vanflow.TransportBiflowRecord)
+			record, ok := e.Record.(collector.ConnectionRecord)
 			if !ok {
 				continue
 			}
@@ -25,12 +24,13 @@ func NewConnectionsSliceProvider(fs collector.FlowStateAccess) func([]store.Entr
 		return results
 	}
 }
-func NewConnectionsProvider(fs collector.FlowStateAccess) func(vanflow.TransportBiflowRecord) (api.ConnectionRecord, bool) {
-	return func(record vanflow.TransportBiflowRecord) (api.ConnectionRecord, bool) {
-		out := defaultConnection(record.ID)
+func NewConnectionsProvider() func(collector.ConnectionRecord) (api.ConnectionRecord, bool) {
+	return func(conn collector.ConnectionRecord) (api.ConnectionRecord, bool) {
+		out := defaultConnection(conn.ID)
 
-		state, ok := fs.Get(record.ID)
-		if !ok || !state.Conditions.FullyQualified() {
+		record, ok := conn.GetFlow()
+
+		if !ok {
 			return out, false
 		}
 
@@ -47,7 +47,7 @@ func NewConnectionsProvider(fs collector.FlowStateAccess) func(vanflow.Transport
 		setOpt(&out.ProxyHost, record.ProxyHost)
 		setOpt(&out.ProxyPort, record.ProxyPort)
 
-		if state.Conditions.Terminated {
+		if record.EndTime != nil && record.StartTime != nil && record.EndTime.After(record.StartTime.Time) {
 			out.Active = false
 			if record.EndTime != nil && record.StartTime != nil {
 				duration := uint64(record.EndTime.Sub(record.StartTime.Time) / time.Microsecond)
@@ -55,16 +55,16 @@ func NewConnectionsProvider(fs collector.FlowStateAccess) func(vanflow.Transport
 			}
 		}
 
-		out.Protocol = state.Connector.Protocol
-		out.Address = state.Connector.Address
-		out.SourceProcessId = state.Source.ID
-		out.SourceProcessName = state.Source.Name
-		out.SourceSiteId = state.Source.SiteID
-		out.SourceSiteName = state.Source.SiteName
-		out.DestProcessId = state.Dest.ID
-		out.DestProcessName = state.Dest.Name
-		out.DestSiteId = state.Dest.SiteID
-		out.DestSiteName = state.Dest.SiteName
+		out.Protocol = conn.Protocol
+		out.Address = conn.Address
+		out.SourceProcessId = conn.Source.ID
+		out.SourceProcessName = conn.Source.Name
+		out.SourceSiteId = conn.SourceSite.ID
+		out.SourceSiteName = conn.SourceSite.Name
+		out.DestProcessId = conn.Dest.ID
+		out.DestProcessName = conn.Dest.Name
+		out.DestSiteId = conn.DestSite.ID
+		out.DestSiteName = conn.DestSite.Name
 
 		return out, true
 	}
