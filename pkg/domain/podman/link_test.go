@@ -49,14 +49,14 @@ func TestLinkHandlerPodman(t *testing.T) {
 
 			// On some clouds, it may take a while for the service DNS name to be externally
 			// resolvable.  So, we extract that URL and wait for the name resolution to work
-			// before creating the link.  If anything fails, we just log and keep going, as
-			// that's not the focus of the test; the whole thing  may fail down the road,
-			// but with additional information for debugging.
+			// before creating the link.  If anything fails, we may mark the test as failed, but
+			// keep going, as that's not the focus of the test; the whole thing  may fail down
+			// the road, but with additional information for debugging.
 			skupperUrl := token.Annotations["skupper.io/url"]
 			if skupperUrl != "" {
 				parsed, err := url.Parse(skupperUrl)
 				if err != nil {
-					log.Printf("The skupper.io/url annotation did not parse as an URL (%q): %v", skupperUrl, err)
+					t.Errorf("The skupper.io/url annotation did not parse as an URL (%q): %v", skupperUrl, err)
 				} else {
 					err = utils.RetryError(time.Second*2, 60, func() error {
 						_, err := net.ResolveIPAddr("ip", parsed.Hostname())
