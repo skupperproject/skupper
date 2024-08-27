@@ -476,7 +476,7 @@ func (c *connectionManager) run(ctx context.Context) {
 					}
 
 					if ct := len(terminated); ct > 0 {
-						c.logger.Info("purging terminated transport flows", slog.Int("count", ct))
+						c.logger.Debug("purging terminated transport flows", slog.Int("count", ct))
 						for id := range terminated {
 							c.flows.Delete(id)
 							c.records.Delete(id)
@@ -507,7 +507,7 @@ func (c *connectionManager) run(ctx context.Context) {
 					}
 
 					if ct := len(terminated); ct > 0 {
-						c.logger.Info("purging terminated app flows", slog.Int("count", ct))
+						c.logger.Debug("purging terminated app flows", slog.Int("count", ct))
 						for id := range terminated {
 							c.flows.Delete(id)
 						}

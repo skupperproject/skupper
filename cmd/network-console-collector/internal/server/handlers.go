@@ -20,6 +20,18 @@ func (s *server) Connections(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// (GET /api/v1alpha1/addresses/{id}/connections/)
+func (s *server) ConnectionsByAddress(w http.ResponseWriter, r *http.Request, id string) {
+	getExemplar := fetchAndMap(s.records, func(a collector.AddressRecord) store.Entry {
+		return store.Entry{Record: collector.ConnectionRecord{Address: a.Name, Protocol: a.Protocol}}
+	}, id)
+	if err := handleSubCollection(w, r, &api.ConnectionListResponse{}, getExemplar, func(exemplar store.Entry) []api.ConnectionRecord {
+		return views.NewConnectionsSliceProvider()(index(s.records, collector.IndexFlowByAddress, exemplar))
+	}); err != nil {
+		s.logWriteError(r, err)
+	}
+}
+
 // (GET /api/v1alpha1/addresses/)
 func (s *server) Addresses(w http.ResponseWriter, r *http.Request) {
 	results := views.NewAddressSliceProvider(s.graph)(listByType[collector.AddressRecord](s.records))

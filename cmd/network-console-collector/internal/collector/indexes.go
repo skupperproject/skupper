@@ -29,6 +29,7 @@ const (
 	IndexByParentHost      = "ByParentHost"
 	IndexByLifecycleStatus = "ByLifecycleStatus"
 	IndexByTypeName        = "ByTypeAndName"
+	IndexFlowByAddress     = "ByTypeAndAddress"
 )
 
 func RecordIndexers() map[string]store.Indexer {
@@ -40,9 +41,19 @@ func RecordIndexers() map[string]store.Indexer {
 		IndexByParentHost:      indexByParentHost,
 		IndexByLifecycleStatus: indexByLifecycleStatus,
 		IndexByTypeName:        indexByTypeName,
+		IndexFlowByAddress:     indexByTypeAndAddress,
 	}
 }
 
+func indexByTypeAndAddress(e store.Entry) []string {
+	switch record := e.Record.(type) {
+	case ConnectionRecord:
+		return []string{fmt.Sprintf("%s/%s/%s", record.GetTypeMeta().String(), record.Address, record.Protocol)}
+	case RequestRecord:
+		return []string{fmt.Sprintf("%s/%s/%s", record.GetTypeMeta().String(), record.Address, record.Protocol)}
+	}
+	return nil
+}
 func indexByTypeName(e store.Entry) []string {
 	optionalSingle := func(prefix string, s *string) []string {
 		if s != nil {

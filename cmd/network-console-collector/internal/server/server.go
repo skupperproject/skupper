@@ -50,6 +50,35 @@ func handleCollection[T api.Record](w http.ResponseWriter, r *http.Request, resp
 	return nil
 }
 
+func handleSubCollection[T api.Record](w http.ResponseWriter, r *http.Request, response api.CollectionResponseSetter[T], getExemplar func() (store.Entry, bool), indexFunc func(store.Entry) []T) error {
+	var (
+		out    any = response
+		status     = http.StatusOK
+	)
+
+	if item, ok := getExemplar(); ok {
+		records := indexFunc(item)
+		records, count, err := filterAndOrderResults(r, records)
+		if err != nil {
+			status = http.StatusBadRequest
+			out = api.ErrorBadRequest{
+				Message: err.Error(),
+			}
+		}
+		response.SetResults(records)
+		response.SetCount(int64(len(records)))
+		response.SetTimeRangeCount(count)
+	} else {
+		status = http.StatusNotFound
+		out = api.ErrorNotFound{
+			Code: "ErrNotFound",
+		}
+	}
+	if err := encodeResponse(w, status, out); err != nil {
+		return fmt.Errorf("response write error: %s", err)
+	}
+	return nil
+}
 func handleSingle[T any](w http.ResponseWriter, _ *http.Request, response api.ResponseSetter[T], getter func() (T, bool)) error {
 	var (
 		out    any = response

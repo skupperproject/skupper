@@ -473,6 +473,17 @@ paths:
           $ref: '#/components/responses/getFlowAggregates'
         '404':
           $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/addresses/{id}/connections/:
+    get:
+      tags: [address, flows]
+      operationId: connectionsByAddress
+      parameters:
+        - $ref: '#/components/parameters/pathID'
+      responses:
+        '200':
+          $ref: '#/components/responses/getConnections'
+        '404':
+          $ref: '#/components/responses/errorNotFound'
   /api/v1alpha1/processgroups/{id}/processes/:
     get:
       tags: ["process group"]

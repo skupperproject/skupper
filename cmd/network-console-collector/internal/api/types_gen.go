@@ -724,6 +724,9 @@ type ClientInterface interface {
 	// AddressByID request
 	AddressByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ConnectionsByAddress request
+	ConnectionsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ConnectorsByAddress request
 	ConnectorsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -871,6 +874,18 @@ func (c *Client) Addresses(ctx context.Context, reqEditors ...RequestEditorFn) (
 
 func (c *Client) AddressByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAddressByIDRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ConnectionsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConnectionsByAddressRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1453,6 +1468,40 @@ func NewAddressByIDRequest(server string, id PathID) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/api/v1alpha1/addresses/%s/", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConnectionsByAddressRequest generates requests for ConnectionsByAddress
+func NewConnectionsByAddressRequest(server string, id PathID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1alpha1/addresses/%s/connections/", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2917,6 +2966,9 @@ type ClientWithResponsesInterface interface {
 	// AddressByIDWithResponse request
 	AddressByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*AddressByIDResponse, error)
 
+	// ConnectionsByAddressWithResponse request
+	ConnectionsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectionsByAddressResponse, error)
+
 	// ConnectorsByAddressWithResponse request
 	ConnectorsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectorsByAddressResponse, error)
 
@@ -3090,6 +3142,29 @@ func (r AddressByIDResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r AddressByIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ConnectionsByAddressResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *GetConnections
+	JSON404      *ErrorNotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r ConnectionsByAddressResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConnectionsByAddressResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -4118,6 +4193,15 @@ func (c *ClientWithResponses) AddressByIDWithResponse(ctx context.Context, id Pa
 	return ParseAddressByIDResponse(rsp)
 }
 
+// ConnectionsByAddressWithResponse request returning *ConnectionsByAddressResponse
+func (c *ClientWithResponses) ConnectionsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectionsByAddressResponse, error) {
+	rsp, err := c.ConnectionsByAddress(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConnectionsByAddressResponse(rsp)
+}
+
 // ConnectorsByAddressWithResponse request returning *ConnectorsByAddressResponse
 func (c *ClientWithResponses) ConnectorsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectorsByAddressResponse, error) {
 	rsp, err := c.ConnectorsByAddress(ctx, id, reqEditors...)
@@ -4563,6 +4647,39 @@ func ParseAddressByIDResponse(rsp *http.Response) (*AddressByIDResponse, error) 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest GetAddressByID
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorNotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConnectionsByAddressResponse parses an HTTP response from a ConnectionsByAddressWithResponse call
+func ParseConnectionsByAddressResponse(rsp *http.Response) (*ConnectionsByAddressResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConnectionsByAddressResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetConnections
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -5985,6 +6102,9 @@ type ServerInterface interface {
 	// (GET /api/v1alpha1/addresses/{id}/)
 	AddressByID(w http.ResponseWriter, r *http.Request, id PathID)
 
+	// (GET /api/v1alpha1/addresses/{id}/connections/)
+	ConnectionsByAddress(w http.ResponseWriter, r *http.Request, id PathID)
+
 	// (GET /api/v1alpha1/addresses/{id}/connectors/)
 	ConnectorsByAddress(w http.ResponseWriter, r *http.Request, id PathID)
 
@@ -6159,6 +6279,32 @@ func (siw *ServerInterfaceWrapper) AddressByID(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AddressByID(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// ConnectionsByAddress operation middleware
+func (siw *ServerInterfaceWrapper) ConnectionsByAddress(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id PathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConnectionsByAddress(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7274,6 +7420,8 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/", wrapper.Addresses).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/{id}/", wrapper.AddressByID).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/{id}/connections/", wrapper.ConnectionsByAddress).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/{id}/connectors/", wrapper.ConnectorsByAddress).Methods("GET")
 
