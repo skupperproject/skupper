@@ -112,4 +112,4 @@ Related to the skupper v1 flow metrics (sharing the old label set.)
 
 | metric name | description |
 | ------------------------ | ------------------------  |
-| legacy_flow_latency_microseconds | Histogram of connection time to first byte observations in microseconds. TCP only. Omits the "direction" label. |
+| legacy_flow_latency_microseconds | Histogram of connection time to first byte observations in microseconds. TCP only. |

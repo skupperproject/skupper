@@ -115,6 +115,7 @@ func (c *connectionManager) handleTransportFlow(record vanflow.TransportBiflowRe
 		state.LatencySet = true
 		metrics.latency.Observe(delta.Seconds())
 		metrics.latencyLegacy.Observe(float64(*record.Latency))
+		metrics.latencyLegacyReverse.Observe(float64(*record.LatencyReverse))
 	}
 	bs, br := dref(record.Octets), dref(record.OctetsReverse)
 	sentInc := float64(bs - state.BytesSent)
@@ -337,6 +338,16 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 		"protocol":      cnctr.Protocol,
 		"sourceProcess": sourceproc.Name,
 		"destProcess":   destproc.Name,
+		"direction":     "incoming",
+	}
+	legacyLabelsReverse := map[string]string{
+		"sourceSite":    destproc.SiteName + "@_@" + destproc.SiteID,
+		"destSite":      sourceproc.SiteName + "@_@" + sourceproc.SiteID,
+		"address":       cnctr.Address,
+		"protocol":      cnctr.Protocol,
+		"sourceProcess": sourceproc.Name,
+		"destProcess":   destproc.Name,
+		"direction":     "outgoing",
 	}
 
 	return ConnectionRecord{
@@ -364,12 +375,13 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 
 		stor: c.flows,
 		metrics: transportMetrics{
-			opened:        c.metrics.flowOpenedCounter.With(labels),
-			closed:        c.metrics.flowClosedCounter.With(labels),
-			sent:          c.metrics.flowBytesSentCounter.With(labels),
-			received:      c.metrics.flowBytesReceivedCounter.With(labels),
-			latency:       c.metrics.internal.flowLatency.With(labels),
-			latencyLegacy: c.metrics.internal.legancyLatency.With(legacyLabels),
+			opened:               c.metrics.flowOpenedCounter.With(labels),
+			closed:               c.metrics.flowClosedCounter.With(labels),
+			sent:                 c.metrics.flowBytesSentCounter.With(labels),
+			received:             c.metrics.flowBytesReceivedCounter.With(labels),
+			latency:              c.metrics.internal.flowLatency.With(labels),
+			latencyLegacy:        c.metrics.internal.legancyLatency.With(legacyLabels),
+			latencyLegacyReverse: c.metrics.internal.legancyLatency.With(legacyLabelsReverse),
 		},
 	}, success
 }
@@ -800,12 +812,13 @@ func (c *connectionManager) Stop() {
 }
 
 type transportMetrics struct {
-	opened        prometheus.Counter
-	closed        prometheus.Counter
-	sent          prometheus.Counter
-	received      prometheus.Counter
-	latency       prometheus.Observer
-	latencyLegacy prometheus.Observer
+	opened               prometheus.Counter
+	closed               prometheus.Counter
+	sent                 prometheus.Counter
+	received             prometheus.Counter
+	latency              prometheus.Observer
+	latencyLegacy        prometheus.Observer
+	latencyLegacyReverse prometheus.Observer
 }
 type appMetrics struct {
 	requests *prometheus.CounterVec
