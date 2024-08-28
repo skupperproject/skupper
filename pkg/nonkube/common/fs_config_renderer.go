@@ -133,10 +133,16 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *api.SiteState) error
 }
 
 func (c *FileSystemConfigurationRenderer) GetOutputPath(siteState *api.SiteState) string {
-	if c.customOutputPath != "" {
-		return api.GetCustomSiteHome(siteState.Site, c.customOutputPath)
+	var customSiteHomeProvider = api.GetCustomSiteHome
+	var defaultOutputPathProvider = api.GetDefaultOutputPath
+	if siteState.IsBundle() {
+		customSiteHomeProvider = api.GetCustomBundleHome
+		defaultOutputPathProvider = api.GetDefaultBundleOutputPath
 	}
-	return api.GetDefaultOutputPath(siteState.Site.Namespace)
+	if c.customOutputPath != "" {
+		return customSiteHomeProvider(siteState.Site, c.customOutputPath)
+	}
+	return defaultOutputPathProvider(siteState.Site.Namespace)
 }
 
 func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, runtimeSiteState api.SiteState) error {

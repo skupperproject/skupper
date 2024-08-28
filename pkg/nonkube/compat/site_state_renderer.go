@@ -178,7 +178,7 @@ func (s *SiteStateRenderer) startContainers() error {
 
 func (s *SiteStateRenderer) createSystemdService() error {
 	// Creating startup scripts first
-	scripts, err := common.GetStartupScripts(s.siteState.Site, s.configRenderer.RouterConfig.GetSiteMetadata().Id)
+	scripts, err := common.GetStartupScripts(s.siteState.Site, s.configRenderer.RouterConfig.GetSiteMetadata().Id, api.GetInternalOutputPath)
 	if err != nil {
 		return fmt.Errorf("error getting startup scripts: %w", err)
 	}

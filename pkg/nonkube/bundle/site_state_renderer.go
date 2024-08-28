@@ -128,7 +128,7 @@ func (s *SiteStateRenderer) prepareContainers() error {
 }
 
 func (s *SiteStateRenderer) createContainerScript() error {
-	scriptsPath := api.GetInternalOutputPath(s.siteState.Site.Namespace, api.RuntimeScriptsPath)
+	scriptsPath := api.GetInternalBundleOutputPath(s.siteState.Site.Namespace, api.RuntimeScriptsPath)
 	scriptContent := containersToShell(s.containers)
 	err := os.WriteFile(path.Join(scriptsPath, "containers_create.sh"), scriptContent, 0755)
 	if err != nil {
@@ -138,10 +138,10 @@ func (s *SiteStateRenderer) createContainerScript() error {
 }
 
 func (s *SiteStateRenderer) createBundle() error {
-	namespacesHomeDir := api.GetDefaultOutputNamespacesPath()
-	siteHomeDir := api.GetDefaultOutputPath(s.siteState.Site.Namespace)
+	bundlesHomeDir := api.GetDefaultOutputBundlesPath()
+	siteHomeDir := api.GetDefaultBundleOutputPath(s.siteState.Site.Namespace)
 	tarball := utils.NewTarball()
-	err := tarball.AddFiles(namespacesHomeDir, s.siteState.GetNamespace())
+	err := tarball.AddFiles(bundlesHomeDir, s.siteState.GetNamespace())
 	if err != nil {
 		return fmt.Errorf("failed to add files to tarball (%q): %v", siteHomeDir, err)
 	}
@@ -150,13 +150,13 @@ func (s *SiteStateRenderer) createBundle() error {
 		generator = &internalbundle.SelfExtractingBundle{
 			SiteName:   s.siteState.Site.Name,
 			Namespace:  s.siteState.GetNamespace(),
-			OutputPath: namespacesHomeDir,
+			OutputPath: bundlesHomeDir,
 		}
 	} else {
 		generator = &internalbundle.TarballBundle{
 			SiteName:   s.siteState.Site.Name,
 			Namespace:  s.siteState.GetNamespace(),
-			OutputPath: namespacesHomeDir,
+			OutputPath: bundlesHomeDir,
 		}
 	}
 	err = generator.Generate(tarball)
@@ -167,7 +167,7 @@ func (s *SiteStateRenderer) createBundle() error {
 }
 
 func (s *SiteStateRenderer) removeSiteFiles() error {
-	siteHomeDir := api.GetDefaultOutputPath(s.siteState.Site.Namespace)
+	siteHomeDir := api.GetDefaultBundleOutputPath(s.siteState.Site.Namespace)
 	err := os.RemoveAll(siteHomeDir)
 	if err != nil {
 		return fmt.Errorf("file to remove temporary site directory %q: %v", siteHomeDir, err)
@@ -176,7 +176,7 @@ func (s *SiteStateRenderer) removeSiteFiles() error {
 }
 
 func (s *SiteStateRenderer) createFreePortScript() error {
-	scriptsPath := api.GetInternalOutputPath(s.siteState.Site.Namespace, api.RuntimeScriptsPath)
+	scriptsPath := api.GetInternalBundleOutputPath(s.siteState.Site.Namespace, api.RuntimeScriptsPath)
 	err := os.WriteFile(path.Join(scriptsPath, "router_free_port.py"), []byte(FreePortScript), 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create router_free_port.py script: %v", err)

@@ -39,7 +39,7 @@ type startupScripts struct {
 	path            string
 }
 
-func GetStartupScripts(site *v1alpha1.Site, siteId string) (StartupScript, error) {
+func GetStartupScripts(site *v1alpha1.Site, siteId string, pathProvider api.InternalPathProvider) (StartupScript, error) {
 	scripts := &startupScripts{
 		StartScript:     StartScriptContainerTemplate,
 		StopScript:      StopScriptContainerTemplate,
@@ -57,7 +57,10 @@ func GetStartupScripts(site *v1alpha1.Site, siteId string) (StartupScript, error
 	if platform.IsBundle() {
 		scripts.ContainerEngine = "{{.ContainerEngine}}"
 	}
-	scripts.path = api.GetInternalOutputPath(site.Namespace, api.RuntimeScriptsPath)
+	if pathProvider == nil {
+		pathProvider = api.GetInternalOutputPath
+	}
+	scripts.path = pathProvider(site.Namespace, api.RuntimeScriptsPath)
 	return scripts, nil
 }
 

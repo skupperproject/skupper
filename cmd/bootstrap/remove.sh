@@ -16,7 +16,7 @@ namespaces_path="${HOME}/.local/share/skupper/namespaces"
 service_path="${HOME}/.config/systemd/user"
 systemctl="systemctl --user"
 if [ "${UID}" -eq 0 ]; then
-    namespaces_path="/usr/local/share/skupper/sites"
+    namespaces_path="/usr/local/share/skupper/namespaces"
     service_path="/etc/systemd/system"
     systemctl="systemctl"
 fi

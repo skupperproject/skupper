@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/assert"
 )
 
@@ -25,7 +26,7 @@ func TestGetStartupScripts(t *testing.T) {
 	for _, platform := range []string{"podman", "docker"} {
 		t.Run("platform-"+platform, func(t *testing.T) {
 			os.Setenv("SKUPPER_PLATFORM", platform)
-			scripts, err := GetStartupScripts(siteState.Site, siteState.SiteId)
+			scripts, err := GetStartupScripts(siteState.Site, siteState.SiteId, api.GetInternalOutputPath)
 			assert.Assert(t, err)
 			assert.Assert(t, scripts != nil)
 			assert.Assert(t, os.MkdirAll(scripts.GetPath(), 0755))
@@ -48,7 +49,7 @@ func TestGetStartupScripts(t *testing.T) {
 
 	t.Run("invalid-platform", func(t *testing.T) {
 		os.Setenv("SKUPPER_PLATFORM", "kubernetes")
-		scripts, err := GetStartupScripts(siteState.Site, siteState.SiteId)
+		scripts, err := GetStartupScripts(siteState.Site, siteState.SiteId, api.GetInternalOutputPath)
 		assert.ErrorContains(t, err, "startup scripts can only be used with podman or docker platforms")
 		assert.Assert(t, scripts == nil)
 	})

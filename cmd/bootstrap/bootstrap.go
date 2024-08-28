@@ -126,7 +126,7 @@ func main() {
 			}
 		}
 	} else {
-		siteHome, err := api.GetHostNamespacesPath()
+		siteHome, err := api.GetHostBundlesPath()
 		if err != nil {
 			fmt.Println("Failed to get site bundle base directory:", err)
 		}

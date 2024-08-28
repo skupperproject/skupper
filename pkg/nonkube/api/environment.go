@@ -9,6 +9,7 @@ import (
 )
 
 type InternalPath string
+type InternalPathProvider func(namespace string, internalPath InternalPath) string
 
 const (
 	ConfigRouterPath       InternalPath = "config/router"
@@ -83,19 +84,35 @@ func GetHostSiteHome(site *v1alpha1.Site) (string, error) {
 }
 
 func GetHostNamespacesPath() (string, error) {
+	return getHostPath("namespaces")
+}
+
+func GetHostBundlesPath() (string, error) {
+	return getHostPath("bundles")
+}
+
+func getHostPath(basePath string) (string, error) {
 	dataHome, err := GetHostDataHome()
 	if err != nil {
 		return "", err
 	}
-	return path.Join(dataHome, "namespaces"), nil
+	return path.Join(dataHome, basePath), nil
 }
 
 func GetCustomSiteHome(site *v1alpha1.Site, customBaseDir string) string {
+	return getCustomSiteHome(site, customBaseDir, "namespaces")
+}
+
+func GetCustomBundleHome(site *v1alpha1.Site, customBaseDir string) string {
+	return getCustomSiteHome(site, customBaseDir, "bundles")
+}
+
+func getCustomSiteHome(site *v1alpha1.Site, customBaseDir string, basePath string) string {
 	ns := site.Namespace
 	if ns == "" {
 		ns = "default"
 	}
-	return path.Join(customBaseDir, "namespaces", ns)
+	return path.Join(customBaseDir, basePath, ns)
 }
 
 func GetHostSiteInternalPath(site *v1alpha1.Site, internalPath InternalPath) (string, error) {
@@ -117,28 +134,44 @@ func IsRunningInContainer() bool {
 }
 
 func GetDefaultOutputPath(namespace string) string {
+	return getDefaultOutputPath(namespace, false)
+}
+
+func GetDefaultBundleOutputPath(namespace string) string {
+	return getDefaultOutputPath(namespace, true)
+}
+
+func getDefaultOutputPath(namespace string, isBundle bool) string {
+	basePath := "namespaces"
+	if isBundle {
+		basePath = "bundles"
+	}
 	if namespace == "" {
 		namespace = "default"
 	}
 	if IsRunningInContainer() {
 		outputStat, err := os.Stat("/output")
 		if err == nil && outputStat.IsDir() {
-			return path.Join("/output", "namespaces", namespace)
+			return path.Join("/output", basePath, namespace)
 		}
 	}
-	return path.Join(GetDataHome(), "namespaces", namespace)
+	return path.Join(GetDataHome(), basePath, namespace)
 }
 
-func GetDefaultOutputNamespacesPath() string {
+func GetDefaultOutputBundlesPath() string {
 	if IsRunningInContainer() {
 		outputStat, err := os.Stat("/output")
 		if err == nil && outputStat.IsDir() {
-			return path.Join("/output", "namespaces")
+			return path.Join("/output", "bundles")
 		}
 	}
-	return path.Join(GetDataHome(), "namespaces")
+	return path.Join(GetDataHome(), "bundles")
 }
 
 func GetInternalOutputPath(namespace string, internalPath InternalPath) string {
 	return path.Join(GetDefaultOutputPath(namespace), string(internalPath))
+}
+
+func GetInternalBundleOutputPath(namespace string, internalPath InternalPath) string {
+	return path.Join(GetDefaultBundleOutputPath(namespace), string(internalPath))
 }

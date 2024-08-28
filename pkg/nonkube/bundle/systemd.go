@@ -18,7 +18,7 @@ func CreateSystemdServices(siteState *api.SiteState) error {
 		"systemd":   common.SystemdServiceTemplate,
 		"container": common.SystemdContainerServiceTemplate,
 	}
-	scriptsPath := api.GetInternalOutputPath(siteState.Site.Namespace, api.RuntimeScriptsPath)
+	scriptsPath := api.GetInternalBundleOutputPath(siteState.Site.Namespace, api.RuntimeScriptsPath)
 	for platform, serviceTemplate := range serviceTemplates {
 		var buf = new(bytes.Buffer)
 		parsedTemplate := template.Must(template.New("service").Parse(serviceTemplate))
@@ -44,7 +44,7 @@ func CreateSystemdServices(siteState *api.SiteState) error {
 
 func CreateStartupScripts(siteState *api.SiteState) error {
 	// Creating startup scripts first
-	scripts, err := common.GetStartupScripts(siteState.Site, "{{.SiteId}}")
+	scripts, err := common.GetStartupScripts(siteState.Site, "{{.SiteId}}", api.GetInternalBundleOutputPath)
 	if err != nil {
 		return fmt.Errorf("error getting startup scripts: %w", err)
 	}
