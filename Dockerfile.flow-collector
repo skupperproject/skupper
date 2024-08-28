@@ -16,9 +16,9 @@ RUN make GOOS=$TARGETOS GOARCH=$TARGETARCH
 FROM --platform=$BUILDPLATFORM node:18.18.2 AS console-builder
 
 WORKDIR /skupper-console/
-ADD https://github.com/skupperproject/skupper-console/archive/main.tar.gz .
-RUN tar -zxf main.tar.gz
-WORKDIR ./skupper-console-main
+ADD https://github.com/skupperproject/skupper-console/archive/refs/tags/1.8.0.tar.gz .
+RUN tar -zxf 1.8.0.tar.gz
+WORKDIR ./skupper-console-1.8.0
 RUN yarn install && yarn build
 
 FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
@@ -31,5 +31,5 @@ USER 10000
 
 WORKDIR /app
 COPY --from=builder /go/src/app/flow-collector .
-COPY --from=console-builder /skupper-console/skupper-console-main/build/ console
+COPY --from=console-builder /skupper-console/skupper-console-1.8.0/build/ console
 CMD ["/app/flow-collector"]
