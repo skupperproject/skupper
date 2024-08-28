@@ -87,6 +87,13 @@ func (b *Bindings) GetConnector(name string) *skupperv1alpha1.Connector {
 	return nil
 }
 
+func (b *Bindings) GetListener(name string) *skupperv1alpha1.Listener {
+	if existing, ok := b.listeners[name]; ok {
+		return existing
+	}
+	return nil
+}
+
 func (b *Bindings) UpdateConnector(name string, connector *skupperv1alpha1.Connector) qdr.ConfigUpdate {
 	if connector == nil {
 		return b.deleteConnector(name)
