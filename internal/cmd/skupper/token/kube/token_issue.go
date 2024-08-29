@@ -112,7 +112,7 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 	if siteList == nil || len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a token can be created", cmd.namespace))
 	} else {
-		if !utils.SiteConfigured(siteList) {
+		if !utils.SiteReady(siteList) {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 		}
 	}
