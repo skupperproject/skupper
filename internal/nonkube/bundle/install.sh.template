@@ -50,7 +50,7 @@ usage() {
     echo "Usage: $0 [-p <podman|docker|systemd>] [-x] [-d <output-dir>]" >&2
     echo "    -p    platform to use (one of: podman, docker, systemd)" >&2
     echo "    -x    remove existing site definition" >&2
-    echo "    -d    dump tokens from bundle to the provide output directory" >&2
+    echo "    -d    dump static links from bundle into the provide output directory" >&2
     exit 1
 }
 
@@ -97,7 +97,7 @@ parse_opts() {
                     usage
                 fi
                 if [ ! -w "${SKUPPER_TOKEN_OUTPUT_PATH}" ]; then
-                    echo "No permission to write tokens to provided output directory"
+                    echo "No permission to write static links into the provided output directory"
                     usage
                 fi
                 ;;
@@ -174,15 +174,15 @@ remove_site() {
 }
 
 dump_tokens() {
-    tokens="$(ls "./${SOURCE_NAMESPACE}/runtime/token/")"
+    tokens="$(ls "./${SOURCE_NAMESPACE}/runtime/link/")"
     if [ -z "${tokens}" ]; then
-        echo "No tokens defined in this site bundle"
+        echo "No static links defined in this site bundle"
         return
     fi
     token_out_dir="${SKUPPER_TOKEN_OUTPUT_PATH:?}/${SITE_NAME:?}"
     mkdir -p "${token_out_dir}"
-    cp "./${SOURCE_NAMESPACE}/runtime/token/"*.yaml "${token_out_dir}"
-    echo "Tokens for site \"${SITE_NAME}\" have been saved into ${token_out_dir}"
+    cp "./${SOURCE_NAMESPACE}/runtime/link/"*.yaml "${token_out_dir}"
+    echo "Static links for site \"${SITE_NAME}\" have been saved into ${token_out_dir}"
 }
 
 set_router_access_port() {
@@ -221,11 +221,11 @@ render_sed_templates() {
 }
 
 show_token_info() {
-    token_path="${NAMESPACES_PATH:?}/${NAMESPACE:?}/runtime/token"
+    token_path="${NAMESPACES_PATH:?}/${NAMESPACE:?}/runtime/link"
     [ ! -d "${token_path}" ] && return
     tokens_found=$(find "${token_path}" -type f | wc -l)
     if [ "${tokens_found}" -gt 0 ]; then
-        echo "Static tokens have been defined at: ${token_path}"
+        echo "Static links have been defined at: ${token_path}"
     fi
 }
 

@@ -65,7 +65,7 @@ Both scripts accept the following flags:
 -p <platform>    podman, docker, systemd
 -n <namespace>   if not provided, the namespace defined in the bundle is used (if none, default is used)
 -x               remove site and namespace
--d <directory>   dump static tokens into the provided directory 
+-d <directory>   dump static links into the provided directory 
 ```
 
 ## Usage
@@ -84,7 +84,7 @@ sure you also provide `AccessToken` or `Link` (CRs).
 
 If the CRs have no namespace set, Skupper assumes "default" as the namespace
 to be used, otherwise it will use the namespace defined in the CRs, unless you
-force a specific namespace to be used (`--namespace` using the binary or
+force a specific namespace to be used (`-n` using the binary or
 `-n` using the bootstrap script).
 
 ***NOTES:** A V2 representation of the **"Hello world example"** is available below
@@ -97,10 +97,10 @@ Now that you have all your CRs placed on a local directory, just run:
 ```shell
 # To bootstrap your site using the binary
 export SKUPPER_PLATFORM=podman
-./bootstrap --path ./
+./bootstrap -p ./
 ```
 
-You can also use `--namespace=<name>` to override the namespace specified in the CRs.
+You can also use `-n=<name>` to override the namespace specified in the CRs.
 
 Alternatively you can also run the `bootstrap.sh` script:
 
@@ -119,7 +119,7 @@ any of the platforms mentioned earlier.
 After the bootstrap procedure is completed, it will provide you some relevant
 information like:
 
-* Location where static tokens have been defined (when a `RouterAccess` is provided)
+* Location where static links have been defined (when a `RouterAccess` is provided)
 * Location where the site bundle has been saved (when using `bundle` or `tarball`)
 
 #### Site bundles
@@ -241,17 +241,17 @@ spec:
 Considering all your CRs have been saved to a directory named `west`, use:
 
 ```shell
-./bootstrap --path ./west
+./bootstrap -p ./west
 ```
 
 The CRs are defined using the `west` namespace, so it will be used by default.
 If the namespace was empty, skupper would try to set it to `default`.
 
-Now that the `west` site has been created, copy the generated token into
+Now that the `west` site has been created, copy the generated link into
 the `east` site local directory. Example:
 
 ```shell
-cp ${HOME}/.local/share/skupper/namespaces/west/runtime/token/link-go-west.yaml ./east/link-go-west.yaml
+cp ${HOME}/.local/share/skupper/namespaces/west/runtime/link/link-go-west.yaml ./east/link-go-west.yaml
 ```
 
 Make sure to update the namespace on the generated `link` that will be used
@@ -324,7 +324,7 @@ spec:
 Considering all your CRs have been saved to a directory named `east`, use:
 
 ```shell
-./bootstrap --path ./east
+./bootstrap -p ./east
 ```
 
 ### Testing the scenario
@@ -349,22 +349,22 @@ As an alternative, you can also produce site bundles to try this example.
 
 ```shell
 $ export SKUPPER_PLATFORM=bundle
-$ bootstrap --path ./west/
+$ bootstrap -p ./west/
 Skupper nonkube bootstrap (version: main-release-153-gc1ed3730-modified)
 Site "west" has been created (as a distributable bundle)
 Installation bundle available at: /home/user/.local/share/skupper/namespaces/skupper-install-west.sh
 ```
 
-#### Extracting the token
+#### Extracting the static link
 
-To extract the token, run:
+To extract the link, run:
 
 ```shell
 /home/user/.local/share/skupper/namespaces/skupper-install-west.sh -d /tmp
-Tokens for site "west" have been saved into /tmp/west
+Static links for site "west" have been saved into /tmp/west
 ```
 
-Copy the token to the `east` site definition and update the namespace.
+Copy the static Link to the `east` site definition and update the namespace.
 
 ```shell
 cp /tmp/west/link-go-west.yaml ./east/link-go-west.yaml
@@ -375,7 +375,7 @@ sed -i 's/namespace: west/namespace: east/g' ./east/link-go-west.yaml
 
 ```shell
 $ export SKUPPER_PLATFORM=bundle
-$ bootstrap --path ./east
+$ bootstrap -p ./east
 Skupper nonkube bootstrap (version: main-release-153-gc1ed3730-modified)
 Site "east" has been created (as a distributable bundle)
 Installation bundle available at: /home/user/.local/share/skupper/namespaces/skupper-install-east.sh

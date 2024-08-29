@@ -27,9 +27,9 @@ var (
 
 func main() {
 	// if -version used, report and exit
-	isVersion := flag.Bool("version", false, "Report the version of the Skupper bootstrap command")
-	flag.StringVar(&inputPath, "path", "", "Custom resources location on the file system")
-	flag.StringVar(&userNamespace, "namespace", "", "The target namespace used for installation (overrides the namespace from custom resources when --path is provided)")
+	isVersion := flag.Bool("v", false, "Report the version of the Skupper bootstrap command")
+	flag.StringVar(&inputPath, "p", "", "Custom resources location on the file system")
+	flag.StringVar(&userNamespace, "n", "", "The target namespace used for installation (overrides the namespace from custom resources when --path is provided)")
 	flag.Parse()
 	if *isVersion {
 		fmt.Println(version.Version)
@@ -116,12 +116,12 @@ func main() {
 		tokenPath := api.GetInternalOutputPath(siteState.Site.Namespace, api.RuntimeTokenPath)
 		hostTokenPath, err := api.GetHostSiteInternalPath(siteState.Site, api.RuntimeTokenPath)
 		if err != nil {
-			fmt.Println("Failed to get site's token path:", err)
+			fmt.Println("Failed to get site's static links path:", err)
 		}
 		tokens, _ := os.ReadDir(tokenPath)
 		for _, token := range tokens {
 			if !token.IsDir() {
-				fmt.Println("Static tokens have been defined at:", hostTokenPath)
+				fmt.Println("Static links have been defined at:", hostTokenPath)
 				break
 			}
 		}
@@ -135,6 +135,7 @@ func main() {
 			installationFile = path.Join(siteHome, fmt.Sprintf("skupper-install-%s.tar.gz", siteState.Site.Name))
 		}
 		fmt.Println("Installation bundle available at:", installationFile)
+		fmt.Println("Default namespace:", siteState.GetNamespace())
 	}
 }
 

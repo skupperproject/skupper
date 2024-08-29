@@ -60,7 +60,7 @@ func TestFileSystemConfigurationRenderer_Render(t *testing.T) {
 		"certificates/link/link-one-profile/tls.crt",
 		"certificates/link/link-one-profile/tls.key",
 		"runtime/state/platform.yaml",
-		"runtime/token/link-link-access-one.yaml",
+		"runtime/link/link-link-access-one.yaml",
 	}
 	for _, fileName := range expectedFiles {
 		fs, err := os.Stat(path.Join(customOutputPath, fileName))

@@ -19,7 +19,7 @@ const (
 	CertificatesLinkPath   InternalPath = "certificates/link"
 	LoadedSiteStatePath    InternalPath = "sources"
 	RuntimeSiteStatePath   InternalPath = "runtime/state"
-	RuntimeTokenPath       InternalPath = "runtime/token"
+	RuntimeTokenPath       InternalPath = "runtime/link"
 	RuntimeScriptsPath     InternalPath = "runtime/scripts"
 )
 

@@ -193,7 +193,7 @@ main() {
         "${MOUNTS}" \
         "${ENV_VARS}" \
         "${IMAGE}" \
-        /app/bootstrap --namespace="${NAMESPACE}" 2>&1 | tee "${LOG_FILE}"; then
+        /app/bootstrap -n="${NAMESPACE}" 2>&1 | tee "${LOG_FILE}"; then
         create_service
     fi
 }
