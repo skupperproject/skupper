@@ -17,14 +17,15 @@ import (
 )
 
 type SiteStateRenderer struct {
-	loadedSiteState *api.SiteState
-	siteState       *api.SiteState
-	configRenderer  *common.FileSystemConfigurationRenderer
-	containers      map[string]container.Container
-	cli             *internalclient.CompatClient
+	loadedSiteState   *api.SiteState
+	siteState         *api.SiteState
+	configRenderer    *common.FileSystemConfigurationRenderer
+	containers        map[string]container.Container
+	stoppedContainers map[string]string
+	cli               *internalclient.CompatClient
 }
 
-func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState) error {
+func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) error {
 	var err error
 	var validator api.SiteStateValidator = &common.SiteStateValidator{}
 	err = validator.Validate(loadedSiteState)
@@ -35,6 +36,56 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState) error {
 	s.cli, err = internalclient.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
 	if err != nil {
 		return fmt.Errorf("failed to create container client: %v", err)
+	}
+	var backupData []byte
+	// Restore namespace data if reload fail and backupData is not nil
+	defer func() {
+		if !reload {
+			return
+		}
+		// when reload is successful, backupData must be nil
+		if backupData == nil {
+			for _, temporaryName := range s.stoppedContainers {
+				err = s.cli.ContainerRemove(temporaryName)
+				if err != nil {
+					fmt.Printf("Failed to remove temporary container %s: %v\n", temporaryName, err)
+				}
+			}
+			return
+		}
+		fmt.Println("Bootstrap failed, restoring previous state")
+		err := common.RestoreNamespaceData(backupData, loadedSiteState.GetNamespace())
+		if err != nil {
+			fmt.Printf("Error restoring namespace data for %q - %s\n", loadedSiteState.GetNamespace(), err)
+			return
+		}
+		for originalName, temporaryName := range s.stoppedContainers {
+			if temporaryName != originalName {
+				err = s.cli.ContainerRename(temporaryName, originalName)
+				if err != nil {
+					fmt.Printf("Error restoring container name from %q to %q - %s\n", temporaryName, originalName, err)
+				}
+			}
+			err = s.cli.ContainerStart(originalName)
+			if err != nil {
+				fmt.Printf("Error starting container %q - %s\n", originalName, err)
+			}
+		}
+	}()
+
+	if reload {
+		backupData, err = common.BackupNamespace(loadedSiteState.GetNamespace())
+		if err != nil {
+			return fmt.Errorf("failed to backup namespace: %v", err)
+		}
+		err = s.loadExistingSiteId(loadedSiteState)
+		if err != nil {
+			return err
+		}
+		err = s.cleanupExistingNamespace(loadedSiteState)
+		if err != nil {
+			return err
+		}
 	}
 	// active (runtime) SiteState
 	s.siteState = common.CopySiteState(s.loadedSiteState)
@@ -48,16 +99,18 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState) error {
 	s.siteState.CreateLinkAccessesCertificates()
 	s.siteState.CreateBridgeCertificates()
 	// rendering non-kube configuration files and certificates
-	s.configRenderer = &common.FileSystemConfigurationRenderer{
-		Force: false,
-	}
+	s.configRenderer = &common.FileSystemConfigurationRenderer{}
 	err = s.configRenderer.Render(s.siteState)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 	// Serializing loaded and runtime site states
-	if err = s.configRenderer.MarshalSiteStates(*s.loadedSiteState, *s.siteState); err != nil {
+	loadedSiteStateMarshal := loadedSiteState
+	if reload {
+		loadedSiteStateMarshal = nil
+	}
+	if err = s.configRenderer.MarshalSiteStates(loadedSiteStateMarshal, s.siteState); err != nil {
 		return err
 	}
 
@@ -80,7 +133,44 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState) error {
 	if err = s.createSystemdService(); err != nil {
 		return err
 	}
+	// no need to restore anything
+	backupData = nil
 	return nil
+}
+
+func (s *SiteStateRenderer) loadExistingSiteId(siteState *api.SiteState) error {
+	routerConfig, err := common.LoadRouterConfig(siteState.GetNamespace())
+	if err != nil {
+		return err
+	}
+	// loading site id
+	siteState.SiteId = routerConfig.GetSiteMetadata().Id
+	return nil
+}
+
+func (s *SiteStateRenderer) cleanupExistingNamespace(siteState *api.SiteState) error {
+	// stopping containers
+	containers, err := s.cli.ContainerList()
+	if err != nil {
+		return fmt.Errorf("failed to list containers: %v", err)
+	}
+	s.stoppedContainers = map[string]string{}
+	for _, stopContainer := range containers {
+		if siteId, ok := stopContainer.Labels[types.SiteId]; ok && siteId == siteState.SiteId {
+			err = s.cli.ContainerStop(stopContainer.Name)
+			if err != nil {
+				return fmt.Errorf("failed to stop container: %v", err)
+			}
+			s.stoppedContainers[stopContainer.Name] = stopContainer.Name
+			temporaryName := fmt.Sprintf("%s-backup", stopContainer.Name)
+			err = s.cli.ContainerRename(stopContainer.Name, temporaryName)
+			if err != nil {
+				return fmt.Errorf("failed to rename container %q to %q: %v", stopContainer.Name, temporaryName, err)
+			}
+			s.stoppedContainers[stopContainer.Name] = temporaryName
+		}
+	}
+	return common.CleanupNamespaceForReload(siteState.GetNamespace())
 }
 
 func (s *SiteStateRenderer) prepareContainers() error {

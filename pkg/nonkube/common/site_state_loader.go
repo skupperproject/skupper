@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
+	"github.com/skupperproject/skupper/pkg/qdr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -156,4 +158,18 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 		}
 	}
 	return nil
+}
+
+func LoadRouterConfig(namespace string) (*qdr.RouterConfig, error) {
+	routerConfigPath := api.GetInternalOutputPath(namespace, api.ConfigRouterPath)
+	routerConfigFile := path.Join(routerConfigPath, "skrouterd.json")
+	routerConfigData, err := os.ReadFile(routerConfigFile)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load router configuration: %w", err)
+	}
+	routerConfig, err := qdr.UnmarshalRouterConfig(string(routerConfigData))
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse router configuration: %w", err)
+	}
+	return &routerConfig, nil
 }

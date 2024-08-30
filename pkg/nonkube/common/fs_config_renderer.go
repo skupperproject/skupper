@@ -10,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/config"
@@ -31,6 +32,15 @@ var (
 		api.RuntimeTokenPath,
 		api.RuntimeScriptsPath,
 	}
+	reloadDirectories = []api.InternalPath{
+		api.ConfigRouterPath,
+		api.CertificatesClientPath,
+		api.CertificatesServerPath,
+		api.CertificatesLinkPath,
+		api.RuntimeSiteStatePath,
+		api.RuntimeTokenPath,
+		api.RuntimeScriptsPath,
+	}
 )
 
 const (
@@ -40,10 +50,8 @@ const (
 type FileSystemConfigurationRenderer struct {
 	// SslProfileBasePath path where configuration will be read from in runtime
 	SslProfileBasePath string
-	// Force creation even if directory already exists
-	Force            bool
-	RouterConfig     qdr.RouterConfig
-	customOutputPath string
+	RouterConfig       qdr.RouterConfig
+	customOutputPath   string
 }
 
 func NewFileSystemConfigurationRenderer(outputPath string) *FileSystemConfigurationRenderer {
@@ -61,9 +69,6 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *api.SiteState) error
 	outputDir, err := os.Open(outputPath)
 	if err == nil {
 		defer outputDir.Close()
-		if !c.Force {
-			return fmt.Errorf("namespace is already in use (path: %s)", outputPath)
-		}
 		outputDirStat, err := outputDir.Stat()
 		if err != nil {
 			return fmt.Errorf("failed to check if output directory exists (%s): %w", outputPath, err)
@@ -145,13 +150,50 @@ func (c *FileSystemConfigurationRenderer) GetOutputPath(siteState *api.SiteState
 	return defaultOutputPathProvider(siteState.Site.Namespace)
 }
 
-func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, runtimeSiteState api.SiteState) error {
-	outputPath := c.GetOutputPath(&loadedSiteState)
-	if err := api.MarshalSiteState(loadedSiteState, path.Join(outputPath, string(api.LoadedSiteStatePath))); err != nil {
+func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, runtimeSiteState *api.SiteState) error {
+	if loadedSiteState != nil {
+		outputPath := c.GetOutputPath(loadedSiteState)
+		if err := api.MarshalSiteState(*loadedSiteState, path.Join(outputPath, string(api.LoadedSiteStatePath))); err != nil {
+			return err
+		}
+	}
+	outputPath := c.GetOutputPath(runtimeSiteState)
+	if err := api.MarshalSiteState(*runtimeSiteState, path.Join(outputPath, string(api.RuntimeSiteStatePath))); err != nil {
 		return err
 	}
-	if err := api.MarshalSiteState(runtimeSiteState, path.Join(outputPath, string(api.RuntimeSiteStatePath))); err != nil {
-		return err
+	return nil
+}
+
+func CleanupNamespaceForReload(namespace string) error {
+	// Re-create internal configuration directories
+	for _, dir := range reloadDirectories {
+		outputPath := api.GetInternalOutputPath(namespace, dir)
+		if err := os.RemoveAll(outputPath); err != nil {
+			return fmt.Errorf("failed to remove directory %s: %w", outputPath, err)
+		}
+		err := os.MkdirAll(outputPath, 0755)
+		if err != nil && !os.IsExist(err) {
+			return fmt.Errorf("unable to create configuration directory %s: %v", outputPath, err)
+		}
+	}
+	return nil
+}
+
+func BackupNamespace(namespace string) ([]byte, error) {
+	namespacePath := api.GetDefaultOutputNamespacesPath()
+	tb := utils.NewTarball()
+	err := tb.AddFiles(namespacePath, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add files to tarball: %w", err)
+	}
+	return tb.SaveData()
+}
+
+func RestoreNamespaceData(data []byte, namespace string) error {
+	tb := utils.NewTarball()
+	err := tb.ExtractData(data, api.GetDefaultOutputNamespacesPath())
+	if err != nil {
+		return fmt.Errorf("error restoring namespace files: %w", err)
 	}
 	return nil
 }
@@ -238,7 +280,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 				// ignoring existing certificate
 				_ = certFile.Close()
 				if ignoreExisting {
-					log.Printf("warning: %s already existing (ignoring)", certFileName)
+					log.Printf("warning: %s will not be overwritten", certFileName)
 					continue
 				}
 			}

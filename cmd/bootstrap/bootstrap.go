@@ -25,11 +25,39 @@ var (
 	userNamespace string
 )
 
+const (
+	description = `
+Bootstraps a nonkube Skupper site base on the provided flags.
+When the path (-p) flag is provided, it will be used as the source
+directory containing the Skupper custom resources to be processed,
+generating a local Skupper site using the "default" namespace, unless
+a namespace is set in the custom resources, or if the namespace (-n)
+flag is provided.
+
+A namespace is just a directory in the file system where site specific
+files are stored, like certificates, configurations, the original sources
+(original custom resources used to bootstrap the nonkube site) and
+the runtime files generated during initialization.
+
+In case the path (-p) flag is omitted, Skupper will try to process
+custom resources stored at the sources directory of the default namespace,
+or from the namespace provided through the namespace (-n) flag.
+`
+)
+
 func main() {
 	// if -version used, report and exit
-	isVersion := flag.Bool("v", false, "Report the version of the Skupper bootstrap command")
+	flag.Usage = func() {
+		fmt.Println("Skupper bootstrap")
+		fmt.Printf("%s\n", description)
+		fmt.Printf("Usage:\n  %s [options...]\n\n", os.Args[0])
+		fmt.Printf("Flags:\n")
+		flag.PrintDefaults()
+	}
 	flag.StringVar(&inputPath, "p", "", "Custom resources location on the file system")
-	flag.StringVar(&userNamespace, "n", "", "The target namespace used for installation (overrides the namespace from custom resources when --path is provided)")
+	flag.StringVar(&userNamespace, "n", "", "The target namespace used for installation")
+	force := flag.Bool("f", false, "Forces to overwrite an existing namespace")
+	isVersion := flag.Bool("v", false, "Report the version of the Skupper bootstrap command")
 	flag.Parse()
 	if *isVersion {
 		fmt.Println(version.Version)
@@ -86,18 +114,27 @@ func main() {
 			os.Exit(1)
 		}
 	}
-	if inputPath == "" && userNamespace == "" {
-		fmt.Printf("No input path or namespace specified\n")
-		os.Exit(1)
-	} else if inputPath == "" && userNamespace != "" {
+	namespace := userNamespace
+	if namespace == "" {
+		namespace = "default"
+	}
+	if inputPath == "" {
 		// when input path is empty, but a namespace is provided, try to reload an existing site definition
-		existingPath := api.GetInternalOutputPath(userNamespace, api.LoadedSiteStatePath)
+		existingPath := api.GetInternalOutputPath(namespace, api.LoadedSiteStatePath)
 		if _, err := os.Stat(existingPath); err == nil {
 			inputPath = existingPath
+			fmt.Printf("Sources will consumed from namespace %q\n", namespace)
 		} else {
-			fmt.Printf("Namespace %q not found\n", userNamespace)
+			fmt.Printf("Input path has not been provided and namespace %s does not exist\n", namespace)
 			os.Exit(1)
 		}
+	}
+
+	// if namespace already exists, fail if force is not set
+	_, err := os.Stat(api.GetInternalOutputPath(namespace, api.RuntimeSiteStatePath))
+	if !platform.IsBundle() && err == nil && !*force {
+		fmt.Printf("Namespace already exists: %s\n", namespace)
+		os.Exit(1)
 	}
 
 	siteState, err := bootstrap(inputPath, userNamespace)
@@ -141,6 +178,22 @@ func main() {
 
 func bootstrap(inputPath string, namespace string) (*api.SiteState, error) {
 	var siteStateLoader api.SiteStateLoader
+	var reloadExisting bool
+	if !platform.IsBundle() && inputPath == api.GetInternalOutputPath(namespace, api.LoadedSiteStatePath) {
+		reloadExisting = true
+		nsPlatformLoader := &common.NamespacePlatformLoader{}
+		nsPlatform, err := nsPlatformLoader.Load(namespace)
+		if err != nil {
+			return nil, err
+		}
+		currentPlatform := string(platform)
+		if platform.IsKubernetes() {
+			currentPlatform = "podman"
+		}
+		if nsPlatform != currentPlatform {
+			return nil, fmt.Errorf("existing namespace uses %q platform and it cannot change to %q", nsPlatform, currentPlatform)
+		}
+	}
 	siteStateLoader = &common.FileSystemSiteStateLoader{
 		Path:      inputPath,
 		Namespace: namespace,
@@ -150,6 +203,7 @@ func bootstrap(inputPath string, namespace string) (*api.SiteState, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load site state: %v", err)
 	}
+
 	var siteStateRenderer api.StaticSiteStateRenderer
 	if platform == types.PlatformSystemd {
 		siteStateRenderer = &systemd.SiteStateRenderer{}
@@ -158,7 +212,7 @@ func bootstrap(inputPath string, namespace string) (*api.SiteState, error) {
 	} else {
 		siteStateRenderer = &compat.SiteStateRenderer{}
 	}
-	err = siteStateRenderer.Render(siteState)
+	err = siteStateRenderer.Render(siteState, reloadExisting)
 	if err != nil {
 		return nil, fmt.Errorf("failed to render site state: %v", err)
 	}

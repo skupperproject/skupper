@@ -21,7 +21,7 @@ import (
 )
 
 type StaticSiteStateRenderer interface {
-	Render(state *SiteState) error
+	Render(state *SiteState, reload bool) error
 }
 
 type SiteState struct {

@@ -126,6 +126,21 @@ func TestTarball(t *testing.T) {
 					assert.Equal(t, string(data), testFileContent)
 				}
 			})
+			t.Run(tc.description+"-UncompressData", func(t *testing.T) {
+				baseDirCopy := baseDir + ".data"
+				tb := NewTarball()
+				err = tb.ExtractData(savedData, baseDirCopy)
+				assert.Assert(t, err)
+				cleanupList = append(cleanupList, baseDirCopy)
+				filesFoundCopy, err := dirReader.ReadDir(baseDirCopy, nil)
+				assert.Assert(t, err)
+				assert.Equal(t, generatedFilesExpected, len(filesFoundCopy))
+				for _, file := range filesFoundCopy {
+					data, err := os.ReadFile(file)
+					assert.Assert(t, err)
+					assert.Equal(t, string(data), testFileContent)
+				}
+			})
 			t.Run(tc.description+"-UncompressExtra", func(t *testing.T) {
 				baseDirExtra := baseDir + ".extra"
 				tb := NewTarball()

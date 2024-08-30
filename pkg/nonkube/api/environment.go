@@ -158,6 +158,16 @@ func getDefaultOutputPath(namespace string, isBundle bool) string {
 	return path.Join(GetDataHome(), basePath, namespace)
 }
 
+func GetDefaultOutputNamespacesPath() string {
+	if IsRunningInContainer() {
+		outputStat, err := os.Stat("/output")
+		if err == nil && outputStat.IsDir() {
+			return path.Join("/output", "namespaces")
+		}
+	}
+	return path.Join(GetDataHome(), "namespaces")
+}
+
 func GetDefaultOutputBundlesPath() string {
 	if IsRunningInContainer() {
 		outputStat, err := os.Stat("/output")

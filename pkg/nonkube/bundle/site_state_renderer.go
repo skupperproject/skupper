@@ -28,7 +28,7 @@ type SiteStateRenderer struct {
 	containers      map[string]container.Container
 }
 
-func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState) error {
+func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) error {
 	var err error
 	var validator api.SiteStateValidator = &common.SiteStateValidator{}
 	err = validator.Validate(loadedSiteState)
@@ -53,7 +53,6 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState) error {
 	// rendering non-kube configuration files and certificates
 	s.configRenderer = &common.FileSystemConfigurationRenderer{
 		SslProfileBasePath: "{{.SslProfileBasePath}}",
-		Force:              false,
 	}
 	err = s.configRenderer.Render(s.siteState)
 	if err != nil {
@@ -61,7 +60,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState) error {
 		os.Exit(1)
 	}
 	// Serializing loaded and runtime site states
-	if err = s.configRenderer.MarshalSiteStates(*s.loadedSiteState, *s.siteState); err != nil {
+	if err = s.configRenderer.MarshalSiteStates(s.loadedSiteState, s.siteState); err != nil {
 		return err
 	}
 
