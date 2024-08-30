@@ -134,6 +134,10 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 											Type:   "Configured",
 											Status: "True",
 										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
 									},
 								},
 							},
@@ -160,6 +164,10 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
+											Status: "True",
+										},
+										{
+											Type:   "Running",
 											Status: "True",
 										},
 									},
@@ -190,6 +198,10 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 											Type:   "Configured",
 											Status: "True",
 										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
 									},
 								},
 							},
@@ -216,6 +228,10 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
+											Status: "True",
+										},
+										{
+											Type:   "Running",
 											Status: "True",
 										},
 									},
@@ -246,6 +262,10 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 											Type:   "Configured",
 											Status: "True",
 										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
 									},
 								},
 							},
@@ -274,6 +294,10 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
+											Status: "True",
+										},
+										{
+											Type:   "Running",
 											Status: "True",
 										},
 									},
