@@ -4,9 +4,8 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	"testing"
-
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
+	"testing"
 
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"gotest.tools/assert"
@@ -93,6 +92,14 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 			flags:          &common.CommandSiteCreateFlags{SubjectAlternativeNames: []string{"test"}},
 			expectedErrors: []string{},
 		},
+		{
+			name:  "timeout is not valid",
+			args:  []string{"my-site"},
+			flags: &common.CommandSiteCreateFlags{Timeout: "0"},
+			expectedErrors: []string{
+				"timeout is not valid: value is not an integer",
+			},
+		},
 	}
 
 	for _, test := range testTable {
@@ -132,6 +139,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 		flags              common.CommandSiteCreateFlags
 		expectedLinkAccess string
 		expectedOutput     string
+		expectedTimeout    int
 	}
 
 	testTable := []test{
@@ -170,6 +178,14 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedLinkAccess: "",
 			expectedOutput:     "yaml",
 		},
+		{
+			name:               "options with timeout",
+			args:               []string{"my-site"},
+			flags:              common.CommandSiteCreateFlags{Timeout: "60"},
+			expectedLinkAccess: "",
+			expectedOutput:     "",
+			expectedTimeout:    60,
+		},
 	}
 
 	for _, test := range testTable {
@@ -183,6 +199,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 
 			assert.Check(t, cmd.output == test.expectedOutput)
 			assert.Check(t, cmd.linkAccessType == test.expectedLinkAccess)
+			assert.Check(t, cmd.timeout == test.expectedTimeout)
 		})
 	}
 }
@@ -368,11 +385,13 @@ func TestCmdSiteCreate_WaitUntil(t *testing.T) {
 			Namespace: "test",
 		}
 
+		utils.SetRetryProfile(utils.TestRetryProfile)
 		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 		assert.Assert(t, err)
 		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
 		command.siteName = "my-site"
 		command.output = test.output
+		command.timeout = 1
 
 		t.Run(test.name, func(t *testing.T) {
 

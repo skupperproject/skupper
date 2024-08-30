@@ -77,13 +77,16 @@ type CommandSiteCreateFlags struct {
 	Output                  string
 	BindHost                string
 	SubjectAlternativeNames []string
+	Timeout string
 }
 
 type CommandSiteUpdateFlags struct {
-	EnableLinkAccess        bool
-	LinkAccessType          string
-	ServiceAccount          string
-	Output                  string
+	EnableLinkAccess bool
+	LinkAccessType   string
+	ServiceAccount   string
+	Output           string
+	Host             string
+	Timeout          string
 	BindHost                string
 	SubjectAlternativeNames []string
 }
