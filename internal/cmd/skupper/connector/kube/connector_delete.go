@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -41,7 +42,7 @@ func NewCmdConnectorDelete() *CmdConnectorDelete {
 		Example: connectorDeleteExample,
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.ValidateInput(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
@@ -66,7 +67,7 @@ func (cmd *CmdConnectorDelete) AddFlags() {
 	cmd.CobraCmd.Flags().DurationVarP(&cmd.flags.timeout, "timeout", "t", 60*time.Second, "Raise an error if the operation does not complete in the given period of time.")
 }
 
-func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
+func (cmd *CmdConnectorDelete) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 
@@ -98,7 +99,7 @@ func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdConnectorDelete) Run() error {

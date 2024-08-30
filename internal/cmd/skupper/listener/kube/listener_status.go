@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -11,7 +12,7 @@ import (
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -44,7 +45,7 @@ func NewCmdListenerStatus() *CmdListenerStatus {
 		Example: listenerStatusExample,
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.ValidateInput(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 	}
@@ -67,7 +68,7 @@ func (cmd *CmdListenerStatus) AddFlags() {
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print status of listeners Choices: json, yaml")
 }
 
-func (cmd *CmdListenerStatus) ValidateInput(args []string) []error {
+func (cmd *CmdListenerStatus) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
@@ -105,7 +106,7 @@ func (cmd *CmdListenerStatus) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 func (cmd *CmdListenerStatus) Run() error {
 	if cmd.name == "" {
@@ -135,7 +136,7 @@ func (cmd *CmdListenerStatus) Run() error {
 		}
 	} else {
 		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if resource == nil || errors.IsNotFound(err) {
+		if resource == nil || k8serrs.IsNotFound(err) {
 			fmt.Println("No listeners found")
 			return err
 		}

@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -34,17 +35,11 @@ func TestSelfExtractingBundle_Generate(t *testing.T) {
 	}
 	// cleanup function
 	defer func() {
-		var errors []error
-		appendError := func(e error) {
-			if e == nil {
-				return
-			}
-			errors = append(errors, e)
-		}
+		var errs []error
 		for _, cleanupPath := range cleanupPaths {
-			appendError(os.RemoveAll(cleanupPath))
+			errs = append(errs, os.RemoveAll(cleanupPath))
 		}
-		assert.Equal(t, len(errors), 0, "No errors expected during cleanup, but found: %v", errors)
+		assert.NilError(t, errors.Join(errs...), "No errors expected during cleanup, but found: %v", errs)
 	}()
 	var sitePath string
 	var err error

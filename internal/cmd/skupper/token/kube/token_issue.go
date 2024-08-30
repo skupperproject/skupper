@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -13,7 +14,7 @@ import (
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 )
@@ -49,7 +50,7 @@ func NewCmdTokenIssue() *CmdTokenIssue {
 		Example: tokenIssueExample,
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.ValidateInput(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
@@ -77,7 +78,7 @@ func (cmd *CmdTokenIssue) AddFlags() {
 	cmd.CobraCmd.Flags().DurationVarP(&cmd.flags.timeout, "timeout", "t", 60*time.Second, "Raise an error if the operation does not complete in the given period of time.")
 }
 
-func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
+func (cmd *CmdTokenIssue) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	tokenStringValidator := validator.NewFilePathStringValidator()
@@ -120,7 +121,7 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 	// Validate if we already have a token with this name in the namespace
 	if cmd.grantName != "" {
 		grant, err := cmd.client.AccessGrants(cmd.namespace).Get(context.TODO(), cmd.grantName, metav1.GetOptions{})
-		if grant != nil && !errors.IsNotFound(err) {
+		if grant != nil && !k8serrs.IsNotFound(err) {
 			validationErrors = append(validationErrors, fmt.Errorf("there is already a token %s created in namespace %s", cmd.grantName, cmd.namespace))
 		}
 	}
@@ -141,7 +142,7 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdTokenIssue) Run() error {

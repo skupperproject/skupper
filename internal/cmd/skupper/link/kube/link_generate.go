@@ -5,7 +5,12 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -16,9 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var (
@@ -60,7 +62,7 @@ func NewCmdLinkGenerate() *CmdLinkGenerate {
 		Long:   linkGenerateLong,
 		PreRun: skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.ValidateInput(args))
 			skupperCmd.InputToOptions()
 			utils.HandleError(skupperCmd.Run())
 		},
@@ -92,7 +94,7 @@ func (cmd *CmdLinkGenerate) AddFlags() {
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.timeout, "timeout", "60", "raise an error if the operation does not complete in the given period of time (expressed in seconds).")
 }
 
-func (cmd *CmdLinkGenerate) ValidateInput(args []string) []error {
+func (cmd *CmdLinkGenerate) ValidateInput(args []string) error {
 
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
@@ -155,7 +157,7 @@ func (cmd *CmdLinkGenerate) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdLinkGenerate) InputToOptions() {

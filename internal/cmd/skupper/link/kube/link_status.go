@@ -2,7 +2,11 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"text/tabwriter"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -10,8 +14,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
-	"text/tabwriter"
 )
 
 var (
@@ -42,7 +44,7 @@ func NewCmdLinkStatus() *CmdLinkStatus {
 		Example: "skupper link status",
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.ValidateInput(args))
 			skupperCmd.InputToOptions()
 			utils.HandleError(skupperCmd.Run())
 		},
@@ -64,7 +66,7 @@ func (cmd *CmdLinkStatus) NewClient(cobraCommand *cobra.Command, args []string) 
 func (cmd *CmdLinkStatus) AddFlags() {
 	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
 }
-func (cmd *CmdLinkStatus) ValidateInput(args []string) []error {
+func (cmd *CmdLinkStatus) ValidateInput(args []string) error {
 	var validationErrors []error
 	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
 
@@ -89,7 +91,7 @@ func (cmd *CmdLinkStatus) ValidateInput(args []string) []error {
 		cmd.linkName = args[0]
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdLinkStatus) InputToOptions() {

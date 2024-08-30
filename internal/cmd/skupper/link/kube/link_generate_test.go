@@ -2,6 +2,8 @@ package kube
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -9,9 +11,7 @@ import (
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"testing"
 )
 
 func TestCmdLinkGenerate_NewCmdLinkGenerate(t *testing.T) {
@@ -91,14 +91,14 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
 									StatusMessage: "OK",
-									Conditions: []v1.Condition{
+									Conditions: []metav1.Condition{
 										{
 											Message:            "OK",
 											ObservedGeneration: 1,
@@ -136,14 +136,14 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
 									StatusMessage: "OK",
-									Conditions: []v1.Condition{
+									Conditions: []metav1.Condition{
 										{
 											Message:            "OK",
 											ObservedGeneration: 1,
@@ -181,14 +181,14 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
 									StatusMessage: "OK",
-									Conditions: []v1.Condition{
+									Conditions: []metav1.Condition{
 										{
 											Message:            "OK",
 											ObservedGeneration: 1,
@@ -226,14 +226,14 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
 									StatusMessage: "OK",
-									Conditions: []v1.Condition{
+									Conditions: []metav1.Condition{
 										{
 											Message:            "OK",
 											ObservedGeneration: 1,
@@ -273,14 +273,14 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
 									StatusMessage: "OK",
-									Conditions: []v1.Condition{
+									Conditions: []metav1.Condition{
 										{
 											Message:            "OK",
 											ObservedGeneration: 1,
@@ -320,14 +320,14 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
 									StatusMessage: "OK",
-									Conditions: []v1.Condition{
+									Conditions: []metav1.Condition{
 										{
 											Message:            "OK",
 											ObservedGeneration: 1,
@@ -367,14 +367,14 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
 									StatusMessage: "OK",
-									Conditions: []v1.Condition{
+									Conditions: []metav1.Condition{
 										{
 											Message:            "OK",
 											ObservedGeneration: 1,
@@ -414,14 +414,14 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
 									StatusMessage: "OK",
-									Conditions: []v1.Condition{
+									Conditions: []metav1.Condition{
 										{
 											Message:            "OK",
 											ObservedGeneration: 1,
@@ -466,10 +466,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 
 			actualErrors := command.ValidateInput(test.args)
 
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			utils.AssertErrorMessagesMatch(t, test.expectedErrors, actualErrors)
 		})
 	}
 }
@@ -502,14 +499,14 @@ func TestCmdLinkGenerate_InputToOptions(t *testing.T) {
 			flags: GenerateLinkFlags{"", "1", "json", true, "60"},
 			activeSite: &v1alpha1.Site{
 
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name:      "the-site",
 					Namespace: "test",
 				},
 				Status: v1alpha1.SiteStatus{
 					Status: v1alpha1.Status{
 						StatusMessage: "OK",
-						Conditions: []v1.Condition{
+						Conditions: []metav1.Condition{
 							{
 								Message:            "OK",
 								ObservedGeneration: 1,
@@ -568,14 +565,14 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 				command.generateCredential = true
 				command.activeSite = &v1alpha1.Site{
 
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "the-site",
 						Namespace: "test",
 					},
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
 							StatusMessage: "OK",
-							Conditions: []v1.Condition{
+							Conditions: []metav1.Condition{
 								{
 									Message:            "OK",
 									ObservedGeneration: 1,
@@ -613,14 +610,14 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 				command.generateCredential = false
 				command.activeSite = &v1alpha1.Site{
 
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "the-site",
 						Namespace: "test",
 					},
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
 							StatusMessage: "OK",
-							Conditions: []v1.Condition{
+							Conditions: []metav1.Condition{
 								{
 									Message:            "OK",
 									ObservedGeneration: 1,
@@ -658,14 +655,14 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 				command.generateCredential = true
 				command.activeSite = &v1alpha1.Site{
 
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "the-site",
 						Namespace: "test",
 					},
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
 							StatusMessage: "OK",
-							Conditions: []v1.Condition{
+							Conditions: []metav1.Condition{
 								{
 									Message:            "OK",
 									ObservedGeneration: 1,
@@ -704,14 +701,14 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 				command.generateCredential = true
 				command.activeSite = &v1alpha1.Site{
 
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "the-site",
 						Namespace: "test",
 					},
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
 							StatusMessage: "OK",
-							Conditions: []v1.Condition{
+							Conditions: []metav1.Condition{
 								{
 									Message:            "OK",
 									ObservedGeneration: 1,
@@ -750,14 +747,14 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 				command.generateCredential = false
 				command.activeSite = &v1alpha1.Site{
 
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "the-site",
 						Namespace: "test",
 					},
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
 							StatusMessage: "OK",
-							Conditions: []v1.Condition{
+							Conditions: []metav1.Condition{
 								{
 									Message:            "OK",
 									ObservedGeneration: 1,
@@ -794,14 +791,14 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 				command.generateCredential = true
 				command.activeSite = &v1alpha1.Site{
 
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "the-site",
 						Namespace: "test",
 					},
 					Status: v1alpha1.SiteStatus{
 						Status: v1alpha1.Status{
 							StatusMessage: "OK",
-							Conditions: []v1.Condition{
+							Conditions: []metav1.Condition{
 								{
 									Message:            "OK",
 									ObservedGeneration: 1,
@@ -914,7 +911,7 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Certificate{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "link-test",
 						Namespace: "test",
 					},

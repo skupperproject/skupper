@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
@@ -33,7 +34,7 @@ func NewCmdSiteDelete() *CmdSiteDelete {
 		Example: "skupper site delete my-site",
 		PreRun:  skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.ValidateInput(args))
 			utils.HandleError(skupperCmd.Run())
 		},
 		PostRunE: func(cmd *cobra.Command, args []string) error {
@@ -56,7 +57,7 @@ func (cmd *CmdSiteDelete) NewClient(cobraCommand *cobra.Command, args []string) 
 
 func (cmd *CmdSiteDelete) AddFlags() {}
 
-func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
+func (cmd *CmdSiteDelete) ValidateInput(args []string) error {
 	var validationErrors []error
 
 	//Validate if there is already a site defined in the namespace
@@ -91,7 +92,7 @@ func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 func (cmd *CmdSiteDelete) InputToOptions() {}
 

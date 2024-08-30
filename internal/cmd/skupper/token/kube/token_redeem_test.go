@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 )
@@ -100,7 +99,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
@@ -123,13 +122,13 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
+									Conditions: []metav1.Condition{
 										{
 											Type:   "Configured",
 											Status: "True",
@@ -151,13 +150,13 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
+									Conditions: []metav1.Condition{
 										{
 											Type:   "Configured",
 											Status: "True",
@@ -179,13 +178,13 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
+									Conditions: []metav1.Condition{
 										{
 											Type:   "Configured",
 											Status: "True",
@@ -207,13 +206,13 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
+									Conditions: []metav1.Condition{
 										{
 											Type:   "Configured",
 											Status: "True",
@@ -235,13 +234,13 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
+									Conditions: []metav1.Condition{
 										{
 											Type:   "Configured",
 											Status: "True",
@@ -265,13 +264,13 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
 							Status: v1alpha1.SiteStatus{
 								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
+									Conditions: []metav1.Condition{
 										{
 											Type:   "Configured",
 											Status: "True",
@@ -297,10 +296,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 
 			actualErrors := command.ValidateInput(test.args)
 
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			utils.AssertErrorMessagesMatch(t, test.expectedErrors, actualErrors)
 		})
 	}
 }
@@ -324,12 +320,12 @@ func TestCmdTokenRedeem_Run(t *testing.T) {
 			name: "runs ok",
 			skupperObjects: []runtime.Object{
 				&v1alpha1.AccessToken{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "my-token",
 						Namespace: "test",
 					},
 					Status: v1alpha1.Status{
-						Conditions: []v1.Condition{
+						Conditions: []metav1.Condition{
 							{
 								Type:   "Redeemed",
 								Status: "True",
@@ -380,7 +376,7 @@ func TestCmdTokenRedeem_WaitUntil(t *testing.T) {
 			name: "token cannot be redeemed",
 			skupperObjects: []runtime.Object{
 				&v1alpha1.AccessToken{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "my-grant",
 						Namespace: "test",
 					},
@@ -398,12 +394,12 @@ func TestCmdTokenRedeem_WaitUntil(t *testing.T) {
 			name: "token is redeemed",
 			skupperObjects: []runtime.Object{
 				&v1alpha1.AccessToken{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "my-grant",
 						Namespace: "test",
 					},
 					Status: v1alpha1.Status{
-						Conditions: []v1.Condition{
+						Conditions: []metav1.Condition{
 							{
 								Type:   "Redeemed",
 								Status: "True",

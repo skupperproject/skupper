@@ -5,7 +5,10 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -14,7 +17,6 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"strconv"
 )
 
 var (
@@ -51,7 +53,7 @@ func NewCmdLinkUpdate() *CmdLinkUpdate {
 		Long:   linkUpdateLong,
 		PreRun: skupperCmd.NewClient,
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
+			utils.HandleError(skupperCmd.ValidateInput(args))
 			skupperCmd.InputToOptions()
 			utils.HandleError(skupperCmd.Run())
 		},
@@ -82,7 +84,7 @@ func (cmd *CmdLinkUpdate) AddFlags() {
 	cmd.CobraCmd.Flags().StringVar(&cmd.flags.timeout, "timeout", "60", "raise an error if the operation does not complete in the given period of time (expressed in seconds).")
 }
 
-func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
+func (cmd *CmdLinkUpdate) ValidateInput(args []string) error {
 
 	var validationErrors []error
 	numberValidator := validator.NewNumberValidator()
@@ -140,7 +142,7 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdLinkUpdate) InputToOptions() {
