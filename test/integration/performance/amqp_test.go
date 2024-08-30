@@ -222,7 +222,7 @@ func getAmqpServerInfo(settings *amqpSettings) *common.ServerInfo {
 
 func getAmqpDeployment() *appsv1.Deployment {
 	dep, _ := k8s.NewDeployment("amqp-server", "", k8s.DeploymentOpts{
-		Image:  "quay.io/skupper/skupper-router:2.6.1",
+		Image:  "quay.io/skupper/skupper-router:2.7.0",
 		Labels: map[string]string{"app": "amqp-server"},
 	})
 	return dep
