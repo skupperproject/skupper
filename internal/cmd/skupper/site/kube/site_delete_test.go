@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 
@@ -20,6 +21,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 		skupperObjects []runtime.Object
 		expectedErrors []string
 		skupperError   string
+		flags          *common.CommandSiteDeleteFlags
 	}
 
 	testTable := []test{
@@ -192,6 +194,27 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			expectedErrors: []string{},
 			skupperError:   "",
 		},
+		{
+			name:       "timeout is not valid",
+			args:       []string{"my-site"},
+			flags:      &common.CommandSiteDeleteFlags{Timeout: "2seconds"},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
+						},
+					},
+				},
+			},
+			expectedErrors: []string{"timeout is not valid: value is not an integer"},
+			skupperError:   "",
+		},
 	}
 
 	for _, test := range testTable {
@@ -206,12 +229,45 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 
 			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
 
+			if test.flags != nil {
+				command.Flags = test.flags
+			}
+
 			actualErrors := command.ValidateInput(test.args)
 
 			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
 
 			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
 
+		})
+	}
+}
+
+func TestCmdSiteDelete_InputToOptions(t *testing.T) {
+
+	type test struct {
+		name            string
+		flags           *common.CommandSiteDeleteFlags
+		expectedTimeout int
+	}
+
+	testTable := []test{
+		{
+			name:            "options with timeout",
+			flags:           &common.CommandSiteDeleteFlags{Timeout: "30"},
+			expectedTimeout: 30,
+		},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			command := &CmdSiteDelete{
+				Namespace: "test",
+			}
+			command.Flags = test.flags
+			command.InputToOptions()
+
+			assert.Check(t, command.timeout == test.expectedTimeout)
 		})
 	}
 }
@@ -340,10 +396,13 @@ func TestCmdSiteDelete_WaitUntil(t *testing.T) {
 			Namespace: "test",
 		}
 
+		utils.SetRetryProfile(utils.TestRetryProfile)
 		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 		assert.Assert(t, err)
 		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
 		command.siteName = "my-site"
+		command.timeout = 1
+
 		t.Run(test.name, func(t *testing.T) {
 
 			err := command.WaitUntil()

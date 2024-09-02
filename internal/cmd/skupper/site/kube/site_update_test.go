@@ -304,6 +304,28 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 				"site with name \"a-site\" is not available",
 			},
 		},
+		{
+			name:       "timeout format is not valid",
+			args:       []string{"my-site"},
+			flags:      &common.CommandSiteUpdateFlags{Timeout: "2seconds"},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
+						},
+					},
+				},
+			},
+			expectedErrors: []string{
+				"timeout is not valid: value is not an integer",
+			},
+		},
 	}
 
 	for _, test := range testTable {
@@ -338,61 +360,47 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 		name               string
 		args               []string
 		flags              common.CommandSiteUpdateFlags
-		expectedSettings   map[string]string
 		expectedLinkAccess string
 		expectedOutput     string
+		expectedTimeout    int
 	}
 
 	testTable := []test{
 		{
-			name:  "options without link access enabled",
-			args:  []string{"my-site"},
-			flags: common.CommandSiteUpdateFlags{},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:               "options without link access enabled",
+			args:               []string{"my-site"},
+			flags:              common.CommandSiteUpdateFlags{},
 			expectedLinkAccess: "none",
 			expectedOutput:     "",
 		},
 		{
-			name:  "options with link access enabled but using a type by default and link access host specified",
-			args:  []string{"my-site"},
-			flags: common.CommandSiteUpdateFlags{EnableLinkAccess: true},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:               "options with link access enabled but using a type by default and link access host specified",
+			args:               []string{"my-site"},
+			flags:              common.CommandSiteUpdateFlags{EnableLinkAccess: true},
 			expectedLinkAccess: "loadbalancer",
 			expectedOutput:     "",
 		},
 		{
-			name:  "options with link access enabled using the nodeport type",
-			args:  []string{"my-site"},
-			flags: common.CommandSiteUpdateFlags{EnableLinkAccess: true, LinkAccessType: "nodeport"},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:               "options with link access enabled using the nodeport type",
+			args:               []string{"my-site"},
+			flags:              common.CommandSiteUpdateFlags{EnableLinkAccess: true, LinkAccessType: "nodeport"},
 			expectedLinkAccess: "nodeport",
 			expectedOutput:     "",
 		},
 		{
-			name:  "options with link access options not well specified",
-			args:  []string{"my-site"},
-			flags: common.CommandSiteUpdateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport"},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:               "options with link access options not well specified",
+			args:               []string{"my-site"},
+			flags:              common.CommandSiteUpdateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport"},
 			expectedLinkAccess: "none",
 			expectedOutput:     "",
 		},
 		{
-			name:  "options output type",
-			args:  []string{"my-site"},
-			flags: common.CommandSiteUpdateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport", Output: "yaml"},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:               "options with output type and timeout",
+			args:               []string{"my-site"},
+			flags:              common.CommandSiteUpdateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport", Output: "yaml", Timeout: "60"},
 			expectedLinkAccess: "none",
 			expectedOutput:     "yaml",
+			expectedTimeout:    60,
 		},
 	}
 
@@ -410,8 +418,6 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 
 			command.InputToOptions()
 
-			assert.DeepEqual(t, command.options, test.expectedSettings)
-
 			assert.Check(t, command.output == test.expectedOutput)
 		})
 	}
@@ -426,7 +432,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 		siteName           string
 		serviceAccountName string
 		linkAccessType     string
-		options            map[string]string
 		output             string
 		errorMessage       string
 	}
@@ -451,7 +456,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 			siteName:           "my-site",
 			serviceAccountName: "my-service-account",
 			linkAccessType:     "default",
-			options:            map[string]string{"name": "my-site"},
 			output:             "",
 			skupperError:       "",
 			errorMessage:       "",
@@ -463,7 +467,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 			siteName:           "my-site",
 			serviceAccountName: "my-service-account",
 			linkAccessType:     "default",
-			options:            map[string]string{"name": "my-site"},
 			output:             "",
 			skupperError:       "error",
 			errorMessage:       "error",
@@ -475,7 +478,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 			siteName:           "my-site",
 			serviceAccountName: "my-service-account",
 			linkAccessType:     "default",
-			options:            map[string]string{"name": "my-site"},
 			output:             "yaml",
 			skupperError:       "",
 			errorMessage:       "sites.skupper.io \"my-site\" not found",
@@ -487,7 +489,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 			siteName:           "my-site",
 			serviceAccountName: "my-service-account",
 			linkAccessType:     "default",
-			options:            map[string]string{"name": "my-site"},
 			output:             "unsupported",
 			skupperError:       "",
 			errorMessage:       "sites.skupper.io \"my-site\" not found",
@@ -505,7 +506,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 		command.siteName = test.siteName
 		command.serviceAccountName = test.serviceAccountName
 		command.linkAccessType = test.linkAccessType
-		command.options = test.options
 		command.output = test.output
 
 		t.Run(test.name, func(t *testing.T) {
@@ -561,10 +561,12 @@ func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 			Namespace: "test",
 		}
 
+		utils.SetRetryProfile(utils.TestRetryProfile)
 		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 		assert.Assert(t, err)
 		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
 		command.siteName = test.siteName
+		command.timeout = 1
 
 		t.Run(test.name, func(t *testing.T) {
 

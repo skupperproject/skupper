@@ -138,9 +138,14 @@ func CmdSiteDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSiteDeleteDesc, kubeCommand, nonKubeCommand)
+	cmdFlags := common.CommandSiteDeleteFlags{}
+
+	cmd.Flags().StringVar(&cmdFlags.Timeout, common.FlagNameTimeout, "60", common.FlagDescTimeout)
 
 	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
 
 	return cmd
 }

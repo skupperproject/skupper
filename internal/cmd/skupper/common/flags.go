@@ -91,6 +91,10 @@ type CommandSiteUpdateFlags struct {
 	SubjectAlternativeNames []string
 }
 
+type CommandSiteDeleteFlags struct {
+	Timeout string
+}
+
 type CommandLinkGenerateFlags struct {
 	TlsSecret          string
 	Cost               string

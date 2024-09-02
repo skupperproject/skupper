@@ -45,9 +45,11 @@ func TestCmdSiteFactory(t *testing.T) {
 			command: CmdSiteUpdateFactory(types.PlatformKubernetes),
 		},
 		{
-			name:                          "CmdSiteDeleteFactory",
-			expectedFlagsWithDefaultValue: map[string]interface{}{},
-			command:                       CmdSiteDeleteFactory(types.PlatformKubernetes),
+			name: "CmdSiteDeleteFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameTimeout: "60",
+			},
+			command: CmdSiteDeleteFactory(types.PlatformKubernetes),
 		},
 		{
 			name:                          "CmdSiteStatusFactory",
