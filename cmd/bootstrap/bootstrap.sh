@@ -3,8 +3,9 @@
 set -Ceu
 
 IMAGE="quay.io/skupper/bootstrap:v2-latest"
-export INPUT_PATH="${PWD}"
+export INPUT_PATH=""
 export NAMESPACE=""
+export FORCE_FLAG=""
 SKUPPER_OUTPUT_PATH="${XDG_DATA_HOME:-${HOME}/.local/share}/skupper"
 SERVICE_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
 if [ -z "${UID:-}" ]; then
@@ -12,6 +13,7 @@ if [ -z "${UID:-}" ]; then
     export UID
 fi
 LOG_FILE="$(mktemp /tmp/skupper-bootstrap.XXXXX.log)"
+BOOTSTRAP_OUT="$(mktemp /tmp/skupper-bootstrap.XXXXX.out)"
 
 exit_error() {
     echo "$*"
@@ -98,9 +100,10 @@ create_service() {
     fi
 
     # generated service file
-    namespace="$(grep -E 'Site ".*" has been created on namespace ".*"' "${LOG_FILE}" | awk -F'"' '{print $4}')"
+    namespace="$(cat "${BOOTSTRAP_OUT}")"
     if [ -z "${namespace}" ]; then
-        echo "Unable to create SystemD service (namespace could not be identified)"
+        # unable to create SystemD service (namespace could not be identified)
+        # possibly due to bootstrap failure
         return
     fi
     service_name="skupper-${namespace}.service"
@@ -134,7 +137,7 @@ usage() {
 }
 
 parse_opts() {
-    while getopts "p:n:" opt; do
+    while getopts "p:n:f" opt; do
         case "${opt}" in
             p)
                 export INPUT_PATH="${OPTARG}"
@@ -149,6 +152,9 @@ parse_opts() {
                     echo "Invalid namespace"
                     usage
                 fi
+                ;;
+            f)
+                export FORCE_FLAG="-f"
                 ;;
             *)
                 usage
@@ -172,9 +178,14 @@ main() {
         file_container_endpoint=$(echo "${CONTAINER_ENDPOINT}" | sed -e "s#unix://##g")
         MOUNTS="${MOUNTS} -v '${file_container_endpoint}:/${CONTAINER_ENGINE}.sock:z'"
     fi
-    MOUNTS="${MOUNTS} -v '${INPUT_PATH}:/input:z'"
+    INPUT_PATH_ARG=""
+    if [ -n "${INPUT_PATH}" ]; then
+        MOUNTS="${MOUNTS} -v '${INPUT_PATH}:/input:z'"
+        INPUT_PATH_ARG="/input"
+    fi
     MOUNTS="${MOUNTS} -v '${SKUPPER_OUTPUT_PATH}:/output:z'"
-    
+    MOUNTS="${MOUNTS} -v '${BOOTSTRAP_OUT}:/bootstrap.out:z'"
+
     # Env vars
     if is_container_platform; then
         if is_sock_endpoint; then
@@ -188,14 +199,14 @@ main() {
 
     # Running the bootstrap
     ${CONTAINER_ENGINE} pull ${IMAGE}
-    if eval "${CONTAINER_ENGINE}" run --rm --name skupper-bootstrap \
+    eval "${CONTAINER_ENGINE}" run --rm --name skupper-bootstrap \
         --network host --security-opt label=disable -u \""${RUNAS}"\" --userns=\""${USERNS}"\" \
         "${MOUNTS}" \
         "${ENV_VARS}" \
         "${IMAGE}" \
-        /app/bootstrap -n="${NAMESPACE}" 2>&1 | tee "${LOG_FILE}"; then
-        create_service
-    fi
+        /app/bootstrap -p="${INPUT_PATH_ARG}" -n="${NAMESPACE}" ${FORCE_FLAG} 2>&1 | tee "${LOG_FILE}"
+    create_service
+    echo "Logs saved to: ${LOG_FILE}"
 }
 
 main "$@"

@@ -75,9 +75,9 @@ func main() {
 	// NOTE FOR CONTAINERS
 	// When running bootstrap process through a container
 	// the /input path must be mapped to a directory containing a site
-	// definition based on CR files.
-	// It also expects the /output path to be mapped to the
-	// Host's XDG_DATA_HOME/skupper or $HOME/.local/share/skupper (non-root)
+	// definition based on CR files, if an input path has been provided.
+	// The /output path must be mapped to the Host's XDG_DATA_HOME/skupper
+	// or $HOME/.local/share/skupper (non-root)
 	// and /usr/local/share/skupper (root).
 	//
 	fmt.Printf("Skupper nonkube bootstrap (version: %s)\n", version.Version)
@@ -87,9 +87,15 @@ func main() {
 		_ = os.Setenv(types.ENV_PLATFORM, "podman")
 	}
 	if api.IsRunningInContainer() {
-		inputPath = "/input"
-		outputPath := "/output"
-		for _, directory := range []string{inputPath, outputPath} {
+		requiredPaths := []string{"/output"}
+		if inputPath != "" {
+			if inputPath != "/input" {
+				fmt.Println("The input path must be set to /input when using a container to bootstrap")
+				os.Exit(1)
+			}
+			requiredPaths = append(requiredPaths, "/input")
+		}
+		for _, directory := range requiredPaths {
 			stat, err := os.Stat(directory)
 			if err != nil {
 				fmt.Printf("Failed to stat %s: %s\n", directory, err)
@@ -147,6 +153,16 @@ func main() {
 		bundleSuffix = " (as a distributable bundle)"
 	} else {
 		bundleSuffix = fmt.Sprintf(" on namespace %q", siteState.GetNamespace())
+		// create bootstrap.out file
+		if api.IsRunningInContainer() {
+			outFile, err := os.Stat("/bootstrap.out")
+			if err == nil && !outFile.IsDir() {
+				err = os.WriteFile("/bootstrap.out", []byte(siteState.GetNamespace()), 0644)
+				if err != nil {
+					fmt.Println("Failed to write to bootstrap.out:", err)
+				}
+			}
+		}
 	}
 	fmt.Printf("Site %q has been created%s\n", siteState.Site.Name, bundleSuffix)
 	if !platform.IsBundle() {
