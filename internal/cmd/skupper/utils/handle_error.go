@@ -5,10 +5,15 @@ import (
 	"syscall"
 )
 
+const (
+	GenericError    = 1
+	ValidationError = 2
+)
+
 func HandleError(err error) {
 	if err != nil {
 		fmt.Println(err)
-		syscall.Exit(0)
+		syscall.Exit(GenericError)
 	}
 }
 
@@ -18,7 +23,7 @@ func HandleErrorList(errList []error) {
 			fmt.Println(err)
 		}
 
-		syscall.Exit(0)
+		syscall.Exit(ValidationError)
 	}
 }
 
