@@ -316,7 +316,7 @@ func TestCmdTokenRedeem_Run(t *testing.T) {
 
 	defer os.Remove("/tmp/tokenR.yaml") // clean up
 
-	err := newCmdCreateAccessGrantFile("/tmp/tokenR.yaml")
+	err := newCmdCreateAccessTokenFile("/tmp/tokenR.yaml")
 	assert.Check(t, err == nil)
 
 	testTable := []test{
@@ -438,17 +438,17 @@ func TestCmdTokenRedeem_WaitUntil(t *testing.T) {
 
 // --- helper methods
 
-func newCmdCreateAccessGrantFile(fileName string) error {
+func newCmdCreateAccessTokenFile(fileName string) error {
 
-	resource := v1alpha1.AccessGrant{
+	resource := v1alpha1.AccessToken{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v1alpha1",
-			Kind:       "AccessGrant",
+			Kind:       "AccessToken",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "grant",
+			Name: "token",
 		},
-		Status: v1alpha1.AccessGrantStatus{
+		Spec: v1alpha1.AccessTokenSpec{
 			Url:  "AAA",
 			Ca:   "BBB",
 			Code: "CCC",

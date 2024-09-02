@@ -121,7 +121,7 @@ func (cmd *CmdTokenRedeem) ValidateInput(args []string) []error {
 func (cmd *CmdTokenRedeem) Run() error {
 
 	// get data from token file
-	var grant v1alpha1.AccessGrant
+	var accessToken v1alpha1.AccessToken
 	var tokenFile []byte
 	tokenFile, err := os.ReadFile(cmd.fileName)
 	if err != nil {
@@ -129,27 +129,12 @@ func (cmd *CmdTokenRedeem) Run() error {
 		return err
 	}
 	yamlS := json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme, json.SerializerOptions{Yaml: true})
-	yamlS.Decode(tokenFile, nil, &grant)
-	cmd.name = grant.Name
+	yamlS.Decode(tokenFile, nil, &accessToken)
 
-	// create AccessToken
-	resource := v1alpha1.AccessToken{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
-			Kind:       "AccessToken",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cmd.name,
-			Namespace: cmd.namespace,
-		},
-		Spec: v1alpha1.AccessTokenSpec{
-			Url:  grant.Status.Url,
-			Ca:   grant.Status.Ca,
-			Code: grant.Status.Code,
-		},
-	}
+	accessToken.Namespace = cmd.namespace
+	cmd.name = accessToken.Name
 
-	_, err = cmd.client.AccessTokens(cmd.namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
+	_, err = cmd.client.AccessTokens(cmd.namespace).Create(context.TODO(), &accessToken, metav1.CreateOptions{})
 	return err
 }
 
