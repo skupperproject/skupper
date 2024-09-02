@@ -80,13 +80,13 @@ rules:
   - networking.k8s.io
   resources:
   - ingresses
-  - networkpolicies
   verbs:
   - get
   - list
   - watch
   - create
   - delete
+  - update
 - apiGroups:
   - projectcontour.io
   resources:
@@ -97,6 +97,20 @@ rules:
   - watch
   - create
   - delete
+  - update
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gateways
+  - tlsroutes
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+  - update
+  - patch
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:

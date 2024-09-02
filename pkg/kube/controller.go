@@ -18,10 +18,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -42,8 +44,9 @@ import (
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
 	routev1interfaces "github.com/openshift/client-go/route/informers/externalversions/internalinterfaces"
 	routev1informer "github.com/openshift/client-go/route/informers/externalversions/route/v1"
-	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/kube/resource"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
 	skupperv1alpha1interfaces "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/internalinterfaces"
@@ -121,7 +124,15 @@ func (c *Controller) HasRoute() bool {
 }
 
 func (c *Controller) HasContourHttpProxy() bool {
-	return IsResourceAvailable(c.discoveryClient, GetContourHttpProxyGVR())
+	return resource.IsResourceAvailable(c.discoveryClient, resource.ContourHttpProxyResource())
+}
+
+func (c *Controller) HasGateway() bool {
+	return resource.IsResourceAvailable(c.discoveryClient, resource.GatewayResource())
+}
+
+func (c *Controller) HasTlsRoute() bool {
+	return resource.IsResourceAvailable(c.discoveryClient, resource.TlsRouteResource())
 }
 
 func (c *Controller) GetRouteInterface() openshiftroute.Interface {
@@ -137,6 +148,16 @@ func (c *Controller) GetRouteClient() routev1client.RouteV1Interface {
 
 func (c *Controller) GetSkupperClient() skupperclient.Interface {
 	return c.skupperClient
+}
+
+func (c *Controller) GetDeploymentForPod(podName string, namespace string) (*appsv1.Deployment, error) {
+	re := regexp.MustCompile(`^(\S+)\-[a-z0-9]{9,10}\-[a-z0-9]{5}$`)
+	matches := re.FindStringSubmatch(podName)
+	if len(matches) != 2 {
+		return nil, fmt.Errorf("Could not determine deployment name from %s", podName)
+	}
+	deploymentName := matches[1]
+	return c.GetKubeClient().AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 }
 
 func (c *Controller) NewWatchers(client kubernetes.Interface) Watchers {
@@ -163,6 +184,12 @@ func (c *Controller) run() {
 
 func (c *Controller) TestProcess() bool {
 	return c.process()
+}
+
+func (c *Controller) TestProcessAll() {
+	for c.queue.Len() > 0 {
+		c.process()
+	}
 }
 
 func (c *Controller) process() bool {
@@ -521,7 +548,6 @@ func (c *Controller) WatchAllPods(namespace string, handler PodHandler) *PodWatc
 }
 
 func (c *Controller) WatchPods(selector string, namespace string, handler PodHandler) *PodWatcher {
-	log.Printf("WatchPods(%s, %s)", selector, namespace)
 	options := ListByLabelSelector(selector)
 	watcher := &PodWatcher{
 		handler: handler,
@@ -592,9 +618,26 @@ func (w *PodWatcher) List() []*corev1.Pod {
 
 func (c *Controller) WatchContourHttpProxies(options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
 	if !c.HasContourHttpProxy() {
+		log.Println("Cannot watch HttpProxies; resource not installed")
 		return nil
 	}
-	return c.WatchDynamic(GetContourHttpProxyGVR(), options, namespace, handler)
+	return c.WatchDynamic(resource.ContourHttpProxyResource(), options, namespace, handler)
+}
+
+func (c *Controller) WatchGateways(options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
+	if !c.HasGateway() {
+		log.Println("Cannot watch Gateways; resource not installed")
+		return nil
+	}
+	return c.WatchDynamic(resource.GatewayResource(), options, namespace, handler)
+}
+
+func (c *Controller) WatchTlsRoutes(options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
+	if !c.HasTlsRoute() {
+		log.Println("Cannot watch TLSRoutes; resource not installed")
+		return nil
+	}
+	return c.WatchDynamic(resource.TlsRouteResource(), options, namespace, handler)
 }
 
 func (c *Controller) WatchDynamic(resource schema.GroupVersionResource, options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {

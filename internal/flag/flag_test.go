@@ -229,3 +229,71 @@ func Test_IntVar(t *testing.T) {
 		})
 	}
 }
+
+func Test_MultiStringVar(t *testing.T) {
+	tests := []struct {
+		name           string
+		defaultValues  []string
+		args           []string
+		env            map[string]string
+		expectedValues []string
+		expectedError  string
+	}{
+		{
+			name:           "default value returned",
+			defaultValues:  []string{"foo"},
+			expectedValues: []string{"foo"},
+		},
+		{
+			name:           "flag specified as two args",
+			defaultValues:  []string{"foo"},
+			args:           []string{"-dummy", "bar,baz"},
+			expectedValues: []string{"bar", "baz"},
+		},
+		{
+			name:           "flag specified as one arg",
+			defaultValues:  []string{"foo"},
+			args:           []string{"-dummy=bar,baz"},
+			expectedValues: []string{"bar", "baz"},
+		},
+		{
+			name:          "env var returned",
+			defaultValues: []string{"foo"},
+			env: map[string]string{
+				"SKUPPER_DUMMY": "bar,baz",
+			},
+			expectedValues: []string{"bar", "baz"},
+		},
+		{
+			name:          "flag overrides env var",
+			defaultValues: []string{"foo"},
+			env: map[string]string{
+				"SKUPPER_DUMMY": "bar,baz",
+			},
+			args:           []string{"-dummy=abc,def"},
+			expectedValues: []string{"abc", "def"},
+		},
+		{
+			name:          "help",
+			args:          []string{"-help"},
+			expectedError: "help requested",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			flags := &flag.FlagSet{}
+			var values []string
+			for k, v := range tt.env {
+				t.Setenv(k, v)
+			}
+			MultiStringVar(flags, &values, "dummy", "SKUPPER_DUMMY", tt.defaultValues, "Test of dummy config option")
+			err := flags.Parse(tt.args)
+			if tt.expectedError != "" {
+				assert.ErrorContains(t, err, tt.expectedError)
+			} else if err != nil {
+				t.Error(err)
+			}
+			assert.DeepEqual(t, values, tt.expectedValues)
+		})
+	}
+}

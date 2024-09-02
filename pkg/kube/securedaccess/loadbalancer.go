@@ -2,8 +2,9 @@ package securedaccess
 
 import (
 	"log"
-	"reflect"
 	"strconv"
+
+	corev1 "k8s.io/api/core/v1"
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 )
@@ -18,17 +19,8 @@ func newLoadbalancerAccess(m *SecuredAccessManager) AccessType {
 	}
 }
 
-func (o *LoadbalancerAccessType) Realise(access *skupperv1alpha1.SecuredAccess) bool {
-	return access.Status.SetStatusMessage(skupperv1alpha1.STATUS_OK)
-}
-
-func (o *LoadbalancerAccessType) Resolve(access *skupperv1alpha1.SecuredAccess) bool {
+func (o *LoadbalancerAccessType) RealiseAndResolve(access *skupperv1alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv1alpha1.Endpoint, error) {
 	log.Printf("Resolving endpoints for SecuredAccess %s of accessType 'loadbalancer'", access.Key())
-	svc, ok := o.manager.services[access.Key()]
-	if !ok {
-		log.Printf("Cannot resolve endpoints; no service %s found", access.Key())
-		return false
-	}
 	var endpoints []skupperv1alpha1.Endpoint
 	for _, i := range svc.Status.LoadBalancer.Ingress {
 		var host string
@@ -47,12 +39,5 @@ func (o *LoadbalancerAccessType) Resolve(access *skupperv1alpha1.SecuredAccess) 
 			})
 		}
 	}
-	log.Printf("Resolving endpoints for SecuredAccess %s of accessType 'loadbalancer' -> %v", access.Key(), endpoints)
-	if endpoints == nil || reflect.DeepEqual(endpoints, access.Status.Endpoints) {
-		log.Printf("Endpoints for SecuredAccess %s of accessType 'loadbalancer' have not changed", access.Key())
-		return false
-	}
-	access.Status.Endpoints = endpoints
-	log.Printf("Resolved endpoints for SecuredAccess %s of accessType 'loadbalancer' -> %v", access.Key(), endpoints)
-	return true
+	return endpoints, nil
 }

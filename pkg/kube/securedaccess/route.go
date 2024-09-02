@@ -1,11 +1,12 @@
 package securedaccess
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"reflect"
-	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -24,41 +25,49 @@ func newRouteAccess(m *SecuredAccessManager) AccessType {
 	}
 }
 
-func (o *RouteAccessType) Realise(access *skupperv1alpha1.SecuredAccess) bool {
-	var errors []string
-	for _, port := range access.Spec.Ports {
-		route := desiredRouteForPort(access, port)
-		if err, _ := o.manager.ensureRoute(access.Namespace, route); err != nil {
-			errors = append(errors, err.Error())
-		}
-	}
-	if len(errors) == 0 {
-		return false
-	}
-	return access.Status.SetStatusMessage(strings.Join(errors, ","))
-}
-
-func (o *RouteAccessType) Resolve(access *skupperv1alpha1.SecuredAccess) bool {
+func (o *RouteAccessType) RealiseAndResolve(access *skupperv1alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv1alpha1.Endpoint, error) {
 	var endpoints []skupperv1alpha1.Endpoint
 	for _, port := range access.Spec.Ports {
-		key := routeKey(access, port)
-		if route, ok := o.manager.routes[key]; ok && route.Spec.Host != "" {
+		desired := desiredRouteForPort(access, port)
+		err, route := o.ensureRoute(access.Namespace, desired)
+		if err != nil {
+			return nil, err
+		}
+		for _, ingress := range route.Status.Ingress {
 			endpoints = append(endpoints, skupperv1alpha1.Endpoint{
 				Name: port.Name,
-				Host: route.Spec.Host,
+				Host: ingress.Host,
 				Port: "443",
 			})
 		}
 	}
-	if endpoints == nil || reflect.DeepEqual(endpoints, access.Status.Endpoints) {
-		return false
-	}
-	access.Status.Endpoints = endpoints
-	return true
+	return endpoints, nil
 }
 
-func routeKey(sa *skupperv1alpha1.SecuredAccess, port skupperv1alpha1.SecuredAccessPort) string {
-	return fmt.Sprintf("%s/%s-%s", sa.Namespace, sa.Name, port.Name)
+func (o *RouteAccessType) ensureRoute(namespace string, route *routev1.Route) (error, *routev1.Route) {
+	key := fmt.Sprintf("%s/%s", namespace, route.Name)
+	if existing, ok := o.manager.routes[key]; ok {
+		if equivalentRoute(existing, route) {
+			return nil, existing
+		}
+		existing.Spec = route.Spec
+		updated, err := o.manager.clients.GetRouteClient().Routes(namespace).Update(context.Background(), existing, metav1.UpdateOptions{})
+		if err != nil {
+			log.Printf("Error on update for route %s/%s: %s", namespace, route.Name, err)
+			return err, nil
+		}
+		log.Printf("Route %s/%s updated successfully", namespace, route.Name)
+		o.manager.routes[key] = updated
+		return nil, updated
+	}
+	created, err := o.manager.clients.GetRouteClient().Routes(namespace).Create(context.Background(), route, metav1.CreateOptions{})
+	if err != nil {
+		log.Printf("Error on create for route %s/%s: %s", namespace, route.Name, err)
+		return err, nil
+	}
+	log.Printf("Route %s/%s created successfully", namespace, route.Name)
+	o.manager.routes[key] = created
+	return nil, created
 }
 
 func desiredRouteForPort(sa *skupperv1alpha1.SecuredAccess, port skupperv1alpha1.SecuredAccessPort) *routev1.Route {
@@ -99,16 +108,6 @@ func desiredRouteForPort(sa *skupperv1alpha1.SecuredAccess, port skupperv1alpha1
 		},
 	}
 	return route
-}
-
-func desiredRouteForPortName(sa *skupperv1alpha1.SecuredAccess, port string) *routev1.Route {
-	for _, p := range sa.Spec.Ports {
-		if p.Name == port {
-			return desiredRouteForPort(sa, p)
-		}
-	}
-	log.Printf("Port %s not found in SecuredAccess %s/%s", port, sa.Namespace, sa.Name)
-	return nil
 }
 
 func equivalentRoute(actual *routev1.Route, desired *routev1.Route) bool {

@@ -14,6 +14,7 @@ import (
 	iflag "github.com/skupperproject/skupper/internal/flag"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/kube/grants"
+	"github.com/skupperproject/skupper/pkg/kube/securedaccess"
 	"github.com/skupperproject/skupper/pkg/version"
 )
 
@@ -53,6 +54,15 @@ func main() {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
+	securedAccessConfig, err := securedaccess.BoundConfig(flags)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	if err := securedAccessConfig.Verify(); err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
 
 	var namespace string
 	var kubeconfig string
@@ -83,7 +93,7 @@ func main() {
 		log.Fatal("Error getting van client ", err.Error())
 	}
 
-	controller, err := NewController(cli, grantConfig, watchNamespace, cli.Namespace)
+	controller, err := NewController(cli, grantConfig, securedAccessConfig, watchNamespace, cli.Namespace)
 	if err != nil {
 		log.Fatal("Error getting new site controller ", err.Error())
 	}

@@ -18,12 +18,15 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/kube/certificates"
 	kubeqdr "github.com/skupperproject/skupper/pkg/kube/qdr"
-	"github.com/skupperproject/skupper/pkg/kube/securedaccess"
 	"github.com/skupperproject/skupper/pkg/kube/site/resources"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/version"
 )
+
+type SecuredAccessFactory interface {
+	Ensure(namespace string, name string, spec skupperv1alpha1.SecuredAccessSpec, annotations map[string]string, refs []metav1.OwnerReference) error
+}
 
 type Site struct {
 	initialised bool
@@ -36,12 +39,12 @@ type Site struct {
 	errors      map[string]string
 	linkAccess  site.RouterAccessMap
 	certs       certificates.CertificateManager
-	access      securedaccess.Factory
+	access      SecuredAccessFactory
 	adaptor     BindingAdaptor
 	routerPods  map[string]*corev1.Pod
 }
 
-func NewSite(namespace string, controller *kube.Controller, certs certificates.CertificateManager, access securedaccess.Factory) *Site {
+func NewSite(namespace string, controller *kube.Controller, certs certificates.CertificateManager, access SecuredAccessFactory) *Site {
 	return &Site{
 		bindings:   NewExtendedBindings(controller),
 		namespace:  namespace,
@@ -320,15 +323,6 @@ func (s *Site) checkRole(ctxt context.Context) error {
 			Resources: []string{"services"},
 		},
 	}
-	available := kube.GetSupportedIngressResources(s.controller.GetDiscoveryClient())
-	for _, resource := range available {
-		//needed for determining token urls
-		rules = append(rules, rbacv1.PolicyRule{
-			Verbs:     []string{"get", "list", "watch"},
-			APIGroups: []string{resource.Group},
-			Resources: []string{resource.Resource},
-		})
-	}
 	desired := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -364,14 +358,6 @@ func (s *Site) endpoints() []skupperv1alpha1.Endpoint {
 		}
 	}
 	return endpoints
-}
-
-func (s *Site) recordError(key string, detail string) {
-
-}
-
-func (s *Site) clearError(key string) {
-
 }
 
 func (s *Site) qualified(svc string) []string {
@@ -837,14 +823,12 @@ func (s *Site) UpdateSiteStatus(site *skupperv1alpha1.Site) (*skupperv1alpha1.Si
 }
 
 func (s *Site) CheckSecuredAccess(sa *skupperv1alpha1.SecuredAccess) {
-	log.Printf("Checking SecuredAccess %s", sa.Name)
 	name, ok := sa.ObjectMeta.Annotations["internal.skupper.io/routeraccess"]
 	if !ok {
 		name = sa.Name
 	}
 	la, ok := s.linkAccess[name]
 	if !ok {
-		log.Printf("No RouterAccess %s found for SecuredAccess %s", name, sa.Name)
 		return
 	}
 	if la.Resolve(sa.Status.Endpoints, sa.Name) {

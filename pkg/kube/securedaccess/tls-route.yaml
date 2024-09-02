@@ -1,0 +1,25 @@
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TLSRoute
+metadata:
+  name: {{ .Name }}
+  labels:
+    internal.skupper.io/securedaccess: {{ .ServiceName }}
+    internal.skupper.io/controlled: "true"
+  ownerReferences:
+  - apiVersion: skupper.io/v1alpha1
+    kind: SecuredAccess
+    name: {{ .ServiceName }}
+    uid: {{ .OwnerUID }}
+spec:
+  parentRefs:
+    - name: {{ .GatewayName }}
+      namespace: {{ .GatewayNamespace }}
+      sectionName: tls
+      kind: Gateway
+  hostnames:
+    - {{ .Hostname }}
+  rules:
+    - backendRefs:
+        - name: {{ .ServiceName }}
+          namespace: {{ .ServiceNamespace }}
+          port: {{ .ServicePort }}

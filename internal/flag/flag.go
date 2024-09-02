@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 func StringVar(flags *flag.FlagSet, output *string, flagName string, envVarName string, defaultValue string, usage string) {
@@ -23,6 +24,32 @@ func IntVar(flags *flag.FlagSet, output *int, flagName string, envVarName string
 	//set flag inspite of error, caller can decide whether to ignore and go with default or not
 	flags.IntVar(output, flagName, dval, usage)
 	return err
+}
+
+func MultiStringVar(flags *flag.FlagSet, output *[]string, flagName string, envVarName string, defaultValue []string, usage string) {
+	ms := &multistring{
+		output: output,
+	}
+	*(ms.output) = multiStringEnvVar(envVarName, defaultValue)
+	flags.Var(ms, flagName, usage)
+}
+
+type multistring struct {
+	output *[]string
+}
+
+func (i *multistring) String() string {
+	if i.output == nil {
+		return ""
+	}
+	return strings.Join(*(i.output), ",")
+}
+
+func (i *multistring) Set(value string) error {
+	if i.output != nil {
+		*(i.output) = strings.Split(value, ",")
+	}
+	return nil
 }
 
 func intEnvVar(name string, defaultValue int) (int, error) {
@@ -50,6 +77,13 @@ func boolEnvVar(name string, defaultValue bool) (bool, error) {
 func stringEnvVar(name string, defaultValue string) string {
 	if value, ok := os.LookupEnv(name); ok {
 		return value
+	}
+	return defaultValue
+}
+
+func multiStringEnvVar(name string, defaultValue []string) []string {
+	if value, ok := os.LookupEnv(name); ok {
+		return strings.Split(value, ",")
 	}
 	return defaultValue
 }
