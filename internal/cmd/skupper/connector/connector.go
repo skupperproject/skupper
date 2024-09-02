@@ -4,7 +4,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/connector/kube"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/connector/non_kube"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/connector/nonkube"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/spf13/cobra"
 	"time"
@@ -30,7 +30,7 @@ skupper connector status my-connector`,
 
 func CmdConnectorCreateFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdConnectorCreate()
-	nonKubeCommand := non_kube.NewCmdConnectorCreate()
+	nonKubeCommand := nonkube.NewCmdConnectorCreate()
 
 	cmdConnectorCreateDesc := common.SkupperCmdDescription{
 		Use:   "create <name> <port>",
@@ -64,7 +64,7 @@ func CmdConnectorCreateFactory(configuredPlatform types.Platform) *cobra.Command
 
 func CmdConnectorStatusFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdConnectorStatus()
-	nonKubeCommand := non_kube.NewCmdConnectorStatus()
+	nonKubeCommand := nonkube.NewCmdConnectorStatus()
 
 	cmdConnectorStatusDesc := common.SkupperCmdDescription{
 		Use:     "status <name>",
@@ -88,7 +88,7 @@ func CmdConnectorStatusFactory(configuredPlatform types.Platform) *cobra.Command
 
 func CmdConnectorUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdConnectorUpdate()
-	nonKubeCommand := non_kube.NewCmdConnectorUpdate()
+	nonKubeCommand := nonkube.NewCmdConnectorUpdate()
 
 	cmdConnectorUpdateDesc := common.SkupperCmdDescription{
 		Use:   "update <name>",
@@ -123,7 +123,7 @@ func CmdConnectorUpdateFactory(configuredPlatform types.Platform) *cobra.Command
 
 func CmdConnectorDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdConnectorDelete()
-	nonKubeCommand := non_kube.NewCmdConnectorDelete()
+	nonKubeCommand := nonkube.NewCmdConnectorDelete()
 
 	cmdConnectorDeleteDesc := common.SkupperCmdDescription{
 		Use:     "delete <name>",

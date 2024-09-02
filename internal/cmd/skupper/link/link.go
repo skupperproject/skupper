@@ -4,7 +4,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/link/kube"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/link/non_kube"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/link/nonkube"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/spf13/cobra"
 )
@@ -29,7 +29,7 @@ skupper link status`,
 
 func CmdLinkGenerateFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdLinkGenerate()
-	nonKubeCommand := non_kube.NewCmdLinkGenerate()
+	nonKubeCommand := nonkube.NewCmdLinkGenerate()
 
 	cmdLinkGenerateDesc := common.SkupperCmdDescription{
 		Use:   "generate",
@@ -56,7 +56,7 @@ output needs to be applied in the site in which we want to create the link.`,
 
 func CmdLinkUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdLinkUpdate()
-	nonKubeCommand := non_kube.NewCmdLinkUpdate()
+	nonKubeCommand := nonkube.NewCmdLinkUpdate()
 
 	cmdLinkGenerateDesc := common.SkupperCmdDescription{
 		Use:   "update <name>",
@@ -81,7 +81,7 @@ func CmdLinkUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 
 func CmdLinkStatusFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdLinkStatus()
-	nonKubeCommand := non_kube.NewCmdLinkStatus()
+	nonKubeCommand := nonkube.NewCmdLinkStatus()
 
 	cmdLinkGenerateDesc := common.SkupperCmdDescription{
 		Use:     "status",
@@ -104,7 +104,7 @@ func CmdLinkStatusFactory(configuredPlatform types.Platform) *cobra.Command {
 
 func CmdLinkDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdLinkDelete()
-	nonKubeCommand := non_kube.NewCmdLinkDelete()
+	nonKubeCommand := nonkube.NewCmdLinkDelete()
 
 	cmdLinkGenerateDesc := common.SkupperCmdDescription{
 		Use:     "delete <name>",

@@ -4,7 +4,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/listener/kube"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/listener/non_kube"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/listener/nonkube"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/spf13/cobra"
 	"time"
@@ -30,7 +30,7 @@ skupper listener status my-listener`,
 
 func CmdListenerCreateFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdListenerCreate()
-	nonKubeCommand := non_kube.NewCmdListenerCreate()
+	nonKubeCommand := nonkube.NewCmdListenerCreate()
 
 	cmdListenerCreateDesc := common.SkupperCmdDescription{
 		Use:     "create <name> <port>",
@@ -60,7 +60,7 @@ func CmdListenerCreateFactory(configuredPlatform types.Platform) *cobra.Command 
 
 func CmdListenerUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdListenerUpdate()
-	nonKubeCommand := non_kube.NewCmdListenerUpdate()
+	nonKubeCommand := nonkube.NewCmdListenerUpdate()
 
 	cmdListenerUpdateDesc := common.SkupperCmdDescription{
 		Use:   "update <name>",
@@ -92,7 +92,7 @@ func CmdListenerUpdateFactory(configuredPlatform types.Platform) *cobra.Command 
 
 func CmdListenerStatusFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdListenerStatus()
-	nonKubeCommand := non_kube.NewCmdListenerStatus()
+	nonKubeCommand := nonkube.NewCmdListenerStatus()
 
 	cmdListenerStatusDesc := common.SkupperCmdDescription{
 		Use:     "status <name>",
@@ -117,7 +117,7 @@ func CmdListenerStatusFactory(configuredPlatform types.Platform) *cobra.Command 
 
 func CmdListenerDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdListenerDelete()
-	nonKubeCommand := non_kube.NewCmdListenerDelete()
+	nonKubeCommand := nonkube.NewCmdListenerDelete()
 
 	cmdListenerDeleteDesc := common.SkupperCmdDescription{
 		Use:     "delete <name>",

@@ -7,7 +7,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/site/kube"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/site/non_kube"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/site/nonkube"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/spf13/cobra"
 )
@@ -32,7 +32,7 @@ skupper site status`,
 
 func CmdSiteCreateFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdSiteCreate()
-	nonKubeCommand := non_kube.NewCmdSiteCreate()
+	nonKubeCommand := nonkube.NewCmdSiteCreate()
 
 	cmdSiteCreateDesc := common.SkupperCmdDescription{
 		Use:   "create <name>",
@@ -63,7 +63,7 @@ There can be only one site definition per namespace.`,
 
 func CmdSiteUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdSiteUpdate()
-	nonKubeCommand := non_kube.NewCmdSiteUpdate()
+	nonKubeCommand := nonkube.NewCmdSiteUpdate()
 
 	cmdSiteUpdateDesc := common.SkupperCmdDescription{
 		Use:     "update <name>",
@@ -91,7 +91,7 @@ func CmdSiteUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 
 func CmdSiteStatusFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdSiteStatus()
-	nonKubeCommand := non_kube.NewCmdSiteStatus()
+	nonKubeCommand := nonkube.NewCmdSiteStatus()
 
 	cmdSiteStatusDesc := common.SkupperCmdDescription{
 		Use:   "status",
@@ -110,7 +110,7 @@ func CmdSiteStatusFactory(configuredPlatform types.Platform) *cobra.Command {
 
 func CmdSiteDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdSiteDelete()
-	nonKubeCommand := non_kube.NewCmdSiteDelete()
+	nonKubeCommand := nonkube.NewCmdSiteDelete()
 
 	cmdSiteDeleteDesc := common.SkupperCmdDescription{
 		Use:     "delete",

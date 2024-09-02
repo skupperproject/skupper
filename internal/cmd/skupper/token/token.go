@@ -4,7 +4,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/token/kube"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/token/non_kube"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/token/nonkube"
 	"time"
 
 	"github.com/skupperproject/skupper/pkg/config"
@@ -31,7 +31,7 @@ Redeem the token on the other site. `,
 
 func CmdTokenIssueFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdTokenIssue()
-	nonKubeCommand := non_kube.NewCmdTokenIssue()
+	nonKubeCommand := nonkube.NewCmdTokenIssue()
 
 	cmdTokenIssueDesc := common.SkupperCmdDescription{
 		Use:     "issue <name> <fileName>",
@@ -58,7 +58,7 @@ func CmdTokenIssueFactory(configuredPlatform types.Platform) *cobra.Command {
 
 func CmdTokenRedeemFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdTokenRedeem()
-	nonKubeCommand := non_kube.NewCmdTokenRedeem()
+	nonKubeCommand := nonkube.NewCmdTokenRedeem()
 
 	cmdTokenRedeemDesc := common.SkupperCmdDescription{
 		Use:     "redeem <filename>",
