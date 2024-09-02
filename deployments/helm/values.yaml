@@ -1,0 +1,3 @@
+replicaCount: 1
+controller:
+  image: "quay.io/skupper/controller:v2-latest"
