@@ -84,7 +84,7 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 			return nil
 		}
 		// merge hosts as the certificate may be shared by sources each requiring different sets of hosts:
-		hosts := getHostChanges(getPreviousHosts(current, refs), spec.Hosts).apply(current.Spec.Hosts)
+		hosts := getHostChanges(getPreviousHosts(current, refs), spec.Hosts, key).apply(current.Spec.Hosts)
 		current.Spec = spec
 		current.Spec.Hosts = hosts
 		updated, err := m.controller.GetSkupperClient().SkupperV1alpha1().Certificates(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
@@ -124,7 +124,6 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 }
 
 func (m *CertificateManagerImpl) checkCertificate(key string, certificate *skupperv1alpha1.Certificate) error {
-	log.Printf("Checking Certificate %s", key)
 	if certificate == nil {
 		return m.certificateDeleted(key)
 	}
@@ -189,17 +188,16 @@ func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv1
 
 		secret, err := m.generateSecret(certificate)
 		if err != nil {
-			log.Printf("Error generating secret %s/%s for Certificate %s", certificate.Namespace, secret.Name, key)
+			log.Printf("Error generating Secret %s/%s for Certificate %s", certificate.Namespace, secret.Name, key)
 			return err
 		}
-		log.Printf("Updating secret %s/%s for Certificate %s for hosts %v", secret.Namespace, secret.Name, key, certificate.Spec.Hosts)
 		updated, err := m.controller.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
 		if err != nil {
+			log.Printf("Error updating Secret %s/%s for Certificate %s: %s", secret.Namespace, secret.Name, key, err)
 			return err
 		}
 		m.secrets[key] = updated
-	} else {
-		log.Printf("Secret %s/%s matches Certificate %s", secret.Namespace, secret.Name, key)
+		log.Printf("Updated Secret %s/%s for Certificate %s (hosts %v)", secret.Namespace, secret.Name, key, certificate.Spec.Hosts)
 	}
 	return nil
 }
@@ -236,12 +234,14 @@ func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv1
 		"internal.skupper.io/hosts":       strings.Join(certificate.Spec.Hosts, ","),
 	}
 
-	log.Printf("Creating secret %s/%s for Certificate %s for hosts %v", certificate.Namespace, secret.Name, key, certificate.Spec.Hosts)
+	log.Printf("Creating Secret %s/%s for Certificate %s for hosts %v", certificate.Namespace, secret.Name, key, certificate.Spec.Hosts)
 	created, err := m.controller.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
+		log.Printf("Error creating Secret %s/%s for Certificate %s: %s", certificate.Namespace, secret.Name, key, err)
 		return err
 	}
 	m.secrets[key] = created
+	log.Printf("Created Secret %s/%s for Certificate %s (hosts %v)", certificate.Namespace, secret.Name, key, certificate.Spec.Hosts)
 	return nil
 }
 
@@ -328,6 +328,7 @@ func mergeOwnerReferences(original []metav1.OwnerReference, added []metav1.Owner
 }
 
 type HostChanges struct {
+	key       string
 	additions []string
 	deletions []string
 }
@@ -357,6 +358,7 @@ func (changes *HostChanges) apply(original []string) []string {
 	for key, _ := range index {
 		hosts = append(hosts, key)
 	}
+	log.Printf("Changing hosts for Certificate %s from %v to %v", changes.key, original, hosts)
 	return hosts
 }
 
@@ -373,8 +375,10 @@ func getPreviousHosts(cert *skupperv1alpha1.Certificate, refs []metav1.OwnerRefe
 	return nil
 }
 
-func getHostChanges(previous map[string]bool, current []string) *HostChanges {
-	changes := &HostChanges{}
+func getHostChanges(previous map[string]bool, current []string, key string) *HostChanges {
+	changes := &HostChanges{
+		key: key,
+	}
 	if len(previous) > 0 {
 		for _, value := range current {
 			if _, ok := previous[value]; ok {

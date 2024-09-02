@@ -1,6 +1,8 @@
 package securedaccess
 
 import (
+	corev1 "k8s.io/api/core/v1"
+
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 )
 
@@ -14,14 +16,6 @@ func newLocalAccess(m *SecuredAccessManager) AccessType {
 	}
 }
 
-func (o *LocalAccessType) Realise(access *skupperv1alpha1.SecuredAccess) bool {
-	if access.Status.StatusMessage == skupperv1alpha1.STATUS_OK {
-		return false
-	}
-	access.Status.StatusMessage = skupperv1alpha1.STATUS_OK
-	return true
-}
-
-func (o *LocalAccessType) Resolve(access *skupperv1alpha1.SecuredAccess) bool {
-	return false
+func (o *LocalAccessType) RealiseAndResolve(access *skupperv1alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv1alpha1.Endpoint, error) {
+	return []skupperv1alpha1.Endpoint{} /*return empty slice rather than nil so that it will be treated as resolved*/, nil
 }

@@ -5,18 +5,13 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers/internalinterfaces"
 	"k8s.io/client-go/tools/cache"
-
-	routev1 "github.com/openshift/api/route/v1"
-	routev1interfaces "github.com/openshift/client-go/route/informers/externalversions/internalinterfaces"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -39,54 +34,14 @@ type Controller struct {
 	sites                map[string]*site.Site
 	startGrantServer     func()
 	accessMgr            *securedaccess.SecuredAccessManager
-	accessRecovery       AccessRecovery
+	accessRecovery       *securedaccess.SecuredAccessResourceWatcher
 	certMgr              *certificates.CertificateManagerImpl
 	attachableConnectors map[string]*skupperv1alpha1.AttachedConnector
-}
-
-type AccessRecovery struct {
-	serviceWatcher   *kube.ServiceWatcher
-	routeWatcher     *kube.RouteWatcher
-	ingressWatcher   *kube.IngressWatcher
-	httpProxyWatcher *kube.DynamicWatcher
-}
-
-func (m *AccessRecovery) recoverAll(accessMgr *securedaccess.SecuredAccessManager) {
-	for _, service := range m.serviceWatcher.List() {
-		accessMgr.RecoverService(service)
-	}
-	if m.routeWatcher != nil {
-		for _, route := range m.routeWatcher.List() {
-			accessMgr.RecoverRoute(route)
-		}
-	}
-	if m.ingressWatcher != nil {
-		for _, ingress := range m.ingressWatcher.List() {
-			accessMgr.RecoverIngress(ingress)
-		}
-	}
-	if m.httpProxyWatcher != nil {
-		for _, httpProxy := range m.httpProxyWatcher.List() {
-			accessMgr.RecoverHttpProxy(httpProxy)
-		}
-	}
 }
 
 func skupperRouterService() internalinterfaces.TweakListOptionsFunc {
 	return func(options *metav1.ListOptions) {
 		options.FieldSelector = "metadata.name=skupper-router"
-	}
-}
-
-func coreSecuredAccess() internalinterfaces.TweakListOptionsFunc {
-	return func(options *metav1.ListOptions) {
-		options.LabelSelector = "internal.skupper.io/secured-access"
-	}
-}
-
-func routeSecuredAccess() routev1interfaces.TweakListOptionsFunc {
-	return func(options *metav1.ListOptions) {
-		options.LabelSelector = "internal.skupper.io/secured-access"
 	}
 }
 
@@ -96,21 +51,23 @@ func skupperNetworkStatus() internalinterfaces.TweakListOptionsFunc {
 	}
 }
 
-func dynamicWatcherOptions(selector string) dynamicinformer.TweakListOptionsFunc {
-	return func(options *metav1.ListOptions) {
-		options.LabelSelector = selector
-	}
-}
-
-func dynamicSecuredAccess() dynamicinformer.TweakListOptionsFunc {
-	return dynamicWatcherOptions("internal.skupper.io/secured-access")
-}
-
-func NewController(cli internalclient.Clients, grantConfig *grants.GrantConfig, watchNamespace string, currentNamespace string) (*Controller, error) {
+func NewController(cli internalclient.Clients, grantConfig *grants.GrantConfig, securedAccessConfig *securedaccess.Config, watchNamespace string, currentNamespace string) (*Controller, error) {
 	controller := &Controller{
 		controller:           kube.NewController("Controller", cli),
 		sites:                map[string]*site.Site{},
 		attachableConnectors: map[string]*skupperv1alpha1.AttachedConnector{},
+	}
+
+	podname := os.Getenv("HOSTNAME")
+	owner, err := controller.controller.GetDeploymentForPod(podname, currentNamespace)
+	controllerContext := securedaccess.ControllerContext{
+		Namespace: currentNamespace,
+	}
+	if err != nil {
+		log.Printf("Could not deduce owning deployment, some resources may need to be manually deleted when controller is deleted: %s", err)
+	} else {
+		controllerContext.Name = owner.Name
+		controllerContext.UID = string(owner.UID)
 	}
 
 	controller.siteWatcher = controller.controller.WatchSites(watchNamespace, controller.checkSite)
@@ -122,17 +79,16 @@ func NewController(cli internalclient.Clients, grantConfig *grants.GrantConfig, 
 	controller.controller.WatchLinks(watchNamespace, controller.checkLink)
 	controller.controller.WatchConfigMaps(skupperNetworkStatus(), watchNamespace, controller.networkStatusUpdate)
 	controller.controller.WatchAccessTokens(watchNamespace, controller.checkAccessToken)
-	controller.controller.WatchSecuredAccesses(watchNamespace, controller.checkSecuredAccess)
 	controller.controller.WatchPods("skupper.io/component=router,skupper.io/type=site", watchNamespace, controller.routerPodEvent)
 
 	controller.certMgr = certificates.NewCertificateManager(controller.controller)
 	controller.certMgr.Watch(watchNamespace)
-	controller.accessMgr = securedaccess.NewSecuredAccessManager(controller.controller, controller.certMgr, securedaccess.GetAccessTypeFromEnv())
 
-	controller.accessRecovery.serviceWatcher = controller.controller.WatchServices(coreSecuredAccess(), watchNamespace, controller.checkSecuredAccessService)
-	controller.accessRecovery.ingressWatcher = controller.controller.WatchIngresses(coreSecuredAccess(), watchNamespace, controller.checkSecuredAccessIngress)
-	controller.accessRecovery.routeWatcher = controller.controller.WatchRoutes(routeSecuredAccess(), watchNamespace, controller.checkSecuredAccessRoute)
-	controller.accessRecovery.httpProxyWatcher = controller.controller.WatchContourHttpProxies(dynamicSecuredAccess(), watchNamespace, controller.checkSecuredAccessHttpProxy)
+	controller.accessMgr = securedaccess.NewSecuredAccessManager(controller.controller, controller.certMgr, securedAccessConfig, controllerContext)
+	controller.accessRecovery = securedaccess.NewSecuredAccessResourceWatcher(controller.accessMgr)
+	controller.accessRecovery.WatchResources(controller.controller, watchNamespace)
+	controller.accessRecovery.WatchSecuredAccesses(controller.controller, watchNamespace, controller.checkSecuredAccess)
+	controller.accessRecovery.WatchGateway(controller.controller, currentNamespace)
 
 	controller.startGrantServer = grants.Initialise(controller.controller, currentNamespace, watchNamespace, grantConfig, controller.generateLinkConfig)
 
@@ -172,7 +128,7 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 		site.CheckRouterAccess(la.ObjectMeta.Name, la)
 	}
 	c.certMgr.Recover()
-	c.accessRecovery.recoverAll(c.accessMgr)
+	c.accessRecovery.Recover()
 	if c.startGrantServer != nil {
 		c.startGrantServer()
 	}
@@ -237,22 +193,6 @@ func (c *Controller) checkLink(key string, linkconfig *skupperv1alpha1.Link) err
 	return c.getSite(namespace).CheckLink(name, linkconfig)
 }
 
-func (c *Controller) checkSecuredAccessService(key string, svc *corev1.Service) error {
-	return c.accessMgr.CheckService(key, svc)
-}
-
-func (c *Controller) checkSecuredAccessIngress(key string, ingress *networkingv1.Ingress) error {
-	return c.accessMgr.CheckIngress(key, ingress)
-}
-
-func (c *Controller) checkSecuredAccessRoute(key string, ingress *routev1.Route) error {
-	return c.accessMgr.CheckRoute(key, ingress)
-}
-
-func (c *Controller) checkSecuredAccessHttpProxy(key string, o *unstructured.Unstructured) error {
-	return c.accessMgr.CheckHttpProxy(key, o)
-}
-
 func (c *Controller) checkAccessToken(key string, token *skupperv1alpha1.AccessToken) error {
 	if token == nil || token.IsRedeemed() {
 		return nil
@@ -286,11 +226,8 @@ func (c *Controller) generateLinkConfig(namespace string, name string, subject s
 }
 
 func (c *Controller) checkSecuredAccess(key string, se *skupperv1alpha1.SecuredAccess) error {
-	if se == nil {
-		return c.accessMgr.SecuredAccessDeleted(key)
-	}
 	c.getSite(se.ObjectMeta.Namespace).CheckSecuredAccess(se)
-	return c.accessMgr.SecuredAccessChanged(key, se)
+	return nil
 }
 
 func (c *Controller) checkRouterAccess(key string, ra *skupperv1alpha1.RouterAccess) error {

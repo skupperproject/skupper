@@ -1048,7 +1048,7 @@ func newSiteMocks(namespace string, k8sObjects []runtime.Object, skupperObjects 
 		errors:     make(map[string]string),
 		linkAccess: make(map[string]*skupperv1alpha1.RouterAccess),
 		certs:      certificates.NewCertificateManager(controller),
-		access:     securedaccess.NewSecuredAccessManager(client, nil, "loadbalancer"),
+		access:     securedaccess.NewSecuredAccessManager(client, nil, &securedaccess.Config{DefaultAccessType: "loadbalancer"}, securedaccess.ControllerContext{}),
 		adaptor:    BindingAdaptor{},
 		routerPods: make(map[string]*corev1.Pod),
 	}

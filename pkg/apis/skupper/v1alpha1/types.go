@@ -694,6 +694,41 @@ func (sa *SecuredAccess) Key() string {
 	return fmt.Sprintf("%s/%s", sa.Namespace, sa.Name)
 }
 
+func (s *SecuredAccess) SetConfigured(err error) bool {
+	if s.Status.SetCondition(CONDITION_TYPE_CONFIGURED, err, s.ObjectMeta.Generation) {
+		s.setReady(err)
+		return true
+	}
+	return false
+}
+
+func (s *SecuredAccess) SetResolved(endpoints []Endpoint) bool {
+	if endpoints != nil && !reflect.DeepEqual(s.Status.Endpoints, endpoints) {
+		s.Status.Endpoints = endpoints
+		if s.Status.SetCondition(CONDITION_TYPE_RESOLVED, nil, s.ObjectMeta.Generation) {
+			s.setReady(nil)
+		}
+		return true
+	}
+	return false
+}
+
+func (s *SecuredAccess) setReady(err error) bool {
+	if err != nil {
+		s.Status.StatusMessage = err.Error()
+		return s.Status.SetCondition(CONDITION_TYPE_READY, err, s.ObjectMeta.Generation)
+	} else if s.IsReady() {
+		s.Status.StatusMessage = STATUS_OK
+		return s.Status.SetCondition(CONDITION_TYPE_READY, nil, s.ObjectMeta.Generation)
+	}
+	return false
+}
+
+func (s *SecuredAccess) IsReady() bool {
+	return meta.IsStatusConditionTrue(s.Status.Conditions, CONDITION_TYPE_CONFIGURED) &&
+		meta.IsStatusConditionTrue(s.Status.Conditions, CONDITION_TYPE_RESOLVED)
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // SecuredAccessList contains a List of SecuredAccess instances
@@ -741,7 +776,7 @@ func (s *SecuredAccessStatus) UpdateEndpoint(endpoint *Endpoint) bool {
 		return true
 	}
 	if !current.MatchHostPort(endpoint) {
-		current = endpoint
+		*current = *endpoint
 		return true
 	}
 	return false

@@ -2,14 +2,13 @@ package securedaccess
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
-	"os"
 	"reflect"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -17,45 +16,76 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/kube/resource"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/kube/certificates"
 )
 
-type Factory interface {
-	Ensure(namespace string, name string, spec skupperv1alpha1.SecuredAccessSpec, annotations map[string]string, refs []metav1.OwnerReference) error
+type AccessType interface {
+	RealiseAndResolve(access *skupperv1alpha1.SecuredAccess, service *corev1.Service) ([]skupperv1alpha1.Endpoint, error)
 }
 
-type AccessType interface {
-	Realise(access *skupperv1alpha1.SecuredAccess) bool
-	Resolve(access *skupperv1alpha1.SecuredAccess) bool
+type ControllerContext struct {
+	Namespace string
+	Name      string
+	UID       string
 }
 
 type SecuredAccessManager struct {
-	definitions       map[string]*skupperv1alpha1.SecuredAccess
-	services          map[string]*corev1.Service
-	routes            map[string]*routev1.Route
-	ingresses         map[string]*networkingv1.Ingress
-	httpProxies       map[string]*unstructured.Unstructured
-	clients           internalclient.Clients
-	certMgr           certificates.CertificateManager
-	defaultAccessType string
+	definitions        map[string]*skupperv1alpha1.SecuredAccess
+	services           map[string]*corev1.Service
+	routes             map[string]*routev1.Route
+	ingresses          map[string]*networkingv1.Ingress
+	httpProxies        map[string]*unstructured.Unstructured
+	tlsRoutes          map[string]*unstructured.Unstructured
+	clients            internalclient.Clients
+	certMgr            certificates.CertificateManager
+	enabledAccessTypes map[string]AccessType
+	defaultAccessType  string
+	gatewayInit        func() error
 }
 
-func NewSecuredAccessManager(clients internalclient.Clients, certMgr certificates.CertificateManager, defaultAccessType string) *SecuredAccessManager {
-	return &SecuredAccessManager{
-		definitions:       map[string]*skupperv1alpha1.SecuredAccess{},
-		services:          map[string]*corev1.Service{},
-		routes:            map[string]*routev1.Route{},
-		ingresses:         map[string]*networkingv1.Ingress{},
-		httpProxies:       map[string]*unstructured.Unstructured{},
-		clients:           clients,
-		certMgr:           certMgr,
-		defaultAccessType: getAccessType(defaultAccessType, clients),
+func NewSecuredAccessManager(clients internalclient.Clients, certMgr certificates.CertificateManager, config *Config, context ControllerContext) *SecuredAccessManager {
+	mgr := &SecuredAccessManager{
+		definitions:        map[string]*skupperv1alpha1.SecuredAccess{},
+		services:           map[string]*corev1.Service{},
+		routes:             map[string]*routev1.Route{},
+		ingresses:          map[string]*networkingv1.Ingress{},
+		httpProxies:        map[string]*unstructured.Unstructured{},
+		tlsRoutes:          map[string]*unstructured.Unstructured{},
+		clients:            clients,
+		certMgr:            certMgr,
+		enabledAccessTypes: map[string]AccessType{},
+		defaultAccessType:  config.getDefaultAccessType(clients),
 	}
+	for _, accessType := range config.EnabledAccessTypes {
+		if accessType == ACCESS_TYPE_ROUTE {
+			mgr.enabledAccessTypes[accessType] = newRouteAccess(mgr)
+		} else if accessType == ACCESS_TYPE_LOADBALANCER {
+			mgr.enabledAccessTypes[accessType] = newLoadbalancerAccess(mgr)
+		} else if accessType == ACCESS_TYPE_INGRESS_NGINX {
+			mgr.enabledAccessTypes[accessType] = newIngressAccess(mgr, true, config.IngressDomain)
+		} else if accessType == ACCESS_TYPE_CONTOUR_HTTP_PROXY {
+			mgr.enabledAccessTypes[accessType] = newContourHttpProxyAccess(mgr, config.HttpProxyDomain)
+		} else if accessType == ACCESS_TYPE_GATEWAY {
+			at, init, err := newGatewayAccess(mgr, config.GatewayClass, config.GatewayDomain, config.GatewayPort, context)
+			if err != nil {
+				log.Printf("Failed to create gateway, gateway access type will not be enabled: %s", err)
+			} else {
+				mgr.enabledAccessTypes[accessType] = at
+				mgr.gatewayInit = init
+			}
+		} else if accessType == ACCESS_TYPE_NODEPORT {
+			mgr.enabledAccessTypes[accessType] = newNodeportAccess(mgr, config.ClusterHost)
+		} else if accessType == ACCESS_TYPE_LOCAL {
+			mgr.enabledAccessTypes[accessType] = newLocalAccess(mgr)
+		}
+	}
+
+	return mgr
 }
 
 func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skupperv1alpha1.SecuredAccessSpec, annotations map[string]string, refs []metav1.OwnerReference) error {
-	log.Printf("SecuredAccess.Ensure(%s, %s)", namespace, name)
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
 		if reflect.DeepEqual(spec, current.Spec) && reflect.DeepEqual(annotations, current.ObjectMeta.Annotations) {
@@ -92,17 +122,7 @@ func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skuppe
 
 }
 
-func serviceKey(svc *corev1.Service) string {
-	return fmt.Sprintf("%s/%s", svc.Namespace, svc.Name)
-}
-
 func (m *SecuredAccessManager) SecuredAccessChanged(key string, current *skupperv1alpha1.SecuredAccess) error {
-	log.Printf("Checking SecuredAccess %s", key)
-	if original, ok := m.definitions[key]; ok {
-		if original.Spec.AccessType != current.Spec.AccessType {
-			//TODO: access type changed, delete any resources that may exist from old access type
-		}
-	}
 	m.definitions[key] = current
 	return m.reconcile(current)
 }
@@ -119,42 +139,45 @@ func (m *SecuredAccessManager) accessType(sa *skupperv1alpha1.SecuredAccess) Acc
 	if accessType == "" {
 		accessType = m.defaultAccessType
 	}
-	if accessType == ACCESS_TYPE_ROUTE {
-		return newRouteAccess(m)
-	} else if accessType == ACCESS_TYPE_LOADBALANCER {
-		return newLoadbalancerAccess(m)
-	} else if accessType == ACCESS_TYPE_LOCAL {
-		return newLocalAccess(m)
-	} else {
-		return newUnsupportedAccess(m)
+	if at, ok := m.enabledAccessTypes[accessType]; ok {
+		return at
 	}
+	return newUnsupportedAccess(m)
 }
 
 func (m *SecuredAccessManager) reconcile(sa *skupperv1alpha1.SecuredAccess) error {
-	if err := m.checkService(sa); err != nil {
-		return err
+	svc, err := m.checkService(sa)
+	if err != nil {
+		if sa.SetConfigured(err) {
+			return m.updateStatus(sa)
+		}
+		return nil
 	}
 	updated := false
-	if m.accessType(sa).Realise(sa) {
+	endpoints, resourceErr := m.accessType(sa).RealiseAndResolve(sa, svc)
+
+	if sa.SetResolved(endpoints) {
+		log.Printf("Resolved endpoints for %s: %v", sa.Key(), endpoints)
 		updated = true
 	}
-	if m.accessType(sa).Resolve(sa) {
+
+	certErr := m.checkCertificate(sa)
+
+	if sa.SetConfigured(errors.Join(resourceErr, certErr)) {
 		updated = true
-	}
-	if err := m.checkCertificate(sa); err != nil {
-		return err
 	}
 
 	if !updated {
 		return nil
 	}
-	log.Printf("Updating SecuredAccess status for %s", sa.Key())
+	return m.updateStatus(sa)
+}
+func (m *SecuredAccessManager) updateStatus(sa *skupperv1alpha1.SecuredAccess) error {
 	latest, err := m.clients.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(sa.Namespace).UpdateStatus(context.TODO(), sa, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
 	m.definitions[latest.Key()] = latest
-
 	return nil
 }
 
@@ -169,7 +192,7 @@ func (m *SecuredAccessManager) checkCertificate(sa *skupperv1alpha1.SecuredAcces
 	return m.certMgr.Ensure(sa.Namespace, name, sa.Spec.Issuer, sa.Name, getHosts(sa), false, true, ownerReferences(sa))
 }
 
-func (m *SecuredAccessManager) checkService(sa *skupperv1alpha1.SecuredAccess) error {
+func (m *SecuredAccessManager) checkService(sa *skupperv1alpha1.SecuredAccess) (*corev1.Service, error) {
 	key := sa.Key()
 	if svc, ok := m.services[key]; ok {
 		update := false
@@ -183,19 +206,19 @@ func (m *SecuredAccessManager) checkService(sa *skupperv1alpha1.SecuredAccess) e
 			update = true
 		}
 		if !update {
-			return nil
+			return svc, nil
 		}
 		updated, err := m.clients.GetKubeClient().CoreV1().Services(sa.Namespace).Update(context.Background(), svc, metav1.UpdateOptions{})
 		if err != nil {
-			return err
+			return nil, err
 		}
 		m.services[key] = updated
-		return nil
+		return updated, nil
 	}
 	return m.createService(sa)
 }
 
-func (m *SecuredAccessManager) createService(sa *skupperv1alpha1.SecuredAccess) error {
+func (m *SecuredAccessManager) createService(sa *skupperv1alpha1.SecuredAccess) (*corev1.Service, error) {
 	key := sa.Key()
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -221,45 +244,21 @@ func (m *SecuredAccessManager) createService(sa *skupperv1alpha1.SecuredAccess) 
 	updatePorts(&service.Spec, sa.Spec.Ports)
 	created, err := m.clients.GetKubeClient().CoreV1().Services(sa.Namespace).Create(context.Background(), service, metav1.CreateOptions{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	m.services[key] = created
-	return nil
+	return created, nil
 }
 
 func (m *SecuredAccessManager) SecuredAccessDeleted(key string) error {
 	if _, ok := m.definitions[key]; ok {
-		//delete any resources created for this secured access instance (or rely on owner references for that?)
+		//any resources created for this secured access
+		//instance should have owner references set to this
+		//definition, so deleting this will cause them to be
+		//deleted also
 		delete(m.definitions, key)
-		delete(m.services, key)
 	}
 	return nil
-}
-
-func (m *SecuredAccessManager) ensureRoute(namespace string, route *routev1.Route) (error, *routev1.Route) {
-	key := fmt.Sprintf("%s/%s", namespace, route.Name)
-	if existing, ok := m.routes[key]; ok {
-		if equivalentRoute(existing, route) {
-			return nil, existing
-		}
-		existing.Spec = route.Spec
-		updated, err := m.clients.GetRouteClient().Routes(namespace).Update(context.Background(), existing, metav1.UpdateOptions{})
-		if err != nil {
-			log.Printf("Error on update for route %s/%s: %s", namespace, route.Name, err)
-			return err, nil
-		}
-		log.Printf("Route %s/%s updated successfully", namespace, route.Name)
-		m.routes[key] = updated
-		return nil, updated
-	}
-	created, err := m.clients.GetRouteClient().Routes(namespace).Create(context.Background(), route, metav1.CreateOptions{})
-	if err != nil {
-		log.Printf("Error on create for route %s/%s: %s", namespace, route.Name, err)
-		return err, nil
-	}
-	log.Printf("Route %s/%s created successfully", namespace, route.Name)
-	m.routes[key] = created
-	return nil, created
 }
 
 func (m *SecuredAccessManager) RecoverRoute(route *routev1.Route) {
@@ -272,6 +271,11 @@ func (m *SecuredAccessManager) RecoverHttpProxy(o *unstructured.Unstructured) {
 	m.httpProxies[key] = o
 }
 
+func (m *SecuredAccessManager) RecoverTlsRoute(o *unstructured.Unstructured) {
+	key := fmt.Sprintf("%s/%s", o.GetNamespace(), o.GetName())
+	m.tlsRoutes[key] = o
+}
+
 func (m *SecuredAccessManager) RecoverIngress(ingress *networkingv1.Ingress) {
 	key := fmt.Sprintf("%s/%s", ingress.Namespace, ingress.Name)
 	m.ingresses[key] = ingress
@@ -282,72 +286,92 @@ func (m *SecuredAccessManager) RecoverService(svc *corev1.Service) {
 	m.services[key] = svc
 }
 
-func (m *SecuredAccessManager) CheckRoute(routeKey string, route *routev1.Route) error {
+func (m *SecuredAccessManager) getDefinitionForPortQualifiedResourceKey(qualifiedKey string, expectedAccessType string) *skupperv1alpha1.SecuredAccess {
+	for _, p := range possibleKeyPortNamePairs(qualifiedKey) {
+		key, portName := p.get()
+		if sa, ok := m.definitions[key]; ok {
+			if hasPort(sa, portName) && m.actualAccessType(sa) == expectedAccessType {
+				return sa
+			}
+		}
+	}
+	return nil
+}
+
+func (m *SecuredAccessManager) CheckRoute(key string, route *routev1.Route) error {
+	sa := m.getDefinitionForPortQualifiedResourceKey(key, ACCESS_TYPE_ROUTE)
 	if route == nil {
-		delete(m.routes, routeKey)
-		// TODO: should it be recreated?
-		return nil
-	}
-	m.routes[routeKey] = route
-	port := route.Spec.Port.TargetPort.String()
-	key, matched := strings.CutSuffix(routeKey, "-"+port)
-	if !matched {
-		log.Printf("Malformed Route name %s for SecuredAccess, expected suffix of %s", routeKey, port)
-		return nil
-	}
-	sa, ok := m.definitions[key]
-	var desired *routev1.Route
-	if ok && m.actualAccessType(sa) == "route" {
-		desired = desiredRouteForPortName(sa, port)
-	}
-	if desired == nil {
-		// delete this route instance
-		parts := strings.Split(routeKey, "/")
-		if len(parts) > 0 {
-			name := parts[1]
-			log.Printf("Deleting route %s/%s as no matching ServiceAccess definition found", route.Namespace, name)
-			return m.clients.GetRouteClient().Routes(route.Namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
-		} else {
+		delete(m.routes, key)
+		if sa == nil {
 			return nil
 		}
-	}
-
-	err, latest := m.ensureRoute(sa.Namespace, desired)
-	if err != nil {
-		return err
-	}
-
-	// ensure status of access object has correct urls
-	update := false
-	if latest.Spec.Host != "" {
-		desiredEndpoint := &skupperv1alpha1.Endpoint{
-			Name:  port,
-			Host:  latest.Spec.Host,
-			Port:  "443",
-			Group: latest.Name,
-		}
-		if sa.Status.UpdateEndpoint(desiredEndpoint) {
-			update = true
+	} else {
+		m.routes[key] = route
+		if sa == nil {
+			log.Printf("Deleting route %s/%s as no matching ServiceAccess definition found", route.Namespace, route.Name)
+			return m.clients.GetRouteClient().Routes(route.Namespace).Delete(context.Background(), route.Name, metav1.DeleteOptions{})
 		}
 	}
-	if !update {
-		return nil
-	}
-	updated, err := m.clients.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(sa.Namespace).Update(context.Background(), sa, metav1.UpdateOptions{})
-	if err != nil {
-		return err
-	}
-	m.definitions[key] = updated
-	return nil
+	return m.reconcile(sa)
 }
 
 func (m *SecuredAccessManager) CheckHttpProxy(key string, o *unstructured.Unstructured) error {
-	return nil
+	sa := m.getDefinitionForPortQualifiedResourceKey(key, ACCESS_TYPE_CONTOUR_HTTP_PROXY)
+	if o == nil {
+		delete(m.httpProxies, key)
+		if sa == nil {
+			return nil
+		}
+	} else {
+		m.httpProxies[key] = o
+		if sa == nil {
+			log.Printf("Deleting redundant HttpProxy %s/%s", o.GetNamespace(), o.GetName())
+			return m.clients.GetDynamicClient().Resource(httpProxyResource).Namespace(o.GetNamespace()).Delete(context.Background(), o.GetName(), metav1.DeleteOptions{})
+		}
+	}
+	return m.reconcile(sa)
+}
+
+func (m *SecuredAccessManager) CheckTlsRoute(key string, o *unstructured.Unstructured) error {
+	sa := m.getDefinitionForPortQualifiedResourceKey(key, ACCESS_TYPE_GATEWAY)
+	if o == nil {
+		delete(m.tlsRoutes, key)
+		if sa == nil {
+			return nil
+		}
+	} else {
+		m.tlsRoutes[key] = o
+		if sa == nil {
+			log.Printf("Deleting redundant TLSRoute %s/%s", o.GetNamespace(), o.GetName())
+			return m.clients.GetDynamicClient().Resource(resource.TlsRouteResource()).Namespace(o.GetNamespace()).Delete(context.Background(), o.GetName(), metav1.DeleteOptions{})
+		}
+	}
+	return m.reconcile(sa)
 }
 
 func (m *SecuredAccessManager) CheckIngress(key string, ingress *networkingv1.Ingress) error {
-	// there will be one ingress resource for each securedaccess resource, so the key can be assumed to be the same
-	return nil
+	sa, ok := m.definitions[key]
+	if ingress == nil {
+		delete(m.ingresses, key)
+		if !ok || m.actualAccessType(sa) != ACCESS_TYPE_INGRESS_NGINX {
+			return nil
+		}
+	} else {
+		m.ingresses[key] = ingress
+		if !ok || m.actualAccessType(sa) != ACCESS_TYPE_INGRESS_NGINX {
+			// delete this ingress as there is no corresponding securedaccess resource
+			log.Printf("Deleting redundant Ingress %s/%s", ingress.Namespace, ingress.Name)
+			return m.clients.GetKubeClient().NetworkingV1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
+		}
+	}
+	return m.reconcile(sa)
+}
+
+func (m *SecuredAccessManager) CheckGateway(key string, o *unstructured.Unstructured) error {
+	if m.gatewayInit == nil {
+		return nil
+	}
+	return m.gatewayInit()
 }
 
 func (m *SecuredAccessManager) CheckService(key string, svc *corev1.Service) error {
@@ -355,7 +379,8 @@ func (m *SecuredAccessManager) CheckService(key string, svc *corev1.Service) err
 		delete(m.services, key)
 		if sa, ok := m.definitions[key]; ok {
 			// recreate the service
-			return m.createService(sa)
+			_, err := m.createService(sa)
+			return err
 		}
 		return nil
 	}
@@ -365,7 +390,7 @@ func (m *SecuredAccessManager) CheckService(key string, svc *corev1.Service) err
 		return m.clients.GetKubeClient().CoreV1().Services(svc.Namespace).Delete(context.Background(), svc.Name, metav1.DeleteOptions{})
 	}
 	m.services[key] = svc
-	return m.checkService(sa)
+	return m.reconcile(sa)
 }
 
 func updateType(spec *corev1.ServiceSpec, accessType string) bool {
@@ -466,27 +491,4 @@ func getHosts(sa *skupperv1alpha1.SecuredAccess) []string {
 	results = append(results, sa.Name)
 	results = append(results, sa.Name+"."+sa.Namespace)
 	return results
-}
-
-const ACCESS_TYPE_LOADBALANCER = "loadbalancer"
-const ACCESS_TYPE_ROUTE = "route"
-const ACCESS_TYPE_NODEPORT = "nodeport"
-const ACCESS_TYPE_LOCAL = "local"
-
-func DefaultAccessType(clients internalclient.Clients) string {
-	if clients.GetRouteClient() != nil {
-		return ACCESS_TYPE_ROUTE
-	}
-	return ACCESS_TYPE_LOADBALANCER
-}
-
-func GetAccessTypeFromEnv() string {
-	return os.Getenv("SKUPPER_DEFAULT_ACCESS_TYPE")
-}
-
-func getAccessType(accessType string, clients internalclient.Clients) string {
-	if accessType == "" {
-		return DefaultAccessType(clients)
-	}
-	return accessType
 }
