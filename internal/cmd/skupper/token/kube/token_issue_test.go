@@ -101,6 +101,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 											Type:   "Configured",
 											Status: "True",
 										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
 									},
 								},
 							},
@@ -212,6 +216,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 											Type:   "Configured",
 											Status: "True",
 										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
 									},
 								},
 							},
@@ -242,6 +250,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
+											Status: "True",
+										},
+										{
+											Type:   "Running",
 											Status: "True",
 										},
 									},
@@ -276,6 +288,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 											Type:   "Configured",
 											Status: "True",
 										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
 									},
 								},
 							},
@@ -306,6 +322,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
+											Status: "True",
+										},
+										{
+											Type:   "Running",
 											Status: "True",
 										},
 									},
@@ -340,6 +360,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 											Type:   "Configured",
 											Status: "True",
 										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
 									},
 								},
 							},
@@ -370,6 +394,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
+											Status: "True",
+										},
+										{
+											Type:   "Running",
 											Status: "True",
 										},
 									},
@@ -404,6 +432,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 											Type:   "Configured",
 											Status: "True",
 										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
 									},
 								},
 							},
@@ -434,6 +466,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
+											Status: "True",
+										},
+										{
+											Type:   "Running",
 											Status: "True",
 										},
 									},
@@ -469,6 +505,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 											Type:   "Configured",
 											Status: "True",
 										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
 									},
 								},
 							},
@@ -501,6 +541,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 											Type:   "Configured",
 											Status: "True",
 										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
 									},
 								},
 							},
@@ -531,6 +575,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
+											Status: "True",
+										},
+										{
+											Type:   "Running",
 											Status: "True",
 										},
 									},

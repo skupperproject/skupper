@@ -12,3 +12,12 @@ func SiteConfigured(siteList *v1alpha1.SiteList) bool {
 	}
 	return false
 }
+
+func SiteReady(siteList *v1alpha1.SiteList) bool {
+	for _, s := range siteList.Items {
+		if s.IsReady() {
+			return true
+		}
+	}
+	return false
+}
