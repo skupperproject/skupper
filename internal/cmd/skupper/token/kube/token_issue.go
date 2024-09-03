@@ -152,7 +152,7 @@ func (cmd *CmdTokenIssue) WaitUntil() error {
 				},
 			}
 
-			encodedResource, err := utils.Encode("yaml", accessToken)
+			encodedResource, err := utils2.Encode("yaml", accessToken)
 			if err != nil {
 				return fmt.Errorf("Could not write out generated token: " + err.Error())
 			}
