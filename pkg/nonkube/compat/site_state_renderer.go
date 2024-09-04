@@ -113,11 +113,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 		os.Exit(1)
 	}
 	// Serializing loaded and runtime site states
-	loadedSiteStateMarshal := loadedSiteState
-	if reload {
-		loadedSiteStateMarshal = nil
-	}
-	if err = s.configRenderer.MarshalSiteStates(loadedSiteStateMarshal, s.siteState); err != nil {
+	if err = s.configRenderer.MarshalSiteStates(loadedSiteState, s.siteState); err != nil {
 		return err
 	}
 

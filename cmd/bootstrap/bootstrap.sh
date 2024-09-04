@@ -13,7 +13,6 @@ if [ -z "${UID:-}" ]; then
     UID="$(id -u)"
     export UID
 fi
-LOG_FILE="$(mktemp /tmp/skupper-bootstrap.XXXXX.log)"
 BOOTSTRAP_OUT="$(mktemp /tmp/skupper-bootstrap.XXXXX.out)"
 
 exit_error() {
@@ -216,9 +215,8 @@ main() {
         "${MOUNTS}" \
         "${ENV_VARS}" \
         "${IMAGE}" \
-        /app/bootstrap -p="${INPUT_PATH_ARG}" -n="${NAMESPACE}" ${BUNDLE_STRATEGY} ${FORCE_FLAG} 2>&1 | tee "${LOG_FILE}"
+        /app/bootstrap -p="${INPUT_PATH_ARG}" -n="${NAMESPACE}" ${BUNDLE_STRATEGY} ${FORCE_FLAG} 2>&1
     create_service
-    echo "Logs saved to: ${LOG_FILE}"
 }
 
 main "$@"

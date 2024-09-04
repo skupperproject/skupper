@@ -21,9 +21,8 @@ import (
 )
 
 type FileSystemSiteStateLoader struct {
-	Path      string
-	Namespace string
-	Bundle    bool
+	Path   string
+	Bundle bool
 }
 
 func (f *FileSystemSiteStateLoader) Load() (*api.SiteState, error) {
@@ -52,9 +51,6 @@ func (f *FileSystemSiteStateLoader) Load() (*api.SiteState, error) {
 	if len(namespacesFound) > 1 {
 		return nil, fmt.Errorf("multiple namespaces found, but only a unique namespace must be used across all "+
 			"resources - namespaces found: %v", namespacesFound)
-	}
-	if f.Namespace != "" {
-		siteState.SetNamespace(f.Namespace)
 	}
 	return siteState, nil
 }

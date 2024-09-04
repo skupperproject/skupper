@@ -195,8 +195,9 @@ IP addresses properly.
 
 ### Hello world
 
-This example basically runs a **frontend** application on the `west` namespace,
-which depends on a **backend** that is meant to run on the `east` namespace.
+This example basically runs a **frontend** application which depends on
+a **backend** service that is not initially accessible. The access will
+be provided by the Skupper Site running on the `east` namespace.
 
 To simulate it, the frontend application will be executed using podman.
 It exposes port 7070 in the loopback interface of the host machine,
@@ -209,10 +210,10 @@ exposes port 9090 to the loopback interface of the host machine.
 So after both `frontend` and `backend` containers are running,
 they won't be able to communicate.
 
-We will use two Skupper sites to resolve that. On the `west` namespace, Skupper
+We will use two Skupper sites to resolve that. On the `west` site, Skupper
 will expose a `Listener` (CR), bound to port `8080` of the host machine.
 
-On the `east` namespace, we will have a `Connector` (CR) that targets localhost
+On the `east` site, we will have a `Connector` (CR) that targets localhost
 at port 9090, in the host machine.
 
 The ideal scenario would be to run each component on different machines,

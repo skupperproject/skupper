@@ -150,12 +150,43 @@ func (c *FileSystemConfigurationRenderer) GetOutputPath(siteState *api.SiteState
 func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, runtimeSiteState *api.SiteState) error {
 	if loadedSiteState != nil {
 		outputPath := c.GetOutputPath(loadedSiteState)
-		if err := api.MarshalSiteState(*loadedSiteState, path.Join(outputPath, string(api.LoadedSiteStatePath))); err != nil {
+		sourcesPath := path.Join(outputPath, string(api.LoadedSiteStatePath))
+		existingSources, _ := new(utils.DirectoryReader).ReadDir(sourcesPath, nil)
+		// when sources are already defined, we back them up
+		if len(existingSources) > 0 {
+			tb := utils.NewTarball()
+			err := tb.AddFiles(sourcesPath)
+			if err != nil {
+				return fmt.Errorf("unable to backup existing sources: %s", err)
+			}
+			tbFile := path.Join(outputPath, "sources.backup.tar.gz")
+			err = tb.Save(tbFile)
+			if err != nil {
+				return fmt.Errorf("unable to backup sources.backup.tar.gz: %s", err)
+			}
+			err = os.RemoveAll(sourcesPath)
+			if err != nil {
+				return fmt.Errorf("unable to remove old sources: %s", err)
+			}
+			if err = os.Mkdir(sourcesPath, 0755); err != nil {
+				defer func() {
+					if err != nil {
+						if restoreErr := tb.Extract(tbFile, outputPath); restoreErr != nil {
+							fmt.Printf("unable to restore sources.backup.tar.gz: %s", restoreErr)
+							return
+						}
+					}
+				}()
+				return fmt.Errorf("unable to recreate sources directory %s: %s", sourcesPath, err)
+			}
+		}
+		if err := api.MarshalSiteState(*loadedSiteState, sourcesPath); err != nil {
 			return err
 		}
 	}
 	outputPath := c.GetOutputPath(runtimeSiteState)
-	if err := api.MarshalSiteState(*runtimeSiteState, path.Join(outputPath, string(api.RuntimeSiteStatePath))); err != nil {
+	runtimeStatePath := path.Join(outputPath, string(api.RuntimeSiteStatePath))
+	if err := api.MarshalSiteState(*runtimeSiteState, runtimeStatePath); err != nil {
 		return err
 	}
 	return nil

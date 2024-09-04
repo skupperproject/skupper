@@ -186,6 +186,22 @@ func createFiles(baseDir string, files int, content []byte, tree []string) error
 	return nil
 }
 
+// expectedCreatedFiles returns the amount of tiles expected
+// to be created based on the provided arguments.
+func expectedCreatedFiles(dirs, levels, files int) int {
+	/*
+		total of files is: (sum(dirs^!levels))*files
+		i.e: dir=3,levels=4,files=10
+		(3^4 + 3^3 + 3^2 + 3^1) * 10
+	*/
+	sum := 0
+	for level := 1; level <= levels; level++ {
+		sum += int(math.Pow(float64(dirs), float64(level)))
+	}
+	sum *= files
+	return sum + files
+}
+
 func generateDirectoryTree(dirs, levels int) []string {
 	var tree []string
 	indexSum := func(level int) int {

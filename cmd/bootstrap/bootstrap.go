@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -81,12 +80,14 @@ func main() {
 		var err error
 		inputPath, err = filepath.Abs(inputPath)
 		if err != nil {
-			log.Fatalf("Unable to determine absolute path of %s: %v", inputPath, err)
+			fmt.Printf("Unable to determine absolute path of %s: %v\n", inputPath, err)
+			os.Exit(1)
 		}
 	}
 	if bundleStrategy != "" {
 		if !internalbundle.IsValidBundle(bundleStrategy) {
-			log.Fatalf("Invalid bundle strategy: %s", bundleStrategy)
+			fmt.Printf("Invalid bundle strategy: %s\n", bundleStrategy)
+			os.Exit(1)
 		}
 	}
 	//
@@ -220,13 +221,20 @@ func bootstrap(inputPath string, namespace string, bundleStrategy string) (*api.
 	var siteStateLoader api.SiteStateLoader
 	var reloadExisting bool
 	isBundle := bundleStrategy != ""
-	_, err := os.Stat(api.GetInternalOutputPath(namespace, api.LoadedSiteStatePath))
+	sourcesPath := api.GetInternalOutputPath(namespace, api.LoadedSiteStatePath)
+	_, err := os.Stat(sourcesPath)
 	if !isBundle && err == nil {
 		reloadExisting = true
 		nsPlatformLoader := &common.NamespacePlatformLoader{}
 		nsPlatform, err := nsPlatformLoader.Load(namespace)
 		if err != nil {
-			return nil, err
+			_, runtimeStateErr := os.Stat(api.GetInternalOutputPath(namespace, api.RuntimeSiteStatePath))
+			if runtimeStateErr == nil {
+				return nil, fmt.Errorf("unable to determine current platform used in namespace %q", namespace)
+			}
+			// platform.yaml not present, which is ok if a site is not yet rendered
+			nsPlatform = string(platform)
+			reloadExisting = false
 		}
 		currentPlatform := string(platform)
 		if platform.IsKubernetes() {
@@ -237,13 +245,22 @@ func bootstrap(inputPath string, namespace string, bundleStrategy string) (*api.
 		}
 	}
 	siteStateLoader = &common.FileSystemSiteStateLoader{
-		Path:      inputPath,
-		Namespace: namespace,
-		Bundle:    isBundle,
+		Path:   inputPath,
+		Bundle: isBundle,
 	}
 	siteState, err := siteStateLoader.Load()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load site state: %v", err)
+	}
+	// if sources are being consume from namespace sources, they must be properly set
+	crNamespace := siteState.GetNamespace()
+	targetNamespace := utils.DefaultStr(namespace, "default")
+	if inputPath == sourcesPath {
+		if crNamespace != targetNamespace {
+			return nil, fmt.Errorf("namespace must be %q, but sources are defined using %q", targetNamespace, crNamespace)
+		}
+	} else if namespace != "" {
+		siteState.SetNamespace(namespace)
 	}
 
 	var siteStateRenderer api.StaticSiteStateRenderer

@@ -27,9 +27,11 @@ usage() {
 
 remove_definition() {
     platform_file="${namespaces_path}/${namespace}/runtime/state/platform.yaml"
-    SKUPPER_PLATFORM=$(grep '^platform: ' "${platform_file}" | sed -e 's/.*: //g')
-    if [ "${SKUPPER_PLATFORM}" = "podman" ] || [ "${SKUPPER_PLATFORM}" = "docker" ]; then
-        ${SKUPPER_PLATFORM} rm -f "${namespace}-skupper-router"
+    if [ -f "${platform_file}" ]; then
+        SKUPPER_PLATFORM=$(grep '^platform: ' "${platform_file}" | sed -e 's/.*: //g')
+        if [ "${SKUPPER_PLATFORM}" = "podman" ] || [ "${SKUPPER_PLATFORM}" = "docker" ]; then
+            ${SKUPPER_PLATFORM} rm -f "${namespace}-skupper-router"
+        fi
     fi
     rm -rf "${namespaces_path:?}/${namespace:?}/"
 }
