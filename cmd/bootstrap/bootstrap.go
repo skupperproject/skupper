@@ -10,31 +10,35 @@ import (
 	"path/filepath"
 
 	"github.com/skupperproject/skupper/api/types"
+	internalbundle "github.com/skupperproject/skupper/internal/nonkube/bundle"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/bundle"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"
 	"github.com/skupperproject/skupper/pkg/nonkube/compat"
 	"github.com/skupperproject/skupper/pkg/nonkube/systemd"
+	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/version"
 )
 
 var (
-	platform      = config.GetPlatform()
-	inputPath     string
-	userNamespace string
+	platform       = config.GetPlatform()
+	inputPath      string
+	userNamespace  string
+	bundleStrategy string
 )
 
 const (
 	description = `
 Bootstraps a nonkube Skupper site base on the provided flags.
+
 When the path (-p) flag is provided, it will be used as the source
 directory containing the Skupper custom resources to be processed,
 generating a local Skupper site using the "default" namespace, unless
 a namespace is set in the custom resources, or if the namespace (-n)
 flag is provided.
 
-A namespace is just a directory in the file system where site specific
+A namespace is just a directory in the file system where all site specific
 files are stored, like certificates, configurations, the original sources
 (original custom resources used to bootstrap the nonkube site) and
 the runtime files generated during initialization.
@@ -42,6 +46,14 @@ the runtime files generated during initialization.
 In case the path (-p) flag is omitted, Skupper will try to process
 custom resources stored at the sources directory of the default namespace,
 or from the namespace provided through the namespace (-n) flag.
+
+If the respective namespace already exists and you want to bootstrap it
+over, you must provide the force (-f) flag. When you do that, the existing
+Certificate Authorities (CAs) are preserved, so eventual existing incoming
+links should be able to reconnect.
+
+To produce a bundle, instead of rendering a site, the bundle strategy (-b)
+flag must be set to "bundle" or "tarball".
 `
 )
 
@@ -56,6 +68,7 @@ func main() {
 	}
 	flag.StringVar(&inputPath, "p", "", "Custom resources location on the file system")
 	flag.StringVar(&userNamespace, "n", "", "The target namespace used for installation")
+	flag.StringVar(&bundleStrategy, "b", "", "The bundle strategy to be produced: bundle or tarball")
 	force := flag.Bool("f", false, "Forces to overwrite an existing namespace")
 	isVersion := flag.Bool("v", false, "Report the version of the Skupper bootstrap command")
 	flag.Parse()
@@ -71,6 +84,11 @@ func main() {
 			log.Fatalf("Unable to determine absolute path of %s: %v", inputPath, err)
 		}
 	}
+	if bundleStrategy != "" {
+		if !internalbundle.IsValidBundle(bundleStrategy) {
+			log.Fatalf("Invalid bundle strategy: %s", bundleStrategy)
+		}
+	}
 	//
 	// NOTE FOR CONTAINERS
 	// When running bootstrap process through a container
@@ -83,9 +101,11 @@ func main() {
 	fmt.Printf("Skupper nonkube bootstrap (version: %s)\n", version.Version)
 
 	if platform.IsKubernetes() {
+		platform = types.PlatformPodman
 		// Bootstrap uses podman as the default platform
-		_ = os.Setenv(types.ENV_PLATFORM, "podman")
+		//_ = os.Setenv(types.ENV_PLATFORM, "podman")
 	}
+	isBundle := internalbundle.GetBundleStrategy(bundleStrategy) != ""
 	if api.IsRunningInContainer() {
 		requiredPaths := []string{"/output"}
 		if inputPath != "" {
@@ -106,7 +126,7 @@ func main() {
 				os.Exit(1)
 			}
 		}
-	} else if !platform.IsBundle() {
+	} else if !isBundle {
 		binary := "podman"
 		if platform == types.PlatformSystemd {
 			binary = "skrouterd"
@@ -138,18 +158,18 @@ func main() {
 
 	// if namespace already exists, fail if force is not set
 	_, err := os.Stat(api.GetInternalOutputPath(namespace, api.RuntimeSiteStatePath))
-	if !platform.IsBundle() && err == nil && !*force {
+	if !isBundle && err == nil && !*force {
 		fmt.Printf("Namespace already exists: %s\n", namespace)
 		os.Exit(1)
 	}
 
-	siteState, err := bootstrap(inputPath, userNamespace)
+	siteState, err := bootstrap(inputPath, userNamespace, internalbundle.GetBundleStrategy(bundleStrategy))
 	if err != nil {
 		fmt.Println("Failed to bootstrap:", err)
 		os.Exit(1)
 	}
 	var bundleSuffix string
-	if platform.IsBundle() {
+	if isBundle {
 		bundleSuffix = " (as a distributable bundle)"
 	} else {
 		bundleSuffix = fmt.Sprintf(" on namespace %q", siteState.GetNamespace())
@@ -165,7 +185,8 @@ func main() {
 		}
 	}
 	fmt.Printf("Site %q has been created%s\n", siteState.Site.Name, bundleSuffix)
-	if !platform.IsBundle() {
+	if !isBundle {
+		fmt.Printf("Platform: %s\n", platform)
 		tokenPath := api.GetInternalOutputPath(siteState.Site.Namespace, api.RuntimeTokenPath)
 		hostTokenPath, err := api.GetHostSiteInternalPath(siteState.Site, api.RuntimeTokenPath)
 		if err != nil {
@@ -178,24 +199,29 @@ func main() {
 				break
 			}
 		}
+		sourcesPath, _ := api.GetHostSiteInternalPath(siteState.Site, api.LoadedSiteStatePath)
+		fmt.Printf("Definition is available at: %s\n", sourcesPath)
 	} else {
 		siteHome, err := api.GetHostBundlesPath()
 		if err != nil {
 			fmt.Println("Failed to get site bundle base directory:", err)
 		}
 		installationFile := path.Join(siteHome, fmt.Sprintf("skupper-install-%s.sh", siteState.Site.Name))
-		if platform.IsTarball() {
+		if internalbundle.GetBundleStrategy(bundleStrategy) == string(internalbundle.BundleStrategyTarball) {
 			installationFile = path.Join(siteHome, fmt.Sprintf("skupper-install-%s.tar.gz", siteState.Site.Name))
 		}
 		fmt.Println("Installation bundle available at:", installationFile)
 		fmt.Println("Default namespace:", siteState.GetNamespace())
+		fmt.Println("Default platform:", utils.DefaultStr(string(platform), "podman"))
 	}
 }
 
-func bootstrap(inputPath string, namespace string) (*api.SiteState, error) {
+func bootstrap(inputPath string, namespace string, bundleStrategy string) (*api.SiteState, error) {
 	var siteStateLoader api.SiteStateLoader
 	var reloadExisting bool
-	if !platform.IsBundle() && inputPath == api.GetInternalOutputPath(namespace, api.LoadedSiteStatePath) {
+	isBundle := bundleStrategy != ""
+	_, err := os.Stat(api.GetInternalOutputPath(namespace, api.LoadedSiteStatePath))
+	if !isBundle && err == nil {
 		reloadExisting = true
 		nsPlatformLoader := &common.NamespacePlatformLoader{}
 		nsPlatform, err := nsPlatformLoader.Load(namespace)
@@ -213,7 +239,7 @@ func bootstrap(inputPath string, namespace string) (*api.SiteState, error) {
 	siteStateLoader = &common.FileSystemSiteStateLoader{
 		Path:      inputPath,
 		Namespace: namespace,
-		Bundle:    platform.IsBundle(),
+		Bundle:    isBundle,
 	}
 	siteState, err := siteStateLoader.Load()
 	if err != nil {
@@ -221,12 +247,17 @@ func bootstrap(inputPath string, namespace string) (*api.SiteState, error) {
 	}
 
 	var siteStateRenderer api.StaticSiteStateRenderer
-	if platform == types.PlatformSystemd {
+	if isBundle {
+		siteStateRenderer = &bundle.SiteStateRenderer{
+			Strategy: internalbundle.BundleStrategy(bundleStrategy),
+			Platform: platform,
+		}
+	} else if platform == types.PlatformSystemd {
 		siteStateRenderer = &systemd.SiteStateRenderer{}
-	} else if platform.IsBundle() {
-		siteStateRenderer = &bundle.SiteStateRenderer{}
 	} else {
-		siteStateRenderer = &compat.SiteStateRenderer{}
+		siteStateRenderer = &compat.SiteStateRenderer{
+			Platform: platform,
+		}
 	}
 	err = siteStateRenderer.Render(siteState, reloadExisting)
 	if err != nil {

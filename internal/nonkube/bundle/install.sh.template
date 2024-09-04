@@ -9,11 +9,13 @@ set -Ceu
 # site name to be provided by bundle generation
 export SITE_NAME="{{.SiteName}}"
 export SOURCE_NAMESPACE="{{.Namespace}}"
+export SOURCE_PLATFORM="{{.Platform}}"
 export NAMESPACE="${SOURCE_NAMESPACE}"
-export SKUPPER_PLATFORM="podman"
+export SKUPPER_PLATFORM="{{.Platform}}"
 export PLATFORM_COMMAND="podman"
 export REMOVE=false
 export DUMP_TOKENS=false
+export VERSION="{{.Version}}"
 
 # standard output directories
 if [ -z "${UID:-}" ]; then
@@ -48,7 +50,8 @@ exit_error() {
 
 usage() {
     echo "Usage: $0 [-p <podman|docker|systemd>] [-x] [-d <output-dir>]" >&2
-    echo "    -p    platform to use (one of: podman, docker, systemd)" >&2
+    echo "    -p    the platform to use: podman, docker, systemd (default: ${SOURCE_PLATFORM})" >&2
+    echo "    -n    target namespace (default: ${SOURCE_NAMESPACE})" >&2
     echo "    -x    remove existing site definition" >&2
     echo "    -d    dump static links from bundle into the provide output directory" >&2
     exit 1
@@ -70,17 +73,6 @@ parse_opts() {
                 if [ ! "${is_platform_valid}" ]; then
                     echo "Invalid platform: ${SKUPPER_PLATFORM}"
                     usage
-                fi
-                if [ "${SKUPPER_PLATFORM}" = "docker" ]; then
-                    export PLATFORM_COMMAND="docker"
-                    if [ "${UID}" -ne 0 ]; then
-                        # shellcheck disable=SC2090
-                        export USERNS="host"
-                    fi
-                    docker_gid=$(getent group docker | cut -d: -f3)
-                    export RUNAS="${UID}:${docker_gid}"
-                elif [ "${SKUPPER_PLATFORM}" = "systemd" ]; then
-                    export PLATFORM_COMMAND="skrouterd"
                 fi
                 ;;
             n)
@@ -112,6 +104,19 @@ parse_opts() {
                 ;;
         esac
     done
+
+    if [ "${SKUPPER_PLATFORM}" = "docker" ]; then
+        export PLATFORM_COMMAND="docker"
+        if [ "${UID}" -ne 0 ]; then
+            # shellcheck disable=SC2090
+            export USERNS="host"
+        fi
+        docker_gid=$(getent group docker | cut -d: -f3)
+        export RUNAS="${UID}:${docker_gid}"
+    elif [ "${SKUPPER_PLATFORM}" = "systemd" ]; then
+        export PLATFORM_COMMAND="skrouterd"
+    fi
+
 }
 
 create_service() {
@@ -242,9 +247,11 @@ create_site() {
     fi
 
     echo "Skupper site bundle installation"
-    echo "Namespace: ${NAMESPACE}"
-    echo "Site name: ${SITE_NAME}"
-    echo "Platform : ${SKUPPER_PLATFORM}"
+    echo "Namespace : ${NAMESPACE}"
+    echo "Site name : ${SITE_NAME}"
+    echo "Platform  : ${SKUPPER_PLATFORM}"
+    echo "Definition: ${NAMESPACES_PATH:?}/${NAMESPACE:?}/sources"
+    echo "Version   : ${VERSION}"
 
     # Create base directory tree
     mkdir -p "${NAMESPACES_PATH}"

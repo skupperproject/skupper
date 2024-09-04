@@ -323,8 +323,6 @@ const (
 	PlatformPodman     Platform = "podman"
 	PlatformDocker     Platform = "docker"
 	PlatformSystemd    Platform = "systemd"
-	PlatformBundle     Platform = "bundle"
-	PlatformBundleTgz  Platform = "tarball"
 )
 
 func (p Platform) IsKubernetes() bool {
@@ -333,14 +331,6 @@ func (p Platform) IsKubernetes() bool {
 
 func (p Platform) IsContainerEngine() bool {
 	return p == PlatformDocker || p == PlatformPodman
-}
-
-func (p Platform) IsBundle() bool {
-	return p == PlatformBundle || p.IsTarball()
-}
-
-func (p Platform) IsTarball() bool {
-	return p == PlatformBundleTgz
 }
 
 type ConsoleAuthMode string

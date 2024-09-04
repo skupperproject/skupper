@@ -8,6 +8,8 @@ import (
 	"text/template"
 
 	"github.com/skupperproject/skupper/internal/utils"
+	pkgutils "github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/version"
 )
 
 type TarballBundle struct {
@@ -20,7 +22,7 @@ func (s *TarballBundle) InstallFile() string {
 	return path.Join(s.OutputPath, fmt.Sprintf("skupper-install-%s.tar.gz", s.SiteName))
 }
 
-func (s *TarballBundle) Generate(tarBall *utils.Tarball) error {
+func (s *TarballBundle) Generate(tarBall *utils.Tarball, defaultPlatform string) error {
 	var err error
 
 	installScriptTemplate := template.Must(template.New("install").Parse(installScript))
@@ -28,6 +30,8 @@ func (s *TarballBundle) Generate(tarBall *utils.Tarball) error {
 	err = installScriptTemplate.Execute(parsedInstallScript, map[string]interface{}{
 		"SiteName":        s.SiteName,
 		"Namespace":       s.Namespace,
+		"Platform":        pkgutils.DefaultStr(defaultPlatform, "podman"),
+		"Version":         version.Version,
 		"SelfExtractPart": "",
 	})
 	if err != nil {

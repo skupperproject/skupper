@@ -6,6 +6,7 @@ IMAGE="quay.io/skupper/bootstrap:v2-latest"
 export INPUT_PATH=""
 export NAMESPACE=""
 export FORCE_FLAG=""
+export BUNDLE_STRATEGY=""
 SKUPPER_OUTPUT_PATH="${XDG_DATA_HOME:-${HOME}/.local/share}/skupper"
 SERVICE_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
 if [ -z "${UID:-}" ]; then
@@ -40,7 +41,7 @@ is_container_platform() {
 }
 
 is_bundle_platform() {
-    if [ "${SKUPPER_PLATFORM}" = "bundle" ] || [ "${SKUPPER_PLATFORM}" = "tarball" ]; then
+    if [ -n "${BUNDLE_STRATEGY}" ]; then
         return 0
     fi
     return 1
@@ -137,7 +138,7 @@ usage() {
 }
 
 parse_opts() {
-    while getopts "p:n:f" opt; do
+    while getopts "p:n:b:f" opt; do
         case "${opt}" in
             p)
                 export INPUT_PATH="${OPTARG}"
@@ -145,6 +146,17 @@ parse_opts() {
                     echo "Invalid custom resources path (it must be a directory)"
                     usage
                 fi
+                ;;
+            b)
+                bundle="${OPTARG}"
+                case "${bundle}" in
+                "bundle")
+                    export BUNDLE_STRATEGY="-b=bundle"
+                    ;;
+                "tarball")
+                    export BUNDLE_STRATEGY="-b=tarball"
+                    ;;
+                esac
                 ;;
             n)
                 export NAMESPACE="${OPTARG}"
@@ -204,7 +216,7 @@ main() {
         "${MOUNTS}" \
         "${ENV_VARS}" \
         "${IMAGE}" \
-        /app/bootstrap -p="${INPUT_PATH_ARG}" -n="${NAMESPACE}" ${FORCE_FLAG} 2>&1 | tee "${LOG_FILE}"
+        /app/bootstrap -p="${INPUT_PATH_ARG}" -n="${NAMESPACE}" ${BUNDLE_STRATEGY} ${FORCE_FLAG} 2>&1 | tee "${LOG_FILE}"
     create_service
     echo "Logs saved to: ${LOG_FILE}"
 }

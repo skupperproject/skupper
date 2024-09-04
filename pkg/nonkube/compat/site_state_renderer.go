@@ -22,6 +22,7 @@ type SiteStateRenderer struct {
 	configRenderer    *common.FileSystemConfigurationRenderer
 	containers        map[string]container.Container
 	stoppedContainers map[string]string
+	Platform          types.Platform
 	cli               *internalclient.CompatClient
 }
 
@@ -54,7 +55,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 			return
 		}
 		fmt.Println("Bootstrap failed, restoring previous state")
-		err := common.RestoreNamespaceData(backupData, loadedSiteState.GetNamespace())
+		err := common.RestoreNamespaceData(backupData)
 		if err != nil {
 			fmt.Printf("Error restoring namespace data for %q - %s\n", loadedSiteState.GetNamespace(), err)
 			return
@@ -99,7 +100,13 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	s.siteState.CreateLinkAccessesCertificates()
 	s.siteState.CreateBridgeCertificates()
 	// rendering non-kube configuration files and certificates
-	s.configRenderer = &common.FileSystemConfigurationRenderer{}
+	platform := types.PlatformPodman
+	if s.Platform == types.PlatformDocker {
+		platform = types.PlatformDocker
+	}
+	s.configRenderer = &common.FileSystemConfigurationRenderer{
+		Platform: string(platform),
+	}
 	err = s.configRenderer.Render(s.siteState)
 	if err != nil {
 		fmt.Println(err)
@@ -268,7 +275,16 @@ func (s *SiteStateRenderer) startContainers() error {
 
 func (s *SiteStateRenderer) createSystemdService() error {
 	// Creating startup scripts first
-	scripts, err := common.GetStartupScripts(s.siteState.Site, s.configRenderer.RouterConfig.GetSiteMetadata().Id, api.GetInternalOutputPath)
+	platform := types.PlatformPodman
+	if s.Platform == types.PlatformDocker {
+		platform = types.PlatformDocker
+	}
+	startupArgs := common.StartupScriptsArgs{
+		Namespace: s.siteState.GetNamespace(),
+		SiteId:    s.configRenderer.RouterConfig.GetSiteMetadata().Id,
+		Platform:  platform,
+	}
+	scripts, err := common.GetStartupScripts(startupArgs, api.GetInternalOutputPath)
 	if err != nil {
 		return fmt.Errorf("error getting startup scripts: %w", err)
 	}
@@ -278,7 +294,7 @@ func (s *SiteStateRenderer) createSystemdService() error {
 	}
 
 	// Creating systemd user service
-	systemd, err := common.NewSystemdServiceInfo(s.siteState.Site)
+	systemd, err := common.NewSystemdServiceInfo(s.siteState.Site, string(s.Platform))
 	if err != nil {
 		return err
 	}

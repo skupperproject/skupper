@@ -9,7 +9,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	internalbundle "github.com/skupperproject/skupper/internal/nonkube/bundle"
 	"github.com/skupperproject/skupper/internal/utils"
-	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
@@ -26,6 +25,8 @@ type SiteStateRenderer struct {
 	siteState       *api.SiteState
 	configRenderer  *common.FileSystemConfigurationRenderer
 	containers      map[string]container.Container
+	Strategy        internalbundle.BundleStrategy
+	Platform        types.Platform
 }
 
 func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) error {
@@ -53,6 +54,8 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	// rendering non-kube configuration files and certificates
 	s.configRenderer = &common.FileSystemConfigurationRenderer{
 		SslProfileBasePath: "{{.SslProfileBasePath}}",
+		Platform:           string(s.Platform),
+		Bundle:             true,
 	}
 	err = s.configRenderer.Render(s.siteState)
 	if err != nil {
@@ -77,7 +80,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	if err = CreateSystemdServices(s.siteState); err != nil {
 		return err
 	}
-	if err = CreateStartupScripts(s.siteState); err != nil {
+	if err = CreateStartupScripts(s.siteState, s.Platform); err != nil {
 		return err
 	}
 	if err = s.createBundle(); err != nil {
@@ -145,20 +148,21 @@ func (s *SiteStateRenderer) createBundle() error {
 		return fmt.Errorf("failed to add files to tarball (%q): %v", siteHomeDir, err)
 	}
 	var generator internalbundle.BundleGenerator
-	if !config.GetPlatform().IsTarball() {
-		generator = &internalbundle.SelfExtractingBundle{
-			SiteName:   s.siteState.Site.Name,
-			Namespace:  s.siteState.GetNamespace(),
-			OutputPath: bundlesHomeDir,
-		}
-	} else {
+	switch s.Strategy {
+	case internalbundle.BundleStrategyTarball:
 		generator = &internalbundle.TarballBundle{
 			SiteName:   s.siteState.Site.Name,
 			Namespace:  s.siteState.GetNamespace(),
 			OutputPath: bundlesHomeDir,
 		}
+	default:
+		generator = &internalbundle.SelfExtractingBundle{
+			SiteName:   s.siteState.Site.Name,
+			Namespace:  s.siteState.GetNamespace(),
+			OutputPath: bundlesHomeDir,
+		}
 	}
-	err = generator.Generate(tarball)
+	err = generator.Generate(tarball, string(s.Platform))
 	if err != nil {
 		return fmt.Errorf("failed to generate site bundle (%q): %v", s.siteState.Site.Name, err)
 	}

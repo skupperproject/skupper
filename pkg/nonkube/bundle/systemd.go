@@ -8,6 +8,7 @@ import (
 	"path"
 	"text/template"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"
 )
@@ -42,9 +43,15 @@ func CreateSystemdServices(siteState *api.SiteState) error {
 	return nil
 }
 
-func CreateStartupScripts(siteState *api.SiteState) error {
+func CreateStartupScripts(siteState *api.SiteState, platform types.Platform) error {
 	// Creating startup scripts first
-	scripts, err := common.GetStartupScripts(siteState.Site, "{{.SiteId}}", api.GetInternalBundleOutputPath)
+	startupArgs := common.StartupScriptsArgs{
+		Namespace: siteState.GetNamespace(),
+		SiteId:    "{{.SiteId}}",
+		Platform:  platform,
+		Bundle:    true,
+	}
+	scripts, err := common.GetStartupScripts(startupArgs, api.GetInternalBundleOutputPath)
 	if err != nil {
 		return fmt.Errorf("error getting startup scripts: %w", err)
 	}

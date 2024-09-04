@@ -12,7 +12,6 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
@@ -45,9 +44,10 @@ type systemdServiceInfo struct {
 	getUid              api.IdGetter
 	command             CommandExecutor
 	rootSystemdBasePath string
+	platform            string
 }
 
-func NewSystemdServiceInfo(site *v1alpha1.Site) (SystemdService, error) {
+func NewSystemdServiceInfo(site *v1alpha1.Site, platform string) (SystemdService, error) {
 	siteHomePath, err := api.GetHostSiteHome(site)
 	if err != nil {
 		return nil, err
@@ -67,6 +67,7 @@ func NewSystemdServiceInfo(site *v1alpha1.Site) (SystemdService, error) {
 		getUid:              os.Getuid,
 		command:             exec.Command,
 		rootSystemdBasePath: rootSystemdBasePath,
+		platform:            platform,
 	}, nil
 }
 
@@ -83,10 +84,9 @@ func (s *systemdServiceInfo) Create() error {
 		return fmt.Errorf(msg)
 	}
 
-	platform := config.GetPlatform()
 	var buf = new(bytes.Buffer)
 	var service *template.Template
-	if platform == types.PlatformSystemd {
+	if s.platform == string(types.PlatformSystemd) {
 		service = template.Must(template.New(s.GetServiceName()).Parse(SystemdServiceTemplate))
 	} else {
 		service = template.Must(template.New(s.GetServiceName()).Parse(SystemdContainerServiceTemplate))

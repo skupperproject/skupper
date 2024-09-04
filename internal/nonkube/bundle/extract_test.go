@@ -58,7 +58,7 @@ func TestSelfExtractingBundle_Generate(t *testing.T) {
 	t.Run("generate-self-extracting-bundle", func(t *testing.T) {
 		tb := utils.NewTarball()
 		assert.Assert(t, tb.AddFiles(sitePath))
-		assert.Assert(t, b.Generate(tb))
+		assert.Assert(t, b.Generate(tb, ""))
 		cleanupPaths = append(cleanupPaths, b.InstallFile())
 	})
 

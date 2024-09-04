@@ -13,7 +13,6 @@ import (
 	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/certs"
-	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	corev1 "k8s.io/api/core/v1"
@@ -51,6 +50,8 @@ type FileSystemConfigurationRenderer struct {
 	// SslProfileBasePath path where configuration will be read from in runtime
 	SslProfileBasePath string
 	RouterConfig       qdr.RouterConfig
+	Platform           string
+	Bundle             bool
 	customOutputPath   string
 }
 
@@ -109,12 +110,8 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *api.SiteState) error
 	}
 
 	// Saving runtime platform
-	platform := config.GetPlatform()
-	if platform == "kubernetes" {
-		platform = "podman"
-	}
-	if !platform.IsBundle() {
-		content := fmt.Sprintf("platform: %s\n", string(platform))
+	if !c.Bundle {
+		content := fmt.Sprintf("platform: %s\n", c.Platform)
 		err = os.WriteFile(path.Join(outputPath, string(api.RuntimeSiteStatePath), "platform.yaml"), []byte(content), 0644)
 		if err != nil {
 			return fmt.Errorf("failed to write runtime platform: %w", err)
@@ -189,7 +186,7 @@ func BackupNamespace(namespace string) ([]byte, error) {
 	return tb.SaveData()
 }
 
-func RestoreNamespaceData(data []byte, namespace string) error {
+func RestoreNamespaceData(data []byte) error {
 	tb := utils.NewTarball()
 	err := tb.ExtractData(data, api.GetDefaultOutputNamespacesPath())
 	if err != nil {

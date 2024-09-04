@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -34,7 +35,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 			return
 		}
 		fmt.Println("Bootstrap failed, restoring previous state")
-		err := common.RestoreNamespaceData(backupData, loadedSiteState.GetNamespace())
+		err := common.RestoreNamespaceData(backupData)
 		if err != nil {
 			fmt.Printf("Error restoring namespace data for %q - %s\n", loadedSiteState.GetNamespace(), err)
 			return
@@ -82,6 +83,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	}
 	s.configRenderer = &common.FileSystemConfigurationRenderer{
 		SslProfileBasePath: siteHome,
+		Platform:           string(types.PlatformSystemd),
 	}
 	err = s.configRenderer.Render(s.siteState)
 	if err != nil {
@@ -117,7 +119,7 @@ func (s *SiteStateRenderer) loadExistingSiteId(siteState *api.SiteState) error {
 
 func (s *SiteStateRenderer) createSystemdService() error {
 	// Creating systemd user service
-	systemd, err := common.NewSystemdServiceInfo(s.loadedSiteState.Site)
+	systemd, err := common.NewSystemdServiceInfo(s.loadedSiteState.Site, string(types.PlatformSystemd))
 	if err != nil {
 		return err
 	}
@@ -138,7 +140,7 @@ func (s *SiteStateRenderer) createSystemdService() error {
 
 func (s *SiteStateRenderer) removeSystemdService() error {
 	// Removing systemd user service
-	systemd, err := common.NewSystemdServiceInfo(s.loadedSiteState.Site)
+	systemd, err := common.NewSystemdServiceInfo(s.loadedSiteState.Site, string(types.PlatformSystemd))
 	if err != nil {
 		return err
 	}
