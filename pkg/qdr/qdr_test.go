@@ -7,6 +7,8 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"gotest.tools/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestInitialConfig(t *testing.T) {
@@ -44,7 +46,36 @@ func TestInitialConfig(t *testing.T) {
 	}
 }
 
-func TestAddListener(t *testing.T) {
+func TestInitialConfigSkupperRouter(t *testing.T) {
+	routerOptions := types.RouterOptions{
+		MaxFrameSize:     1518,
+		LoadBalancerIp:   "1.2.3.4",
+		DisableMutualTLS: true,
+		Logging: []types.RouterLogConfig{
+			{
+				Module: "PROTOCOL",
+				Level:  "trace",
+			},
+		},
+	}
+	path := "/tmp/skupper-router"
+	routerConfig := InitialConfigSkupperRouter("foo", "bar", "1.2.3", false, 10, routerOptions, path)
+
+	if routerConfig.Metadata.Id != "foo" {
+		t.Errorf("Invalid id, expected 'foo' got %q", routerConfig.Metadata.Id)
+	}
+	if len(routerConfig.LogConfig) != 1 {
+		t.Errorf("Expect one log entry")
+	}
+	if routerConfig.Addresses["mc"].Distribution != "multicast" {
+		t.Errorf("Expect address to configured as multicast")
+	}
+	if routerConfig.IsEdge() {
+		t.Errorf("Expected interior mode")
+	}
+}
+
+func TestAddRemoveListener(t *testing.T) {
 	config := InitialConfig("foo", "bar", "undefined", true, 3)
 	config.AddListener(Listener{
 		Name: "l1",
@@ -62,6 +93,72 @@ func TestAddListener(t *testing.T) {
 	}
 	if config.Listeners["127.0.0.1@8888"].Name != "127.0.0.1@8888" {
 		t.Errorf("Expected name '127.0.0.1@8888' but got %q", config.Listeners["127.0.0.1@8888"].Name)
+	}
+	result := config.AddListener(Listener{
+		Name: "l1",
+		Port: 5672,
+	})
+	if result == true {
+		t.Errorf("Expect add to fail, duplicate listener")
+	}
+	if len(config.Listeners) != 2 {
+		t.Errorf("Expected two listeners but found %d", len(config.Listeners))
+	}
+	result, _ = config.RemoveListener("l1")
+	if result == false {
+		t.Errorf("Expected to remove existing listener")
+	}
+	result, _ = config.RemoveListener("bad")
+	if result == true {
+		t.Errorf("Expected to not find listener")
+	}
+	if len(config.Listeners) != 1 {
+		t.Errorf("Expected 1 listener but found %d", len(config.Listeners))
+	}
+}
+
+func TestAddRemoveConnector(t *testing.T) {
+	config := InitialConfig("foo", "bar", "undefined", true, 3)
+	config.AddConnector(Connector{
+		Name: "c1",
+		Role: RoleInterRouter,
+		Port: "5672",
+		Cost: 1,
+	})
+	if config.Connectors["c1"].Cost != 1 {
+		t.Errorf("Expected cost 1 but got %d", config.Connectors["c1"].Cost)
+	}
+	config.AddConnector(Connector{
+		Name: "c2",
+		Host: "127.0.0.1",
+		Port: "8888",
+		Role: RoleEdge,
+	})
+	if config.Connectors["c2"].Port != "8888" {
+		t.Errorf("Expected port 8888 but got %s", config.Connectors["c2"].Port)
+	}
+	result := config.AddConnector(Connector{
+		Name: "c1",
+		Role: RoleInterRouter,
+		Port: "5672",
+		Cost: 1,
+	})
+	if result == true {
+		t.Errorf("Expect add to fail, duplicate Connector")
+	}
+	if len(config.Connectors) != 2 {
+		t.Errorf("Expected two Connectors but found %d", len(config.Connectors))
+	}
+	result, _ = config.RemoveConnector("c1")
+	if result == false {
+		t.Errorf("Expected to remove existing Connector")
+	}
+	result, _ = config.RemoveConnector("bad")
+	if result == true {
+		t.Errorf("Expected to not find Connector")
+	}
+	if len(config.Connectors) != 1 {
+		t.Errorf("Expected 1 Connector but found %d", len(config.Connectors))
 	}
 }
 
@@ -418,6 +515,31 @@ func TestMarshalUnmarshalRouterConfigWithLogging(t *testing.T) {
 	checkLevel(t, &input, "POLICY", "")
 	checkLevel(t, &input, "TCP_ADAPTOR", "notice+")
 	checkLevel(t, &input, "DEFAULT", "debug+")
+}
+
+func TestUpdateConfigMap(t *testing.T) {
+	routerConfig := RouterConfig{}
+	data, _ := routerConfig.AsConfigMapData()
+
+	siteConfig := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: types.SiteConfigMapName,
+		},
+		Data: data,
+	}
+
+	updated, err := routerConfig.UpdateConfigMap(siteConfig)
+	if !updated {
+		t.Errorf("Expect routerconfig to be updated")
+	}
+
+	if err != nil {
+		t.Errorf("Failed updating routerconfig")
+	}
 }
 
 func TestFailedConvert(t *testing.T) {
