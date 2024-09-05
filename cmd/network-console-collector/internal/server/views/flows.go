@@ -48,7 +48,6 @@ func NewConnectionsProvider() func(collector.ConnectionRecord) (api.ConnectionRe
 		setOpt(&out.ProxyPort, record.ProxyPort)
 
 		if record.EndTime != nil && record.StartTime != nil && record.EndTime.After(record.StartTime.Time) {
-			out.Active = false
 			if record.EndTime != nil && record.StartTime != nil {
 				duration := uint64(record.EndTime.Sub(record.StartTime.Time) / time.Microsecond)
 				out.Duration = &duration
@@ -75,7 +74,6 @@ func NewConnectionsProvider() func(collector.ConnectionRecord) (api.ConnectionRe
 func defaultConnection(id string) api.ConnectionRecord {
 	return api.ConnectionRecord{
 		Identity: id,
-		Active:   true,
 	}
 }
 

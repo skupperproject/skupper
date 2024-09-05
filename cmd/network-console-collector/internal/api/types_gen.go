@@ -101,8 +101,6 @@ type ConnectionListResponse struct {
 
 // ConnectionRecord defines model for ConnectionRecord.
 type ConnectionRecord struct {
-	// Active connection state
-	Active          bool    `json:"active"`
 	Address         string  `json:"address"`
 	ConnectorError  *string `json:"connectorError"`
 	ConnectorId     string  `json:"connectorId"`

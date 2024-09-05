@@ -1312,7 +1312,6 @@ components:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
-            - active
             - sourceSiteId
             - sourceSiteName
             - destSiteId
@@ -1341,9 +1340,6 @@ components:
             - listenerError
             - connectorError
           properties:
-            active:
-              type: boolean
-              description: connection state
             duration:
               type: integer
               format: uint64
