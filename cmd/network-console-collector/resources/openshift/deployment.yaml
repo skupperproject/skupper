@@ -43,7 +43,7 @@ spec:
       serviceAccountName: network-console-collector
       containers:
       - name: network-console
-        image: quay.io/ckruse/network-console-collector:latest
+        image: quay.io/skupper/network-console-collector:v2-latest
         imagePullPolicy: Always
         args:
           - -listen=127.0.0.1:8080

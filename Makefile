@@ -1,8 +1,8 @@
 VERSION := $(shell git describe --tags --dirty=-modified --always)
-CONTROLLER_IMAGE := quay.io/skupper/controller
-BOOTSTRAP_IMAGE := quay.io/skupper/bootstrap
-CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync
-NETWORK_CONSOLE_COLLECTOR_IMAGE := quay.io/skupper/network-console-collector
+CONTROLLER_IMAGE := quay.io/skupper/controller:v2-latest
+BOOTSTRAP_IMAGE := quay.io/skupper/bootstrap:v2-latest
+CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync:v2-latest
+NETWORK_CONSOLE_COLLECTOR_IMAGE := quay.io/skupper/network-console-collector:v2-latest
 TEST_IMAGE := quay.io/skupper/skupper-tests
 TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
 DOCKER := docker
@@ -11,7 +11,7 @@ PLATFORMS ?= linux/amd64,linux/arm64
 GOOS ?= linux
 GOARCH ?= amd64
 
-all: build-cmd build-config-sync build-controller build-tests build-manifest
+all: build-cmd build-config-sync build-controller build-bootstrap build-tests build-manifest build-network-console-collector
 
 build-tests:
 	mkdir -p ${TEST_BINARIES_FOLDER}
@@ -96,7 +96,7 @@ test:
 	go test -v -count=1 ./pkg/... ./internal/... ./cmd/...
 
 clean:
-	rm -rf skupper controller release config-sync manifest bootstrap ${TEST_BINARIES_FOLDER}
+	rm -rf skupper controller release config-sync manifest bootstrap network-console-collector ${TEST_BINARIES_FOLDER}
 
 package: release/windows.zip release/darwin.zip release/linux.tgz release/s390x.tgz release/arm64.tgz
 

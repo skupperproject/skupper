@@ -238,7 +238,7 @@ spec:
         app.kubernetes.io/component: server
     spec:
       containers:
-      - image: quay.io/ckruse/network-console-collector:latest
+      - image: quay.io/skupper/network-console-collector:v2-latest
         imagePullPolicy: Always
         name: network-console
         args:
