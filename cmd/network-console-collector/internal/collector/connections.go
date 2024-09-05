@@ -448,6 +448,10 @@ func (c *connectionManager) run(ctx context.Context) {
 				sourceSiteID := listener.Parent().Parent().ID()
 				sourceSiteHost := dref(flow.SourceHost)
 
+				if sourceSiteID == "" || sourceSiteHost == "" {
+					continue
+				}
+
 				flowSourceID := c.idp.ID("flowsource", sourceSiteID, sourceSiteHost)
 				if _, ok := flowSources[flowSourceID]; ok {
 					continue
