@@ -110,14 +110,14 @@ func filterTime[T api.Record](all []T, state timeRangeState, op timeRangeRelatio
 	switch state {
 	case active:
 		shouldFilter = func(record api.Record) bool {
-			if record.GetEndTime() == 0 {
+			if record.GetEndTime() != 0 {
 				return true
 			}
 			return shouldFilterOp(record)
 		}
 	case terminated:
 		shouldFilter = func(record api.Record) bool {
-			if record.GetEndTime() != 0 {
+			if record.GetEndTime() == 0 {
 				return true
 			}
 			return shouldFilterOp(record)
