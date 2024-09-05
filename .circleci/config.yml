@@ -454,7 +454,7 @@ workflows:
       - publish-github-v2-artifacts:
           <<: *run_for_v2_branch
           requires:
-            - publish-github-v2-images
+            - publish-github-v2-latest-images
           context:
             - skupper-org
 
