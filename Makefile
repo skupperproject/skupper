@@ -3,7 +3,7 @@ CONTROLLER_IMAGE := quay.io/skupper/controller:v2-latest
 BOOTSTRAP_IMAGE := quay.io/skupper/bootstrap:v2-latest
 CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync:v2-latest
 NETWORK_CONSOLE_COLLECTOR_IMAGE := quay.io/skupper/network-console-collector:v2-latest
-TEST_IMAGE := quay.io/skupper/skupper-tests
+TEST_IMAGE := quay.io/skupper/skupper-tests:v2-latest
 TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
 DOCKER := docker
 LDFLAGS := -X github.com/skupperproject/skupper/pkg/version.Version=${VERSION}
@@ -47,7 +47,7 @@ docker-build-test-image:
 	${DOCKER} buildx build --platform ${PLATFORMS} -t ${TEST_IMAGE} -f Dockerfile.ci-test .
 	${DOCKER} buildx build --load -t ${TEST_IMAGE} -f Dockerfile.ci-test .
 
-docker-build: docker-build-test-image
+docker-build: docker-build-test-image docker-build-bootstrap docker-build-network-console-collector
 	${DOCKER} buildx build --platform ${PLATFORMS} -t ${CONTROLLER_IMAGE} -f Dockerfile.controller .
 	${DOCKER} buildx build --load  -t ${CONTROLLER_IMAGE} -f Dockerfile.controller .
 	${DOCKER} buildx build --platform ${PLATFORMS} -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
@@ -64,11 +64,15 @@ docker-build-network-console-collector:
 	${DOCKER} buildx build --platform ${PLATFORMS} -t ${NETWORK_CONSOLE_COLLECTOR_IMAGE} -f Dockerfile.network-console-collector .
 	${DOCKER} buildx build --load  -t ${NETWORK_CONSOLE_COLLECTOR_IMAGE} -f Dockerfile.network-console-collector .
 
+docker-push-network-console-collector:
+	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${NETWORK_CONSOLE_COLLECTOR_IMAGE} -f Dockerfile.network-console-collector .
+
 docker-push-test-image:
 	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${TEST_IMAGE} -f Dockerfile.ci-test .
 
-docker-push: docker-push-test-image
+docker-push: docker-push-test-image docker-push-bootstrap docker-push-network-console-collector
 	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
+	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${CONTROLLER_IMAGE} -f Dockerfile.controller .
 
 format:
 	go fmt ./...
