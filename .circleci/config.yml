@@ -724,7 +724,7 @@ jobs:
             cd ${BASEDIR}
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease ${VERSION} "${BASEDIR}/archives"
 
-  publish-github-v2-images:
+  publish-github-v2-latest-images:
     executor:
       name: go_cimg
     steps:
