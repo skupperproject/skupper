@@ -99,6 +99,8 @@ commands:
             echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
             echo "export SKUPPER_CONTROLLER_IMAGE=${LOCAL_IP}:5000/controller" >> $BASH_ENV
             echo "export SKUPPER_CONFIG_SYNC_IMAGE=${LOCAL_IP}:5000/config-sync" >> $BASH_ENV
+            echo "export SKUPPER_NETWORK_CONSOLE_COLLECTOR_IMAGE=${LOCAL_IP}:5000/network-console-collector" >> $BASH_ENV
+            echo "export SKUPPER_BOOTSTRAP_IMAGE=${LOCAL_IP}:5000/bootstrap" >> $BASH_ENV
             echo "export TEST_IMAGE=${LOCAL_IP}:5000/skupper-tests" >> $BASH_ENV
             source $BASH_ENV
       - checkout
@@ -135,6 +137,8 @@ commands:
             gunzip -c /tmp/images/config-sync.gz | docker load
             gunzip -c /tmp/images/network-console-collector.gz | docker import - 0.0.0.0:5000/network-console-collector
             gunzip -c /tmp/images/network-console-collector.gz | docker load
+            gunzip -c /tmp/images/bootstrap.gz | docker import - 0.0.0.0:5000/bootstrap
+            gunzip -c /tmp/images/bootstrap.gz | docker load
             gunzip -c /tmp/images/test-image.gz | docker import - 0.0.0.0:5000/skupper-tests
             gunzip -c /tmp/images/test-image.gz | docker load
       - run:
@@ -143,6 +147,7 @@ commands:
             docker push 0.0.0.0:5000/controller
             docker push 0.0.0.0:5000/config-sync
             docker push 0.0.0.0:5000/network-console-collector
+            docker push 0.0.0.0:5000/bootstrap
             docker push 0.0.0.0:5000/skupper-tests
 
   system_monitor:
@@ -160,6 +165,7 @@ commands:
         name: journalctl monitoring
         command: journalctl -p 7 -b -f
         background: true
+
   system_status:
     description: shows some point-in-time system status
     parameters:
@@ -344,6 +350,12 @@ yaml-templates:
         ignore: /.*/
         only: /main/
 
+  v2_branch_filters: &run_for_v2_branch
+    filters:
+      branches:
+        ignore: /.*/
+        only: /v2/
+
   release_filters: &run_for_numeric_tags
     filters:
       branches:
@@ -358,6 +370,12 @@ yaml-templates:
       - test
       - main_tests_minikube_local_cluster
       - policy_tests_minikube_local_cluster
+
+  v2_release_requires: &v2_release_requires
+    requires:
+      - build-all
+      - test-skupper-binary
+      - test
 
 workflows:
   version: 2.1
@@ -378,8 +396,8 @@ workflows:
             - build-all
       - test:
           <<: *run_for_all_branches_and_numeric_tags
-      # - build_and_save_test_images:
-      #     <<: *run_for_all_branches_and_numeric_tags
+      - build_and_save_test_images:
+          <<: *run_for_all_branches_and_numeric_tags
 
       # - main_tests_minikube_local_cluster:
       #     <<: *run_for_all_branches_and_numeric_tags
@@ -398,10 +416,10 @@ workflows:
       #       - build_and_save_test_images
 
       # - publish-github-release-images:
-      #     <<: *run_for_numeric_tags
-      #     <<: *release_requires
-      #     context:
-      #       - skupper-org
+      #    <<: *run_for_numeric_tags
+      #    <<: *release_requires
+      #    context:
+      #      - skupper-org
 
       # - generate-manifest:
       #     <<: *run_for_numeric_tags
@@ -432,6 +450,19 @@ workflows:
       #     <<: *release_requires
       #     context:
       #       - skupper-org
+
+      - publish-github-v2-artifacts:
+          <<: *run_for_v2_branch
+          requires:
+            - publish-github-v2-images
+          context:
+            - skupper-org
+
+      - publish-github-v2-latest-images:
+          <<: *run_for_v2_branch
+          <<: *v2_release_requires
+          context:
+            - skupper-org
 
 jobs:
   test:
@@ -680,6 +711,48 @@ jobs:
           name: "Create a Pre-Release on GitHub"
           command: |
             VERSION="main-release"
+            BASEDIR=`pwd`
+            mkdir "${BASEDIR}/archives"
+            for p in `ls dist` ; do
+              cd "$BASEDIR/dist/$p"
+              if [[ $p == windows* ]] ; then
+                zip -q "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.zip" *
+              else
+                tar -zcf "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.tgz" *
+              fi
+            done
+            cd ${BASEDIR}
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease ${VERSION} "${BASEDIR}/archives"
+
+  publish-github-v2-images:
+    executor:
+      name: go_cimg
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
+      - run:
+          name: "Publishing v2 images"
+          command: |
+            echo 'export CONTROLLER_IMAGE=quay.io/skupper/controller:v2-latest' >> $BASH_ENV
+            echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:v2-latest' >> $BASH_ENV
+            echo 'export NETWORK_CONSOLE_COLLECTOR_IMAGE=quay.io/skupper/network-console-collector:v2-latest' >> $BASH_ENV
+            echo 'export BOOTSTRAP_IMAGE=quay.io/skupper/bootstrap:v2-latest' >> $BASH_ENV
+            source $BASH_ENV
+            docker buildx create --use --name skupper-buildx
+            make -e docker-build
+            make -e docker-push
+
+  publish-github-v2-artifacts:
+    docker:
+      - image: cibuilds/github:0.10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: "Create a V2 Pre-Release on GitHub"
+          command: |
+            VERSION="v2-release"
             BASEDIR=`pwd`
             mkdir "${BASEDIR}/archives"
             for p in `ls dist` ; do
