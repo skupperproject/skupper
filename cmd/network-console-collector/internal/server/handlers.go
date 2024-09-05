@@ -85,8 +85,40 @@ func (s *server) ProcessesByAddress(w http.ResponseWriter, r *http.Request, id s
 
 // (GET /api/v1alpha1/addresses/{id}/processpairs/)
 func (s *server) ProcessPairsByAddress(w http.ResponseWriter, r *http.Request, id string) {
-	//TODO(ck) implement
-	if err := handleCollection(w, r, &api.FlowAggregateListResponse{}, []api.FlowAggregateRecord{}); err != nil {
+	//todo(ck) find a way to more directly index this
+	addr, ok := s.graph.Address(id).GetRecord()
+	if !ok {
+		resp := api.ErrorNotFound{
+			Code: "ErrNotFound",
+		}
+		if err := encodeResponse(w, http.StatusNotFound, resp); err != nil {
+			s.logWriteError(r, err)
+		}
+		return
+	}
+	exemplar := store.Entry{
+		Record: vanflow.ConnectorRecord{
+			Protocol: &addr.Protocol,
+			Address:  &addr.Name,
+		},
+	}
+	connectors := index(s.records, collector.IndexByAddress, exemplar)
+	targetProcessIDs := make(map[string]struct{})
+	for _, c := range connectors {
+		cn := s.graph.Connector(c.Record.Identity())
+		pn := cn.Target()
+		if pn.IsKnown() {
+			targetProcessIDs[pn.ID()] = struct{}{}
+		}
+	}
+	allProcPairs := views.NewProcessPairSliceProvider(s.graph)(listByType[collector.ProcPairRecord](s.records))
+	var results []api.FlowAggregateRecord
+	for _, proc := range allProcPairs {
+		if _, ok := targetProcessIDs[proc.DestinationId]; ok {
+			results = append(results, proc)
+		}
+	}
+	if err := handleCollection(w, r, &api.FlowAggregateListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
 }
