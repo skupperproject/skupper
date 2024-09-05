@@ -139,8 +139,6 @@ commands:
             gunzip -c /tmp/images/network-console-collector.gz | docker load
             gunzip -c /tmp/images/bootstrap.gz | docker import - 0.0.0.0:5000/bootstrap
             gunzip -c /tmp/images/bootstrap.gz | docker load
-            gunzip -c /tmp/images/test-image.gz | docker import - 0.0.0.0:5000/skupper-tests
-            gunzip -c /tmp/images/test-image.gz | docker load
       - run:
           name: push to local registry
           command: |
@@ -148,7 +146,6 @@ commands:
             docker push 0.0.0.0:5000/config-sync
             docker push 0.0.0.0:5000/network-console-collector
             docker push 0.0.0.0:5000/bootstrap
-            docker push 0.0.0.0:5000/skupper-tests
 
   system_monitor:
     description: shows continuous system state
@@ -506,13 +503,13 @@ jobs:
           name: persisting images to workspace
           command: |
             mkdir /tmp/images
-            docker tag quay.io/skupper/controller 0.0.0.0:5000/controller
+            docker tag quay.io/skupper/controller:v2-latest 0.0.0.0:5000/controller
             docker save 0.0.0.0:5000/controller | gzip > /tmp/images/controller.gz
-            docker tag quay.io/skupper/config-sync 0.0.0.0:5000/config-sync
+            docker tag quay.io/skupper/config-sync:v2-latest 0.0.0.0:5000/config-sync
             docker save 0.0.0.0:5000/config-sync | gzip > /tmp/images/config-sync.gz
-            docker tag quay.io/skupper/network-console-collector 0.0.0.0:5000/network-console-collector
+            docker tag quay.io/skupper/network-console-collector:v2-latest 0.0.0.0:5000/network-console-collector
             docker save 0.0.0.0:5000/network-console-collector | gzip > /tmp/images/network-console-collector.gz
-            docker tag quay.io/skupper/boostrap 0.0.0.0:5000/bootstrap
+            docker tag quay.io/skupper/boostrap:v2-latest 0.0.0.0:5000/bootstrap
             docker save 0.0.0.0:5000/bootstrap | gzip > /tmp/images/boostrap.gz
       - persist_to_workspace:
           root: /tmp
