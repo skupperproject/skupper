@@ -460,8 +460,8 @@ func NewAddressProvider(graph collector.Graph) func(collector.AddressRecord) api
 			StartTime:      uint64(record.Start.UnixMicro()),
 			Protocol:       record.Protocol,
 			Name:           record.Name,
-			ListenerCount:  len(node.Listeners()),
-			ConnectorCount: len(node.Connectors()),
+			ListenerCount:  len(node.RoutingKey().Listeners()),
+			ConnectorCount: len(node.RoutingKey().Connectors()),
 		}
 	}
 }

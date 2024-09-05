@@ -60,7 +60,8 @@ func register(reg *prometheus.Registry) metrics {
 				Namespace: "legacy",
 				Name:      "flow_latency_microseconds",
 				Help:      "Time to first byte observed from the listener (client) side",
-				Buckets:   []float64{10, 100, 1000, 2000, 5000, 10000, 100000, 1000000, 10000000},
+				//                 1ms,  2 ms, 5ms,  10ms,  100ms,  1s,      10s
+				Buckets: []float64{1000, 2000, 5000, 10000, 100000, 1000000, 10000000},
 			}, []string{"source_site", "dest_site", "address", "protocol", "source_process", "dest_process", "direction"}),
 			reconcileTime: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: "skupper",

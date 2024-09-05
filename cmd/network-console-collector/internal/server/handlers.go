@@ -77,10 +77,29 @@ func (s *server) ListenersByAddress(w http.ResponseWriter, r *http.Request, id s
 
 // (GET /api/v1alpha1/addresses/{id}/processes/)
 func (s *server) ProcessesByAddress(w http.ResponseWriter, r *http.Request, id string) {
-	//TODO(ck) implement
-	if err := handleCollection(w, r, &api.ProcessListResponse{}, []api.ProcessRecord{}); err != nil {
+	//todo(ck) find a way to more directly index this
+	anode := s.graph.Address(id)
+	if !anode.IsKnown() {
+		resp := api.ErrorNotFound{
+			Code: "ErrNotFound",
+		}
+		if err := encodeResponse(w, http.StatusNotFound, resp); err != nil {
+			s.logWriteError(r, err)
+		}
+		return
+	}
+	cnodes := anode.RoutingKey().Connectors()
+	entries := make([]store.Entry, 0, len(cnodes))
+	for _, cnode := range cnodes {
+		if entry, ok := cnode.Target().Get(); ok {
+			entries = append(entries, entry)
+		}
+	}
+	results := views.NewProcessSliceProvider(s.records, s.graph)(entries)
+	if err := handleCollection(w, r, &api.ProcessListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
+
 }
 
 // (GET /api/v1alpha1/addresses/{id}/processpairs/)

@@ -387,6 +387,10 @@ type RoutingKey struct {
 }
 
 func (n RoutingKey) Parent() Address { return parentOfType[Address](n.dag, n.identity) }
+func (n RoutingKey) Connectors() []Connector {
+	return childrenByType[Connector](n.dag, n.identity)
+}
+func (n RoutingKey) Listeners() []Listener { return childrenByType[Listener](n.dag, n.identity) }
 
 func ConnectorTargetID(site, host string) string {
 	return fmt.Sprintf("%s:%s", site, host)
@@ -408,5 +412,10 @@ type Address struct {
 func (n Address) GetRecord() (record AddressRecord, found bool) {
 	return getrecord[AddressRecord](n)
 }
-func (n Address) Connectors() []Connector { return childrenByType[Connector](n.dag, n.identity) }
-func (n Address) Listeners() []Listener   { return childrenByType[Listener](n.dag, n.identity) }
+func (n Address) RoutingKey() RoutingKey {
+	rks := childrenByType[RoutingKey](n.dag, n.identity)
+	if len(rks) == 1 {
+		return rks[0]
+	}
+	return RoutingKey{}
+}
