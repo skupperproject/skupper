@@ -51,14 +51,14 @@ func filterAndOrderResults[T api.Record](r *http.Request, results []T) ([]T, int
 			out = append(out, results[:i]...)
 		}
 	}
-	// record count after filtering but befor pagination/limiting
-	// and/or the yet to be implemented time range filtering
-	timeRangeCount = int64(len(out))
 
 	var st T
 	if _, ok := any(st).(api.Record); ok {
 		out = filterTime(out, qp.State, qp.TimeRangeOperation, qp.TimeRangeStart, qp.TimeRangeEnd)
 	}
+
+	// record count after filtering but before pagination/limiting
+	timeRangeCount = int64(len(out))
 
 	sortFieldIndexer, err := indexerForField[T](qp.SortField)
 	if err != nil {
