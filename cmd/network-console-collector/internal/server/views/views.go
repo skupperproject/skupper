@@ -605,7 +605,7 @@ func vanflowTimes(b vanflow.BaseRecord) (start, end uint64) {
 		start = uint64(b.StartTime.UnixMicro())
 	}
 	if b.EndTime != nil {
-		start = uint64(b.EndTime.UnixMicro())
+		end = uint64(b.EndTime.UnixMicro())
 	}
 	return
 }
