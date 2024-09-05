@@ -371,22 +371,22 @@ func (c *connectionManager) getTransportMetricSet(l labelSet) transportMetrics {
 	}
 	labels := l.asLabels()
 	legacyLabels := map[string]string{
-		"sourceSite":    l.SourceSiteName + "@_@" + l.SourceSiteID,
-		"destSite":      l.DestSiteName + "@_@" + l.DestSiteID,
-		"address":       l.RoutingKey,
-		"protocol":      l.Protocol,
-		"sourceProcess": l.SourceProcess,
-		"destProcess":   l.DestProcess,
-		"direction":     "incoming",
+		"source_site":    l.SourceSiteName + "@_@" + l.SourceSiteID,
+		"dest_site":      l.DestSiteName + "@_@" + l.DestSiteID,
+		"address":        l.RoutingKey,
+		"protocol":       l.Protocol,
+		"source_process": l.SourceProcess,
+		"dest_process":   l.DestProcess,
+		"direction":      "incoming",
 	}
 	legacyLabelsReverse := map[string]string{
-		"sourceSite":    l.DestSiteName + "@_@" + l.DestSiteID,
-		"destSite":      l.SourceSiteName + "@_@" + l.SourceSiteID,
-		"address":       l.RoutingKey,
-		"protocol":      l.Protocol,
-		"sourceProcess": l.SourceProcess,
-		"destProcess":   l.DestProcess,
-		"direction":     "outgoing",
+		"source_site":    l.DestSiteName + "@_@" + l.DestSiteID,
+		"dest_site":      l.SourceSiteName + "@_@" + l.SourceSiteID,
+		"address":        l.RoutingKey,
+		"protocol":       l.Protocol,
+		"source_process": l.SourceProcess,
+		"dest_process":   l.DestProcess,
+		"direction":      "outgoing",
 	}
 	m := transportMetrics{
 		opened:               c.metrics.flowOpenedCounter.With(labels),
