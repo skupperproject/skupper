@@ -509,8 +509,8 @@ jobs:
             docker save 0.0.0.0:5000/config-sync | gzip > /tmp/images/config-sync.gz
             docker tag quay.io/skupper/network-console-collector:v2-latest 0.0.0.0:5000/network-console-collector
             docker save 0.0.0.0:5000/network-console-collector | gzip > /tmp/images/network-console-collector.gz
-            docker tag quay.io/skupper/boostrap:v2-latest 0.0.0.0:5000/bootstrap
-            docker save 0.0.0.0:5000/bootstrap | gzip > /tmp/images/boostrap.gz
+            docker tag quay.io/skupper/bootstrap:v2-latest 0.0.0.0:5000/bootstrap
+            docker save 0.0.0.0:5000/bootstrap | gzip > /tmp/images/bootstrap.gz
       - persist_to_workspace:
           root: /tmp
           paths:
