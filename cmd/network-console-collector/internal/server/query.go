@@ -182,14 +182,7 @@ func (m fieldIndex[T]) Compare(x, y T) int {
 	return 0
 }
 
-func (m fieldIndex[T]) MatchesFilter(e T, values []string) bool {
-	val := reflect.ValueOf(e).FieldByIndex(m.index)
-	if val.Kind() == reflect.Pointer {
-		if val.IsNil() {
-			return false
-		}
-		val = val.Elem()
-	}
+func (m fieldIndex[T]) matches(val reflect.Value, values []string) bool {
 	switch val.Kind() {
 	case reflect.String:
 		target := val.String()
@@ -213,6 +206,31 @@ func (m fieldIndex[T]) MatchesFilter(e T, values []string) bool {
 		return boolInStringSlice(val.Bool(), values)
 	}
 	return false
+}
+
+func (m fieldIndex[T]) MatchesFilter(e T, values []string) bool {
+	val := reflect.ValueOf(e).FieldByIndex(m.index)
+	// pre-checks
+	switch val.Kind() {
+	case reflect.Pointer:
+		if val.IsNil() {
+			return false
+		}
+		val = val.Elem()
+	case reflect.Slice:
+		if val.IsNil() {
+			return false
+		}
+		for idx := 0; idx < val.Len(); idx++ {
+			iv := val.Index(idx)
+			if m.matches(iv, values) {
+				return true
+			}
+		}
+		return false
+	}
+
+	return m.matches(val, values)
 }
 
 func indexerForField[T any](fieldPath string) (fieldIndex[T], error) {
