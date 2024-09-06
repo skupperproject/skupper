@@ -68,8 +68,8 @@ Dimensions:
 | dest_site_name | Name of the distination site |
 | routing_key | The routing key of the service |
 | protocol | The protocol used in the exchange (TCP) |
-| source_process | The name of the client process as reflected in the collector API |
-| dest_process | The name of the server process as reflected in the collector API |
+| source_process_name | The name of the client process as reflected in the collector API |
+| dest_process_name | The name of the server process as reflected in the collector API |
 
 ### Application Network Request Traffic (Application Layer)
 

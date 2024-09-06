@@ -116,8 +116,8 @@ var (
 		"dest_site_name",
 		"routing_key",
 		"protocol",
-		"source_process",
-		"dest_process",
+		"source_process_name",
+		"dest_process_name",
 	}
 	appFlowMetricLables = append(flowMetricLabels, "method", "code")
 )
@@ -135,13 +135,13 @@ type labelSet struct {
 
 func (ls labelSet) asLabels() prometheus.Labels {
 	return map[string]string{
-		"source_site_id":   ls.SourceSiteID,
-		"source_site_name": ls.SourceSiteName,
-		"dest_site_id":     ls.DestSiteID,
-		"dest_site_name":   ls.DestSiteName,
-		"routing_key":      ls.RoutingKey,
-		"protocol":         ls.Protocol,
-		"source_process":   ls.SourceProcess,
-		"dest_process":     ls.DestProcess,
+		"source_site_id":      ls.SourceSiteID,
+		"source_site_name":    ls.SourceSiteName,
+		"dest_site_id":        ls.DestSiteID,
+		"dest_site_name":      ls.DestSiteName,
+		"routing_key":         ls.RoutingKey,
+		"protocol":            ls.Protocol,
+		"source_process_name": ls.SourceProcess,
+		"dest_process_name":   ls.DestProcess,
 	}
 }
