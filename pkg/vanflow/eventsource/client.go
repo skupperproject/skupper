@@ -48,15 +48,7 @@ func NewClient(container session.Container, cfg ClientOptions) *Client {
 			slog.String("instance", cfg.Source.ID),
 		),
 	}
-	c.start()
 	return c
-}
-
-func (c *Client) start() {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	done := make(chan struct{})
-	c.cleanup = append(c.cleanup, func() { close(done) })
 }
 
 type HeartbeatMessageHandler func(vanflow.HeartbeatMessage)
