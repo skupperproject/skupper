@@ -14,10 +14,12 @@ type ConnectionRecord struct {
 	StartTime time.Time
 	EndTime   time.Time
 
-	Address  string
-	Protocol string
+	Connector     NamedReference
+	Address       string
+	Protocol      string
+	ConnectorHost string
+	ConnectorPort string
 
-	Connector    NamedReference
 	Listener     NamedReference
 	Source       NamedReference
 	Dest         NamedReference

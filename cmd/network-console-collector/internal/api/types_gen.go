@@ -104,6 +104,8 @@ type ConnectionRecord struct {
 	Address         string  `json:"address"`
 	ConnectorError  *string `json:"connectorError"`
 	ConnectorId     string  `json:"connectorId"`
+	DestHost        string  `json:"destHost"`
+	DestPort        string  `json:"destPort"`
 	DestProcessId   string  `json:"destProcessId"`
 	DestProcessName string  `json:"destProcessName"`
 	DestSiteId      string  `json:"destSiteId"`

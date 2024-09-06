@@ -125,7 +125,9 @@ func NewConnectionsProvider(stor store.Interface) func(collector.ConnectionRecor
 		out.DestSiteId = conn.DestSite.ID
 		out.DestSiteName = conn.DestSite.Name
 		out.ListenerId = conn.Listener.ID
-		out.ConnectorId = conn.Listener.ID
+		out.ConnectorId = conn.Connector.ID
+		out.DestHost = conn.ConnectorHost
+		out.DestPort = conn.ConnectorPort
 
 		return out, true
 	}

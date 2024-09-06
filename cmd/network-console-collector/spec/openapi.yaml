@@ -1330,6 +1330,8 @@ components:
             - connectorId
             - sourceHost
             - sourcePort
+            - destHost
+            - destPort
             - proxyHost
             - proxyPort
             - octets
@@ -1382,6 +1384,10 @@ components:
             sourceHost:
               type: string
             sourcePort:
+              type: string
+            destHost:
+              type: string
+            destPort:
               type: string
             proxyHost:
               type: string

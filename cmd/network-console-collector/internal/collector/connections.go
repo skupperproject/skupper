@@ -346,11 +346,13 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 		return cr, missingDest
 	}
 	cr = ConnectionRecord{
-		ID:        record.ID,
-		StartTime: dref(record.StartTime).Time,
-		EndTime:   dref(record.EndTime).Time,
-		Address:   cnctr.Address,
-		Protocol:  cnctr.Protocol,
+		ID:            record.ID,
+		StartTime:     dref(record.StartTime).Time,
+		EndTime:       dref(record.EndTime).Time,
+		Address:       cnctr.Address,
+		Protocol:      cnctr.Protocol,
+		ConnectorHost: cnctr.Host,
+		ConnectorPort: cnctr.Port,
 		Source: NamedReference{
 			ID:   sourceproc.ID,
 			Name: sourceproc.Name,
@@ -374,6 +376,12 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 		DestRouter: NamedReference{
 			ID:   destRattrs.ID,
 			Name: destRattrs.Name,
+		},
+		Connector: NamedReference{
+			ID: connectorID,
+		},
+		Listener: NamedReference{
+			ID: listenerID,
 		},
 
 		stor: c.flows,
@@ -962,6 +970,8 @@ func (c *connectionManager) connectorAttrs(id string) (connectorAttrs, bool) {
 		complete = true
 		attrs.Address = *cnctr.Address
 		attrs.Protocol = *cnctr.Protocol
+		attrs.Host = dref(cnctr.DestHost)
+		attrs.Port = dref(cnctr.DestPort)
 		c.connectorsCache[id] = attrs
 	}
 
@@ -1083,6 +1093,8 @@ type processAttributes struct {
 type connectorAttrs struct {
 	Protocol string
 	Address  string
+	Host     string
+	Port     string
 }
 type routerAttrs struct {
 	ID   string
