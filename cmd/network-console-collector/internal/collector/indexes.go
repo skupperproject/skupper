@@ -48,9 +48,9 @@ func RecordIndexers() map[string]store.Indexer {
 func indexByTypeAndAddress(e store.Entry) []string {
 	switch record := e.Record.(type) {
 	case ConnectionRecord:
-		return []string{fmt.Sprintf("%s/%s/%s", record.GetTypeMeta().String(), record.Address, record.Protocol)}
+		return []string{fmt.Sprintf("%s/%s/%s", record.GetTypeMeta().String(), record.RoutingKey, record.Protocol)}
 	case RequestRecord:
-		return []string{fmt.Sprintf("%s/%s/%s", record.GetTypeMeta().String(), record.Address, record.Protocol)}
+		return []string{fmt.Sprintf("%s/%s/%s", record.GetTypeMeta().String(), record.RoutingKey, record.Protocol)}
 	}
 	return nil
 }

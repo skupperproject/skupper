@@ -101,7 +101,6 @@ type ConnectionListResponse struct {
 
 // ConnectionRecord defines model for ConnectionRecord.
 type ConnectionRecord struct {
-	Address         string  `json:"address"`
 	ConnectorError  *string `json:"connectorError"`
 	ConnectorId     string  `json:"connectorId"`
 	DestHost        string  `json:"destHost"`
@@ -128,6 +127,7 @@ type ConnectionRecord struct {
 	Protocol           string  `json:"protocol"`
 	ProxyHost          string  `json:"proxyHost"`
 	ProxyPort          string  `json:"proxyPort"`
+	RoutingKey         string  `json:"routingKey"`
 	SitePairId         *string `json:"sitePairId"`
 	SourceHost         string  `json:"sourceHost"`
 	SourcePort         string  `json:"sourcePort"`
@@ -396,7 +396,6 @@ type RequestListResponse struct {
 // RequestRecord defines model for RequestRecord.
 type RequestRecord struct {
 	Active          bool    `json:"active"`
-	Address         string  `json:"address"`
 	ConnectionId    string  `json:"connectionId"`
 	ConnectorId     string  `json:"connectorId"`
 	DestProcessId   string  `json:"destProcessId"`
@@ -416,6 +415,7 @@ type RequestRecord struct {
 	ProcessPairId      *string `json:"processPairId"`
 	Protocol           string  `json:"protocol"`
 	Result             string  `json:"result"`
+	RoutingKey         string  `json:"routingKey"`
 	SitePairId         *string `json:"sitePairId"`
 	SourceProcessId    string  `json:"sourceProcessId"`
 	SourceProcessName  string  `json:"sourceProcessName"`

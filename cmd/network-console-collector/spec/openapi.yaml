@@ -1325,7 +1325,7 @@ components:
             - processGroupPairId
             - sitePairId
             - protocol
-            - address
+            - routingKey
             - listenerId
             - connectorId
             - sourceHost
@@ -1372,7 +1372,7 @@ components:
               type: string
             destProcessName:
               type: string
-            address:
+            routingKey:
               type: string
             protocol:
               type: string
@@ -1441,7 +1441,7 @@ components:
             - processGroupPairId
             - sitePairId
             - protocol
-            - address
+            - routingKey
             - listenerId
             - connectorId
             - method
@@ -1484,7 +1484,7 @@ components:
               type: string
             connectorId:
               type: string
-            address:
+            routingKey:
               type: string
             protocol:
               type: string

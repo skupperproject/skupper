@@ -23,7 +23,7 @@ func (s *server) Connections(w http.ResponseWriter, r *http.Request) {
 // (GET /api/v1alpha1/addresses/{id}/connections/)
 func (s *server) ConnectionsByAddress(w http.ResponseWriter, r *http.Request, id string) {
 	getExemplar := fetchAndMap(s.records, func(a collector.AddressRecord) store.Entry {
-		return store.Entry{Record: collector.ConnectionRecord{Address: a.Name, Protocol: a.Protocol}}
+		return store.Entry{Record: collector.ConnectionRecord{RoutingKey: a.Name, Protocol: a.Protocol}}
 	}, id)
 	if err := handleSubCollection(w, r, &api.ConnectionListResponse{}, getExemplar, func(exemplar store.Entry) []api.ConnectionRecord {
 		return views.NewConnectionsSliceProvider(s.records)(index(s.records, collector.IndexFlowByAddress, exemplar))
@@ -42,7 +42,7 @@ func (s *server) Requests(w http.ResponseWriter, r *http.Request) {
 // (GET /api/v1alpha1/addresses/{id}/requests/)
 func (s *server) RequestsByAddress(w http.ResponseWriter, r *http.Request, id string) {
 	getExemplar := fetchAndMap(s.records, func(a collector.AddressRecord) store.Entry {
-		return store.Entry{Record: collector.RequestRecord{Address: a.Name, Protocol: a.Protocol}}
+		return store.Entry{Record: collector.RequestRecord{RoutingKey: a.Name, Protocol: a.Protocol}}
 	}, id)
 	if err := handleSubCollection(w, r, &api.RequestListResponse{}, getExemplar, func(exemplar store.Entry) []api.RequestRecord {
 		return views.NewRequestSliceProvider()(index(s.records, collector.IndexFlowByAddress, exemplar))

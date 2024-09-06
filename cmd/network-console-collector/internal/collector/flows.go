@@ -15,7 +15,7 @@ type ConnectionRecord struct {
 	EndTime   time.Time
 
 	Connector     NamedReference
-	Address       string
+	RoutingKey    string
 	Protocol      string
 	ConnectorHost string
 	ConnectorPort string
@@ -58,7 +58,7 @@ func (r ConnectionRecord) toLabelSet() labelSet {
 		DestSiteID:     r.DestSite.ID,
 		SourceSiteName: r.SourceSite.Name,
 		DestSiteName:   r.DestSite.Name,
-		RoutingKey:     r.Address,
+		RoutingKey:     r.RoutingKey,
 		Protocol:       r.Protocol,
 		SourceProcess:  r.Source.Name,
 		DestProcess:    r.Dest.Name,
@@ -73,8 +73,8 @@ type RequestRecord struct {
 	StartTime   time.Time
 	EndTime     time.Time
 
-	Address  string
-	Protocol string
+	RoutingKey string
+	Protocol   string
 
 	Connector  NamedReference
 	Listener   NamedReference
@@ -113,7 +113,7 @@ func (r RequestRecord) toLabelSet() labelSet {
 		DestSiteID:     r.DestSite.ID,
 		SourceSiteName: r.SourceSite.Name,
 		DestSiteName:   r.DestSite.Name,
-		RoutingKey:     r.Address,
+		RoutingKey:     r.RoutingKey,
 		SourceProcess:  r.Source.Name,
 		DestProcess:    r.Dest.Name,
 	}

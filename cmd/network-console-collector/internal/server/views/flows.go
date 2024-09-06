@@ -115,7 +115,7 @@ func NewConnectionsProvider(stor store.Interface) func(collector.ConnectionRecor
 		}
 
 		out.Protocol = conn.Protocol
-		out.Address = conn.Address
+		out.RoutingKey = conn.RoutingKey
 		out.SourceProcessId = conn.Source.ID
 		out.SourceProcessName = conn.Source.Name
 		out.SourceSiteId = conn.SourceSite.ID
@@ -181,7 +181,7 @@ func NewRequestProvider() func(collector.RequestRecord) (api.RequestRecord, bool
 
 		out.ConnectionId = conn.TransportID
 		out.Protocol = conn.Protocol
-		out.Address = conn.Address
+		out.RoutingKey = conn.RoutingKey
 		out.SourceProcessId = conn.Source.ID
 		out.SourceProcessName = conn.Source.Name
 		out.SourceSiteId = conn.SourceSite.ID
