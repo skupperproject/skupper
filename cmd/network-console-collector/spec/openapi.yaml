@@ -1326,7 +1326,6 @@ components:
             - sitePairId
             - protocol
             - address
-            - trace
             - listenerId
             - connectorId
             - sourceHost
@@ -1339,6 +1338,8 @@ components:
             - latencyReverse
             - listenerError
             - connectorError
+            - traceRouters
+            - traceSites
           properties:
             duration:
               type: integer
@@ -1374,8 +1375,6 @@ components:
             protocol:
               type: string
               example: tcp
-            trace:
-              type: string
             listenerId:
               type: string
             connectorId:
@@ -1406,6 +1405,16 @@ components:
             connectorError:
               type: string
               nullable: true
+            traceRouters:
+              type: array
+              description: Ordered array of the names of routers involved in proxying the connection
+              items:
+                type: string
+            traceSites:
+              type: array
+              description: Ordered array of the names of sites involved in proxying the connection
+              items:
+                type: string
     RequestRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'

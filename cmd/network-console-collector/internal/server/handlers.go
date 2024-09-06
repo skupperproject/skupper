@@ -14,7 +14,7 @@ var _ api.ServerInterface = (*server)(nil)
 
 // (GET /api/v1alpha1/connections/)
 func (s *server) Connections(w http.ResponseWriter, r *http.Request) {
-	results := views.NewConnectionsSliceProvider()(listByType[collector.ConnectionRecord](s.records))
+	results := views.NewConnectionsSliceProvider(s.records)(listByType[collector.ConnectionRecord](s.records))
 	if err := handleCollection(w, r, &api.ConnectionListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
@@ -26,7 +26,7 @@ func (s *server) ConnectionsByAddress(w http.ResponseWriter, r *http.Request, id
 		return store.Entry{Record: collector.ConnectionRecord{Address: a.Name, Protocol: a.Protocol}}
 	}, id)
 	if err := handleSubCollection(w, r, &api.ConnectionListResponse{}, getExemplar, func(exemplar store.Entry) []api.ConnectionRecord {
-		return views.NewConnectionsSliceProvider()(index(s.records, collector.IndexFlowByAddress, exemplar))
+		return views.NewConnectionsSliceProvider(s.records)(index(s.records, collector.IndexFlowByAddress, exemplar))
 	}); err != nil {
 		s.logWriteError(r, err)
 	}

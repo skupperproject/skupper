@@ -17,12 +17,14 @@ type ConnectionRecord struct {
 	Address  string
 	Protocol string
 
-	Connector  NamedReference
-	Listener   NamedReference
-	Source     NamedReference
-	Dest       NamedReference
-	SourceSite NamedReference
-	DestSite   NamedReference
+	Connector    NamedReference
+	Listener     NamedReference
+	Source       NamedReference
+	Dest         NamedReference
+	SourceSite   NamedReference
+	DestSite     NamedReference
+	SourceRouter NamedReference
+	DestRouter   NamedReference
 
 	stor    store.Interface
 	metrics transportMetrics

@@ -43,6 +43,7 @@ type connectionManager struct {
 	attrMu          sync.Mutex
 	processesCache  map[string]processAttributes
 	connectorsCache map[string]connectorAttrs
+	routerCache     map[string]routerAttrs
 }
 
 func newConnectionmanager(ctx context.Context, log *slog.Logger, source store.SourceRef, records store.Interface, graph *graph, metrics metrics, ttl time.Duration) *connectionManager {
@@ -67,6 +68,7 @@ func newConnectionmanager(ctx context.Context, log *slog.Logger, source store.So
 		processPairs:    make(map[pair]bool),
 		processesCache:  make(map[string]processAttributes),
 		connectorsCache: make(map[string]connectorAttrs),
+		routerCache:     make(map[string]routerAttrs),
 	}
 
 	m.flows = store.NewSyncMapStore(store.SyncMapStoreConfig{
@@ -315,7 +317,8 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 	}
 	var sourceNode Process
 	listener := c.graph.Listener(listenerID)
-	sourceSiteID := listener.Parent().Parent().ID()
+	lRouterNode := listener.Parent()
+	sourceSiteID := lRouterNode.Parent().ID()
 	sourceSiteHost := dref(record.SourceHost)
 	if sourceSiteID != "" && sourceSiteHost != "" {
 		sourceNode = c.graph.ConnectorTarget(ConnectorTargetID(sourceSiteID, sourceSiteHost)).Process()
@@ -325,12 +328,22 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 		return cr, missingSource
 	}
 	connector := c.graph.Connector(connectorID)
+	cRouterNode := connector.Parent()
 	dest := connector.Target()
 	destproc, ok := c.processAttrs(dest.ID())
 	if !ok {
 		return cr, missingDest
 	}
 
+	sourceRattrs, ok := c.routerAttrs(lRouterNode.ID())
+	if !ok {
+		return cr, missingSource
+	}
+
+	destRattrs, ok := c.routerAttrs(cRouterNode.ID())
+	if !ok {
+		return cr, missingDest
+	}
 	cr = ConnectionRecord{
 		ID:        record.ID,
 		StartTime: dref(record.StartTime).Time,
@@ -345,6 +358,10 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 			ID:   sourceproc.SiteID,
 			Name: sourceproc.SiteName,
 		},
+		SourceRouter: NamedReference{
+			ID:   sourceRattrs.ID,
+			Name: sourceRattrs.Name,
+		},
 		Dest: NamedReference{
 			ID:   destproc.ID,
 			Name: destproc.Name,
@@ -352,6 +369,10 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 		DestSite: NamedReference{
 			ID:   destproc.SiteID,
 			Name: destproc.SiteName,
+		},
+		DestRouter: NamedReference{
+			ID:   destRattrs.ID,
+			Name: destRattrs.Name,
 		},
 
 		stor: c.flows,
@@ -471,6 +492,7 @@ func (c *connectionManager) run(ctx context.Context) {
 				defer c.attrMu.Unlock()
 				c.processesCache = make(map[string]processAttributes)
 				c.connectorsCache = make(map[string]connectorAttrs)
+				c.routerCache = make(map[string]routerAttrs)
 			}()
 		case <-purgeFlows.C:
 			func() {
@@ -992,6 +1014,34 @@ func (c *connectionManager) processAttrs(id string) (processAttributes, bool) {
 	return attrs, complete
 }
 
+func (c *connectionManager) routerAttrs(id string) (routerAttrs, bool) {
+	var attrs routerAttrs
+	c.attrMu.Lock()
+	defer c.attrMu.Unlock()
+	if rattr, ok := c.routerCache[id]; ok {
+		return rattr, true
+	}
+
+	entry, ok := c.records.Get(id)
+	if !ok {
+		return attrs, false
+	}
+	rtr, ok := entry.Record.(vanflow.RouterRecord)
+	if !ok {
+		return attrs, false
+	}
+
+	var complete bool
+	if rtr.Name != nil {
+		complete = true
+		attrs.ID = rtr.ID
+		attrs.Name = *rtr.Name
+		c.routerCache[id] = attrs
+	}
+
+	return attrs, complete
+}
+
 func normalizeHTTPResponseClass(result *string) string {
 	class := "unknown"
 	if result == nil {
@@ -1023,4 +1073,25 @@ func dref[T any](p *T) T {
 		return *p
 	}
 	return t
+}
+
+type pair struct {
+	Source   string
+	Dest     string
+	Protocol string
+}
+type processAttributes struct {
+	ID       string
+	Name     string
+	SiteID   string
+	SiteName string
+}
+
+type connectorAttrs struct {
+	Protocol string
+	Address  string
+}
+type routerAttrs struct {
+	ID   string
+	Name string
 }

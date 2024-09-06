@@ -1,15 +1,17 @@
 package views
 
 import (
+	"strings"
 	"time"
 
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/api"
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/collector"
+	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
 )
 
-func NewConnectionsSliceProvider() func([]store.Entry) []api.ConnectionRecord {
-	provider := NewConnectionsProvider()
+func NewConnectionsSliceProvider(stor store.Interface) func([]store.Entry) []api.ConnectionRecord {
+	provider := NewConnectionsProvider(stor)
 	return func(entries []store.Entry) []api.ConnectionRecord {
 		results := make([]api.ConnectionRecord, 0, len(entries))
 		for _, e := range entries {
@@ -24,7 +26,42 @@ func NewConnectionsSliceProvider() func([]store.Entry) []api.ConnectionRecord {
 		return results
 	}
 }
-func NewConnectionsProvider() func(collector.ConnectionRecord) (api.ConnectionRecord, bool) {
+func NewConnectionsProvider(stor store.Interface) func(collector.ConnectionRecord) (api.ConnectionRecord, bool) {
+	memo := make(map[string]struct {
+		Router string
+		Site   string
+	})
+	routerAndSiteByTracePart := func(name string) (router string, site string, ok bool) {
+		if m, ok := memo[name]; ok {
+			return m.Router, m.Site, true
+		}
+		routers := stor.Index(collector.IndexByTypeName, store.Entry{
+			Record: vanflow.RouterRecord{Name: &name},
+		})
+		if len(routers) == 0 {
+			return router, site, false
+		}
+		re := routers[0]
+		rr := re.Record.(vanflow.RouterRecord)
+		if rr.Name == nil || rr.Parent == nil {
+			return router, site, false
+		}
+
+		se, ok := stor.Get(*rr.Parent)
+		if !ok {
+			return router, site, false
+		}
+		sr, ok := se.Record.(vanflow.SiteRecord)
+		if !ok || sr.Name == nil {
+			return router, site, false
+		}
+
+		memo[name] = struct {
+			Router string
+			Site   string
+		}{*rr.Name, *sr.Name}
+		return *rr.Name, *sr.Name, true
+	}
 	return func(conn collector.ConnectionRecord) (api.ConnectionRecord, bool) {
 		out := defaultConnection(conn.ID)
 
@@ -37,7 +74,6 @@ func NewConnectionsProvider() func(collector.ConnectionRecord) (api.ConnectionRe
 		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
 		out.ConnectorError = record.ErrorConnector
 		out.ListenerError = record.ErrorListener
-		setOpt(&out.Trace, record.Trace)
 		setOpt(&out.Octets, record.Octets)
 		setOpt(&out.OctetsReverse, record.OctetsReverse)
 		setOpt(&out.Latency, record.Latency)
@@ -52,6 +88,30 @@ func NewConnectionsProvider() func(collector.ConnectionRecord) (api.ConnectionRe
 				duration := uint64(record.EndTime.Sub(record.StartTime.Time) / time.Microsecond)
 				out.Duration = &duration
 			}
+		}
+
+		out.TraceSites = append(out.TraceSites, conn.SourceSite.Name)
+		out.TraceRouters = append(out.TraceRouters, conn.SourceRouter.Name)
+		if record.Trace != nil {
+			parts := strings.Split(*record.Trace, "|")
+			for _, routerName := range parts {
+				router, site, ok := routerAndSiteByTracePart(routerName)
+				if !ok {
+					continue
+				}
+				if last := out.TraceRouters[len(out.TraceRouters)-1]; last != router {
+					out.TraceRouters = append(out.TraceRouters, router)
+				}
+				if last := out.TraceSites[len(out.TraceSites)-1]; last != site {
+					out.TraceSites = append(out.TraceSites, site)
+				}
+			}
+		}
+		if last := out.TraceSites[len(out.TraceSites)-1]; last != conn.DestSite.Name {
+			out.TraceSites = append(out.TraceSites, conn.DestSite.Name)
+		}
+		if last := out.TraceRouters[len(out.TraceRouters)-1]; last != conn.DestRouter.Name {
+			out.TraceRouters = append(out.TraceRouters, conn.DestRouter.Name)
 		}
 
 		out.Protocol = conn.Protocol
@@ -73,7 +133,9 @@ func NewConnectionsProvider() func(collector.ConnectionRecord) (api.ConnectionRe
 
 func defaultConnection(id string) api.ConnectionRecord {
 	return api.ConnectionRecord{
-		Identity: id,
+		Identity:     id,
+		TraceRouters: []string{},
+		TraceSites:   []string{},
 	}
 }
 

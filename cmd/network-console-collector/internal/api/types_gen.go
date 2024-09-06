@@ -136,7 +136,12 @@ type ConnectionRecord struct {
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64 `json:"startTime"`
-	Trace     string `json:"trace"`
+
+	// TraceRouters Ordered array of the names of routers involved in proxying the connection
+	TraceRouters []string `json:"traceRouters"`
+
+	// TraceSites Ordered array of the names of sites involved in proxying the connection
+	TraceSites []string `json:"traceSites"`
 }
 
 // ConnectorListResponse defines model for ConnectorListResponse.
