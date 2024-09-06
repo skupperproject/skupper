@@ -131,7 +131,7 @@ func (m *processManager) run(ctx context.Context) func() error {
 								siteID := siteID
 								name := fmt.Sprintf("%s-%s-%s", processClass, host, shortSite(siteID))
 								groupName := fmt.Sprintf("%ss-%s", processClass, shortSite(siteID))
-								role := "external"
+								role := "remote"
 								m.stor.Add(vanflow.ProcessRecord{
 									BaseRecord: vanflow.NewBase(procID, time.Now()),
 									Parent:     &siteID,
