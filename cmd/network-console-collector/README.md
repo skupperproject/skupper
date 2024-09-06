@@ -65,7 +65,11 @@ Dimensions:
 | source_site_id | ID of the site where the connection was established |
 | source_site_name | Name of the source site |
 | dest_site_id | ID of the site where the connection exited the skupper network through a connector |
-| dest_site_name | Name of the distination site |
+| dest_site_name | Name of the destination site |
+| source_component_id | ID of the process group for the client process establishing the connection |
+| source_component_name | Name of the source process group |
+| dest_component_id | ID of the process group for the server process |
+| dest_component_name | Name of the destination process group |
 | routing_key | The routing key of the service |
 | protocol | The protocol used in the exchange (TCP) |
 | source_process_name | The name of the client process as reflected in the collector API |

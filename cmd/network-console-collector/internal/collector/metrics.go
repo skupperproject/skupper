@@ -114,6 +114,10 @@ var (
 		"dest_site_id",
 		"source_site_name",
 		"dest_site_name",
+		"source_component_id",
+		"dest_component_id",
+		"source_component_name",
+		"dest_component_name",
 		"routing_key",
 		"protocol",
 		"source_process_name",
@@ -123,25 +127,33 @@ var (
 )
 
 type labelSet struct {
-	SourceSiteID   string
-	DestSiteID     string
-	SourceSiteName string
-	DestSiteName   string
-	RoutingKey     string
-	Protocol       string
-	SourceProcess  string
-	DestProcess    string
+	SourceSiteID        string
+	DestSiteID          string
+	SourceSiteName      string
+	DestSiteName        string
+	SourceComponentID   string
+	DestComponentID     string
+	SourceComponentName string
+	DestComponentName   string
+	RoutingKey          string
+	Protocol            string
+	SourceProcess       string
+	DestProcess         string
 }
 
 func (ls labelSet) asLabels() prometheus.Labels {
 	return map[string]string{
-		"source_site_id":      ls.SourceSiteID,
-		"source_site_name":    ls.SourceSiteName,
-		"dest_site_id":        ls.DestSiteID,
-		"dest_site_name":      ls.DestSiteName,
-		"routing_key":         ls.RoutingKey,
-		"protocol":            ls.Protocol,
-		"source_process_name": ls.SourceProcess,
-		"dest_process_name":   ls.DestProcess,
+		"source_site_id":        ls.SourceSiteID,
+		"source_site_name":      ls.SourceSiteName,
+		"dest_site_id":          ls.DestSiteID,
+		"dest_site_name":        ls.DestSiteName,
+		"source_component_id":   ls.SourceComponentID,
+		"source_component_name": ls.SourceComponentName,
+		"dest_component_id":     ls.DestComponentID,
+		"dest_component_name":   ls.DestComponentName,
+		"routing_key":           ls.RoutingKey,
+		"protocol":              ls.Protocol,
+		"source_process_name":   ls.SourceProcess,
+		"dest_process_name":     ls.DestProcess,
 	}
 }

@@ -276,6 +276,8 @@ func (c *connectionManager) reconcileRequest(state appState) (RequestRecord, rec
 		SourceSite:  connRecord.SourceSite,
 		Dest:        connRecord.Dest,
 		DestSite:    connRecord.DestSite,
+		SourceGroup: connRecord.SourceGroup,
+		DestGroup:   connRecord.DestGroup,
 
 		stor: c.flows,
 	}
@@ -345,6 +347,7 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 	if !ok {
 		return cr, missingDest
 	}
+
 	cr = ConnectionRecord{
 		ID:            record.ID,
 		StartTime:     dref(record.StartTime).Time,
@@ -376,6 +379,14 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 		},
 		Listener: NamedReference{
 			ID: listenerID,
+		},
+		SourceGroup: NamedReference{
+			ID:   sourceproc.GroupID,
+			Name: sourceproc.GroupName,
+		},
+		DestGroup: NamedReference{
+			ID:   destproc.GroupID,
+			Name: destproc.GroupName,
 		},
 
 		stor: c.flows,
@@ -985,7 +996,7 @@ func (c *connectionManager) processAttrs(id string) (processAttributes, bool) {
 		return attrs, false
 	}
 	proc, ok := entry.Record.(vanflow.ProcessRecord)
-	if !ok || proc.Parent == nil {
+	if !ok || proc.Parent == nil || proc.Group == nil {
 		return attrs, false
 	}
 
@@ -997,6 +1008,14 @@ func (c *connectionManager) processAttrs(id string) (processAttributes, bool) {
 	if !ok {
 		return attrs, false
 	}
+	groups := c.records.Index(IndexByTypeName, store.Entry{Record: ProcessGroupRecord{Name: *proc.Group}})
+	if len(groups) == 0 {
+		return attrs, false
+	}
+	group, ok := groups[0].Record.(ProcessGroupRecord)
+	if !ok {
+		return attrs, false
+	}
 
 	var complete bool
 	if proc.Name != nil && site.Name != nil {
@@ -1005,9 +1024,10 @@ func (c *connectionManager) processAttrs(id string) (processAttributes, bool) {
 		attrs.Name = *proc.Name
 		attrs.SiteID = site.ID
 		attrs.SiteName = *site.Name
+		attrs.GroupID = group.ID
+		attrs.GroupName = group.Name
 		c.processesCache[id] = attrs
 	}
-
 	return attrs, complete
 }
 
@@ -1078,10 +1098,12 @@ type pair struct {
 	Protocol string
 }
 type processAttributes struct {
-	ID       string
-	Name     string
-	SiteID   string
-	SiteName string
+	ID        string
+	Name      string
+	SiteID    string
+	SiteName  string
+	GroupID   string
+	GroupName string
 }
 
 type connectorAttrs struct {

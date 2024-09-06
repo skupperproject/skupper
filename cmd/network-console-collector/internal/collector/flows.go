@@ -25,6 +25,8 @@ type ConnectionRecord struct {
 	Dest         NamedReference
 	SourceSite   NamedReference
 	DestSite     NamedReference
+	SourceGroup  NamedReference
+	DestGroup    NamedReference
 	SourceRouter NamedReference
 	DestRouter   NamedReference
 
@@ -54,14 +56,18 @@ func (r ConnectionRecord) GetTypeMeta() vanflow.TypeMeta {
 
 func (r ConnectionRecord) toLabelSet() labelSet {
 	return labelSet{
-		SourceSiteID:   r.SourceSite.ID,
-		DestSiteID:     r.DestSite.ID,
-		SourceSiteName: r.SourceSite.Name,
-		DestSiteName:   r.DestSite.Name,
-		RoutingKey:     r.RoutingKey,
-		Protocol:       r.Protocol,
-		SourceProcess:  r.Source.Name,
-		DestProcess:    r.Dest.Name,
+		SourceSiteID:        r.SourceSite.ID,
+		DestSiteID:          r.DestSite.ID,
+		SourceSiteName:      r.SourceSite.Name,
+		DestSiteName:        r.DestSite.Name,
+		RoutingKey:          r.RoutingKey,
+		Protocol:            r.Protocol,
+		SourceProcess:       r.Source.Name,
+		DestProcess:         r.Dest.Name,
+		SourceComponentID:   r.SourceGroup.ID,
+		SourceComponentName: r.SourceGroup.Name,
+		DestComponentID:     r.DestGroup.ID,
+		DestComponentName:   r.DestGroup.Name,
 	}
 }
 
@@ -76,12 +82,14 @@ type RequestRecord struct {
 	RoutingKey string
 	Protocol   string
 
-	Connector  NamedReference
-	Listener   NamedReference
-	Source     NamedReference
-	Dest       NamedReference
-	SourceSite NamedReference
-	DestSite   NamedReference
+	Connector   NamedReference
+	Listener    NamedReference
+	Source      NamedReference
+	Dest        NamedReference
+	SourceSite  NamedReference
+	DestSite    NamedReference
+	SourceGroup NamedReference
+	DestGroup   NamedReference
 
 	stor    store.Interface
 	metrics appMetrics
@@ -109,13 +117,17 @@ func (r RequestRecord) GetTypeMeta() vanflow.TypeMeta {
 
 func (r RequestRecord) toLabelSet() labelSet {
 	return labelSet{
-		SourceSiteID:   r.SourceSite.ID,
-		DestSiteID:     r.DestSite.ID,
-		SourceSiteName: r.SourceSite.Name,
-		DestSiteName:   r.DestSite.Name,
-		RoutingKey:     r.RoutingKey,
-		SourceProcess:  r.Source.Name,
-		DestProcess:    r.Dest.Name,
+		SourceSiteID:        r.SourceSite.ID,
+		DestSiteID:          r.DestSite.ID,
+		SourceSiteName:      r.SourceSite.Name,
+		DestSiteName:        r.DestSite.Name,
+		RoutingKey:          r.RoutingKey,
+		SourceProcess:       r.Source.Name,
+		DestProcess:         r.Dest.Name,
+		SourceComponentID:   r.SourceGroup.ID,
+		SourceComponentName: r.SourceGroup.Name,
+		DestComponentID:     r.DestGroup.ID,
+		DestComponentName:   r.DestGroup.Name,
 	}
 }
 
