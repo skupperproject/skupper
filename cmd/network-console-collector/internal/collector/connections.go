@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"context"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -390,25 +391,17 @@ func (c *connectionManager) getTransportMetricSet(l labelSet) transportMetrics {
 	if m, ok := c.transportMetricsCache[l]; ok {
 		return m
 	}
+	lRev := l
+	lRev.SourceProcess, lRev.DestProcess = lRev.DestProcess, lRev.SourceProcess
+	lRev.SourceSiteName, lRev.DestSiteName = lRev.DestSiteName, lRev.SourceSiteName
+	lRev.SourceSiteID, lRev.DestSiteID = lRev.DestSiteID, lRev.SourceSiteID
+
 	labels := l.asLabels()
-	legacyLabels := map[string]string{
-		"source_site":    l.SourceSiteName + "@_@" + l.SourceSiteID,
-		"dest_site":      l.DestSiteName + "@_@" + l.DestSiteID,
-		"address":        l.RoutingKey,
-		"protocol":       l.Protocol,
-		"source_process": l.SourceProcess,
-		"dest_process":   l.DestProcess,
-		"direction":      "incoming",
-	}
-	legacyLabelsReverse := map[string]string{
-		"source_site":    l.DestSiteName + "@_@" + l.DestSiteID,
-		"dest_site":      l.SourceSiteName + "@_@" + l.SourceSiteID,
-		"address":        l.RoutingKey,
-		"protocol":       l.Protocol,
-		"source_process": l.SourceProcess,
-		"dest_process":   l.DestProcess,
-		"direction":      "outgoing",
-	}
+	legacyLabels := maps.Clone(labels)
+	legacyLabels["direction"] = "incoming"
+
+	legacyLabelsReverse := lRev.asLabels()
+	legacyLabelsReverse["direction"] = "outgoing"
 	m := transportMetrics{
 		opened:               c.metrics.flowOpenedCounter.With(labels),
 		closed:               c.metrics.flowClosedCounter.With(labels),

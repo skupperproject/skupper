@@ -108,7 +108,13 @@ Related to Network Traffic metrics (and sharing the same label set.)
 | ------------------------ | ------------------------  |
 | latency_seconds | Histogram of connection latency observations - the difference between TTFB on the listener and connector sides. TCP only. |
 
-Related to the skupper v1 flow metrics (sharing the old label set.)
+Primarily for backward compatibility with the skupper v1 network console. New
+users should prefer the `latency_seconds` signal. The
+`legacy_flow_latency_microseconds` metric exposes the Time to First Byte (TTFB)
+as observed by skupper from the client (listener) and server (connector) sides
+on TCP connections. This metric shares the same standard set of labels
+described in the Application Network Traffic section, but adds a `direction`
+label to differentiate the listener and connector side TTFB.
 
 | metric name | description |
 | ------------------------ | ------------------------  |

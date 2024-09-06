@@ -27,22 +27,22 @@ func register(reg *prometheus.Registry) metrics {
 			Namespace: "skupper",
 			Name:      "connections_opened_total",
 			Help:      "Number of connections opened through the application network",
-		}, flowMetricLables),
+		}, flowMetricLabels),
 		flowClosedCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: "skupper",
 			Name:      "connections_closed_total",
 			Help:      "Number of connections opened through the application network that have been closed",
-		}, flowMetricLables),
+		}, flowMetricLabels),
 		flowBytesSentCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: "skupper",
 			Name:      "sent_bytes_total",
 			Help:      "Bytes sent through the application network from client to service",
-		}, flowMetricLables),
+		}, flowMetricLabels),
 		flowBytesReceivedCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: "skupper",
 			Name:      "received_bytes_total",
 			Help:      "Bytes sent through the application network back from service to client",
-		}, flowMetricLables),
+		}, flowMetricLabels),
 		requestsCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: "skupper",
 			Name:      "requests_total",
@@ -55,14 +55,14 @@ func register(reg *prometheus.Registry) metrics {
 				Name:      "latency_seconds",
 				Help:      "Latency observed measured as seconds difference between TTFB between listener and connector sides",
 				Buckets:   histBucketsFast,
-			}, flowMetricLables),
+			}, flowMetricLabels),
 			legancyLatency: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: "legacy",
 				Name:      "flow_latency_microseconds",
 				Help:      "Time to first byte observed from the listener (client) side",
 				//                 1ms,  2 ms, 5ms,  10ms,  100ms,  1s,      10s
 				Buckets: []float64{1000, 2000, 5000, 10000, 100000, 1000000, 10000000},
-			}, []string{"source_site", "dest_site", "address", "protocol", "source_process", "dest_process", "direction"}),
+			}, append(flowMetricLabels, "direction")),
 			reconcileTime: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: "skupper",
 				Subsystem: "internal",
@@ -109,7 +109,7 @@ func register(reg *prometheus.Registry) metrics {
 
 var (
 	histBucketsFast  = []float64{0.001, 0.002, .005, .01, .025, .05, .1, .25, .5, 1, 2.5}
-	flowMetricLables = []string{
+	flowMetricLabels = []string{
 		"source_site_id",
 		"dest_site_id",
 		"source_site_name",
@@ -119,7 +119,7 @@ var (
 		"source_process",
 		"dest_process",
 	}
-	appFlowMetricLables = append(flowMetricLables, "method", "code")
+	appFlowMetricLables = append(flowMetricLabels, "method", "code")
 )
 
 type labelSet struct {
