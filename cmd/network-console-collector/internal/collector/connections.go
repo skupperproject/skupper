@@ -361,10 +361,7 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 			ID:   sourceproc.SiteID,
 			Name: sourceproc.SiteName,
 		},
-		SourceRouter: NamedReference{
-			ID:   sourceRattrs.ID,
-			Name: sourceRattrs.Name,
-		},
+		SourceRouter: NamedReference(sourceRattrs),
 		Dest: NamedReference{
 			ID:   destproc.ID,
 			Name: destproc.Name,
@@ -373,10 +370,7 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 			ID:   destproc.SiteID,
 			Name: destproc.SiteName,
 		},
-		DestRouter: NamedReference{
-			ID:   destRattrs.ID,
-			Name: destRattrs.Name,
-		},
+		DestRouter: NamedReference(destRattrs),
 		Connector: NamedReference{
 			ID: connectorID,
 		},
