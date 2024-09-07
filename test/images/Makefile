@@ -153,9 +153,9 @@ all:
 # `podman build` on it, tagging it on the MAIN_REPO
 $(generated_build): TARGET = $(patsubst %_build,%,$@)
 $(generated_build):
-	$(PODMAN) build --platform $(PLATFORM) $(FORMAT_OPTIONS) --file Dockerfile.$(TARGET) --manifest $(MAIN_REPO)/$(TARGET)
+	$(PODMAN) build --platform $(PLATFORM) --no-cache $(FORMAT_OPTIONS) --file Dockerfile.$(TARGET) --manifest $(MAIN_REPO)/$(TARGET)
 
-# This is the generic the push target, for images built here (GENERATED_IMAGES)
+# This is the generic push target, for images built here (GENERATED_IMAGES)
 # Each image depends on its respective _build target
 %: %_build
 	$(PODMAN) push $(MAIN_REPO)/$@
