@@ -96,8 +96,6 @@ COPY_REPO = localhost:5000/local
 # like `multiple target patterns.  Stop.`
 EXTERNAL_IMAGES := \
 	docker.io/ssorj/quiver \
-	docker.io/library/postgres \
-	docker.io/library/redis \
 	docker.io/maistra/examples-bookinfo-productpage-v1\:0.12.0 \
 	docker.io/maistra/examples-bookinfo-ratings-v1\:0.12.0 \
 	docker.io/maistra/examples-bookinfo-details-v1\:0.12.0 \
@@ -117,6 +115,8 @@ EXTERNAL_IMAGES := \
 # For that reason, we need to first copy the image locally, change its
 # manifest, and only then copy it to its destination.
 REASSEMBLE_IMAGES := \
+	docker.io/library/postgres \
+	docker.io/library/redis \
 	docker.io/nginxinc/nginx-unprivileged \
 	docker.io/nginxinc/nginx-unprivileged\:stable-alpine
 
@@ -174,7 +174,7 @@ everything: external_images generated_images reassembled_images
 # the last part of the URL
 $(EXTERNAL_IMAGES): TARGET = $(shell echo "$@" | sed s_.*/__ )
 $(EXTERNAL_IMAGES):
-	$(SKOPEO) copy $(TRANSFORM_OPTIONS) \
+	$(SKOPEO) copy --all $(TRANSFORM_OPTIONS) \
 		docker://$@ \
 		docker://$(MAIN_REPO)/$(TARGET)
 
@@ -216,20 +216,20 @@ copy: $(generated_copy) $(external_copy) $(reassembled_copy)
 
 $(generated_copy): TARGET = $(patsubst %_copy,%,$@)
 $(generated_copy):
-	$(SKOPEO) copy $(TRANSFORM_OPTIONS) \
+	$(SKOPEO) copy --all $(TRANSFORM_OPTIONS) \
 		docker://$(MAIN_REPO)/$(TARGET) \
 		docker://$(COPY_REPO)/$(TARGET)
 
 # Remove _copy, but also everything till the last /
 $(external_copy): TARGET = $(shell echo "$@" | sed -e "s/_copy$$//" -e 's_.*/__' )
 $(external_copy):
-	$(SKOPEO) copy $(TRANSFORM_OPTIONS) \
+	$(SKOPEO) copy --all $(TRANSFORM_OPTIONS) \
 		docker://$(MAIN_REPO)/$(TARGET) \
 		docker://$(COPY_REPO)/$(TARGET)
 
 # Remove _copy, but also everything till the last /
 $(reassembled_copy): TARGET = $(shell echo "$@" | sed -e "s/_copy$$//" -e 's_.*/__' )
 $(reassembled_copy):
-	$(SKOPEO) copy $(TRANSFORM_OPTIONS) \
+	$(SKOPEO) copy --all $(TRANSFORM_OPTIONS) \
 		docker://$(MAIN_REPO)/$(TARGET) \
 		docker://$(COPY_REPO)/$(TARGET)
