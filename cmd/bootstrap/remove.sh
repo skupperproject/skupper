@@ -12,8 +12,8 @@ if [ -z "${UID:-}" ]; then
     UID="$(id -u)"
     export UID
 fi
-namespaces_path="${HOME}/.local/share/skupper/namespaces"
-service_path="${HOME}/.config/systemd/user"
+namespaces_path="${XDG_DATA_HOME:-${HOME}/.local/share}/skupper/namespaces"
+service_path="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
 systemctl="systemctl --user"
 if [ "${UID}" -eq 0 ]; then
     namespaces_path="/usr/local/share/skupper/namespaces"
