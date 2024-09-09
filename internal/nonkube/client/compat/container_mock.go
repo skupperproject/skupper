@@ -177,7 +177,13 @@ func (r *RestClientMock) HandleContainerList(operation *runtime.ClientOperation,
 								"IPPrefixLen": json.Number(strconv.Itoa(containerNetwork.IPPrefixLen)),
 								"MacAddress":  containerNetwork.MacAddress,
 								"Gateway":     containerNetwork.Gateway,
-								"Aliases":     containerNetwork.Aliases,
+								"Aliases": func(aliases []string) []interface{} {
+									aliasesI := make([]interface{}, len(aliases))
+									for i, alias := range aliases {
+										aliasesI[i] = alias
+									}
+									return aliasesI
+								}(containerNetwork.Aliases),
 							}
 						}
 						return containerNetworks
