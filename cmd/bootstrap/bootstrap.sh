@@ -130,9 +130,11 @@ create_service() {
 }
 
 usage() {
-    echo "Use: bootstrap.sh [-p <path>] [-n <namespace>]"
+    echo "Use: bootstrap.sh [-p <path>] [-n <namespace>] [-b strategy] [-f]"
     echo "     -p Custom resources location on the file system"
     echo "     -n The target namespace used for installation (overrides the namespace from custom resources when -p is provided)"
+    echo "     -b The bundle strategy to be produced: bundle or tarball"
+    echo "     -f Forces to overwrite an existing namespace"
     exit 1
 }
 
