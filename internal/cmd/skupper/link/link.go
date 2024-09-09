@@ -58,17 +58,17 @@ func CmdLinkUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdLinkUpdate()
 	nonKubeCommand := nonkube.NewCmdLinkUpdate()
 
-	cmdLinkGenerateDesc := common.SkupperCmdDescription{
+	cmdLinkUpdateDesc := common.SkupperCmdDescription{
 		Use:   "update <name>",
 		Short: "Change link settings",
 		Long:  "Change link settings",
 	}
 
-	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdLinkGenerateDesc, kubeCommand, nonKubeCommand)
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdLinkUpdateDesc, kubeCommand, nonKubeCommand)
 	cmdFlags := common.CommandLinkUpdateFlags{}
 	cmd.Flags().StringVar(&cmdFlags.TlsSecret, common.FlagNameTlsSecret, "", common.FlagDescTlsSecret)
 	cmd.Flags().StringVar(&cmdFlags.Cost, common.FlagNameCost, "1", common.FlagDescCost)
-	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "yaml", common.FlagDescOutput)
+	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	cmd.Flags().StringVar(&cmdFlags.Timeout, common.FlagNameTimeout, "60", common.FlagDescCost)
 
 	kubeCommand.CobraCmd = cmd
@@ -83,16 +83,16 @@ func CmdLinkStatusFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdLinkStatus()
 	nonKubeCommand := nonkube.NewCmdLinkStatus()
 
-	cmdLinkGenerateDesc := common.SkupperCmdDescription{
+	cmdLinkStatusDesc := common.SkupperCmdDescription{
 		Use:     "status",
 		Short:   "Display the status",
 		Long:    "Display the status of links in the current site.",
 		Example: "skupper link status",
 	}
 
-	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdLinkGenerateDesc, kubeCommand, nonKubeCommand)
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdLinkStatusDesc, kubeCommand, nonKubeCommand)
 	cmdFlags := common.CommandLinkStatusFlags{}
-	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "yaml", common.FlagDescOutput)
+	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
@@ -106,14 +106,14 @@ func CmdLinkDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdLinkDelete()
 	nonKubeCommand := nonkube.NewCmdLinkDelete()
 
-	cmdLinkGenerateDesc := common.SkupperCmdDescription{
+	cmdLinkDeleteDesc := common.SkupperCmdDescription{
 		Use:     "delete <name>",
 		Short:   "Delete a link",
 		Long:    "Delete a link by name",
 		Example: "skupper site delete my-link",
 	}
 
-	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdLinkGenerateDesc, kubeCommand, nonKubeCommand)
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdLinkDeleteDesc, kubeCommand, nonKubeCommand)
 	cmdFlags := common.CommandLinkDeleteFlags{}
 	cmd.Flags().StringVar(&cmdFlags.Timeout, common.FlagNameTimeout, "60", common.FlagDescTimeout)
 
