@@ -331,6 +331,8 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		mounts = append(mounts, []corev1.VolumeMount{})
 		if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
 			csp := strconv.Itoa(int(types.ConsoleOpenShiftServicePort))
+			metricsPort := strconv.Itoa(int(types.FlowCollectorDefaultServicePort))
+			envVars = append(envVars, corev1.EnvVar{Name: "FLOW_METRICS_PORT", Value: metricsPort})
 			envVars = append(envVars, corev1.EnvVar{Name: "FLOW_PORT", Value: csp})
 			envVars = append(envVars, corev1.EnvVar{Name: "FLOW_HOST", Value: "localhost"})
 			mounts = append(mounts, []corev1.VolumeMount{})
@@ -459,6 +461,12 @@ func (cli *VanClient) GetVanControllerSpec(options types.SiteConfigSpec, van *ty
 		if options.IsConsoleIngressRoute() {
 			annotations = getServingSecretAnnotations(types.ConsoleServerSecret)
 			if options.AuthMode == string(types.ConsoleAuthModeOpenshift) {
+				controllerPorts = append(controllerPorts, corev1.ServicePort{
+					Name:       "cluster-metrics",
+					Protocol:   "TCP",
+					Port:       types.FlowCollectorDefaultServicePort,
+					TargetPort: intstr.FromInt(int(types.FlowCollectorDefaultServiceTargetPort)),
+				})
 				metricsPort = corev1.ServicePort{
 					Name:       "metrics",
 					Protocol:   "TCP",
@@ -1757,8 +1765,6 @@ func (cli *VanClient) createPrometheus(ctx context.Context, siteConfig *types.Si
 		ServiceName: types.ControllerServiceName,
 		Namespace:   van.Namespace,
 		Port:        strconv.Itoa(int(types.FlowCollectorDefaultServicePort)),
-		User:        "admin",
-		Password:    "admin",
 		Hash:        "",
 	}
 	if siteConfig.Spec.PrometheusServer.AuthMode == string(types.PrometheusAuthModeBasic) {
