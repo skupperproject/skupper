@@ -2,7 +2,7 @@
 
 In this current phase of the Skupper V2 implementation, non-kubernetes sites
 can be bootstrapped using a locally built binary, that can be produced by running
-`make build-bootstrap`, or using the quay.io/skupper/bootstrap
+`make build-bootstrap`, or using the quay.io/skupper/bootstrap:v2-latest
 container image by calling `./cmd/bootstrap/bootstrap.sh` with the appropriate
 flags.
 
@@ -377,6 +377,28 @@ Considering all your CRs have been saved to a directory named `east`, use:
 
 Once both sites have been initialized, open **http://127.0.0.1:7070**
 in your browser and it should work.
+
+### Updating an existing installation
+
+Suppose modifications have been made to the `west` site CRs, directly at the
+namespace directory (i.e: ${HOME}/.local/share/skupper/namespaces/west/sources).
+
+To re-initialize the west site, run:
+
+```shell
+bootstrap -n west -f
+```
+
+The command above will reprocess all source CRs from the namespace path and
+restart the related components. The Certificate Authorities (CAs) are preserved,
+therefore eventual incoming links must still work.
+
+In case the CRs are located somewhere else, then a path must also be specified, as
+in the example below:
+
+```shell
+bootstrap -n west -p <path> -f
+```
 
 ### Cleanup
 
