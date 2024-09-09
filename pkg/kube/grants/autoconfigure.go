@@ -26,7 +26,14 @@ func (s *AutoConfigure) getConfigurationFromPod(clients internalclient.Clients, 
 	if err != nil {
 		return err
 	}
-	s.ownerRefs = pod.ObjectMeta.OwnerReferences
+	for _, or := range pod.ObjectMeta.OwnerReferences {
+		s.ownerRefs = append(s.ownerRefs, metav1.OwnerReference{
+			Kind:       or.Kind,
+			APIVersion: or.APIVersion,
+			Name:       or.Name,
+			UID:        or.UID,
+		})
+	}
 	s.selector = pod.ObjectMeta.Labels
 	return nil
 }
