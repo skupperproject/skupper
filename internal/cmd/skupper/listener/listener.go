@@ -14,7 +14,7 @@ func NewCmdListener() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "listener",
-q		Short: "Binds a connection endpoint in the local site to target workloads in remote sites.",
+		Short: "Binds a connection endpoint in the local site to target workloads in remote sites.",
 		Long:  `A listener is a connection endpoint in the local site and binds to target workloads in remote sites`,
 		Example: `skupper listener create my-listener 8080
 skupper listener status my-listener`,
