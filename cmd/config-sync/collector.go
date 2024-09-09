@@ -108,34 +108,41 @@ func runLeaderElection(lock *resourcelock.ConfigMapLock, ctx context.Context, id
 	)
 	begin := time.Now()
 	podname, _ := os.Hostname()
-	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
-		Lock:            lock,
-		ReleaseOnCancel: true,
-		LeaseDuration:   15 * time.Second,
-		RenewDeadline:   10 * time.Second,
-		RetryPeriod:     2 * time.Second,
-		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(c context.Context) {
-				log.Printf("COLLECTOR: Leader %s starting site collection after %s\n", podname, time.Since(begin))
-				leaderCtx, cancel = context.WithCancel(ctx)
-				siteCollector(leaderCtx, cli)
-				if err := startFlowController(leaderCtx, cli); err != nil {
-					log.Printf("COLLECTOR: Failed to start controller for emitting site events: %s", err)
-				}
+	for {
+		leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
+			Lock:            lock,
+			ReleaseOnCancel: true,
+			LeaseDuration:   15 * time.Second,
+			RenewDeadline:   10 * time.Second,
+			RetryPeriod:     2 * time.Second,
+			Callbacks: leaderelection.LeaderCallbacks{
+				OnStartedLeading: func(c context.Context) {
+					log.Printf("COLLECTOR: Leader %s starting site collection after %s\n", podname, time.Since(begin))
+					leaderCtx, cancel = context.WithCancel(ctx)
+					siteCollector(leaderCtx, cli)
+					if err := startFlowController(leaderCtx, cli); err != nil {
+						log.Printf("COLLECTOR: Failed to start controller for emitting site events: %s", err)
+					}
+				},
+				OnStoppedLeading: func() {
+					// No longer the leader, transition to inactive
+					cancel()
+					log.Printf("COLLECTOR: Lost leader after %s\n", time.Since(begin))
+				},
+				OnNewLeader: func(current_id string) {
+					if current_id == id {
+						// Remain as the leader
+						return
+					}
+					log.Printf("COLLECTOR: New leader for site collection is %s\n", current_id)
+				},
 			},
-			OnStoppedLeading: func() {
-				// No longer the leader, transition to inactive
-				cancel()
-			},
-			OnNewLeader: func(current_id string) {
-				if current_id == id {
-					// Remain as the leader
-					return
-				}
-				log.Printf("COLLECTOR: New leader for site collection is %s\n", current_id)
-			},
-		},
-	})
+		})
+		if ctx.Err() != nil {
+			return
+		}
+		log.Println("COLLECTOR: retrying leader election")
+	}
 }
 
 func startCollector(cli *internalclient.KubeClient) {
