@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,6 +16,11 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube/grants"
 	"github.com/skupperproject/skupper/pkg/version"
 )
+
+func init() {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
+}
 
 func describe(i interface{}) {
 	fmt.Printf("(%v, %T)\n", i, i)
