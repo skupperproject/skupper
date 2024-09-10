@@ -10,7 +10,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"strconv"
+	"time"
 )
 
 type CmdLinkDelete struct {
@@ -19,7 +19,7 @@ type CmdLinkDelete struct {
 	Namespace string
 	Flags     *common.CommandLinkDeleteFlags
 	linkName  string
-	timeout   int
+	timeout   time.Duration
 }
 
 func NewCmdLinkDelete() *CmdLinkDelete {
@@ -56,20 +56,16 @@ func (cmd *CmdLinkDelete) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("the link %q is not available in the namespace", cmd.linkName))
 		}
 	}
-	selectedTimeout, conversionErr := strconv.Atoi(cmd.Flags.Timeout)
-	if conversionErr != nil {
-		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", conversionErr))
-	} else {
-		ok, err := timeoutValidator.Evaluate(selectedTimeout)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
-		}
+
+	ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
+	if !ok {
+		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
 	}
 
 	return validationErrors
 }
 func (cmd *CmdLinkDelete) InputToOptions() {
-	cmd.timeout, _ = strconv.Atoi(cmd.Flags.Timeout)
+	cmd.timeout = cmd.Flags.Timeout
 }
 
 func (cmd *CmdLinkDelete) Run() error {
@@ -77,7 +73,8 @@ func (cmd *CmdLinkDelete) Run() error {
 	return err
 }
 func (cmd *CmdLinkDelete) WaitUntil() error {
-	err := utils2.NewSpinnerWithTimeout("Waiting for deletion to complete...", cmd.timeout, func() error {
+	waitTime := int(cmd.timeout.Seconds())
+	err := utils2.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
 		resource, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
 

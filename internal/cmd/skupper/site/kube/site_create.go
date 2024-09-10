@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"strconv"
+	"time"
 )
 
 type CmdSiteCreate struct {
@@ -28,7 +28,7 @@ type CmdSiteCreate struct {
 	Namespace          string
 	linkAccessType     string
 	output             string
-	timeout            int
+	timeout            time.Duration
 }
 
 func NewCmdSiteCreate() *CmdSiteCreate {
@@ -107,7 +107,7 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		}
 	}
 
-	if cmd.Flags != nil && cmd.Flags.Timeout != "" {
+	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
 		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
@@ -130,7 +130,7 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 	}
 
 	cmd.output = cmd.Flags.Output
-	cmd.timeout, _ = strconv.Atoi(cmd.Flags.Timeout)
+	cmd.timeout = cmd.Flags.Timeout
 
 }
 
@@ -171,7 +171,8 @@ func (cmd *CmdSiteCreate) WaitUntil() error {
 		return nil
 	}
 
-	err := utils.NewSpinner("Waiting for status...", cmd.timeout, func() error {
+	waitTime := int(cmd.timeout.Seconds())
+	err := utils.NewSpinnerWithTimeout("Waiting for status...", waitTime, func() error {
 
 		resource, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
 		if err != nil {

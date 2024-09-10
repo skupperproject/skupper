@@ -6,6 +6,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"k8s.io/client-go/kubernetes"
+	"time"
 	"strconv"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
@@ -26,7 +27,7 @@ type CmdSiteUpdate struct {
 	Namespace          string
 	linkAccessType     string
 	output             string
-	timeout            int
+	timeout            time.Duration
 }
 
 func NewCmdSiteUpdate() *CmdSiteUpdate {
@@ -110,7 +111,7 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 		}
 	}
 
-	if cmd.Flags != nil && cmd.Flags.Timeout != "" {
+	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
 		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
@@ -131,7 +132,7 @@ func (cmd *CmdSiteUpdate) InputToOptions() {
 	}
 
 	cmd.output = cmd.Flags.Output
-	cmd.timeout, _ = strconv.Atoi(cmd.Flags.Timeout)
+	cmd.timeout = cmd.Flags.Timeout
 
 }
 func (cmd *CmdSiteUpdate) Run() error {
@@ -192,7 +193,8 @@ func (cmd *CmdSiteUpdate) WaitUntil() error {
 		return nil
 	}
 
-	err := utils.NewSpinnerWithTimeout("Waiting for update to complete...", cmd.timeout, func() error {
+	waitTime := int(cmd.timeout.Seconds())
+	err := utils.NewSpinnerWithTimeout("Waiting for update to complete...", waitTime, func() error {
 
 		resource, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
 		if err != nil {

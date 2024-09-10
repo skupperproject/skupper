@@ -71,13 +71,14 @@ for other Kubernetes flavors, loadbalancer is the default.`
 )
 
 type CommandSiteCreateFlags struct {
-	EnableLinkAccess        bool
-	LinkAccessType          string
-	ServiceAccount          string
-	Output                  string
+	EnableLinkAccess bool
+	LinkAccessType   string
+	ServiceAccount   string
+	Output           string
+	Host             string
+	Timeout          time.Duration
 	BindHost                string
 	SubjectAlternativeNames []string
-	Timeout string
 }
 
 type CommandSiteUpdateFlags struct {
@@ -86,13 +87,13 @@ type CommandSiteUpdateFlags struct {
 	ServiceAccount   string
 	Output           string
 	Host             string
-	Timeout          string
+	Timeout          time.Duration
 	BindHost                string
 	SubjectAlternativeNames []string
 }
 
 type CommandSiteDeleteFlags struct {
-	Timeout string
+	Timeout time.Duration
 }
 
 type CommandLinkGenerateFlags struct {
@@ -100,17 +101,17 @@ type CommandLinkGenerateFlags struct {
 	Cost               string
 	Output             string
 	GenerateCredential bool
-	Timeout            string
+	Timeout            time.Duration
 }
 type CommandLinkUpdateFlags struct {
 	TlsSecret string
 	Cost      string
 	Output    string
-	Timeout   string
+	Timeout   time.Duration
 }
 
 type CommandLinkDeleteFlags struct {
-	Timeout string
+	Timeout time.Duration
 }
 type CommandLinkStatusFlags struct {
 	Output string

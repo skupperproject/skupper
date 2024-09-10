@@ -4,6 +4,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
+	"time"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 
@@ -197,7 +198,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 		{
 			name:       "timeout is not valid",
 			args:       []string{"my-site"},
-			flags:      &common.CommandSiteDeleteFlags{Timeout: "2seconds"},
+			flags:      &common.CommandSiteDeleteFlags{Timeout: time.Second * 0},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Site{
@@ -212,7 +213,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"timeout is not valid: value is not an integer"},
+			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 0s"},
 			skupperError:   "",
 		},
 	}
@@ -248,14 +249,14 @@ func TestCmdSiteDelete_InputToOptions(t *testing.T) {
 	type test struct {
 		name            string
 		flags           *common.CommandSiteDeleteFlags
-		expectedTimeout int
+		expectedTimeout time.Duration
 	}
 
 	testTable := []test{
 		{
 			name:            "options with timeout",
-			flags:           &common.CommandSiteDeleteFlags{Timeout: "30"},
-			expectedTimeout: 30,
+			flags:           &common.CommandSiteDeleteFlags{Timeout: time.Second * 30},
+			expectedTimeout: time.Second * 30,
 		},
 	}
 
@@ -401,7 +402,7 @@ func TestCmdSiteDelete_WaitUntil(t *testing.T) {
 		assert.Assert(t, err)
 		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
 		command.siteName = "my-site"
-		command.timeout = 1
+		command.timeout = time.Second
 
 		t.Run(test.name, func(t *testing.T) {
 
