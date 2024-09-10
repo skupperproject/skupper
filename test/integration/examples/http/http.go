@@ -643,7 +643,7 @@ var h1HeyBaseJob = &batchv1.Job{
 					{
 						Name:            "h1heybase",
 						Image:           "quay.io/skupper/hey",
-						Command:         []string{"hey_linux_amd64"},
+						Command:         []string{"/app/hey"},
 						ImagePullPolicy: apiv1.PullAlways,
 					},
 				},
