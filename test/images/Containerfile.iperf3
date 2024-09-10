@@ -1,0 +1,9 @@
+ARG TARGETPLATFORM
+
+FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
+
+# Create user and group and switch to user's context
+RUN microdnf -y install iperf3 \
+&& microdnf clean all
+RUN useradd --uid 10000 runner
+USER 10000
