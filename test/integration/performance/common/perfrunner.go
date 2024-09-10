@@ -11,6 +11,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/test/utils/arch"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -69,6 +70,18 @@ func runClientJobs(perfTest PerformanceTest) error {
 	}
 
 	for _, job := range app.Client.Jobs {
+		if job.Job.Labels["type"] == "wrk2" {
+			// wrk2 is not available for arm64
+			// https://github.com/giltene/wrk2/issues/104
+			err, skip := arch.Check(clientCluster)
+			if skip {
+				logger.Printf("! Skipping job %q: %v", job.Name, err)
+				continue
+			}
+			if err != nil {
+				return err
+			}
+		}
 		resultInfo := resultInfo{job: job}
 		stepLog.Printf("- Running client job %s at %s", job.Name, clientCluster.Namespace)
 
