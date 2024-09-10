@@ -96,6 +96,7 @@ COPY_REPO = localhost:5000/local
 # like `multiple target patterns.  Stop.`
 EXTERNAL_IMAGES := \
 	docker.io/ssorj/quiver \
+	docker.io/library/postgres\:9.5 \
 	docker.io/maistra/examples-bookinfo-productpage-v1\:0.12.0 \
 	docker.io/maistra/examples-bookinfo-ratings-v1\:0.12.0 \
 	docker.io/maistra/examples-bookinfo-details-v1\:0.12.0 \
