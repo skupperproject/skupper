@@ -125,6 +125,7 @@ REASSEMBLE_IMAGES := \
 # Containerfile.IMAGENAME and add the IMAGENAME below.
 GENERATED_IMAGES := \
 	hey \
+	iperf3 \
 	nghttp2 \
 	wrk
 
