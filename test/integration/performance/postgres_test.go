@@ -45,6 +45,10 @@ type postgresSettings struct {
 }
 
 func TestPostgres(t *testing.T) {
+	// TestPostgres is currently not functional for ARM
+	// https://github.com/skupperproject/skupper/issues/1650
+	common.CheckArch(t)
+
 	settings := parsePostgresSettings()
 	p := &PostgresTest{
 		Name:        "postgres",
@@ -61,6 +65,7 @@ func TestPostgres(t *testing.T) {
 		LatencyUnit:    common.LatencyUnitMs,
 	}
 	assert.Assert(t, common.RunPerformanceTest(p))
+
 }
 
 func (p *PostgresTest) App() common.PerformanceApp {
