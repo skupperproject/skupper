@@ -1,9 +1,18 @@
 ARG TARGETPLATFORM
 
-FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
+FROM --platform=$TARGETPLATFORM quay.io/fedora/fedora-minimal
+
+LABEL description="A supporting test image"
+LABEL maintainer="Skupper project"
+LABEL origin=https://github.com/skupperproject/skupper/blob/main/test/images
+
+EXPOSE 5201
 
 # Create user and group and switch to user's context
-RUN microdnf -y install iperf3 \
+RUN microdnf -y install iperf3 shadow-utils \
 && microdnf clean all
 RUN useradd --uid 10000 runner
 USER 10000
+
+ENTRYPOINT iperf3
+CMD []
