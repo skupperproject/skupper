@@ -101,60 +101,44 @@ func startFlowController(ctx context.Context, cli *internalclient.KubeClient) er
 	return nil
 }
 
-func runLeaderElection(lock *resourcelock.ConfigMapLock, ctx context.Context, id string, cli *internalclient.KubeClient) {
-	var (
-		leaderCtx context.Context
-		cancel    context.CancelFunc = func() {}
-	)
+func runLeaderElection(lock *resourcelock.ConfigMapLock, id string, cli *internalclient.KubeClient) {
+	ctx := context.Background()
 	begin := time.Now()
 	podname, _ := os.Hostname()
-	limiter := time.NewTicker(time.Second * 15)
-	defer limiter.Stop()
-	for {
-		leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
-			Lock:            lock,
-			ReleaseOnCancel: true,
-			LeaseDuration:   15 * time.Second,
-			RenewDeadline:   10 * time.Second,
-			RetryPeriod:     2 * time.Second,
-			Callbacks: leaderelection.LeaderCallbacks{
-				OnStartedLeading: func(c context.Context) {
-					log.Printf("COLLECTOR: Leader %s starting site collection after %s\n", podname, time.Since(begin))
-					leaderCtx, cancel = context.WithCancel(ctx)
-					siteCollector(leaderCtx, cli)
-					if err := startFlowController(leaderCtx, cli); err != nil {
-						log.Printf("COLLECTOR: Failed to start controller for emitting site events: %s", err)
-					}
-				},
-				OnStoppedLeading: func() {
-					// No longer the leader, transition to inactive
-					cancel()
-					log.Printf("COLLECTOR: Lost leader after %s\n", time.Since(begin))
-				},
-				OnNewLeader: func(current_id string) {
-					if current_id == id {
-						// Remain as the leader
-						return
-					}
-					log.Printf("COLLECTOR: New leader for site collection is %s\n", current_id)
-				},
+	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
+		Lock:            lock,
+		ReleaseOnCancel: true,
+		LeaseDuration:   15 * time.Second,
+		RenewDeadline:   10 * time.Second,
+		RetryPeriod:     2 * time.Second,
+		Callbacks: leaderelection.LeaderCallbacks{
+			OnStartedLeading: func(c context.Context) {
+				log.Printf("COLLECTOR: Leader %s starting site collection after %s\n", podname, time.Since(begin))
+				siteCollector(ctx, cli)
+				if err := startFlowController(ctx, cli); err != nil {
+					log.Printf("COLLECTOR: Failed to start controller for emitting site events: %s", err)
+				}
 			},
-		})
-		if ctx.Err() != nil {
-			return
-		}
-		<-limiter.C
-		log.Println("COLLECTOR: retrying leader election")
-	}
+			OnStoppedLeading: func() {
+				// we held the lock but lost it. This indicates that something
+				// went wrong. Exit and restart.
+				log.Fatalf("COLLECTOR: Lost leader lock after %s", time.Since(begin))
+			},
+			OnNewLeader: func(current_id string) {
+				if current_id == id {
+					// Remain as the leader
+					return
+				}
+				log.Printf("COLLECTOR: New leader for site collection is %s\n", current_id)
+			},
+		},
+	})
 }
 
 func startCollector(cli *internalclient.KubeClient) {
 	lockname := types.SiteLeaderLockName
 	namespace := cli.Namespace
 	podname, _ := os.Hostname()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	cmLock := &resourcelock.ConfigMapLock{
 		ConfigMapMeta: metav1.ObjectMeta{
@@ -167,7 +151,7 @@ func startCollector(cli *internalclient.KubeClient) {
 		},
 	}
 
-	runLeaderElection(cmLock, ctx, podname, cli)
+	runLeaderElection(cmLock, podname, cli)
 }
 
 func deploymentName() string {
