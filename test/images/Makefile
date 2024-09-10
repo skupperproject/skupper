@@ -101,7 +101,6 @@ EXTERNAL_IMAGES := \
 	docker.io/maistra/examples-bookinfo-ratings-v1\:0.12.0 \
 	docker.io/maistra/examples-bookinfo-details-v1\:0.12.0 \
 	docker.io/maistra/examples-bookinfo-reviews-v3\:0.12.0 \
-	docker.io/library/mongo\:5.0
 
 # These manifest lists require special handling; they contain 'images' with
 # os/arch/variant "unknown" and the following entry in LayersData.Annotations:
@@ -116,6 +115,7 @@ EXTERNAL_IMAGES := \
 # For that reason, we need to first copy the image locally, change its
 # manifest, and only then copy it to its destination.
 REASSEMBLE_IMAGES := \
+	docker.io/library/mongo\:5.0 \
 	docker.io/library/postgres \
 	docker.io/library/redis \
 	docker.io/nginxinc/nginx-unprivileged \
