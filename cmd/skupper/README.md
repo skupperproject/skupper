@@ -64,7 +64,7 @@ skupper listener create backend 8080 --host backend --routing-key backend -n wes
 
 # Link sites
 
-Create a AccessGrant in west site and generate a file with the accessToken:
+Create a AccessGrant in west site and generate a file with the AccessToken:
 
 ```
 skupper token issue token ~/token.yaml -n west
