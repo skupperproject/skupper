@@ -5,6 +5,8 @@ kubectl create namespace skupper
 kubectl config set-context --current --namespace skupper
 ```
 
+Apply the CRDs in the cluster:
+
 ```
 kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_access_grant_crd.yaml
 kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_access_token_crd.yaml
@@ -17,6 +19,10 @@ kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api
 kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_router_access_crd.yaml
 kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_secured_access_crd.yaml
 kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/api/types/crds/skupper_site_crd.yaml
+```
+
+Deploy the Skupper controller in the cluster:
+```
 kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/deploy_cluster_scope.yaml
 ```
 
@@ -58,11 +64,13 @@ skupper listener create backend 8080 --host backend --routing-key backend -n wes
 
 # Link sites
 
-Create a AccessGrant in west site and generate a file with the accessToken to redeem in east site:
+Create a AccessGrant in west site and generate a file with the accessToken:
 
 ```
 skupper token issue token ~/token.yaml -n west
 ```
+
+Copy token.yaml file to east site and redeem:
 
 ```
 skupper token redeem ~/token.yaml -n east
