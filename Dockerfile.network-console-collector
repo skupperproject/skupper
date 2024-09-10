@@ -16,9 +16,9 @@ RUN make GOOS=$TARGETOS GOARCH=$TARGETARCH build-network-console-collector
 FROM --platform=$BUILDPLATFORM node:18.18.2 AS console-builder
 
 WORKDIR /skupper-console/
-ADD https://github.com/skupperproject/skupper-console/archive/main.tar.gz .
-RUN tar -zxf main.tar.gz
-WORKDIR ./skupper-console-main
+ADD https://github.com/skupperproject/skupper-console/archive/v2.tar.gz .
+RUN tar -zxf v2.tar.gz
+WORKDIR ./skupper-console-2
 RUN yarn install && yarn build
 
 FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
@@ -31,5 +31,5 @@ USER 10000
 
 WORKDIR /app
 COPY --from=builder /go/src/app/network-console-collector .
-COPY --from=console-builder /skupper-console/skupper-console-main/build/ console
+COPY --from=console-builder /skupper-console/skupper-console-2/build/ console
 ENTRYPOINT ["/app/network-console-collector"]
