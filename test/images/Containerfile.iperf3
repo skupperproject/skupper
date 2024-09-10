@@ -14,5 +14,5 @@ RUN microdnf -y install iperf3 shadow-utils \
 RUN useradd --uid 10000 runner
 USER 10000
 
-ENTRYPOINT iperf3
 CMD []
+ENTRYPOINT ["/usr/bin/iperf3"]
