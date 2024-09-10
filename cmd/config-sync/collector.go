@@ -108,6 +108,8 @@ func runLeaderElection(lock *resourcelock.ConfigMapLock, ctx context.Context, id
 	)
 	begin := time.Now()
 	podname, _ := os.Hostname()
+	limiter := time.NewTicker(time.Second * 15)
+	defer limiter.Stop()
 	for {
 		leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
 			Lock:            lock,
@@ -141,6 +143,7 @@ func runLeaderElection(lock *resourcelock.ConfigMapLock, ctx context.Context, id
 		if ctx.Err() != nil {
 			return
 		}
+		<-limiter.C
 		log.Println("COLLECTOR: retrying leader election")
 	}
 }
