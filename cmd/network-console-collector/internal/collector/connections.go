@@ -389,7 +389,7 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 			Name: destproc.GroupName,
 		},
 
-		stor: c.flows,
+		FlowStore: c.flows,
 	}
 	cr.metrics = c.getTransportMetricSet(cr.toLabelSet())
 	return cr, success

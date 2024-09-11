@@ -30,13 +30,16 @@ type ConnectionRecord struct {
 	SourceRouter NamedReference
 	DestRouter   NamedReference
 
-	stor    store.Interface
-	metrics transportMetrics
+	// FlowStore is the backing store containing the Biflow records. This was
+	// split from the main record store to keep high volume flow producers from
+	// affecting the rest of the event sources.
+	FlowStore store.Interface
+	metrics   transportMetrics
 }
 
 func (cr *ConnectionRecord) GetFlow() (vanflow.TransportBiflowRecord, bool) {
 	var record vanflow.TransportBiflowRecord
-	ent, ok := cr.stor.Get(cr.ID)
+	ent, ok := cr.FlowStore.Get(cr.ID)
 	if !ok {
 		return record, false
 	}
