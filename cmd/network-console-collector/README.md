@@ -15,7 +15,7 @@ stable.
 
 ## API
 
-Status: dev/doc only (server not in full compliance)
+Status: dev (server not in full compliance)
 
 The Skupper Network Console HTTP API is described in an openapi 3.0
 specification file inside the `spec` directory. To view the API, either import
@@ -31,9 +31,10 @@ import the spec by URL (File -> Import URL) from
 
 The code generated based off of the openapi specification document provides an
 API Client (presently used for unit testing the service) as well as a Server
-Interface for us to implement. To update the generated code after updates to
-the openapi specification run `go generate` targeting this package. This should
-update the types_gen.go and extras_gen.go files in the internal/api package.
+Interface that is implemented in the `internal/server` package. To update the
+generated code after updates to the openapi specification run `go generate`
+targeting this package. This should update the types_gen.go and extras_gen.go
+files in the internal/api package.
 
 ## Metrics
 
@@ -77,8 +78,8 @@ Dimensions:
 
 ### Application Network Request Traffic (Application Layer)
 
-A proposed (unimplemented) set of metrics that expose details about HTTP and
-HTTP/2 exchanges when enabled in the router.
+A proposed set of metrics that expose details about HTTP and HTTP/2 exchanges
+when enabled in the router.
 
 Signals:
 
@@ -103,8 +104,10 @@ above, but includes several additional labels.
 We expose a set of metrics prefixed `skupper_internal` to help us observe the
 collector itself. Moving forward we may end up recommending anyone scraping
 skupper metrics from the collector exclude these when storage space is a
-concern.
+concern. All internal metrics should be considered unstable.
 
+
+**notable internal metrics to the user**
 
 Related to Network Traffic metrics (and sharing the same label set.)
 
