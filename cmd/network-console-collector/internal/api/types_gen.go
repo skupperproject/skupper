@@ -778,20 +778,11 @@ type ClientInterface interface {
 	// ConnectionsByAddress request
 	ConnectionsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ConnectorsByAddress request
-	ConnectorsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ListenersByAddress request
-	ListenersByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// ProcessesByAddress request
 	ProcessesByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ProcessPairsByAddress request
 	ProcessPairsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// RequestsByAddress request
-	RequestsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// Connections request
 	Connections(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -820,20 +811,11 @@ type ClientInterface interface {
 	// ListenerByID request
 	ListenerByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// FlowsByListener request
-	FlowsByListener(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// Processes request
 	Processes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ProcessById request
 	ProcessById(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// AddressesByProcess request
-	AddressesByProcess(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ConnectorByProcess request
-	ConnectorByProcess(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// Processgrouppairs request
 	Processgrouppairs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -846,9 +828,6 @@ type ClientInterface interface {
 
 	// ProcessgroupByID request
 	ProcessgroupByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ProcessesByProcessGroup request
-	ProcessesByProcessGroup(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// Processpairs request
 	Processpairs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -877,17 +856,8 @@ type ClientInterface interface {
 	// RouterByID request
 	RouterByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ConnectorsByRouter request
-	ConnectorsByRouter(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// FlowsByRouter request
-	FlowsByRouter(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// LinksByRouter request
 	LinksByRouter(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ListenersByRouter request
-	ListenersByRouter(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// Sitepairs request
 	Sitepairs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -900,9 +870,6 @@ type ClientInterface interface {
 
 	// SiteById request
 	SiteById(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// FlowsBySite request
-	FlowsBySite(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// HostsBySite request
 	HostsBySite(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -953,30 +920,6 @@ func (c *Client) ConnectionsByAddress(ctx context.Context, id PathID, reqEditors
 	return c.Client.Do(req)
 }
 
-func (c *Client) ConnectorsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConnectorsByAddressRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ListenersByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListenersByAddressRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
 func (c *Client) ProcessesByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewProcessesByAddressRequest(c.Server, id)
 	if err != nil {
@@ -991,18 +934,6 @@ func (c *Client) ProcessesByAddress(ctx context.Context, id PathID, reqEditors .
 
 func (c *Client) ProcessPairsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewProcessPairsByAddressRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) RequestsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRequestsByAddressRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1121,18 +1052,6 @@ func (c *Client) ListenerByID(ctx context.Context, id PathID, reqEditors ...Requ
 	return c.Client.Do(req)
 }
 
-func (c *Client) FlowsByListener(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewFlowsByListenerRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
 func (c *Client) Processes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewProcessesRequest(c.Server)
 	if err != nil {
@@ -1147,30 +1066,6 @@ func (c *Client) Processes(ctx context.Context, reqEditors ...RequestEditorFn) (
 
 func (c *Client) ProcessById(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewProcessByIdRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) AddressesByProcess(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewAddressesByProcessRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ConnectorByProcess(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConnectorByProcessRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1219,18 +1114,6 @@ func (c *Client) Processgroups(ctx context.Context, reqEditors ...RequestEditorF
 
 func (c *Client) ProcessgroupByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewProcessgroupByIDRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ProcessesByProcessGroup(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewProcessesByProcessGroupRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1349,44 +1232,8 @@ func (c *Client) RouterByID(ctx context.Context, id PathID, reqEditors ...Reques
 	return c.Client.Do(req)
 }
 
-func (c *Client) ConnectorsByRouter(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConnectorsByRouterRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) FlowsByRouter(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewFlowsByRouterRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
 func (c *Client) LinksByRouter(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewLinksByRouterRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ListenersByRouter(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListenersByRouterRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1435,18 +1282,6 @@ func (c *Client) Sites(ctx context.Context, reqEditors ...RequestEditorFn) (*htt
 
 func (c *Client) SiteById(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSiteByIdRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) FlowsBySite(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewFlowsBySiteRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1600,74 +1435,6 @@ func NewConnectionsByAddressRequest(server string, id PathID) (*http.Request, er
 	return req, nil
 }
 
-// NewConnectorsByAddressRequest generates requests for ConnectorsByAddress
-func NewConnectorsByAddressRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1alpha1/addresses/%s/connectors/", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewListenersByAddressRequest generates requests for ListenersByAddress
-func NewListenersByAddressRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1alpha1/addresses/%s/listeners/", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
 // NewProcessesByAddressRequest generates requests for ProcessesByAddress
 func NewProcessesByAddressRequest(server string, id PathID) (*http.Request, error) {
 	var err error
@@ -1719,40 +1486,6 @@ func NewProcessPairsByAddressRequest(server string, id PathID) (*http.Request, e
 	}
 
 	operationPath := fmt.Sprintf("/api/v1alpha1/addresses/%s/processpairs/", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewRequestsByAddressRequest generates requests for RequestsByAddress
-func NewRequestsByAddressRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1alpha1/addresses/%s/requests/", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2041,40 +1774,6 @@ func NewListenerByIDRequest(server string, id PathID) (*http.Request, error) {
 	return req, nil
 }
 
-// NewFlowsByListenerRequest generates requests for FlowsByListener
-func NewFlowsByListenerRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1alpha1/listeners/%s/flows", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
 // NewProcessesRequest generates requests for Processes
 func NewProcessesRequest(server string) (*http.Request, error) {
 	var err error
@@ -2119,74 +1818,6 @@ func NewProcessByIdRequest(server string, id PathID) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/api/v1alpha1/processes/%s/", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewAddressesByProcessRequest generates requests for AddressesByProcess
-func NewAddressesByProcessRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1alpha1/processes/%s/addresses/", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewConnectorByProcessRequest generates requests for ConnectorByProcess
-func NewConnectorByProcessRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1alpha1/processes/%s/connector/", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2309,40 +1940,6 @@ func NewProcessgroupByIDRequest(server string, id PathID) (*http.Request, error)
 	}
 
 	operationPath := fmt.Sprintf("/api/v1alpha1/processgroups/%s/", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewProcessesByProcessGroupRequest generates requests for ProcessesByProcessGroup
-func NewProcessesByProcessGroupRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1alpha1/processgroups/%s/processes/", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2631,74 +2228,6 @@ func NewRouterByIDRequest(server string, id PathID) (*http.Request, error) {
 	return req, nil
 }
 
-// NewConnectorsByRouterRequest generates requests for ConnectorsByRouter
-func NewConnectorsByRouterRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1alpha1/routers/%s/connectors/", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewFlowsByRouterRequest generates requests for FlowsByRouter
-func NewFlowsByRouterRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1alpha1/routers/%s/flows/", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
 // NewLinksByRouterRequest generates requests for LinksByRouter
 func NewLinksByRouterRequest(server string, id PathID) (*http.Request, error) {
 	var err error
@@ -2716,40 +2245,6 @@ func NewLinksByRouterRequest(server string, id PathID) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/api/v1alpha1/routers/%s/links/", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewListenersByRouterRequest generates requests for ListenersByRouter
-func NewListenersByRouterRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1alpha1/routers/%s/listeners/", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2872,40 +2367,6 @@ func NewSiteByIdRequest(server string, id PathID) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/api/v1alpha1/sites/%s/", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewFlowsBySiteRequest generates requests for FlowsBySite
-func NewFlowsBySiteRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1alpha1/sites/%s/flows/", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -3111,20 +2572,11 @@ type ClientWithResponsesInterface interface {
 	// ConnectionsByAddressWithResponse request
 	ConnectionsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectionsByAddressResponse, error)
 
-	// ConnectorsByAddressWithResponse request
-	ConnectorsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectorsByAddressResponse, error)
-
-	// ListenersByAddressWithResponse request
-	ListenersByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ListenersByAddressResponse, error)
-
 	// ProcessesByAddressWithResponse request
 	ProcessesByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessesByAddressResponse, error)
 
 	// ProcessPairsByAddressWithResponse request
 	ProcessPairsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessPairsByAddressResponse, error)
-
-	// RequestsByAddressWithResponse request
-	RequestsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*RequestsByAddressResponse, error)
 
 	// ConnectionsWithResponse request
 	ConnectionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ConnectionsResponse, error)
@@ -3153,20 +2605,11 @@ type ClientWithResponsesInterface interface {
 	// ListenerByIDWithResponse request
 	ListenerByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ListenerByIDResponse, error)
 
-	// FlowsByListenerWithResponse request
-	FlowsByListenerWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*FlowsByListenerResponse, error)
-
 	// ProcessesWithResponse request
 	ProcessesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ProcessesResponse, error)
 
 	// ProcessByIdWithResponse request
 	ProcessByIdWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessByIdResponse, error)
-
-	// AddressesByProcessWithResponse request
-	AddressesByProcessWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*AddressesByProcessResponse, error)
-
-	// ConnectorByProcessWithResponse request
-	ConnectorByProcessWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectorByProcessResponse, error)
 
 	// ProcessgrouppairsWithResponse request
 	ProcessgrouppairsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ProcessgrouppairsResponse, error)
@@ -3179,9 +2622,6 @@ type ClientWithResponsesInterface interface {
 
 	// ProcessgroupByIDWithResponse request
 	ProcessgroupByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessgroupByIDResponse, error)
-
-	// ProcessesByProcessGroupWithResponse request
-	ProcessesByProcessGroupWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessesByProcessGroupResponse, error)
 
 	// ProcesspairsWithResponse request
 	ProcesspairsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ProcesspairsResponse, error)
@@ -3210,17 +2650,8 @@ type ClientWithResponsesInterface interface {
 	// RouterByIDWithResponse request
 	RouterByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*RouterByIDResponse, error)
 
-	// ConnectorsByRouterWithResponse request
-	ConnectorsByRouterWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectorsByRouterResponse, error)
-
-	// FlowsByRouterWithResponse request
-	FlowsByRouterWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*FlowsByRouterResponse, error)
-
 	// LinksByRouterWithResponse request
 	LinksByRouterWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*LinksByRouterResponse, error)
-
-	// ListenersByRouterWithResponse request
-	ListenersByRouterWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ListenersByRouterResponse, error)
 
 	// SitepairsWithResponse request
 	SitepairsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*SitepairsResponse, error)
@@ -3233,9 +2664,6 @@ type ClientWithResponsesInterface interface {
 
 	// SiteByIdWithResponse request
 	SiteByIdWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*SiteByIdResponse, error)
-
-	// FlowsBySiteWithResponse request
-	FlowsBySiteWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*FlowsBySiteResponse, error)
 
 	// HostsBySiteWithResponse request
 	HostsBySiteWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*HostsBySiteResponse, error)
@@ -3319,52 +2747,6 @@ func (r ConnectionsByAddressResponse) StatusCode() int {
 	return 0
 }
 
-type ConnectorsByAddressResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetConnectors
-	JSON404      *ErrorNotFound
-}
-
-// Status returns HTTPResponse.Status
-func (r ConnectorsByAddressResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ConnectorsByAddressResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type ListenersByAddressResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetListeners
-	JSON404      *ErrorNotFound
-}
-
-// Status returns HTTPResponse.Status
-func (r ListenersByAddressResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ListenersByAddressResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
 type ProcessesByAddressResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3405,29 +2787,6 @@ func (r ProcessPairsByAddressResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ProcessPairsByAddressResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type RequestsByAddressResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetRequests
-	JSON404      *ErrorNotFound
-}
-
-// Status returns HTTPResponse.Status
-func (r RequestsByAddressResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r RequestsByAddressResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -3639,28 +2998,6 @@ func (r ListenerByIDResponse) StatusCode() int {
 	return 0
 }
 
-type FlowsByListenerResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON410      *NotSupported
-}
-
-// Status returns HTTPResponse.Status
-func (r FlowsByListenerResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r FlowsByListenerResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
 type ProcessesResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3701,52 +3038,6 @@ func (r ProcessByIdResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ProcessByIdResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type AddressesByProcessResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetAddresses
-	JSON404      *ErrorNotFound
-}
-
-// Status returns HTTPResponse.Status
-func (r AddressesByProcessResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r AddressesByProcessResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type ConnectorByProcessResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetConnectorByID
-	JSON404      *ErrorNotFound
-}
-
-// Status returns HTTPResponse.Status
-func (r ConnectorByProcessResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ConnectorByProcessResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -3839,29 +3130,6 @@ func (r ProcessgroupByIDResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ProcessgroupByIDResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type ProcessesByProcessGroupResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetProcesses
-	JSON404      *ErrorNotFound
-}
-
-// Status returns HTTPResponse.Status
-func (r ProcessesByProcessGroupResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ProcessesByProcessGroupResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -4074,51 +3342,6 @@ func (r RouterByIDResponse) StatusCode() int {
 	return 0
 }
 
-type ConnectorsByRouterResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetConnectors
-	JSON404      *ErrorNotFound
-}
-
-// Status returns HTTPResponse.Status
-func (r ConnectorsByRouterResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ConnectorsByRouterResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type FlowsByRouterResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON410      *NotSupported
-}
-
-// Status returns HTTPResponse.Status
-func (r FlowsByRouterResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r FlowsByRouterResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
 type LinksByRouterResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -4135,29 +3358,6 @@ func (r LinksByRouterResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r LinksByRouterResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type ListenersByRouterResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetListeners
-	JSON404      *ErrorNotFound
-}
-
-// Status returns HTTPResponse.Status
-func (r ListenersByRouterResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ListenersByRouterResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -4250,28 +3450,6 @@ func (r SiteByIdResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r SiteByIdResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type FlowsBySiteResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON410      *NotSupported
-}
-
-// Status returns HTTPResponse.Status
-func (r FlowsBySiteResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r FlowsBySiteResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -4395,24 +3573,6 @@ func (c *ClientWithResponses) ConnectionsByAddressWithResponse(ctx context.Conte
 	return ParseConnectionsByAddressResponse(rsp)
 }
 
-// ConnectorsByAddressWithResponse request returning *ConnectorsByAddressResponse
-func (c *ClientWithResponses) ConnectorsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectorsByAddressResponse, error) {
-	rsp, err := c.ConnectorsByAddress(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseConnectorsByAddressResponse(rsp)
-}
-
-// ListenersByAddressWithResponse request returning *ListenersByAddressResponse
-func (c *ClientWithResponses) ListenersByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ListenersByAddressResponse, error) {
-	rsp, err := c.ListenersByAddress(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseListenersByAddressResponse(rsp)
-}
-
 // ProcessesByAddressWithResponse request returning *ProcessesByAddressResponse
 func (c *ClientWithResponses) ProcessesByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessesByAddressResponse, error) {
 	rsp, err := c.ProcessesByAddress(ctx, id, reqEditors...)
@@ -4429,15 +3589,6 @@ func (c *ClientWithResponses) ProcessPairsByAddressWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseProcessPairsByAddressResponse(rsp)
-}
-
-// RequestsByAddressWithResponse request returning *RequestsByAddressResponse
-func (c *ClientWithResponses) RequestsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*RequestsByAddressResponse, error) {
-	rsp, err := c.RequestsByAddress(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseRequestsByAddressResponse(rsp)
 }
 
 // ConnectionsWithResponse request returning *ConnectionsResponse
@@ -4521,15 +3672,6 @@ func (c *ClientWithResponses) ListenerByIDWithResponse(ctx context.Context, id P
 	return ParseListenerByIDResponse(rsp)
 }
 
-// FlowsByListenerWithResponse request returning *FlowsByListenerResponse
-func (c *ClientWithResponses) FlowsByListenerWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*FlowsByListenerResponse, error) {
-	rsp, err := c.FlowsByListener(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseFlowsByListenerResponse(rsp)
-}
-
 // ProcessesWithResponse request returning *ProcessesResponse
 func (c *ClientWithResponses) ProcessesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ProcessesResponse, error) {
 	rsp, err := c.Processes(ctx, reqEditors...)
@@ -4546,24 +3688,6 @@ func (c *ClientWithResponses) ProcessByIdWithResponse(ctx context.Context, id Pa
 		return nil, err
 	}
 	return ParseProcessByIdResponse(rsp)
-}
-
-// AddressesByProcessWithResponse request returning *AddressesByProcessResponse
-func (c *ClientWithResponses) AddressesByProcessWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*AddressesByProcessResponse, error) {
-	rsp, err := c.AddressesByProcess(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseAddressesByProcessResponse(rsp)
-}
-
-// ConnectorByProcessWithResponse request returning *ConnectorByProcessResponse
-func (c *ClientWithResponses) ConnectorByProcessWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectorByProcessResponse, error) {
-	rsp, err := c.ConnectorByProcess(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseConnectorByProcessResponse(rsp)
 }
 
 // ProcessgrouppairsWithResponse request returning *ProcessgrouppairsResponse
@@ -4600,15 +3724,6 @@ func (c *ClientWithResponses) ProcessgroupByIDWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseProcessgroupByIDResponse(rsp)
-}
-
-// ProcessesByProcessGroupWithResponse request returning *ProcessesByProcessGroupResponse
-func (c *ClientWithResponses) ProcessesByProcessGroupWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessesByProcessGroupResponse, error) {
-	rsp, err := c.ProcessesByProcessGroup(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseProcessesByProcessGroupResponse(rsp)
 }
 
 // ProcesspairsWithResponse request returning *ProcesspairsResponse
@@ -4692,24 +3807,6 @@ func (c *ClientWithResponses) RouterByIDWithResponse(ctx context.Context, id Pat
 	return ParseRouterByIDResponse(rsp)
 }
 
-// ConnectorsByRouterWithResponse request returning *ConnectorsByRouterResponse
-func (c *ClientWithResponses) ConnectorsByRouterWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectorsByRouterResponse, error) {
-	rsp, err := c.ConnectorsByRouter(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseConnectorsByRouterResponse(rsp)
-}
-
-// FlowsByRouterWithResponse request returning *FlowsByRouterResponse
-func (c *ClientWithResponses) FlowsByRouterWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*FlowsByRouterResponse, error) {
-	rsp, err := c.FlowsByRouter(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseFlowsByRouterResponse(rsp)
-}
-
 // LinksByRouterWithResponse request returning *LinksByRouterResponse
 func (c *ClientWithResponses) LinksByRouterWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*LinksByRouterResponse, error) {
 	rsp, err := c.LinksByRouter(ctx, id, reqEditors...)
@@ -4717,15 +3814,6 @@ func (c *ClientWithResponses) LinksByRouterWithResponse(ctx context.Context, id 
 		return nil, err
 	}
 	return ParseLinksByRouterResponse(rsp)
-}
-
-// ListenersByRouterWithResponse request returning *ListenersByRouterResponse
-func (c *ClientWithResponses) ListenersByRouterWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ListenersByRouterResponse, error) {
-	rsp, err := c.ListenersByRouter(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseListenersByRouterResponse(rsp)
 }
 
 // SitepairsWithResponse request returning *SitepairsResponse
@@ -4762,15 +3850,6 @@ func (c *ClientWithResponses) SiteByIdWithResponse(ctx context.Context, id PathI
 		return nil, err
 	}
 	return ParseSiteByIdResponse(rsp)
-}
-
-// FlowsBySiteWithResponse request returning *FlowsBySiteResponse
-func (c *ClientWithResponses) FlowsBySiteWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*FlowsBySiteResponse, error) {
-	rsp, err := c.FlowsBySite(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseFlowsBySiteResponse(rsp)
 }
 
 // HostsBySiteWithResponse request returning *HostsBySiteResponse
@@ -4908,72 +3987,6 @@ func ParseConnectionsByAddressResponse(rsp *http.Response) (*ConnectionsByAddres
 	return response, nil
 }
 
-// ParseConnectorsByAddressResponse parses an HTTP response from a ConnectorsByAddressWithResponse call
-func ParseConnectorsByAddressResponse(rsp *http.Response) (*ConnectorsByAddressResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ConnectorsByAddressResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetConnectors
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest ErrorNotFound
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseListenersByAddressResponse parses an HTTP response from a ListenersByAddressWithResponse call
-func ParseListenersByAddressResponse(rsp *http.Response) (*ListenersByAddressResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ListenersByAddressResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetListeners
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest ErrorNotFound
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	}
-
-	return response, nil
-}
-
 // ParseProcessesByAddressResponse parses an HTTP response from a ProcessesByAddressWithResponse call
 func ParseProcessesByAddressResponse(rsp *http.Response) (*ProcessesByAddressResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -5023,39 +4036,6 @@ func ParseProcessPairsByAddressResponse(rsp *http.Response) (*ProcessPairsByAddr
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest GetFlowAggregates
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest ErrorNotFound
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseRequestsByAddressResponse parses an HTTP response from a RequestsByAddressWithResponse call
-func ParseRequestsByAddressResponse(rsp *http.Response) (*RequestsByAddressResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &RequestsByAddressResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetRequests
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -5356,32 +4336,6 @@ func ParseListenerByIDResponse(rsp *http.Response) (*ListenerByIDResponse, error
 	return response, nil
 }
 
-// ParseFlowsByListenerResponse parses an HTTP response from a FlowsByListenerWithResponse call
-func ParseFlowsByListenerResponse(rsp *http.Response) (*FlowsByListenerResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &FlowsByListenerResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 410:
-		var dest NotSupported
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON410 = &dest
-
-	}
-
-	return response, nil
-}
-
 // ParseProcessesResponse parses an HTTP response from a ProcessesWithResponse call
 func ParseProcessesResponse(rsp *http.Response) (*ProcessesResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -5431,72 +4385,6 @@ func ParseProcessByIdResponse(rsp *http.Response) (*ProcessByIdResponse, error) 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest GetProcessByID
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest ErrorNotFound
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseAddressesByProcessResponse parses an HTTP response from a AddressesByProcessWithResponse call
-func ParseAddressesByProcessResponse(rsp *http.Response) (*AddressesByProcessResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &AddressesByProcessResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetAddresses
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest ErrorNotFound
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseConnectorByProcessResponse parses an HTTP response from a ConnectorByProcessWithResponse call
-func ParseConnectorByProcessResponse(rsp *http.Response) (*ConnectorByProcessResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ConnectorByProcessResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetConnectorByID
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -5629,39 +4517,6 @@ func ParseProcessgroupByIDResponse(rsp *http.Response) (*ProcessgroupByIDRespons
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest GetProcessGroupByID
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest ErrorNotFound
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseProcessesByProcessGroupResponse parses an HTTP response from a ProcessesByProcessGroupWithResponse call
-func ParseProcessesByProcessGroupResponse(rsp *http.Response) (*ProcessesByProcessGroupResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ProcessesByProcessGroupResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetProcesses
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -5969,65 +4824,6 @@ func ParseRouterByIDResponse(rsp *http.Response) (*RouterByIDResponse, error) {
 	return response, nil
 }
 
-// ParseConnectorsByRouterResponse parses an HTTP response from a ConnectorsByRouterWithResponse call
-func ParseConnectorsByRouterResponse(rsp *http.Response) (*ConnectorsByRouterResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ConnectorsByRouterResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetConnectors
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest ErrorNotFound
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseFlowsByRouterResponse parses an HTTP response from a FlowsByRouterWithResponse call
-func ParseFlowsByRouterResponse(rsp *http.Response) (*FlowsByRouterResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &FlowsByRouterResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 410:
-		var dest NotSupported
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON410 = &dest
-
-	}
-
-	return response, nil
-}
-
 // ParseLinksByRouterResponse parses an HTTP response from a LinksByRouterWithResponse call
 func ParseLinksByRouterResponse(rsp *http.Response) (*LinksByRouterResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -6048,39 +4844,6 @@ func ParseLinksByRouterResponse(rsp *http.Response) (*LinksByRouterResponse, err
 			return nil, err
 		}
 		response.JSON410 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseListenersByRouterResponse parses an HTTP response from a ListenersByRouterWithResponse call
-func ParseListenersByRouterResponse(rsp *http.Response) (*ListenersByRouterResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ListenersByRouterResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetListeners
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest ErrorNotFound
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
 
 	}
 
@@ -6219,32 +4982,6 @@ func ParseSiteByIdResponse(rsp *http.Response) (*SiteByIdResponse, error) {
 	return response, nil
 }
 
-// ParseFlowsBySiteResponse parses an HTTP response from a FlowsBySiteWithResponse call
-func ParseFlowsBySiteResponse(rsp *http.Response) (*FlowsBySiteResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &FlowsBySiteResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 410:
-		var dest NotSupported
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON410 = &dest
-
-	}
-
-	return response, nil
-}
-
 // ParseHostsBySiteResponse parses an HTTP response from a HostsBySiteWithResponse call
 func ParseHostsBySiteResponse(rsp *http.Response) (*HostsBySiteResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -6375,20 +5112,11 @@ type ServerInterface interface {
 	// (GET /api/v1alpha1/addresses/{id}/connections/)
 	ConnectionsByAddress(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/addresses/{id}/connectors/)
-	ConnectorsByAddress(w http.ResponseWriter, r *http.Request, id PathID)
-
-	// (GET /api/v1alpha1/addresses/{id}/listeners/)
-	ListenersByAddress(w http.ResponseWriter, r *http.Request, id PathID)
-
 	// (GET /api/v1alpha1/addresses/{id}/processes/)
 	ProcessesByAddress(w http.ResponseWriter, r *http.Request, id PathID)
 
 	// (GET /api/v1alpha1/addresses/{id}/processpairs/)
 	ProcessPairsByAddress(w http.ResponseWriter, r *http.Request, id PathID)
-
-	// (GET /api/v1alpha1/addresses/{id}/requests/)
-	RequestsByAddress(w http.ResponseWriter, r *http.Request, id PathID)
 
 	// (GET /api/v1alpha1/connections/)
 	Connections(w http.ResponseWriter, r *http.Request)
@@ -6417,20 +5145,11 @@ type ServerInterface interface {
 	// (GET /api/v1alpha1/listeners/{id}/)
 	ListenerByID(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/listeners/{id}/flows)
-	FlowsByListener(w http.ResponseWriter, r *http.Request, id PathID)
-
 	// (GET /api/v1alpha1/processes/)
 	Processes(w http.ResponseWriter, r *http.Request)
 
 	// (GET /api/v1alpha1/processes/{id}/)
 	ProcessById(w http.ResponseWriter, r *http.Request, id PathID)
-
-	// (GET /api/v1alpha1/processes/{id}/addresses/)
-	AddressesByProcess(w http.ResponseWriter, r *http.Request, id PathID)
-
-	// (GET /api/v1alpha1/processes/{id}/connector/)
-	ConnectorByProcess(w http.ResponseWriter, r *http.Request, id PathID)
 
 	// (GET /api/v1alpha1/processgrouppairs/)
 	Processgrouppairs(w http.ResponseWriter, r *http.Request)
@@ -6443,9 +5162,6 @@ type ServerInterface interface {
 
 	// (GET /api/v1alpha1/processgroups/{id}/)
 	ProcessgroupByID(w http.ResponseWriter, r *http.Request, id PathID)
-
-	// (GET /api/v1alpha1/processgroups/{id}/processes/)
-	ProcessesByProcessGroup(w http.ResponseWriter, r *http.Request, id PathID)
 
 	// (GET /api/v1alpha1/processpairs/)
 	Processpairs(w http.ResponseWriter, r *http.Request)
@@ -6474,17 +5190,8 @@ type ServerInterface interface {
 	// (GET /api/v1alpha1/routers/{id}/)
 	RouterByID(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/routers/{id}/connectors/)
-	ConnectorsByRouter(w http.ResponseWriter, r *http.Request, id PathID)
-
-	// (GET /api/v1alpha1/routers/{id}/flows/)
-	FlowsByRouter(w http.ResponseWriter, r *http.Request, id PathID)
-
 	// (GET /api/v1alpha1/routers/{id}/links/)
 	LinksByRouter(w http.ResponseWriter, r *http.Request, id PathID)
-
-	// (GET /api/v1alpha1/routers/{id}/listeners/)
-	ListenersByRouter(w http.ResponseWriter, r *http.Request, id PathID)
 
 	// (GET /api/v1alpha1/sitepairs/)
 	Sitepairs(w http.ResponseWriter, r *http.Request)
@@ -6497,9 +5204,6 @@ type ServerInterface interface {
 
 	// (GET /api/v1alpha1/sites/{id}/)
 	SiteById(w http.ResponseWriter, r *http.Request, id PathID)
-
-	// (GET /api/v1alpha1/sites/{id}/flows/)
-	FlowsBySite(w http.ResponseWriter, r *http.Request, id PathID)
 
 	// (GET /api/v1alpha1/sites/{id}/hosts/)
 	HostsBySite(w http.ResponseWriter, r *http.Request, id PathID)
@@ -6590,58 +5294,6 @@ func (siw *ServerInterfaceWrapper) ConnectionsByAddress(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
-// ConnectorsByAddress operation middleware
-func (siw *ServerInterfaceWrapper) ConnectorsByAddress(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ConnectorsByAddress(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// ListenersByAddress operation middleware
-func (siw *ServerInterfaceWrapper) ListenersByAddress(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListenersByAddress(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
 // ProcessesByAddress operation middleware
 func (siw *ServerInterfaceWrapper) ProcessesByAddress(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -6685,32 +5337,6 @@ func (siw *ServerInterfaceWrapper) ProcessPairsByAddress(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ProcessPairsByAddress(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// RequestsByAddress operation middleware
-func (siw *ServerInterfaceWrapper) RequestsByAddress(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.RequestsByAddress(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6899,32 +5525,6 @@ func (siw *ServerInterfaceWrapper) ListenerByID(w http.ResponseWriter, r *http.R
 	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
-// FlowsByListener operation middleware
-func (siw *ServerInterfaceWrapper) FlowsByListener(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.FlowsByListener(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
 // Processes operation middleware
 func (siw *ServerInterfaceWrapper) Processes(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -6957,58 +5557,6 @@ func (siw *ServerInterfaceWrapper) ProcessById(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ProcessById(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// AddressesByProcess operation middleware
-func (siw *ServerInterfaceWrapper) AddressesByProcess(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AddressesByProcess(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// ConnectorByProcess operation middleware
-func (siw *ServerInterfaceWrapper) ConnectorByProcess(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ConnectorByProcess(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7091,32 +5639,6 @@ func (siw *ServerInterfaceWrapper) ProcessgroupByID(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ProcessgroupByID(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// ProcessesByProcessGroup operation middleware
-func (siw *ServerInterfaceWrapper) ProcessesByProcessGroup(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ProcessesByProcessGroup(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7305,58 +5827,6 @@ func (siw *ServerInterfaceWrapper) RouterByID(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
-// ConnectorsByRouter operation middleware
-func (siw *ServerInterfaceWrapper) ConnectorsByRouter(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ConnectorsByRouter(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// FlowsByRouter operation middleware
-func (siw *ServerInterfaceWrapper) FlowsByRouter(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.FlowsByRouter(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
 // LinksByRouter operation middleware
 func (siw *ServerInterfaceWrapper) LinksByRouter(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -7374,32 +5844,6 @@ func (siw *ServerInterfaceWrapper) LinksByRouter(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.LinksByRouter(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// ListenersByRouter operation middleware
-func (siw *ServerInterfaceWrapper) ListenersByRouter(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListenersByRouter(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7482,32 +5926,6 @@ func (siw *ServerInterfaceWrapper) SiteById(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SiteById(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// FlowsBySite operation middleware
-func (siw *ServerInterfaceWrapper) FlowsBySite(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.FlowsBySite(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7740,15 +6158,9 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/{id}/connections/", wrapper.ConnectionsByAddress).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/{id}/connectors/", wrapper.ConnectorsByAddress).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/{id}/listeners/", wrapper.ListenersByAddress).Methods("GET")
-
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/{id}/processes/", wrapper.ProcessesByAddress).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/{id}/processpairs/", wrapper.ProcessPairsByAddress).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/{id}/requests/", wrapper.RequestsByAddress).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/connections/", wrapper.Connections).Methods("GET")
 
@@ -7768,15 +6180,9 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/listeners/{id}/", wrapper.ListenerByID).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/listeners/{id}/flows", wrapper.FlowsByListener).Methods("GET")
-
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processes/", wrapper.Processes).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processes/{id}/", wrapper.ProcessById).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processes/{id}/addresses/", wrapper.AddressesByProcess).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processes/{id}/connector/", wrapper.ConnectorByProcess).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processgrouppairs/", wrapper.Processgrouppairs).Methods("GET")
 
@@ -7785,8 +6191,6 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processgroups/", wrapper.Processgroups).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processgroups/{id}/", wrapper.ProcessgroupByID).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processgroups/{id}/processes/", wrapper.ProcessesByProcessGroup).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processpairs/", wrapper.Processpairs).Methods("GET")
 
@@ -7806,13 +6210,7 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/routers/{id}/", wrapper.RouterByID).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/routers/{id}/connectors/", wrapper.ConnectorsByRouter).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/routers/{id}/flows/", wrapper.FlowsByRouter).Methods("GET")
-
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/routers/{id}/links/", wrapper.LinksByRouter).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/routers/{id}/listeners/", wrapper.ListenersByRouter).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/sitepairs/", wrapper.Sitepairs).Methods("GET")
 
@@ -7821,8 +6219,6 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/sites/", wrapper.Sites).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/sites/{id}/", wrapper.SiteById).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/sites/{id}/flows/", wrapper.FlowsBySite).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/sites/{id}/hosts/", wrapper.HostsBySite).Methods("GET")
 

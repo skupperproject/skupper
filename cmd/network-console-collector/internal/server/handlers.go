@@ -39,18 +39,6 @@ func (s *server) Requests(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// (GET /api/v1alpha1/addresses/{id}/requests/)
-func (s *server) RequestsByAddress(w http.ResponseWriter, r *http.Request, id string) {
-	getExemplar := fetchAndMap(s.records, func(a collector.AddressRecord) store.Entry {
-		return store.Entry{Record: collector.RequestRecord{RoutingKey: a.Name, Protocol: a.Protocol}}
-	}, id)
-	if err := handleSubCollection(w, r, &api.RequestListResponse{}, getExemplar, func(exemplar store.Entry) []api.RequestRecord {
-		return views.NewRequestSliceProvider()(index(s.records, collector.IndexFlowByAddress, exemplar))
-	}); err != nil {
-		s.logWriteError(r, err)
-	}
-}
-
 // (GET /api/v1alpha1/addresses/)
 func (s *server) Addresses(w http.ResponseWriter, r *http.Request) {
 	results := views.NewAddressSliceProvider(s.graph)(listByType[collector.AddressRecord](s.records))
@@ -65,14 +53,6 @@ func (s *server) AddressByID(w http.ResponseWriter, r *http.Request, id string) 
 	if err := handleSingle(w, r, &api.AddressResponse{}, getRecord); err != nil {
 		s.logWriteError(r, err)
 	}
-}
-
-// (GET /api/v1alpha1/addresses/{id}/connectors/)
-func (s *server) ConnectorsByAddress(w http.ResponseWriter, r *http.Request, id string) {
-}
-
-// (GET /api/v1alpha1/addresses/{id}/listeners/)
-func (s *server) ListenersByAddress(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 // (GET /api/v1alpha1/addresses/{id}/processes/)
@@ -208,10 +188,6 @@ func (s *server) ListenerByID(w http.ResponseWriter, r *http.Request, id string)
 	}
 }
 
-// (GET /api/v1alpha1/listeners/{id}/flows)
-func (s *server) FlowsByListener(w http.ResponseWriter, r *http.Request, id string) {
-}
-
 // (GET /api/v1alpha1/processes/)
 func (s *server) Processes(w http.ResponseWriter, r *http.Request) {
 	results := views.NewProcessSliceProvider(s.records, s.graph)(listByType[vanflow.ProcessRecord](s.records))
@@ -226,18 +202,6 @@ func (s *server) ProcessById(w http.ResponseWriter, r *http.Request, id string) 
 	if err := handleSingle(w, r, &api.ProcessResponse{}, getRecord); err != nil {
 		s.logWriteError(r, err)
 	}
-}
-
-// (GET /api/v1alpha1/processes/{id}/addresses/)
-func (s *server) AddressesByProcess(w http.ResponseWriter, r *http.Request, id string) {
-	//TODO(ck) implement
-	if err := handleCollection(w, r, &api.AddressListResponse{}, []api.AddressRecord{}); err != nil {
-		s.logWriteError(r, err)
-	}
-}
-
-// (GET /api/v1alpha1/processes/{id}/connector/)
-func (s *server) ConnectorByProcess(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 // (GET /api/v1alpha1/processgrouppairs/)
@@ -270,10 +234,6 @@ func (s *server) ProcessgroupByID(w http.ResponseWriter, r *http.Request, id str
 	if err := handleSingle(w, r, &api.ProcessGroupResponse{}, getRecord); err != nil {
 		s.logWriteError(r, err)
 	}
-}
-
-// (GET /api/v1alpha1/processgroups/{id}/processes/)
-func (s *server) ProcessesByProcessGroup(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 // (GET /api/v1alpha1/processpairs/)
@@ -340,14 +300,6 @@ func (s *server) RouterByID(w http.ResponseWriter, r *http.Request, id string) {
 	}
 }
 
-// (GET /api/v1alpha1/routers/{id}/connectors/)
-func (s *server) ConnectorsByRouter(w http.ResponseWriter, r *http.Request, id string) {
-}
-
-// (GET /api/v1alpha1/routers/{id}/flows/)
-func (s *server) FlowsByRouter(w http.ResponseWriter, r *http.Request, id string) {
-}
-
 // (GET /api/v1alpha1/routers/{id}/links/)
 func (s *server) LinksByRouter(w http.ResponseWriter, r *http.Request, id string) {
 	exemplar := store.Entry{Record: vanflow.LinkRecord{Parent: &id}}
@@ -355,10 +307,6 @@ func (s *server) LinksByRouter(w http.ResponseWriter, r *http.Request, id string
 	if err := handleCollection(w, r, &api.LinkListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
-}
-
-// (GET /api/v1alpha1/routers/{id}/listeners/)
-func (s *server) ListenersByRouter(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 // (GET /api/v1alpha1/sitepairs/)
@@ -387,10 +335,6 @@ func (s *server) SiteById(w http.ResponseWriter, r *http.Request, id string) {
 	if err := handleSingle(w, r, &api.SiteResponse{}, getRecord); err != nil {
 		s.logWriteError(r, err)
 	}
-}
-
-// (GET /api/v1alpha1/sites/{id}/flows/)
-func (s *server) FlowsBySite(w http.ResponseWriter, r *http.Request, id string) {
 }
 
 // (GET /api/v1alpha1/sites/{id}/hosts/)
