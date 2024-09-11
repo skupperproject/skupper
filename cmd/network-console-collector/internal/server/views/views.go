@@ -1,3 +1,5 @@
+// Package view implements a mapping layer between vanflow records and the
+// collector api.
 package views
 
 import (

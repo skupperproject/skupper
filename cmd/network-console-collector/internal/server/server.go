@@ -1,3 +1,4 @@
+// Package server implements the server interface in internal/api
 package server
 
 import (

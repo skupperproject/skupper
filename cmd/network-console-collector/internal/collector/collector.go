@@ -1,3 +1,8 @@
+// Package collector implements the vanflow event listener that backs the
+// network console collector. It contains a Collector responsible for
+// orchestrating collection of vanflow records from remote sources into a
+// vanflow Store as well as several controllers responsible for reacting to
+// records to add inferred records and context into the Store.
 package collector
 
 import (
