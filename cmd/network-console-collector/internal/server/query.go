@@ -211,13 +211,13 @@ func (m fieldIndex[T]) matches(val reflect.Value, values []string) bool {
 func (m fieldIndex[T]) MatchesFilter(e T, values []string) bool {
 	val := reflect.ValueOf(e).FieldByIndex(m.index)
 	// pre-checks
-	switch val.Kind() {
-	case reflect.Pointer:
+	if val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			return false
 		}
 		val = val.Elem()
-	case reflect.Slice:
+	}
+	if val.Kind() == reflect.Slice {
 		if val.IsNil() {
 			return false
 		}

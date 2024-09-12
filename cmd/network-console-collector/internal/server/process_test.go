@@ -21,6 +21,7 @@ func TestProcesses(t *testing.T) {
 
 	testcases := []struct {
 		Records              []store.Entry
+		Parameters           map[string][]string
 		ExpectOK             bool
 		ExpectCount          int
 		ExpectTimeRangeCount int
@@ -85,6 +86,9 @@ func TestProcesses(t *testing.T) {
 					DestHost:   ptrTo("10.99.99.2"),
 				},
 			),
+			Parameters: map[string][]string{
+				"addresses": {"pizza"},
+			},
 			ExpectOK:    true,
 			ExpectCount: 1,
 			ExpectResults: func(t *testing.T, results []api.ProcessRecord) {
@@ -112,7 +116,7 @@ func TestProcesses(t *testing.T) {
 			for _, r := range tc.Records {
 				graph.(reset).Reindex(r.Record)
 			}
-			resp, err := c.ProcessesWithResponse(context.TODO())
+			resp, err := c.ProcessesWithResponse(context.TODO(), WithParameters(tc.Parameters))
 			assert.Check(t, err)
 			if tc.ExpectOK {
 				assert.Equal(t, resp.StatusCode(), 200)
