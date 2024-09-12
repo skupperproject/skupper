@@ -7,11 +7,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	utils3 "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	commonutils "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
-	utils2 "github.com/skupperproject/skupper/pkg/utils"
+	pkgutils "github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -47,7 +47,7 @@ func NewCmdLinkGenerate() *CmdLinkGenerate {
 
 func (cmd *CmdLinkGenerate) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils3.HandleError(err)
+	commonutils.HandleError(err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.KubeClient = cli.GetKubeClient()
@@ -200,7 +200,7 @@ func (cmd *CmdLinkGenerate) Run() error {
 func (cmd *CmdLinkGenerate) WaitUntil() error {
 
 	var resourcesToPrint []string
-	encodedOutput, err := utils3.Encode(cmd.output, cmd.generatedLink)
+	encodedOutput, err := commonutils.Encode(cmd.output, cmd.generatedLink)
 	if err != nil {
 		return err
 	}
@@ -210,7 +210,7 @@ func (cmd *CmdLinkGenerate) WaitUntil() error {
 		ctxWithTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(cmd.timeout))
 		defer cancel()
 
-		err := utils2.RetryErrorWithContext(ctxWithTimeout, time.Second, func() error {
+		err := pkgutils.RetryErrorWithContext(ctxWithTimeout, time.Second, func() error {
 
 			generatedSecret, err := cmd.KubeClient.CoreV1().Secrets(cmd.Namespace).Get(context.TODO(), cmd.tlsSecret, metav1.GetOptions{})
 			if err != nil {
@@ -235,7 +235,7 @@ func (cmd *CmdLinkGenerate) WaitUntil() error {
 					},
 				}
 
-				encodedSecret, _ := utils3.Encode(cmd.output, secretResource)
+				encodedSecret, _ := commonutils.Encode(cmd.output, secretResource)
 				resourcesToPrint = append(resourcesToPrint, encodedSecret)
 			}
 			return nil

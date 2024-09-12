@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	utils2 "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"os"
 	"text/tabwriter"
 
@@ -32,7 +32,7 @@ func NewCmdConnectorStatus() *CmdConnectorStatus {
 
 func (cmd *CmdConnectorStatus) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils2.HandleError(err)
+	utils.HandleError(err)
 
 	cmd.client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.namespace = cli.Namespace
@@ -87,7 +87,7 @@ func (cmd *CmdConnectorStatus) Run() error {
 		}
 		if cmd.output != "" {
 			for _, resource := range resources.Items {
-				encodedOutput, err := utils2.Encode(cmd.output, resource)
+				encodedOutput, err := utils.Encode(cmd.output, resource)
 				if err != nil {
 					return err
 				}
@@ -111,7 +111,7 @@ func (cmd *CmdConnectorStatus) Run() error {
 			return err
 		}
 		if cmd.output != "" {
-			encodedOutput, err := utils2.Encode(cmd.output, resource)
+			encodedOutput, err := utils.Encode(cmd.output, resource)
 			if err != nil {
 				return err
 			}
