@@ -182,16 +182,30 @@ func (m fieldIndex[T]) Compare(x, y T) int {
 	return 0
 }
 
+var atmarkSplitStringTyp = reflect.TypeOf((*api.AtmarkDelimitedString)(nil)).Elem()
+
 func (m fieldIndex[T]) matches(val reflect.Value, values []string) bool {
 	switch val.Kind() {
 	case reflect.String:
-		target := val.String()
-		for _, y := range values {
-			if y == "" {
-				continue
+		switch val.Type() {
+		case atmarkSplitStringTyp:
+			atStr := val.Interface().(api.AtmarkDelimitedString)
+			for _, part := range atStr.Parts() {
+				for _, y := range values {
+					if strings.EqualFold(part, y) {
+						return true
+					}
+				}
 			}
-			if strings.HasPrefix(target, y) {
-				return true
+		default:
+			target := val.String()
+			for _, y := range values {
+				if y == "" {
+					continue
+				}
+				if strings.HasPrefix(target, y) {
+					return true
+				}
 			}
 		}
 	case reflect.Uint64:

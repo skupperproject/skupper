@@ -340,8 +340,7 @@ type ProcessListResponse struct {
 
 // ProcessRecord defines model for ProcessRecord.
 type ProcessRecord struct {
-	// Addresses addresses associated with a process in the form `name@identity@protocol`
-	Addresses *[]string `json:"addresses"`
+	Addresses *[]AddressIdentifierType `json:"addresses"`
 
 	// EndTime The end time in microseconds of the record in Unix timestamp format.
 	EndTime uint64 `json:"endTime"`
@@ -575,6 +574,9 @@ type SiteRecord struct {
 type SiteResponse struct {
 	Results SiteRecord `json:"results"`
 }
+
+// AddressIdentifierType a special string for identifying addresses uses the form `name@identity@protocol`
+type AddressIdentifierType = AtmarkDelimitedString
 
 // BaseRecord defines model for baseRecord.
 type BaseRecord struct {

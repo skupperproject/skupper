@@ -1,6 +1,8 @@
 // extra hand written stuffs to make working with generated code easier
 package api
 
+import "strings"
+
 type ResponseSetter[T any] interface {
 	SetResults(T)
 }
@@ -21,3 +23,13 @@ var (
 	_ CollectionResponseSetter[SiteRecord] = (*SiteListResponse)(nil)
 	_ Record                               = (*SiteRecord)(nil)
 )
+
+type AtmarkDelimitedString string
+
+func NewAtmarkDelimitedString(parts ...string) AtmarkDelimitedString {
+	return AtmarkDelimitedString(strings.Join(parts, "@"))
+}
+
+func (a AtmarkDelimitedString) Parts() []string {
+	return strings.Split(string(a), "@")
+}

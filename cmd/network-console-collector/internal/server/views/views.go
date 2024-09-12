@@ -3,7 +3,6 @@
 package views
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/api"
@@ -308,10 +307,10 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 
 		node := graph.Process(record.ID)
 
-		var addresses []string
+		var addresses []api.AtmarkDelimitedString
 		for _, cNode := range node.Connectors() {
 			if address, ok := cNode.Address().GetRecord(); ok {
-				addresses = append(addresses, fmt.Sprintf("%s@%s@%s", address.Name, address.ID, address.Protocol))
+				addresses = append(addresses, api.NewAtmarkDelimitedString(address.Name, address.ID, address.Protocol))
 			}
 		}
 		if site, ok := node.Parent().GetRecord(); ok {

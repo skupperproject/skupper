@@ -56,39 +56,8 @@ func TestProcesses(t *testing.T) {
 					SourceHost:     "unknown",
 				})
 			},
-		},
-		{
-			Records: wrapRecords(
-				vanflow.ProcessRecord{
-					Parent:     ptrTo("site-1"),
-					Name:       ptrTo("processone"),
-					BaseRecord: vanflow.NewBase("1"),
-					Group:      ptrTo("group-one"),
-					SourceHost: ptrTo("10.99.99.2"),
-					Mode:       ptrTo("internal"),
-				},
-				collector.ProcessGroupRecord{ID: "group-1-id", Name: "group-one"},
-				collector.AddressRecord{ID: "pizza-addr-id", Name: "pizza", Protocol: "tcp"},
-				vanflow.ConnectorRecord{
-					BaseRecord: vanflow.NewBase("c1"),
-					Address:    ptrTo("pizza"),
-					Protocol:   ptrTo("tcp"),
-					ProcessID:  ptrTo("1"),
-				},
-				collector.AddressRecord{ID: "icecream-addr-id", Name: "icecream", Protocol: "tcp"},
-				vanflow.RouterRecord{BaseRecord: vanflow.NewBase("router-1"), Parent: ptrTo("site-1")},
-				vanflow.SiteRecord{BaseRecord: vanflow.NewBase("site-1"), Name: ptrTo("site one")},
-				vanflow.ConnectorRecord{
-					Parent:     ptrTo("router-1"),
-					BaseRecord: vanflow.NewBase("c2"),
-					Address:    ptrTo("icecream"),
-					Protocol:   ptrTo("tcp"),
-					DestHost:   ptrTo("10.99.99.2"),
-				},
-			),
-			Parameters: map[string][]string{
-				"addresses": {"pizza"},
-			},
+		}, {
+			Records:     exProcessWithAddresses(),
 			ExpectOK:    true,
 			ExpectCount: 1,
 			ExpectResults: func(t *testing.T, results []api.ProcessRecord) {
@@ -97,7 +66,7 @@ func TestProcesses(t *testing.T) {
 					Identity:       "1",
 					Parent:         "site-1",
 					ParentName:     "site one",
-					Addresses:      ptrTo([]string{"pizza@pizza-addr-id@tcp", "icecream@icecream-addr-id@tcp"}),
+					Addresses:      ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp"), api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp")}),
 					GroupName:      "group-one",
 					GroupIdentity:  "group-1-id",
 					ProcessBinding: api.Bound,
@@ -106,6 +75,20 @@ func TestProcesses(t *testing.T) {
 					SourceHost:     "10.99.99.2",
 				})
 			},
+		}, {
+			Records: exProcessWithAddresses(),
+			Parameters: map[string][]string{
+				"addresses": {"pizza-addr-id"},
+			},
+			ExpectOK:    true,
+			ExpectCount: 1,
+		}, {
+			Records: exProcessWithAddresses(),
+			Parameters: map[string][]string{
+				"addresses": {"gumbo"},
+			},
+			ExpectOK:    true,
+			ExpectCount: 0,
 		},
 	}
 
@@ -133,4 +116,35 @@ func TestProcesses(t *testing.T) {
 			}
 		})
 	}
+}
+
+func exProcessWithAddresses() []store.Entry {
+	return wrapRecords(
+		vanflow.ProcessRecord{
+			Parent:     ptrTo("site-1"),
+			Name:       ptrTo("processone"),
+			BaseRecord: vanflow.NewBase("1"),
+			Group:      ptrTo("group-one"),
+			SourceHost: ptrTo("10.99.99.2"),
+			Mode:       ptrTo("internal"),
+		},
+		collector.ProcessGroupRecord{ID: "group-1-id", Name: "group-one"},
+		collector.AddressRecord{ID: "pizza-addr-id", Name: "pizza", Protocol: "tcp"},
+		vanflow.ConnectorRecord{
+			BaseRecord: vanflow.NewBase("c1"),
+			Address:    ptrTo("pizza"),
+			Protocol:   ptrTo("tcp"),
+			ProcessID:  ptrTo("1"),
+		},
+		collector.AddressRecord{ID: "icecream-addr-id", Name: "icecream", Protocol: "tcp"},
+		vanflow.RouterRecord{BaseRecord: vanflow.NewBase("router-1"), Parent: ptrTo("site-1")},
+		vanflow.SiteRecord{BaseRecord: vanflow.NewBase("site-1"), Name: ptrTo("site one")},
+		vanflow.ConnectorRecord{
+			Parent:     ptrTo("router-1"),
+			BaseRecord: vanflow.NewBase("c2"),
+			Address:    ptrTo("icecream"),
+			Protocol:   ptrTo("tcp"),
+			DestHost:   ptrTo("10.99.99.2"),
+		},
+	)
 }

@@ -842,6 +842,11 @@ components:
       enum:
         - bound
         - unbound
+    addressIdentifierType:
+      type: string
+      description: a special string for identifying addresses uses the form `name@identity@protocol`
+      example: backend@11111-1234@tcp
+      x-go-type: AtmarkDelimitedString
     linkRoleType:
       type: string
       description: The class of skupper link
@@ -925,10 +930,8 @@ components:
             addresses:
               type: array
               nullable: true
-              description: >-
-                addresses associated with a process in the form `name@identity@protocol`
               items:
-                type: string
+                $ref: '#/components/schemas/addressIdentifierType'
     RouterRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
