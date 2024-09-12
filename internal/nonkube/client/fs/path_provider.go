@@ -7,7 +7,7 @@ type PathProvider struct {
 }
 
 func (p *PathProvider) getDefaultNamespace() string {
-	return ".local/share/skupper/default/prepared/state"
+	return ".local/share/skupper/default/sources"
 }
 
 func (p *PathProvider) GetNamespace() string {
@@ -15,5 +15,5 @@ func (p *PathProvider) GetNamespace() string {
 	if p.Namespace == "" {
 		return p.getDefaultNamespace()
 	}
-	return fmt.Sprintf(".local/share/skupper/%s/prepared/state", p.Namespace)
+	return fmt.Sprintf(".local/share/skupper/%s/sources", p.Namespace)
 }
