@@ -44,9 +44,9 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagDescExpirationWindow   = "The period of time in which an access token for this grant can be redeemed."
 
 	FlagNameRoutingKey      = "routing-key"
-	FlagDescRoutingKey      = "The identifier used to route traffic from Connectors to connectors"
+	FlagDescRoutingKey      = "The identifier used to route traffic from listeners to connectors"
 	FlagNameHost            = "host"
-	FlagDescHost            = "The hostname or IP address of the local Connector"
+	FlagDescHost            = "The hostname or IP address of the local connector"
 	FlagNameConnectorType   = "type"
 	FlagDescConnectorType   = "The connector type. Choices: [tcp]."
 	FlagNameIncludeNotReady = "include-not-ready"
@@ -66,6 +66,8 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagDescListenerType = "The listener type. Choices: [tcp]."
 	FlagNameListenerPort = "port"
 	FlagDescListenerPort = "The port of the local listener"
+	FlagNameListenerHost = "host"
+	FlagDescListenerHost = "The hostname or IP address of the local listener. Clients at this site use the listener host and port to establish connections to the remote service."
 )
 
 type CommandSiteCreateFlags struct {

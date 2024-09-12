@@ -44,7 +44,7 @@ func CmdListenerCreateFactory(configuredPlatform types.Platform) *cobra.Command 
 	cmdFlags := common.CommandListenerCreateFlags{}
 
 	cmd.Flags().StringVarP(&cmdFlags.RoutingKey, common.FlagNameRoutingKey, "r", "", common.FlagDescRoutingKey)
-	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
+	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameListenerHost, "", common.FlagDescListenerHost)
 	cmd.Flags().StringVarP(&cmdFlags.TlsSecret, common.FlagNameTlsSecret, "t", "", common.FlagDescTlsSecret)
 	cmd.Flags().StringVar(&cmdFlags.ListenerType, common.FlagNameListenerType, "tcp", common.FlagDescListenerType)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
@@ -75,7 +75,7 @@ func CmdListenerUpdateFactory(configuredPlatform types.Platform) *cobra.Command 
 	cmdFlags := common.CommandListenerUpdateFlags{}
 
 	cmd.Flags().StringVarP(&cmdFlags.RoutingKey, common.FlagNameRoutingKey, "r", "", common.FlagDescRoutingKey)
-	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
+	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameListenerHost, "", common.FlagDescListenerHost)
 	cmd.Flags().StringVarP(&cmdFlags.TlsSecret, common.FlagNameTlsSecret, "t", "", common.FlagDescTlsSecret)
 	cmd.Flags().StringVar(&cmdFlags.ListenerType, common.FlagNameListenerType, "tcp", common.FlagDescListenerType)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)

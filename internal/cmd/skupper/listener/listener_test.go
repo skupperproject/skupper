@@ -23,7 +23,7 @@ func TestCmdLinkFactory(t *testing.T) {
 			name: "CmdListenerCreateFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameRoutingKey:   "",
-				common.FlagNameHost:         "",
+				common.FlagNameListenerHost: "",
 				common.FlagNameTlsSecret:    "",
 				common.FlagNameListenerType: "tcp",
 				common.FlagNameOutput:       "",
@@ -35,7 +35,7 @@ func TestCmdLinkFactory(t *testing.T) {
 			name: "CmdListenerUpdateFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameRoutingKey:   "",
-				common.FlagNameHost:         "",
+				common.FlagNameListenerHost: "",
 				common.FlagNameTlsSecret:    "",
 				common.FlagNameListenerType: "tcp",
 				common.FlagNameOutput:       "",
@@ -47,7 +47,7 @@ func TestCmdLinkFactory(t *testing.T) {
 		{
 			name: "CmdListenerStatusFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
-				common.FlagNameConnectorStatusOutput: "",
+				common.FlagNameOutput: "",
 			},
 			command: CmdListenerStatusFactory(types.PlatformKubernetes),
 		},
