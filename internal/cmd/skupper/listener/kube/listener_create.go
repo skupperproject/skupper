@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	utils2 "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"strconv"
 	"time"
 
@@ -46,7 +46,7 @@ func NewCmdListenerCreate() *CmdListenerCreate {
 
 func (cmd *CmdListenerCreate) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils2.HandleError(err)
+	utils.HandleError(err)
 
 	cmd.client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.namespace = cli.Namespace
@@ -92,7 +92,7 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 	if siteList == nil || len(siteList.Items) < 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a listener can be created", cmd.namespace))
 	} else {
-		if !utils2.SiteConfigured(siteList) {
+		if !utils.SiteConfigured(siteList) {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 		}
 	}
@@ -167,7 +167,7 @@ func (cmd *CmdListenerCreate) Run() error {
 	}
 
 	if cmd.output != "" {
-		encodedOutput, err := utils2.Encode(cmd.output, resource)
+		encodedOutput, err := utils.Encode(cmd.output, resource)
 		fmt.Println(encodedOutput)
 		return err
 	} else {
@@ -183,7 +183,7 @@ func (cmd *CmdListenerCreate) WaitUntil() error {
 	}
 
 	waitTime := int(cmd.Flags.Timeout.Seconds())
-	err := utils2.NewSpinnerWithTimeout("Waiting for create to complete...", waitTime, func() error {
+	err := utils.NewSpinnerWithTimeout("Waiting for create to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
 		if err != nil {

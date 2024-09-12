@@ -26,25 +26,25 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:           "site name is not valid.",
 			args:           []string{"my new site"},
-			flags:          &common.CommandSiteCreateFlags{Host: "host"},
+			flags:          &common.CommandSiteCreateFlags{BindHost: "host"},
 			expectedErrors: []string{"site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
 			name:           "site name is not specified.",
 			args:           []string{},
-			flags:          &common.CommandSiteCreateFlags{Host: "host"},
+			flags:          &common.CommandSiteCreateFlags{BindHost: "host"},
 			expectedErrors: []string{"site name must not be empty"},
 		},
 		{
 			name:           "more than one argument was specified",
 			args:           []string{"my", "site"},
-			flags:          &common.CommandSiteCreateFlags{Host: "host"},
+			flags:          &common.CommandSiteCreateFlags{BindHost: "host"},
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
 		{
 			name:  "link access type is not valid",
 			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{Host: "host", LinkAccessType: "not-valid"},
+			flags: &common.CommandSiteCreateFlags{BindHost: "host", LinkAccessType: "not-valid"},
 			expectedErrors: []string{
 				"link access type is not valid: value not-valid not allowed. It should be one of this options: [route loadbalancer default]",
 				"for the site to work with this type of linkAccess, the --enable-link-access option must be set to true",
@@ -53,7 +53,7 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "output format is not valid",
 			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{Host: "host", Output: "not-valid"},
+			flags: &common.CommandSiteCreateFlags{BindHost: "host", Output: "not-valid"},
 			expectedErrors: []string{
 				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 			},
@@ -69,7 +69,7 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "service-account is not valid on this platform",
 			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{ServiceAccount: "service-account", Host: "host"},
+			flags: &common.CommandSiteCreateFlags{ServiceAccount: "service-account", BindHost: "host"},
 			expectedErrors: []string{
 				"--service-account flag is not supported on this platform",
 			},
@@ -77,7 +77,7 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "kubernetes flags are not valid on this platform",
 			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{Host: "host"},
+			flags: &common.CommandSiteCreateFlags{BindHost: "host"},
 			expectedErrors: []string{
 				"--context flag is not supported on this platform",
 				"--kubeconfig flag is not supported on this platform",

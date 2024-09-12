@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	utils2 "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
@@ -31,7 +31,7 @@ func NewCmdLinkStatus() *CmdLinkStatus {
 
 func (cmd *CmdLinkStatus) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils2.HandleError(err)
+	utils.HandleError(err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.Namespace = cli.Namespace
@@ -114,7 +114,7 @@ func (cmd *CmdLinkStatus) Run() error {
 func (cmd *CmdLinkStatus) WaitUntil() error { return nil }
 
 func printEncodedOuptut(outputType string, link *v1alpha1.Link) error {
-	encodedOutput, err := utils2.Encode(outputType, link)
+	encodedOutput, err := utils.Encode(outputType, link)
 	fmt.Println(encodedOutput)
 	return err
 }

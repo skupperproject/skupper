@@ -112,7 +112,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "host name was specified, but this flag does not work on kube platforms",
 			args:  []string{"my-site"},
-			flags: &common.CommandSiteUpdateFlags{Host: "host"},
+			flags: &common.CommandSiteUpdateFlags{BindHost: "host"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{

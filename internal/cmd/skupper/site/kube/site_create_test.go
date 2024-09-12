@@ -67,8 +67,8 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:           "host name was specified, but this flag does not work on kube platforms",
 			args:           []string{"my-site"},
-			flags:          &common.CommandSiteCreateFlags{Host: "host"},
-			expectedErrors: []string{"--host flag is not supported on this platform"},
+			flags:          &common.CommandSiteCreateFlags{BindHost: "host"},
+			expectedErrors: []string{"--bind-host flag is not supported on this platform"},
 		},
 		{
 			name:  "link access type is not valid",
@@ -90,9 +90,9 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "host flag is not valid for this platform",
 			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{Host: "host"},
+			flags: &common.CommandSiteCreateFlags{BindHost: "host"},
 			expectedErrors: []string{
-				"--host flag is not supported on this platform",
+				"--bind-host flag is not supported on this platform",
 			},
 		},
 	}

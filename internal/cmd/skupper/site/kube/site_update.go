@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	utils2 "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
@@ -38,7 +38,7 @@ func NewCmdSiteUpdate() *CmdSiteUpdate {
 
 func (cmd *CmdSiteUpdate) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils2.HandleError(err)
+	utils.HandleError(err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.KubeClient = cli.GetKubeClient()
@@ -80,7 +80,7 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 		}
 	}
 
-	if cmd.Flags != nil && cmd.Flags.Host != "" {
+	if cmd.Flags != nil && cmd.Flags.BindHost != "" {
 		validationErrors = append(validationErrors, fmt.Errorf("--host flag is not supported on this platform"))
 	}
 
@@ -177,7 +177,7 @@ func (cmd *CmdSiteUpdate) Run() error {
 	}
 
 	if cmd.output != "" {
-		encodedOutput, err := utils2.Encode(cmd.output, resource)
+		encodedOutput, err := utils.Encode(cmd.output, resource)
 		fmt.Println(encodedOutput)
 
 		return err
@@ -195,7 +195,7 @@ func (cmd *CmdSiteUpdate) WaitUntil() error {
 		return nil
 	}
 
-	err := utils2.NewSpinner("Waiting for update to complete...", 5, func() error {
+	err := utils.NewSpinner("Waiting for update to complete...", 5, func() error {
 
 		resource, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
 		if err != nil {

@@ -24,6 +24,8 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagDescOutput         = "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml"
 	FlagNameServiceAccount = "service-account"
 	FlagDescServiceAccount = "the Kubernetes service account under which to run the Skupper controller"
+	FlagNameBindHost       = "bind-host"
+	FlagDescBindHost       = "A valid host or ip that can be used to bind a local port"
 
 	FlagNameTlsSecret          = "tls-secret"
 	FlagDescTlsSecret          = "the name of a Kubernetes secret containing the generated or externally-supplied TLS credentials."
@@ -69,7 +71,7 @@ type CommandSiteCreateFlags struct {
 	LinkAccessType   string
 	ServiceAccount   string
 	Output           string
-	Host             string
+	BindHost         string
 }
 
 type CommandSiteUpdateFlags struct {
@@ -77,7 +79,7 @@ type CommandSiteUpdateFlags struct {
 	LinkAccessType   string
 	ServiceAccount   string
 	Output           string
-	Host             string
+	BindHost         string
 }
 
 type CommandLinkGenerateFlags struct {
