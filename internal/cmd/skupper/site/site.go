@@ -51,6 +51,7 @@ There can be only one site definition per namespace.`,
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	cmd.Flags().StringVar(&cmdFlags.ServiceAccount, common.FlagNameServiceAccount, "", common.FlagDescServiceAccount)
 	cmd.Flags().StringVar(&cmdFlags.BindHost, common.FlagNameBindHost, "", common.FlagDescBindHost)
+	cmd.Flags().StringSliceVar(&cmdFlags.SubjectAlternativeNames, common.FlagNameSubjectAlternativeNames, []string{}, common.FlagDescSubjectAlternativeNames)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
@@ -80,6 +81,7 @@ func CmdSiteUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	cmd.Flags().StringVar(&cmdFlags.ServiceAccount, common.FlagNameServiceAccount, "", common.FlagDescServiceAccount)
 	cmd.Flags().StringVar(&cmdFlags.BindHost, common.FlagNameBindHost, "", common.FlagDescBindHost)
+	cmd.Flags().StringSliceVar(&cmdFlags.SubjectAlternativeNames, common.FlagNameSubjectAlternativeNames, []string{}, common.FlagDescSubjectAlternativeNames)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags

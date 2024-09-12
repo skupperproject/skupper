@@ -16,17 +16,18 @@ import (
 )
 
 type CmdSiteCreate struct {
-	siteHandler         *fs.SiteHandler
-	routerAccessHandler *fs.RouterAccessHandler
-	CobraCmd            *cobra.Command
-	Flags               *common.CommandSiteCreateFlags
-	options             map[string]string
-	siteName            string
-	linkAccessType      string
-	output              string
-	namespace           string
-	bindHost            string
-	routerAccessName    string
+	siteHandler             *fs.SiteHandler
+	routerAccessHandler     *fs.RouterAccessHandler
+	CobraCmd                *cobra.Command
+	Flags                   *common.CommandSiteCreateFlags
+	options                 map[string]string
+	siteName                string
+	linkAccessType          string
+	output                  string
+	namespace               string
+	bindHost                string
+	routerAccessName        string
+	subjectAlternativeNames []string
 }
 
 func NewCmdSiteCreate() *CmdSiteCreate {
@@ -125,6 +126,7 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 
 	cmd.bindHost = cmd.Flags.BindHost
 	cmd.routerAccessName = "router-access-" + cmd.siteName
+	cmd.subjectAlternativeNames = cmd.Flags.SubjectAlternativeNames
 
 }
 
@@ -165,7 +167,8 @@ func (cmd *CmdSiteCreate) Run() error {
 					Port: 45671,
 				},
 			},
-			BindHost: cmd.bindHost,
+			BindHost:                cmd.bindHost,
+			SubjectAlternativeNames: cmd.subjectAlternativeNames,
 		},
 	}
 

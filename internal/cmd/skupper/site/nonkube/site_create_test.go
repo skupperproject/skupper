@@ -117,15 +117,16 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 
 	type test struct {
-		name               string
-		args               []string
-		namespace          string
-		flags              common.CommandSiteCreateFlags
-		expectedSettings   map[string]string
-		expectedLinkAccess string
-		expectedOutput     string
-		expectedNamespace  string
-		expectedInputPath  string
+		name                            string
+		args                            []string
+		namespace                       string
+		flags                           common.CommandSiteCreateFlags
+		expectedSettings                map[string]string
+		expectedLinkAccess              string
+		expectedOutput                  string
+		expectedNamespace               string
+		expectedInputPath               string
+		expectedSubjectAlternativeNames []string
 	}
 
 	testTable := []test{
@@ -200,6 +201,18 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedNamespace: "test",
 			expectedInputPath: ".local/share/skupper/test",
 		},
+		{
+			name:      "options with subject alternative names",
+			args:      []string{"my-site"},
+			namespace: "test",
+			flags:     common.CommandSiteCreateFlags{SubjectAlternativeNames: []string{"test", "test2"}},
+			expectedSettings: map[string]string{
+				"name": "my-site",
+			},
+			expectedNamespace:               "test",
+			expectedInputPath:               ".local/share/skupper/test",
+			expectedSubjectAlternativeNames: []string{"test", "test2"},
+		},
 	}
 
 	for _, test := range testTable {
@@ -217,6 +230,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 
 			assert.Check(t, cmd.output == test.expectedOutput)
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
+			assert.DeepEqual(t, cmd.subjectAlternativeNames, test.expectedSubjectAlternativeNames)
 		})
 	}
 }
