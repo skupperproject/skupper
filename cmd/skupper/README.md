@@ -59,7 +59,7 @@ skupper connector create backend 8080 --routing-key backend --selector app=backe
 # Consume backend in west site (create a listener)
 
 ```
-skupper listener create backend 8080 --host backend --routing-key backend -n west
+skupper listener create backend 8080 --routing-key backend -n west
 ```
 
 # Link sites
@@ -67,13 +67,13 @@ skupper listener create backend 8080 --host backend --routing-key backend -n wes
 Create a AccessGrant in west site and generate a file with the AccessToken:
 
 ```
-skupper token issue token ~/token.yaml -n west
+skupper token issue my-token ~/my-token.yaml -n west
 ```
 
 Copy token.yaml file to east site and redeem:
 
 ```
-skupper token redeem ~/token.yaml -n east
+skupper token redeem ~/my-token.yaml -n east
 ```
 
 ### Alternative: generate a link custom resource
