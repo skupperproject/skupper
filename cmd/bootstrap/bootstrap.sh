@@ -120,8 +120,7 @@ create_service() {
         systemctl daemon-reload
     else
         if [ ! -d "${SERVICE_DIR}" ]; then
-            echo "Unable to define path to SystemD service"
-            return
+            mkdir -p "${SERVICE_DIR}"
         fi
         cp -f "${service_file}" "${SERVICE_DIR}"
         systemctl --user enable --now "${service_name}"

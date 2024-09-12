@@ -137,8 +137,7 @@ create_service() {
         cp "${service_file}" "/etc/systemd/system/${service_name}"
     else
         if [ ! -d "${SERVICE_DIR}" ]; then
-            echo "Unable to define path to SystemD service"
-            return
+            mkdir -p "${SERVICE_DIR}"
         fi
         cp "${service_file}" "${SERVICE_DIR}/${service_name}"
     fi
