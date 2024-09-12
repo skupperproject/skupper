@@ -26,25 +26,25 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:           "site name is not valid.",
 			args:           []string{"my new site"},
-			flags:          &common.CommandSiteCreateFlags{BindHost: "host"},
+			flags:          &common.CommandSiteCreateFlags{BindHost: "bindHost"},
 			expectedErrors: []string{"site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
 			name:           "site name is not specified.",
 			args:           []string{},
-			flags:          &common.CommandSiteCreateFlags{BindHost: "host"},
+			flags:          &common.CommandSiteCreateFlags{BindHost: "bindHost"},
 			expectedErrors: []string{"site name must not be empty"},
 		},
 		{
 			name:           "more than one argument was specified",
 			args:           []string{"my", "site"},
-			flags:          &common.CommandSiteCreateFlags{BindHost: "host"},
+			flags:          &common.CommandSiteCreateFlags{BindHost: "bindHost"},
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
 		{
 			name:  "link access type is not valid",
 			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{BindHost: "host", LinkAccessType: "not-valid"},
+			flags: &common.CommandSiteCreateFlags{BindHost: "bindHost", LinkAccessType: "not-valid"},
 			expectedErrors: []string{
 				"link access type is not valid: value not-valid not allowed. It should be one of this options: [route loadbalancer default]",
 				"for the site to work with this type of linkAccess, the --enable-link-access option must be set to true",
@@ -53,23 +53,23 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "output format is not valid",
 			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{BindHost: "host", Output: "not-valid"},
+			flags: &common.CommandSiteCreateFlags{BindHost: "bindHost", Output: "not-valid"},
 			expectedErrors: []string{
 				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 			},
 		},
 		{
-			name:  "host was not specified",
+			name:  "bindHost was not specified",
 			args:  []string{"my-site"},
 			flags: &common.CommandSiteCreateFlags{},
 			expectedErrors: []string{
-				"host should not be empty",
+				"bind host should not be empty",
 			},
 		},
 		{
 			name:  "service-account is not valid on this platform",
 			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{ServiceAccount: "service-account", BindHost: "host"},
+			flags: &common.CommandSiteCreateFlags{ServiceAccount: "service-account", BindHost: "bindHost"},
 			expectedErrors: []string{
 				"--service-account flag is not supported on this platform",
 			},
@@ -77,7 +77,7 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:  "kubernetes flags are not valid on this platform",
 			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{BindHost: "host"},
+			flags: &common.CommandSiteCreateFlags{BindHost: "bindHost"},
 			expectedErrors: []string{
 				"--context flag is not supported on this platform",
 				"--kubeconfig flag is not supported on this platform",
@@ -142,7 +142,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedInputPath:  ".local/share/skupper/default",
 		},
 		{
-			name:  "options with link access enabled but using a type by default and link access host specified",
+			name:  "options with link access enabled but using a type by default and link access bindHost specified",
 			args:  []string{"my-site"},
 			flags: common.CommandSiteCreateFlags{EnableLinkAccess: true},
 			expectedSettings: map[string]string{
@@ -241,7 +241,7 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 			k8sObjects:       nil,
 			skupperObjects:   nil,
 			siteName:         "my-site",
-			host:             "host",
+			host:             "bindHost",
 			routerAccessName: "ra-test",
 			options:          map[string]string{"name": "my-site"},
 		},
@@ -250,7 +250,7 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 			k8sObjects:     nil,
 			skupperObjects: nil,
 			siteName:       "test",
-			host:           "host",
+			host:           "bindHost",
 			options:        map[string]string{"name": "my-site"},
 			output:         "yaml",
 			skupperError:   "",
@@ -260,7 +260,7 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 			k8sObjects:     nil,
 			skupperObjects: nil,
 			siteName:       "test",
-			host:           "host",
+			host:           "bindHost",
 			options:        map[string]string{"name": "my-site"},
 			output:         "unsupported",
 			skupperError:   "",

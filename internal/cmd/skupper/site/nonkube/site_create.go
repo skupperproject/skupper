@@ -25,7 +25,7 @@ type CmdSiteCreate struct {
 	linkAccessType      string
 	output              string
 	namespace           string
-	host                string
+	bindHost            string
 	routerAccessName    string
 }
 
@@ -95,7 +95,7 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 	}
 
 	if cmd.Flags.BindHost == "" {
-		validationErrors = append(validationErrors, fmt.Errorf("host should not be empty"))
+		validationErrors = append(validationErrors, fmt.Errorf("bind host should not be empty"))
 	}
 
 	return validationErrors
@@ -123,7 +123,7 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 		cmd.namespace = "default"
 	}
 
-	cmd.host = cmd.Flags.BindHost
+	cmd.bindHost = cmd.Flags.BindHost
 	cmd.routerAccessName = "router-access-" + cmd.siteName
 
 }
@@ -165,7 +165,7 @@ func (cmd *CmdSiteCreate) Run() error {
 					Port: 45671,
 				},
 			},
-			BindHost: cmd.host,
+			BindHost: cmd.bindHost,
 		},
 	}
 
