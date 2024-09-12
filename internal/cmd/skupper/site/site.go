@@ -58,6 +58,13 @@ There can be only one site definition per namespace.`,
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
 
+	if configuredPlatform == types.PlatformKubernetes {
+		cmd.Flags().MarkHidden(common.FlagNameBindHost)
+		cmd.Flags().MarkHidden(common.FlagNameSubjectAlternativeNames)
+	} else {
+		cmd.Flags().MarkHidden(common.FlagNameServiceAccount)
+	}
+
 	return cmd
 
 }
@@ -87,6 +94,13 @@ func CmdSiteUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
+
+	if configuredPlatform == types.PlatformKubernetes {
+		cmd.Flags().MarkHidden(common.FlagNameBindHost)
+		cmd.Flags().MarkHidden(common.FlagNameSubjectAlternativeNames)
+	} else {
+		cmd.Flags().MarkHidden(common.FlagNameServiceAccount)
+	}
 
 	return cmd
 }

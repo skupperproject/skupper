@@ -1,6 +1,7 @@
 package root
 
 import (
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/connector"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/link"
@@ -38,4 +39,9 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&SelectedNamespace, common.FlagNameNamespace, "n", "", common.FlagDescNamespace)
 	rootCmd.PersistentFlags().StringVarP(&SelectedContext, common.FlagNameContext, "c", "", common.FlagDescContext)
 	rootCmd.PersistentFlags().StringVarP(&KubeConfigPath, common.FlagNameKubeconfig, "", "", common.FlagDescKubeconfig)
+
+	if config.GetPlatform() != types.PlatformKubernetes {
+		rootCmd.PersistentFlags().MarkHidden(common.FlagNameContext)
+		rootCmd.PersistentFlags().MarkHidden(common.FlagNameKubeconfig)
+	}
 }
