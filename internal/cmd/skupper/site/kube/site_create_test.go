@@ -68,7 +68,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 			name:           "host name was specified, but this flag does not work on kube platforms",
 			args:           []string{"my-site"},
 			flags:          &common.CommandSiteCreateFlags{Host: "host", Timeout: time.Minute},
-			expectedErrors: []string{"--host flag is not supported on this platform"},
+			expectedErrors: []string{},
 		},
 		{
 			name:  "link access type is not valid",
@@ -88,15 +88,15 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 			},
 		},
 		{
-			name:  "host flag is not valid for this platform",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{Host: "host", Timeout: time.Minute},
+			name:           "host flag is not valid for this platform",
+			args:           []string{"my-site"},
+			flags:          &common.CommandSiteCreateFlags{Host: "host", Timeout: time.Minute},
 			expectedErrors: []string{},
 		},
 		{
 			name:           "subject alternative names flag is not valid for this platform",
 			args:           []string{"my-site"},
-			flags:          &common.CommandSiteCreateFlags{SubjectAlternativeNames: []string{"test"}},
+			flags:          &common.CommandSiteCreateFlags{SubjectAlternativeNames: []string{"test"}, Timeout: time.Minute},
 			expectedErrors: []string{},
 		},
 		{

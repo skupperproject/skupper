@@ -7,7 +7,6 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"k8s.io/client-go/kubernetes"
 	"time"
-	"strconv"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
