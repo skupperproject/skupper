@@ -41,7 +41,8 @@ func (t *Token) Marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func CreateToken(routerAccess *v1alpha1.RouterAccess, secret *v1.Secret) *Token {
+func CreateTokens(routerAccess v1alpha1.RouterAccess, secret v1.Secret) []*Token {
+	var tokens []*Token
 	interRouter := 0
 	edge := 0
 	for _, role := range routerAccess.Spec.Roles {
@@ -55,47 +56,57 @@ func CreateToken(routerAccess *v1alpha1.RouterAccess, secret *v1.Secret) *Token 
 	if interRouter == 0 && edge == 0 {
 		return nil
 	}
-	name := routerAccess.Name
-	linkName := fmt.Sprintf("link-%s", name)
-	// adjusting name to match the standard used by pkg/site/link.go
-	secret.Name = fmt.Sprintf("link-%s", name)
-	token := &Token{
-		Links: []*v1alpha1.Link{
-			{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
-					Kind:       "Link",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      linkName,
-					Namespace: routerAccess.Namespace,
-				},
-				Spec: v1alpha1.LinkSpec{
-					TlsCredentials: secret.Name,
-					Cost:           1,
+	createToken := func(host string) *Token {
+		name := routerAccess.Name
+		linkName := fmt.Sprintf("link-%s", name)
+		// adjusting name to match the standard used by pkg/site/link.go
+		secret.Name = fmt.Sprintf("link-%s", name)
+		token := &Token{
+			Links: []*v1alpha1.Link{
+				{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "skupper.io/v1alpha1",
+						Kind:       "Link",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: linkName,
+					},
+					Spec: v1alpha1.LinkSpec{
+						TlsCredentials: secret.Name,
+						Cost:           1,
+					},
 				},
 			},
-		},
-		Secret: secret,
+			Secret: &secret,
+		}
+		var endpoints []v1alpha1.Endpoint
+		if interRouter > 0 {
+			endpoints = append(endpoints, v1alpha1.Endpoint{
+				Name:  "inter-router",
+				Host:  host,
+				Port:  strconv.Itoa(interRouter),
+				Group: "", // TODO ?
+			})
+		}
+		if edge > 0 {
+			endpoints = append(endpoints, v1alpha1.Endpoint{
+				Name:  "edge",
+				Host:  host,
+				Port:  strconv.Itoa(edge),
+				Group: "", // TODO ?
+			})
+		}
+		token.Links[0].Spec.Endpoints = endpoints
+		token.Secret.Namespace = ""
+		return token
 	}
-	linkHost := utils.DefaultStr(routerAccess.Spec.BindHost, "127.0.0.1")
-	var endpoints []v1alpha1.Endpoint
-	if interRouter > 0 {
-		endpoints = append(endpoints, v1alpha1.Endpoint{
-			Name:  "inter-router",
-			Host:  linkHost,
-			Port:  strconv.Itoa(interRouter),
-			Group: "", // TODO ?
-		})
+	var hosts []string
+	hosts = append(hosts, utils.DefaultStr(routerAccess.Spec.BindHost, "127.0.0.1"))
+	if len(routerAccess.Spec.SubjectAlternativeNames) > 0 {
+		hosts = append(hosts, routerAccess.Spec.SubjectAlternativeNames...)
 	}
-	if edge > 0 {
-		endpoints = append(endpoints, v1alpha1.Endpoint{
-			Name:  "edge",
-			Host:  linkHost,
-			Port:  strconv.Itoa(edge),
-			Group: "", // TODO ?
-		})
+	for _, host := range hosts {
+		tokens = append(tokens, createToken(host))
 	}
-	token.Links[0].Spec.Endpoints = endpoints
-	return token
+	return tokens
 }
