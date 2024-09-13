@@ -1,82 +1,24 @@
 package kube
 
 import (
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 	"time"
 
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func TestCmdConnectorUpdate_NewCmdConnectorUpdate(t *testing.T) {
-
-	t.Run("Update command", func(t *testing.T) {
-
-		result := NewCmdConnectorUpdate()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.Example != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-		assert.Check(t, result.CobraCmd.PostRunE != nil)
-		assert.Check(t, result.CobraCmd.Flags() != nil)
-	})
-
-}
-
-func TestCmdConnectorUpdate_AddFlags(t *testing.T) {
-
-	expectedFlagsWithDefaultValue := map[string]interface{}{
-		"routing-key":       "",
-		"host":              "",
-		"tls-secret":        "",
-		"type":              "tcp",
-		"port":              "0",
-		"workload":          "",
-		"selector":          "",
-		"include-not-ready": "false",
-		"timeout":           "1m0s",
-		"output":            "",
-	}
-	var flagList []string
-
-	cmd, err := newCmdConnectorUpdateWithMocks("test", nil, nil, "")
-	assert.Assert(t, err)
-
-	t.Run("add flags", func(t *testing.T) {
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-		})
-
-		assert.Check(t, len(flagList) == 0)
-
-		cmd.AddFlags()
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] != nil)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue)
-		})
-
-		assert.Check(t, len(flagList) == len(expectedFlagsWithDefaultValue))
-
-	})
-}
-
 func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		flags          ConnectorUpdates
+		flags          common.CommandConnectorUpdateFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedErrors []string
@@ -86,39 +28,39 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name:           "connector is not updated because get connector returned error",
 			args:           []string{"my-connector"},
-			flags:          ConnectorUpdates{timeout: 1 * time.Second},
+			flags:          common.CommandConnectorUpdateFlags{Timeout: 1 * time.Second},
 			expectedErrors: []string{"connector my-connector must exist in namespace test to be updated"},
 		},
 		{
 			name:           "connector name is not specified",
 			args:           []string{},
-			flags:          ConnectorUpdates{timeout: 1 * time.Second},
+			flags:          common.CommandConnectorUpdateFlags{Timeout: 1 * time.Second},
 			expectedErrors: []string{"connector name must be configured"},
 		},
 		{
 			name:           "connector name is nil",
 			args:           []string{""},
-			flags:          ConnectorUpdates{timeout: 1 * time.Minute},
+			flags:          common.CommandConnectorUpdateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"connector name must not be empty"},
 		},
 		{
 			name:           "more than one argument is specified",
 			args:           []string{"my", "connector"},
-			flags:          ConnectorUpdates{timeout: 1 * time.Minute},
+			flags:          common.CommandConnectorUpdateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
 		{
 			name:           "connector name is not valid.",
 			args:           []string{"my new connector"},
-			flags:          ConnectorUpdates{timeout: 1 * time.Minute},
+			flags:          common.CommandConnectorUpdateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
 			name: "connector type is not valid",
 			args: []string{"my-connector-type"},
-			flags: ConnectorUpdates{
-				connectorType: "not-valid",
-				timeout:       1 * time.Minute,
+			flags: common.CommandConnectorUpdateFlags{
+				ConnectorType: "not-valid",
+				Timeout:       1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Connector{
@@ -144,9 +86,9 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "routing key is not valid",
 			args: []string{"my-connector-rk"},
-			flags: ConnectorUpdates{
-				routingKey: "not-valid$",
-				timeout:    60 * time.Second,
+			flags: common.CommandConnectorUpdateFlags{
+				RoutingKey: "not-valid$",
+				Timeout:    60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Connector{
@@ -172,9 +114,9 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "tls-secret is not valid",
 			args: []string{"my-connector-tls"},
-			flags: ConnectorUpdates{
-				tlsSecret: "test-tls",
-				timeout:   5 * time.Second,
+			flags: common.CommandConnectorUpdateFlags{
+				TlsSecret: "test-tls",
+				Timeout:   5 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Connector{
@@ -199,9 +141,9 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "port is not valid",
 			args: []string{"my-connector-port"},
-			flags: ConnectorUpdates{
-				port:    -1,
-				timeout: 40 * time.Second,
+			flags: common.CommandConnectorUpdateFlags{
+				Port:    -1,
+				Timeout: 40 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Connector{
@@ -227,9 +169,9 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "workload is not valid",
 			args: []string{"bad-workload"},
-			flags: ConnectorUpdates{
-				workload: "!workload",
-				timeout:  70 * time.Second,
+			flags: common.CommandConnectorUpdateFlags{
+				Workload: "!workload",
+				Timeout:  70 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Connector{
@@ -255,9 +197,9 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "selector is not valid",
 			args: []string{"bad-selector"},
-			flags: ConnectorUpdates{
-				selector: "@#$%",
-				timeout:  1 * time.Minute,
+			flags: common.CommandConnectorUpdateFlags{
+				Selector: "@#$%",
+				Timeout:  1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Connector{
@@ -283,9 +225,9 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "timeout is not valid",
 			args: []string{"bad-timeout"},
-			flags: ConnectorUpdates{
-				selector: "selector",
-				timeout:  0 * time.Second,
+			flags: common.CommandConnectorUpdateFlags{
+				Selector: "selector",
+				Timeout:  0 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Connector{
@@ -310,9 +252,9 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "output is not valid",
 			args: []string{"bad-output"},
-			flags: ConnectorUpdates{
-				output:  "not-supported",
-				timeout: 1 * time.Minute,
+			flags: common.CommandConnectorUpdateFlags{
+				Output:  "not-supported",
+				Timeout: 1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Connector{
@@ -338,16 +280,15 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "flags all valid",
 			args: []string{"my-connector-flags"},
-			flags: ConnectorUpdates{
-				host:            "hostname",
-				routingKey:      "routingkeyname",
-				tlsSecret:       "secretname",
-				port:            1234,
-				connectorType:   "tcp",
-				selector:        "backend",
-				includeNotReady: false,
-				timeout:         5 * time.Second,
-				output:          "json",
+			flags: common.CommandConnectorUpdateFlags{
+				RoutingKey:      "routingkeyname",
+				TlsSecret:       "secretname",
+				Port:            1234,
+				ConnectorType:   "tcp",
+				Selector:        "backend",
+				IncludeNotReady: false,
+				Timeout:         5 * time.Second,
+				Output:          "json",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Connector{
@@ -377,6 +318,48 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			},
 			expectedErrors: []string{},
 		},
+		{
+			name: "more than one target type was selected",
+			args: []string{"my-connector-flags"},
+			flags: common.CommandConnectorUpdateFlags{
+				Host:            "hostname",
+				RoutingKey:      "routingkeyname",
+				TlsSecret:       "secretname",
+				Port:            1234,
+				ConnectorType:   "tcp",
+				Selector:        "backend",
+				IncludeNotReady: false,
+				Timeout:         5 * time.Second,
+				Output:          "json",
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector-flags",
+						Namespace: "test",
+					},
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
+					},
+				},
+			},
+			k8sObjects: []runtime.Object{
+				&v12.Secret{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "secretname",
+						Namespace: "test",
+					},
+				},
+			},
+			expectedErrors: []string{"only one of --host, --selector, or --workload can be specified"},
+		},
 	}
 
 	for _, test := range testTable {
@@ -385,7 +368,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			command, err := newCmdConnectorUpdateWithMocks("test", test.k8sObjects, test.skupperObjects, "")
 			assert.Assert(t, err)
 
-			command.flags = test.flags
+			command.Flags = &test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -578,12 +561,12 @@ func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 		assert.Assert(t, err)
 
 		cmd.name = "my-connector"
-		cmd.flags = ConnectorUpdates{
-			timeout: 1 * time.Second,
-			output:  test.output,
+		cmd.Flags = &common.CommandConnectorUpdateFlags{
+			Timeout: 1 * time.Second,
+			Output:  test.output,
 		}
 		cmd.namespace = "test"
-		cmd.newSettings.output = cmd.flags.output
+		cmd.newSettings.output = cmd.Flags.Output
 
 		t.Run(test.name, func(t *testing.T) {
 

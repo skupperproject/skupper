@@ -3,43 +3,25 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"os"
 	"text/tabwriter"
 
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	siteStatusLong = `Display the current status of a site.`
-)
-
 type CmdSiteStatus struct {
 	Client    skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd  cobra.Command
+	CobraCmd  *cobra.Command
 	Namespace string
 }
 
 func NewCmdSiteStatus() *CmdSiteStatus {
 
 	skupperCmd := CmdSiteStatus{}
-
-	cmd := cobra.Command{
-		Use:     "status",
-		Short:   "Get the site status",
-		Long:    siteStatusLong,
-		Example: "skupper site status",
-		PreRun:  skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.Run())
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
 
 	return &skupperCmd
 }
@@ -51,7 +33,7 @@ func (cmd *CmdSiteStatus) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.Namespace = cli.Namespace
 }
-func (cmd *CmdSiteStatus) AddFlags() {}
+
 func (cmd *CmdSiteStatus) ValidateInput(args []string) []error {
 	var validationErrors []error
 

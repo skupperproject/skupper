@@ -3,9 +3,10 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"time"
 
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
@@ -13,45 +14,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	listenerDeleteLong    = "Delete a listener <name>"
-	listenerDeleteExample = "skupper listener delete database"
-)
-
-type ListenerDelete struct {
-	timeout time.Duration
-}
-
 type CmdListenerDelete struct {
 	client    skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd  cobra.Command
-	flags     ListenerDelete
+	CobraCmd  *cobra.Command
+	Flags     *common.CommandListenerDeleteFlags
 	namespace string
 	name      string
 }
 
 func NewCmdListenerDelete() *CmdListenerDelete {
 
-	skupperCmd := CmdListenerDelete{}
-
-	cmd := cobra.Command{
-		Use:     "delete <name>",
-		Short:   "delete a listener",
-		Long:    listenerDeleteLong,
-		Example: listenerDeleteExample,
-		PreRun:  skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.Run())
-		},
-		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntil()
-		},
-	}
-	skupperCmd.CobraCmd = cmd
-	skupperCmd.AddFlags()
-
-	return &skupperCmd
+	return &CmdListenerDelete{}
 }
 
 func (cmd *CmdListenerDelete) NewClient(cobraCommand *cobra.Command, args []string) {
@@ -60,10 +33,6 @@ func (cmd *CmdListenerDelete) NewClient(cobraCommand *cobra.Command, args []stri
 
 	cmd.client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.namespace = cli.Namespace
-}
-
-func (cmd *CmdListenerDelete) AddFlags() {
-	cmd.CobraCmd.Flags().DurationVarP(&cmd.flags.timeout, "timeout", "t", 60*time.Second, "Raise an error if the operation does not complete in the given period of time.")
 }
 
 func (cmd *CmdListenerDelete) ValidateInput(args []string) []error {
@@ -93,8 +62,8 @@ func (cmd *CmdListenerDelete) ValidateInput(args []string) []error {
 			}
 		}
 
-		//TBD what is valid timeout
-		if cmd.flags.timeout <= 0*time.Minute {
+		//TBD what is valid timeout --> use timeout validator
+		if cmd.Flags.Timeout <= 0*time.Minute {
 			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
 		}
 	}
@@ -108,7 +77,7 @@ func (cmd *CmdListenerDelete) Run() error {
 }
 
 func (cmd *CmdListenerDelete) WaitUntil() error {
-	waitTime := int(cmd.flags.timeout.Seconds())
+	waitTime := int(cmd.Flags.Timeout.Seconds())
 	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})

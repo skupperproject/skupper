@@ -3,7 +3,8 @@ package kube
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
@@ -12,47 +13,17 @@ import (
 	"strconv"
 )
 
-var (
-	linkDeleteLong = `Delete a link by name`
-)
-
-type DeleteLinkFlags struct {
-	timeout string
-}
-
 type CmdLinkDelete struct {
 	Client    skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd  cobra.Command
+	CobraCmd  *cobra.Command
 	Namespace string
-	flags     DeleteLinkFlags
+	Flags     *common.CommandLinkDeleteFlags
 	linkName  string
 	timeout   int
 }
 
 func NewCmdLinkDelete() *CmdLinkDelete {
-
-	skupperCmd := CmdLinkDelete{flags: DeleteLinkFlags{}}
-
-	cmd := cobra.Command{
-		Use:     "delete <name>",
-		Short:   "Delete a link",
-		Long:    linkDeleteLong,
-		Example: "skupper site delete my-link",
-		PreRun:  skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			skupperCmd.InputToOptions()
-			utils.HandleError(skupperCmd.Run())
-		},
-		PostRunE: func(cmd *cobra.Command, args []string) error {
-			return skupperCmd.WaitUntil()
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
-	skupperCmd.AddFlags()
-
-	return &skupperCmd
+	return &CmdLinkDelete{}
 }
 
 func (cmd *CmdLinkDelete) NewClient(cobraCommand *cobra.Command, args []string) {
@@ -61,10 +32,6 @@ func (cmd *CmdLinkDelete) NewClient(cobraCommand *cobra.Command, args []string) 
 
 	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.Namespace = cli.Namespace
-}
-
-func (cmd *CmdLinkDelete) AddFlags() {
-	cmd.CobraCmd.Flags().StringVar(&cmd.flags.timeout, "timeout", "60", "raise an error if the operation does not complete in the given period of time (expressed in seconds).")
 }
 
 func (cmd *CmdLinkDelete) ValidateInput(args []string) []error {
@@ -89,7 +56,7 @@ func (cmd *CmdLinkDelete) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("the link %q is not available in the namespace", cmd.linkName))
 		}
 	}
-	selectedTimeout, conversionErr := strconv.Atoi(cmd.flags.timeout)
+	selectedTimeout, conversionErr := strconv.Atoi(cmd.Flags.Timeout)
 	if conversionErr != nil {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", conversionErr))
 	} else {
@@ -102,7 +69,7 @@ func (cmd *CmdLinkDelete) ValidateInput(args []string) []error {
 	return validationErrors
 }
 func (cmd *CmdLinkDelete) InputToOptions() {
-	cmd.timeout, _ = strconv.Atoi(cmd.flags.timeout)
+	cmd.timeout, _ = strconv.Atoi(cmd.Flags.Timeout)
 }
 
 func (cmd *CmdLinkDelete) Run() error {

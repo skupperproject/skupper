@@ -11,6 +11,7 @@ import (
 func NewSpinner(message string, maxRetries int, function func() error) error {
 
 	spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithHiddenCursor(false))
+	defer spin.Stop()
 	spin.Prefix = message
 	spin.FinalMSG = message + "\n"
 
@@ -30,7 +31,9 @@ func NewSpinner(message string, maxRetries int, function func() error) error {
 func NewSpinnerWithTimeout(message string, timeoutInSeconds int, function func() error) error {
 
 	retryProfile := GetConfiguredRetryProfile()
-	spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+	spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithHiddenCursor(false))
+	defer spin.Stop()
+
 	spin.Prefix = message
 	spin.FinalMSG = message + "\n"
 

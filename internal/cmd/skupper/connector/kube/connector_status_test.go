@@ -1,9 +1,10 @@
 package kube
 
 import (
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"gotest.tools/assert"
@@ -11,27 +12,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func TestCmdConnectorStatus_NewCmdConnectorStatus(t *testing.T) {
-
-	t.Run("Status command", func(t *testing.T) {
-
-		result := NewCmdConnectorStatus()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.Example != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-	})
-
-}
-
 func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		flags          ConnectorStatus
+		flags          common.CommandConnectorStatusFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedErrors []string
@@ -65,7 +50,7 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 		{
 			name:  "bad output status",
 			args:  []string{"out-connector"},
-			flags: ConnectorStatus{output: "not-supported"},
+			flags: common.CommandConnectorStatusFlags{Output: "not-supported"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.ConnectorList{
 					Items: []v1alpha1.Connector{
@@ -93,7 +78,7 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 		{
 			name:  "good output status",
 			args:  []string{"out-connector"},
-			flags: ConnectorStatus{output: "json"},
+			flags: common.CommandConnectorStatusFlags{Output: "json"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.ConnectorList{
 					Items: []v1alpha1.Connector{
@@ -126,7 +111,7 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 			command, err := newCmdConnectorStatusWithMocks("test", test.k8sObjects, test.skupperObjects, "")
 			assert.Assert(t, err)
 
-			command.flags = test.flags
+			command.Flags = &test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -142,7 +127,7 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 	type test struct {
 		name                string
 		connectorName       string
-		flags               ConnectorStatus
+		flags               common.CommandConnectorStatusFlags
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
@@ -188,7 +173,7 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 		{
 			name:          "runs ok, returns 1 connectors yaml",
 			connectorName: "my-connector",
-			flags:         ConnectorStatus{output: "yaml"},
+			flags:         common.CommandConnectorStatusFlags{Output: "yaml"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.ConnectorList{
 					Items: []v1alpha1.Connector{
@@ -255,7 +240,7 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 		},
 		{
 			name:  "runs ok, returns all connectors json",
-			flags: ConnectorStatus{output: "json"},
+			flags: common.CommandConnectorStatusFlags{Output: "json"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.ConnectorList{
 					Items: []v1alpha1.Connector{
@@ -297,7 +282,7 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 		},
 		{
 			name:  "runs ok, returns all connectors output bad",
-			flags: ConnectorStatus{output: "bad-value"},
+			flags: common.CommandConnectorStatusFlags{Output: "bad-value"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.ConnectorList{
 					Items: []v1alpha1.Connector{
@@ -341,7 +326,7 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 		{
 			name:          "runs ok, returns 1 connectors bad output",
 			connectorName: "my-connector",
-			flags:         ConnectorStatus{output: "bad-value"},
+			flags:         common.CommandConnectorStatusFlags{Output: "bad-value"},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.ConnectorList{
 					Items: []v1alpha1.Connector{
@@ -373,8 +358,8 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 		assert.Assert(t, err)
 
 		cmd.name = test.connectorName
-		cmd.flags = test.flags
-		cmd.output = cmd.flags.output
+		cmd.Flags = &test.flags
+		cmd.output = cmd.Flags.Output
 		cmd.namespace = "test"
 
 		t.Run(test.name, func(t *testing.T) {

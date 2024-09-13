@@ -3,7 +3,8 @@ package kube
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
@@ -14,18 +15,10 @@ import (
 	"text/tabwriter"
 )
 
-var (
-	linkStatusLong = `Display the status of links in the current site.`
-)
-
-type CmdLinkStatusFlags struct {
-	output string
-}
-
 type CmdLinkStatus struct {
 	Client    skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd  cobra.Command
-	flags     CmdLinkStatusFlags
+	CobraCmd  *cobra.Command
+	Flags     *common.CommandLinkStatusFlags
 	Namespace string
 	output    string
 	linkName  string
@@ -33,25 +26,7 @@ type CmdLinkStatus struct {
 
 func NewCmdLinkStatus() *CmdLinkStatus {
 
-	skupperCmd := CmdLinkStatus{flags: CmdLinkStatusFlags{}}
-
-	cmd := cobra.Command{
-		Use:     "status",
-		Short:   "Display the status",
-		Long:    linkStatusLong,
-		Example: "skupper link status",
-		PreRun:  skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			skupperCmd.InputToOptions()
-			utils.HandleError(skupperCmd.Run())
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
-	skupperCmd.AddFlags()
-
-	return &skupperCmd
+	return &CmdLinkStatus{}
 }
 
 func (cmd *CmdLinkStatus) NewClient(cobraCommand *cobra.Command, args []string) {
@@ -61,12 +36,10 @@ func (cmd *CmdLinkStatus) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
 	cmd.Namespace = cli.Namespace
 }
-func (cmd *CmdLinkStatus) AddFlags() {
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml")
-}
+
 func (cmd *CmdLinkStatus) ValidateInput(args []string) []error {
 	var validationErrors []error
-	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
+	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
 	siteList, err := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
 
@@ -78,8 +51,8 @@ func (cmd *CmdLinkStatus) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("this command only accepts one argument"))
 	}
 
-	if cmd.flags.output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.flags.output)
+	if cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
@@ -93,7 +66,7 @@ func (cmd *CmdLinkStatus) ValidateInput(args []string) []error {
 }
 
 func (cmd *CmdLinkStatus) InputToOptions() {
-	cmd.output = cmd.flags.output
+	cmd.output = cmd.Flags.Output
 }
 func (cmd *CmdLinkStatus) Run() error {
 

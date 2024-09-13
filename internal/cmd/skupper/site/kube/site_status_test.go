@@ -1,32 +1,15 @@
 package kube
 
 import (
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
-
-func TestCmdSiteStatus_NewCmdSiteStatus(t *testing.T) {
-
-	t.Run("status command", func(t *testing.T) {
-
-		result := NewCmdSiteStatus()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-		assert.Check(t, result.CobraCmd.Flags() != nil)
-
-	})
-
-}
 
 func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 	type test struct {

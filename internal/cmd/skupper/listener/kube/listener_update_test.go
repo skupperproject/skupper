@@ -1,79 +1,24 @@
 package kube
 
 import (
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 	"time"
 
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func TestCmdListenerUpdate_NewCmdListenerUpdate(t *testing.T) {
-
-	t.Run("Update command", func(t *testing.T) {
-
-		result := NewCmdListenerUpdate()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.Example != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-		assert.Check(t, result.CobraCmd.PostRunE != nil)
-		assert.Check(t, result.CobraCmd.Flags() != nil)
-	})
-
-}
-
-func TestCmdListenerUpdate_AddFlags(t *testing.T) {
-
-	expectedFlagsWithDefaultValue := map[string]interface{}{
-		"routing-key": "",
-		"host":        "",
-		"tls-secret":  "",
-		"type":        "tcp",
-		"port":        "0",
-		"timeout":     "1m0s",
-		"output":      "",
-	}
-	var flagList []string
-
-	cmd, err := newCmdListenerUpdateWithMocks("test", nil, nil, "")
-	assert.Assert(t, err)
-
-	t.Run("add flags", func(t *testing.T) {
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-		})
-
-		assert.Check(t, len(flagList) == 0)
-
-		cmd.AddFlags()
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] != nil)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue)
-		})
-
-		assert.Check(t, len(flagList) == len(expectedFlagsWithDefaultValue))
-
-	})
-}
-
 func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		flags          ListenerUpdates
+		flags          common.CommandListenerUpdateFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedErrors []string
@@ -83,39 +28,39 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 		{
 			name:           "listener is not updated because listener does not exist in the namespace",
 			args:           []string{"my-listener"},
-			flags:          ListenerUpdates{timeout: 1 * time.Minute},
+			flags:          common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"listener my-listener must exist in namespace test to be updated"},
 		},
 		{
 			name:           "listener name is not specified",
 			args:           []string{},
-			flags:          ListenerUpdates{timeout: 1 * time.Minute},
+			flags:          common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"listener name must be configured"},
 		},
 		{
 			name:           "listener name is nil",
 			args:           []string{""},
-			flags:          ListenerUpdates{timeout: 1 * time.Minute},
+			flags:          common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"listener name must not be empty"},
 		},
 		{
 			name:           "more than one argument is specified",
 			args:           []string{"my", "listener"},
-			flags:          ListenerUpdates{timeout: 1 * time.Minute},
+			flags:          common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
 		{
 			name:           "listener name is not valid.",
 			args:           []string{"my new listener"},
-			flags:          ListenerUpdates{timeout: 1 * time.Minute},
+			flags:          common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
 			name: "listener type is not valid",
 			args: []string{"my-listener-type"},
-			flags: ListenerUpdates{
-				listenerType: "not-valid",
-				timeout:      60 * time.Second,
+			flags: common.CommandListenerUpdateFlags{
+				ListenerType: "not-valid",
+				Timeout:      60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Listener{
@@ -141,9 +86,9 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "routing key is not valid",
 			args: []string{"my-listener-rk"},
-			flags: ListenerUpdates{
-				routingKey: "not-valid$",
-				timeout:    30 * time.Second,
+			flags: common.CommandListenerUpdateFlags{
+				RoutingKey: "not-valid$",
+				Timeout:    30 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Listener{
@@ -168,9 +113,9 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "tls-secret is not valid",
 			args: []string{"my-listener-tls"},
-			flags: ListenerUpdates{
-				tlsSecret: ":not-valid",
-				timeout:   5 * time.Minute,
+			flags: common.CommandListenerUpdateFlags{
+				TlsSecret: ":not-valid",
+				Timeout:   5 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Listener{
@@ -195,9 +140,9 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "port is not valid",
 			args: []string{"my-listener-port"},
-			flags: ListenerUpdates{
-				port:    -1,
-				timeout: 60 * time.Second,
+			flags: common.CommandListenerUpdateFlags{
+				Port:    -1,
+				Timeout: 60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Listener{
@@ -222,7 +167,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "timeout is not valid",
 			args:  []string{"bad-timeout"},
-			flags: ListenerUpdates{timeout: 0 * time.Minute},
+			flags: common.CommandListenerUpdateFlags{Timeout: 0 * time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
@@ -246,9 +191,9 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "output is not valid",
 			args: []string{"bad-output"},
-			flags: ListenerUpdates{
-				output:  "not-supported",
-				timeout: 1 * time.Second,
+			flags: common.CommandListenerUpdateFlags{
+				Output:  "not-supported",
+				Timeout: 1 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Listener{
@@ -274,14 +219,14 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 		{
 			name: "flags all valid",
 			args: []string{"my-listener-flags"},
-			flags: ListenerUpdates{
-				host:         "hostname",
-				routingKey:   "routingkeyname",
-				tlsSecret:    "secretname",
-				port:         1234,
-				listenerType: "tcp",
-				timeout:      1 * time.Second,
-				output:       "json",
+			flags: common.CommandListenerUpdateFlags{
+				Host:         "hostname",
+				RoutingKey:   "routingkeyname",
+				TlsSecret:    "secretname",
+				Port:         1234,
+				ListenerType: "tcp",
+				Timeout:      1 * time.Second,
+				Output:       "json",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Listener{
@@ -319,7 +264,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 			command, err := newCmdListenerUpdateWithMocks("test", test.k8sObjects, test.skupperObjects, "")
 			assert.Assert(t, err)
 
-			command.flags = test.flags
+			command.Flags = &test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -336,7 +281,7 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 		name                string
 		listenerName        string
 		newOutput           string
-		flags               ListenerUpdates
+		flags               common.CommandListenerUpdateFlags
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
@@ -347,13 +292,13 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 		{
 			name:         "runs ok",
 			listenerName: "run-listener",
-			flags: ListenerUpdates{
-				listenerType: "tcp",
-				host:         "hostname",
-				routingKey:   "keyname",
-				tlsSecret:    "secretname",
-				output:       "yaml",
-				timeout:      1 * time.Minute,
+			flags: common.CommandListenerUpdateFlags{
+				ListenerType: "tcp",
+				Host:         "hostname",
+				RoutingKey:   "keyname",
+				TlsSecret:    "secretname",
+				Output:       "yaml",
+				Timeout:      1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Listener{
@@ -377,8 +322,8 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 		{
 			name:         "new output json",
 			listenerName: "run-listener",
-			flags: ListenerUpdates{
-				timeout: 1 * time.Minute,
+			flags: common.CommandListenerUpdateFlags{
+				Timeout: 1 * time.Minute,
 			},
 			newOutput: "json",
 			skupperObjects: []runtime.Object{
@@ -405,7 +350,7 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 			listenerName:        "run-listener",
 			skupperErrorMessage: "error",
 			errorMessage:        "error",
-			flags:               ListenerUpdates{timeout: 1 * time.Minute},
+			flags:               common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
 		},
 	}
 
@@ -414,7 +359,7 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 		assert.Assert(t, err)
 
 		cmd.name = test.listenerName
-		cmd.flags = test.flags
+		cmd.Flags = &test.flags
 		cmd.namespace = "test"
 		cmd.newSettings.output = test.newOutput
 
@@ -511,12 +456,12 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 		assert.Assert(t, err)
 
 		cmd.name = "my-listener"
-		cmd.flags = ListenerUpdates{
-			timeout: 1 * time.Second,
-			output:  test.output,
+		cmd.Flags = &common.CommandListenerUpdateFlags{
+			Timeout: 1 * time.Second,
+			Output:  test.output,
 		}
 		cmd.namespace = "test"
-		cmd.newSettings.output = cmd.flags.output
+		cmd.newSettings.output = cmd.Flags.Output
 
 		t.Run(test.name, func(t *testing.T) {
 			err := cmd.WaitUntil()

@@ -1,78 +1,24 @@
 package kube
 
 import (
-	"fmt"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
+	"testing"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"testing"
 )
-
-func TestCmdLinkGenerate_NewCmdLinkGenerate(t *testing.T) {
-
-	t.Run("generate command", func(t *testing.T) {
-
-		result := NewCmdLinkGenerate()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-		assert.Check(t, result.CobraCmd.Flags() != nil)
-		assert.Check(t, result.CobraCmd.PostRunE != nil)
-
-	})
-
-}
-
-func TestCmdLinkGenerate_AddFlags(t *testing.T) {
-
-	expectedFlagsWithDefaultValue := map[string]interface{}{
-		"cost":                "1",
-		"tls-secret":          "",
-		"output":              "yaml",
-		"generate-credential": "true",
-		"timeout":             "60",
-	}
-	var flagList []string
-
-	cmd, err := newCmdLinkGenerateWithMocks("test", nil, nil, "")
-	assert.Assert(t, err)
-
-	t.Run("add flags", func(t *testing.T) {
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-		})
-
-		assert.Check(t, len(flagList) == 0)
-
-		cmd.AddFlags()
-
-		cmd.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] != nil, fmt.Sprintf("flag %q not expected", flag.Name))
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue, fmt.Sprintf("flag %q witn not expected default value %q", flag.Name, flag.DefValue))
-		})
-
-		assert.Check(t, len(flagList) == len(expectedFlagsWithDefaultValue))
-
-	})
-
-}
 
 func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		flags          GenerateLinkFlags
+		flags          common.CommandLinkGenerateFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedErrors []string
@@ -82,7 +28,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 		{
 			name:           "link yaml is not generated because there is no site in the namespace.",
 			expectedErrors: []string{"there is no skupper site in this namespace", "there is no active skupper site in this namespace"},
-			flags:          GenerateLinkFlags{cost: "1", tlsSecret: "secret", timeout: "60"},
+			flags:          common.CommandLinkGenerateFlags{Cost: "1", TlsSecret: "secret", Timeout: "60"},
 		},
 		{
 			name: "arguments were specified and they are not needed",
@@ -127,7 +73,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags:          GenerateLinkFlags{cost: "1", tlsSecret: "secret", timeout: "60"},
+			flags:          common.CommandLinkGenerateFlags{Cost: "1", TlsSecret: "secret", Timeout: "60"},
 			expectedErrors: []string{"arguments are not allowed in this command"},
 		},
 		{
@@ -172,7 +118,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags:          GenerateLinkFlags{cost: "1", timeout: "60"},
+			flags:          common.CommandLinkGenerateFlags{Cost: "1", Timeout: "60"},
 			expectedErrors: []string{"the TLS secret name was not specified"},
 		},
 		{
@@ -217,7 +163,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags:          GenerateLinkFlags{cost: "one", tlsSecret: "secret", timeout: "60"},
+			flags:          common.CommandLinkGenerateFlags{Cost: "one", TlsSecret: "secret", Timeout: "60"},
 			expectedErrors: []string{"link cost is not valid: strconv.Atoi: parsing \"one\": invalid syntax"},
 		},
 		{
@@ -262,7 +208,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: GenerateLinkFlags{cost: "-4", tlsSecret: "secret", timeout: "60"},
+			flags: common.CommandLinkGenerateFlags{Cost: "-4", TlsSecret: "secret", Timeout: "60"},
 			expectedErrors: []string{
 				"link cost is not valid: value is not positive",
 			},
@@ -309,7 +255,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: GenerateLinkFlags{cost: "1", tlsSecret: "secret", output: "not-valid", timeout: "60"},
+			flags: common.CommandLinkGenerateFlags{Cost: "1", TlsSecret: "secret", Output: "not-valid", Timeout: "60"},
 			expectedErrors: []string{
 				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 			},
@@ -356,7 +302,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: GenerateLinkFlags{cost: "1", tlsSecret: "tls secret", timeout: "60"},
+			flags: common.CommandLinkGenerateFlags{Cost: "1", TlsSecret: "tls secret", Timeout: "60"},
 			expectedErrors: []string{
 				"the name of the tls secret is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 			},
@@ -403,7 +349,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: GenerateLinkFlags{cost: "1", tlsSecret: "secret", timeout: "0"},
+			flags: common.CommandLinkGenerateFlags{Cost: "1", TlsSecret: "secret", Timeout: "0"},
 			expectedErrors: []string{
 				"timeout is not valid: value 0 is not allowed",
 			},
@@ -450,7 +396,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: GenerateLinkFlags{cost: "1", tlsSecret: "secret", timeout: "two"},
+			flags: common.CommandLinkGenerateFlags{Cost: "1", TlsSecret: "secret", Timeout: "two"},
 			expectedErrors: []string{
 				"timeout is not valid: strconv.Atoi: parsing \"two\": invalid syntax",
 			},
@@ -462,7 +408,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 
 			command, err := newCmdLinkGenerateWithMocks("test", nil, test.skupperObjects, "")
 			assert.Assert(t, err)
-			command.flags = test.flags
+			command.Flags = &test.flags
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -479,7 +425,7 @@ func TestCmdLinkGenerate_InputToOptions(t *testing.T) {
 	type test struct {
 		name                        string
 		args                        []string
-		flags                       GenerateLinkFlags
+		flags                       common.CommandLinkGenerateFlags
 		activeSite                  *v1alpha1.Site
 		expectedLinkname            string
 		expectedTlsSecret           string
@@ -491,7 +437,7 @@ func TestCmdLinkGenerate_InputToOptions(t *testing.T) {
 	testTable := []test{
 		{
 			name:                        "check options",
-			flags:                       GenerateLinkFlags{"secret", "1", "json", false, "60"},
+			flags:                       common.CommandLinkGenerateFlags{"secret", "1", "json", false, "60"},
 			expectedCost:                1,
 			expectedTlsSecret:           "secret",
 			expectedOutput:              "json",
@@ -499,7 +445,7 @@ func TestCmdLinkGenerate_InputToOptions(t *testing.T) {
 		},
 		{
 			name:  "credentials are not needed",
-			flags: GenerateLinkFlags{"", "1", "json", true, "60"},
+			flags: common.CommandLinkGenerateFlags{"", "1", "json", true, "60"},
 			activeSite: &v1alpha1.Site{
 
 				ObjectMeta: v1.ObjectMeta{
@@ -535,7 +481,7 @@ func TestCmdLinkGenerate_InputToOptions(t *testing.T) {
 			cmd, err := newCmdLinkGenerateWithMocks("test", nil, nil, "")
 			assert.Assert(t, err)
 
-			cmd.flags = test.flags
+			cmd.Flags = &test.flags
 			cmd.activeSite = test.activeSite
 
 			cmd.InputToOptions()

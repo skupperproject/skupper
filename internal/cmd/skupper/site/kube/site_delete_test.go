@@ -1,34 +1,16 @@
 package kube
 
 import (
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
-
-func TestCmdSiteDelete_NewCmdSiteDelete(t *testing.T) {
-
-	t.Run("delete command", func(t *testing.T) {
-
-		result := NewCmdSiteDelete()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-		assert.Check(t, result.CobraCmd.PostRunE != nil)
-		assert.Check(t, result.CobraCmd.Flags() != nil)
-
-	})
-
-}
 
 func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 	type test struct {
@@ -36,7 +18,6 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 		args           []string
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		flags          *CreateFlags
 		expectedErrors []string
 		skupperError   string
 	}
@@ -47,7 +28,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			args:           []string{"my-site"},
 			k8sObjects:     nil,
 			skupperObjects: nil,
-			expectedErrors: []string{"there is no existing Skupper site resource to update"},
+			expectedErrors: []string{"there is no existing Skupper site resource to delete"},
 			skupperError:   "",
 		},
 		{

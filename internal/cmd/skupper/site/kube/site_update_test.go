@@ -2,80 +2,22 @@ package kube
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/spf13/pflag"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func TestCmdSiteUpdate_NewCmdSiteUpdate(t *testing.T) {
-
-	t.Run("update command", func(t *testing.T) {
-
-		result := NewCmdSiteUpdate()
-
-		assert.Check(t, result.CobraCmd.Use != "")
-		assert.Check(t, result.CobraCmd.Short != "")
-		assert.Check(t, result.CobraCmd.Long != "")
-		assert.Check(t, result.CobraCmd.PreRun != nil)
-		assert.Check(t, result.CobraCmd.Run != nil)
-		assert.Check(t, result.CobraCmd.PostRunE != nil)
-		assert.Check(t, result.CobraCmd.Flags() != nil)
-
-	})
-
-}
-
-func TestCmdSiteUpdate_AddFlags(t *testing.T) {
-
-	expectedFlagsWithDefaultValue := map[string]interface{}{
-		"enable-link-access": "false",
-		"link-access-type":   "",
-		"service-account":    "",
-		"output":             "",
-	}
-	var flagList []string
-
-	command := &CmdSiteUpdate{
-		Namespace: "test",
-	}
-
-	fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, nil, nil, "")
-	assert.Assert(t, err)
-	command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
-
-	t.Run("add flags", func(t *testing.T) {
-
-		command.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-		})
-
-		assert.Check(t, len(flagList) == 0)
-
-		command.AddFlags()
-
-		command.CobraCmd.Flags().VisitAll(func(flag *pflag.Flag) {
-			flagList = append(flagList, flag.Name)
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] != nil, fmt.Sprintf("flag %q not expected", flag.Name))
-			assert.Check(t, expectedFlagsWithDefaultValue[flag.Name] == flag.DefValue)
-		})
-
-		assert.Check(t, len(flagList) == len(expectedFlagsWithDefaultValue))
-
-	})
-
-}
-
 func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		flags          *UpdateFlags
+		flags          *common.CommandSiteUpdateFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		skupperError   string
@@ -86,7 +28,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		{
 			name:       "site is updated because there is already a site in the namespace.",
 			args:       []string{"my-site"},
-			flags:      &UpdateFlags{},
+			flags:      &common.CommandSiteUpdateFlags{},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Site{
@@ -107,7 +49,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		{
 			name:       "site name is not specified.",
 			args:       []string{},
-			flags:      &UpdateFlags{},
+			flags:      &common.CommandSiteUpdateFlags{},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Site{
@@ -128,7 +70,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		{
 			name:       "more than one argument was specified",
 			args:       []string{"my", "site"},
-			flags:      &UpdateFlags{},
+			flags:      &common.CommandSiteUpdateFlags{},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Site{
@@ -149,7 +91,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		{
 			name:       "service account name is not valid.",
 			args:       []string{"my-site"},
-			flags:      &UpdateFlags{serviceAccount: "not valid service account name"},
+			flags:      &common.CommandSiteUpdateFlags{ServiceAccount: "not valid service account name"},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Site{
@@ -168,9 +110,28 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"service account name is not valid: serviceaccounts \"not valid service account name\" not found"},
 		},
 		{
+			name:  "host name was specified, but this flag does not work on kube platforms",
+			args:  []string{"my-site"},
+			flags: &common.CommandSiteUpdateFlags{BindHost: "host"},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v1alpha1.SiteStatus{
+						Status: v1alpha1.Status{
+							StatusMessage: "OK",
+						},
+					},
+				},
+			},
+			expectedErrors: []string{"--host flag is not supported on this platform"},
+		},
+		{
 			name:       "link access type is not valid",
 			args:       []string{"my-site"},
-			flags:      &UpdateFlags{linkAccessType: "not-valid"},
+			flags:      &common.CommandSiteUpdateFlags{LinkAccessType: "not-valid"},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Site{
@@ -194,7 +155,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		{
 			name:       "output format is not valid",
 			args:       []string{"my-site"},
-			flags:      &UpdateFlags{output: "not-valid"},
+			flags:      &common.CommandSiteUpdateFlags{Output: "not-valid"},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Site{
@@ -216,7 +177,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		{
 			name:           "there is no skupper site",
 			args:           []string{"my-site"},
-			flags:          &UpdateFlags{},
+			flags:          &common.CommandSiteUpdateFlags{},
 			k8sObjects:     nil,
 			skupperObjects: nil,
 			skupperError:   "",
@@ -227,7 +188,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		{
 			name:       "there are several skupper sites and no site name was specified",
 			args:       []string{},
-			flags:      &UpdateFlags{},
+			flags:      &common.CommandSiteUpdateFlags{},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Site{
@@ -259,7 +220,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		{
 			name:       "there are several skupper sites but not the one specified by the user",
 			args:       []string{"special-site"},
-			flags:      &UpdateFlags{},
+			flags:      &common.CommandSiteUpdateFlags{},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Site{
@@ -291,7 +252,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		{
 			name:       "there are several skupper sites and the user specifies one of them",
 			args:       []string{"my-site"},
-			flags:      &UpdateFlags{},
+			flags:      &common.CommandSiteUpdateFlags{},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Site{
@@ -323,7 +284,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		{
 			name:       "the name specified in the arguments does not match with the current site",
 			args:       []string{"a-site"},
-			flags:      &UpdateFlags{},
+			flags:      &common.CommandSiteUpdateFlags{},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Site{
@@ -358,7 +319,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			command.KubeClient = fakeSkupperClient.GetKubeClient()
 
 			if test.flags != nil {
-				command.flags = *test.flags
+				command.Flags = test.flags
 			}
 
 			actualErrors := command.ValidateInput(test.args)
@@ -376,7 +337,7 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 	type test struct {
 		name               string
 		args               []string
-		flags              UpdateFlags
+		flags              common.CommandSiteUpdateFlags
 		expectedSettings   map[string]string
 		expectedLinkAccess string
 		expectedOutput     string
@@ -386,7 +347,7 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 		{
 			name:  "options without link access enabled",
 			args:  []string{"my-site"},
-			flags: UpdateFlags{},
+			flags: common.CommandSiteUpdateFlags{},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
@@ -396,7 +357,7 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 		{
 			name:  "options with link access enabled but using a type by default and link access host specified",
 			args:  []string{"my-site"},
-			flags: UpdateFlags{enableLinkAccess: true},
+			flags: common.CommandSiteUpdateFlags{EnableLinkAccess: true},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
@@ -406,7 +367,7 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 		{
 			name:  "options with link access enabled using the nodeport type",
 			args:  []string{"my-site"},
-			flags: UpdateFlags{enableLinkAccess: true, linkAccessType: "nodeport"},
+			flags: common.CommandSiteUpdateFlags{EnableLinkAccess: true, LinkAccessType: "nodeport"},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
@@ -416,7 +377,7 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 		{
 			name:  "options with link access options not well specified",
 			args:  []string{"my-site"},
-			flags: UpdateFlags{enableLinkAccess: false, linkAccessType: "nodeport"},
+			flags: common.CommandSiteUpdateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport"},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
@@ -426,7 +387,7 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 		{
 			name:  "options output type",
 			args:  []string{"my-site"},
-			flags: UpdateFlags{enableLinkAccess: false, linkAccessType: "nodeport", output: "yaml"},
+			flags: common.CommandSiteUpdateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport", Output: "yaml"},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
@@ -444,7 +405,7 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, nil, nil, "")
 			assert.Assert(t, err)
 			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
-			command.flags = test.flags
+			command.Flags = &test.flags
 			command.siteName = "my-site"
 
 			command.InputToOptions()

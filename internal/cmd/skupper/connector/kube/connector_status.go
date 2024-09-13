@@ -3,10 +3,11 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"os"
 	"text/tabwriter"
 
-	"github.com/skupperproject/skupper/internal/cmd/skupper/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
@@ -15,44 +16,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var (
-	connectorStatusLong    = "Display status of all connectors or a specific connector"
-	connectorStatusExample = "skupper connector status backend"
-)
-
-type ConnectorStatus struct {
-	output string
-}
-
 type CmdConnectorStatus struct {
 	client    skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd  cobra.Command
-	flags     ConnectorStatus
+	CobraCmd  *cobra.Command
+	Flags     *common.CommandConnectorStatusFlags
 	namespace string
 	name      string
 	output    string
 }
 
 func NewCmdConnectorStatus() *CmdConnectorStatus {
+	return &CmdConnectorStatus{}
 
-	skupperCmd := CmdConnectorStatus{flags: ConnectorStatus{}}
-
-	cmd := cobra.Command{
-		Use:     "status <name>",
-		Short:   "get status of connectors",
-		Long:    connectorStatusLong,
-		Example: connectorStatusExample,
-		PreRun:  skupperCmd.NewClient,
-		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCmd.ValidateInput(args))
-			utils.HandleError(skupperCmd.Run())
-		},
-	}
-
-	skupperCmd.CobraCmd = cmd
-	skupperCmd.AddFlags()
-
-	return &skupperCmd
 }
 
 func (cmd *CmdConnectorStatus) NewClient(cobraCommand *cobra.Command, args []string) {
@@ -63,14 +38,10 @@ func (cmd *CmdConnectorStatus) NewClient(cobraCommand *cobra.Command, args []str
 	cmd.namespace = cli.Namespace
 }
 
-func (cmd *CmdConnectorStatus) AddFlags() {
-	cmd.CobraCmd.Flags().StringVarP(&cmd.flags.output, "output", "o", "", "print status of connectors Choices: json, yaml")
-}
-
 func (cmd *CmdConnectorStatus) ValidateInput(args []string) []error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
-	outputTypeValidator := validator.NewOptionValidator(utils.OutputTypes)
+	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
 	// Validate arguments name if specified
 	if len(args) > 1 {
@@ -96,12 +67,12 @@ func (cmd *CmdConnectorStatus) ValidateInput(args []string) []error {
 		}
 	}
 
-	if cmd.flags.output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.flags.output)
+	if cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		} else {
-			cmd.output = cmd.flags.output
+			cmd.output = cmd.Flags.Output
 		}
 	}
 
