@@ -65,6 +65,11 @@ files are stored, like certificates, configurations, the original sources
 (original custom resources used to bootstrap the nonkube site) and
 the runtime files generated during initialization.
 
+Namespaces are stored under ${XDG_DATA_HOME}/.local/share/skupper/namespaces
+for regular users when XDG_DATA_HOME environment variable is set, or under
+${HOME}/.local/share/skupper/namespaces when it is not set.
+As the root user, namespaces are stored under: /usr/local/share/skupper/namespaces.
+
 In case the path (-p) flag is omitted, Skupper will try to process
 custom resources stored at the sources directory of the default namespace,
 or from the namespace provided through the namespace (-n) flag.
@@ -248,7 +253,6 @@ apiVersion: skupper.io/v1alpha1
 kind: Site
 metadata:
   name: west
-  namespace: west
 ```
 
 ##### Listener
@@ -258,7 +262,6 @@ apiVersion: skupper.io/v1alpha1
 kind: Listener
 metadata:
   name: backend
-  namespace: west
 spec:
   host: 0.0.0.0
   port: 8080
@@ -272,7 +275,6 @@ apiVersion: skupper.io/v1alpha1
 kind: RouterAccess
 metadata:
   name: go-west
-  namespace: west
 spec:
   roles:
     - port: 55671
@@ -287,24 +289,18 @@ spec:
 Considering all your CRs have been saved to a directory named `west`, use:
 
 ```shell
-./bootstrap -p ./west
+./bootstrap -p ./west -n west
 ```
 
-The CRs are defined using the `west` namespace, so it will be used by default.
-If the namespace was empty, skupper would try to set it to `default`.
+The CRs are defined without a namespace, that is why we have the `-n west` flag,
+to indicate we want this site to run under the `west` namespace.
+Otherwise, the `default` namespace would be used.
 
 Now that the `west` site has been created, copy the generated link into
 the `east` site local directory. Example:
 
 ```shell
 cp ${HOME}/.local/share/skupper/namespaces/west/runtime/link/link-go-west.yaml ./east/link-go-west.yaml
-```
-
-Make sure to update the namespace on the generated `link` that will be used
-in the `east` site. To do that, run:
-
-```shell
-sed -i 's/namespace: west/namespace: east/g' ./east/link-go-west.yaml
 ```
 
 #### East
@@ -317,7 +313,6 @@ apiVersion: skupper.io/v1alpha1
 kind: Site
 metadata:
   name: east
-  namespace: east
 ```
 
 **Connector**
@@ -327,7 +322,6 @@ apiVersion: skupper.io/v1alpha1
 kind: Connector
 metadata:
   name: backend
-  namespace: east
 spec:
   host: 127.0.0.1
   port: 9090
@@ -346,13 +340,11 @@ data:
 kind: Secret
 metadata:
   name: link-go-west
-  namespace: east
 ---
 apiVersion: skupper.io/v1alpha1
 kind: Link
 metadata:
   name: link-go-west
-  namespace: east
 spec:
   cost: 1
   endpoints:
@@ -370,7 +362,7 @@ spec:
 Considering all your CRs have been saved to a directory named `east`, use:
 
 ```shell
-./bootstrap -p ./east
+./bootstrap -p ./east -n east
 ```
 
 ### Testing the scenario
@@ -420,7 +412,7 @@ $ bootstrap -p ./west/ -b bundle
 Skupper nonkube bootstrap (version: main-release-161-g7c5100a2-modified)
 Site "west" has been created (as a distributable bundle)
 Installation bundle available at: /home/user/.local/share/skupper/bundles/skupper-install-west.sh
-Default namespace: west
+Default namespace: default
 Default platform: docker
 ```
 
@@ -433,11 +425,10 @@ To extract the link, run:
 Static links for site "west" have been saved into /tmp/west
 ```
 
-Copy the static Link to the `east` site definition and update the namespace.
+Copy the static Link to the `east` site definition.
 
 ```shell
 cp /tmp/west/link-go-west.yaml ./east/link-go-west.yaml
-sed -i 's/namespace: west/namespace: east/g' ./east/link-go-west.yaml
 ```
 
 #### Creating the east bundle
@@ -447,15 +438,15 @@ $ bootstrap -p ./east -b bundle
 Skupper nonkube bootstrap (version: main-release-161-g7c5100a2-modified)
 Site "east" has been created (as a distributable bundle)
 Installation bundle available at: /home/user/.local/share/skupper/bundles/skupper-install-east.sh
-Default namespace: east
+Default namespace: default
 Default platform: podman
 ```
 
 #### Installing both bundles
 
 ```shell
-/home/user/.local/share/skupper/bundles/skupper-install-west.sh
-/home/user/.local/share/skupper/bundles/skupper-install-east.sh
+/home/user/.local/share/skupper/bundles/skupper-install-west.sh -n west
+/home/user/.local/share/skupper/bundles/skupper-install-east.sh -n east
 ```
 
 #### Cleanup bundle installation

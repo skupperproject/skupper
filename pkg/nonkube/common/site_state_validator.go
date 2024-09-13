@@ -140,9 +140,11 @@ func (s *SiteStateValidator) validateListeners(listeners map[string]*v1alpha1.Li
 		if ip := net.ParseIP(listener.Spec.Host); ip == nil {
 			return fmt.Errorf("invalid listener host: %s - a valid IP address is expected", listener.Spec.Host)
 		}
-
 		if utils.IntSliceContains(hostPorts[listener.Spec.Host], listener.Spec.Port) {
 			return fmt.Errorf("port %d is already mapped for host %q (listener: %q)", listener.Spec.Port, listener.Spec.Host, name)
+		}
+		if listener.Spec.RoutingKey == "" {
+			return fmt.Errorf("routingKey is missing for listener: %s", listener.Name)
 		}
 		hostPorts[listener.Spec.Host] = append(hostPorts[listener.Spec.Host], listener.Spec.Port)
 	}
@@ -161,6 +163,9 @@ func (s *SiteStateValidator) validateConnectors(connectors map[string]*v1alpha1.
 		validHostname := hostnameRfc1123Regex.MatchString(connector.Spec.Host)
 		if ip == nil && !validHostname {
 			return fmt.Errorf("invalid connector host: %s - a valid IP address or hostname is expected", connector.Spec.Host)
+		}
+		if connector.Spec.RoutingKey == "" {
+			return fmt.Errorf("routingKey is missing for connector: %s", connector.Name)
 		}
 	}
 	return nil

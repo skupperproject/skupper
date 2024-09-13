@@ -227,7 +227,7 @@ func RestoreNamespaceData(data []byte) error {
 }
 
 func (c *FileSystemConfigurationRenderer) createTokens(siteState *api.SiteState) error {
-	tokens := make([]api.Token, 0)
+	tokens := make([]*api.Token, 0)
 	for name, linkAccess := range siteState.RouterAccesses {
 		noInterRouterRole := linkAccess.FindRole("inter-router") == nil
 		noEdgeRole := linkAccess.FindRole("edge") == nil
@@ -243,16 +243,16 @@ func (c *FileSystemConfigurationRenderer) createTokens(siteState *api.SiteState)
 		if err != nil {
 			return fmt.Errorf("unable to load client secret %s: %v", secretName, err)
 		}
-		token := api.CreateToken(linkAccess, secret)
-		// routerAccess is not valid (no inter-router or edge endpoints)
-		if token == nil {
-			continue
+		routerTokens := api.CreateTokens(*linkAccess, *secret)
+		// routerAccess is valid (inter-router and edge endpoints defined)
+		if len(routerTokens) > 0 {
+			tokens = append(tokens, routerTokens...)
 		}
-		tokens = append(tokens, *token)
 	}
 	outputPath := c.GetOutputPath(siteState)
 	for _, token := range tokens {
-		tokenPath := path.Join(outputPath, string(api.RuntimeTokenPath), fmt.Sprintf("%s.yaml", token.Links[0].Name))
+		tokenFileName := fmt.Sprintf("%s-%s.yaml", token.Links[0].Name, token.Links[0].Spec.Endpoints[0].Host)
+		tokenPath := path.Join(outputPath, string(api.RuntimeTokenPath), tokenFileName)
 		tokenYaml, err := token.Marshal()
 		if err != nil {
 			return fmt.Errorf("unable to marshal token: %v", err)
