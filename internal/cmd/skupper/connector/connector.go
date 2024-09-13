@@ -37,7 +37,7 @@ func CmdConnectorCreateFactory(configuredPlatform types.Platform) *cobra.Command
 		Short: "create a connector",
 		Long:  "Clients at this site use the connector host and port to establish connections to the remote service.",
 		Example: `skupper connector create database 5432
-			"skupper connector create backend 8080 --workload deployment/backend`,
+skupper connector create backend 8080 --workload deployment/backend`,
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdConnectorCreateDesc, kubeCommand, nonKubeCommand)
@@ -58,6 +58,12 @@ func CmdConnectorCreateFactory(configuredPlatform types.Platform) *cobra.Command
 	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
+
+	if configuredPlatform != types.PlatformKubernetes {
+		cmd.Flags().MarkHidden(common.FlagNameIncludeNotReady)
+		cmd.Flags().MarkHidden(common.FlagNameSelector)
+		cmd.Flags().MarkHidden(common.FlagNameWorkload)
+	}
 
 	return cmd
 }
@@ -117,6 +123,12 @@ func CmdConnectorUpdateFactory(configuredPlatform types.Platform) *cobra.Command
 	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
+
+	if configuredPlatform != types.PlatformKubernetes {
+		cmd.Flags().MarkHidden(common.FlagNameIncludeNotReady)
+		cmd.Flags().MarkHidden(common.FlagNameSelector)
+		cmd.Flags().MarkHidden(common.FlagNameWorkload)
+	}
 
 	return cmd
 }
