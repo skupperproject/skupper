@@ -49,15 +49,15 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 	var validationErrors []error
 
 	if cmd.Flags.ServiceAccount != "" {
-		validationErrors = append(validationErrors, fmt.Errorf("--service-account flag is not supported on this platform"))
+		fmt.Println("Warning: --service-account flag is not supported on this platform")
 	}
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
-		validationErrors = append(validationErrors, fmt.Errorf("--context flag is not supported on this platform"))
+		fmt.Println("Warning: --context flag is not supported on this platform")
 	}
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameKubeconfig) != nil && cmd.CobraCmd.Flag(common.FlagNameKubeconfig).Value.String() != "" {
-		validationErrors = append(validationErrors, fmt.Errorf("--kubeconfig flag is not supported on this platform"))
+		fmt.Println("Warning: --kubeconfig flag is not supported on this platform")
 	}
 
 	resourceStringValidator := validator.NewResourceStringValidator()

@@ -67,21 +67,16 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 			},
 		},
 		{
-			name:  "service-account is not valid on this platform",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{ServiceAccount: "service-account", BindHost: "bindHost"},
-			expectedErrors: []string{
-				"--service-account flag is not supported on this platform",
-			},
+			name:           "service-account is not valid on this platform",
+			args:           []string{"my-site"},
+			flags:          &common.CommandSiteCreateFlags{ServiceAccount: "service-account", BindHost: "bindHost"},
+			expectedErrors: []string{},
 		},
 		{
-			name:  "kubernetes flags are not valid on this platform",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{BindHost: "bindHost"},
-			expectedErrors: []string{
-				"--context flag is not supported on this platform",
-				"--kubeconfig flag is not supported on this platform",
-			},
+			name:           "kubernetes flags are not valid on this platform",
+			args:           []string{"my-site"},
+			flags:          &common.CommandSiteCreateFlags{BindHost: "bindHost"},
+			expectedErrors: []string{},
 			cobraGenericFlags: map[string]string{
 				common.FlagNameContext:    "test",
 				common.FlagNameKubeconfig: "test",

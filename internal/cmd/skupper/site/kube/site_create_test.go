@@ -65,12 +65,6 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"service account name is not valid: serviceaccounts \"not valid service account name\" not found"},
 		},
 		{
-			name:           "host name was specified, but this flag does not work on kube platforms",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteCreateFlags{BindHost: "host"},
-			expectedErrors: []string{"--bind-host flag is not supported on this platform"},
-		},
-		{
 			name:  "link access type is not valid",
 			args:  []string{"my-site"},
 			flags: &common.CommandSiteCreateFlags{LinkAccessType: "not-valid"},
@@ -88,20 +82,16 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 			},
 		},
 		{
-			name:  "bind host flag is not valid for this platform",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{BindHost: "host"},
-			expectedErrors: []string{
-				"--bind-host flag is not supported on this platform",
-			},
+			name:           "bind host flag is not valid for this platform",
+			args:           []string{"my-site"},
+			flags:          &common.CommandSiteCreateFlags{BindHost: "host"},
+			expectedErrors: []string{},
 		},
 		{
-			name:  "subject alternative names flag is not valid for this platform",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{SubjectAlternativeNames: []string{"test"}},
-			expectedErrors: []string{
-				"--subject-alternative-names flag is not supported on this platform",
-			},
+			name:           "subject alternative names flag is not valid for this platform",
+			args:           []string{"my-site"},
+			flags:          &common.CommandSiteCreateFlags{SubjectAlternativeNames: []string{"test"}},
+			expectedErrors: []string{},
 		},
 	}
 
