@@ -26,7 +26,7 @@ func TestCmdLinkFactory(t *testing.T) {
 				common.FlagNameCost:               "1",
 				common.FlagNameOutput:             "yaml",
 				common.FlagNameGenerateCredential: "true",
-				common.FlagNameTimeout:            "60",
+				common.FlagNameTimeout:            "1m0s",
 			},
 			command: CmdLinkGenerateFactory(types.PlatformKubernetes),
 		},
@@ -36,7 +36,7 @@ func TestCmdLinkFactory(t *testing.T) {
 				common.FlagNameTlsSecret: "",
 				common.FlagNameCost:      "1",
 				common.FlagNameOutput:    "",
-				common.FlagNameTimeout:   "60",
+				common.FlagNameTimeout:   "1m0s",
 			},
 			command: CmdLinkUpdateFactory(types.PlatformKubernetes),
 		},
@@ -50,7 +50,7 @@ func TestCmdLinkFactory(t *testing.T) {
 		{
 			name: "CmdLinkDeleteFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
-				common.FlagNameTimeout: "60",
+				common.FlagNameTimeout: "1m0s",
 			},
 			command: CmdLinkDeleteFactory(types.PlatformKubernetes),
 		},

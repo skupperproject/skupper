@@ -10,6 +10,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/site/nonkube"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/spf13/cobra"
+	"time"
 )
 
 func NewCmdSite() *cobra.Command {
@@ -50,6 +51,7 @@ There can be only one site definition per namespace.`,
 	cmd.Flags().StringVar(&cmdFlags.LinkAccessType, common.FlagNameLinkAccessType, "", common.FlagDescLinkAccessType)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	cmd.Flags().StringVar(&cmdFlags.ServiceAccount, common.FlagNameServiceAccount, "", common.FlagDescServiceAccount)
+	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 	cmd.Flags().StringVar(&cmdFlags.BindHost, common.FlagNameBindHost, "", common.FlagDescBindHost)
 	cmd.Flags().StringSliceVar(&cmdFlags.SubjectAlternativeNames, common.FlagNameSubjectAlternativeNames, []string{}, common.FlagDescSubjectAlternativeNames)
 
@@ -87,6 +89,7 @@ func CmdSiteUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 	cmd.Flags().StringVar(&cmdFlags.LinkAccessType, common.FlagNameLinkAccessType, "", common.FlagDescLinkAccessType)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	cmd.Flags().StringVar(&cmdFlags.ServiceAccount, common.FlagNameServiceAccount, "", common.FlagDescServiceAccount)
+	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 	cmd.Flags().StringVar(&cmdFlags.BindHost, common.FlagNameBindHost, "", common.FlagDescBindHost)
 	cmd.Flags().StringSliceVar(&cmdFlags.SubjectAlternativeNames, common.FlagNameSubjectAlternativeNames, []string{}, common.FlagDescSubjectAlternativeNames)
 
@@ -136,9 +139,14 @@ func CmdSiteDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSiteDeleteDesc, kubeCommand, nonKubeCommand)
+	cmdFlags := common.CommandSiteDeleteFlags{}
+
+	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 
 	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
 
 	return cmd
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/link/nonkube"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/spf13/cobra"
+	"time"
 )
 
 func NewCmdLink() *cobra.Command {
@@ -44,7 +45,7 @@ output needs to be applied in the site in which we want to create the link.`,
 	cmd.Flags().StringVar(&cmdFlags.Cost, common.FlagNameCost, "1", common.FlagDescCost)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "yaml", common.FlagDescOutput)
 	cmd.Flags().BoolVar(&cmdFlags.GenerateCredential, common.FlagNameGenerateCredential, true, common.FlagDescGenerateCredential)
-	cmd.Flags().StringVar(&cmdFlags.Timeout, common.FlagNameTimeout, "60", common.FlagDescTimeout)
+	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
@@ -68,8 +69,8 @@ func CmdLinkUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 	cmdFlags := common.CommandLinkUpdateFlags{}
 	cmd.Flags().StringVar(&cmdFlags.TlsSecret, common.FlagNameTlsSecret, "", common.FlagDescTlsSecret)
 	cmd.Flags().StringVar(&cmdFlags.Cost, common.FlagNameCost, "1", common.FlagDescCost)
+	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
-	cmd.Flags().StringVar(&cmdFlags.Timeout, common.FlagNameTimeout, "60", common.FlagDescCost)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
@@ -115,7 +116,7 @@ func CmdLinkDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdLinkDeleteDesc, kubeCommand, nonKubeCommand)
 	cmdFlags := common.CommandLinkDeleteFlags{}
-	cmd.Flags().StringVar(&cmdFlags.Timeout, common.FlagNameTimeout, "60", common.FlagDescTimeout)
+	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags

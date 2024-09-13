@@ -3,6 +3,7 @@ package validator
 import (
 	"fmt"
 	"regexp"
+	"time"
 )
 
 type Validator interface {
@@ -88,13 +89,6 @@ func NewNumberValidator() *NumberValidator {
 	}
 }
 
-func NewTimeoutInSecondsValidator() *NumberValidator {
-	return &NumberValidator{
-		PositiveInt: true,
-		IncludeZero: false,
-	}
-}
-
 func (i NumberValidator) Evaluate(value interface{}) (bool, error) {
 
 	v, ok := value.(int)
@@ -154,5 +148,24 @@ func (i OptionValidator) Evaluate(value interface{}) (bool, error) {
 	if !valueFound {
 		return false, fmt.Errorf("value %s not allowed. It should be one of this options: %v", v, i.AllowedOptions)
 	}
+	return true, nil
+}
+
+type DurationValidator struct {
+	MinDuration time.Duration
+}
+
+func NewTimeoutInSecondsValidator() *DurationValidator {
+	return &DurationValidator{
+		MinDuration: time.Second * 10,
+	}
+}
+
+func (i DurationValidator) Evaluate(value time.Duration) (bool, error) {
+
+	if value < i.MinDuration {
+		return false, fmt.Errorf("duration must not be less than %v; got %v", i.MinDuration, value)
+	}
+
 	return true, nil
 }

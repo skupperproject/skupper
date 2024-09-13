@@ -9,6 +9,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"testing"
+	"time"
 )
 
 func TestCmdLinkDelete_ValidateInput(t *testing.T) {
@@ -25,13 +26,13 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 		{
 			name:           "there is no active skupper site in this namespace",
 			args:           []string{"my-link"},
-			flags:          common.CommandLinkDeleteFlags{Timeout: "60"},
+			flags:          common.CommandLinkDeleteFlags{Timeout: time.Minute},
 			expectedErrors: []string{"there is no skupper site in this namespace", "the link \"my-link\" is not available in the namespace"},
 		},
 		{
 			name:  "link is not deleted because it does not exist",
 			args:  []string{"my-link"},
-			flags: common.CommandLinkDeleteFlags{Timeout: "60"},
+			flags: common.CommandLinkDeleteFlags{Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -49,7 +50,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 		{
 			name:  "more than one argument was specified",
 			args:  []string{"my", "link"},
-			flags: common.CommandLinkDeleteFlags{Timeout: "60"},
+			flags: common.CommandLinkDeleteFlags{Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -67,7 +68,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 		{
 			name:  "trying to delete without specifying a name",
 			args:  []string{""},
-			flags: common.CommandLinkDeleteFlags{Timeout: "60"},
+			flags: common.CommandLinkDeleteFlags{Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -85,7 +86,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 		{
 			name:  "link deleted successfully",
 			args:  []string{"my-link"},
-			flags: common.CommandLinkDeleteFlags{Timeout: "60"},
+			flags: common.CommandLinkDeleteFlags{Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -107,33 +108,9 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 			expectedErrors: []string{},
 		},
 		{
-			name:  "timeout is not valid because it is negative",
-			args:  []string{"my-link"},
-			flags: common.CommandLinkDeleteFlags{Timeout: "-1"},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-						},
-					},
-				},
-				&v1alpha1.Link{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-link",
-						Namespace: "test",
-					},
-				},
-			},
-			expectedErrors: []string{"timeout is not valid: value is not positive"},
-		},
-		{
 			name:  "timeout is not valid because it is zero",
 			args:  []string{"my-link"},
-			flags: common.CommandLinkDeleteFlags{Timeout: "0"},
+			flags: common.CommandLinkDeleteFlags{Timeout: time.Second * 0},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
 					Items: []v1alpha1.Site{
@@ -152,31 +129,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"timeout is not valid: value 0 is not allowed"},
-		},
-		{
-			name:  "timeout is not valid because it is not a number",
-			args:  []string{"my-link"},
-			flags: common.CommandLinkDeleteFlags{Timeout: "one"},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-						},
-					},
-				},
-				&v1alpha1.Link{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-link",
-						Namespace: "test",
-					},
-				},
-			},
-			expectedErrors: []string{"timeout is not valid: strconv.Atoi: parsing \"one\": invalid syntax"},
+			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 0s"},
 		},
 	}
 
@@ -202,14 +155,14 @@ func TestCmdLinkDelete_InputToOptions(t *testing.T) {
 	type test struct {
 		name            string
 		flags           common.CommandLinkDeleteFlags
-		expectedTimeout int
+		expectedTimeout time.Duration
 	}
 
 	testTable := []test{
 		{
 			name:            "check options",
-			flags:           common.CommandLinkDeleteFlags{"60"},
-			expectedTimeout: 60,
+			flags:           common.CommandLinkDeleteFlags{time.Minute},
+			expectedTimeout: time.Minute,
 		},
 	}
 
@@ -276,7 +229,7 @@ func TestCmdLinkDelete_Run(t *testing.T) {
 func TestCmdLinkDelete_WaitUntil(t *testing.T) {
 	type test struct {
 		name           string
-		timeout        int
+		timeout        time.Duration
 		skupperObjects []runtime.Object
 		expectError    bool
 	}
@@ -306,12 +259,12 @@ func TestCmdLinkDelete_WaitUntil(t *testing.T) {
 					},
 				},
 			},
-			timeout:     1,
+			timeout:     time.Second,
 			expectError: true,
 		},
 		{
 			name:        "link is deleted",
-			timeout:     1,
+			timeout:     time.Second,
 			expectError: false,
 		},
 	}

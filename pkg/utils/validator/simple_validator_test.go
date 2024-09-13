@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"regexp"
 	"testing"
+	"time"
 
 	"gotest.tools/assert"
 )
@@ -87,17 +88,13 @@ func TestIntegerValidator_Evaluate(t *testing.T) {
 func TestTimeoutInSecondsValidator_Evaluate(t *testing.T) {
 	type test struct {
 		name   string
-		value  interface{}
+		value  time.Duration
 		result bool
 	}
 
 	testTable := []test{
-		{name: "empty string", value: "", result: false},
-		{name: "value greater than zero", value: 235, result: true},
-		{name: "zero value", value: 0, result: false},
-		{name: "negative number", value: -2, result: false},
-		{name: "not valid characters", value: "abc", result: false},
-		{name: "nil value", value: nil, result: false},
+		{name: "value less than minimum", value: time.Second * 1, result: false},
+		{name: "zero value", value: time.Second * 0, result: false},
 	}
 
 	for _, test := range testTable {
