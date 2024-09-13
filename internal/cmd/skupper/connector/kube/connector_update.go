@@ -63,6 +63,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	workloadStringValidator := validator.NewWorkloadStringValidator()
+	numTargetTypesSelected := 0
 
 	// Validate arguments name
 	if len(args) < 1 {
@@ -109,6 +110,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 	}
 	//TBD what characters are not allowed for host flag
 	if cmd.Flags.Host != "" {
+		numTargetTypesSelected++
 		cmd.newSettings.host = cmd.Flags.Host
 	}
 	if cmd.Flags.TlsSecret != "" {
@@ -137,6 +139,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 	}
 	//TBD what are valid values here
 	if cmd.Flags.Selector != "" {
+		numTargetTypesSelected++
 		ok, err := workloadStringValidator.Evaluate(cmd.Flags.Selector)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("selector is not valid: %s", err))
@@ -161,6 +164,14 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 		} else {
 			cmd.newSettings.output = cmd.Flags.Output
 		}
+	}
+
+	if cmd.Flags.Host != "" {
+		numTargetTypesSelected++
+	}
+
+	if numTargetTypesSelected > 1 {
+		validationErrors = append(validationErrors, fmt.Errorf("only one of --host, --selector, or --workload can be specified"))
 	}
 
 	return validationErrors

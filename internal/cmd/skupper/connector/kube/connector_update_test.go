@@ -281,7 +281,6 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			name: "flags all valid",
 			args: []string{"my-connector-flags"},
 			flags: common.CommandConnectorUpdateFlags{
-				Host:            "hostname",
 				RoutingKey:      "routingkeyname",
 				TlsSecret:       "secretname",
 				Port:            1234,
@@ -318,6 +317,48 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				},
 			},
 			expectedErrors: []string{},
+		},
+		{
+			name: "more than one target type was selected",
+			args: []string{"my-connector-flags"},
+			flags: common.CommandConnectorUpdateFlags{
+				Host:            "hostname",
+				RoutingKey:      "routingkeyname",
+				TlsSecret:       "secretname",
+				Port:            1234,
+				ConnectorType:   "tcp",
+				Selector:        "backend",
+				IncludeNotReady: false,
+				Timeout:         5 * time.Second,
+				Output:          "json",
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector-flags",
+						Namespace: "test",
+					},
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
+					},
+				},
+			},
+			k8sObjects: []runtime.Object{
+				&v12.Secret{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "secretname",
+						Namespace: "test",
+					},
+				},
+			},
+			expectedErrors: []string{"only one of --host, --selector, or --workload can be specified"},
 		},
 	}
 

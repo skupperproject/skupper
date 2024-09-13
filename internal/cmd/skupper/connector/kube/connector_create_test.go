@@ -648,7 +648,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			name: "flags all valid",
 			args: []string{"my-connector-flags", "8080"},
 			flags: common.CommandConnectorCreateFlags{
-				Host:            "hostname",
 				RoutingKey:      "routingkeyname",
 				TlsSecret:       "secretname",
 				ConnectorType:   "tcp",
@@ -688,6 +687,51 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				},
 			},
 			expectedErrors: []string{},
+		},
+		{
+			name: "more than one target type was selected",
+			args: []string{"my-connector-flags", "8080"},
+			flags: common.CommandConnectorCreateFlags{
+				Host:            "hostname",
+				RoutingKey:      "routingkeyname",
+				TlsSecret:       "secretname",
+				ConnectorType:   "tcp",
+				Selector:        "backend",
+				IncludeNotReady: true,
+				Timeout:         30 * time.Second,
+				Output:          "json",
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.SiteList{
+					Items: []v1alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "site1",
+								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			k8sObjects: []runtime.Object{
+				&v12.Secret{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "secretname",
+						Namespace: "test",
+					},
+				},
+			},
+			expectedErrors: []string{"Only one of the following options must be set: workload, selector, host"},
 		},
 	}
 

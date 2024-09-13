@@ -62,6 +62,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	workloadStringValidator := validator.NewWorkloadStringValidator()
+	numTargetTypesSelected := 0
 
 	// Validate arguments name and port
 	if len(args) < 2 {
@@ -131,6 +132,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 		}
 	}
 	if cmd.Flags.Selector != "" {
+		numTargetTypesSelected++
 		ok, err := workloadStringValidator.Evaluate(cmd.Flags.Selector)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("selector is not valid: %s", err))
@@ -138,6 +140,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	}
 	//TBD no workload in connector CRD
 	if cmd.Flags.Workload != "" {
+		numTargetTypesSelected++
 		ok, err := workloadStringValidator.Evaluate(cmd.Flags.Workload)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("workload is not valid: %s", err))
@@ -147,10 +150,17 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	if cmd.Flags.Timeout <= 0*time.Minute {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
 	}
-	// workload, selector or host must be specified
-	if cmd.Flags.Workload == "" && cmd.Flags.Selector == "" && cmd.Flags.Host == "" {
-		validationErrors = append(validationErrors, fmt.Errorf("One of the following options must be set: workload, selector, host"))
+
+	if cmd.Flags.Host != "" {
+		numTargetTypesSelected++
 	}
+	// workload, selector or host must be specified
+	if numTargetTypesSelected == 0 {
+		validationErrors = append(validationErrors, fmt.Errorf("One of the following options must be set: workload, selector, host"))
+	} else if numTargetTypesSelected > 1 {
+		validationErrors = append(validationErrors, fmt.Errorf("Only one of the following options must be set: workload, selector, host"))
+	}
+
 	if cmd.Flags.Output != "" {
 		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
