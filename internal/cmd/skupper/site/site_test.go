@@ -25,6 +25,7 @@ func TestCmdSiteFactory(t *testing.T) {
 				common.FlagNameLinkAccessType:          "",
 				common.FlagNameServiceAccount:          "",
 				common.FlagNameOutput:                  "",
+				common.FlagNameTimeout:                 "1m0s",
 				common.FlagNameBindHost:                "",
 				common.FlagNameSubjectAlternativeNames: "[]",
 			},
@@ -38,14 +39,17 @@ func TestCmdSiteFactory(t *testing.T) {
 				common.FlagNameServiceAccount:          "",
 				common.FlagNameOutput:                  "",
 				common.FlagNameBindHost:                "",
+				common.FlagNameTimeout:                 "1m0s",
 				common.FlagNameSubjectAlternativeNames: "[]",
 			},
 			command: CmdSiteUpdateFactory(types.PlatformKubernetes),
 		},
 		{
-			name:                          "CmdSiteDeleteFactory",
-			expectedFlagsWithDefaultValue: map[string]interface{}{},
-			command:                       CmdSiteDeleteFactory(types.PlatformKubernetes),
+			name: "CmdSiteDeleteFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameTimeout: "1m0s",
+			},
+			command: CmdSiteDeleteFactory(types.PlatformKubernetes),
 		},
 		{
 			name:                          "CmdSiteStatusFactory",

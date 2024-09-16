@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"strconv"
+	"time"
 )
 
 type CmdLinkUpdate struct {
@@ -28,7 +29,7 @@ type CmdLinkUpdate struct {
 	tlsSecret  string
 	cost       int
 	output     string
-	timeout    int
+	timeout    time.Duration
 }
 
 func NewCmdLinkUpdate() *CmdLinkUpdate {
@@ -92,14 +93,9 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 		}
 	}
 
-	selectedTimeout, convErr := strconv.Atoi(cmd.Flags.Timeout)
-	if convErr != nil {
-		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", convErr))
-	} else {
-		ok, err = timeoutValidator.Evaluate(selectedTimeout)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
-		}
+	ok, err = timeoutValidator.Evaluate(cmd.Flags.Timeout)
+	if !ok {
+		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
 	}
 
 	return validationErrors
@@ -110,7 +106,7 @@ func (cmd *CmdLinkUpdate) InputToOptions() {
 	cmd.cost, _ = strconv.Atoi(cmd.Flags.Cost)
 	cmd.tlsSecret = cmd.Flags.TlsSecret
 	cmd.output = cmd.Flags.Output
-	cmd.timeout, _ = strconv.Atoi(cmd.Flags.Timeout)
+	cmd.timeout = cmd.Flags.Timeout
 
 }
 
@@ -169,7 +165,8 @@ func (cmd *CmdLinkUpdate) WaitUntil() error {
 		return nil
 	}
 
-	err := utils.NewSpinnerWithTimeout("Waiting for update to complete...", cmd.timeout, func() error {
+	waitTime := int(cmd.timeout.Seconds())
+	err := utils.NewSpinnerWithTimeout("Waiting for update to complete...", waitTime, func() error {
 
 		resource, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
 		if err != nil {

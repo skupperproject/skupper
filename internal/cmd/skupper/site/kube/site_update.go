@@ -6,11 +6,11 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"k8s.io/client-go/kubernetes"
+	"time"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,12 +21,12 @@ type CmdSiteUpdate struct {
 	KubeClient         kubernetes.Interface
 	CobraCmd           *cobra.Command
 	Flags              *common.CommandSiteUpdateFlags
-	options            map[string]string
 	siteName           string
 	serviceAccountName string
 	Namespace          string
 	linkAccessType     string
 	output             string
+	timeout            time.Duration
 }
 
 func NewCmdSiteUpdate() *CmdSiteUpdate {
@@ -50,6 +50,7 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 	var validationErrors []error
 	linkAccessTypeValidator := validator.NewOptionValidator(common.LinkAccessTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
+	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 
 	//Validate if there is already a site defined in the namespace
 	siteList, _ := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
@@ -109,6 +110,13 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 		}
 	}
 
+	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
+		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
+		}
+	}
+
 	return validationErrors
 }
 func (cmd *CmdSiteUpdate) InputToOptions() {
@@ -120,18 +128,10 @@ func (cmd *CmdSiteUpdate) InputToOptions() {
 		} else {
 			cmd.linkAccessType = cmd.Flags.LinkAccessType
 		}
-	} else {
-		cmd.linkAccessType = "none"
 	}
-
-	options := make(map[string]string)
-	if cmd.siteName != "" {
-		options[site.SiteConfigNameKey] = cmd.siteName
-	}
-
-	cmd.options = options
 
 	cmd.output = cmd.Flags.Output
+	cmd.timeout = cmd.Flags.Timeout
 
 }
 func (cmd *CmdSiteUpdate) Run() error {
@@ -143,9 +143,6 @@ func (cmd *CmdSiteUpdate) Run() error {
 	}
 
 	updatedSettings := currentSite.Spec.Settings
-	if len(cmd.options) != 0 {
-		updatedSettings = cmd.options
-	}
 
 	updatedServiceAccount := currentSite.Spec.ServiceAccount
 	if cmd.serviceAccountName != "" {
@@ -195,7 +192,8 @@ func (cmd *CmdSiteUpdate) WaitUntil() error {
 		return nil
 	}
 
-	err := utils.NewSpinner("Waiting for update to complete...", 5, func() error {
+	waitTime := int(cmd.timeout.Seconds())
+	err := utils.NewSpinnerWithTimeout("Waiting for update to complete...", waitTime, func() error {
 
 		resource, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
 		if err != nil {

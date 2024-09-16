@@ -35,7 +35,7 @@ type CmdLinkGenerate struct {
 	activeSite         *v1alpha1.Site
 	generateCredential bool
 	generatedLink      v1alpha1.Link
-	timeout            int
+	timeout            time.Duration
 }
 
 func NewCmdLinkGenerate() *CmdLinkGenerate {
@@ -107,14 +107,9 @@ func (cmd *CmdLinkGenerate) ValidateInput(args []string) []error {
 		}
 	}
 
-	selectedTimeout, convErr := strconv.Atoi(cmd.Flags.Timeout)
-	if convErr != nil {
-		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", convErr))
-	} else {
-		ok, err = timeoutValidator.Evaluate(selectedTimeout)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
-		}
+	ok, err = timeoutValidator.Evaluate(cmd.Flags.Timeout)
+	if !ok {
+		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
 	}
 
 	return validationErrors
@@ -125,7 +120,7 @@ func (cmd *CmdLinkGenerate) InputToOptions() {
 	cmd.cost, _ = strconv.Atoi(cmd.Flags.Cost)
 	cmd.output = cmd.Flags.Output
 	cmd.generateCredential = cmd.Flags.GenerateCredential
-	cmd.timeout, _ = strconv.Atoi(cmd.Flags.Timeout)
+	cmd.timeout = cmd.Flags.Timeout
 
 	var generatedLinkName string
 	if cmd.activeSite != nil {
@@ -207,7 +202,7 @@ func (cmd *CmdLinkGenerate) WaitUntil() error {
 
 	if cmd.generateCredential {
 
-		ctxWithTimeout, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(cmd.timeout))
+		ctxWithTimeout, cancel := context.WithTimeout(context.Background(), cmd.timeout)
 		defer cancel()
 
 		err := pkgutils.RetryErrorWithContext(ctxWithTimeout, time.Second, func() error {

@@ -3,7 +3,10 @@ package kube
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/pkg/utils/validator"
+	"time"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
@@ -14,8 +17,10 @@ import (
 type CmdSiteDelete struct {
 	Client    skupperv1alpha1.SkupperV1alpha1Interface
 	CobraCmd  *cobra.Command
+	Flags     *common.CommandSiteDeleteFlags
 	Namespace string
 	siteName  string
+	timeout   time.Duration
 }
 
 func NewCmdSiteDelete() *CmdSiteDelete {
@@ -35,6 +40,7 @@ func (cmd *CmdSiteDelete) NewClient(cobraCommand *cobra.Command, args []string) 
 
 func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
 	var validationErrors []error
+	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 
 	//Validate if there is already a site defined in the namespace
 	siteList, err := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
@@ -68,16 +74,26 @@ func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
 		}
 	}
 
+	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
+		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
+		}
+	}
+
 	return validationErrors
 }
-func (cmd *CmdSiteDelete) InputToOptions() {}
+func (cmd *CmdSiteDelete) InputToOptions() {
+	cmd.timeout = cmd.Flags.Timeout
+}
 
 func (cmd *CmdSiteDelete) Run() error {
 	err := cmd.Client.Sites(cmd.Namespace).Delete(context.TODO(), cmd.siteName, metav1.DeleteOptions{})
 	return err
 }
 func (cmd *CmdSiteDelete) WaitUntil() error {
-	err := utils.NewSpinner("Waiting for deletion to complete...", 5, func() error {
+	waitTime := int(cmd.timeout.Seconds())
+	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
 		resource, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
 
