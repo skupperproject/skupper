@@ -93,13 +93,8 @@ func getSkupperConfiguredImages(enableSHA bool) []SkupperImage {
 			Repository: "https://github.com/skupperproject/skupper-router",
 		},
 		{
-			Name:       images.GetServiceControllerImageName(),
-			SHA:        getSHAIfEnabled(enableSHA, images.GetServiceControllerImageName()),
-			Repository: "https://github.com/skupperproject/skupper",
-		},
-		{
-			Name:       images.GetControllerPodmanImageName(),
-			SHA:        getSHAIfEnabled(enableSHA, images.GetControllerPodmanImageName()),
+			Name:       images.GetControllerImageName(),
+			SHA:        getSHAIfEnabled(enableSHA, images.GetControllerImageName()),
 			Repository: "https://github.com/skupperproject/skupper",
 		},
 		{
@@ -108,13 +103,8 @@ func getSkupperConfiguredImages(enableSHA bool) []SkupperImage {
 			Repository: "https://github.com/skupperproject/skupper",
 		},
 		{
-			Name:       images.GetFlowCollectorImageName(),
-			SHA:        getSHAIfEnabled(enableSHA, images.GetFlowCollectorImageName()),
-			Repository: "https://github.com/skupperproject/skupper",
-		},
-		{
-			Name:       images.GetSiteControllerImageName(),
-			SHA:        getSHAIfEnabled(enableSHA, images.GetSiteControllerImageName()),
+			Name:       images.GetNetworkConsoleCollectorImageName(),
+			SHA:        getSHAIfEnabled(enableSHA, images.GetNetworkConsoleCollectorImageName()),
 			Repository: "https://github.com/skupperproject/skupper",
 		},
 		{
@@ -135,23 +125,7 @@ func getSkupperDefaultImages() []SkupperImage {
 			Repository: "https://github.com/skupperproject/skupper-router",
 		},
 		{
-			Name:       strings.Join([]string{images.DefaultImageRegistry, images.ServiceControllerImageName}, "/"),
-			Repository: "https://github.com/skupperproject/skupper",
-		},
-		{
-			Name:       strings.Join([]string{images.DefaultImageRegistry, images.ControllerPodmanImageName}, "/"),
-			Repository: "https://github.com/skupperproject/skupper",
-		},
-		{
 			Name:       strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
-			Repository: "https://github.com/skupperproject/skupper",
-		},
-		{
-			Name:       strings.Join([]string{images.DefaultImageRegistry, images.FlowCollectorImageName}, "/"),
-			Repository: "https://github.com/skupperproject/skupper",
-		},
-		{
-			Name:       strings.Join([]string{images.DefaultImageRegistry, images.SiteControllerImageName}, "/"),
 			Repository: "https://github.com/skupperproject/skupper",
 		},
 		{
@@ -187,14 +161,9 @@ func getEnvironmentVariableMap() *map[string]string {
 		envVariables[images.RouterImageEnvKey] = routerImage
 	}
 
-	serviceControllerImage := os.Getenv(images.ServiceControllerImageEnvKey)
+	serviceControllerImage := os.Getenv(images.ControllerImageEnvKey)
 	if serviceControllerImage != "" {
-		envVariables[images.ServiceControllerImageEnvKey] = serviceControllerImage
-	}
-
-	controllerPodmanImage := os.Getenv(images.ControllerPodmanImageEnvKey)
-	if controllerPodmanImage != "" {
-		envVariables[images.ControllerPodmanImageEnvKey] = controllerPodmanImage
+		envVariables[images.ControllerImageEnvKey] = serviceControllerImage
 	}
 
 	configSyncImage := os.Getenv(images.ConfigSyncImageEnvKey)
@@ -202,9 +171,9 @@ func getEnvironmentVariableMap() *map[string]string {
 		envVariables[images.ConfigSyncImageEnvKey] = configSyncImage
 	}
 
-	flowCollectorImage := os.Getenv(images.FlowCollectorImageEnvKey)
+	flowCollectorImage := os.Getenv(images.NetworkConsoleCollectorImageEnvKey)
 	if flowCollectorImage != "" {
-		envVariables[images.FlowCollectorImageEnvKey] = flowCollectorImage
+		envVariables[images.NetworkConsoleCollectorImageEnvKey] = flowCollectorImage
 	}
 
 	prometheusImage := os.Getenv(images.PrometheusServerImageEnvKey)
