@@ -111,7 +111,7 @@ func (s *server) ProcessPairsByAddress(w http.ResponseWriter, r *http.Request, i
 		}
 	}
 	allProcPairs := views.NewProcessPairSliceProvider(s.graph)(listByType[collector.ProcPairRecord](s.records))
-	var results []api.FlowAggregateRecord
+	results := make([]api.FlowAggregateRecord, 0)
 	for _, proc := range allProcPairs {
 		if _, ok := targetProcessIDs[proc.DestinationId]; ok {
 			results = append(results, proc)
