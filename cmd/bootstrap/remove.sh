@@ -30,7 +30,7 @@ remove_definition() {
     if [ -f "${platform_file}" ]; then
         SKUPPER_PLATFORM=$(grep '^platform: ' "${platform_file}" | sed -e 's/.*: //g')
         if [ "${SKUPPER_PLATFORM}" = "podman" ] || [ "${SKUPPER_PLATFORM}" = "docker" ]; then
-            ${SKUPPER_PLATFORM} rm -f "${namespace}-skupper-router"
+            ${SKUPPER_PLATFORM} rm -f "${namespace}-skupper-router" > /dev/null
         fi
     fi
     rm -rf "${namespaces_path:?}/${namespace:?}/"
@@ -39,7 +39,7 @@ remove_definition() {
 remove_service() {
     service="skupper-${namespace}.service"
     ${systemctl} stop "${service}"
-    ${systemctl} disable "${service}"
+    ${systemctl} disable "${service}" > /dev/null 2>&1
     rm -f "${service_path:?}/${service:?}"
     ${systemctl} daemon-reload
     ${systemctl} reset-failed
@@ -57,6 +57,7 @@ main () {
     fi
     remove_definition
     remove_service
+    echo "Namespace \"${namespace}\" has been removed"
 }
 
 main "$@"
