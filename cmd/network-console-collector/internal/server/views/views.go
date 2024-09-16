@@ -461,14 +461,17 @@ func NewAddressSliceProvider(graph collector.Graph) func(entries []store.Entry) 
 
 func NewAddressProvider(graph collector.Graph) func(collector.AddressRecord) api.AddressRecord {
 	return func(record collector.AddressRecord) api.AddressRecord {
-		node := graph.Address(record.ID)
+		node := graph.Address(record.ID).RoutingKey()
+		listenerCt := len(node.Listeners())
+		connectorCt := len(node.Connectors())
 		return api.AddressRecord{
 			Identity:       record.ID,
 			StartTime:      uint64(record.Start.UnixMicro()),
 			Protocol:       record.Protocol,
 			Name:           record.Name,
-			ListenerCount:  len(node.RoutingKey().Listeners()),
-			ConnectorCount: len(node.RoutingKey().Connectors()),
+			ListenerCount:  listenerCt,
+			ConnectorCount: connectorCt,
+			IsBound:        listenerCt > 0 && connectorCt > 0,
 		}
 	}
 }

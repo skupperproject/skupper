@@ -1029,6 +1029,7 @@ components:
             - protocol
             - listenerCount
             - connectorCount
+            - isBound
           properties:
             name:
               type: string
@@ -1038,6 +1039,9 @@ components:
               type: integer
             connectorCount:
               type: integer
+            isBound:
+              type: boolean
+              description: true when there are both listeners and connectors configured
     ProcessGroupRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'

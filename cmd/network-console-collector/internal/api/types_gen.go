@@ -75,7 +75,10 @@ type AddressRecord struct {
 	EndTime uint64 `json:"endTime"`
 
 	// Identity The unique identifier for the record.
-	Identity      string `json:"identity"`
+	Identity string `json:"identity"`
+
+	// IsBound true when there are both listeners and connectors configured
+	IsBound       bool   `json:"isBound"`
 	ListenerCount int    `json:"listenerCount"`
 	Name          string `json:"name"`
 	Protocol      string `json:"protocol"`
