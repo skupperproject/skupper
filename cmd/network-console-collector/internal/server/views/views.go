@@ -395,11 +395,12 @@ func NewRouterLinkProvider(graph collector.Graph) func(vanflow.LinkRecord) (api.
 			return out, false
 		}
 		siteNode := graph.Link(link.ID).Parent().Parent()
-		if !siteNode.IsKnown() {
+		sourceSite, found := siteNode.GetRecord()
+		if !found {
 			return out, false
 		}
-		out.SourceSiteId = siteNode.ID()
-
+		out.SourceSiteId = sourceSite.ID
+		setOpt(&out.SourceSiteName, sourceSite.Name)
 		setOpt(&out.RouterId, link.Parent)
 		setOpt(&out.Name, link.Name)
 
@@ -424,9 +425,14 @@ func NewRouterLinkProvider(graph collector.Graph) func(vanflow.LinkRecord) (api.
 
 		raN := graph.RouterAccess(*link.Peer)
 		raSiteN := raN.Parent().Parent()
-		if raSiteN.IsKnown() {
-			destSiteID := raSiteN.ID()
-			out.DestinationSiteId = &destSiteID
+		if destSite, found := raSiteN.GetRecord(); found {
+			out.DestinationSiteId = &destSite.ID
+			if destSite.Name == nil {
+				tmp := unknownStr
+				destSite.Name = &tmp
+
+			}
+			out.DestinationSiteName = destSite.Name
 		}
 
 		return out, true
@@ -435,12 +441,13 @@ func NewRouterLinkProvider(graph collector.Graph) func(vanflow.LinkRecord) (api.
 
 func defaultRouterLink(id string) api.RouterLinkRecord {
 	return api.RouterLinkRecord{
-		Identity:     id,
-		Name:         unknownStr,
-		Role:         api.LinkRoleTypeUnknown,
-		RouterId:     unknownStr,
-		SourceSiteId: unknownStr,
-		Status:       api.Down,
+		Identity:       id,
+		Name:           unknownStr,
+		Role:           api.LinkRoleTypeUnknown,
+		RouterId:       unknownStr,
+		SourceSiteId:   unknownStr,
+		SourceSiteName: unknownStr,
+		Status:         api.Down,
 	}
 }
 

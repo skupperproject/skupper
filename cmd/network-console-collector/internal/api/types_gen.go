@@ -477,6 +477,9 @@ type RouterLinkRecord struct {
 	// DestinationSiteId When connected, the identity of the destitation (peer) site.
 	DestinationSiteId *string `json:"destinationSiteId"`
 
+	// DestinationSiteName When connected, the identity of the destitation (peer) site.
+	DestinationSiteName *string `json:"destinationSiteName"`
+
 	// EndTime The end time in microseconds of the record in Unix timestamp format.
 	EndTime uint64 `json:"endTime"`
 
@@ -490,9 +493,10 @@ type RouterLinkRecord struct {
 	Peer *string `json:"peer"`
 
 	// Role The class of skupper link
-	Role         LinkRoleType `json:"role"`
-	RouterId     string       `json:"routerId"`
-	SourceSiteId string       `json:"sourceSiteId"`
+	Role           LinkRoleType `json:"role"`
+	RouterId       string       `json:"routerId"`
+	SourceSiteId   string       `json:"sourceSiteId"`
+	SourceSiteName string       `json:"sourceSiteName"`
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64         `json:"startTime"`

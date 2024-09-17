@@ -1147,6 +1147,8 @@ components:
             - octetsReverse
             - sourceSiteId
             - destinationSiteId
+            - sourceSiteName
+            - destinationSiteName
           properties:
             routerId:
               type: string
@@ -1173,7 +1175,13 @@ components:
               format: uint64
             sourceSiteId:
               type: string
+            sourceSiteName:
+              type: string
             destinationSiteId:
+              type: string
+              nullable: true
+              description: When connected, the identity of the destitation (peer) site.
+            destinationSiteName:
               type: string
               nullable: true
               description: When connected, the identity of the destitation (peer) site.
