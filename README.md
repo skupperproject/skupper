@@ -1,37 +1,49 @@
-# Skupper
+# Skupper Version 2
 
-[![skupper](https://circleci.com/gh/skupperproject/skupper.svg?style=shield)](https://app.circleci.com/pipelines/github/skupperproject/skupper)
+Skupper allows you to create a Virtual Application Network (VAN) enabling secure, location independent
+communication between systems including public cloud, private cloud, virtual machines (VMs),
+bare metal hosts, and mainframes.
 
-Skupper enables cloud communication by enabling you to create a Virtual Application Network.
+Version 1 of Skupper is working in many production environments and has significantly reduced the
+time, effort and expense of deploying applications to a hybrid multicloud.
 
-This application layer network decouples addressing from the underlying network infrastructure.
-This enables secure communication without a VPN.
+The [v2 branch](https://github.com/skupperproject/skupper/tree/v2) focuses on the development of the upcoming
+major release of the Skupper project based on feedback from users.
 
-You can use Skupper to create a network from namespaces in one or more Kubernetes clusters as described in the [Getting Started](https://skupper.io/start/index.html).
-This guide describes a simple network, however there are no restrictions on the topology created which can include redundant paths.
+The plan is to produce a number of "previews" on the branch in order to get further user feedback and refine the
+implementation of this major release. The v2 branch is intended for evaluation purposes only and should not be used
+in production environments.
 
-Connecting one Skupper site to another site enables communication both ways.
-Communication can occur using any path available on the network, that is, direct connections are not required to enable communication.
+# Highlights
 
-Skupper supports [anycast](https://en.wikipedia.org/wiki/Anycast) and [multicast](https://en.wikipedia.org/wiki/Multicast) communication using the application layer network (VAN), allowing you to configure your topology to match business requirements.
+The objective of the next Skupper major release is to better support a full declarative model so that applications
+and VANs can be more easily deployed in fully automated frameworks.
 
-Skupper does not require any special privileges, that is, you do not require the `cluster-admin` role to create networks.
+The release includes:
+
+* The introducton of Custom Resource Definitions [CRDs](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/)
+  for a more intuitive and flexible declarative interfaces for users, with an equivalent implementation for Linux.
+* Architectural improvements for the primary components (e.g. controller, cli, and non-kube executable)
+* A flexible PKI implementation allowing users to easily provide their own certificates as required
+* A network collector and console that is deployed separately from the site components
+* Simpler integrations for centralized application network definition
+
+# Interoperability with Version 1
+
+Skupper v2 sites are not interoperable with v1 sites. The plan is to provide tools to assist users to
+migrate their v1 installations to a v2 deployment as the release approaches.
+
+Skupper v1 will continue to be maintained but no new significant features are planned.
 
 # Useful Links
-Using Skupper
+Using Skupper v2
 
-* [Getting Started](https://skupper.io/start/index.html)
-* [Examples](https://skupper.io/examples/index.html)
-* [Documentation](https://skupper.io/docs/index.html)
-* [Skupper Docker](https://github.com/skupperproject/skupper-docker) allows you run Skupper on your laptop
+* [Simple Example](https://github.com/skupperproject/skupper/blob/v2/cmd/controller/example/README.md)
+* [Network Console Collector Deployment](https://github.com/skupperproject/skupper/blob/v2/cmd/network-console-collector/resources/README.md)
+* [Redis Example](https://github.com/skupperproject/skupper-example-redis/tree/v2)
 
+# Questions and Feedback
 
-Developing Skupper
-
-* [Community](https://skupper.io/community/index.html)
-* [Site controller](cmd/site-controller/README.md)
-* [CLI](cmd/skupper/README.md) (This replaces the [Skupper CLI repo](https://github.com/skupperproject/skupper-cli))
-* [Console (Preview)](https://github.com/skupperproject/skupper-console)
-
-# Licensing
-Skupper uses the [Skupper Router](https://github.com/skupperproject/skupper-router) project and is released under the same [Apache License 2.0](https://github.com/skupperproject/skupper/blob/main/LICENSE).
+For any questions, feedback or reporting of issues encountered using the v2 preview, please use
+the Skupper community mailing list or create a GitHub issue as described on the Skupper web site
+[community page](https://skupper.io/community/index.html)
