@@ -42,6 +42,8 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagDescRedemptionsAllowed = "The number of times an access token for this grant can be redeemed."
 	FlagNameExpirationWindow   = "expiration-window"
 	FlagDescExpirationWindow   = "The period of time in which an access token for this grant can be redeemed."
+	FlagNameToken              = "name"
+	FlagDescToken              = "The name of token issued"
 
 	FlagNameRoutingKey      = "routing-key"
 	FlagDescRoutingKey      = "The identifier used to route traffic from listeners to connectors"
@@ -118,6 +120,7 @@ type CommandLinkStatusFlags struct {
 }
 
 type CommandTokenIssueFlags struct {
+	Name               string
 	Timeout            time.Duration
 	ExpirationWindow   time.Duration
 	RedemptionsAllowed int
