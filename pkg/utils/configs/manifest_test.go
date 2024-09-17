@@ -28,7 +28,7 @@ func TestManifestManager(t *testing.T) {
 						Name: "SKUPPER_CONFIG_SYNC_IMAGE_TESTING",
 					},
 					{
-						Name: "QDROUTERD_IMAGE_TESTING"},
+						Name: "SKUPPER_ROUTER_IMAGE_TESTING"},
 				},
 			},
 			expectedDefaultManifestWithEnv: Manifest{
@@ -43,7 +43,7 @@ func TestManifestManager(t *testing.T) {
 				Variables: &map[string]string{
 					images.SkupperImageRegistryEnvKey: "SKUPPER_IMAGE_REGISTRY_TESTING",
 					images.ConfigSyncImageEnvKey:      "SKUPPER_CONFIG_SYNC_IMAGE_TESTING",
-					images.RouterImageEnvKey:          "QDROUTERD_IMAGE_TESTING",
+					images.RouterImageEnvKey:          "SKUPPER_ROUTER_IMAGE_TESTING",
 				},
 			},
 		},
