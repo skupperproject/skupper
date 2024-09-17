@@ -697,20 +697,23 @@ jobs:
 
   publish-github-release-images:
     executor:
-      name: go_cimg
+      name: local_cluster_test_executor
     steps:
       - checkout
-      - setup_remote_docker
+      - docker/install-docker:
+          version: "v26.0.1"
       - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run:
           name:
           command: |
-            echo 'export CONTROLLER_IMAGE=quay.io/skupper/controller:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export CONTROLLER_PODMAN_IMAGE=quay.io/skupper/controller-podman:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export NETWORK_CONSOLE_COLLECTOR_IMAGE=quay.io/skupper/network-console-collector:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export BOOTSTRAP_IMAGE=quay.io/skupper/bootstrap:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:${CIRCLE_TAG}' >> $BASH_ENV
             source $BASH_ENV
-            docker buildx create --use --name skupper-buildx
+            docker buildx create --use --name skupper-buildx --bootstrap
             make -e docker-build
             make -e docker-push
 
