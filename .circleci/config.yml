@@ -360,6 +360,20 @@ yaml-templates:
       tags:
         only: /[0-9].*/
 
+  release_v1_filters: &run_for_v1_tags
+    filters:
+      branches:
+        ignore: /.*/
+      tags:
+        only: /^1.*/
+
+  release_v2_filters: &run_for_v2_tags
+    filters:
+      branches:
+        ignore: /.*/
+      tags:
+        only: /^2.*/
+
   release_requires: &release_requires
     requires:
       - build-all
@@ -396,44 +410,44 @@ workflows:
       - build_and_save_test_images:
           <<: *run_for_all_branches_and_numeric_tags
 
-      # - main_tests_minikube_local_cluster:
-      #     <<: *run_for_all_branches_and_numeric_tags
-      #     pre-steps:
-      #       - prepare_for_local_cluster_tests
-      #     requires:
-      #       - test
-      #       - build_and_save_test_images
+      - main_tests_minikube_local_cluster:
+          <<: *run_for_v1_tags
+          pre-steps:
+            - prepare_for_local_cluster_tests
+          requires:
+            - test
+            - build_and_save_test_images
 
-      # - policy_tests_minikube_local_cluster:
-      #     <<: *run_for_all_branches_and_numeric_tags
-      #     pre-steps:
-      #       - prepare_for_local_cluster_tests
-      #     requires:
-      #       - test
-      #       - build_and_save_test_images
+      - policy_tests_minikube_local_cluster:
+          <<: *run_for_v1_tags
+          pre-steps:
+            - prepare_for_local_cluster_tests
+          requires:
+            - test
+            - build_and_save_test_images
 
-      # - publish-github-release-images:
-      #    <<: *run_for_numeric_tags
-      #    <<: *release_requires
-      #    context:
-      #      - skupper-org
+      - publish-github-release-images:
+         <<: *run_for_v1_tags
+         <<: *release_requires
+         context:
+           - skupper-org
 
-      # - generate-manifest:
-      #     <<: *run_for_numeric_tags
-      #     <<: *release_requires
-      #     requires:
-      #       - publish-github-release-images
-      #     context:
-      #       - skupper-org
+      - generate-manifest:
+          <<: *run_for_v1_tags
+          <<: *release_requires
+          requires:
+            - publish-github-release-images
+          context:
+            - skupper-org
 
-      # - publish-github-release-artifacts:
-      #     <<: *run_for_numeric_tags
-      #     <<: *release_requires
-      #     requires:
-      #       - generate-manifest
-      #       - publish-github-release-images
-      #     context:
-      #       - skupper-org
+      - publish-github-release-artifacts:
+          <<: *run_for_v1_tags
+          <<: *release_requires
+          requires:
+            - generate-manifest
+            - publish-github-release-images
+          context:
+            - skupper-org
 
       # - publish-github-main-artifacts:
       #     <<: *run_for_main_branch
@@ -458,6 +472,27 @@ workflows:
       - publish-github-v2-latest-images:
           <<: *run_for_v2_branch
           <<: *v2_release_requires
+          context:
+            - skupper-org
+
+      - publish-github-release-v2-images:
+          <<: *run_for_v2_tags
+          <<: *v2_release_requires
+          context:
+            - skupper-org
+      - generate-v2-manifest:
+          <<: *run_for_v2_tags
+          <<: *v2_release_requires
+          requires:
+            - publish-github-release-v2-images
+          context:
+            - skupper-org
+      - publish-github-release-v2-artifacts:
+          <<: *run_for_v2_tags
+          <<: *v2_release_requires
+          requires:
+            - publish-github-release-v2-images
+            - generate-v2-manifest
           context:
             - skupper-org
 
@@ -762,3 +797,61 @@ jobs:
             done
             cd ${BASEDIR}
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease ${VERSION} "${BASEDIR}/archives"
+
+  generate-v2-manifest:
+    executor:
+      name: go_cimg
+    steps:
+      - checkout
+      - go/mod-download-cached
+      - setup_remote_docker
+      - run: make generate-manifest
+      - run: mkdir skupper-manifest
+      - run: cp ./manifest.json skupper-manifest
+      - persist_to_workspace:
+          root: .
+          paths:
+            - skupper-manifest
+
+  publish-github-release-v2-artifacts:
+    docker:
+      - image: cibuilds/github:0.10
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: "Create a Draft Release on GitHub"
+          command: |
+            VERSION="${CIRCLE_TAG}"
+            BASEDIR=`pwd`
+            mkdir "${BASEDIR}/archives"
+            for p in `ls dist` ; do
+              cd "$BASEDIR/dist/$p"
+              if [[ $p == windows* ]] ; then
+                zip -q "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.zip" *
+              else
+                tar -zcf "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.tgz" *
+              fi
+            done
+            cd ${BASEDIR}
+            cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
+
+  publish-github-release-v2-images:
+    executor:
+      name: go_cimg
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
+      - run:
+          name:
+          command: |
+            echo 'export CONTROLLER_IMAGE=quay.io/skupper/controller:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export NETWORK_CONSOLE_COLLECTOR_IMAGE=quay.io/skupper/network-console-collector:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export BOOTSTRAP_IMAGE=quay.io/skupper/bootstrap:${CIRCLE_TAG}' >> $BASH_ENV
+            source $BASH_ENV
+            docker buildx create --use --name skupper-buildx
+            make -e docker-build
+            make -e docker-push
