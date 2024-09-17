@@ -3,10 +3,11 @@ package kube
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"strconv"
 	"time"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -18,27 +19,22 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type ConnectorCreate struct {
-	routingKey      string
+type CmdConnectorCreate struct {
+	client          skupperv1alpha1.SkupperV1alpha1Interface
+	CobraCmd        *cobra.Command
+	Flags           *common.CommandConnectorCreateFlags
+	namespace       string
+	name            string
+	port            int
+	output          string
 	host            string
 	selector        string
 	tlsSecret       string
+	routingKey      string
 	connectorType   string
 	includeNotReady bool
-	workload        string
 	timeout         time.Duration
-	output          string
-}
-
-type CmdConnectorCreate struct {
-	client     skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd   *cobra.Command
-	Flags      *common.CommandConnectorCreateFlags
-	namespace  string
-	name       string
-	port       int
-	output     string
-	KubeClient kubernetes.Interface
+	KubeClient      kubernetes.Interface
 }
 
 func NewCmdConnectorCreate() *CmdConnectorCreate {
@@ -62,7 +58,6 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	workloadStringValidator := validator.NewWorkloadStringValidator()
-	numTargetTypesSelected := 0
 
 	// Validate arguments name and port
 	if len(args) < 2 {
@@ -116,8 +111,6 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("routing key is not valid: %s", err))
 		}
 	}
-
-	//TBD what characters are not allowed for host flag
 	if cmd.Flags.TlsSecret != "" {
 		// check that the secret exists
 		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsSecret, metav1.GetOptions{})
@@ -131,16 +124,26 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("connector type is not valid: %s", err))
 		}
 	}
+	// only one of workload, selector or host can be specified
+	if cmd.Flags.Host != "" {
+		if cmd.Flags.Workload != "" || cmd.Flags.Selector != "" {
+			validationErrors = append(validationErrors, fmt.Errorf("If host is configured, cannot configure workload or selector"))
+		}
+		//TBD what characters are not allowed for host flag
+	}
 	if cmd.Flags.Selector != "" {
-		numTargetTypesSelected++
+		if cmd.Flags.Workload != "" || cmd.Flags.Host != "" {
+			validationErrors = append(validationErrors, fmt.Errorf("If selector is configured, cannot configure workload or host"))
+		}
 		ok, err := workloadStringValidator.Evaluate(cmd.Flags.Selector)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("selector is not valid: %s", err))
 		}
 	}
-	//TBD no workload in connector CRD
 	if cmd.Flags.Workload != "" {
-		numTargetTypesSelected++
+		if cmd.Flags.Selector != "" || cmd.Flags.Host != "" {
+			validationErrors = append(validationErrors, fmt.Errorf("If workload is configured, cannot configure selector or host"))
+		}
 		ok, err := workloadStringValidator.Evaluate(cmd.Flags.Workload)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("workload is not valid: %s", err))
@@ -150,26 +153,40 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	if cmd.Flags.Timeout <= 0*time.Minute {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
 	}
-
-	if cmd.Flags.Host != "" {
-		numTargetTypesSelected++
-	}
-	// workload, selector or host must be specified
-	if numTargetTypesSelected == 0 {
-		validationErrors = append(validationErrors, fmt.Errorf("One of the following options must be set: workload, selector, host"))
-	} else if numTargetTypesSelected > 1 {
-		validationErrors = append(validationErrors, fmt.Errorf("Only one of the following options must be set: workload, selector, host"))
-	}
-
 	if cmd.Flags.Output != "" {
 		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
-		} else {
-			cmd.output = cmd.Flags.Output
 		}
 	}
 	return validationErrors
+}
+
+func (cmd *CmdConnectorCreate) InputToOptions() {
+
+	// workload, selector or host must be specified
+	if cmd.Flags.Workload == "" && cmd.Flags.Selector == "" && cmd.Flags.Host == "" {
+		// default selector to name of connector
+		cmd.selector = "app=" + cmd.name
+	}
+	if cmd.Flags.Host != "" {
+		cmd.host = cmd.Flags.Host
+	}
+	if cmd.Flags.Selector != "" {
+		cmd.selector = cmd.Flags.Selector
+	}
+
+	// default routingkey to name of connector
+	if cmd.Flags.RoutingKey == "" {
+		cmd.routingKey = cmd.name
+	} else {
+		cmd.routingKey = cmd.Flags.RoutingKey
+	}
+	cmd.timeout = cmd.Flags.Timeout
+	cmd.tlsSecret = cmd.Flags.TlsSecret
+	cmd.connectorType = cmd.Flags.ConnectorType
+	cmd.output = cmd.Flags.Output
+	cmd.includeNotReady = cmd.Flags.IncludeNotReady
 }
 
 func (cmd *CmdConnectorCreate) Run() error {
@@ -184,14 +201,13 @@ func (cmd *CmdConnectorCreate) Run() error {
 			Namespace: cmd.namespace,
 		},
 		Spec: v1alpha1.ConnectorSpec{
-			Host:            cmd.Flags.Host,
+			Host:            cmd.host,
 			Port:            cmd.port,
-			RoutingKey:      cmd.Flags.RoutingKey,
-			TlsCredentials:  cmd.Flags.TlsSecret,
-			Type:            cmd.Flags.ConnectorType,
-			IncludeNotReady: cmd.Flags.IncludeNotReady,
-			Selector:        cmd.Flags.Selector,
-			//Workload:       cmd.Flags.workload,
+			RoutingKey:      cmd.routingKey,
+			TlsCredentials:  cmd.tlsSecret,
+			Type:            cmd.connectorType,
+			IncludeNotReady: cmd.includeNotReady,
+			Selector:        cmd.selector,
 		},
 	}
 
@@ -211,7 +227,7 @@ func (cmd *CmdConnectorCreate) WaitUntil() error {
 		return nil
 	}
 
-	waitTime := int(cmd.Flags.Timeout.Seconds())
+	waitTime := int(cmd.timeout.Seconds())
 	err := utils.NewSpinnerWithTimeout("Waiting for create to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
@@ -233,5 +249,3 @@ func (cmd *CmdConnectorCreate) WaitUntil() error {
 	fmt.Printf("Connector %q is ready\n", cmd.name)
 	return nil
 }
-
-func (cmd *CmdConnectorCreate) InputToOptions() {}

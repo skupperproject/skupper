@@ -3,10 +3,11 @@ package kube
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"strconv"
 	"time"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -18,24 +19,20 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type ListenerCreate struct {
-	routingKey   string
+type CmdListenerCreate struct {
+	client       skupperv1alpha1.SkupperV1alpha1Interface
+	CobraCmd     *cobra.Command
+	Flags        *common.CommandListenerCreateFlags
+	namespace    string
+	name         string
+	port         int
 	host         string
 	tlsSecret    string
 	listenerType string
+	routingKey   string
 	timeout      time.Duration
 	output       string
-}
-
-type CmdListenerCreate struct {
-	client     skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd   *cobra.Command
-	Flags      *common.CommandListenerCreateFlags
-	namespace  string
-	name       string
-	port       int
-	output     string
-	KubeClient kubernetes.Interface
+	KubeClient   kubernetes.Interface
 }
 
 func NewCmdListenerCreate() *CmdListenerCreate {
@@ -139,11 +136,27 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
-		} else {
-			cmd.output = cmd.Flags.Output
 		}
 	}
 	return validationErrors
+}
+
+func (cmd *CmdListenerCreate) InputToOptions() {
+	// default host and routingkey to name of listener
+	if cmd.Flags.Host == "" {
+		cmd.host = cmd.name
+	} else {
+		cmd.host = cmd.Flags.Host
+	}
+	if cmd.Flags.RoutingKey == "" {
+		cmd.routingKey = cmd.name
+	} else {
+		cmd.routingKey = cmd.Flags.RoutingKey
+	}
+	cmd.timeout = cmd.Flags.Timeout
+	cmd.tlsSecret = cmd.Flags.TlsSecret
+	cmd.listenerType = cmd.Flags.ListenerType
+	cmd.output = cmd.Flags.Output
 }
 
 func (cmd *CmdListenerCreate) Run() error {
@@ -158,11 +171,11 @@ func (cmd *CmdListenerCreate) Run() error {
 			Namespace: cmd.namespace,
 		},
 		Spec: v1alpha1.ListenerSpec{
-			Host:           cmd.Flags.Host,
+			Host:           cmd.host,
 			Port:           cmd.port,
-			RoutingKey:     cmd.Flags.RoutingKey,
-			TlsCredentials: cmd.Flags.TlsSecret,
-			Type:           cmd.Flags.ListenerType,
+			RoutingKey:     cmd.routingKey,
+			TlsCredentials: cmd.tlsSecret,
+			Type:           cmd.listenerType,
 		},
 	}
 
@@ -182,7 +195,7 @@ func (cmd *CmdListenerCreate) WaitUntil() error {
 		return nil
 	}
 
-	waitTime := int(cmd.Flags.Timeout.Seconds())
+	waitTime := int(cmd.timeout.Seconds())
 	err := utils.NewSpinnerWithTimeout("Waiting for create to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
@@ -204,5 +217,3 @@ func (cmd *CmdListenerCreate) WaitUntil() error {
 	fmt.Printf("Listener %q is ready\n", cmd.name)
 	return nil
 }
-
-func (cmd *CmdListenerCreate) InputToOptions() {}
