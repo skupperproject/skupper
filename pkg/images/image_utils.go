@@ -15,6 +15,7 @@ const (
 	ControllerImageEnvKey              string = "SKUPPER_CONTROLLER_IMAGE"
 	ConfigSyncImageEnvKey              string = "SKUPPER_CONFIG_SYNC_IMAGE"
 	NetworkConsoleCollectorImageEnvKey string = "SKUPPER_FLOW_COLLECTOR_IMAGE"
+	BootstrapImageEnvKey               string = "BOOTSTRAP_IMAGE"
 	PrometheusServerImageEnvKey        string = "PROMETHEUS_SERVER_IMAGE"
 	OauthProxyImageEnvKey              string = "OAUTH_PROXY_IMAGE"
 	RouterPullPolicyEnvKey             string = "SKUPPER_ROUTER_IMAGE_PULL_POLICY"
@@ -87,6 +88,16 @@ func GetNetworkConsoleCollectorImageName() string {
 	if image == "" {
 		imageRegistry := GetImageRegistry()
 		return strings.Join([]string{imageRegistry, NetworkConsoleCollectorImageName}, "/")
+	} else {
+		return image
+	}
+}
+
+func GetBootstrapImageName() string {
+	image := os.Getenv(BootstrapImageEnvKey)
+	if image == "" {
+		imageRegistry := GetImageRegistry()
+		return strings.Join([]string{imageRegistry, BootstrapImageName}, "/")
 	} else {
 		return image
 	}

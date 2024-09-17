@@ -1,7 +1,6 @@
 package configs
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/images"
@@ -45,22 +44,6 @@ func (manager *ManifestManager) GetDefaultManifestWithEnv() Manifest {
 
 func (manager *ManifestManager) CreateFile(m Manifest) error {
 	filename := "manifest.json"
-	if _, err := os.Stat(filename); err == nil {
-		fmt.Printf("The file %s already exists. Continuing will override it.\n", filename)
-		fmt.Print("Are you sure you want to proceed? [Y/n]")
-
-		reader := bufio.NewReader(os.Stdin)
-		userInput, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println("Error reading input:", err)
-			return nil
-		}
-
-		userInput = strings.TrimRight(userInput, "\n")
-		if userInput != "" && userInput != "Y" && userInput != "y" {
-			return nil
-		}
-	}
 
 	// Encode the manifest image list as JSON.
 	manifestListJSON, err := json.MarshalIndent(m, "", "   ")
@@ -105,6 +88,11 @@ func getSkupperConfiguredImages(enableSHA bool) []SkupperImage {
 		{
 			Name:       images.GetNetworkConsoleCollectorImageName(),
 			SHA:        getSHAIfEnabled(enableSHA, images.GetNetworkConsoleCollectorImageName()),
+			Repository: "https://github.com/skupperproject/skupper",
+		},
+		{
+			Name:       images.GetBootstrapImageName(),
+			SHA:        getSHAIfEnabled(enableSHA, images.GetBootstrapImageName()),
 			Repository: "https://github.com/skupperproject/skupper",
 		},
 		{
@@ -161,9 +149,9 @@ func getEnvironmentVariableMap() *map[string]string {
 		envVariables[images.RouterImageEnvKey] = routerImage
 	}
 
-	serviceControllerImage := os.Getenv(images.ControllerImageEnvKey)
-	if serviceControllerImage != "" {
-		envVariables[images.ControllerImageEnvKey] = serviceControllerImage
+	controllerImage := os.Getenv(images.ControllerImageEnvKey)
+	if controllerImage != "" {
+		envVariables[images.ControllerImageEnvKey] = controllerImage
 	}
 
 	configSyncImage := os.Getenv(images.ConfigSyncImageEnvKey)
@@ -171,9 +159,14 @@ func getEnvironmentVariableMap() *map[string]string {
 		envVariables[images.ConfigSyncImageEnvKey] = configSyncImage
 	}
 
-	flowCollectorImage := os.Getenv(images.NetworkConsoleCollectorImageEnvKey)
-	if flowCollectorImage != "" {
-		envVariables[images.NetworkConsoleCollectorImageEnvKey] = flowCollectorImage
+	flowNetworkConsoleCollectorImage := os.Getenv(images.NetworkConsoleCollectorImageEnvKey)
+	if flowNetworkConsoleCollectorImage != "" {
+		envVariables[images.NetworkConsoleCollectorImageEnvKey] = flowNetworkConsoleCollectorImage
+	}
+
+	bootstrapImage := os.Getenv(images.BootstrapImageEnvKey)
+	if bootstrapImage != "" {
+		envVariables[images.BootstrapImageEnvKey] = bootstrapImage
 	}
 
 	prometheusImage := os.Getenv(images.PrometheusServerImageEnvKey)
