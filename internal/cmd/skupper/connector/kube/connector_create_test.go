@@ -43,7 +43,7 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 						Port:     8080,
 						Type:     "tcp",
 						Host:     "test",
-						Selector: "mySelector",
+						Selector: "app=mySelector",
 					},
 					Status: v1alpha1.ConnectorStatus{
 						Status: v1alpha1.Status{
@@ -56,58 +56,8 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 						},
 					},
 				},
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 			expectedErrors: []string{"there is already a connector my-connector created for namespace test"},
-		},
-		{
-			name: "connector no site",
-			args: []string{"connector-site", "8090"},
-			flags: common.CommandConnectorCreateFlags{
-				Host:    "127.0.0.1",
-				Timeout: 1 * time.Minute,
-			},
-			expectedErrors: []string{"A site must exist in namespace test before a connector can be created"},
-		},
-		{
-			name: "Connector no site with ok status",
-			args: []string{"connector-site", "8090"},
-			flags: common.CommandConnectorCreateFlags{
-				Timeout:  1 * time.Minute,
-				Selector: "backend",
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-						},
-					},
-				},
-			},
-			expectedErrors: []string{"there is no active skupper site in this namespace"},
 		},
 		{
 			name: "connector name and port are not specified",
@@ -115,28 +65,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			flags: common.CommandConnectorCreateFlags{
 				Selector: "backend",
 				Timeout:  1 * time.Minute,
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 			expectedErrors: []string{"connector name and port must be configured"},
 		},
@@ -147,28 +75,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				Selector: "backend",
 				Timeout:  1 * time.Minute,
 			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 			expectedErrors: []string{"connector name must not be empty"},
 		},
 		{
@@ -177,28 +83,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			flags: common.CommandConnectorCreateFlags{
 				Selector: "backend",
 				Timeout:  1 * time.Minute,
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 			expectedErrors: []string{"connector port must not be empty"},
 		},
@@ -209,28 +93,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				Selector: "backend",
 				Timeout:  1 * time.Minute,
 			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 			expectedErrors: []string{"connector port is not valid: value is not positive"},
 		},
 		{
@@ -239,28 +101,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			flags: common.CommandConnectorCreateFlags{
 				Selector: "backend",
 				Timeout:  1 * time.Minute,
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 			expectedErrors: []string{"connector name and port must be configured"},
 		},
@@ -271,28 +111,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				Selector: "backend",
 				Timeout:  1 * time.Minute,
 			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 			expectedErrors: []string{"connector name and port must be configured"},
 		},
 		{
@@ -301,28 +119,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			flags: common.CommandConnectorCreateFlags{
 				Selector: "backend",
 				Timeout:  1 * time.Minute,
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 			expectedErrors: []string{"only two arguments are allowed for this command"},
 		},
@@ -333,28 +129,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				Selector: "backend",
 				Timeout:  1 * time.Minute,
 			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
@@ -363,28 +137,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			flags: common.CommandConnectorCreateFlags{
 				Selector: "backend",
 				Timeout:  1 * time.Minute,
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 			expectedErrors: []string{"connector port is not valid: strconv.Atoi: parsing \"abcd\": invalid syntax"},
 		},
@@ -395,28 +147,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				ConnectorType: "not-valid",
 				Timeout:       1 * time.Minute,
 				Selector:      "backend",
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 			expectedErrors: []string{
 				"connector type is not valid: value not-valid not allowed. It should be one of this options: [tcp]"},
@@ -429,28 +159,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				Timeout:    1 * time.Minute,
 				Selector:   "backend",
 			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 			expectedErrors: []string{
 				"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
@@ -462,28 +170,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				Timeout:   1 * time.Minute,
 				Selector:  "backend",
 			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 			expectedErrors: []string{"tls-secret is not valid: does not exist"},
 		},
 		{
@@ -492,28 +178,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			flags: common.CommandConnectorCreateFlags{
 				Workload: "@345",
 				Timeout:  1 * time.Minute,
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 			expectedErrors: []string{
 				"workload is not valid: value does not match this regular expression: ^[A-Za-z0-9=:./-]+$"},
@@ -525,28 +189,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				Selector: "@#$%",
 				Timeout:  20 * time.Second,
 			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 			expectedErrors: []string{
 				"selector is not valid: value does not match this regular expression: ^[A-Za-z0-9=:./-]+$"},
 		},
@@ -557,28 +199,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				Workload: "workload",
 				Timeout:  0 * time.Second,
 			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 			expectedErrors: []string{"timeout is not valid"},
 		},
 		{
@@ -588,28 +208,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				Workload: "workload",
 				Timeout:  1 * time.Second,
 				Output:   "not-supported",
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 			expectedErrors: []string{
 				"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
@@ -623,28 +221,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				Selector: "app=test",
 				Host:     "test",
 			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 			expectedErrors: []string{
 				"If host is configured, cannot configure workload or selector",
 				"If selector is configured, cannot configure workload or host"},
@@ -657,28 +233,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				Output:   "json",
 				Workload: "deployment/test",
 				Host:     "test",
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 			expectedErrors: []string{
 				"If host is configured, cannot configure workload or selector",
@@ -694,28 +248,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				IncludeNotReady: true,
 				Timeout:         30 * time.Second,
 				Output:          "json",
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 			k8sObjects: []runtime.Object{
 				&v12.Secret{

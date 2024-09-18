@@ -84,16 +84,6 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 		}
 	}
 
-	// Validate there is already a site defined in the namespace before a listener can be created
-	siteList, _ := cmd.client.Sites(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
-	if siteList == nil || len(siteList.Items) < 1 {
-		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a listener can be created", cmd.namespace))
-	} else {
-		if !utils.SiteConfigured(siteList) {
-			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
-		}
-	}
-
 	// Validate if there is already a listener with this name in the namespace
 	if cmd.name != "" {
 		listener, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
