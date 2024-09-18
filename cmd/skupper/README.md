@@ -67,7 +67,7 @@ skupper listener create backend 8080 --routing-key backend -n west
 Create a AccessGrant in west site and generate a file with the AccessToken:
 
 ```
-skupper token issue my-token ~/my-token.yaml -n west
+skupper token issue ~/my-token.yaml -n west
 ```
 
 Copy token.yaml file to east site and redeem:

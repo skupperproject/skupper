@@ -3,11 +3,13 @@ package kube
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"os"
 	"time"
 
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+
+	"github.com/google/uuid"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
@@ -45,28 +47,19 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	tokenStringValidator := validator.NewFilePathStringValidator()
 
-	// Validate grant name and token file name
-	if len(args) < 2 {
-		validationErrors = append(validationErrors, fmt.Errorf("token name and file name must be configured"))
-	} else if len(args) > 2 {
-		validationErrors = append(validationErrors, fmt.Errorf("only two arguments are allowed for this command"))
+	// Validate token file name
+	if len(args) < 1 {
+		validationErrors = append(validationErrors, fmt.Errorf("file name must be configured"))
+	} else if len(args) > 1 {
+		validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
 	} else if args[0] == "" {
-		validationErrors = append(validationErrors, fmt.Errorf("token name must not be empty"))
-	} else if args[1] == "" {
 		validationErrors = append(validationErrors, fmt.Errorf("file name must not be empty"))
 	} else {
-		ok, err := resourceStringValidator.Evaluate(args[0])
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("token name is not valid: %s", err))
-		} else {
-			cmd.grantName = args[0]
-		}
-
-		ok, err = tokenStringValidator.Evaluate(args[1])
+		ok, err := tokenStringValidator.Evaluate(args[0])
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("token file name is not valid: %s", err))
 		} else {
-			cmd.fileName = args[1]
+			cmd.fileName = args[0]
 		}
 	}
 
@@ -75,8 +68,21 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 	if siteList == nil || len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a token can be created", cmd.namespace))
 	} else {
-		if !utils.SiteReady(siteList) {
+		ok, siteName := utils.SiteReady(siteList)
+		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
+		} else {
+			// used configured name or generate a grant name
+			if cmd.Flags.Name != "" {
+				ok, err := resourceStringValidator.Evaluate(cmd.Flags.Name)
+				if !ok {
+					validationErrors = append(validationErrors, fmt.Errorf("token name is not valid: %s", err))
+				} else {
+					cmd.grantName = cmd.Flags.Name
+				}
+			} else {
+				cmd.grantName = siteName + "-" + uuid.New().String()
+			}
 		}
 	}
 

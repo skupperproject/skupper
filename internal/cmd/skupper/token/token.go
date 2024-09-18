@@ -1,11 +1,12 @@
 package token
 
 import (
+	"time"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/token/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/token/nonkube"
-	"time"
 
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/spf13/cobra"
@@ -34,10 +35,10 @@ func CmdTokenIssueFactory(configuredPlatform types.Platform) *cobra.Command {
 	nonKubeCommand := nonkube.NewCmdTokenIssue()
 
 	cmdTokenIssueDesc := common.SkupperCmdDescription{
-		Use:     "issue <name> <fileName>",
+		Use:     "issue <fileName>",
 		Short:   "issue a token",
 		Long:    "Issue a token file redeemable for a link to the current site.",
-		Example: "skupper token issue tokenName ~/token1.yaml",
+		Example: "skupper token issue ~/token1.yaml",
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdTokenIssueDesc, kubeCommand, nonKubeCommand)
@@ -47,6 +48,7 @@ func CmdTokenIssueFactory(configuredPlatform types.Platform) *cobra.Command {
 	cmd.Flags().IntVarP(&cmdFlags.RedemptionsAllowed, common.FlagNameRedemptionsAllowed, "r", 1, common.FlagDescRedemptionsAllowed)
 	cmd.Flags().DurationVarP(&cmdFlags.ExpirationWindow, common.FlagNameExpirationWindow, "e", 15*time.Minute, common.FlagDescExpirationWindow)
 	cmd.Flags().DurationVarP(&cmdFlags.Timeout, common.FlagNameTimeout, "t", 60*time.Second, common.FlagDescTimeout)
+	cmd.Flags().StringVar(&cmdFlags.Name, common.FlagNameToken, "", common.FlagDescToken)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags

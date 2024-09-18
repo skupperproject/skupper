@@ -3,10 +3,11 @@ package kube
 import (
 	"context"
 	"fmt"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"os"
 	"time"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -64,7 +65,8 @@ func (cmd *CmdTokenRedeem) ValidateInput(args []string) []error {
 	if siteList == nil || len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a token can be redeemed", cmd.namespace))
 	} else {
-		if !utils.SiteReady(siteList) {
+		ok, _ := utils.SiteReady(siteList)
+		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 		}
 	}

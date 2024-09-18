@@ -2,12 +2,13 @@ package token
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gotest.tools/assert"
-	"testing"
 )
 
 func TestCmdTokenFactory(t *testing.T) {
@@ -25,6 +26,7 @@ func TestCmdTokenFactory(t *testing.T) {
 				common.FlagNameTimeout:            "1m0s",
 				common.FlagNameExpirationWindow:   "15m0s",
 				common.FlagNameRedemptionsAllowed: "1",
+				common.FlagNameToken:              "",
 			},
 			command: CmdTokenIssueFactory(types.PlatformKubernetes),
 		},
