@@ -86,16 +86,6 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 		}
 	}
 
-	// Validate there is already a site defined in the namespace before a connector can be created
-	siteList, _ := cmd.client.Sites(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
-	if siteList == nil || len(siteList.Items) == 0 {
-		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a connector can be created", cmd.namespace))
-	} else {
-		if !utils.SiteConfigured(siteList) {
-			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
-		}
-	}
-
 	// Validate if there is already a Connector with this name in the namespace
 	if cmd.name != "" {
 		connector, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})

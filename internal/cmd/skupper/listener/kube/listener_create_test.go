@@ -32,26 +32,6 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 			args:  []string{"my-listener", "8080"},
 			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 				&v1alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener",
@@ -74,256 +54,51 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 				"there is already a listener my-listener created for namespace test"},
 		},
 		{
-			name:           "listener no site",
-			args:           []string{"listener-site", "8090"},
+			name:           "listener name and port are not specified",
+			args:           []string{},
 			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"A site must exist in namespace test before a listener can be created"},
-		},
-		{
-			name:  "listener no site with ok status",
-			args:  []string{"listener-site", "8090"},
-			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									StatusMessage: "",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedErrors: []string{"there is no active skupper site in this namespace"},
-		},
-		{
-			name:  "listener name and port are not specified",
-			args:  []string{},
-			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 			expectedErrors: []string{"listener name and port must be configured"},
 		},
 		{
-			name:  "listener name empty",
-			args:  []string{"", "8090"},
-			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			name:           "listener name empty",
+			args:           []string{"", "8090"},
+			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"listener name must not be empty"},
 		},
 		{
-			name:  "listener port empty",
-			args:  []string{"my-name-port-empty", ""},
-			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			name:           "listener port empty",
+			args:           []string{"my-name-port-empty", ""},
+			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"listener port must not be empty"},
 		},
 		{
-			name:  "listener port not positive",
-			args:  []string{"my-port-positive", "-45"},
-			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			name:           "listener port not positive",
+			args:           []string{"my-port-positive", "-45"},
+			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"listener port is not valid: value is not positive"},
 		},
 		{
-			name:  "listener name and port are not specified",
-			args:  []string{},
-			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			name:           "listener name and port are not specified",
+			args:           []string{},
+			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"listener name and port must be configured"},
 		},
 		{
-			name:  "listener port is not specified",
-			args:  []string{"my-name"},
-			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			name:           "listener port is not specified",
+			args:           []string{"my-name"},
+			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"listener name and port must be configured"},
 		},
 		{
-			name:  "more than two arguments are specified",
-			args:  []string{"my", "listener", "8080"},
-			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			name:           "more than two arguments are specified",
+			args:           []string{"my", "listener", "8080"},
+			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			expectedErrors: []string{"only two arguments are allowed for this command"},
 		},
 		{
 			name:  "listener name is not valid.",
 			args:  []string{"my new listener", "8080"},
 			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 			expectedErrors: []string{
 				"listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
@@ -331,28 +106,6 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 			name:  "port is not valid.",
 			args:  []string{"my-listener-port", "abcd"},
 			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 			expectedErrors: []string{
 				"listener port is not valid: strconv.Atoi: parsing \"abcd\": invalid syntax"},
 		},
@@ -362,28 +115,6 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 			flags: common.CommandListenerCreateFlags{
 				Timeout:      1 * time.Minute,
 				ListenerType: "not-valid",
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 			expectedErrors: []string{
 				"listener type is not valid: value not-valid not allowed. It should be one of this options: [tcp]"},
@@ -395,28 +126,6 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 				Timeout:    60 * time.Second,
 				RoutingKey: "not-valid$",
 			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 			expectedErrors: []string{
 				"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
@@ -427,56 +136,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 				Timeout:   1 * time.Minute,
 				TlsSecret: "not-valid",
 			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 			expectedErrors: []string{"tls-secret is not valid: does not exist"},
 		},
 		{
-			name:  "timeout is not valid",
-			args:  []string{"bad-timeout", "8080"},
-			flags: common.CommandListenerCreateFlags{Timeout: 0 * time.Second},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+			name:           "timeout is not valid",
+			args:           []string{"bad-timeout", "8080"},
+			flags:          common.CommandListenerCreateFlags{Timeout: 0 * time.Second},
 			expectedErrors: []string{"timeout is not valid"},
 		},
 		{
@@ -485,28 +150,6 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 			flags: common.CommandListenerCreateFlags{
 				Timeout: 30 * time.Second,
 				Output:  "not-supported",
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 			},
 			expectedErrors: []string{
 				"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
@@ -523,26 +166,6 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 				Output:       "json",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 				&v1alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener",
