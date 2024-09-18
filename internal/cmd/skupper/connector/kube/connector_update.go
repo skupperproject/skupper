@@ -3,9 +3,10 @@ package kube
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	"time"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -63,7 +64,6 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	workloadStringValidator := validator.NewWorkloadStringValidator()
-	numTargetTypesSelected := 0
 
 	// Validate arguments name
 	if len(args) < 1 {
@@ -93,7 +93,6 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.port = connector.Spec.Port
 			cmd.newSettings.tlsSecret = connector.Spec.TlsCredentials
 			cmd.newSettings.connectorType = connector.Spec.Type
-			//cmd.newSettings.workload = connector.Spec.Workload
 			cmd.newSettings.selector = connector.Spec.Selector
 			cmd.newSettings.includeNotReady = connector.Spec.IncludeNotReady
 		}
@@ -107,11 +106,6 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 		} else {
 			cmd.newSettings.routingKey = cmd.Flags.RoutingKey
 		}
-	}
-	//TBD what characters are not allowed for host flag
-	if cmd.Flags.Host != "" {
-		numTargetTypesSelected++
-		cmd.newSettings.host = cmd.Flags.Host
 	}
 	if cmd.Flags.TlsSecret != "" {
 		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsSecret, metav1.GetOptions{})
@@ -137,9 +131,16 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.port = cmd.Flags.Port
 		}
 	}
+	//TBD what is valid timeout ---> use timevalidator
+	if cmd.Flags.Timeout <= 0*time.Minute {
+		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
+	}
+	//TBD what characters are not allowed for host flag
+	if cmd.Flags.Host != "" {
+		cmd.newSettings.host = cmd.Flags.Host
+	}
 	//TBD what are valid values here
 	if cmd.Flags.Selector != "" {
-		numTargetTypesSelected++
 		ok, err := workloadStringValidator.Evaluate(cmd.Flags.Selector)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("selector is not valid: %s", err))
@@ -151,11 +152,23 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("workload is not valid: %s", err))
 		}
-		cmd.newSettings.selector = cmd.Flags.Workload
+		cmd.newSettings.workload = cmd.Flags.Workload
 	}
-	//TBD what is valid timeout ---> use timevalidator
-	if cmd.Flags.Timeout <= 0*time.Minute {
-		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
+	//Can only have one workload/Selector/host set
+	if cmd.newSettings.host != "" {
+		if cmd.newSettings.workload != "" || cmd.newSettings.selector != "" {
+			validationErrors = append(validationErrors, fmt.Errorf("If host is configured, cannot configure workload or selector"))
+		}
+	}
+	if cmd.newSettings.selector != "" {
+		if cmd.newSettings.host != "" || cmd.newSettings.workload != "" {
+			validationErrors = append(validationErrors, fmt.Errorf("If selector is configured, cannot configure workload or host"))
+		}
+	}
+	if cmd.newSettings.workload != "" {
+		if cmd.newSettings.selector != "" || cmd.newSettings.host != "" {
+			validationErrors = append(validationErrors, fmt.Errorf("If workload is configured, cannot configure selector or host"))
+		}
 	}
 	if cmd.Flags.Output != "" {
 		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
@@ -164,14 +177,6 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 		} else {
 			cmd.newSettings.output = cmd.Flags.Output
 		}
-	}
-
-	if cmd.Flags.Host != "" {
-		numTargetTypesSelected++
-	}
-
-	if numTargetTypesSelected > 1 {
-		validationErrors = append(validationErrors, fmt.Errorf("only one of --host, --selector, or --workload can be specified"))
 	}
 
 	return validationErrors
@@ -190,12 +195,11 @@ func (cmd *CmdConnectorUpdate) Run() error {
 			ResourceVersion: cmd.resourceVersion,
 		},
 		Spec: v1alpha1.ConnectorSpec{
-			Host:           cmd.newSettings.host,
-			Port:           cmd.newSettings.port,
-			RoutingKey:     cmd.newSettings.routingKey,
-			TlsCredentials: cmd.newSettings.tlsSecret,
-			Type:           cmd.newSettings.connectorType,
-			//Workload:       cmd.newSettings.workload, //TODO: if this flag is not used we should reconsider its removal
+			Host:            cmd.newSettings.host,
+			Port:            cmd.newSettings.port,
+			RoutingKey:      cmd.newSettings.routingKey,
+			TlsCredentials:  cmd.newSettings.tlsSecret,
+			Type:            cmd.newSettings.connectorType,
 			Selector:        cmd.newSettings.selector,
 			IncludeNotReady: cmd.newSettings.includeNotReady,
 		},

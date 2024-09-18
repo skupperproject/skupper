@@ -1,10 +1,11 @@
 package kube
 
 import (
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 	"time"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -614,10 +615,13 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
 		},
 		{
-			name: "missing selector/host/workload",
-			args: []string{"missing", "1234"}, flags: common.CommandConnectorCreateFlags{
-				Timeout: 1 * time.Second,
-				Output:  "json",
+			name: "selector/host",
+			args: []string{"selector", "1234"},
+			flags: common.CommandConnectorCreateFlags{
+				Timeout:  1 * time.Second,
+				Output:   "json",
+				Selector: "app=test",
+				Host:     "test",
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.SiteList{
@@ -642,7 +646,43 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				},
 			},
 			expectedErrors: []string{
-				"One of the following options must be set: workload, selector, host"},
+				"If host is configured, cannot configure workload or selector",
+				"If selector is configured, cannot configure workload or host"},
+		},
+		{
+			name: "workload/host",
+			args: []string{"workload", "1234"},
+			flags: common.CommandConnectorCreateFlags{
+				Timeout:  1 * time.Second,
+				Output:   "json",
+				Workload: "deployment/test",
+				Host:     "test",
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.SiteList{
+					Items: []v1alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "site1",
+								Namespace: "test",
+							},
+							Status: v1alpha1.SiteStatus{
+								Status: v1alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedErrors: []string{
+				"If host is configured, cannot configure workload or selector",
+				"If workload is configured, cannot configure selector or host"},
 		},
 		{
 			name: "flags all valid",
@@ -651,7 +691,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				RoutingKey:      "routingkeyname",
 				TlsSecret:       "secretname",
 				ConnectorType:   "tcp",
-				Selector:        "backend",
 				IncludeNotReady: true,
 				Timeout:         30 * time.Second,
 				Output:          "json",
@@ -688,51 +727,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			},
 			expectedErrors: []string{},
 		},
-		{
-			name: "more than one target type was selected",
-			args: []string{"my-connector-flags", "8080"},
-			flags: common.CommandConnectorCreateFlags{
-				Host:            "hostname",
-				RoutingKey:      "routingkeyname",
-				TlsSecret:       "secretname",
-				ConnectorType:   "tcp",
-				Selector:        "backend",
-				IncludeNotReady: true,
-				Timeout:         30 * time.Second,
-				Output:          "json",
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			k8sObjects: []runtime.Object{
-				&v12.Secret{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "secretname",
-						Namespace: "test",
-					},
-				},
-			},
-			expectedErrors: []string{"Only one of the following options must be set: workload, selector, host"},
-		},
 	}
 
 	for _, test := range testTable {
@@ -749,6 +743,79 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 
 			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
 
+		})
+	}
+}
+
+func TestCmdConnectorCreate_InputToOptions(t *testing.T) {
+
+	type test struct {
+		name                  string
+		flags                 common.CommandConnectorCreateFlags
+		Connectorname         string
+		expectedTlsSecret     string
+		expectedHost          string
+		expectedSelector      string
+		expectedRoutingKey    string
+		expectedConnectorType string
+		expectedOutput        string
+		expectedTimeout       time.Duration
+	}
+
+	testTable := []test{
+		{
+			name:                  "test1",
+			flags:                 common.CommandConnectorCreateFlags{"backend", "", "app=backend", "secret", "tcp", true, "", 2 * time.Second, "json"},
+			expectedTlsSecret:     "secret",
+			expectedHost:          "",
+			expectedRoutingKey:    "backend",
+			expectedTimeout:       2 * time.Second,
+			expectedConnectorType: "tcp",
+			expectedOutput:        "json",
+			expectedSelector:      "app=backend",
+		},
+		{
+			name:                  "test2",
+			flags:                 common.CommandConnectorCreateFlags{"backend", "backend", "", "secret", "tcp", true, "", 2 * time.Second, "json"},
+			expectedTlsSecret:     "secret",
+			expectedHost:          "backend",
+			expectedRoutingKey:    "backend",
+			expectedTimeout:       2 * time.Second,
+			expectedConnectorType: "tcp",
+			expectedOutput:        "json",
+			expectedSelector:      "",
+		},
+		{
+			name:                  "test3",
+			flags:                 common.CommandConnectorCreateFlags{"", "", "", "secret", "tcp", false, "", 3 * time.Second, "yaml"},
+			expectedTlsSecret:     "secret",
+			expectedHost:          "",
+			expectedRoutingKey:    "test3",
+			expectedTimeout:       3 * time.Second,
+			expectedConnectorType: "tcp",
+			expectedOutput:        "yaml",
+			expectedSelector:      "app=test3",
+		},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+
+			cmd, err := newCmdConnectorCreateWithMocks("test", nil, nil, "")
+			assert.Assert(t, err)
+
+			cmd.Flags = &test.flags
+			cmd.name = test.name
+
+			cmd.InputToOptions()
+
+			assert.Check(t, cmd.routingKey == test.expectedRoutingKey)
+			assert.Check(t, cmd.output == test.expectedOutput)
+			assert.Check(t, cmd.tlsSecret == test.expectedTlsSecret)
+			assert.Check(t, cmd.host == test.expectedHost)
+			assert.Check(t, cmd.timeout == test.expectedTimeout)
+			assert.Check(t, cmd.selector == test.expectedSelector)
+			assert.Check(t, cmd.connectorType == test.expectedConnectorType)
 		})
 	}
 }
@@ -772,12 +839,10 @@ func TestCmdConnectorCreate_Run(t *testing.T) {
 			connectorPort: 8080,
 			flags: common.CommandConnectorCreateFlags{
 				ConnectorType:   "tcp",
-				Host:            "hostname",
 				RoutingKey:      "keyname",
 				TlsSecret:       "secretname",
 				IncludeNotReady: true,
-				Workload:        "deployment/backend",
-				Selector:        "backend",
+				Selector:        "app=backend",
 				Timeout:         1 * time.Second,
 			},
 		},
@@ -791,8 +856,6 @@ func TestCmdConnectorCreate_Run(t *testing.T) {
 				RoutingKey:      "keyname",
 				TlsSecret:       "secretname",
 				IncludeNotReady: true,
-				Workload:        "deployment/backend",
-				Selector:        "backend",
 				Timeout:         1 * time.Second,
 				Output:          "json",
 			},
@@ -901,8 +964,8 @@ func TestCmdConnectorCreate_WaitUntil(t *testing.T) {
 		assert.Assert(t, err)
 
 		cmd.name = "my-connector"
-		cmd.Flags = &common.CommandConnectorCreateFlags{Timeout: 1 * time.Second}
 		cmd.output = test.output
+		cmd.timeout = 1 * time.Second
 		cmd.namespace = "test"
 
 		t.Run(test.name, func(t *testing.T) {

@@ -1,10 +1,11 @@
 package kube
 
 import (
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 	"time"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -223,6 +224,68 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				"selector is not valid: value does not match this regular expression: ^[A-Za-z0-9=:./-]+$"},
 		},
 		{
+			name: "selector/host",
+			args: []string{"selector"},
+			flags: common.CommandConnectorUpdateFlags{
+				Timeout:  1 * time.Second,
+				Output:   "json",
+				Selector: "app=test",
+				Host:     "test",
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "selector",
+						Namespace: "test",
+					},
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedErrors: []string{
+				"If host is configured, cannot configure workload or selector",
+				"If selector is configured, cannot configure workload or host"},
+		},
+		{
+			name: "workload/host",
+			args: []string{"workload"},
+			flags: common.CommandConnectorUpdateFlags{
+				Timeout:  1 * time.Second,
+				Output:   "json",
+				Workload: "deployment/test",
+				Host:     "test",
+			},
+			skupperObjects: []runtime.Object{
+				&v1alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "workload",
+						Namespace: "test",
+					},
+					Status: v1alpha1.ConnectorStatus{
+						Status: v1alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedErrors: []string{
+				"If host is configured, cannot configure workload or selector",
+				"If workload is configured, cannot configure selector or host"},
+		},
+		{
 			name: "timeout is not valid",
 			args: []string{"bad-timeout"},
 			flags: common.CommandConnectorUpdateFlags{
@@ -285,7 +348,6 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				TlsSecret:       "secretname",
 				Port:            1234,
 				ConnectorType:   "tcp",
-				Selector:        "backend",
 				IncludeNotReady: false,
 				Timeout:         5 * time.Second,
 				Output:          "json",
@@ -317,48 +379,6 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				},
 			},
 			expectedErrors: []string{},
-		},
-		{
-			name: "more than one target type was selected",
-			args: []string{"my-connector-flags"},
-			flags: common.CommandConnectorUpdateFlags{
-				Host:            "hostname",
-				RoutingKey:      "routingkeyname",
-				TlsSecret:       "secretname",
-				Port:            1234,
-				ConnectorType:   "tcp",
-				Selector:        "backend",
-				IncludeNotReady: false,
-				Timeout:         5 * time.Second,
-				Output:          "json",
-			},
-			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-connector-flags",
-						Namespace: "test",
-					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
-							Conditions: []v1.Condition{
-								{
-									Type:   "Configured",
-									Status: "True",
-								},
-							},
-						},
-					},
-				},
-			},
-			k8sObjects: []runtime.Object{
-				&v12.Secret{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "secretname",
-						Namespace: "test",
-					},
-				},
-			},
-			expectedErrors: []string{"only one of --host, --selector, or --workload can be specified"},
 		},
 	}
 

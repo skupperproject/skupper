@@ -1,10 +1,11 @@
 package kube
 
 import (
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 	"time"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -589,6 +590,65 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 	}
 }
 
+func TestCmdListenerCreate_InputToOptions(t *testing.T) {
+
+	type test struct {
+		name                 string
+		flags                common.CommandListenerCreateFlags
+		Listenername         string
+		expectedTlsSecret    string
+		expectedHost         string
+		expectedRoutingKey   string
+		expectedListenerType string
+		expectedOutput       string
+		expectedTimeout      time.Duration
+	}
+
+	testTable := []test{
+		{
+			name:                 "test1",
+			flags:                common.CommandListenerCreateFlags{"backend", "backend", "secret", "tcp", 2 * time.Second, "json"},
+			expectedTlsSecret:    "secret",
+			expectedHost:         "backend",
+			expectedRoutingKey:   "backend",
+			expectedTimeout:      2 * time.Second,
+			expectedListenerType: "tcp",
+			expectedOutput:       "json",
+		},
+		{
+			name:                 "test2",
+			flags:                common.CommandListenerCreateFlags{"", "", "secret", "tcp", 3 * time.Second, "yaml"},
+			expectedTlsSecret:    "secret",
+			expectedHost:         "test2",
+			expectedRoutingKey:   "test2",
+			expectedTimeout:      3 * time.Second,
+			expectedListenerType: "tcp",
+			expectedOutput:       "yaml",
+		},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+
+			cmd, err := newCmdListenerCreateWithMocks("test", nil, nil, "")
+			assert.Assert(t, err)
+
+			cmd.Flags = &test.flags
+			cmd.name = test.name
+
+			cmd.InputToOptions()
+
+			assert.Check(t, cmd.routingKey == test.expectedRoutingKey)
+			assert.Check(t, cmd.output == test.expectedOutput)
+			assert.Check(t, cmd.tlsSecret == test.expectedTlsSecret)
+			assert.Check(t, cmd.host == test.expectedHost)
+			assert.Check(t, cmd.timeout == test.expectedTimeout)
+			assert.Check(t, cmd.output == test.expectedOutput)
+			assert.Check(t, cmd.listenerType == test.expectedListenerType)
+		})
+	}
+}
+
 func TestCmdListenerCreate_Run(t *testing.T) {
 	type test struct {
 		name                string
@@ -730,11 +790,8 @@ func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 
 		cmd.name = "my-listener"
 		cmd.port = 8080
-		cmd.Flags = &common.CommandListenerCreateFlags{
-			Timeout: 1 * time.Second,
-			Output:  test.output,
-		}
-		cmd.output = cmd.Flags.Output
+		cmd.output = test.output
+		cmd.timeout = 1 * time.Second
 		cmd.namespace = "test"
 
 		t.Run(test.name, func(t *testing.T) {
