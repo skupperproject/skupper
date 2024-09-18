@@ -53,13 +53,13 @@ skupper site create site2  -n east
 # Expose backend in east site (create a connector)
 
 ```
-skupper connector create backend 8080 --routing-key backend --selector app=backend -n east
+skupper connector create backend 8080 -n east
 ```
 
 # Consume backend in west site (create a listener)
 
 ```
-skupper listener create backend 8080 --routing-key backend -n west
+skupper listener create backend 8080 -n west
 ```
 
 # Link sites
