@@ -59,3 +59,12 @@ all-in-one manifest with an unsecured network-console-collector deployment with
 permissive CORS settings. These manifests are the most direct way to deploy a
 working network console, but are only suitable for development use and should
 not be used as the base of a production deployment.
+
+
+* `openshift-complete.yaml` a deployment running the complete network-console
+  application. TLS=true, Secure=false, Dependencies=skupper
+* `native-complete.yaml` a deployment running the complete network-console
+  application. TLS=true, Secure=false, Dependencies=skupper,cert-manager
+* `native-insecure-complete.yaml` a deployment running the complete
+  network-console application without the cert-manager dependency. TLS=false,
+  Secure=false, Dependencies=skupper.

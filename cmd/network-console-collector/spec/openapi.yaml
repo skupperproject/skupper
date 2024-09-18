@@ -295,6 +295,20 @@ paths:
           $ref: '#/components/responses/notSupported'
         '404':
           $ref: '#/components/responses/errorNotFound'
+  /api/v1alpha1/connections/:
+    get:
+      tags: [flows]
+      operationId: connections
+      responses:
+        '200':
+          $ref: '#/components/responses/getConnections'
+  /api/v1alpha1/requests/:
+    get:
+      tags: [flows]
+      operationId: requests
+      responses:
+        '200':
+          $ref: '#/components/responses/getRequests'
 
   /api/v1alpha1/sites/{id}/processes/:
     get:
@@ -307,16 +321,6 @@ paths:
           $ref: '#/components/responses/getProcesses'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/listeners/{id}/flows:
-    get:
-      tags: [listener]
-      deprecated: true
-      operationId: flowsByListener
-      parameters:
-        - $ref: '#/components/parameters/pathID'
-      responses:
-        '410':
-          $ref: '#/components/responses/notSupported'
   /api/v1alpha1/sites/{id}/routers/:
     get:
       tags: [site, router]
@@ -328,16 +332,6 @@ paths:
           $ref: '#/components/responses/getRouters'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/sites/{id}/flows/:
-    get:
-      tags: [site]
-      operationId: flowsBySite
-      deprecated: true
-      parameters:
-        - $ref: '#/components/parameters/pathID'
-      responses:
-        '410':
-          $ref: '#/components/responses/notSupported'
   /api/v1alpha1/sites/{id}/hosts/:
     get:
       tags: [site]
@@ -358,38 +352,6 @@ paths:
       responses:
         '410':
           $ref: '#/components/responses/notSupported'
-  /api/v1alpha1/routers/{id}/listeners/:
-    get:
-      tags: [listener, router]
-      operationId: listenersByRouter
-      parameters:
-        - $ref: '#/components/parameters/pathID'
-      responses:
-        '200':
-          $ref: '#/components/responses/getListeners'
-        '404':
-          $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/routers/{id}/connectors/:
-    get:
-      tags: [listener, router]
-      operationId: connectorsByRouter
-      parameters:
-        - $ref: '#/components/parameters/pathID'
-      responses:
-        '200':
-          $ref: '#/components/responses/getConnectors'
-        '404':
-          $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/routers/{id}/flows/:
-    get:
-      tags: [router]
-      operationId: flowsByRouter
-      deprecated: true
-      parameters:
-        - $ref: '#/components/parameters/pathID'
-      responses:
-        '410':
-          $ref: '#/components/responses/notSupported'
   /api/v1alpha1/routers/{id}/links/:
     get:
       tags: [router]
@@ -400,28 +362,6 @@ paths:
       responses:
         '410':
           $ref: '#/components/responses/notSupported'
-  /api/v1alpha1/processes/{id}/addresses/:
-    get:
-      tags: [address, process]
-      operationId: addressesByProcess
-      parameters:
-        - $ref: '#/components/parameters/pathID'
-      responses:
-        '200':
-          $ref: '#/components/responses/getAddresses'
-        '404':
-          $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/processes/{id}/connector/:
-    get:
-      tags: [address, process]
-      operationId: connectorByProcess
-      parameters:
-        - $ref: '#/components/parameters/pathID'
-      responses:
-        '200':
-          $ref: '#/components/responses/getConnectorByID'
-        '404':
-          $ref: '#/components/responses/errorNotFound'
   /api/v1alpha1/addresses/{id}/processes/:
     get:
       tags: [address, process]
@@ -433,28 +373,6 @@ paths:
           $ref: '#/components/responses/getProcesses'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/addresses/{id}/listeners/:
-    get:
-      tags: [address, listener]
-      operationId: listenersByAddress
-      parameters:
-        - $ref: '#/components/parameters/pathID'
-      responses:
-        '200':
-          $ref: '#/components/responses/getListeners'
-        '404':
-          $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/addresses/{id}/connectors/:
-    get:
-      tags: [address, connector]
-      operationId: connectorsByAddress
-      parameters:
-        - $ref: '#/components/parameters/pathID'
-      responses:
-        '200':
-          $ref: '#/components/responses/getConnectors'
-        '404':
-          $ref: '#/components/responses/errorNotFound'
   /api/v1alpha1/addresses/{id}/processpairs/:
     get:
       tags: [address, "flow aggregate"]
@@ -466,15 +384,15 @@ paths:
           $ref: '#/components/responses/getFlowAggregates'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/processgroups/{id}/processes/:
+  /api/v1alpha1/addresses/{id}/connections/:
     get:
-      tags: ["process group"]
-      operationId: processesByProcessGroup
+      tags: [address, flows]
+      operationId: connectionsByAddress
       parameters:
         - $ref: '#/components/parameters/pathID'
       responses:
         '200':
-          $ref: '#/components/responses/getProcesses'
+          $ref: '#/components/responses/getConnections'
         '404':
           $ref: '#/components/responses/errorNotFound'
 
@@ -581,6 +499,18 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/RouterAccessListResponse'
+    getConnections:
+      description: response with a list of connections
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ConnectionListResponse'
+    getRequests:
+      description: response with a list of requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RequestListResponse'
     getSiteByID:
       description: response with a single site
       content:
@@ -854,6 +784,32 @@ components:
         properties:
           results:
             $ref: '#/components/schemas/RouterAccessRecord'
+    ConnectionListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/ConnectionRecord'
+    ConnectionResponse:
+        type: object
+        required: [results]
+        properties:
+          results:
+            $ref: '#/components/schemas/ConnectionRecord'
+    RequestListResponse:
+      allOf:
+        - $ref: '#/components/schemas/collectionResponse'
+        - type: object
+          required: [results]
+          properties:
+            results:
+              type: array
+              items:
+                $ref: '#/components/schemas/RequestRecord'
     baseRecord:
       type: object
       required:
@@ -872,12 +828,37 @@ components:
           type: integer
           format: uint64
           description: The end time in microseconds of the record in Unix timestamp format.
+    sitePlatformType:
+      type: string
+      description: The platform used for the site.
+      enum:
+        - kubernetes
+        - podman
+        - docker
+        - unknown
+    processBindingType:
+      type: string
+      description: Indicates whether a process is exposed or not in a skupper network
+      enum:
+        - bound
+        - unbound
+    addressIdentifierType:
+      type: string
+      description: a special string for identifying addresses uses the form `name@identity@protocol`
+      example: backend@11111-1234@tcp
+      x-go-type: AtmarkDelimitedString
+    linkRoleType:
+      type: string
+      description: The class of skupper link
+      enum:
+        - inter-router
+        - edge
+        - unknown
     SiteRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
-            - location
             - provider
             - platform
             - name
@@ -889,13 +870,7 @@ components:
               type: string
               description: Possible values are 'AWS', 'IBM', 'Azure' ecc. Can be any string or 'unknown'
             platform:
-              type: string
-              enum:
-                - kubernetes
-                - podman
-                - docker
-                - unknown
-              description: The platform used for the site
+              $ref: '#/components/schemas/sitePlatformType'
             name:
               type: string
             nameSpace:
@@ -951,22 +926,18 @@ components:
                 - remote
               description: Internal processes are processes related to Skupper. Remote processes are processes indirectly connected, such as a proxy
             processBinding:
-              type: string
-              enum:
-                - bound
-                - unbound
-              description: Indicates whether a process is exposed or not in a skupper network
+              $ref: '#/components/schemas/processBindingType'
             addresses:
               type: array
               nullable: true
               items:
-                type: string
-              description: Indicates whether a process is exposed or not in a skupper network
+                $ref: '#/components/schemas/addressIdentifierType'
     RouterRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
+            - parent
             - name
             - mode
             - imageName
@@ -974,6 +945,8 @@ components:
             - hostName
             - buildVersion
           properties:
+            parent:
+              type: string
             name:
               type: string
             mode:
@@ -993,12 +966,15 @@ components:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
+            - parent
             - name
             - destHost
             - destPort
             - protocol
             - address
           properties:
+            parent:
+              type: string
             name:
               type: string
             destHost:
@@ -1016,6 +992,7 @@ components:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
+            - parent
             - name
             - destHost
             - destPort
@@ -1024,6 +1001,8 @@ components:
             - processId
             - target
           properties:
+            parent:
+              type: string
             name:
               type: string
             destHost:
@@ -1040,6 +1019,7 @@ components:
               type: string
             target:
               type: string
+              nullable: true
     AddressRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
@@ -1049,6 +1029,7 @@ components:
             - protocol
             - listenerCount
             - connectorCount
+            - isBound
           properties:
             name:
               type: string
@@ -1058,6 +1039,9 @@ components:
               type: integer
             connectorCount:
               type: integer
+            isBound:
+              type: boolean
+              description: true when there are both listeners and connectors configured
     ProcessGroupRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
@@ -1125,6 +1109,7 @@ components:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
+            - parent
             - name
             - linkCost
             - mode
@@ -1132,6 +1117,8 @@ components:
             - sourceSiteId
             - destinationSiteId
           properties:
+            parent:
+              type: string
             name:
               type: string
             linkCost:
@@ -1150,8 +1137,9 @@ components:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
+            - routerId
             - name
-            - linkCost
+            - cost
             - role
             - peer
             - status
@@ -1159,16 +1147,24 @@ components:
             - octetsReverse
             - sourceSiteId
             - destinationSiteId
+            - sourceSiteName
+            - destinationSiteName
           properties:
+            routerId:
+              type: string
             name:
               type: string
-            linkCost:
+            cost:
               type: integer
               format: uint64
+              nullable: true
+              description: When connected, cost will be set to the link cost attribute
             role:
-              type: string
+              $ref: '#/components/schemas/linkRoleType'
             peer:
               type: string
+              nullable: true
+              description: When connected, peer will be set to the identity of a peer router access
             status:
               $ref: '#/components/schemas/operStatusType'
             octets:
@@ -1179,17 +1175,28 @@ components:
               format: uint64
             sourceSiteId:
               type: string
+            sourceSiteName:
+              type: string
             destinationSiteId:
               type: string
+              nullable: true
+              description: When connected, the identity of the destitation (peer) site.
+            destinationSiteName:
+              type: string
+              nullable: true
+              description: When connected, the identity of the destitation (peer) site.
     RouterAccessRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
+            - routerId
             - name
             - linkCount
             - role
           properties:
+            routerId:
+              type: string
             name:
               type: string
             linkCount:
@@ -1197,6 +1204,195 @@ components:
               format: uint64
             role:
               type: string
+    ConnectionRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          required:
+            - sourceSiteId
+            - sourceSiteName
+            - destSiteId
+            - destSiteName
+            - sourceProcessId
+            - sourceProcessName
+            - destProcessId
+            - destProcessName
+            - duration
+            - processPairId
+            - processGroupPairId
+            - sitePairId
+            - protocol
+            - routingKey
+            - listenerId
+            - connectorId
+            - sourceHost
+            - sourcePort
+            - destHost
+            - destPort
+            - proxyHost
+            - proxyPort
+            - octets
+            - octetsReverse
+            - latency
+            - latencyReverse
+            - listenerError
+            - connectorError
+            - traceRouters
+            - traceSites
+          properties:
+            duration:
+              type: integer
+              format: uint64
+              nullable: true
+            processPairId:
+              type: string
+              nullable: true
+            processGroupPairId:
+              type: string
+              nullable: true
+            sitePairId:
+              type: string
+              nullable: true
+            sourceSiteId:
+              type: string
+            sourceSiteName:
+              type: string
+            destSiteId:
+              type: string
+            destSiteName:
+              type: string
+            sourceProcessId:
+              type: string
+            sourceProcessName:
+              type: string
+            destProcessId:
+              type: string
+            destProcessName:
+              type: string
+            routingKey:
+              type: string
+            protocol:
+              type: string
+              example: tcp
+            listenerId:
+              type: string
+            connectorId:
+              type: string
+            sourceHost:
+              type: string
+            sourcePort:
+              type: string
+            destHost:
+              type: string
+            destPort:
+              type: string
+            proxyHost:
+              type: string
+            proxyPort:
+              type: string
+            octets:
+              type: integer
+              format: uint64
+            octetsReverse:
+              type: integer
+              format: uint64
+            latency:
+              type: integer
+              format: uint64
+            latencyReverse:
+              type: integer
+              format: uint64
+            listenerError:
+              type: string
+              nullable: true
+            connectorError:
+              type: string
+              nullable: true
+            traceRouters:
+              type: array
+              description: Ordered array of the names of routers involved in proxying the connection
+              items:
+                type: string
+            traceSites:
+              type: array
+              description: Ordered array of the names of sites involved in proxying the connection
+              items:
+                type: string
+    RequestRecord:
+      allOf:
+        - $ref: '#/components/schemas/baseRecord'
+        - type: object
+          required:
+            - active
+            - connectionId
+            - sourceSiteId
+            - sourceSiteName
+            - destSiteId
+            - destSiteName
+            - sourceProcessId
+            - sourceProcessName
+            - destProcessId
+            - destProcessName
+            - duration
+            - processPairId
+            - processGroupPairId
+            - sitePairId
+            - protocol
+            - routingKey
+            - listenerId
+            - connectorId
+            - method
+            - result
+          properties:
+            connectionId:
+              type: string
+            active:
+              type: boolean
+            duration:
+              type: integer
+              format: uint64
+              nullable: true
+            processPairId:
+              type: string
+              nullable: true
+            processGroupPairId:
+              type: string
+              nullable: true
+            sitePairId:
+              type: string
+              nullable: true
+            sourceSiteId:
+              type: string
+            sourceSiteName:
+              type: string
+            destSiteId:
+              type: string
+            destSiteName:
+              type: string
+            sourceProcessId:
+              type: string
+            sourceProcessName:
+              type: string
+            destProcessId:
+              type: string
+            destProcessName:
+              type: string
+            listenerId:
+              type: string
+            connectorId:
+              type: string
+            routingKey:
+              type: string
+            protocol:
+              type: string
+              example: tcp
+            method:
+              type: string
+              example: GET
+            result:
+              type: string
+              example: 200
+
 tags:
   - name: site
     description: requests involving Site records
@@ -1216,3 +1412,4 @@ tags:
     description: >
       requests involving flow aggregates:
       pairs of peers communicating through the skupper network
+

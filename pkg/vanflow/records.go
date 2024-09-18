@@ -21,6 +21,8 @@ func init() {
 	encoding.MustRegisterRecord(13, HostRecord{})
 	encoding.MustRegisterRecord(14, LogRecord{})
 	encoding.MustRegisterRecord(15, RouterAccessRecord{})
+	encoding.MustRegisterRecord(16, TransportBiflowRecord{})
+	encoding.MustRegisterRecord(17, AppBiflowRecord{})
 }
 
 type SiteRecord struct {
@@ -70,6 +72,20 @@ type LinkRecord struct {
 	Peer   *string `vflow:"6"`
 	Role   *string `vflow:"54"`
 	Status *string `vflow:"53"`
+
+	DestHost         *string `vflow:"15"`
+	Protocol         *string `vflow:"16"`
+	DestPort         *string `vflow:"18"`
+	Octets           *uint64 `vflow:"23"`
+	OctetRate        *uint64 `vflow:"35"`
+	OctetsReverse    *uint64 `vflow:"58"`
+	OctetRateReverse *uint64 `vflow:"59"`
+
+	Result    *string `vflow:"28"`
+	Reason    *string `vflow:"29"`
+	LastUp    *uint64 `vflow:"55"`
+	LastDown  *uint64 `vflow:"56"`
+	DownCount *uint64 `vflow:"57"`
 }
 
 func (r LinkRecord) GetTypeMeta() TypeMeta {
@@ -125,6 +141,7 @@ type ConnectorRecord struct {
 	Protocol    *string `vflow:"16"`
 	DestPort    *string `vflow:"18"`
 	Address     *string `vflow:"19"`
+	Name        *string `vflow:"30"`
 	FlowCountL4 *uint64 `vflow:"40"`
 	FlowCountL7 *uint64 `vflow:"41"`
 	FlowRateL4  *uint64 `vflow:"42"`
@@ -234,6 +251,7 @@ func (r LogRecord) GetTypeMeta() TypeMeta {
 type RouterAccessRecord struct {
 	BaseRecord
 	Parent    *string `vflow:"2"`
+	Name      *string `vflow:"30"`
 	LinkCount *uint64 `vflow:"52"`
 	Role      *string `vflow:"54"`
 }
@@ -242,5 +260,48 @@ func (r RouterAccessRecord) GetTypeMeta() TypeMeta {
 	return TypeMeta{
 		APIVersion: apiVersion,
 		Type:       "RouterAccessRecord",
+	}
+}
+
+type TransportBiflowRecord struct {
+	BaseRecord
+	Parent      *string `vflow:"2"`
+	ConnectorID *string `vflow:"60"`
+	Trace       *string `vflow:"31"`
+
+	SourceHost *string `vflow:"14"`
+	SourcePort *string `vflow:"17"`
+	Octets     *uint64 `vflow:"23"`
+	Latency    *uint64 `vflow:"24"`
+
+	OctetsReverse  *uint64 `vflow:"58"`
+	LatencyReverse *uint64 `vflow:"61"`
+	ProxyHost      *string `vflow:"62"`
+	ProxyPort      *string `vflow:"63"`
+
+	ErrorListener  *string `vflow:"64"`
+	ErrorConnector *string `vflow:"65"`
+}
+
+func (r TransportBiflowRecord) GetTypeMeta() TypeMeta {
+	return TypeMeta{
+		APIVersion: apiVersion,
+		Type:       "TransportBiflowRecord",
+	}
+}
+
+type AppBiflowRecord struct {
+	BaseRecord
+	Parent   *string `vflow:"2"`
+	Protocol *string `vflow:"16"`
+	Latency  *uint64 `vflow:"24"`
+	Method   *string `vflow:"27"`
+	Result   *string `vflow:"28"`
+}
+
+func (r AppBiflowRecord) GetTypeMeta() TypeMeta {
+	return TypeMeta{
+		APIVersion: apiVersion,
+		Type:       "AppBiflowRecord",
 	}
 }
