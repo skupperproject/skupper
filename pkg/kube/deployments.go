@@ -39,6 +39,24 @@ func GetDeployment(name string, namespace string, cli kubernetes.Interface) (*ap
 	}
 }
 
+func GetDaemonSet(name string, namespace string, cli kubernetes.Interface) (*appsv1.DaemonSet, error) {
+	existing, err := cli.AppsV1().DaemonSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	} else {
+		return existing, err
+	}
+}
+
+func GetStatefulSet(name string, namespace string, cli kubernetes.Interface) (*appsv1.StatefulSet, error) {
+	existing, err := cli.AppsV1().StatefulSets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	} else {
+		return existing, err
+	}
+}
+
 func GetContainerPort(deployment *appsv1.Deployment) map[int]int {
 	if len(deployment.Spec.Template.Spec.Containers) > 0 && len(deployment.Spec.Template.Spec.Containers[0].Ports) > 0 {
 		return GetAllContainerPorts(deployment.Spec.Template.Spec.Containers[0])

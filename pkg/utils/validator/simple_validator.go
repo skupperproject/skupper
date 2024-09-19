@@ -3,6 +3,7 @@ package validator
 import (
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -38,8 +39,8 @@ func NewResourceStringValidator() *StringValidator {
 	}
 }
 
-// TBD what are valid characters for workload field
-func NewWorkloadStringValidator() *StringValidator {
+// TBD what are valid characters for selector field
+func NewSelectorStringValidator() *StringValidator {
 	re, err := regexp.Compile("^[A-Za-z0-9=:./-]+$")
 	if err != nil {
 		fmt.Printf("Error compiling regex: %v", err)
@@ -168,4 +169,46 @@ func (i DurationValidator) Evaluate(value time.Duration) (bool, error) {
 	}
 
 	return true, nil
+}
+
+type WorkloadValidator struct {
+	Expression     *regexp.Regexp
+	AllowedOptions []string
+}
+
+func NewWorkloadStringValidator(validOptions []string) *WorkloadValidator {
+	re, err := regexp.Compile("^[A-Za-z0-9.-_]+$")
+	if err != nil {
+		fmt.Printf("Error compiling regex: %v", err)
+		return nil
+	}
+	return &WorkloadValidator{
+		Expression:     re,
+		AllowedOptions: validOptions,
+	}
+}
+
+func (s WorkloadValidator) Evaluate(value interface{}) (string, string, bool, error) {
+
+	v, ok := value.(string)
+
+	if !ok {
+		return "", "", false, fmt.Errorf("value is not a string")
+	}
+
+	// workload has two parts <resource-type>/<resource-name>
+	resource := strings.Split(v, "/")
+	if len(resource) != 2 {
+		return "", "", false, fmt.Errorf("workload must include <resource-type>/<resource-name>")
+	}
+
+	if s.Expression.MatchString(resource[1]) {
+		resourceType := strings.ToLower(resource[0])
+		for _, option := range s.AllowedOptions {
+			if option == resourceType {
+				return option, resource[1], true, nil
+			}
+		}
+	}
+	return "", "", false, fmt.Errorf("value does not match this regular expression: %s", s.Expression)
 }

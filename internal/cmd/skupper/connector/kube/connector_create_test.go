@@ -10,6 +10,7 @@ import (
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"gotest.tools/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,7 +43,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 					Spec: v1alpha1.ConnectorSpec{
 						Port:     8080,
 						Type:     "tcp",
-						Host:     "test",
 						Selector: "app=mySelector",
 					},
 					Status: v1alpha1.ConnectorStatus{
@@ -180,7 +180,7 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				Timeout:  1 * time.Minute,
 			},
 			expectedErrors: []string{
-				"workload is not valid: value does not match this regular expression: ^[A-Za-z0-9=:./-]+$"},
+				"workload is not valid: workload must include <resource-type>/<resource-name>"},
 		},
 		{
 			name: "selector is not valid",
@@ -196,8 +196,8 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			name: "timeout is not valid",
 			args: []string{"bad-timeout", "8080"},
 			flags: common.CommandConnectorCreateFlags{
-				Workload: "workload",
-				Timeout:  0 * time.Second,
+				Host:    "host",
+				Timeout: 0 * time.Second,
 			},
 			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 0s"},
 		},
@@ -205,9 +205,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			name: "output is not valid",
 			args: []string{"bad-output", "1234"},
 			flags: common.CommandConnectorCreateFlags{
-				Workload: "workload",
-				Timeout:  10 * time.Second,
-				Output:   "not-supported",
+				Host:    "host",
+				Timeout: 10 * time.Second,
+				Output:  "not-supported",
 			},
 			expectedErrors: []string{
 				"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
@@ -234,30 +234,28 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				Workload: "deployment/test",
 				Host:     "test",
 			},
-			expectedErrors: []string{
-				"If host is configured, cannot configure workload or selector",
-				"If workload is configured, cannot configure selector or host"},
-		},
-		{
-			name: "flags all valid",
-			args: []string{"my-connector-flags", "8080"},
-			flags: common.CommandConnectorCreateFlags{
-				RoutingKey:      "routingkeyname",
-				TlsSecret:       "secretname",
-				ConnectorType:   "tcp",
-				IncludeNotReady: true,
-				Timeout:         30 * time.Second,
-				Output:          "json",
-			},
 			k8sObjects: []runtime.Object{
-				&v12.Secret{
+				&appsv1.Deployment{
+					TypeMeta: v1.TypeMeta{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+					},
 					ObjectMeta: v1.ObjectMeta{
-						Name:      "secretname",
+						Name:      "test",
 						Namespace: "test",
+					},
+					Spec: appsv1.DeploymentSpec{
+						Selector: &v1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": "backend",
+							},
+						},
 					},
 				},
 			},
-			expectedErrors: []string{},
+			expectedErrors: []string{
+				"If host is configured, cannot configure workload or selector",
+				"If workload is configured, cannot configure selector or host"},
 		},
 	}
 
@@ -275,6 +273,292 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 
 			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
 
+		})
+	}
+}
+
+func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
+	type test struct {
+		name             string
+		args             []string
+		flags            common.CommandConnectorCreateFlags
+		k8sObjects       []runtime.Object
+		skupperObjects   []runtime.Object
+		expectedErrors   []string
+		expectedSelector string
+	}
+
+	testTable := []test{
+		{
+			name: "workload-no-deployment",
+			args: []string{"workload-deployment", "1234"}, flags: common.CommandConnectorCreateFlags{
+				Timeout:  10 * time.Second,
+				Output:   "json",
+				Workload: "deployment/backend",
+			},
+			expectedErrors: []string{
+				"failed trying to get Deployment specified by workload: deployments.apps \"backend\" not found"},
+		},
+		{
+			name: "workload-deployment-no-labels",
+			args: []string{"workload-deployment-no-labels", "1234"}, flags: common.CommandConnectorCreateFlags{
+				Timeout:  10 * time.Second,
+				Output:   "json",
+				Workload: "deployment/backend",
+			},
+			k8sObjects: []runtime.Object{
+				&appsv1.Deployment{
+					TypeMeta: v1.TypeMeta{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "backend",
+						Namespace: "test",
+					},
+					Spec: appsv1.DeploymentSpec{
+						Selector: &v1.LabelSelector{},
+					},
+				},
+			},
+			expectedErrors: []string{"workload, no selector Matchlabels found"},
+		},
+		{
+			name: "workload-deployment",
+			args: []string{"workload-deployment", "1234"}, flags: common.CommandConnectorCreateFlags{
+				Timeout:  10 * time.Second,
+				Output:   "json",
+				Workload: "deployment/backend",
+			},
+			k8sObjects: []runtime.Object{
+				&appsv1.Deployment{
+					TypeMeta: v1.TypeMeta{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "backend",
+						Namespace: "test",
+					},
+					Spec: appsv1.DeploymentSpec{
+						Selector: &v1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": "backend",
+							},
+						},
+					},
+				},
+			},
+			expectedErrors:   []string{},
+			expectedSelector: "app=backend",
+		},
+		{
+			name: "workload-no-service",
+			args: []string{"workload-no-service", "1234"}, flags: common.CommandConnectorCreateFlags{
+				Timeout:  10 * time.Second,
+				Output:   "json",
+				Workload: "service/backend",
+			},
+			expectedErrors: []string{
+				"failed trying to get Service specified by workload: services \"backend\" not found",
+			},
+		},
+		{
+			name: "workload-service-no-labels",
+			args: []string{"workload-service-no-labels", "1234"}, flags: common.CommandConnectorCreateFlags{
+				Timeout:  10 * time.Second,
+				Output:   "json",
+				Workload: "service/backend",
+			},
+			k8sObjects: []runtime.Object{
+				&v12.Service{
+					TypeMeta: v1.TypeMeta{
+						APIVersion: "apps/v1",
+						Kind:       "Service",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "backend",
+						Namespace: "test",
+					},
+					Spec: v12.ServiceSpec{},
+				},
+			},
+			expectedErrors: []string{"workload, no selector labels found"},
+		},
+		{
+			name: "workload-service",
+			args: []string{"workload-service", "1234"}, flags: common.CommandConnectorCreateFlags{
+				Timeout:  10 * time.Second,
+				Output:   "json",
+				Workload: "service/backend",
+			},
+			k8sObjects: []runtime.Object{
+				&v12.Service{
+					TypeMeta: v1.TypeMeta{
+						APIVersion: "apps/v1",
+						Kind:       "Service",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "backend",
+						Namespace: "test",
+					},
+					Spec: v12.ServiceSpec{
+						Selector: map[string]string{
+							"app":  "backend",
+							"test": "test2",
+						},
+					},
+				},
+			},
+			expectedErrors:   []string{},
+			expectedSelector: "app=backend,test=test2",
+		},
+		{
+			name: "workload-no-daemonset",
+			args: []string{"workload-no-daemonset", "1234"}, flags: common.CommandConnectorCreateFlags{
+				Timeout:  10 * time.Second,
+				Output:   "json",
+				Workload: "daemonset/backend",
+			},
+			expectedErrors: []string{
+				"failed trying to get DaemonSet specified by workload: daemonsets.apps \"backend\" not found",
+			},
+		},
+		{
+			name: "workload-daemonset-no-labels",
+			args: []string{"workload-daemonset-no-labels", "1234"}, flags: common.CommandConnectorCreateFlags{
+				Timeout:  10 * time.Second,
+				Output:   "json",
+				Workload: "daemonset/backend",
+			},
+			k8sObjects: []runtime.Object{
+				&appsv1.DaemonSet{
+					TypeMeta: v1.TypeMeta{
+						APIVersion: "apps/v1",
+						Kind:       "daemonset",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "backend",
+						Namespace: "test",
+					},
+					Spec: appsv1.DaemonSetSpec{
+						Selector: &v1.LabelSelector{},
+					},
+				},
+			},
+			expectedErrors: []string{"workload, no selector Matchlabels found"},
+		},
+		{
+			name: "workload-daemonset",
+			args: []string{"workload-daemonset", "1234"}, flags: common.CommandConnectorCreateFlags{
+				Timeout:  10 * time.Second,
+				Output:   "json",
+				Workload: "DaemonSet/backend",
+			},
+			k8sObjects: []runtime.Object{
+				&appsv1.DaemonSet{
+					TypeMeta: v1.TypeMeta{
+						APIVersion: "apps/v1",
+						Kind:       "DaemonSet",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "backend",
+						Namespace: "test",
+					},
+					Spec: appsv1.DaemonSetSpec{
+						Selector: &v1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": "backend",
+							},
+						},
+					},
+				},
+			},
+			expectedErrors:   []string{},
+			expectedSelector: "app=backend",
+		},
+		{
+			name: "workload-no-statefulset",
+			args: []string{"workload-no-statefulset", "1234"}, flags: common.CommandConnectorCreateFlags{
+				Timeout:  10 * time.Second,
+				Output:   "json",
+				Workload: "StatefulSet/backend",
+			},
+			expectedErrors: []string{
+				"failed trying to get StatefulSet specified by workload: statefulsets.apps \"backend\" not found",
+			},
+		},
+		{
+			name: "workload-statefulset-no-labels",
+			args: []string{"workload-statefulset-no-labels", "1234"}, flags: common.CommandConnectorCreateFlags{
+				Timeout:  10 * time.Second,
+				Output:   "json",
+				Workload: "statefulset/backend",
+			},
+			k8sObjects: []runtime.Object{
+				&appsv1.StatefulSet{
+					TypeMeta: v1.TypeMeta{
+						APIVersion: "apps/v1",
+						Kind:       "statefulset",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "backend",
+						Namespace: "test",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Selector: &v1.LabelSelector{},
+					},
+				},
+			},
+			expectedErrors: []string{"workload, no selector Matchlabels found"},
+		},
+		{
+			name: "workload-statefulset",
+			args: []string{"workload-statefulset", "1234"}, flags: common.CommandConnectorCreateFlags{
+				Timeout:  10 * time.Second,
+				Output:   "json",
+				Workload: "statefulset/backend",
+			},
+			k8sObjects: []runtime.Object{
+				&appsv1.StatefulSet{
+					TypeMeta: v1.TypeMeta{
+						APIVersion: "apps/v1",
+						Kind:       "StatefulSet",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "backend",
+						Namespace: "test",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Selector: &v1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": "backend",
+							},
+						},
+					},
+				},
+			},
+			expectedErrors:   []string{},
+			expectedSelector: "app=backend",
+		},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+
+			command, err := newCmdConnectorCreateWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			assert.Assert(t, err)
+
+			command.Flags = &test.flags
+
+			actualErrors := command.ValidateInput(test.args)
+
+			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
+
+			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
+
+			//validate selector is correct
+			assert.Check(t, command.selector == test.expectedSelector)
 		})
 	}
 }
