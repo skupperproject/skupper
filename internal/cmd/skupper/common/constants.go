@@ -5,4 +5,5 @@ var (
 	OutputTypes     = []string{"json", "yaml"}
 	ListenerTypes   = []string{"tcp"}
 	ConnectorTypes  = []string{"tcp"}
+	WorkloadTypes   = []string{"deployment", "service", "daemonset", "statefulset"}
 )
