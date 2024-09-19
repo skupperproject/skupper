@@ -205,8 +205,8 @@ func asSlice[T any](i interface{}) []T {
 	v := reflect.ValueOf(i)
 	s := make([]T, 0)
 	if v.Kind() == reflect.Slice {
-		for _, vv := range v.Interface().([]T) {
-			s = append(s, vv)
+		for _, vv := range v.Interface().([]interface{}) {
+			s = append(s, vv.(T))
 		}
 	}
 	return s

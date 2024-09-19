@@ -11,22 +11,24 @@ import (
 	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/images"
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 type SiteStateRenderer struct {
-	loadedSiteState *apis.SiteState
-	siteState       *apis.SiteState
-	configRenderer  *common.FileSystemConfigurationRenderer
-	containers      map[string]container.Container
-	cli             *internalclient.CompatClient
+	loadedSiteState   *api.SiteState
+	siteState         *api.SiteState
+	configRenderer    *common.FileSystemConfigurationRenderer
+	containers        map[string]container.Container
+	stoppedContainers map[string]string
+	Platform          types.Platform
+	cli               *internalclient.CompatClient
 }
 
-func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
+func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) error {
 	var err error
-	var validator apis.SiteStateValidator = &common.SiteStateValidator{}
+	var validator api.SiteStateValidator = &common.SiteStateValidator{}
 	err = validator.Validate(loadedSiteState)
 	if err != nil {
 		return err
@@ -36,21 +38,74 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 	if err != nil {
 		return fmt.Errorf("failed to create container client: %v", err)
 	}
+	var backupData []byte
+	// Restore namespace data if reload fail and backupData is not nil
+	defer func() {
+		if !reload {
+			return
+		}
+		// when reload is successful, backupData must be nil
+		if backupData == nil {
+			for _, temporaryName := range s.stoppedContainers {
+				err = s.cli.ContainerRemove(temporaryName)
+				if err != nil {
+					fmt.Printf("Failed to remove temporary container %s: %v\n", temporaryName, err)
+				}
+			}
+			return
+		}
+		fmt.Println("Bootstrap failed, restoring previous state")
+		err := common.RestoreNamespaceData(backupData)
+		if err != nil {
+			fmt.Printf("Error restoring namespace data for %q - %s\n", loadedSiteState.GetNamespace(), err)
+			return
+		}
+		for originalName, temporaryName := range s.stoppedContainers {
+			if temporaryName != originalName {
+				err = s.cli.ContainerRename(temporaryName, originalName)
+				if err != nil {
+					fmt.Printf("Error restoring container name from %q to %q - %s\n", temporaryName, originalName, err)
+				}
+			}
+			err = s.cli.ContainerStart(originalName)
+			if err != nil {
+				fmt.Printf("Error starting container %q - %s\n", originalName, err)
+			}
+		}
+	}()
+
+	if reload {
+		backupData, err = common.BackupNamespace(loadedSiteState.GetNamespace())
+		if err != nil {
+			return fmt.Errorf("failed to backup namespace: %v", err)
+		}
+		err = s.loadExistingSiteId(loadedSiteState)
+		if err != nil {
+			return err
+		}
+		err = s.cleanupExistingNamespace(loadedSiteState)
+		if err != nil {
+			return err
+		}
+	}
 	// active (runtime) SiteState
 	s.siteState = common.CopySiteState(s.loadedSiteState)
 	err = common.RedeemClaims(s.siteState)
 	if err != nil {
 		return fmt.Errorf("failed to redeem claims: %v", err)
 	}
-	// TODO verify if needed in phase 0
 	if err = common.CreateRouterAccess(s.siteState); err != nil {
 		return err
 	}
 	s.siteState.CreateLinkAccessesCertificates()
 	s.siteState.CreateBridgeCertificates()
 	// rendering non-kube configuration files and certificates
+	platform := types.PlatformPodman
+	if s.Platform == types.PlatformDocker {
+		platform = types.PlatformDocker
+	}
 	s.configRenderer = &common.FileSystemConfigurationRenderer{
-		Force: false, // TODO discuss how this should be handled?
+		Platform: string(platform),
 	}
 	err = s.configRenderer.Render(s.siteState)
 	if err != nil {
@@ -58,7 +113,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 		os.Exit(1)
 	}
 	// Serializing loaded and runtime site states
-	if err = s.configRenderer.MarshalSiteStates(*s.loadedSiteState, *s.siteState); err != nil {
+	if err = s.configRenderer.MarshalSiteStates(loadedSiteState, s.siteState); err != nil {
 		return err
 	}
 
@@ -81,17 +136,54 @@ func (s *SiteStateRenderer) Render(loadedSiteState *apis.SiteState) error {
 	if err = s.createSystemdService(); err != nil {
 		return err
 	}
+	// no need to restore anything
+	backupData = nil
 	return nil
 }
 
+func (s *SiteStateRenderer) loadExistingSiteId(siteState *api.SiteState) error {
+	routerConfig, err := common.LoadRouterConfig(siteState.GetNamespace())
+	if err != nil {
+		return err
+	}
+	// loading site id
+	siteState.SiteId = routerConfig.GetSiteMetadata().Id
+	return nil
+}
+
+func (s *SiteStateRenderer) cleanupExistingNamespace(siteState *api.SiteState) error {
+	// stopping containers
+	containers, err := s.cli.ContainerList()
+	if err != nil {
+		return fmt.Errorf("failed to list containers: %v", err)
+	}
+	s.stoppedContainers = map[string]string{}
+	for _, stopContainer := range containers {
+		if siteId, ok := stopContainer.Labels[types.SiteId]; ok && siteId == siteState.SiteId {
+			err = s.cli.ContainerStop(stopContainer.Name)
+			if err != nil {
+				return fmt.Errorf("failed to stop container: %v", err)
+			}
+			s.stoppedContainers[stopContainer.Name] = stopContainer.Name
+			temporaryName := fmt.Sprintf("%s-backup", stopContainer.Name)
+			err = s.cli.ContainerRename(stopContainer.Name, temporaryName)
+			if err != nil {
+				return fmt.Errorf("failed to rename container %q to %q: %v", stopContainer.Name, temporaryName, err)
+			}
+			s.stoppedContainers[stopContainer.Name] = temporaryName
+		}
+	}
+	return common.CleanupNamespaceForReload(siteState.GetNamespace())
+}
+
 func (s *SiteStateRenderer) prepareContainers() error {
-	siteConfigPath, err := apis.GetHostSiteHome(s.siteState.Site)
+	siteConfigPath, err := api.GetHostSiteHome(s.siteState.Site)
 	if err != nil {
 		return err
 	}
 	s.containers = make(map[string]container.Container)
 	s.containers[types.RouterComponent] = container.Container{
-		Name:  fmt.Sprintf("%s-skupper-router", s.siteState.Site.Name),
+		Name:  fmt.Sprintf("%s-skupper-router", s.siteState.GetNamespace()),
 		Image: images.GetRouterImageName(),
 		Env: map[string]string{
 			"APPLICATION_NAME":      "skupper-router",
@@ -179,7 +271,16 @@ func (s *SiteStateRenderer) startContainers() error {
 
 func (s *SiteStateRenderer) createSystemdService() error {
 	// Creating startup scripts first
-	scripts, err := common.GetStartupScripts(s.siteState.Site, s.configRenderer.RouterConfig.GetSiteMetadata().Id)
+	platform := types.PlatformPodman
+	if s.Platform == types.PlatformDocker {
+		platform = types.PlatformDocker
+	}
+	startupArgs := common.StartupScriptsArgs{
+		Namespace: s.siteState.GetNamespace(),
+		SiteId:    s.configRenderer.RouterConfig.GetSiteMetadata().Id,
+		Platform:  platform,
+	}
+	scripts, err := common.GetStartupScripts(startupArgs, api.GetInternalOutputPath)
 	if err != nil {
 		return fmt.Errorf("error getting startup scripts: %w", err)
 	}
@@ -189,7 +290,7 @@ func (s *SiteStateRenderer) createSystemdService() error {
 	}
 
 	// Creating systemd user service
-	systemd, err := common.NewSystemdServiceInfo(s.siteState.Site)
+	systemd, err := common.NewSystemdServiceInfo(s.siteState.Site, string(s.Platform))
 	if err != nil {
 		return err
 	}
@@ -198,7 +299,7 @@ func (s *SiteStateRenderer) createSystemdService() error {
 	}
 
 	// Validate if lingering is enabled for current user
-	if !apis.IsRunningInContainer() {
+	if !api.IsRunningInContainer() {
 		username := utils.ReadUsername()
 		if os.Getuid() != 0 && !common.IsLingeringEnabled(username) {
 			fmt.Printf("It is recommended to enable lingering for %s, otherwise Skupper may not start on boot.\n", username)

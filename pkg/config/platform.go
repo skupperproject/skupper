@@ -132,13 +132,31 @@ var (
 	Platform string
 )
 
+// GetPlatform returns the runtime platform defined,
+// where the lookup goes through the following sequence:
+// - Platform variable,
+// - SKUPPER_PLATFORM environment variable
+// - Static platform defined by skupper switch
+// - Default platform "kubernetes" otherwise.
+// In case the defined platform is invalid, "kubernetes"
+// will be returned.
 func GetPlatform() types.Platform {
 	p := &PlatformInfo{}
 	_ = p.Load()
-	return types.Platform(utils.DefaultStr(Platform,
+	platform := types.Platform(utils.DefaultStr(Platform,
 		os.Getenv(types.ENV_PLATFORM),
 		string(p.Current),
 		string(types.PlatformKubernetes)))
+	switch platform {
+	case types.PlatformPodman:
+		return types.PlatformPodman
+	case types.PlatformDocker:
+		return types.PlatformDocker
+	case types.PlatformSystemd:
+		return types.PlatformSystemd
+	default:
+		return types.PlatformKubernetes
+	}
 }
 
 func getDataHome() string {

@@ -9,10 +9,13 @@ import (
 	"text/template"
 
 	"github.com/skupperproject/skupper/internal/utils"
+	pkgutils "github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/pkg/version"
 )
 
 type SelfExtractingBundle struct {
 	SiteName   string
+	Namespace  string
 	OutputPath string
 }
 
@@ -20,7 +23,7 @@ func (s *SelfExtractingBundle) InstallFile() string {
 	return path.Join(s.OutputPath, fmt.Sprintf("skupper-install-%s.sh", s.SiteName))
 }
 
-func (s *SelfExtractingBundle) Generate(tarBall *utils.Tarball) error {
+func (s *SelfExtractingBundle) Generate(tarBall *utils.Tarball, defaultPlatform string) error {
 	var data = new(bytes.Buffer)
 	var err error
 
@@ -44,7 +47,10 @@ func (s *SelfExtractingBundle) Generate(tarBall *utils.Tarball) error {
 	var parsedInstallScript = new(bytes.Buffer)
 	err = installScriptTemplate.Execute(parsedInstallScript, map[string]interface{}{
 		"SiteName":        s.SiteName,
+		"Namespace":       s.Namespace,
+		"Platform":        pkgutils.DefaultStr(defaultPlatform, "podman"),
 		"SelfExtractPart": selfExtractPart,
+		"Version":         version.Version,
 	})
 	if err != nil {
 		return err

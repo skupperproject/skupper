@@ -5,7 +5,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/assert"
 )
 
@@ -19,7 +19,7 @@ func TestFileSystemSiteStateLoder(t *testing.T) {
 	ss := fakeSiteState()
 	ss.CreateBridgeCertificates()
 	ss.CreateLinkAccessesCertificates()
-	assert.Assert(t, apis.MarshalSiteState(*ss, outputPath))
+	assert.Assert(t, api.MarshalSiteState(*ss, outputPath))
 
 	fsStateLoader := &FileSystemSiteStateLoader{
 		Path: path.Join(outputPath),

@@ -8,9 +8,8 @@ import (
 	"path"
 	"text/template"
 
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/config"
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
 var (
@@ -32,39 +31,41 @@ type StartupScript interface {
 type startupScripts struct {
 	StartScript     string
 	StopScript      string
-	Site            *v1alpha1.Site
+	Namespace       string
 	SiteId          string
 	SkupperPlatform string
 	ContainerEngine string
 	path            string
 }
 
-func GetStartupScripts(site *v1alpha1.Site, siteId string) (StartupScript, error) {
+type StartupScriptsArgs struct {
+	Namespace string
+	SiteId    string
+	Platform  types.Platform
+	Bundle    bool
+}
+
+func GetStartupScripts(args StartupScriptsArgs, pathProvider api.InternalPathProvider) (StartupScript, error) {
 	scripts := &startupScripts{
 		StartScript:     StartScriptContainerTemplate,
 		StopScript:      StopScriptContainerTemplate,
-		Site:            site,
-		SiteId:          siteId,
+		Namespace:       args.Namespace,
+		SiteId:          args.SiteId,
 		SkupperPlatform: "podman",
 	}
 
-	platform := config.GetPlatform()
-	if !platform.IsContainerEngine() && !platform.IsBundle() {
+	if !args.Platform.IsContainerEngine() && !args.Bundle {
 		return nil, fmt.Errorf("startup scripts can only be used with podman or docker platforms")
 	}
-	scripts.SkupperPlatform = string(platform)
+	scripts.SkupperPlatform = string(args.Platform)
 	scripts.ContainerEngine = scripts.SkupperPlatform
-	if platform.IsBundle() {
+	if args.Bundle {
 		scripts.ContainerEngine = "{{.ContainerEngine}}"
 	}
-	siteHome, err := apis.GetHostSiteHome(site)
-	if err != nil {
-		return nil, err
+	if pathProvider == nil {
+		pathProvider = api.GetInternalOutputPath
 	}
-	scripts.path = path.Join(siteHome, RuntimeScriptsPath)
-	if apis.IsRunningInContainer() {
-		scripts.path = path.Join(GetDefaultOutputPath(site.Name), RuntimeScriptsPath)
-	}
+	scripts.path = pathProvider(args.Namespace, api.RuntimeScriptsPath)
 	return scripts, nil
 }
 

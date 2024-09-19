@@ -1,4 +1,4 @@
-package apis
+package api
 
 import (
 	"bytes"
@@ -45,14 +45,14 @@ func TestGetConfigHome(t *testing.T) {
 			var homeOrig = os.Getenv(HOME)
 
 			if tt.xdgConfigHome != "" {
-				_ = os.Setenv(XDG_CONFIG_HOME, tt.xdgConfigHome)
+				t.Setenv(XDG_CONFIG_HOME, tt.xdgConfigHome)
 			}
 			if tt.homeDir != "" {
-				_ = os.Setenv(HOME, tt.homeDir)
+				t.Setenv(HOME, tt.homeDir)
 			}
 			got := GetConfigHome()
-			_ = os.Setenv(XDG_CONFIG_HOME, xdgConfigHomeOrig)
-			_ = os.Setenv(HOME, homeOrig)
+			t.Setenv(XDG_CONFIG_HOME, xdgConfigHomeOrig)
+			t.Setenv(HOME, homeOrig)
 			if got != tt.want {
 				t.Errorf("GetConfigHome() = %v, want %v", got, tt.want)
 			}
@@ -89,14 +89,14 @@ func TestGetDataHome(t *testing.T) {
 			var homeOrig = os.Getenv(HOME)
 
 			if tt.xdgDataHome != "" {
-				_ = os.Setenv(XDG_DATA_HOME, tt.xdgDataHome)
+				t.Setenv(XDG_DATA_HOME, tt.xdgDataHome)
 			}
 			if tt.homeDir != "" {
-				_ = os.Setenv(HOME, tt.homeDir)
+				t.Setenv(HOME, tt.homeDir)
 			}
 			got := GetDataHome()
-			_ = os.Setenv(XDG_DATA_HOME, xdgDataHomeOrig)
-			_ = os.Setenv(HOME, homeOrig)
+			t.Setenv(XDG_DATA_HOME, xdgDataHomeOrig)
+			t.Setenv(HOME, homeOrig)
 			if got != tt.want {
 				t.Errorf("GetDataHome() = %v, want %v", got, tt.want)
 			}
@@ -162,13 +162,13 @@ func TestGetPlatform(t *testing.T) {
 	// Restore original values
 	defer func() {
 		config.Platform = cliOrig
-		_ = os.Setenv(types.ENV_PLATFORM, envOrig)
+		t.Setenv(types.ENV_PLATFORM, envOrig)
 		config.PlatformConfigFile = cfgFileOrig
 	}()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config.Platform = tt.cliVar
-			_ = os.Setenv(types.ENV_PLATFORM, tt.envVar)
+			t.Setenv(types.ENV_PLATFORM, tt.envVar)
 
 			// creating a temporary platform file
 			f, err := os.CreateTemp(os.TempDir(), "platform-*.yaml")
@@ -386,14 +386,14 @@ func TestGetHostSiteHome(t *testing.T) {
 	}
 	homeDir, err := os.UserHomeDir()
 	assert.Assert(t, err)
-	defaultSiteHome := path.Join(homeDir, ".local/share/skupper/sites/my-test-site")
+	defaultSiteHome := path.Join(homeDir, ".local/share/skupper/namespaces/default")
 	const fakeXdgDataHome = "/fake/xdg/home"
-	xdgSiteHome := path.Join(fakeXdgDataHome, "/skupper/sites/my-test-site")
+	xdgSiteHome := path.Join(fakeXdgDataHome, "/skupper/namespaces/default")
 
 	envXdgDataHome := "XDG_DATA_HOME"
 	originalXdgDataHome := os.Getenv(envXdgDataHome)
 	defer func() {
-		_ = os.Setenv(envXdgDataHome, originalXdgDataHome)
+		t.Setenv(envXdgDataHome, originalXdgDataHome)
 	}()
 	for _, scenario := range []struct {
 		expectedSiteHome string
@@ -408,10 +408,8 @@ func TestGetHostSiteHome(t *testing.T) {
 			useXdgDataHome:   true,
 		},
 	} {
-		if !scenario.useXdgDataHome {
-			assert.Assert(t, os.Unsetenv(envXdgDataHome))
-		} else {
-			assert.Assert(t, os.Setenv(envXdgDataHome, fakeXdgDataHome))
+		if scenario.useXdgDataHome {
+			t.Setenv(envXdgDataHome, fakeXdgDataHome)
 		}
 		siteHome, err := GetHostSiteHome(fakeSite)
 		assert.Assert(t, err)

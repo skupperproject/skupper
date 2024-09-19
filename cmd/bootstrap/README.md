@@ -2,21 +2,27 @@
 
 In this current phase of the Skupper V2 implementation, non-kubernetes sites
 can be bootstrapped using a locally built binary, that can be produced by running
-`make build-bootstrap`, or using the (eventually outdated) quay.io/skupper/bootstrap
-container image by calling `./cmd/bootstrap/bootstrap.sh`.
+`make build-bootstrap`, or using the quay.io/skupper/bootstrap:v2-latest
+container image by calling `./cmd/bootstrap/bootstrap.sh` with the appropriate
+flags.
+
+It is important to mention that the bootstrap procedure executed by the provided
+`bootstrap` binary, will be incorporated into the Skupper CLI shortly.
 
 Non-kubernetes sites can be created using the standard V2 site declaration
 approach, which is based on the new set of Custom Resource Definitions (CRDs).
 
 The same CRDs used to create a V2 Skupper site on a Kubernetes cluster can be
 used to create non-kubernetes sites. Some particular options and fields are
-valid or required only on specific platforms, but overall the structure is the
+valid or required only on specific platforms, but the overall structure is the
 same.
 
 Differently than the current Kubernetes implementation, non-kubernetes sites
 are static. Meaning that you must have all your Custom Resources (CRs) ready
 at the time your site is bootstrapped and if something needs to change, you
-will need to remove and bootstrap your site again.
+will need to bootstrap it over. If you do that, the Certificate Authorities (CAs)
+are preserved, so if there is any eventual existing incoming link, it should
+be able to reconnect.
 
 ## Supported platforms
 
@@ -27,8 +33,6 @@ allowed values:
 * podman
 * docker
 * systemd
-* bundle
-* tarball
 
 ### Container engine platforms
 
@@ -41,29 +45,56 @@ unix socket will be used based on the current user and platform selected.
 The `systemd` platform actually requires that you have a local installation of
 the `skupper-router` (`skrouterd` binary must be available in your PATH).
 
-### Site bundle strategies
+## Bootstrap usage
 
-If you do not want to run an actual site from your CRs, but instead, you just
-need to produce a bundle that can be installed somewhere else, then you can
-use `bundle` or `tarball` as the platform.
+### Bootstrap command and flags
 
-The `bundle` platform will produce a self-extracting shell archive that can
-be executed to install your local non-kubernetes site.
+```shell
+Skupper bootstrap
 
-If you are not comfortable executing the produced script, you can also choose
-`tarball` as the platform. It produces a tar ball that contains a `install.sh`
-script, that basically performs the same procedure of the `bundle`.
+Bootstraps a nonkube Skupper site base on the provided flags.
 
-Both scripts accept flags:
+When the path (-p) flag is provided, it will be used as the source
+directory containing the Skupper custom resources to be processed,
+generating a local Skupper site using the "default" namespace, unless
+a namespace is set in the custom resources, or if the namespace (-n)
+flag is provided.
 
+A namespace is just a directory in the file system where all site specific
+files are stored, like certificates, configurations, the original sources
+(original custom resources used to bootstrap the nonkube site) and
+the runtime files generated during initialization.
+
+Namespaces are stored under ${XDG_DATA_HOME}/.local/share/skupper/namespaces
+for regular users when XDG_DATA_HOME environment variable is set, or under
+${HOME}/.local/share/skupper/namespaces when it is not set.
+As the root user, namespaces are stored under: /usr/local/share/skupper/namespaces.
+
+In case the path (-p) flag is omitted, Skupper will try to process
+custom resources stored at the sources directory of the default namespace,
+or from the namespace provided through the namespace (-n) flag.
+
+If the respective namespace already exists and you want to bootstrap it
+over, you must provide the force (-f) flag. When you do that, the existing
+Certificate Authorities (CAs) are preserved, so eventual existing incoming
+links should be able to reconnect.
+
+To produce a bundle, instead of rendering a site, the bundle strategy (-b)
+flag must be set to "bundle" or "tarball".
+
+Usage:
+  bootstrap [options...]
+
+Flags:
+  -b string
+    	The bundle strategy to be produced: bundle or tarball
+  -f	Forces to overwrite an existing namespace
+  -n string
+    	The target namespace used for installation
+  -p string
+    	Custom resources location on the file system
+  -v	Report the version of the Skupper bootstrap command
 ```
--h               help
--p <platform>    podman, docker, systemd
--x               remove
--d <directory>   dump static tokens
-```
-
-## Usage
 
 ### Bootstrapping and removing non-kubernetes sites
 
@@ -71,13 +102,17 @@ Place all your Custom Resources (CRs) on a local directory.
 You must always provide a `Site` (CR), plus some other resource
 that makes your running site meaningful, like Listeners and/or Connectors.
 
-In case you want your local site to listen for incoming links from other sites,
+In case you want your local site to accept incoming links from other sites,
 at present, you have to explicitly provide a `RouterAccess` (CR).
 
 If you want your non-kubernetes site to establish links to other sites, make
 sure you also provide `AccessToken` or `Link` (CRs).
 
-***NOTE:** A V2 representation of the **"Hello world example"** is available below
+If the CRs have no namespace set, Skupper assumes "default" as the namespace
+to be used, otherwise it will use the namespace defined in the CRs, unless you
+force a specific namespace to be used through the `-n` flag.
+
+***NOTES:** A V2 representation of the **"Hello world example"** is available below
 to provide initial guidance.*
 
 Now that you have all your CRs placed on a local directory, just run:
@@ -87,39 +122,71 @@ Now that you have all your CRs placed on a local directory, just run:
 ```shell
 # To bootstrap your site using the binary
 export SKUPPER_PLATFORM=podman
-./bootstrap ./
+./bootstrap -p ./
 ```
+
+You can also use `-n=<name>` to override the namespace specified in the CRs.
 
 Alternatively you can also run the `bootstrap.sh` script:
 
 ```shell
 # To bootstrap your site using the shell script
 export SKUPPER_PLATFORM=podman
-./cmd/bootstrap/bootstrap.sh ./
+./cmd/bootstrap/bootstrap.sh -p ./
 ```
+
+Similarly to the binary, you can also use `-n <namespace>` to override the namespace
+defined in the source CRs.
 
 Remember that you can set the `SKUPPER_PLATFORM` environment variable to
 any of the platforms mentioned earlier.
 
+If you do not want to run an actual site from your CRs, but instead, you just
+need to produce a bundle that can be installed somewhere else, then you can
+use `bundle` or `tarball` as the bundle strategy (-b flag).
+
+The `bundle` strategy will produce a self-extracting shell archive that can
+be executed to install your local non-kubernetes site.
+
+If you are not comfortable executing the produced script, you can also choose
+`tarball` as the bundle strategy. It produces a tar ball that contains an
+`install.sh` script, that basically performs the same procedure of the
+self-extracting `bundle`.
+
 After the bootstrap procedure is completed, it will provide you some relevant
 information like:
 
-* Location where static tokens have been defined (when a `RouterAccess` is defined)
-* Location where the site bundle has been saved (when using `bundle` or `tarball`)
+* Location where static links have been defined (when a `RouterAccess` is provided)
+* Location where the site bundle has been saved (if bundle strategy flag `-b` set)
+* Namespace, Site name, Platform, Version and path to the sources
 
 #### Site bundles
 
 When a site bundle is produced, the bootstrap procedure will point you
 to the location where it has been saved.
 
+##### Bundle installation usage
+
+The bundle installation script accepts the following flags:
+
+```
+-h               help
+-p <platform>    podman, docker, systemd
+-n <namespace>   if not provided, the namespace defined in the bundle is used (if none, default is used)
+-x               remove site and namespace
+-d <directory>   dump static links into the provided directory 
+```
+
 #### Removing
 
-To remove your site, you can run a local script, that takes the site name
+To remove your site, you can run a local script, that takes the namespace
 as an argument. The platform is identified by the script so you don't need
 to export it.
 
+If the namespace is omitted, the "default" namespace is used. 
+
 ```shell
-./cmd/bootstrap/remove.sh <site-name>
+./cmd/bootstrap/remove.sh [namespace]
 ```
 
 ## Example
@@ -127,25 +194,26 @@ to export it.
 Here is a very basic demonstration on how you can run the `Hello World` example
 locally using just non-kubernetes sites.
 
-The example is assuming you are running both `west` and `east` sites on your
-machine. So if you want to run it on different machines, make sure to adjust
+The example assumes you are running both `west` and `east` sites on your
+machine. So if you want to run them on different machines, make sure to adjust
 IP addresses properly.
 
 ### Hello world
 
-This example basically runs a **frontend** application on the `west` site,
-which depends on a **backend** that is meant to run on the `east` site.
+This example basically runs a **frontend** application which depends on
+a **backend** service that is not initially accessible. The access will
+be provided by the Skupper Site running on the `east` namespace.
 
-To simulate it, the frontend application will be executed using podman,
-it will be exporting port 7070 in the loopback interface of the host machine,
-and we will tell it to expect that the backend service will be available
+To simulate it, the frontend application will be executed using podman.
+It exposes port 7070 in the loopback interface of the host machine,
+and must tell it to expect that the backend service will be available
 at `http://host.containers.internal:8080`, which from inside the container,
 means the host machine at port 8080.
 
-The backend will also run on the host machine with podman, and it will be
-exporting port 9090 to the loopback interface of the host machine. So after
-both `frontend` and `backend` containers are running, they won't be able
-to communicate.
+The backend also runs on the host machine with podman, and it
+exposes port 9090 to the loopback interface of the host machine.
+So after both `frontend` and `backend` containers are running,
+they won't be able to communicate.
 
 We will use two Skupper sites to resolve that. On the `west` site, Skupper
 will expose a `Listener` (CR), bound to port `8080` of the host machine.
@@ -154,8 +222,10 @@ On the `east` site, we will have a `Connector` (CR) that targets localhost
 at port 9090, in the host machine.
 
 The ideal scenario would be to run each component on different machines,
-where Skupper could add real value, but just for the purpose of making it
-simple to run, the example is defined to work at a single machine.
+where Skupper could add real value.
+But just with the purpose of making it simple to be executed locally,
+this example has been designed so that you can run everything using a
+single machine.
 
 #### Workloads
 
@@ -172,6 +242,8 @@ podman run --name backend -d --rm -p 127.0.0.1:9090:8080 quay.io/skupper/hello-w
 ```
 
 #### West
+
+##### Preparing the CRs
 
 The `west` site will be defined using the following CRs:
 
@@ -212,11 +284,23 @@ spec:
   bindHost: 127.0.0.1
 ```
 
-Now that the `west` site has been created, copy the generated token into
+##### Bootstrap the west site
+
+Considering all your CRs have been saved to a directory named `west`, use:
+
+```shell
+./bootstrap -p ./west -n west
+```
+
+The CRs are defined without a namespace, that is why we have the `-n west` flag,
+to indicate we want this site to run under the `west` namespace.
+Otherwise, the `default` namespace would be used.
+
+Now that the `west` site has been created, copy the generated link into
 the `east` site local directory. Example:
 
 ```shell
-cp ${HOME}/.local/share/skupper/sites/west/runtime/token/link-go-west.yaml ./east/links/link-go-west.yaml
+cp ${HOME}/.local/share/skupper/namespaces/west/runtime/link/link-go-west.yaml ./east/link-go-west.yaml
 ```
 
 #### East
@@ -273,7 +357,101 @@ spec:
   tlsCredentials: link-go-west
 ```
 
+##### Bootstrap the east site
+
+Considering all your CRs have been saved to a directory named `east`, use:
+
+```shell
+./bootstrap -p ./east -n east
+```
+
 ### Testing the scenario
 
 Once both sites have been initialized, open **http://127.0.0.1:7070**
 in your browser and it should work.
+
+### Updating an existing installation
+
+Suppose modifications have been made to the `west` site CRs, directly at the
+namespace directory (i.e: ${HOME}/.local/share/skupper/namespaces/west/sources).
+
+To re-initialize the west site, run:
+
+```shell
+bootstrap -n west -f
+```
+
+The command above will reprocess all source CRs from the namespace path and
+restart the related components. The Certificate Authorities (CAs) are preserved,
+therefore eventual incoming links must still work.
+
+In case the CRs are located somewhere else, then a path must also be specified, as
+in the example below:
+
+```shell
+bootstrap -n west -p <path> -f
+```
+
+### Cleanup
+
+To remove both namespaces, run:
+
+```shell
+./cmd/bootstrap/remove.sh west
+./cmd/bootstrap/remove.sh east
+```
+
+### Producing site bundles
+
+As an alternative, you can also produce site bundles to try this example.
+
+#### Creating the west bundle
+
+```shell
+$ bootstrap -p ./west/ -b bundle
+Skupper nonkube bootstrap (version: main-release-161-g7c5100a2-modified)
+Site "west" has been created (as a distributable bundle)
+Installation bundle available at: /home/user/.local/share/skupper/bundles/skupper-install-west.sh
+Default namespace: default
+Default platform: docker
+```
+
+#### Extracting the static link
+
+To extract the link, run:
+
+```shell
+/home/user/.local/share/skupper/bundles/skupper-install-west.sh -d /tmp
+Static links for site "west" have been saved into /tmp/west
+```
+
+Copy the static Link to the `east` site definition.
+
+```shell
+cp /tmp/west/link-go-west.yaml ./east/link-go-west.yaml
+```
+
+#### Creating the east bundle
+
+```shell
+$ bootstrap -p ./east -b bundle
+Skupper nonkube bootstrap (version: main-release-161-g7c5100a2-modified)
+Site "east" has been created (as a distributable bundle)
+Installation bundle available at: /home/user/.local/share/skupper/bundles/skupper-install-east.sh
+Default namespace: default
+Default platform: podman
+```
+
+#### Installing both bundles
+
+```shell
+/home/user/.local/share/skupper/bundles/skupper-install-west.sh -n west
+/home/user/.local/share/skupper/bundles/skupper-install-east.sh -n east
+```
+
+#### Cleanup bundle installation
+
+```shell
+/home/user/.local/share/skupper/bundles/skupper-install-west.sh -x
+/home/user/.local/share/skupper/bundles/skupper-install-east.sh -x
+```

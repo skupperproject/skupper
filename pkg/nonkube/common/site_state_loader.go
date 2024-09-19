@@ -8,9 +8,12 @@ import (
 	"path"
 	"strings"
 
+	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
+	"github.com/skupperproject/skupper/pkg/qdr"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
@@ -22,12 +25,12 @@ type FileSystemSiteStateLoader struct {
 	Bundle bool
 }
 
-func (f *FileSystemSiteStateLoader) Load() (*apis.SiteState, error) {
-	var siteState = apis.NewSiteState(f.Bundle)
+func (f *FileSystemSiteStateLoader) Load() (*api.SiteState, error) {
+	var siteState = api.NewSiteState(f.Bundle)
 	filter := func(filename string) bool {
 		return strings.HasSuffix(filename, ".yaml") || strings.HasSuffix(filename, ".yml")
 	}
-	dirReader := new(DirectoryReader)
+	dirReader := new(utils.DirectoryReader)
 	yamlFileNames, err := dirReader.ReadDir(f.Path, filter)
 	if err != nil {
 		return nil, err
@@ -41,13 +44,48 @@ func (f *FileSystemSiteStateLoader) Load() (*apis.SiteState, error) {
 		reader := bufio.NewReader(yamlFile)
 		err = LoadIntoSiteState(reader, siteState)
 		if err != nil {
-			return siteState, err
+			return siteState, fmt.Errorf("error loading %q: %v", yamlFileName, err)
 		}
+	}
+	namespacesFound := GetNamespacesFound(siteState)
+	if len(namespacesFound) > 1 {
+		return nil, fmt.Errorf("multiple namespaces found, but only a unique namespace must be used across all "+
+			"resources - namespaces found: %v", namespacesFound)
 	}
 	return siteState, nil
 }
 
-func LoadIntoSiteState(reader *bufio.Reader, siteState *apis.SiteState) error {
+func addNamespacesFromMap[T metav1.Object](objMap map[string]T, nsMap map[string]bool) {
+	for _, obj := range objMap {
+		ns := obj.GetNamespace()
+		if ns == "" {
+			ns = "default"
+		}
+		nsMap[ns] = true
+	}
+}
+
+func GetNamespacesFound(s *api.SiteState) []string {
+	var namespaces []string
+	var nsMap = make(map[string]bool)
+	siteNamespace := s.GetNamespace()
+	nsMap[siteNamespace] = true
+	addNamespacesFromMap(s.Listeners, nsMap)
+	addNamespacesFromMap(s.Connectors, nsMap)
+	addNamespacesFromMap(s.RouterAccesses, nsMap)
+	addNamespacesFromMap(s.Grants, nsMap)
+	addNamespacesFromMap(s.Links, nsMap)
+	addNamespacesFromMap(s.Secrets, nsMap)
+	addNamespacesFromMap(s.Claims, nsMap)
+	addNamespacesFromMap(s.Certificates, nsMap)
+	addNamespacesFromMap(s.SecuredAccesses, nsMap)
+	for ns := range nsMap {
+		namespaces = append(namespaces, ns)
+	}
+	return namespaces
+}
+
+func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 	var err error
 	yamlDecoder := yamlutil.NewYAMLOrJSONDecoder(reader, 1024)
 	// allow reading multiple-document yaml
@@ -118,38 +156,16 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *apis.SiteState) error {
 	return nil
 }
 
-type FilenameFilter func(string) bool
-type DirectoryReader struct{}
-
-func (f *DirectoryReader) ReadDir(dirname string, filter FilenameFilter) ([]string, error) {
-	dir, err := os.Open(dirname)
+func LoadRouterConfig(namespace string) (*qdr.RouterConfig, error) {
+	routerConfigPath := api.GetInternalOutputPath(namespace, api.ConfigRouterPath)
+	routerConfigFile := path.Join(routerConfigPath, "skrouterd.json")
+	routerConfigData, err := os.ReadFile(routerConfigFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to load router configuration: %w", err)
 	}
-	dirInfo, err := dir.Stat()
+	routerConfig, err := qdr.UnmarshalRouterConfig(string(routerConfigData))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to parse router configuration: %w", err)
 	}
-	if !dirInfo.IsDir() {
-		return nil, fmt.Errorf("%s is not a directory", dirname)
-	}
-	files, err := dir.ReadDir(0)
-	if err != nil {
-		return nil, err
-	}
-	var fileNames []string
-	for _, file := range files {
-		if file.IsDir() {
-			recursiveFiles, err := f.ReadDir(path.Join(dirname, file.Name()), filter)
-			if err != nil {
-				return nil, err
-			}
-			fileNames = append(fileNames, recursiveFiles...)
-		} else {
-			if filter == nil || filter(file.Name()) {
-				fileNames = append(fileNames, path.Join(dirname, file.Name()))
-			}
-		}
-	}
-	return fileNames, nil
+	return &routerConfig, nil
 }

@@ -17,26 +17,26 @@ func TestSystemdService(t *testing.T) {
 	xdgConfigHomeOrig := os.Getenv("XDG_CONFIG_HOME")
 	platformOrig := os.Getenv("SKUPPER_PLATFORM")
 	defer func() {
-		_ = os.Setenv("SKUPPER_OUTPUT_PATH", outputPathOrig)
-		_ = os.Setenv("XDG_CONFIG_HOME", xdgConfigHomeOrig)
-		_ = os.Setenv("SKUPPER_PLATFORM", platformOrig)
+		t.Setenv("SKUPPER_OUTPUT_PATH", outputPathOrig)
+		t.Setenv("XDG_CONFIG_HOME", xdgConfigHomeOrig)
+		t.Setenv("SKUPPER_PLATFORM", platformOrig)
 	}()
 	siteState := fakeSiteState()
 
 	outputPath := t.TempDir()
 	assert.Assert(t, os.MkdirAll(outputPath, 0755))
-	assert.Assert(t, os.Setenv("SKUPPER_OUTPUT_PATH", outputPath))
-	assert.Assert(t, os.Setenv("XDG_CONFIG_HOME", outputPath))
+	t.Setenv("SKUPPER_OUTPUT_PATH", outputPath)
+	t.Setenv("XDG_CONFIG_HOME", outputPath)
 
 	for _, platform := range []string{"systemd", "podman", "docker"} {
 		for _, uid := range []int{0, 1000} {
-			assert.Assert(t, os.Setenv("SKUPPER_PLATFORM", platform))
-			systemdService, err := NewSystemdServiceInfo(siteState.Site)
+			//assert.Assert(t, t.Setenv("SKUPPER_PLATFORM", platform))
+			systemdService, err := NewSystemdServiceInfo(siteState.Site, platform)
 			assert.Assert(t, err)
-			assert.Equal(t, systemdService.GetServiceName(), "skupper-site-site-name.service")
+			assert.Equal(t, systemdService.GetServiceName(), "skupper-default.service")
 			systemdServiceImpl := systemdService.(*systemdServiceInfo)
-			assert.Equal(t, systemdServiceImpl.SiteScriptPath, path.Join(outputPath, "sites/site-name/runtime/scripts"))
-			assert.Equal(t, systemdServiceImpl.SiteConfigPath, path.Join(outputPath, "sites/site-name/config/router"))
+			assert.Equal(t, systemdServiceImpl.SiteScriptPath, path.Join(outputPath, "namespaces/default/runtime/scripts"))
+			assert.Equal(t, systemdServiceImpl.SiteConfigPath, path.Join(outputPath, "namespaces/default/config/router"))
 			systemdServiceImpl.command = func(name string, arg ...string) *exec.Cmd {
 				assert.Assert(t, utils.StringSliceContains(arg, "--user") == (uid != 0))
 				t.Logf("mocking command: %s %s", name, strings.Join(arg, " "))

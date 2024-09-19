@@ -57,7 +57,7 @@ func TestTarballBundle_Generate(t *testing.T) {
 
 	t.Run("generate-tarball-bundle", func(t *testing.T) {
 		assert.Assert(t, tb.AddFiles(sitePath))
-		assert.Assert(t, b.Generate(tb))
+		assert.Assert(t, b.Generate(tb, ""))
 		cleanupPaths = append(cleanupPaths, b.InstallFile())
 	})
 

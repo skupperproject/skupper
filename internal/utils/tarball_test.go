@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skupperproject/skupper/pkg/nonkube/common"
 	"gotest.tools/assert"
 )
 
@@ -55,7 +54,7 @@ func TestTarball(t *testing.T) {
 			err = createFiles(baseDir, tc.files, []byte(testFileContent), tree)
 			assert.Assert(t, err, "unable to create files")
 			generatedFilesExpected := tc.files * (len(tree) + 1)
-			dirReader := new(common.DirectoryReader)
+			dirReader := new(DirectoryReader)
 			filesFound, err := dirReader.ReadDir(baseDir, nil)
 			assert.Assert(t, err)
 			assert.Equal(t, generatedFilesExpected, len(filesFound))
@@ -127,6 +126,21 @@ func TestTarball(t *testing.T) {
 					assert.Equal(t, string(data), testFileContent)
 				}
 			})
+			t.Run(tc.description+"-UncompressData", func(t *testing.T) {
+				baseDirCopy := baseDir + ".data"
+				tb := NewTarball()
+				err = tb.ExtractData(savedData, baseDirCopy)
+				assert.Assert(t, err)
+				cleanupList = append(cleanupList, baseDirCopy)
+				filesFoundCopy, err := dirReader.ReadDir(baseDirCopy, nil)
+				assert.Assert(t, err)
+				assert.Equal(t, generatedFilesExpected, len(filesFoundCopy))
+				for _, file := range filesFoundCopy {
+					data, err := os.ReadFile(file)
+					assert.Assert(t, err)
+					assert.Equal(t, string(data), testFileContent)
+				}
+			})
 			t.Run(tc.description+"-UncompressExtra", func(t *testing.T) {
 				baseDirExtra := baseDir + ".extra"
 				tb := NewTarball()
@@ -170,6 +184,22 @@ func createFiles(baseDir string, files int, content []byte, tree []string) error
 		}
 	}
 	return nil
+}
+
+// expectedCreatedFiles returns the amount of tiles expected
+// to be created based on the provided arguments.
+func expectedCreatedFiles(dirs, levels, files int) int {
+	/*
+		total of files is: (sum(dirs^!levels))*files
+		i.e: dir=3,levels=4,files=10
+		(3^4 + 3^3 + 3^2 + 3^1) * 10
+	*/
+	sum := 0
+	for level := 1; level <= levels; level++ {
+		sum += int(math.Pow(float64(dirs), float64(level)))
+	}
+	sum *= files
+	return sum + files
 }
 
 func generateDirectoryTree(dirs, levels int) []string {

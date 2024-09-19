@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,13 +13,13 @@ import (
 func TestSiteStateValidator_Validate(t *testing.T) {
 	tests := []struct {
 		info          string
-		siteState     *apis.SiteState
+		siteState     *api.SiteState
 		valid         bool
 		errorContains string
 	}{
 		{
 			info: "invalid-site-name",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				siteState.Site.Name = "bad_name"
 			}),
 			valid:         false,
@@ -27,7 +27,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-link-access-name",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, la := range siteState.RouterAccesses {
 					la.Name = "bad_name"
 					break
@@ -38,7 +38,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-link-access-tlsCredentials-required",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, la := range siteState.RouterAccesses {
 					la.Spec.TlsCredentials = ""
 					break
@@ -48,7 +48,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-link-access-tlsCredentials-bad-name",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, la := range siteState.RouterAccesses {
 					la.Spec.TlsCredentials = "bad_name"
 					break
@@ -59,7 +59,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-link-access-roles-required",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, la := range siteState.RouterAccesses {
 					la.Spec.Roles = make([]v1alpha1.RouterAccessRole, 0)
 					break
@@ -70,7 +70,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-link-access-roles-invalid-role",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, la := range siteState.RouterAccesses {
 					la.Spec.Roles[0].Name = "bad-role"
 					break
@@ -81,7 +81,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-links-no-secrets",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				siteState.Secrets = make(map[string]*corev1.Secret)
 			}),
 			valid:         false,
@@ -89,7 +89,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-links-name",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, link := range siteState.Links {
 					link.Name = "bad_name"
 					break
@@ -100,7 +100,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-links-secret-not-found",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, link := range siteState.Links {
 					link.Spec.TlsCredentials = "invalid"
 					break
@@ -111,7 +111,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-listener-name",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, listener := range siteState.Listeners {
 					listener.Name = "bad_name"
 				}
@@ -121,7 +121,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-listener-host",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, listener := range siteState.Listeners {
 					listener.Spec.Host = ""
 				}
@@ -131,7 +131,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-listener-host",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, listener := range siteState.Listeners {
 					listener.Spec.Host = "1.2.3.4"
 					listener.Spec.Port = 0
@@ -142,7 +142,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-listener-host-invalid-ip",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, listener := range siteState.Listeners {
 					listener.Spec.Host = "invalid_hostname"
 				}
@@ -152,7 +152,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-listener-port-already-mapped",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, listener := range siteState.Listeners {
 					listener.Spec.Host = "1.2.3.4"
 				}
@@ -162,7 +162,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-connector-name",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, connector := range siteState.Connectors {
 					connector.Name = "bad_name"
 				}
@@ -172,7 +172,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-connector-host",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, connector := range siteState.Connectors {
 					connector.Spec.Host = ""
 				}
@@ -182,7 +182,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-connector-host",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, connector := range siteState.Connectors {
 					connector.Spec.Host = "1.2.3.4"
 					connector.Spec.Port = 0
@@ -193,7 +193,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-connector-host-invalid-ip",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				for _, connector := range siteState.Connectors {
 					connector.Spec.Host = "invalid_hostname"
 				}
@@ -203,7 +203,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-claim-name",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				siteState.Claims["bad_name"] = &v1alpha1.AccessToken{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Claim",
@@ -219,7 +219,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		},
 		{
 			info: "invalid-grant-name",
-			siteState: customize(func(siteState *apis.SiteState) {
+			siteState: customize(func(siteState *api.SiteState) {
 				siteState.Grants["bad_name"] = &v1alpha1.AccessGrant{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Grant",
@@ -251,7 +251,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 	}
 }
 
-func customize(fn func(siteState *apis.SiteState)) *apis.SiteState {
+func customize(fn func(siteState *api.SiteState)) *api.SiteState {
 	siteState := fakeSiteState()
 	fn(siteState)
 	return siteState

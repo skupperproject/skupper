@@ -175,8 +175,7 @@ func (t *Tarball) AddFileData(fileName string, mode int64, data []byte) error {
 	return nil
 }
 
-// Extract extracts the given tar.gz filename into the provided outputPath
-func (t *Tarball) Extract(fileName, outputPath string) error {
+func (t *Tarball) validateOutputPathoutputPath(outputPath string) error {
 	// Validating outputPath
 	if outputPath == "" {
 		return fmt.Errorf("outputPath is empty")
@@ -190,12 +189,33 @@ func (t *Tarball) Extract(fileName, outputPath string) error {
 	} else if !outputPathStat.Mode().IsDir() {
 		return fmt.Errorf("outputPath is not a directory")
 	}
+	return nil
+}
 
+func (t *Tarball) ExtractData(data []byte, outputPath string) error {
+	err := t.validateOutputPathoutputPath(outputPath)
+	if err != nil {
+		return err
+	}
+	reader := bytes.NewReader(data)
+	return t.extract(reader, outputPath)
+}
+
+// Extract extracts the given tar.gz filename into the provided outputPath
+func (t *Tarball) Extract(fileName, outputPath string) error {
+	err := t.validateOutputPathoutputPath(outputPath)
+	if err != nil {
+		return err
+	}
 	tgzFile, err := os.Open(fileName)
 	if err != nil {
 		return err
 	}
-	gzipReader, err := gzip.NewReader(tgzFile)
+	return t.extract(tgzFile, outputPath)
+}
+
+func (t *Tarball) extract(tgzReader io.Reader, outputPath string) error {
+	gzipReader, err := gzip.NewReader(tgzReader)
 	if err != nil {
 		return err
 	}

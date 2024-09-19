@@ -1,10 +1,11 @@
-package apis
+package api
 
 import (
 	encodingjson "encoding/json"
 	"fmt"
 	"os"
 	"path"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -20,7 +21,7 @@ import (
 )
 
 type StaticSiteStateRenderer interface {
-	Render(state *SiteState) error
+	Render(state *SiteState, reload bool) error
 }
 
 type SiteState struct {
@@ -54,6 +55,14 @@ func NewSiteState(bundle bool) *SiteState {
 	}
 }
 
+func (s *SiteState) GetNamespace() string {
+	ns := s.Site.GetNamespace()
+	if ns == "" {
+		return "default"
+	}
+	return ns
+}
+
 func (s *SiteState) IsBundle() bool {
 	return s.bundle
 }
@@ -83,7 +92,8 @@ func (s *SiteState) CreateRouterAccess(name string, port int) {
 			Kind:       "RouterAccess",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:      name,
+			Namespace: s.GetNamespace(),
 		},
 		Spec: v1alpha1.RouterAccessSpec{
 			Roles: []v1alpha1.RouterAccessRole{
@@ -97,6 +107,7 @@ func (s *SiteState) CreateRouterAccess(name string, port int) {
 			Issuer:         tlsCaName,
 		},
 	}
+	s.RouterAccesses[name].SetConfigured(nil)
 	s.Certificates[tlsCaName] = s.newCertificate(tlsCaName, &v1alpha1.CertificateSpec{
 		Subject: tlsCaName,
 		Hosts:   []string{"127.0.0.1", "localhost"},
@@ -160,6 +171,7 @@ func (s *SiteState) CreateLinkAccessesCertificates() {
 			Subject: clientCertificateName,
 			Client:  true,
 		})
+		linkAccess.SetConfigured(nil)
 	}
 
 }
@@ -199,9 +211,15 @@ func (s *SiteState) newCertificate(name string, spec *v1alpha1.CertificateSpec) 
 			Kind:       "Certificate",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:      name,
+			Namespace: s.GetNamespace(),
 		},
 		Spec: *spec,
+		Status: v1alpha1.CertificateStatus{
+			Status: v1alpha1.Status{
+				StatusMessage: v1alpha1.STATUS_OK,
+			},
+		},
 	}
 }
 
@@ -216,6 +234,7 @@ func (s *SiteState) linkMap(sslProfileBasePath string) site.LinkMap {
 	linkMap := site.LinkMap{}
 	for name, link := range s.Links {
 		siteLink := site.NewLink(name, path.Join(sslProfileBasePath, "certificates/link"))
+		link.SetConfigured(nil)
 		siteLink.Update(link)
 		linkMap[name] = siteLink
 	}
@@ -225,9 +244,11 @@ func (s *SiteState) linkMap(sslProfileBasePath string) site.LinkMap {
 func (s *SiteState) bindings() *site.Bindings {
 	b := site.NewBindings()
 	for name, connector := range s.Connectors {
+		connector.SetConfigured(nil)
 		_ = b.UpdateConnector(name, connector)
 	}
 	for name, listener := range s.Listeners {
+		listener.SetConfigured(nil)
 		_ = b.UpdateListener(name, listener)
 	}
 	return b
@@ -237,7 +258,11 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string) qdr.RouterConfig {
 	if s.SiteId == "" {
 		s.SiteId = uuid.New().String()
 	}
-	routerConfig := qdr.InitialConfig(s.Site.Name, s.SiteId, version.Version, !s.IsInterior(), 3)
+	var routerName = s.Site.Name
+	if !s.bundle {
+		routerName = fmt.Sprintf("%s-%d", s.Site.Name, time.Now().Unix())
+	}
+	routerConfig := qdr.InitialConfig(routerName, s.SiteId, version.Version, !s.IsInterior(), 3)
 	// override metadata
 	if s.bundle {
 		routerConfig.Metadata.Id += "-{{.SiteNameSuffix}}"
@@ -260,6 +285,33 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string) qdr.RouterConfig {
 
 	return routerConfig
 }
+
+func setNamespaceOnMap[T metav1.Object](objMap map[string]T, namespace string) {
+	for _, obj := range objMap {
+		obj.SetNamespace(namespace)
+	}
+}
+
+func (s *SiteState) SetNamespace(namespace string) {
+	if namespace == "" {
+		namespace = "default"
+	}
+	// equals
+	if s.GetNamespace() == namespace {
+		return
+	}
+	s.Site.SetNamespace(namespace)
+	setNamespaceOnMap(s.Listeners, namespace)
+	setNamespaceOnMap(s.Connectors, namespace)
+	setNamespaceOnMap(s.RouterAccesses, namespace)
+	setNamespaceOnMap(s.Grants, namespace)
+	setNamespaceOnMap(s.Links, namespace)
+	setNamespaceOnMap(s.Secrets, namespace)
+	setNamespaceOnMap(s.Claims, namespace)
+	setNamespaceOnMap(s.Certificates, namespace)
+	setNamespaceOnMap(s.SecuredAccesses, namespace)
+}
+
 func marshal(outputDirectory, resourceType, resourceName string, resource interface{}) error {
 	var err error
 	writeDirectory := path.Join(outputDirectory, resourceType)

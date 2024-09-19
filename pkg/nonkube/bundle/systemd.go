@@ -8,30 +8,25 @@ import (
 	"path"
 	"text/template"
 
-	"github.com/skupperproject/skupper/pkg/nonkube/apis"
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"
 )
 
-func CreateSystemdServices(siteState *apis.SiteState) error {
+func CreateSystemdServices(siteState *api.SiteState) error {
 	var err error
 	serviceTemplates := map[string]string{
 		"systemd":   common.SystemdServiceTemplate,
 		"container": common.SystemdContainerServiceTemplate,
 	}
-	siteHome, err := apis.GetHostSiteHome(siteState.Site)
-	if err != nil {
-		return err
-	}
-	scriptsPath := path.Join(siteHome, common.RuntimeScriptsPath)
-	if apis.IsRunningInContainer() {
-		scriptsPath = path.Join(common.GetDefaultOutputPath(siteState.Site.Name), common.RuntimeScriptsPath)
-	}
+	scriptsPath := api.GetInternalBundleOutputPath(siteState.Site.Namespace, api.RuntimeScriptsPath)
 	for platform, serviceTemplate := range serviceTemplates {
 		var buf = new(bytes.Buffer)
 		parsedTemplate := template.Must(template.New("service").Parse(serviceTemplate))
 		parsedTemplate.Option()
 		err = parsedTemplate.Execute(buf, map[string]interface{}{
 			"Site":           siteState.Site,
+			"Namespace":      "{{.Namespace}}",
 			"RuntimeDir":     "{{.RuntimeDir}}",
 			"SiteScriptPath": "{{.SiteScriptPath}}",
 			"SiteConfigPath": "{{.SiteConfigPath}}",
@@ -39,7 +34,7 @@ func CreateSystemdServices(siteState *apis.SiteState) error {
 		if err != nil {
 			return fmt.Errorf("failed to execute %s service template: %w", platform, err)
 		}
-		serviceFile := path.Join(scriptsPath, fmt.Sprintf("skupper-site-%s.service.%s", siteState.Site.Name, platform))
+		serviceFile := path.Join(scriptsPath, fmt.Sprintf("skupper.service.%s", platform))
 		err = os.WriteFile(serviceFile, buf.Bytes(), 0644)
 		if err != nil {
 			return fmt.Errorf("failed to write %s service file: %w", platform, err)
@@ -48,9 +43,15 @@ func CreateSystemdServices(siteState *apis.SiteState) error {
 	return nil
 }
 
-func CreateStartupScripts(siteState *apis.SiteState) error {
+func CreateStartupScripts(siteState *api.SiteState, platform types.Platform) error {
 	// Creating startup scripts first
-	scripts, err := common.GetStartupScripts(siteState.Site, "{{.SiteId}}")
+	startupArgs := common.StartupScriptsArgs{
+		Namespace: siteState.GetNamespace(),
+		SiteId:    "{{.SiteId}}",
+		Platform:  platform,
+		Bundle:    true,
+	}
+	scripts, err := common.GetStartupScripts(startupArgs, api.GetInternalBundleOutputPath)
 	if err != nil {
 		return fmt.Errorf("error getting startup scripts: %w", err)
 	}
