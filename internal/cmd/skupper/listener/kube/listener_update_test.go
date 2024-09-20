@@ -1,10 +1,11 @@
 package kube
 
 import (
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 	"time"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -115,7 +116,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 			args: []string{"my-listener-tls"},
 			flags: common.CommandListenerUpdateFlags{
 				TlsSecret: ":not-valid",
-				Timeout:   5 * time.Minute,
+				Timeout:   50 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Listener{
@@ -167,7 +168,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "timeout is not valid",
 			args:  []string{"bad-timeout"},
-			flags: common.CommandListenerUpdateFlags{Timeout: 0 * time.Minute},
+			flags: common.CommandListenerUpdateFlags{Timeout: 5 * time.Second},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
@@ -186,14 +187,14 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"timeout is not valid"},
+			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 5s"},
 		},
 		{
 			name: "output is not valid",
 			args: []string{"bad-output"},
 			flags: common.CommandListenerUpdateFlags{
 				Output:  "not-supported",
-				Timeout: 1 * time.Second,
+				Timeout: 10 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Listener{
@@ -225,7 +226,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				TlsSecret:    "secretname",
 				Port:         1234,
 				ListenerType: "tcp",
-				Timeout:      1 * time.Second,
+				Timeout:      10 * time.Second,
 				Output:       "json",
 			},
 			skupperObjects: []runtime.Object{

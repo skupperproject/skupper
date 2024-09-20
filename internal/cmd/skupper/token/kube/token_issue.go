@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -46,6 +45,7 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	tokenStringValidator := validator.NewFilePathStringValidator()
+	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 
 	// Validate token file name
 	if len(args) < 1 {
@@ -96,18 +96,22 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 
 	// Validate flags
 	//TBD is there a limit to number of redemptions
-	if cmd.Flags.RedemptionsAllowed < 1 {
+	if cmd.Flags != nil && cmd.Flags.RedemptionsAllowed < 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("number of redemptions is not valid"))
 	}
 
-	//TBD what is valid times
-	if cmd.Flags.ExpirationWindow <= 0*time.Minute {
-		validationErrors = append(validationErrors, fmt.Errorf("expiration time is not valid"))
+	if cmd.Flags != nil && cmd.Flags.ExpirationWindow.String() != "" {
+		ok, err := timeoutValidator.Evaluate(cmd.Flags.ExpirationWindow)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("expiration time is not valid: %s", err))
+		}
 	}
 
-	//TBD what is valid timeout --> use timeoutValidator
-	if cmd.Flags.Timeout <= 0*time.Minute {
-		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
+	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
+		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
+		}
 	}
 
 	return validationErrors
@@ -134,7 +138,8 @@ func (cmd *CmdTokenIssue) Run() error {
 }
 
 func (cmd *CmdTokenIssue) WaitUntil() error {
-	err := utils.NewSpinnerWithTimeout("Waiting for token status ...", int(cmd.Flags.Timeout.Seconds()), func() error {
+	waitTime := int(cmd.Flags.Timeout.Seconds())
+	err := utils.NewSpinnerWithTimeout("Waiting for token status ...", waitTime, func() error {
 
 		accessGrant, err := cmd.client.AccessGrants(cmd.namespace).Get(context.TODO(), cmd.grantName, metav1.GetOptions{})
 		if err != nil {
