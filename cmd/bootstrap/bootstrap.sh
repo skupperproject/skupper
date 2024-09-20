@@ -2,7 +2,7 @@
 
 set -Ceu
 
-IMAGE="quay.io/skupper/bootstrap:v2-latest"
+IMAGE="quay.io/skupper/bootstrap:2.0.0-preview-1"
 export INPUT_PATH=""
 export NAMESPACE=""
 export FORCE_FLAG=""
