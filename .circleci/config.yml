@@ -412,28 +412,28 @@ workflows:
       #       - test
       #       - build_and_save_test_images
 
-      # - publish-github-release-images:
-      #    <<: *run_for_numeric_tags
-      #    <<: *release_requires
-      #    context:
-      #      - skupper-org
+      - publish-github-release-images:
+         <<: *run_for_numeric_tags
+         <<: *v2_release_requires
+         context:
+           - skupper-org
 
-      # - generate-manifest:
-      #     <<: *run_for_numeric_tags
-      #     <<: *release_requires
-      #     requires:
-      #       - publish-github-release-images
-      #     context:
-      #       - skupper-org
+      - generate-manifest:
+          <<: *run_for_numeric_tags
+          <<: *v2_release_requires
+          requires:
+            - publish-github-release-images
+          context:
+            - skupper-org
 
-      # - publish-github-release-artifacts:
-      #     <<: *run_for_numeric_tags
-      #     <<: *release_requires
-      #     requires:
-      #       - generate-manifest
-      #       - publish-github-release-images
-      #     context:
-      #       - skupper-org
+      - publish-github-release-artifacts:
+          <<: *run_for_numeric_tags
+          <<: *v2_release_requires
+          requires:
+            - generate-manifest
+            - publish-github-release-images
+          context:
+            - skupper-org
 
       # - publish-github-main-artifacts:
       #     <<: *run_for_main_branch
