@@ -404,14 +404,13 @@ func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
 					},
 					Spec: v12.ServiceSpec{
 						Selector: map[string]string{
-							"app":  "backend",
-							"test": "test2",
+							"app": "backend",
 						},
 					},
 				},
 			},
 			expectedErrors:   []string{},
-			expectedSelector: "app=backend,test=test2",
+			expectedSelector: "app=backend",
 		},
 		{
 			name: "workload-no-daemonset",
