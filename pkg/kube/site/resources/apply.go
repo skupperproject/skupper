@@ -11,10 +11,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/discovery/cached/memory"
-	"k8s.io/client-go/restmapper"
 
 	skuppertypes "github.com/skupperproject/skupper/api/types"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
@@ -31,9 +30,10 @@ var routerDeploymentTemplate string
 var routerLocalServiceTemplate string
 
 type NamedTemplate struct {
-	name   string
-	value  string
-	params interface{}
+	name     string
+	value    string
+	params   interface{}
+	resource schema.GroupVersionResource
 }
 
 func (t NamedTemplate) getYaml() ([]byte, error) {
@@ -56,11 +56,21 @@ func resourceTemplates(site *skupperv1alpha1.Site, group string) []NamedTemplate
 			name:   "deployment",
 			value:  routerDeploymentTemplate,
 			params: options,
+			resource: schema.GroupVersionResource{
+				Group:    "apps",
+				Version:  "v1",
+				Resource: "deployments",
+			},
 		},
 		{
 			name:   "localService",
 			value:  routerLocalServiceTemplate,
 			params: options,
+			resource: schema.GroupVersionResource{
+				Group:    "",
+				Version:  "v1",
+				Resource: "services",
+			},
 		},
 	}
 	return templates
@@ -112,7 +122,7 @@ func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv1a
 		if err != nil {
 			return err
 		}
-		err = apply(clients, ctx, site.Namespace, raw)
+		err = apply(clients, ctx, site.Namespace, raw, t.resource)
 		if err != nil {
 			return err
 		}
@@ -120,9 +130,9 @@ func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv1a
 	return nil
 }
 
-func apply(clients internalclient.Clients, ctx context.Context, namespace string, raw []byte) error {
+func apply(clients internalclient.Clients, ctx context.Context, namespace string, raw []byte, resource schema.GroupVersionResource) error {
 	obj := &unstructured.Unstructured{}
-	_, gvk, err := decoder.Decode(raw, nil, obj)
+	_, _, err := decoder.Decode(raw, nil, obj)
 	if err != nil {
 		return err
 	}
@@ -130,15 +140,7 @@ func apply(clients internalclient.Clients, ctx context.Context, namespace string
 	if err != nil {
 		return err
 	}
-
-	mapper := restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(clients.GetDiscoveryClient()))
-	mapping, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
-	if err != nil {
-		return err
-	}
-	resource := clients.GetDynamicClient().Resource(mapping.Resource).Namespace(namespace)
-
-	_, err = resource.Patch(ctx, obj.GetName(), types.ApplyPatchType, data, metav1.PatchOptions{
+	_, err = clients.GetDynamicClient().Resource(resource).Namespace(namespace).Patch(ctx, obj.GetName(), types.ApplyPatchType, data, metav1.PatchOptions{
 		FieldManager: "skupper-controller",
 	})
 	return err
