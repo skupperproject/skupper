@@ -555,6 +555,7 @@ func Router(record vanflow.RouterRecord) api.RouterRecord {
 	out := defaultRouter(record.ID)
 	out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
 	out.Namespace = record.Namespace
+	setOpt(&out.Parent, record.Parent)
 	setOpt(&out.HostName, record.Hostname)
 	setOpt(&out.ImageName, record.ImageName)
 	setOpt(&out.ImageVersion, record.ImageVersion)
