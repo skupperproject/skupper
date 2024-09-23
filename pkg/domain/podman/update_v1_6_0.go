@@ -30,7 +30,7 @@ func (m *SkupperNetworkStatusVolume) AppliesTo(siteVersion string) bool {
 }
 
 func (m *SkupperNetworkStatusVolume) Version() string {
-	return "1.5.4"
+	return "1.6.0"
 }
 
 func (m *SkupperNetworkStatusVolume) Priority() domain.UpdatePriority {
