@@ -12,7 +12,6 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
-	"github.com/skupperproject/skupper/pkg/kube"
 	pkgUtils "github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
@@ -145,7 +144,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 		} else {
 			switch resourceType {
 			case "deployment":
-				deployment, err := kube.GetDeployment(resourceName, cmd.namespace, cmd.KubeClient)
+				deployment, err := cmd.KubeClient.AppsV1().Deployments(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
 				if err != nil {
 					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get Deployment specified by workload: %s", err))
 				} else {
@@ -167,7 +166,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 					}
 				}
 			case "daemonset":
-				daemonSet, err := kube.GetDaemonSet(resourceName, cmd.namespace, cmd.KubeClient)
+				daemonSet, err := cmd.KubeClient.AppsV1().DaemonSets(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
 				if err != nil {
 					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get DaemonSet specified by workload: %s", err))
 				} else {
@@ -178,7 +177,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 					}
 				}
 			case "statefulset":
-				statefulSet, err := kube.GetStatefulSet(resourceName, cmd.namespace, cmd.KubeClient)
+				statefulSet, err := cmd.KubeClient.AppsV1().StatefulSets(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
 				if err != nil {
 					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get StatefulSet specified by workload: %s", err))
 				} else {
