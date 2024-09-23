@@ -265,7 +265,7 @@ func (c *FileSystemConfigurationRenderer) createTokens(siteState *api.SiteState)
 }
 
 func (c *FileSystemConfigurationRenderer) createRouterConfig(siteState *api.SiteState) error {
-	c.RouterConfig = siteState.ToRouterConfig(c.SslProfileBasePath)
+	c.RouterConfig = siteState.ToRouterConfig(c.SslProfileBasePath, c.Platform)
 
 	// Saving router config
 	routerConfigJson, err := qdr.MarshalRouterConfig(c.RouterConfig)

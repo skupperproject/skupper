@@ -94,7 +94,7 @@ func TestSiteState_ToRouterConfig(t *testing.T) {
 			ss := fakeSiteState()
 			ss.bundle = test.bundle
 			sslProfileBasePath := "${SSL_PROFILE_BASE_PATH}"
-			routerConfig := ss.ToRouterConfig(sslProfileBasePath)
+			routerConfig := ss.ToRouterConfig(sslProfileBasePath, "podman")
 			if test.bundle {
 				assert.Assert(t, strings.HasSuffix(routerConfig.Metadata.Id, "-{{.SiteNameSuffix}}"))
 				assert.Assert(t, strings.Contains(routerConfig.Metadata.Metadata, `"id":"{{.SiteId}}"`), routerConfig.Metadata.Metadata)
@@ -116,6 +116,13 @@ func TestSiteState_ToRouterConfig(t *testing.T) {
 			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["local-access-one"].CaCertFile, sslProfileBasePath))
 			assert.Equal(t, len(routerConfig.Bridges.TcpListeners), 2)
 			assert.Equal(t, len(routerConfig.Bridges.TcpConnectors), 1)
+			assert.Equal(t, routerConfig.SiteConfig.Present, true)
+			expectedPlatform := "podman"
+			if test.bundle {
+				expectedPlatform = "{{.Platform}}"
+			}
+			assert.Equal(t, routerConfig.SiteConfig.Platform, expectedPlatform)
+
 		})
 	}
 }

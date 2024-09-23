@@ -22,6 +22,7 @@ type RouterConfig struct {
 	Connectors  map[string]Connector
 	Addresses   map[string]Address
 	LogConfig   map[string]LogConfig
+	SiteConfig  SiteConfig
 	Bridges     BridgeConfig
 }
 
@@ -587,6 +588,16 @@ type HttpEndpoint struct {
 	VerifyHostname  *bool  `json:"verifyHostname,omitempty"`
 }
 
+type SiteConfig struct {
+	Present bool `json:"-"`
+
+	Name      string `json:"name,omitempty"`
+	Location  string `json:"location,omitempty"`
+	Provider  string `json:"provider,omitempty"`
+	Platform  string `json:"platform,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
+}
+
 func convert(from interface{}, to interface{}) error {
 	data, err := json.Marshal(from)
 	if err != nil {
@@ -687,6 +698,14 @@ func UnmarshalRouterConfig(config string) (RouterConfig, error) {
 				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
 			}
 			result.LogConfig[logConfig.Module] = logConfig
+		case "site":
+			var siteConfig SiteConfig
+			err = convert(element[1], &siteConfig)
+			if err != nil {
+				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
+			}
+			siteConfig.Present = true
+			result.SiteConfig = siteConfig
 		case "tcpConnector":
 			connector := TcpEndpoint{}
 			err = convert(element[1], &connector)
@@ -788,6 +807,13 @@ func MarshalRouterConfig(config RouterConfig) (string, error) {
 		tuple := []interface{}{
 			"log",
 			e,
+		}
+		elements = append(elements, tuple)
+	}
+	if config.SiteConfig.Present {
+		tuple := []interface{}{
+			"site",
+			config.SiteConfig,
 		}
 		elements = append(elements, tuple)
 	}
