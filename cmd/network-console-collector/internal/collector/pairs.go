@@ -38,14 +38,29 @@ func newPairManager(logger *slog.Logger, stor store.Interface, graph *graph) *pa
 
 func (m *pairManager) run(ctx context.Context) func() error {
 	return func() error {
+		refresh := time.NewTicker(time.Second * 20)
+		defer refresh.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				return nil
+			case <-refresh.C:
+				go func() {
+					processPairs := m.stor.Index(store.TypeIndex, store.Entry{Record: ProcPairRecord{}})
+					for _, entry := range processPairs {
+						if pair, ok := entry.Record.(ProcPairRecord); ok {
+							m.updatePairs <- pair
+						}
+					}
+				}()
 			case pair := <-m.updatePairs:
 				func() {
 					m.mu.Lock()
 					defer m.mu.Unlock()
+					var (
+						hasSitePair  bool
+						hasGroupPair bool
+					)
 					if _, ok := m.pairs[pair.ID]; ok {
 						return
 					}
@@ -55,8 +70,9 @@ func (m *pairManager) run(ctx context.Context) func() error {
 
 					// add site and group pairs
 					if sourceID, destID := sourceN.ID(), destN.ID(); sourceID != "" && destID != "" {
-						spid := m.idp.ID("sp", sourceID, destID, pair.Protocol)
-						m.stor.Add(SitePairRecord{
+						hasSitePair = true
+						spid := m.idp.ID("sitepair", sourceID, destID, pair.Protocol)
+						added := m.stor.Add(SitePairRecord{
 							ID:       spid,
 							Start:    time.Now(),
 							Protocol: pair.Protocol,
@@ -65,33 +81,51 @@ func (m *pairManager) run(ctx context.Context) func() error {
 						},
 							m.source,
 						)
+						if added {
+							m.logger.Info("Added site pair", slog.String("id", spid), slog.String("source", sourceID), slog.String("dest", destID))
+						}
 					}
 
-					pgIDByProcess := func(node Process) (string, bool) {
+					pgIDByProcess := func(node Process) (string, string, bool) {
 						record, ok := node.GetRecord()
 						if !ok {
-							return "", false
+							return "", "", false
 						}
-						groups := m.stor.Index(IndexByTypeName, store.Entry{Record: ProcessGroupRecord{Name: dref(record.Name)}})
+						groups := m.stor.Index(IndexByTypeName, store.Entry{Record: ProcessGroupRecord{Name: dref(record.Group)}})
 						if len(groups) > 0 {
-							return groups[0].Record.Identity(), true
+							if pg, ok := groups[0].Record.(ProcessGroupRecord); ok {
+								return pg.ID, pg.Name, true
+							}
 						}
-						return "", false
+						return "", "", false
 					}
-					sourcePG, sourceFound := pgIDByProcess(m.graph.Process(pair.Source))
-					destPG, destFound := pgIDByProcess(m.graph.Process(pair.Dest))
+					sourcePG, sourcePGName, sourceFound := pgIDByProcess(m.graph.Process(pair.Source))
+					destPG, destPGName, destFound := pgIDByProcess(m.graph.Process(pair.Dest))
 					if sourceFound && destFound {
-						pgpid := m.idp.ID("sp", sourcePG, destPG, pair.Protocol)
-						m.stor.Add(SitePairRecord{
-							ID:       pgpid,
-							Start:    time.Now(),
-							Protocol: pair.Protocol,
-							Source:   sourcePG,
-							Dest:     destPG,
+						hasGroupPair = true
+						pgpid := m.idp.ID("grouppair", sourcePG, destPG, pair.Protocol)
+						added := m.stor.Add(ProcGroupPairRecord{
+							ID:         pgpid,
+							Start:      time.Now(),
+							Protocol:   pair.Protocol,
+							Source:     sourcePG,
+							SourceName: sourcePGName,
+							Dest:       destPG,
+							DestName:   destPGName,
 						},
 							m.source,
 						)
+						if added {
+							m.logger.Info(
+								"Added process group pair",
+								slog.String("id", pgpid),
+								slog.String("source", sourcePG),
+								slog.String("dest", destPG))
+						}
 
+					}
+					if hasSitePair && hasGroupPair {
+						m.pairs[pair.ID] = struct{}{}
 					}
 				}()
 			}

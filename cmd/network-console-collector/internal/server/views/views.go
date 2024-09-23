@@ -105,7 +105,9 @@ func NewProcessGroupPairProvider() func(collector.ProcGroupPairRecord) api.FlowA
 		out.StartTime = uint64(record.Start.UnixMicro())
 		out.PairType = api.PROCESSGROUP
 		out.SourceId = record.Source
+		out.SourceName = record.SourceName
 		out.DestinationId = record.Dest
+		out.DestinationName = record.DestName
 		out.Protocol = record.Protocol
 		return out
 	}
