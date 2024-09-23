@@ -76,6 +76,17 @@ func TestProcesses(t *testing.T) {
 				})
 			},
 		}, {
+			Records:     append(exProcessWithAddresses(), wrapRecords(vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("0")})...),
+			ExpectOK:    true,
+			ExpectCount: 2,
+			Parameters: map[string][]string{
+				"sortBy": {"processBinding.asc"},
+			},
+			ExpectResults: func(t *testing.T, results []api.ProcessRecord) {
+				assert.Equal(t, results[0].Identity, "1")
+				assert.Equal(t, results[1].Identity, "0")
+			},
+		}, {
 			Records: exProcessWithAddresses(),
 			Parameters: map[string][]string{
 				"addresses": {"pizza-addr-id"},
