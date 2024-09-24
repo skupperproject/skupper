@@ -263,8 +263,7 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string, platform string) q
 		routerName = fmt.Sprintf("%s-%d", s.Site.Name, time.Now().Unix())
 	}
 	routerConfig := qdr.InitialConfig(routerName, s.SiteId, version.Version, !s.IsInterior(), 3)
-	routerConfig.SiteConfig = qdr.SiteConfig{
-		Present:   true,
+	routerConfig.SiteConfig = &qdr.SiteConfig{
 		Name:      routerName,
 		Namespace: s.GetNamespace(),
 		Platform:  platform,
