@@ -329,8 +329,7 @@ func TestMarshalUnmarshalRouterConfig(t *testing.T) {
 				Distribution: "balanced",
 			},
 		},
-		SiteConfig: SiteConfig{
-			Present:   true,
+		SiteConfig: &SiteConfig{
 			Name:      "razzle",
 			Namespace: "dazzle",
 			Location:  "pizzazz",
@@ -691,7 +690,7 @@ func TestGetSslProfilesDifference(t *testing.T) {
 
 func TestSiteConfig(t *testing.T) {
 	config := InitialConfig("foo", "bar", "1.2.3", true, 10)
-	if config.SiteConfig.Present {
+	if config.SiteConfig != nil {
 		t.Error("expected no site configuration by default")
 	}
 
