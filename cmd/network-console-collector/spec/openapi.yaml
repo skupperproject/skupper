@@ -1138,19 +1138,24 @@ components:
         - type: object
           required:
             - routerId
+            - routerName
             - name
             - cost
             - role
-            - peer
             - status
             - octets
             - octetsReverse
             - sourceSiteId
-            - destinationSiteId
             - sourceSiteName
+            - destinationSiteId
             - destinationSiteName
+            - routerAccessId
+            - destinationRouterId
+            - destinationRouterName
           properties:
             routerId:
+              type: string
+            routerName:
               type: string
             name:
               type: string
@@ -1161,10 +1166,6 @@ components:
               description: When connected, cost will be set to the link cost attribute
             role:
               $ref: '#/components/schemas/linkRoleType'
-            peer:
-              type: string
-              nullable: true
-              description: When connected, peer will be set to the identity of a peer router access
             status:
               $ref: '#/components/schemas/operStatusType'
             octets:
@@ -1173,6 +1174,18 @@ components:
             octetsReverse:
               type: integer
               format: uint64
+            routerAccessId:
+              type: string
+              nullable: true
+              description: When connected, the identity of the destitation (peer) router access.
+            destinationRouterId:
+              type: string
+              nullable: true
+              description: When connected, the identity of the destitation (peer) router.
+            destinationRouterName:
+              type: string
+              nullable: true
+              description: When connected, the name of the destitation (peer) router.
             sourceSiteId:
               type: string
             sourceSiteName:
@@ -1184,7 +1197,7 @@ components:
             destinationSiteName:
               type: string
               nullable: true
-              description: When connected, the identity of the destitation (peer) site.
+              description: When connected, the name of the destitation (peer) site.
     RouterAccessRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
