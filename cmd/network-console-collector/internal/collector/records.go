@@ -62,11 +62,13 @@ func (r SitePairRecord) GetTypeMeta() vanflow.TypeMeta {
 }
 
 type ProcGroupPairRecord struct {
-	ID       string
-	Protocol string
-	Source   string
-	Dest     string
-	Start    time.Time
+	ID         string
+	Protocol   string
+	Source     string
+	SourceName string
+	Dest       string
+	DestName   string
+	Start      time.Time
 }
 
 func (r ProcGroupPairRecord) Identity() string {

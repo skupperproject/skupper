@@ -105,7 +105,9 @@ func NewProcessGroupPairProvider() func(collector.ProcGroupPairRecord) api.FlowA
 		out.StartTime = uint64(record.Start.UnixMicro())
 		out.PairType = api.PROCESSGROUP
 		out.SourceId = record.Source
+		out.SourceName = record.SourceName
 		out.DestinationId = record.Dest
+		out.DestinationName = record.DestName
 		out.Protocol = record.Protocol
 		return out
 	}
@@ -553,6 +555,7 @@ func Router(record vanflow.RouterRecord) api.RouterRecord {
 	out := defaultRouter(record.ID)
 	out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
 	out.Namespace = record.Namespace
+	setOpt(&out.Parent, record.Parent)
 	setOpt(&out.HostName, record.Hostname)
 	setOpt(&out.ImageName, record.ImageName)
 	setOpt(&out.ImageVersion, record.ImageVersion)

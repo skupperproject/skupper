@@ -580,38 +580,6 @@ func (c *connectionManager) run(ctx context.Context) {
 						continue
 					}
 
-					sn := c.graph.Process(pair.Source)
-					sSiteID := sn.Parent().ID()
-					dn := c.graph.Process(pair.Dest)
-					dSiteID := dn.Parent().ID()
-
-					sourceProc, ok := sn.GetRecord()
-					if !ok {
-						return
-					}
-					destProc, ok := dn.GetRecord()
-					if !ok {
-						return
-					}
-
-					var (
-						sourceGroupID string
-						destGroupID   string
-					)
-					sGroup, dGroup := dref(sourceProc.Group), dref(destProc.Group)
-					sGroupEntries := c.records.Index(IndexByTypeName, store.Entry{Record: ProcessGroupRecord{
-						Name: sGroup,
-					}})
-					if len(sGroupEntries) > 0 {
-						sourceGroupID = sGroupEntries[0].Record.Identity()
-					}
-					dGroupEntries := c.records.Index(IndexByTypeName, store.Entry{Record: ProcessGroupRecord{
-						Name: dGroup,
-					}})
-					if len(dGroupEntries) > 0 {
-						destGroupID = dGroupEntries[0].Record.Identity()
-					}
-
 					id := c.idp.ID("processpair", pair.Source, pair.Dest, pair.Protocol)
 					if _, ok := c.records.Get(id); !ok {
 						record := ProcPairRecord{
@@ -624,37 +592,6 @@ func (c *connectionManager) run(ctx context.Context) {
 						c.logger.Info("Adding process pairs", slog.Any("id", id))
 						c.records.Add(record, store.SourceRef{ID: "self"})
 					}
-
-					if sSiteID != "" && dSiteID != "" {
-						id := c.idp.ID("sitepair", sSiteID, dSiteID, pair.Protocol)
-						if _, ok := c.records.Get(id); !ok {
-							record := SitePairRecord{
-								ID:       id,
-								Source:   sSiteID,
-								Dest:     dSiteID,
-								Protocol: pair.Protocol,
-								Start:    time.Now(),
-							}
-							c.logger.Info("Adding site pairs", slog.Any("id", id))
-							c.records.Add(record, store.SourceRef{ID: "self"})
-						}
-					}
-
-					if sourceGroupID != "" && destGroupID != "" {
-						id := c.idp.ID("processgrouppair", sourceGroupID, destGroupID, pair.Protocol)
-						if _, ok := c.records.Get(id); !ok {
-							record := ProcGroupPairRecord{
-								ID:       id,
-								Source:   sourceGroupID,
-								Dest:     destGroupID,
-								Protocol: pair.Protocol,
-								Start:    time.Now(),
-							}
-							c.logger.Info("Adding process group pairs", slog.Any("id", id))
-							c.records.Add(record, store.SourceRef{ID: "self"})
-						}
-					}
-
 					c.processPairs[pair] = false
 				}
 			}()

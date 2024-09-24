@@ -159,10 +159,9 @@ func (m fieldIndex[T]) Compare(x, y T) int {
 		}
 		vx, vy = vx.Elem(), vy.Elem()
 	}
-	xx, yy := vx.Interface(), vy.Interface()
-	switch xx := xx.(type) {
-	case string:
-		yy := yy.(string)
+	switch vx.Kind() {
+	case reflect.String:
+		xx, yy := vx.String(), vy.String()
 		if xx == yy {
 			return 0
 		}
@@ -170,14 +169,18 @@ func (m fieldIndex[T]) Compare(x, y T) int {
 			return -1
 		}
 		return 1
-	case uint64:
-		return int(xx - yy.(uint64))
-	case int32:
-		return int(xx - yy.(int32))
-	case int64:
-		return int(xx - yy.(int64))
-	case int:
-		return int(xx - yy.(int))
+	case reflect.Uint32:
+		fallthrough
+	case reflect.Uint64:
+		xx, yy := vx.Uint(), vy.Uint()
+		return int(xx - yy)
+	case reflect.Int32:
+		fallthrough
+	case reflect.Int:
+		fallthrough
+	case reflect.Int64:
+		xx, yy := vx.Int(), vy.Int()
+		return int(xx - yy)
 	}
 	return 0
 }
