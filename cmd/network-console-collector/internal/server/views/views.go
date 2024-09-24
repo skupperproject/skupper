@@ -396,14 +396,21 @@ func NewRouterLinkProvider(graph collector.Graph) func(vanflow.LinkRecord) (api.
 		if link.Parent == nil {
 			return out, false
 		}
-		siteNode := graph.Link(link.ID).Parent().Parent()
+		routerNode := graph.Link(link.ID).Parent()
+		sourceRouter, found := routerNode.GetRecord()
+		if !found {
+			return out, false
+		}
+		siteNode := routerNode.Parent()
 		sourceSite, found := siteNode.GetRecord()
 		if !found {
 			return out, false
 		}
+
+		out.RouterId = sourceRouter.ID
 		out.SourceSiteId = sourceSite.ID
+		setOpt(&out.RouterName, sourceRouter.Name)
 		setOpt(&out.SourceSiteName, sourceSite.Name)
-		setOpt(&out.RouterId, link.Parent)
 		setOpt(&out.Name, link.Name)
 
 		if link.Role != nil {
@@ -422,11 +429,20 @@ func NewRouterLinkProvider(graph collector.Graph) func(vanflow.LinkRecord) (api.
 		if link.Peer == nil {
 			return out, true
 		}
-		out.Peer = link.Peer
+		out.RouterAccessId = link.Peer
 		out.Cost = link.LinkCost
 
 		raN := graph.RouterAccess(*link.Peer)
-		raSiteN := raN.Parent().Parent()
+		raRouterN := raN.Parent()
+		raSiteN := raRouterN.Parent()
+		if destRouter, found := raRouterN.GetRecord(); found {
+			out.DestinationRouterId = &destRouter.ID
+			if destRouter.Name == nil {
+				tmp := unknownStr
+				destRouter.Name = &tmp
+			}
+			out.DestinationRouterName = destRouter.Name
+		}
 		if destSite, found := raSiteN.GetRecord(); found {
 			out.DestinationSiteId = &destSite.ID
 			if destSite.Name == nil {
@@ -447,6 +463,7 @@ func defaultRouterLink(id string) api.RouterLinkRecord {
 		Name:           unknownStr,
 		Role:           api.LinkRoleTypeUnknown,
 		RouterId:       unknownStr,
+		RouterName:     unknownStr,
 		SourceSiteId:   unknownStr,
 		SourceSiteName: unknownStr,
 		Status:         api.Down,

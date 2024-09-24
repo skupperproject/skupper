@@ -474,10 +474,16 @@ type RouterLinkRecord struct {
 	// Cost When connected, cost will be set to the link cost attribute
 	Cost *uint64 `json:"cost"`
 
+	// DestinationRouterId When connected, the identity of the destitation (peer) router.
+	DestinationRouterId *string `json:"destinationRouterId"`
+
+	// DestinationRouterName When connected, the name of the destitation (peer) router.
+	DestinationRouterName *string `json:"destinationRouterName"`
+
 	// DestinationSiteId When connected, the identity of the destitation (peer) site.
 	DestinationSiteId *string `json:"destinationSiteId"`
 
-	// DestinationSiteName When connected, the identity of the destitation (peer) site.
+	// DestinationSiteName When connected, the name of the destitation (peer) site.
 	DestinationSiteName *string `json:"destinationSiteName"`
 
 	// EndTime The end time in microseconds of the record in Unix timestamp format.
@@ -489,14 +495,15 @@ type RouterLinkRecord struct {
 	Octets        uint64 `json:"octets"`
 	OctetsReverse uint64 `json:"octetsReverse"`
 
-	// Peer When connected, peer will be set to the identity of a peer router access
-	Peer *string `json:"peer"`
-
 	// Role The class of skupper link
-	Role           LinkRoleType `json:"role"`
-	RouterId       string       `json:"routerId"`
-	SourceSiteId   string       `json:"sourceSiteId"`
-	SourceSiteName string       `json:"sourceSiteName"`
+	Role LinkRoleType `json:"role"`
+
+	// RouterAccessId When connected, the identity of the destitation (peer) router access.
+	RouterAccessId *string `json:"routerAccessId"`
+	RouterId       string  `json:"routerId"`
+	RouterName     string  `json:"routerName"`
+	SourceSiteId   string  `json:"sourceSiteId"`
+	SourceSiteName string  `json:"sourceSiteName"`
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64         `json:"startTime"`
