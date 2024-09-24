@@ -8,6 +8,7 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-openapi/runtime"
@@ -243,13 +244,10 @@ func (c *CompatClient) ContainerCreate(container *container.Container) error {
 }
 
 func (c *CompatClient) ToSpecGenerator(newContainer *container.Container) *models.CreateContainerConfig {
-	curUser, err := user.Current()
+	uid := syscall.Getuid()
 	var userNs models.UsernsMode
-
-	if err == nil {
-		if curUser.Uid != "0" {
-			userNs = "keep-id"
-		}
+	if uid != 0 {
+		userNs = "keep-id"
 	}
 	spec := &models.CreateContainerConfig{
 		HostConfig: &models.HostConfig{
