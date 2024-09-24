@@ -116,12 +116,15 @@ func TestSiteState_ToRouterConfig(t *testing.T) {
 			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["local-access-one"].CaCertFile, sslProfileBasePath))
 			assert.Equal(t, len(routerConfig.Bridges.TcpListeners), 2)
 			assert.Equal(t, len(routerConfig.Bridges.TcpConnectors), 1)
-			assert.Equal(t, routerConfig.SiteConfig.Present, true)
+			assert.Assert(t, routerConfig.SiteConfig != nil)
 			expectedPlatform := "podman"
+			expectedNamespace := "default"
 			if test.bundle {
 				expectedPlatform = "{{.Platform}}"
+				expectedNamespace = "{{.Namespace}}"
 			}
 			assert.Equal(t, routerConfig.SiteConfig.Platform, expectedPlatform)
+			assert.Equal(t, routerConfig.SiteConfig.Namespace, expectedNamespace)
 
 		})
 	}
