@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"gotest.tools/assert"
 )
@@ -50,6 +51,7 @@ func TestTarball(t *testing.T) {
 					assert.Assert(t, os.RemoveAll(fileOrDir))
 				}
 			}()
+			now := time.Now()
 			// Generating files and asserting generation was successful
 			err = createFiles(baseDir, tc.files, []byte(testFileContent), tree)
 			assert.Assert(t, err, "unable to create files")
@@ -92,7 +94,7 @@ func TestTarball(t *testing.T) {
 				tb := NewTarball()
 				assert.Assert(t, tb != nil)
 				assert.Assert(t, tb.AddFiles(baseDir))
-				assert.Assert(t, tb.AddFileData("sample.file", 0755, []byte(testFileContent)))
+				assert.Assert(t, tb.AddFileData("sample.file", 0755, now, []byte(testFileContent)))
 				savedDataExtra, err = tb.SaveData()
 				assert.Assert(t, err)
 				assert.Assert(t, len(savedDataExtra) > 0)
@@ -102,13 +104,13 @@ func TestTarball(t *testing.T) {
 				tb := NewTarball()
 				assert.Assert(t, tb != nil)
 				assert.Assert(t, tb.AddFiles(baseDir))
-				assert.Assert(t, tb.AddFileData("sample.file", 0755, []byte(testFileContent)))
+				assert.Assert(t, tb.AddFileData("sample.file", 0755, now, []byte(testFileContent)))
 				err = tb.Save(savedFileExtra)
 				assert.Assert(t, err)
 				cleanupList = append(cleanupList, savedFileExtra)
-				savedFileStat, err := os.Stat(savedFileExtra)
+				savedFileData, err := os.ReadFile(savedFileExtra)
 				assert.Assert(t, err)
-				assert.Assert(t, savedFileStat.Size() == int64(len(savedDataExtra)))
+				assert.DeepEqual(t, savedFileData, savedDataExtra)
 				assert.Assert(t, len(savedDataExtra) > len(savedData))
 			})
 			t.Run(tc.description+"-Uncompress", func(t *testing.T) {

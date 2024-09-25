@@ -153,13 +153,13 @@ func (t *Tarball) addFiles(dir string) error {
 	return nil
 }
 
-func (t *Tarball) AddFileData(fileName string, mode int64, data []byte) error {
+func (t *Tarball) AddFileData(fileName string, mode int64, mod time.Time, data []byte) error {
 	var err error
 	err = t.tw.WriteHeader(&tar.Header{
 		Name:    fileName,
 		Mode:    mode,
 		Size:    int64(len(data)),
-		ModTime: time.Now(),
+		ModTime: mod,
 	})
 	if err != nil {
 		return err

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path"
 	"text/template"
+	"time"
 
 	"github.com/skupperproject/skupper/internal/utils"
 	pkgutils "github.com/skupperproject/skupper/pkg/utils"
@@ -37,7 +38,7 @@ func (s *TarballBundle) Generate(tarBall *utils.Tarball, defaultPlatform string)
 	if err != nil {
 		return err
 	}
-	if err = tarBall.AddFileData("install.sh", 0755, parsedInstallScript.Bytes()); err != nil {
+	if err = tarBall.AddFileData("install.sh", 0755, time.Now(), parsedInstallScript.Bytes()); err != nil {
 		return fmt.Errorf("error writing install.sh: %w", err)
 	}
 	err = tarBall.Save(s.InstallFile())
