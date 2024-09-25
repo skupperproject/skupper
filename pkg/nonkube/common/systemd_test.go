@@ -31,7 +31,7 @@ func TestSystemdService(t *testing.T) {
 	for _, platform := range []string{"systemd", "podman", "docker"} {
 		for _, uid := range []int{0, 1000} {
 			//assert.Assert(t, t.Setenv("SKUPPER_PLATFORM", platform))
-			systemdService, err := NewSystemdServiceInfo(siteState.Site, platform)
+			systemdService, err := NewSystemdServiceInfo(siteState, platform)
 			assert.Assert(t, err)
 			assert.Equal(t, systemdService.GetServiceName(), "skupper-default.service")
 			systemdServiceImpl := systemdService.(*systemdServiceInfo)
@@ -56,6 +56,7 @@ func TestSystemdService(t *testing.T) {
 				case "systemd":
 					startCmd = fmt.Sprintf("ExecStart=skrouterd -c %s/skrouterd.json", systemdServiceImpl.SiteConfigPath)
 					stopCmd = ""
+					assert.Assert(t, strings.Contains(string(serviceFile), `Environment="SKUPPER_SITE_ID=site-id"`), string(serviceFile))
 				default:
 					startCmd = fmt.Sprintf("ExecStart=/bin/bash %s/start.sh", systemdServiceImpl.SiteScriptPath)
 					stopCmd = fmt.Sprintf("ExecStop=/bin/bash %s/stop.sh", systemdServiceImpl.SiteScriptPath)

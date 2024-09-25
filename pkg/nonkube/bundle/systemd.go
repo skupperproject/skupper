@@ -26,6 +26,7 @@ func CreateSystemdServices(siteState *api.SiteState) error {
 		parsedTemplate.Option()
 		err = parsedTemplate.Execute(buf, map[string]interface{}{
 			"Site":           siteState.Site,
+			"SiteId":         "{{.SiteId}}",
 			"Namespace":      "{{.Namespace}}",
 			"RuntimeDir":     "{{.RuntimeDir}}",
 			"SiteScriptPath": "{{.SiteScriptPath}}",
