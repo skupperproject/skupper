@@ -1,6 +1,7 @@
 package qdr
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -328,6 +329,12 @@ func TestMarshalUnmarshalRouterConfig(t *testing.T) {
 				Distribution: "balanced",
 			},
 		},
+		SiteConfig: &SiteConfig{
+			Name:      "razzle",
+			Namespace: "dazzle",
+			Location:  "pizzazz",
+			Provider:  "azure",
+		},
 	}
 	data, err := MarshalRouterConfig(input)
 	if err != nil {
@@ -354,6 +361,9 @@ func TestMarshalUnmarshalRouterConfig(t *testing.T) {
 	}
 	if !reflect.DeepEqual(input.Bridges, output.Bridges) {
 		t.Errorf("Incorrect bridges. Expected %#v got %#v", input.Bridges, output.Bridges)
+	}
+	if !reflect.DeepEqual(input.SiteConfig, output.SiteConfig) {
+		t.Errorf("Incorrect siteconfig. Expected %#v got %#v", input.SiteConfig, output.SiteConfig)
 	}
 }
 
@@ -676,4 +686,32 @@ func TestGetSslProfilesDifference(t *testing.T) {
 	assert.Assert(t, utils.StringSlicesEqual(addedSslProfiles, expectedAddedSslProfiles), "Expected %v but got %v", expectedAddedSslProfiles, addedSslProfiles)
 	assert.Assert(t, utils.StringSlicesEqual(deletedSslProfiles, expectedDeletedSslProfiles), "Expected %v but got %v", expectedDeletedSslProfiles, deletedSslProfiles)
 
+}
+
+func TestSiteConfig(t *testing.T) {
+	config := InitialConfig("foo", "bar", "1.2.3", true, 10)
+	if config.SiteConfig != nil {
+		t.Error("expected no site configuration by default")
+	}
+
+	data, err := MarshalRouterConfig(config)
+	if err != nil {
+		t.Fatalf("Failed to marshal: %v", err)
+	}
+
+	var entities [][]json.RawMessage
+	if err := json.Unmarshal([]byte(data), &entities); err != nil {
+		t.Fatalf("Failed to unmarshal: %v", err)
+	}
+	for _, entity := range entities {
+		if len(entity) > 1 {
+			var entityType string
+			if err := json.Unmarshal(entity[0], &entityType); err != nil {
+				t.Fatalf("Failed to unmarshal entity type: %v", err)
+			}
+			if entityType == "site" {
+				t.Errorf("expected no site config entity but got %q", string(entity[1]))
+			}
+		}
+	}
 }

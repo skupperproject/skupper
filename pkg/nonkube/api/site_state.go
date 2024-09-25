@@ -254,7 +254,7 @@ func (s *SiteState) bindings() *site.Bindings {
 	return b
 }
 
-func (s *SiteState) ToRouterConfig(sslProfileBasePath string) qdr.RouterConfig {
+func (s *SiteState) ToRouterConfig(sslProfileBasePath string, platform string) qdr.RouterConfig {
 	if s.SiteId == "" {
 		s.SiteId = uuid.New().String()
 	}
@@ -263,6 +263,12 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string) qdr.RouterConfig {
 		routerName = fmt.Sprintf("%s-%d", s.Site.Name, time.Now().Unix())
 	}
 	routerConfig := qdr.InitialConfig(routerName, s.SiteId, version.Version, !s.IsInterior(), 3)
+	routerConfig.SiteConfig = &qdr.SiteConfig{
+		Name:      routerName,
+		Namespace: s.GetNamespace(),
+		Platform:  platform,
+	}
+
 	// override metadata
 	if s.bundle {
 		routerConfig.Metadata.Id += "-{{.SiteNameSuffix}}"
@@ -273,6 +279,8 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string) qdr.RouterConfig {
 		}
 		metadataJson, _ := encodingjson.Marshal(metadata)
 		routerConfig.Metadata.Metadata = string(metadataJson)
+		routerConfig.SiteConfig.Namespace = "{{.Namespace}}"
+		routerConfig.SiteConfig.Platform = "{{.Platform}}"
 	}
 	// LinkAccess
 	s.linkAccessMap().DesiredConfig(nil, path.Join(sslProfileBasePath, "certificates/server")).Apply(&routerConfig)
