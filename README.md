@@ -33,5 +33,10 @@ Developing Skupper
 * [CLI](cmd/skupper/README.md) (This replaces the [Skupper CLI repo](https://github.com/skupperproject/skupper-cli))
 * [Console (Preview)](https://github.com/skupperproject/skupper-console)
 
+# Skupper Major Release (Version 2)
+
+The [v2 Branch](https://github.com/skupperproject/skupper/tree/v2) focuses on the development of
+the upcoming major release of the Skupper poject.
+
 # Licensing
 Skupper uses the [Skupper Router](https://github.com/skupperproject/skupper-router) project and is released under the same [Apache License 2.0](https://github.com/skupperproject/skupper/blob/main/LICENSE).
