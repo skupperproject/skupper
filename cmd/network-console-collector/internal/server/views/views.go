@@ -594,38 +594,46 @@ func defaultRouter(id string) api.RouterRecord {
 	}
 }
 
-func Sites(entries []store.Entry) []api.SiteRecord {
-	results := make([]api.SiteRecord, 0, len(entries))
-	for _, e := range entries {
-		site, ok := e.Record.(vanflow.SiteRecord)
-		if !ok {
-			continue
+func NewSiteSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.SiteRecord {
+	provider := NewSiteProvider(graph)
+	return func(entries []store.Entry) []api.SiteRecord {
+		results := make([]api.SiteRecord, 0, len(entries))
+		for _, e := range entries {
+			site, ok := e.Record.(vanflow.SiteRecord)
+			if !ok {
+				continue
+			}
+			results = append(results, provider(site))
 		}
-		results = append(results, Site(site))
+		return results
 	}
-	return results
 }
 
-func Site(site vanflow.SiteRecord) api.SiteRecord {
-	s := defaultSite(site.ID)
-	s.StartTime, s.EndTime = vanflowTimes(site.BaseRecord)
-	s.NameSpace = site.Namespace
+func NewSiteProvider(graph collector.Graph) func(vanflow.SiteRecord) api.SiteRecord {
+	return func(site vanflow.SiteRecord) api.SiteRecord {
+		s := defaultSite(site.ID)
+		s.StartTime, s.EndTime = vanflowTimes(site.BaseRecord)
+		s.NameSpace = site.Namespace
 
-	setOpt(&s.Name, site.Name)
-	setOpt(&s.Provider, site.Provider)
-	setOpt(&s.SiteVersion, site.Version)
-	if site.Platform != nil {
-		platform := *site.Platform
-		switch {
-		case strings.EqualFold(platform, string(api.SitePlatformTypeKubernetes)):
-			s.Platform = api.SitePlatformTypeKubernetes
-		case strings.EqualFold(platform, string(api.SitePlatformTypeDocker)):
-			s.Platform = api.SitePlatformTypeDocker
-		case strings.EqualFold(platform, string(api.SitePlatformTypePodman)):
-			s.Platform = api.SitePlatformTypePodman
+		setOpt(&s.Name, site.Name)
+		setOpt(&s.Provider, site.Provider)
+		setOpt(&s.SiteVersion, site.Version)
+		if site.Platform != nil {
+			platform := *site.Platform
+			switch {
+			case strings.EqualFold(platform, string(api.SitePlatformTypeKubernetes)):
+				s.Platform = api.SitePlatformTypeKubernetes
+			case strings.EqualFold(platform, string(api.SitePlatformTypeDocker)):
+				s.Platform = api.SitePlatformTypeDocker
+			case strings.EqualFold(platform, string(api.SitePlatformTypePodman)):
+				s.Platform = api.SitePlatformTypePodman
+			case strings.EqualFold(platform, string(api.SitePlatformTypeSystemd)):
+				s.Platform = api.SitePlatformTypeSystemd
+			}
 		}
+		s.RouterCount = len(graph.Site(site.ID).Routers())
+		return s
 	}
-	return s
 }
 
 func defaultSite(id string) api.SiteRecord {

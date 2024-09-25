@@ -835,6 +835,7 @@ components:
         - kubernetes
         - podman
         - docker
+        - systemd
         - unknown
     processBindingType:
       type: string
@@ -865,6 +866,7 @@ components:
             - nameSpace
             - siteVersion
             - policy
+            - routerCount
           properties:
             provider:
               type: string
@@ -879,6 +881,8 @@ components:
             siteVersion:
               type: string
               description: The current skupper version installed. Can be any string or 'unknown'
+            routerCount:
+              type: integer
     ProcessRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'

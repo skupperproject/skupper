@@ -323,7 +323,7 @@ func (s *server) SitepairByID(w http.ResponseWriter, r *http.Request, id string)
 
 // (GET /api/v1alpha1/sites/)
 func (s *server) Sites(w http.ResponseWriter, r *http.Request) {
-	results := views.Sites(listByType[vanflow.SiteRecord](s.records))
+	results := views.NewSiteSliceProvider(s.graph)(listByType[vanflow.SiteRecord](s.records))
 	if err := handleCollection(w, r, &api.SiteListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
@@ -331,7 +331,7 @@ func (s *server) Sites(w http.ResponseWriter, r *http.Request) {
 
 // (GET /api/v1alpha1/sites/{id}/)
 func (s *server) SiteById(w http.ResponseWriter, r *http.Request, id string) {
-	getRecord := fetchAndMap(s.records, views.Site, id)
+	getRecord := fetchAndMap(s.records, views.NewSiteProvider(s.graph), id)
 	if err := handleSingle(w, r, &api.SiteResponse{}, getRecord); err != nil {
 		s.logWriteError(r, err)
 	}
