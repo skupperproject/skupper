@@ -54,6 +54,7 @@ const (
 	SitePlatformTypeDocker     SitePlatformType = "docker"
 	SitePlatformTypeKubernetes SitePlatformType = "kubernetes"
 	SitePlatformTypePodman     SitePlatformType = "podman"
+	SitePlatformTypeSystemd    SitePlatformType = "systemd"
 	SitePlatformTypeUnknown    SitePlatformType = "unknown"
 )
 
@@ -575,7 +576,8 @@ type SiteRecord struct {
 	Platform SitePlatformType `json:"platform"`
 
 	// Provider Possible values are 'AWS', 'IBM', 'Azure' ecc. Can be any string or 'unknown'
-	Provider string `json:"provider"`
+	Provider    string `json:"provider"`
+	RouterCount int    `json:"routerCount"`
 
 	// SiteVersion The current skupper version installed. Can be any string or 'unknown'
 	SiteVersion string `json:"siteVersion"`

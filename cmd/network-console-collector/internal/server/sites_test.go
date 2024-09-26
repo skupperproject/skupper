@@ -55,12 +55,17 @@ func TestSites(t *testing.T) {
 				vanflow.SiteRecord{BaseRecord: vanflow.NewBase("site-1"), Namespace: ptrTo("")},
 				vanflow.SiteRecord{BaseRecord: vanflow.NewBase("site-2"), Namespace: ptrTo("testns")},
 				vanflow.SiteRecord{BaseRecord: vanflow.NewBase("site-3")},
+				vanflow.RouterRecord{BaseRecord: vanflow.NewBase("router-2a"), Parent: ptrTo("site-2")},
+				vanflow.RouterRecord{BaseRecord: vanflow.NewBase("router-2b"), Parent: ptrTo("site-2")},
+				vanflow.RouterRecord{BaseRecord: vanflow.NewBase("router-2c"), Parent: ptrTo("site-2")},
+				vanflow.RouterRecord{BaseRecord: vanflow.NewBase("router-1a"), Parent: ptrTo("site-1")},
 			),
 			ExpectOK:             true,
 			ExpectCount:          1,
 			ExpectTimeRangeCount: 1,
 			ExpectResults: func(t *testing.T, results []api.SiteRecord) {
 				assert.Equal(t, results[0].Identity, "site-2")
+				assert.Equal(t, results[0].RouterCount, 3)
 			},
 			Parameters: map[string][]string{"nameSpace": {"testns"}},
 		},
