@@ -36,6 +36,7 @@ type CommandExecutor func(name string, arg ...string) *exec.Cmd
 
 type systemdServiceInfo struct {
 	Site                *v1alpha1.Site
+	SiteId              string
 	Namespace           string
 	SiteScriptPath      string
 	SiteConfigPath      string
@@ -47,7 +48,8 @@ type systemdServiceInfo struct {
 	platform            string
 }
 
-func NewSystemdServiceInfo(site *v1alpha1.Site, platform string) (SystemdService, error) {
+func NewSystemdServiceInfo(siteState *api.SiteState, platform string) (SystemdService, error) {
+	site := siteState.Site
 	siteHomePath, err := api.GetHostSiteHome(site)
 	if err != nil {
 		return nil, err
@@ -60,6 +62,7 @@ func NewSystemdServiceInfo(site *v1alpha1.Site, platform string) (SystemdService
 	}
 	return &systemdServiceInfo{
 		Site:                site,
+		SiteId:              siteState.SiteId,
 		Namespace:           namespace,
 		SiteScriptPath:      siteScriptPath,
 		SiteConfigPath:      siteConfigPath,

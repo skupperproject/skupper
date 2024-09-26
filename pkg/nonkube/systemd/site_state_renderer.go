@@ -115,7 +115,7 @@ func (s *SiteStateRenderer) loadExistingSiteId(siteState *api.SiteState) error {
 
 func (s *SiteStateRenderer) createSystemdService() error {
 	// Creating systemd user service
-	systemd, err := common.NewSystemdServiceInfo(s.loadedSiteState.Site, string(types.PlatformSystemd))
+	systemd, err := common.NewSystemdServiceInfo(s.siteState, string(types.PlatformSystemd))
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func (s *SiteStateRenderer) createSystemdService() error {
 
 func (s *SiteStateRenderer) removeSystemdService() error {
 	// Removing systemd user service
-	systemd, err := common.NewSystemdServiceInfo(s.loadedSiteState.Site, string(types.PlatformSystemd))
+	systemd, err := common.NewSystemdServiceInfo(s.loadedSiteState, string(types.PlatformSystemd))
 	if err != nil {
 		return err
 	}

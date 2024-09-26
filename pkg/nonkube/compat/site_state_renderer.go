@@ -290,7 +290,7 @@ func (s *SiteStateRenderer) createSystemdService() error {
 	}
 
 	// Creating systemd user service
-	systemd, err := common.NewSystemdServiceInfo(s.siteState.Site, string(s.Platform))
+	systemd, err := common.NewSystemdServiceInfo(s.siteState, string(s.Platform))
 	if err != nil {
 		return err
 	}
