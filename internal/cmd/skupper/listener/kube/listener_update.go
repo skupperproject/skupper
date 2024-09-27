@@ -3,9 +3,10 @@ package kube
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	"time"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -57,6 +58,7 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 	numberValidator := validator.NewNumberValidator()
 	listenerTypeValidator := validator.NewOptionValidator(common.ListenerTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
+	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 
 	// Validate arguments name
 	if len(args) < 1 {
@@ -90,7 +92,7 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 	}
 
 	// Validate flags
-	if cmd.Flags.RoutingKey != "" {
+	if cmd.Flags != nil && cmd.Flags.RoutingKey != "" {
 		ok, err := resourceStringValidator.Evaluate(cmd.Flags.RoutingKey)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("routing key is not valid: %s", err))
@@ -99,10 +101,10 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 		}
 	}
 	// TBD what validation should be done
-	if cmd.Flags.Host != "" {
+	if cmd.Flags != nil && cmd.Flags.Host != "" {
 		cmd.newSettings.host = cmd.Flags.Host
 	}
-	if cmd.Flags.TlsSecret != "" {
+	if cmd.Flags != nil && cmd.Flags.TlsSecret != "" {
 		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsSecret, metav1.GetOptions{})
 		if err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("tls-secret is not valid: does not exist"))
@@ -110,7 +112,7 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.tlsSecret = cmd.Flags.TlsSecret
 		}
 	}
-	if cmd.Flags.ListenerType != "" {
+	if cmd.Flags != nil && cmd.Flags.ListenerType != "" {
 		ok, err := listenerTypeValidator.Evaluate(cmd.Flags.ListenerType)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("listener type is not valid: %s", err))
@@ -118,7 +120,7 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.listenerType = cmd.Flags.ListenerType
 		}
 	}
-	if cmd.Flags.Port != 0 {
+	if cmd.Flags != nil && cmd.Flags.Port != 0 {
 		ok, err := numberValidator.Evaluate(cmd.Flags.Port)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("listener port is not valid: %s", err))
@@ -126,11 +128,13 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.port = cmd.Flags.Port
 		}
 	}
-	//TBD what is valid timeout --> use timeoutvalidator
-	if cmd.Flags.Timeout <= 0*time.Minute {
-		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
+	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
+		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
+		}
 	}
-	if cmd.Flags.Output != "" {
+	if cmd.Flags != nil && cmd.Flags.Output != "" {
 		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))

@@ -394,7 +394,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"expiration time is not valid"},
+			expectedErrors: []string{"expiration time is not valid: duration must not be less than 10s; got 0s"},
 		},
 		{
 			name: "timeout is not valid",
@@ -430,7 +430,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"timeout is not valid"},
+			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 0s"},
 		},
 		{
 			name: "flags all valid",

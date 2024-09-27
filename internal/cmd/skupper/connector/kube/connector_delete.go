@@ -3,9 +3,9 @@ package kube
 import (
 	"context"
 	"fmt"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	"time"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
@@ -38,6 +38,7 @@ func (cmd *CmdConnectorDelete) NewClient(cobraCommand *cobra.Command, args []str
 func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
+	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 
 	// Validate arguments name
 	if len(args) < 1 {
@@ -61,9 +62,11 @@ func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
 			}
 		}
 
-		//TBD what is valid timeout --> use timeout validator
-		if cmd.Flags.Timeout <= 0*time.Minute {
-			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
+		if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
+			ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
+			if !ok {
+				validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
+			}
 		}
 	}
 

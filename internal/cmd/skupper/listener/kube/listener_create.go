@@ -56,6 +56,7 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 	numberValidator := validator.NewNumberValidator()
 	listenerTypeValidator := validator.NewOptionValidator(common.ListenerTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
+	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 
 	// Validate arguments name and port
 	if len(args) < 2 {
@@ -93,16 +94,14 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 	}
 
 	// Validate flags
-	if cmd.Flags.RoutingKey != "" {
+	if cmd.Flags != nil && cmd.Flags.RoutingKey != "" {
 		ok, err := resourceStringValidator.Evaluate(cmd.Flags.RoutingKey)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("routing key is not valid: %s", err))
 		}
 	}
 
-	//TBD what characters are not allowed for host flag
-
-	if cmd.Flags.TlsSecret != "" {
+	if cmd.Flags != nil && cmd.Flags.TlsSecret != "" {
 		// check that the secret exists
 		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsSecret, metav1.GetOptions{})
 		if err != nil {
@@ -110,19 +109,21 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 		}
 	}
 
-	if cmd.Flags.ListenerType != "" {
+	if cmd.Flags != nil && cmd.Flags.ListenerType != "" {
 		ok, err := listenerTypeValidator.Evaluate(cmd.Flags.ListenerType)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("listener type is not valid: %s", err))
 		}
 	}
 
-	//TBD what is valid timeout
-	if cmd.Flags.Timeout <= 0*time.Minute {
-		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
+	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
+		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
+		}
 	}
 
-	if cmd.Flags.Output != "" {
+	if cmd.Flags != nil && cmd.Flags.Output != "" {
 		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))

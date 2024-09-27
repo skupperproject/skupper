@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -43,6 +42,7 @@ func (cmd *CmdTokenRedeem) NewClient(cobraCommand *cobra.Command, args []string)
 func (cmd *CmdTokenRedeem) ValidateInput(args []string) []error {
 	var validationErrors []error
 	tokenStringValidator := validator.NewFilePathStringValidator()
+	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 
 	// Validate token file name
 	if len(args) < 1 {
@@ -79,9 +79,11 @@ func (cmd *CmdTokenRedeem) ValidateInput(args []string) []error {
 		}
 	}
 
-	//TBD what is valid times --> use TimeoutValidator
-	if cmd.Flags.Timeout <= 0*time.Minute {
-		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
+	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
+		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
+		}
 	}
 
 	return validationErrors
@@ -108,8 +110,8 @@ func (cmd *CmdTokenRedeem) Run() error {
 }
 
 func (cmd *CmdTokenRedeem) WaitUntil() error {
-
-	err := utils.NewSpinnerWithTimeout("Waiting for token status ...", int(cmd.Flags.Timeout.Seconds()), func() error {
+	waitTime := int(cmd.Flags.Timeout.Seconds())
+	err := utils.NewSpinnerWithTimeout("Waiting for token status ...", waitTime, func() error {
 
 		token, err := cmd.client.AccessTokens(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
 		if err != nil {

@@ -1,10 +1,11 @@
 package kube
 
 import (
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 	"time"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -33,31 +34,31 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 		{
 			name:           "connector name is not specified",
 			args:           []string{},
-			flags:          common.CommandConnectorDeleteFlags{Timeout: 1 * time.Second},
+			flags:          common.CommandConnectorDeleteFlags{Timeout: 10 * time.Second},
 			expectedErrors: []string{"connector name must be specified"},
 		},
 		{
 			name:           "connector name is nil",
 			args:           []string{""},
-			flags:          common.CommandConnectorDeleteFlags{Timeout: 1 * time.Second},
+			flags:          common.CommandConnectorDeleteFlags{Timeout: 10 * time.Second},
 			expectedErrors: []string{"connector name must not be empty"},
 		},
 		{
 			name:           "connector name is not valid",
 			args:           []string{"my name"},
-			flags:          common.CommandConnectorDeleteFlags{Timeout: 1 * time.Second},
+			flags:          common.CommandConnectorDeleteFlags{Timeout: 10 * time.Second},
 			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
 			name:           "more than one argument is specified",
 			args:           []string{"my", "connector"},
-			flags:          common.CommandConnectorDeleteFlags{Timeout: 1 * time.Second},
+			flags:          common.CommandConnectorDeleteFlags{Timeout: 10 * time.Second},
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
 		{
 			name:  "timeout is not valid",
 			args:  []string{"bad-timeout"},
-			flags: common.CommandConnectorDeleteFlags{Timeout: 0 * time.Second},
+			flags: common.CommandConnectorDeleteFlags{Timeout: 5 * time.Second},
 			skupperObjects: []runtime.Object{
 				&v1alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
@@ -76,7 +77,7 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"timeout is not valid"},
+			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 5s"},
 		},
 	}
 
