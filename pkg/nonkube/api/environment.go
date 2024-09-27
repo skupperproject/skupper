@@ -12,15 +12,18 @@ type InternalPath string
 type InternalPathProvider func(namespace string, internalPath InternalPath) string
 
 const (
-	ConfigRouterPath       InternalPath = "config/router"
-	CertificatesCaPath     InternalPath = "certificates/ca"
-	CertificatesClientPath InternalPath = "certificates/client"
-	CertificatesServerPath InternalPath = "certificates/server"
-	CertificatesLinkPath   InternalPath = "certificates/link"
-	LoadedSiteStatePath    InternalPath = "sources"
-	RuntimeSiteStatePath   InternalPath = "runtime/state"
-	RuntimeTokenPath       InternalPath = "runtime/link"
-	RuntimeScriptsPath     InternalPath = "runtime/scripts"
+	ConfigRouterPath            InternalPath = "config/router"
+	CertificatesCaPath          InternalPath = "certificates/ca"
+	CertificatesClientPath      InternalPath = "certificates/client"
+	CertificatesServerPath      InternalPath = "certificates/server"
+	CertificatesLinkPath        InternalPath = "certificates/link"
+	InputCertificatesCaPath     InternalPath = "input/certificates/ca"
+	InputCertificatesClientPath InternalPath = "input/certificates/client"
+	InputCertificatesServerPath InternalPath = "input/certificates/server"
+	LoadedSiteStatePath         InternalPath = "sources"
+	RuntimeSiteStatePath        InternalPath = "runtime/state"
+	RuntimeTokenPath            InternalPath = "runtime/link"
+	RuntimeScriptsPath          InternalPath = "runtime/scripts"
 )
 
 type IdGetter func() int

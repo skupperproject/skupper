@@ -26,6 +26,9 @@ var (
 		api.CertificatesClientPath,
 		api.CertificatesServerPath,
 		api.CertificatesLinkPath,
+		api.InputCertificatesCaPath,
+		api.InputCertificatesClientPath,
+		api.InputCertificatesServerPath,
 		api.LoadedSiteStatePath,
 		api.RuntimeSiteStatePath,
 		api.RuntimeTokenPath,
@@ -239,11 +242,15 @@ func (c *FileSystemConfigurationRenderer) createTokens(siteState *api.SiteState)
 			certName = linkAccess.Spec.TlsCredentials
 		}
 		secretName := fmt.Sprintf("client-%s", certName)
+		serverSecret, err := c.loadCertAsSecret(siteState, "server", certName)
+		if err != nil {
+			return fmt.Errorf("unable to load server secret %s: %w", certName, err)
+		}
 		secret, err := c.loadClientSecret(siteState, secretName)
 		if err != nil {
 			return fmt.Errorf("unable to load client secret %s: %v", secretName, err)
 		}
-		routerTokens := api.CreateTokens(*linkAccess, *secret)
+		routerTokens := api.CreateTokens(*linkAccess, *serverSecret, *secret)
 		// routerAccess is valid (inter-router and edge endpoints defined)
 		if len(routerTokens) > 0 {
 			tokens = append(tokens, routerTokens...)
@@ -329,8 +336,17 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 			continue
 		}
 		secret := certs.GenerateCASecret(name, certificate.Spec.Subject)
+
+		ignoreExisting := true
+		userCaSecret, err := c.loadUserCertAsSecret(siteState, "ca", name)
+		if userCaSecret != nil && err == nil {
+			// override with user provided CA
+			ignoreExisting = false
+			secret = *userCaSecret
+			fmt.Printf("-> User provided CA found: %s\n", name)
+		}
 		caPath := path.Join(outputPath, string(api.CertificatesCaPath), name)
-		err = writeSecretFilesIgnore(caPath, &secret, true)
+		err = writeSecretFilesIgnore(caPath, &secret, ignoreExisting)
 		if err != nil {
 			return err
 		}
@@ -358,6 +374,12 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 			secret = certs.GenerateSecret(name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), caSecret)
 		} else {
 			continue
+		}
+		userSecret, err := c.loadUserCertAsSecret(siteState, purpose, name)
+		if userSecret != nil && err == nil {
+			// override with user provided secret
+			secret = *userSecret
+			fmt.Printf("-> User provided %s certificate found: %s\n", purpose, name)
 		}
 		certPath := path.Join(outputPath, "certificates", purpose, name)
 		err = writeSecretFiles(certPath, &secret)
@@ -424,7 +446,36 @@ func (c *FileSystemConfigurationRenderer) loadClientSecret(siteState *api.SiteSt
 
 func (c *FileSystemConfigurationRenderer) loadCertAsSecret(siteState *api.SiteState, purpose, name string) (*corev1.Secret, error) {
 	outputPath := c.GetOutputPath(siteState)
-	certPath := path.Join(outputPath, fmt.Sprintf("certificates/%s", purpose), name)
+	return c.loadCertAsSecretFrom(outputPath, siteState, purpose, name)
+}
+
+func (c *FileSystemConfigurationRenderer) loadUserCertAsSecret(siteState *api.SiteState, purpose, name string) (*corev1.Secret, error) {
+	userInputPath := path.Join(c.GetOutputPath(siteState), "input")
+	secret, err := c.loadCertAsSecretFrom(userInputPath, siteState, purpose, name)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	keys := map[string]bool{
+		"ca.crt":  false,
+		"tls.key": false,
+		"tls.crt": false,
+	}
+	for key := range secret.Data {
+		keys[key] = true
+	}
+	for _, hasKey := range keys {
+		if !hasKey {
+			return nil, fmt.Errorf("secret %q does not contain required keys: %v", name, keys)
+		}
+	}
+	return secret, nil
+}
+
+func (c *FileSystemConfigurationRenderer) loadCertAsSecretFrom(basePath string, siteState *api.SiteState, purpose, name string) (*corev1.Secret, error) {
+	certPath := path.Join(basePath, fmt.Sprintf("certificates/%s", purpose), name)
 	var secret *corev1.Secret
 	certDir, err := os.Open(certPath)
 	if err != nil {
