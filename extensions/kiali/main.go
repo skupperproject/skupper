@@ -30,7 +30,7 @@ func init() {
 `, os.Args[0])
 		flags.PrintDefaults()
 	}
-	flags.BoolVar(&Debug, "debug", false, "enalbe debug logging")
+	flags.BoolVar(&Debug, "debug", false, "enable debug logging")
 	flags.BoolVar(&MetricsEnabled, "metrics", true, "enables kiali metrics")
 	flags.StringVar(&ExtensionName, "extension", "skupper", "sets the extension name")
 	flags.StringVar(&MessagingConfig, "messaging-config", "", "path to a skupper connect.json")

@@ -19,7 +19,7 @@ spec:
         app: skupper-kiali-bridge
     spec:
       containers:
-      - image: quay.io/ckruse/skupper-kiali-bridge:latest
+      - image: ${IMAGE_NAME}
         imagePullPolicy: Always
         name: main
         securityContext:
