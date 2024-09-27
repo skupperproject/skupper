@@ -377,7 +377,7 @@ update_static_links() {
         for subject in ${subjects}; do
             link_file="${DIR}/runtime/link/link-${ra_name}-${subject}.yaml"
             [ -f "${link_file}" ] && continue
-            echo "creating static link for new server subject found: ${subject}"
+            echo "- Creating static link for new server subject found: ${subject}"
             cp "${DIR}/runtime/link/link-${ra_name}-${bind_host:-127.0.0.1}.yaml" "${DIR}/runtime/link/link-${ra_name}-${subject}.yaml"
             sed -i "s/host: .*/host: ${subject}/g" "${DIR}/runtime/link/link-${ra_name}-${subject}.yaml"
         done
