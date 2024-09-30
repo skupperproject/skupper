@@ -2,7 +2,7 @@ package site
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
@@ -14,6 +14,7 @@ type BindingStatus struct {
 	listeners  map[string][]string
 	client     internalclient.Clients
 	errors     []string
+	logger     *slog.Logger
 }
 
 func newBindingStatus(client internalclient.Clients, network []skupperv1alpha1.SiteRecord) *BindingStatus {
@@ -21,6 +22,9 @@ func newBindingStatus(client internalclient.Clients, network []skupperv1alpha1.S
 		client:     client,
 		connectors: map[string][]string{},
 		listeners:  map[string][]string{},
+		logger: slog.New(slog.Default().Handler()).With(
+			slog.String("component", "kube.site.binding_status"),
+		),
 	}
 	s.populate(network)
 	return s
@@ -48,7 +52,9 @@ func (s *BindingStatus) updateMatchingListenerCount(connector *skupperv1alpha1.C
 	if connector.SetMatchingListenerCount(len(s.listeners[connector.Spec.RoutingKey])) {
 		updated, err := updateConnectorStatus(s.client, connector)
 		if err != nil {
-			log.Printf("Failed to update status for connector %s/%s", connector.Namespace, connector.Name)
+			s.logger.Error("Failed to update status for connector",
+				slog.String("namespace", connector.Namespace),
+				slog.String("name", connector.Name))
 			s.errors = append(s.errors, err.Error())
 			return nil
 		}
@@ -61,7 +67,9 @@ func (s *BindingStatus) updateMatchingConnectorCount(listener *skupperv1alpha1.L
 	if listener.SetMatchingConnectorCount(len(s.connectors[listener.Spec.RoutingKey])) {
 		updated, err := updateListenerStatus(s.client, listener)
 		if err != nil {
-			log.Printf("Failed to update status for listener %s/%s", listener.Namespace, listener.Name)
+			s.logger.Error("Failed to update status for listener",
+				slog.String("namespace", listener.Namespace),
+				slog.String("name", listener.Name))
 			s.errors = append(s.errors, err.Error())
 			return nil
 		}
