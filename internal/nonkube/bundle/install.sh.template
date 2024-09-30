@@ -372,7 +372,8 @@ update_static_links() {
         # discovering SANS
         server_cert="${DIR}/certificates/server/${tls_credential:-${ra_name}}/tls.crt"
         [ ! -f "${server_cert}" ] && continue
-        subjects="$(openssl x509 -noout -ext subjectAltName -in "${server_cert}" |grep -v 'Subject Alternative Name:' | sed 's/ //g;s/,/\n/g'  | awk -F: '{print $2}')"
+        subjects="$(openssl x509 -noout -ext subjectAltName -in "tls.crt" |grep -v 'Subject Alternative Name:' | \
+                    sed 's/ //g;s/,/\n/g' |  awk -F: '{if ($1 == "DNS" || $1 == "IPAddress") print $2}')"
         [ -z "${subjects}" ] && continue
         for subject in ${subjects}; do
             link_file="${DIR}/runtime/link/link-${ra_name}-${subject}.yaml"
