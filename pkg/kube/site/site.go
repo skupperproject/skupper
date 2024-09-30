@@ -3,7 +3,7 @@ package site
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"reflect"
 	"strings"
 
@@ -42,6 +42,7 @@ type Site struct {
 	access      SecuredAccessFactory
 	adaptor     BindingAdaptor
 	routerPods  map[string]*corev1.Pod
+	logger      *slog.Logger
 }
 
 func NewSite(namespace string, controller *kube.Controller, certs certificates.CertificateManager, access SecuredAccessFactory) *Site {
@@ -54,6 +55,9 @@ func NewSite(namespace string, controller *kube.Controller, certs certificates.C
 		certs:      certs,
 		access:     access,
 		routerPods: map[string]*corev1.Pod{},
+		logger: slog.New(slog.Default().Handler()).With(
+			slog.String("component", "kube.site.site"),
+		),
 	}
 }
 
@@ -83,16 +87,24 @@ func (s *Site) Reconcile(siteDef *skupperv1alpha1.Site) error {
 
 func (s *Site) reconcile(siteDef *skupperv1alpha1.Site) error {
 	if s.site != nil && s.site.Name != siteDef.Name {
-		log.Printf("Rejecting site %s/%s as %s is already active", siteDef.Namespace, siteDef.Name, s.site.Name)
+		s.logger.Error("Rejecting sitedef as active site already exists in the namespace",
+			slog.String("sitedef_namespace", siteDef.Namespace),
+			slog.String("sitedef_name", siteDef.Name),
+			slog.String("name", s.site.Name))
 		return s.markSiteInactive(siteDef, fmt.Errorf("An active site already exists in the namespace (%s)", s.site.Name))
 	}
 	s.site = siteDef
 	s.name = string(siteDef.ObjectMeta.Name)
-	log.Printf("Checking site %s/%s (uid %s)", siteDef.Namespace, siteDef.Name, s.site.GetSiteId())
+	s.logger.Debug("Checking site",
+		slog.String("namespace", siteDef.Namespace),
+		slog.String("name", siteDef.Name),
+		slog.String("id", s.site.GetSiteId()))
 	// ensure necessary resources:
 	// 1. skupper-internal configmap
 	if !s.initialised {
-		log.Printf("Initialising site %s/%s", siteDef.Namespace, siteDef.Name)
+		s.logger.Info("Initialising site",
+			slog.String("namespace", siteDef.Namespace),
+			slog.String("name", siteDef.Name))
 		routerConfig, err := s.getRouterConfig()
 		if err != nil {
 			return err
@@ -121,7 +133,9 @@ func (s *Site) reconcile(siteDef *skupperv1alpha1.Site) error {
 			if err != nil {
 				return err
 			}
-			log.Printf("Router config created for site %s/%s", siteDef.Namespace, siteDef.Name)
+			s.logger.Info("Router config created for site",
+				slog.String("namespace", siteDef.Namespace),
+				slog.String("name", siteDef.Name))
 		} else {
 			//TODO: include any RouterAccess configuration
 			if err := s.updateRouterConfigForGroups(ConfigUpdateList{s.bindings, s}); err != nil {
@@ -383,7 +397,9 @@ func (s *Site) Apply(config *qdr.RouterConfig) bool {
 			updated = true
 		}
 	} else {
-		log.Printf("Invalid value for router logging in settings for %s/%s", s.namespace, s.name)
+		s.logger.Error("Invalid value for router logging in settings",
+			slog.String("namespace", s.namespace),
+			slog.String("name", s.name))
 	}
 	return updated
 }
@@ -450,15 +466,25 @@ func (s *Site) Expose(exposed *ExposedPortSet) {
 		if updatePorts(&service.Spec, exposed.Ports) {
 			_, err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Create(ctxt, service, metav1.CreateOptions{})
 			if err != nil {
-				log.Printf("Error creating service %q in %q: %s", exposed.Host, s.namespace, err)
+				s.logger.Error("Error creating service",
+					slog.String("service", exposed.Host),
+					slog.String("namespace", s.namespace),
+					slog.Any("error", err))
 			} else {
-				log.Printf("Created service %q in %q", exposed.Host, s.namespace)
+				s.logger.Info("Created service",
+					slog.String("service", exposed.Host),
+					slog.String("namespace", s.namespace))
 			}
 		} else {
-			log.Printf("Did not create service %q in %q as ports were not updated", exposed.Host, s.namespace)
+			s.logger.Info("Did not create service as ports were not updated",
+				slog.String("service", exposed.Host),
+				slog.String("namespace", s.namespace))
 		}
 	} else if err != nil {
-		log.Printf("Error checking service %q in %q: %s", exposed.Host, s.namespace, err)
+		s.logger.Error("Error checking service",
+			slog.String("service", exposed.Host),
+			slog.String("namespace", s.namespace),
+			slog.Any("error", err))
 	} else {
 		updated := false
 		if kube.UpdateSelectorFromMap(&current.Spec, kube.GetLabelsForRouter()) {
@@ -471,9 +497,14 @@ func (s *Site) Expose(exposed *ExposedPortSet) {
 		if updated {
 			_, err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Update(ctxt, current, metav1.UpdateOptions{})
 			if err != nil {
-				log.Printf("Error creating service %q in %q: %s", exposed.Host, s.namespace, err)
+				s.logger.Error("Error creating service",
+					slog.String("service", exposed.Host),
+					slog.String("namespace", s.namespace),
+					slog.Any("error", err))
 			} else {
-				log.Printf("Updated service %q in %q", exposed.Host, s.namespace)
+				s.logger.Info("Updated service",
+					slog.String("service", exposed.Host),
+					slog.String("namespace", s.namespace))
 			}
 		}
 	}
@@ -484,12 +515,18 @@ func (s *Site) Unexpose(name string) {
 	current, err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Get(ctxt, name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			log.Printf("Error cekcing service %s to be deleted from %s: %s", name, s.namespace, err)
+			s.logger.Error("Error checking service to be deleted",
+				slog.String("service", name),
+				slog.String("namespace", s.namespace),
+				slog.Any("error", err))
 		}
 	} else if isOwned(current) {
 		err = s.controller.GetKubeClient().CoreV1().Services(s.namespace).Delete(ctxt, name, metav1.DeleteOptions{})
 		if err != nil {
-			log.Printf("Error deleting service %s in %s: %s", name, s.namespace, err)
+			s.logger.Error("Error deleting service",
+				slog.String("service", name),
+				slog.String("namespace", s.namespace),
+				slog.Any("error", err))
 		}
 		//TODO: ideally error should be propagated back to controller loop
 	}
@@ -546,10 +583,15 @@ func (s *Site) createRouterConfig(config *qdr.RouterConfig) error {
 			Data: data,
 		}
 		if _, err = s.controller.GetKubeClient().CoreV1().ConfigMaps(s.namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
-			log.Printf("Failed to create config map %s/%s: %s", s.namespace, group, err)
+			s.logger.Error("Failed to create config map",
+				slog.String("namespace", s.namespace),
+				slog.String("group", group),
+				slog.Any("error", err))
 			return err
 		} else {
-			log.Printf("Config map %s/%s created successfully", s.namespace, group)
+			s.logger.Info("Config map created successfully",
+				slog.String("namespace", s.namespace),
+				slog.String("group", group))
 		}
 	}
 	return nil
@@ -561,13 +603,16 @@ func (s *Site) updateRouterConfigForGroups(update qdr.ConfigUpdate) error {
 			return err
 		}
 	}
-	log.Printf("Router config updated for site %s/%s", s.namespace, s.name)
+	s.logger.Debug("Router config updated for site",
+		slog.String("namespace", s.namespace),
+		slog.String("name", s.name))
 	return nil
 }
 
 func (s *Site) updateRouterConfig(update qdr.ConfigUpdate, group string) error {
 	if !s.initialised {
-		log.Printf("Cannot update router config for site in %s", s.namespace)
+		s.logger.Error("Cannot update router config for site",
+			slog.String("namespace", s.namespace))
 		return nil
 	}
 	if err := kubeqdr.UpdateRouterConfig(s.controller.GetKubeClient(), group, s.namespace, context.TODO(), update); err != nil {
@@ -595,7 +640,9 @@ func (s *Site) updateConnectorConfiguredStatus(connector *skupperv1alpha1.Connec
 func (s *Site) updateConnectorConfiguredStatusWithSelectedPods(connector *skupperv1alpha1.Connector, selected []skupperv1alpha1.PodDetails) error {
 	var err error
 	if len(selected) == 0 {
-		log.Printf("No pods selected for %s/%s", connector.Namespace, connector.Name)
+		s.logger.Error("No pods selected for connector",
+			slog.String("namespace", connector.Namespace),
+			slog.String("name", connector.Name))
 		err = fmt.Errorf("No pods match selector")
 	} else {
 
@@ -648,7 +695,8 @@ func (s *Site) newLink(linkconfig *skupperv1alpha1.Link) *site.Link {
 }
 
 func (s *Site) CheckLink(name string, linkconfig *skupperv1alpha1.Link) error {
-	log.Printf("checkLink(%s)", name)
+	s.logger.Debug("checkLink",
+		slog.String("name", name))
 	if linkconfig == nil {
 		return s.unlink(name)
 	}
@@ -667,21 +715,29 @@ func (s *Site) link(linkconfig *skupperv1alpha1.Link) error {
 	}
 	if s.initialised {
 		if config != nil {
-			log.Printf("Connecting site in %s using token %s", s.namespace, linkconfig.ObjectMeta.Name)
+			s.logger.Info("Connecting site using token",
+				slog.String("namespace", s.namespace),
+				slog.String("token", linkconfig.ObjectMeta.Name))
 			err := s.updateRouterConfigForGroups(config)
 			return s.updateLinkConfiguredCondition(linkconfig, err)
 		} else {
-			log.Printf("No update to router config required for link %s in %s", linkconfig.ObjectMeta.Name, linkconfig.ObjectMeta.Namespace)
+			s.logger.Debug("No update to router config required for link",
+				slog.String("namespace", linkconfig.ObjectMeta.Namespace),
+				slog.String("token", linkconfig.ObjectMeta.Name))
 		}
 	} else {
-		log.Printf("Site is not yet initialised, cannot configure router for link %s in %s", linkconfig.ObjectMeta.Name, linkconfig.ObjectMeta.Namespace)
+		s.logger.Info("Site is not yet initialised, cannot configure router for link",
+			slog.String("namespace", linkconfig.ObjectMeta.Namespace),
+			slog.String("token", linkconfig.ObjectMeta.Name))
 	}
 	return nil
 }
 
 func (s *Site) unlink(name string) error {
 	if _, ok := s.links[name]; ok {
-		log.Printf("Disconnecting connector %s from site in %s", name, s.namespace)
+		s.logger.Info("Disconnecting connector from site",
+			slog.String("name", name),
+			slog.String("namespace", s.namespace))
 		delete(s.links, name)
 		if s.initialised {
 			return s.updateRouterConfigForGroups(site.NewRemoveConnector(name))
@@ -710,6 +766,9 @@ func (s *Site) updateLinkStatus(link *skupperv1alpha1.Link) error {
 }
 
 func (s *Site) Deleted() {
+	s.logger.Info("Deleting site",
+		slog.String("namespace", s.namespace),
+		slog.String("name", s.name))
 	s.adaptor.cleanup()
 }
 
@@ -793,14 +852,17 @@ func (s *Site) NetworkStatusUpdated(network []skupperv1alpha1.SiteRecord) error 
 	for _, linkRecord := range linkRecords {
 		if link, ok := s.links[linkRecord.Name]; ok {
 			if err := s.updateLinkOperationalCondition(link.Definition(), linkRecord.Operational, linkRecord.RemoteSiteId, linkRecord.RemoteSiteName); err != nil {
-				log.Printf("Error updating operational status of link %s/%s: %s", s.site.Namespace, linkRecord.Name, err)
+				s.logger.Error("Error updating operational status of link",
+					slog.String("namespace", s.site.Namespace),
+					slog.String("link", linkRecord.Name),
+					slog.Any("error", err))
 			}
 		}
 	}
 
 	bindingStatus := newBindingStatus(s.controller, network)
 	s.bindings.Map(bindingStatus.updateMatchingListenerCount, bindingStatus.updateMatchingConnectorCount)
-	log.Printf("Updating matching listeners for attached connectors")
+	s.logger.Debug("Updating matching listeners for attached connectors")
 	s.bindings.MapOverAttachedConnectors(bindingStatus.updateMatchingListenerCountForAttachedConnector)
 	return bindingStatus.error()
 }
@@ -838,8 +900,12 @@ func (s *Site) CheckSecuredAccess(sa *skupperv1alpha1.SecuredAccess) {
 
 func (s *Site) updateRouterAccessStatus(la *skupperv1alpha1.RouterAccess) {
 	updated, err := s.controller.GetSkupperClient().SkupperV1alpha1().RouterAccesses(la.Namespace).UpdateStatus(context.TODO(), la, metav1.UpdateOptions{})
+
 	if err != nil {
-		log.Printf("Error updating RouterAccess status for %s/%s: %s", la.Namespace, la.Name, err)
+		s.logger.Error("Error updating RouterAccess status",
+			slog.String("la_namespace", la.Namespace),
+			slog.String("la_name", la.Name),
+			slog.Any("error", err))
 	} else {
 		s.linkAccess[la.Name] = updated
 	}
@@ -888,7 +954,9 @@ func (s *Site) checkSecuredAccess() error {
 			}
 			if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.site.DefaultIssuer()), annotations, s.ownerReferences()); err != nil {
 				//TODO: add message to site status
-				log.Printf("Error ensuring SecuredAccess for RouterAccess %s: %s", la.Key(), err)
+				s.logger.Error("Error ensuring SecuredAccess for RouterAccess",
+					slog.String("key", la.Key()),
+					slog.Any("error", err))
 			}
 		}
 	}
@@ -915,7 +983,9 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv1alpha1.RouterAccess) 
 		var errors []string
 		for i, group := range groups {
 			if err := s.updateRouterConfig(s.linkAccess.DesiredConfig(previousGroups, SSL_PROFILE_PATH), group); err != nil {
-				log.Printf("Error updating router config for %s: %s", s.namespace, err)
+				s.logger.Error("Error updating router config",
+					slog.String("namespace", s.namespace),
+					slog.Any("error", err))
 				errors = append(errors, err.Error())
 			}
 			if la != nil {
@@ -928,7 +998,9 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv1alpha1.RouterAccess) 
 					"internal.skupper.io/routeraccess": la.Name,
 				}
 				if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.site.DefaultIssuer()), annotations, s.ownerReferences()); err != nil {
-					log.Printf("Error ensuring SecuredAccess for RouterAccess %s: %s", la.Key(), err)
+					s.logger.Error("Error ensuring SecuredAccess for RouterAccess",
+						slog.String("key", la.Key()),
+						slog.Any("error", err))
 					errors = append(errors, err.Error())
 				}
 			}
