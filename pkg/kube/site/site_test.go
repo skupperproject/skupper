@@ -18,6 +18,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"log/slog"
 )
 
 func TestSite_Recover(t *testing.T) {
@@ -1051,6 +1052,9 @@ func newSiteMocks(namespace string, k8sObjects []runtime.Object, skupperObjects 
 		access:     securedaccess.NewSecuredAccessManager(client, nil, &securedaccess.Config{DefaultAccessType: "loadbalancer"}, securedaccess.ControllerContext{}),
 		adaptor:    BindingAdaptor{},
 		routerPods: make(map[string]*corev1.Pod),
+		logger: slog.New(slog.Default().Handler()).With(
+			slog.String("component", "kube.site.site"),
+		),
 	}
 
 	newSite.site = site
