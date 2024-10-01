@@ -105,9 +105,6 @@ func CreateTokens(routerAccess v1alpha1.RouterAccess, serverSecret v1.Secret, cl
 	}
 	var hosts []string
 	hosts = append(hosts, utils.DefaultStr(routerAccess.Spec.BindHost, "127.0.0.1"))
-	if len(routerAccess.Spec.SubjectAlternativeNames) > 0 {
-		hosts = append(hosts, routerAccess.Spec.SubjectAlternativeNames...)
-	}
 	// reading SANs from server certificate
 	serverCertificateData := serverSecret.Data["tls.crt"]
 	serverCertificateBlk, _ := pem.Decode(serverCertificateData)
@@ -124,6 +121,12 @@ func CreateTokens(routerAccess v1alpha1.RouterAccess, serverSecret v1.Secret, cl
 					hosts = append(hosts, ipAddr.String())
 				}
 			}
+		}
+	}
+	// if no server certificate provided, use routerAccess.spec.subjectAlternativeNames
+	if len(hosts) == 1 {
+		if len(routerAccess.Spec.SubjectAlternativeNames) > 0 {
+			hosts = append(hosts, routerAccess.Spec.SubjectAlternativeNames...)
 		}
 	}
 	for _, host := range hosts {

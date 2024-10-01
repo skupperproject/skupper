@@ -422,13 +422,15 @@ main() {
 
     sanity_check
 
-    handle_provided_certificates
-
     if ${REMOVE}; then
         remove_site
         remove_service
         return
-    elif ${DUMP_TOKENS}; then
+    fi
+
+    handle_provided_certificates
+
+    if ${DUMP_TOKENS}; then
         dump_tokens
         return
     fi
