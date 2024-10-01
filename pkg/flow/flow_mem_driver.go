@@ -811,6 +811,11 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 				if link.EndTime > 0 {
 					current.EndTime = link.EndTime
 					fc.deleteRecord(current)
+				} else {
+					if current.LinkCost == nil && link.LinkCost != nil {
+						current.LinkCost = link.LinkCost
+						fc.addRecord(current)
+					}
 				}
 			}
 			fc.updateLastHeard(link.Source)
