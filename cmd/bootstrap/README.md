@@ -189,6 +189,14 @@ If the namespace is omitted, the "default" namespace is used.
 ./cmd/bootstrap/remove.sh [namespace]
 ```
 
+## Using custom certificates
+
+Users can provide their own certificates to be used when initializing a local site,
+when preparing a site bundle to be installed somewhere else and even during a site
+bundle installation time.
+
+More about user provided certificates can be found [here](PROVIDED_CERTIFICATES.md).
+
 ## Example
 
 Here is a very basic demonstration on how you can run the `Hello World` example
