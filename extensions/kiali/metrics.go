@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"regexp"
 	"sync"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 )
 
 var (
-	labels = []string{"extension", "reporter", "reporter_id", "security", "flags",
+	labels = []string{"extension", "reporter", "reporter_id", "secure", "flags",
 		"source_cluster", "source_namespace", "source_name", "source_is_root",
 		"dest_cluster", "dest_namespace", "dest_name",
 	}
@@ -48,6 +49,10 @@ var (
 	})
 )
 
+var (
+	deploymentNameFromPodNameRegex = regexp.MustCompile(`^(.*)-[a-z0-9]{8,10}(?:-[a-z0-9]{5})?$`)
+)
+
 func newFlowCollector(factory session.ContainerFactory, name string) (*flowCollector, error) {
 
 	reporterID, err := os.Hostname()
@@ -58,7 +63,7 @@ func newFlowCollector(factory session.ContainerFactory, name string) (*flowColle
 		"extension":      name,
 		"reporter_id":    reporterID,
 		"reporter":       "combined",
-		"security":       "plain",
+		"secure":         "true",
 		"flags":          "",
 		"source_is_root": "true",
 	}
@@ -361,7 +366,17 @@ func (c *flowCollector) labelFlows(source, dest *vanflow.FlowRecord) (labelSet, 
 	}
 
 	if listenerRouter.Hostname != nil {
+		// The Source label needs to be the deployment name.
+		// listenerRouter has "Hostname" which is effecitvely the pod name.
+		// But the pod name might have one or two hash sections if it was created
+		// by a ReplicaSet, Deployment, etc. So let's use regex to strip the one or
+		// two hypen sections off the pod name (if it has any) to get the deployment name.
 		labels.Source = *listenerRouter.Hostname
+		matches := deploymentNameFromPodNameRegex.FindStringSubmatch(labels.Source)
+		if len(matches) > 1 {
+			labels.Source = matches[1]
+			slog.Debug("source extracted from hostname", slog.String("hostname", *listenerRouter.Hostname), slog.String("source", labels.Source))
+		}
 	}
 	if listenerRouter.Namespace != nil {
 		labels.SourceNamespace = *listenerRouter.Namespace

@@ -39,7 +39,7 @@ A shared set of labels present on each metric.
 
 ### Not Implemented
 
-* `security`: this is something we _could_ probably find a way to add in
+* `secure`: this is something we _could_ probably find a way to add in
   listener/connector records. So far I don't think it has came up organically.
 * `flags`
 
