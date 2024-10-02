@@ -30,10 +30,11 @@ func testFileSystemConfigurationRendererRender(t *testing.T, addInputCertificate
 	customOutputPath, err := os.MkdirTemp("", "fs-config-renderer-*")
 	assert.Assert(t, err)
 	defer func() {
-		err := os.RemoveAll(customOutputPath)
-		assert.Assert(t, err)
+		//err := os.RemoveAll(customOutputPath)
+		//assert.Assert(t, err)
 	}()
 	if addInputCertificates {
+		t.Logf(customOutputPath)
 		createInputCertificates(t, customOutputPath)
 	}
 	fsConfigRenderer := new(FileSystemConfigurationRenderer)

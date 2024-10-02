@@ -152,6 +152,15 @@ func (c *FileSystemConfigurationRenderer) GetOutputPath(siteState *api.SiteState
 	return defaultOutputPathProvider(siteState.Site.Namespace)
 }
 
+func (c *FileSystemConfigurationRenderer) GetInputPath(siteState *api.SiteState) string {
+	var customSiteHomeProvider = api.GetCustomSiteHome
+	var defaultOutputPathProvider = api.GetDefaultOutputPath
+	if c.customOutputPath != "" {
+		return path.Join(customSiteHomeProvider(siteState.Site, c.customOutputPath), "input")
+	}
+	return path.Join(defaultOutputPathProvider(siteState.Site.Namespace), "input")
+}
+
 func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, runtimeSiteState *api.SiteState) error {
 	if loadedSiteState != nil {
 		outputPath := c.GetOutputPath(loadedSiteState)
@@ -445,7 +454,7 @@ func (c *FileSystemConfigurationRenderer) loadCertAsSecret(siteState *api.SiteSt
 }
 
 func (c *FileSystemConfigurationRenderer) loadUserCertAsSecret(siteState *api.SiteState, purpose, name string) (*corev1.Secret, error) {
-	userInputPath := path.Join(api.GetDefaultOutputPath(siteState.GetNamespace()), "input")
+	userInputPath := c.GetInputPath(siteState)
 	secret, err := c.loadCertAsSecretFrom(userInputPath, siteState, purpose, name)
 	if err != nil {
 		if os.IsNotExist(err) {
