@@ -814,7 +814,9 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 				} else {
 					if current.LinkCost == nil && link.LinkCost != nil {
 						current.LinkCost = link.LinkCost
-						fc.addRecord(current)
+						if fc.mode == RecordStatus {
+							fc.updateNetworkStatus()
+						}
 					}
 				}
 			}
