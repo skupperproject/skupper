@@ -252,7 +252,7 @@ create_site() {
     echo "Namespace : ${NAMESPACE}"
     echo "Site name : ${SITE_NAME}"
     echo "Platform  : ${SKUPPER_PLATFORM}"
-    echo "Definition: ${NAMESPACES_PATH:?}/${NAMESPACE:?}/sources"
+    echo "Definition: ${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/sources"
     echo "Version   : ${VERSION}"
 
     # Create base directory tree

@@ -43,12 +43,12 @@ inspect the Subject Alternative Names (SANs) from the provided server certificat
 it will generate a static link for each of the entries, so that they can be distributed
 to the appropriate client sites for site linking.
 
-The expected names for the server and client certificate pairs, is determined based on the
+The expected directory names for the server and client certificates, is determined based on the
 values of `RouterAccess.spec.tlsCredentials` (optional field), or `RouterAccess.name` (default).
 
 Supposing the value of `RouterAccess.spec.tlsCredentials` or `RouterAccess.name` (when the tlsCredentials
 field is omitted) is `my-router-access`, then the following structure, for server and client certificates,
-can be provided:
+must be provided:
 
 ```shell
 ${HOME}/.local/share/skupper/namespaces/default/input/certificates/

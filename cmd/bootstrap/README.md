@@ -381,7 +381,7 @@ in your browser and it should work.
 ### Updating an existing installation
 
 Suppose modifications have been made to the `west` site CRs, directly at the
-namespace directory (i.e: ${HOME}/.local/share/skupper/namespaces/west/sources).
+namespace directory (i.e: ${HOME}/.local/share/skupper/namespaces/west/input/sources).
 
 To re-initialize the west site, run:
 

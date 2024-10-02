@@ -20,6 +20,7 @@ const (
 	InputCertificatesCaPath     InternalPath = "input/certificates/ca"
 	InputCertificatesClientPath InternalPath = "input/certificates/client"
 	InputCertificatesServerPath InternalPath = "input/certificates/server"
+	InputSiteStatePath          InternalPath = "input/sources"
 	LoadedSiteStatePath         InternalPath = "sources"
 	RuntimeSiteStatePath        InternalPath = "runtime/state"
 	RuntimeTokenPath            InternalPath = "runtime/link"
