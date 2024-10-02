@@ -111,14 +111,14 @@ func CreateTokens(routerAccess v1alpha1.RouterAccess, serverSecret v1.Secret, cl
 	if serverCertificateBlk != nil {
 		serverCertificate, err := x509.ParseCertificate(serverCertificateBlk.Bytes)
 		if err == nil {
-			for _, dnsName := range serverCertificate.DNSNames {
-				if !slices.Contains(hosts, dnsName) {
-					hosts = append(hosts, dnsName)
+			for _, ipAddr := range serverCertificate.IPAddresses {
+				if ipAddr.String() != "" && !slices.Contains(hosts, ipAddr.String()) {
+					hosts = append(hosts, ipAddr.String())
 				}
 			}
-			for _, ipAddr := range serverCertificate.IPAddresses {
-				if !slices.Contains(hosts, ipAddr.String()) {
-					hosts = append(hosts, ipAddr.String())
+			for _, dnsName := range serverCertificate.DNSNames {
+				if dnsName != "" && !slices.Contains(hosts, dnsName) {
+					hosts = append(hosts, dnsName)
 				}
 			}
 		}
