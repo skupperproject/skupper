@@ -152,7 +152,7 @@ func main() {
 	}
 	if inputPath == "" {
 		// when input path is empty, but a namespace is provided, try to reload an existing site definition
-		existingPath := api.GetInternalOutputPath(namespace, api.LoadedSiteStatePath)
+		existingPath := api.GetInternalOutputPath(namespace, api.InputSiteStatePath)
 		if _, err := os.Stat(existingPath); err == nil {
 			inputPath = existingPath
 			fmt.Printf("Sources will consumed from namespace %q\n", namespace)
@@ -206,7 +206,7 @@ func main() {
 				break
 			}
 		}
-		sourcesPath, _ := api.GetHostSiteInternalPath(siteState.Site, api.LoadedSiteStatePath)
+		sourcesPath, _ := api.GetHostSiteInternalPath(siteState.Site, api.InputSiteStatePath)
 		fmt.Printf("Definition is available at: %s\n", sourcesPath)
 	} else {
 		siteHome, err := api.GetHostBundlesPath()
@@ -227,7 +227,7 @@ func bootstrap(inputPath string, namespace string, bundleStrategy string) (*api.
 	var siteStateLoader api.SiteStateLoader
 	var reloadExisting bool
 	isBundle := bundleStrategy != ""
-	sourcesPath := api.GetInternalOutputPath(namespace, api.LoadedSiteStatePath)
+	sourcesPath := api.GetInternalOutputPath(namespace, api.InputSiteStatePath)
 	_, err := os.Stat(sourcesPath)
 	if !isBundle && err == nil {
 		reloadExisting = true

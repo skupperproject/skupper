@@ -29,6 +29,7 @@ var (
 		api.InputCertificatesCaPath,
 		api.InputCertificatesClientPath,
 		api.InputCertificatesServerPath,
+		api.InputSiteStatePath,
 		api.LoadedSiteStatePath,
 		api.RuntimeSiteStatePath,
 		api.RuntimeTokenPath,
@@ -42,6 +43,7 @@ var (
 		api.RuntimeSiteStatePath,
 		api.RuntimeTokenPath,
 		api.RuntimeScriptsPath,
+		api.LoadedSiteStatePath,
 	}
 )
 
@@ -154,32 +156,25 @@ func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, run
 	if loadedSiteState != nil {
 		outputPath := c.GetOutputPath(loadedSiteState)
 		sourcesPath := path.Join(outputPath, string(api.LoadedSiteStatePath))
-		existingSources, _ := new(utils.DirectoryReader).ReadDir(sourcesPath, nil)
+		inputSourcesPath := path.Join(outputPath, string(api.InputSiteStatePath))
+		existingSources, _ := new(utils.DirectoryReader).ReadDir(inputSourcesPath, nil)
 		// when sources are already defined, we back them up
 		if len(existingSources) > 0 {
 			tb := utils.NewTarball()
-			err := tb.AddFiles(sourcesPath)
+			err := tb.AddFiles(inputSourcesPath)
 			if err != nil {
 				return fmt.Errorf("unable to backup existing sources: %s", err)
 			}
-			tbFile := path.Join(outputPath, "sources.backup.tar.gz")
+			tbFile := path.Join(outputPath, "input", "sources.backup.tar.gz")
 			err = tb.Save(tbFile)
 			if err != nil {
 				return fmt.Errorf("unable to backup sources.backup.tar.gz: %s", err)
 			}
 			err = os.RemoveAll(sourcesPath)
 			if err != nil {
-				return fmt.Errorf("unable to remove old sources: %s", err)
+				return fmt.Errorf("unable to remove former loaded state: %s", err)
 			}
 			if err = os.Mkdir(sourcesPath, 0755); err != nil {
-				defer func() {
-					if err != nil {
-						if restoreErr := tb.Extract(tbFile, outputPath); restoreErr != nil {
-							fmt.Printf("unable to restore sources.backup.tar.gz: %s", restoreErr)
-							return
-						}
-					}
-				}()
 				return fmt.Errorf("unable to recreate sources directory %s: %s", sourcesPath, err)
 			}
 		}
@@ -450,7 +445,7 @@ func (c *FileSystemConfigurationRenderer) loadCertAsSecret(siteState *api.SiteSt
 }
 
 func (c *FileSystemConfigurationRenderer) loadUserCertAsSecret(siteState *api.SiteState, purpose, name string) (*corev1.Secret, error) {
-	userInputPath := path.Join(c.GetOutputPath(siteState), "input")
+	userInputPath := path.Join(api.GetDefaultOutputPath(siteState.GetNamespace()), "input")
 	secret, err := c.loadCertAsSecretFrom(userInputPath, siteState, purpose, name)
 	if err != nil {
 		if os.IsNotExist(err) {
