@@ -483,7 +483,7 @@ func (c *FileSystemConfigurationRenderer) loadUserCertAsSecret(siteState *api.Si
 }
 
 func (c *FileSystemConfigurationRenderer) loadCertAsSecretFrom(basePath string, siteState *api.SiteState, purpose, name string) (*corev1.Secret, error) {
-	certPath := path.Join(basePath, fmt.Sprintf("certificates/%s", purpose), name)
+	certPath := path.Join(basePath, "certificates", purpose, name)
 	var secret *corev1.Secret
 	certDir, err := os.Open(certPath)
 	if err != nil {
