@@ -10,6 +10,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	internalbundle "github.com/skupperproject/skupper/internal/nonkube/bundle"
+	internalutils "github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/bundle"
@@ -80,7 +81,6 @@ func main() {
 		fmt.Println(version.Version)
 		os.Exit(0)
 	}
-	// if user overrides and force empty, use it as default
 	if inputPath != "" {
 		var err error
 		inputPath, err = filepath.Abs(inputPath)
@@ -150,16 +150,27 @@ func main() {
 	if namespace == "" {
 		namespace = "default"
 	}
+	existingPath := api.GetInternalOutputPath(namespace, api.InputSiteStatePath)
+	inputSourcesDefined := false
+	if _, err := os.Stat(existingPath); err == nil {
+		dirReader := new(internalutils.DirectoryReader)
+		filesFound, _ := dirReader.ReadDir(existingPath, nil)
+		inputSourcesDefined = len(filesFound) > 0
+	}
 	if inputPath == "" {
 		// when input path is empty, but a namespace is provided, try to reload an existing site definition
-		existingPath := api.GetInternalOutputPath(namespace, api.InputSiteStatePath)
-		if _, err := os.Stat(existingPath); err == nil {
+		if inputSourcesDefined {
 			inputPath = existingPath
 			fmt.Printf("Sources will consumed from namespace %q\n", namespace)
 		} else {
 			fmt.Printf("Input path has not been provided and namespace %s does not exist\n", namespace)
+			fmt.Printf("No sources found at: %s\n", path.Join(api.GetHostNamespaceHome(namespace), string(api.InputSiteStatePath)))
 			os.Exit(1)
 		}
+	} else if inputSourcesDefined {
+		fmt.Printf("Input path has been provided, but namespace %s has input sources defined at:\n", namespace)
+		fmt.Printf("%s\n", path.Join(api.GetHostNamespaceHome(namespace), string(api.InputSiteStatePath)))
+		os.Exit(1)
 	}
 
 	// if namespace already exists, fail if force is not set
@@ -195,10 +206,7 @@ func main() {
 	if !isBundle {
 		fmt.Printf("Platform: %s\n", platform)
 		tokenPath := api.GetInternalOutputPath(siteState.Site.Namespace, api.RuntimeTokenPath)
-		hostTokenPath, err := api.GetHostSiteInternalPath(siteState.Site, api.RuntimeTokenPath)
-		if err != nil {
-			fmt.Println("Failed to get site's static links path:", err)
-		}
+		hostTokenPath := api.GetHostSiteInternalPath(siteState.Site, api.RuntimeTokenPath)
 		tokens, _ := os.ReadDir(tokenPath)
 		for _, token := range tokens {
 			if !token.IsDir() {
@@ -206,13 +214,10 @@ func main() {
 				break
 			}
 		}
-		sourcesPath, _ := api.GetHostSiteInternalPath(siteState.Site, api.InputSiteStatePath)
+		sourcesPath := api.GetHostSiteInternalPath(siteState.Site, api.InputSiteStatePath)
 		fmt.Printf("Definition is available at: %s\n", sourcesPath)
 	} else {
-		siteHome, err := api.GetHostBundlesPath()
-		if err != nil {
-			fmt.Println("Failed to get site bundle base directory:", err)
-		}
+		siteHome := api.GetHostBundlesPath()
 		installationFile := path.Join(siteHome, fmt.Sprintf("skupper-install-%s.sh", siteState.Site.Name))
 		if internalbundle.GetBundleStrategy(bundleStrategy) == string(internalbundle.BundleStrategyTarball) {
 			installationFile = path.Join(siteHome, fmt.Sprintf("skupper-install-%s.tar.gz", siteState.Site.Name))

@@ -242,9 +242,15 @@ create_containers() {
 }
 
 create_site() {
-    if [ -d "${NAMESPACES_PATH}/${NAMESPACE}/runtime" ]; then
+    if [ -d "${NAMESPACES_PATH:?}/${NAMESPACE:?}/runtime" ]; then
         echo "Failed: namespace \"${NAMESPACE}\" is already defined"
         echo "Location: ${NAMESPACES_PATH}/${NAMESPACE}"
+        exit 1
+    fi
+
+    if [ -d "${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/sources" ]; then
+        echo "Failed: namespace \"${NAMESPACE}\" already contains input sources"
+        echo "Location: ${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/sources"
         exit 1
     fi
 

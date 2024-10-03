@@ -177,10 +177,7 @@ func (s *SiteStateRenderer) cleanupExistingNamespace(siteState *api.SiteState) e
 }
 
 func (s *SiteStateRenderer) prepareContainers() error {
-	siteConfigPath, err := api.GetHostSiteHome(s.siteState.Site)
-	if err != nil {
-		return err
-	}
+	siteConfigPath := api.GetHostSiteHome(s.siteState.Site)
 	s.containers = make(map[string]container.Container)
 	s.containers[types.RouterComponent] = container.Container{
 		Name:  fmt.Sprintf("%s-skupper-router", s.siteState.GetNamespace()),
