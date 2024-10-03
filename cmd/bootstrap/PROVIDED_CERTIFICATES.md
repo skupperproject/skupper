@@ -26,14 +26,6 @@ ${HOME}/.local/share/skupper/namespaces/default/input/certificates/
 With that if you bootstrap a site to run in the default namespace, the CA certificates above will be
 used to generate the server and client certificates for site linking.
 
-_**Note:**_ if you are preparing a bundle and want it to include your provided CA certificates, the
-path to store them would be similar to the one mentioned above, but instead of using the `namespaces`
-directory you should use the `bundles` directory, as in the following example:
-
-```shell
-${HOME}/.local/share/skupper/bundles/default/input/certificates/
-```
-
 ## Server and Client certificates (for site linking)
 
 Server and client certificates can also be provided to help with site linking.
