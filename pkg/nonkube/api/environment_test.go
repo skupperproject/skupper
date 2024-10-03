@@ -411,8 +411,7 @@ func TestGetHostSiteHome(t *testing.T) {
 		if scenario.useXdgDataHome {
 			t.Setenv(envXdgDataHome, fakeXdgDataHome)
 		}
-		siteHome, err := GetHostSiteHome(fakeSite)
-		assert.Assert(t, err)
+		siteHome := GetHostSiteHome(fakeSite)
 		assert.Equal(t, siteHome, scenario.expectedSiteHome)
 	}
 }
