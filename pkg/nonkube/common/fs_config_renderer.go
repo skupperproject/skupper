@@ -186,6 +186,10 @@ func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, run
 			if err = os.Mkdir(sourcesPath, 0755); err != nil {
 				return fmt.Errorf("unable to recreate sources directory %s: %s", sourcesPath, err)
 			}
+		} else {
+			if err := api.MarshalSiteState(*loadedSiteState, inputSourcesPath); err != nil {
+				return err
+			}
 		}
 		if err := api.MarshalSiteState(*loadedSiteState, sourcesPath); err != nil {
 			return err

@@ -50,10 +50,7 @@ type systemdServiceInfo struct {
 
 func NewSystemdServiceInfo(siteState *api.SiteState, platform string) (SystemdService, error) {
 	site := siteState.Site
-	siteHomePath, err := api.GetHostSiteHome(site)
-	if err != nil {
-		return nil, err
-	}
+	siteHomePath := api.GetHostSiteHome(site)
 	siteScriptPath := path.Join(siteHomePath, string(api.RuntimeScriptsPath))
 	siteConfigPath := path.Join(siteHomePath, string(api.ConfigRouterPath))
 	namespace := site.Namespace
