@@ -85,14 +85,17 @@ type RequestRecord struct {
 	RoutingKey string
 	Protocol   string
 
-	Connector   NamedReference
-	Listener    NamedReference
-	Source      NamedReference
-	Dest        NamedReference
-	SourceSite  NamedReference
-	DestSite    NamedReference
-	SourceGroup NamedReference
-	DestGroup   NamedReference
+	Connector    NamedReference
+	Listener     NamedReference
+	Source       NamedReference
+	Dest         NamedReference
+	SourceSite   NamedReference
+	SourceRouter NamedReference
+	DestSite     NamedReference
+	DestRouter   NamedReference
+	SourceGroup  NamedReference
+	DestGroup    NamedReference
+	Trace        string
 
 	stor    store.Interface
 	metrics appMetrics
@@ -105,6 +108,15 @@ func (cr *RequestRecord) GetFlow() (vanflow.AppBiflowRecord, bool) {
 		return record, false
 	}
 	record, ok = ent.Record.(vanflow.AppBiflowRecord)
+	return record, ok
+}
+func (cr *RequestRecord) GetTransport() (vanflow.TransportBiflowRecord, bool) {
+	var record vanflow.TransportBiflowRecord
+	ent, ok := cr.stor.Get(cr.TransportID)
+	if !ok {
+		return record, false
+	}
+	record, ok = ent.Record.(vanflow.TransportBiflowRecord)
 	return record, ok
 }
 
@@ -131,6 +143,7 @@ func (r RequestRecord) toLabelSet() labelSet {
 		SourceComponentName: r.SourceGroup.Name,
 		DestComponentID:     r.DestGroup.ID,
 		DestComponentName:   r.DestGroup.Name,
+		Protocol:            r.Protocol,
 	}
 }
 

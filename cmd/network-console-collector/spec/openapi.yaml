@@ -302,13 +302,13 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/getConnections'
-  /api/v1alpha1/requests/:
+  /api/v1alpha1/applicationflows/:
     get:
       tags: [flows]
-      operationId: requests
+      operationId: applicationflows
       responses:
         '200':
-          $ref: '#/components/responses/getRequests'
+          $ref: '#/components/responses/getApplicationFlows'
 
   /api/v1alpha1/sites/{id}/processes/:
     get:
@@ -505,12 +505,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ConnectionListResponse'
-    getRequests:
-      description: response with a list of requests
+    getApplicationFlows:
+      description: response with a list of application flows
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/RequestListResponse'
+            $ref: '#/components/schemas/ApplicationFlowResponse'
     getSiteByID:
       description: response with a single site
       content:
@@ -800,7 +800,7 @@ components:
         properties:
           results:
             $ref: '#/components/schemas/ConnectionRecord'
-    RequestListResponse:
+    ApplicationFlowResponse:
       allOf:
         - $ref: '#/components/schemas/collectionResponse'
         - type: object
@@ -809,7 +809,7 @@ components:
             results:
               type: array
               items:
-                $ref: '#/components/schemas/RequestRecord'
+                $ref: '#/components/schemas/ApplicationFlowRecord'
     baseRecord:
       type: object
       required:
@@ -1335,12 +1335,12 @@ components:
               description: Ordered array of the names of sites involved in proxying the connection
               items:
                 type: string
-    RequestRecord:
+    ApplicationFlowRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
-            - active
+            - duration
             - connectionId
             - sourceSiteId
             - sourceSiteName
@@ -1350,33 +1350,18 @@ components:
             - sourceProcessName
             - destProcessId
             - destProcessName
-            - duration
-            - processPairId
-            - processGroupPairId
-            - sitePairId
-            - protocol
             - routingKey
-            - listenerId
-            - connectorId
+            - protocol
             - method
-            - result
+            - status
+            - traceRouters
+            - traceSites
           properties:
             connectionId:
               type: string
-            active:
-              type: boolean
             duration:
               type: integer
               format: uint64
-              nullable: true
-            processPairId:
-              type: string
-              nullable: true
-            processGroupPairId:
-              type: string
-              nullable: true
-            sitePairId:
-              type: string
               nullable: true
             sourceSiteId:
               type: string
@@ -1394,21 +1379,27 @@ components:
               type: string
             destProcessName:
               type: string
-            listenerId:
-              type: string
-            connectorId:
-              type: string
             routingKey:
               type: string
             protocol:
               type: string
-              example: tcp
+              example: http1
             method:
               type: string
               example: GET
-            result:
+            status:
               type: string
               example: 200
+            traceRouters:
+              type: array
+              description: Ordered array of the names of routers involved in proxying the connection
+              items:
+                type: string
+            traceSites:
+              type: array
+              description: Ordered array of the names of sites involved in proxying the connection
+              items:
+                type: string
 
 tags:
   - name: site

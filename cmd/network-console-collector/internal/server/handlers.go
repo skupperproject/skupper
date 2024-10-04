@@ -32,9 +32,9 @@ func (s *server) ConnectionsByAddress(w http.ResponseWriter, r *http.Request, id
 	}
 }
 
-func (s *server) Requests(w http.ResponseWriter, r *http.Request) {
-	results := views.NewRequestSliceProvider()(listByType[collector.RequestRecord](s.records))
-	if err := handleCollection(w, r, &api.RequestListResponse{}, results); err != nil {
+func (s *server) Applicationflows(w http.ResponseWriter, r *http.Request) {
+	results := views.NewRequestSliceProvider(s.records)(listByType[collector.RequestRecord](s.records))
+	if err := handleCollection(w, r, &api.ApplicationFlowResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
 }

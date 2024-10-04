@@ -27,6 +27,69 @@ func NewConnectionsSliceProvider(stor store.Interface) func([]store.Entry) []api
 	}
 }
 func NewConnectionsProvider(stor store.Interface) func(collector.ConnectionRecord) (api.ConnectionRecord, bool) {
+	traceProvider := newTraceProvider(stor)
+	return func(conn collector.ConnectionRecord) (api.ConnectionRecord, bool) {
+		out := defaultConnection(conn.ID)
+
+		record, ok := conn.GetFlow()
+
+		if !ok {
+			return out, false
+		}
+
+		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
+		out.ConnectorError = record.ErrorConnector
+		out.ListenerError = record.ErrorListener
+		setOpt(&out.Octets, record.Octets)
+		setOpt(&out.OctetsReverse, record.OctetsReverse)
+		setOpt(&out.Latency, record.Latency)
+		setOpt(&out.LatencyReverse, record.LatencyReverse)
+		setOpt(&out.SourceHost, record.SourceHost)
+		setOpt(&out.SourcePort, record.SourcePort)
+		setOpt(&out.ProxyHost, record.ProxyHost)
+		setOpt(&out.ProxyPort, record.ProxyPort)
+
+		if record.EndTime != nil && record.StartTime != nil && record.EndTime.After(record.StartTime.Time) {
+			if record.EndTime != nil && record.StartTime != nil {
+				duration := uint64(record.EndTime.Sub(record.StartTime.Time) / time.Microsecond)
+				out.Duration = &duration
+			}
+		}
+
+		var trace string
+		if record.Trace != nil {
+			trace = *record.Trace
+		}
+		out.TraceRouters, out.TraceSites = traceProvider(conn.SourceSite.Name, conn.SourceRouter.Name, conn.DestSite.Name, conn.DestRouter.Name, trace)
+
+		out.Protocol = conn.Protocol
+		out.RoutingKey = conn.RoutingKey
+		out.SourceProcessId = conn.Source.ID
+		out.SourceProcessName = conn.Source.Name
+		out.SourceSiteId = conn.SourceSite.ID
+		out.SourceSiteName = conn.SourceSite.Name
+		out.DestProcessId = conn.Dest.ID
+		out.DestProcessName = conn.Dest.Name
+		out.DestSiteId = conn.DestSite.ID
+		out.DestSiteName = conn.DestSite.Name
+		out.ListenerId = conn.Listener.ID
+		out.ConnectorId = conn.Connector.ID
+		out.DestHost = conn.ConnectorHost
+		out.DestPort = conn.ConnectorPort
+
+		return out, true
+	}
+}
+
+func defaultConnection(id string) api.ConnectionRecord {
+	return api.ConnectionRecord{
+		Identity:     id,
+		TraceRouters: []string{},
+		TraceSites:   []string{},
+	}
+}
+
+func newTraceProvider(stor store.Interface) func(sourceSite, sourceRouter, destSite, destRouter, trace string) ([]string, []string) {
 	memo := make(map[string]struct {
 		Router string
 		Site   string
@@ -62,89 +125,38 @@ func NewConnectionsProvider(stor store.Interface) func(collector.ConnectionRecor
 		}{*rr.Name, *sr.Name}
 		return *rr.Name, *sr.Name, true
 	}
-	return func(conn collector.ConnectionRecord) (api.ConnectionRecord, bool) {
-		out := defaultConnection(conn.ID)
-
-		record, ok := conn.GetFlow()
-
-		if !ok {
-			return out, false
-		}
-
-		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
-		out.ConnectorError = record.ErrorConnector
-		out.ListenerError = record.ErrorListener
-		setOpt(&out.Octets, record.Octets)
-		setOpt(&out.OctetsReverse, record.OctetsReverse)
-		setOpt(&out.Latency, record.Latency)
-		setOpt(&out.LatencyReverse, record.LatencyReverse)
-		setOpt(&out.SourceHost, record.SourceHost)
-		setOpt(&out.SourcePort, record.SourcePort)
-		setOpt(&out.ProxyHost, record.ProxyHost)
-		setOpt(&out.ProxyPort, record.ProxyPort)
-
-		if record.EndTime != nil && record.StartTime != nil && record.EndTime.After(record.StartTime.Time) {
-			if record.EndTime != nil && record.StartTime != nil {
-				duration := uint64(record.EndTime.Sub(record.StartTime.Time) / time.Microsecond)
-				out.Duration = &duration
-			}
-		}
-
-		out.TraceSites = append(out.TraceSites, conn.SourceSite.Name)
-		out.TraceRouters = append(out.TraceRouters, conn.SourceRouter.Name)
-		if record.Trace != nil {
-			parts := strings.Split(*record.Trace, "|")
+	return func(sourceSite, sourceRouter, destSite, destRouter, trace string) ([]string, []string) {
+		traceSites := []string{sourceSite}
+		traceRouters := []string{sourceRouter}
+		if trace != "" {
+			parts := strings.Split(trace, "|")
 			for _, routerName := range parts {
 				router, site, ok := routerAndSiteByTracePart(routerName)
 				if !ok {
 					continue
 				}
-				if last := out.TraceRouters[len(out.TraceRouters)-1]; last != router {
-					out.TraceRouters = append(out.TraceRouters, router)
+				if last := traceRouters[len(traceRouters)-1]; last != router {
+					traceRouters = append(traceRouters, router)
 				}
-				if last := out.TraceSites[len(out.TraceSites)-1]; last != site {
-					out.TraceSites = append(out.TraceSites, site)
+				if last := traceSites[len(traceSites)-1]; last != site {
+					traceSites = append(traceSites, site)
 				}
 			}
 		}
-		if last := out.TraceSites[len(out.TraceSites)-1]; last != conn.DestSite.Name {
-			out.TraceSites = append(out.TraceSites, conn.DestSite.Name)
+		if last := traceSites[len(traceSites)-1]; last != destSite {
+			traceSites = append(traceSites, destSite)
 		}
-		if last := out.TraceRouters[len(out.TraceRouters)-1]; last != conn.DestRouter.Name {
-			out.TraceRouters = append(out.TraceRouters, conn.DestRouter.Name)
+		if last := traceRouters[len(traceRouters)-1]; last != destRouter {
+			traceRouters = append(traceRouters, destRouter)
 		}
-
-		out.Protocol = conn.Protocol
-		out.RoutingKey = conn.RoutingKey
-		out.SourceProcessId = conn.Source.ID
-		out.SourceProcessName = conn.Source.Name
-		out.SourceSiteId = conn.SourceSite.ID
-		out.SourceSiteName = conn.SourceSite.Name
-		out.DestProcessId = conn.Dest.ID
-		out.DestProcessName = conn.Dest.Name
-		out.DestSiteId = conn.DestSite.ID
-		out.DestSiteName = conn.DestSite.Name
-		out.ListenerId = conn.Listener.ID
-		out.ConnectorId = conn.Connector.ID
-		out.DestHost = conn.ConnectorHost
-		out.DestPort = conn.ConnectorPort
-
-		return out, true
+		return traceRouters, traceSites
 	}
 }
 
-func defaultConnection(id string) api.ConnectionRecord {
-	return api.ConnectionRecord{
-		Identity:     id,
-		TraceRouters: []string{},
-		TraceSites:   []string{},
-	}
-}
-
-func NewRequestSliceProvider() func([]store.Entry) []api.RequestRecord {
-	provider := NewRequestProvider()
-	return func(entries []store.Entry) []api.RequestRecord {
-		results := make([]api.RequestRecord, 0, len(entries))
+func NewRequestSliceProvider(stor store.Interface) func([]store.Entry) []api.ApplicationFlowRecord {
+	provider := NewRequestProvider(stor)
+	return func(entries []store.Entry) []api.ApplicationFlowRecord {
+		results := make([]api.ApplicationFlowRecord, 0, len(entries))
 		for _, e := range entries {
 			record, ok := e.Record.(collector.RequestRecord)
 			if !ok {
@@ -157,48 +169,67 @@ func NewRequestSliceProvider() func([]store.Entry) []api.RequestRecord {
 		return results
 	}
 }
-func NewRequestProvider() func(collector.RequestRecord) (api.RequestRecord, bool) {
-	return func(conn collector.RequestRecord) (api.RequestRecord, bool) {
-		out := defaultRequest(conn.ID)
+func NewRequestProvider(stor store.Interface) func(collector.RequestRecord) (api.ApplicationFlowRecord, bool) {
+	traceProvider := newTraceProvider(stor)
 
-		record, ok := conn.GetFlow()
+	memo := make(map[string]vanflow.TransportBiflowRecord)
+	getTransport := func(request collector.RequestRecord) (vanflow.TransportBiflowRecord, bool) {
+		if t, ok := memo[request.TransportID]; ok {
+			return t, true
+		}
+		t, ok := request.GetTransport()
+		if ok {
+			memo[request.TransportID] = t
+		}
+		return t, ok
+	}
+	return func(request collector.RequestRecord) (api.ApplicationFlowRecord, bool) {
+		out := defaultRequest(request.ID)
 
+		record, ok := request.GetFlow()
+
+		if !ok {
+			return out, false
+		}
+		conn, ok := getTransport(request)
 		if !ok {
 			return out, false
 		}
 
 		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
 		setOpt(&out.Method, record.Method)
-		setOpt(&out.Result, record.Result)
+		setOpt(&out.Status, record.Result)
 
 		if record.EndTime != nil && record.StartTime != nil && record.EndTime.After(record.StartTime.Time) {
-			out.Active = false
 			if record.EndTime != nil && record.StartTime != nil {
 				duration := uint64(record.EndTime.Sub(record.StartTime.Time) / time.Microsecond)
 				out.Duration = &duration
 			}
 		}
 
-		out.ConnectionId = conn.TransportID
-		out.Protocol = conn.Protocol
-		out.RoutingKey = conn.RoutingKey
-		out.SourceProcessId = conn.Source.ID
-		out.SourceProcessName = conn.Source.Name
-		out.SourceSiteId = conn.SourceSite.ID
-		out.SourceSiteName = conn.SourceSite.Name
-		out.DestProcessId = conn.Dest.ID
-		out.DestProcessName = conn.Dest.Name
-		out.DestSiteId = conn.DestSite.ID
-		out.DestSiteName = conn.DestSite.Name
-		out.ListenerId = conn.Listener.ID
+		var trace string
+		if conn.Trace != nil {
+			trace = *conn.Trace
+		}
+		out.TraceRouters, out.TraceSites = traceProvider(request.SourceSite.Name, request.SourceRouter.Name, request.DestSite.Name, request.DestRouter.Name, trace)
+		out.ConnectionId = request.TransportID
+		out.Protocol = request.Protocol
+		out.RoutingKey = request.RoutingKey
+		out.SourceProcessId = request.Source.ID
+		out.SourceProcessName = request.Source.Name
+		out.SourceSiteId = request.SourceSite.ID
+		out.SourceSiteName = request.SourceSite.Name
+		out.DestProcessId = request.Dest.ID
+		out.DestProcessName = request.Dest.Name
+		out.DestSiteId = request.DestSite.ID
+		out.DestSiteName = request.DestSite.Name
 
 		return out, true
 	}
 }
 
-func defaultRequest(id string) api.RequestRecord {
-	return api.RequestRecord{
+func defaultRequest(id string) api.ApplicationFlowRecord {
+	return api.ApplicationFlowRecord{
 		Identity: id,
-		Active:   true,
 	}
 }

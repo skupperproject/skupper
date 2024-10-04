@@ -93,6 +93,49 @@ type AddressResponse struct {
 	Results AddressRecord `json:"results"`
 }
 
+// ApplicationFlowRecord defines model for ApplicationFlowRecord.
+type ApplicationFlowRecord struct {
+	ConnectionId    string  `json:"connectionId"`
+	DestProcessId   string  `json:"destProcessId"`
+	DestProcessName string  `json:"destProcessName"`
+	DestSiteId      string  `json:"destSiteId"`
+	DestSiteName    string  `json:"destSiteName"`
+	Duration        *uint64 `json:"duration"`
+
+	// EndTime The end time in microseconds of the record in Unix timestamp format.
+	EndTime uint64 `json:"endTime"`
+
+	// Identity The unique identifier for the record.
+	Identity          string `json:"identity"`
+	Method            string `json:"method"`
+	Protocol          string `json:"protocol"`
+	RoutingKey        string `json:"routingKey"`
+	SourceProcessId   string `json:"sourceProcessId"`
+	SourceProcessName string `json:"sourceProcessName"`
+	SourceSiteId      string `json:"sourceSiteId"`
+	SourceSiteName    string `json:"sourceSiteName"`
+
+	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
+	StartTime uint64 `json:"startTime"`
+	Status    string `json:"status"`
+
+	// TraceRouters Ordered array of the names of routers involved in proxying the connection
+	TraceRouters []string `json:"traceRouters"`
+
+	// TraceSites Ordered array of the names of sites involved in proxying the connection
+	TraceSites []string `json:"traceSites"`
+}
+
+// ApplicationFlowResponse defines model for ApplicationFlowResponse.
+type ApplicationFlowResponse struct {
+	// Count number of results in response
+	Count   int64                   `json:"count"`
+	Results []ApplicationFlowRecord `json:"results"`
+
+	// TimeRangeCount number of results matching filtering and time range constraints before any limit or offset is applied.
+	TimeRangeCount int64 `json:"timeRangeCount"`
+}
+
 // ConnectionListResponse defines model for ConnectionListResponse.
 type ConnectionListResponse struct {
 	// Count number of results in response
@@ -386,49 +429,6 @@ type ProcessResponse struct {
 	Results ProcessRecord `json:"results"`
 }
 
-// RequestListResponse defines model for RequestListResponse.
-type RequestListResponse struct {
-	// Count number of results in response
-	Count   int64           `json:"count"`
-	Results []RequestRecord `json:"results"`
-
-	// TimeRangeCount number of results matching filtering and time range constraints before any limit or offset is applied.
-	TimeRangeCount int64 `json:"timeRangeCount"`
-}
-
-// RequestRecord defines model for RequestRecord.
-type RequestRecord struct {
-	Active          bool    `json:"active"`
-	ConnectionId    string  `json:"connectionId"`
-	ConnectorId     string  `json:"connectorId"`
-	DestProcessId   string  `json:"destProcessId"`
-	DestProcessName string  `json:"destProcessName"`
-	DestSiteId      string  `json:"destSiteId"`
-	DestSiteName    string  `json:"destSiteName"`
-	Duration        *uint64 `json:"duration"`
-
-	// EndTime The end time in microseconds of the record in Unix timestamp format.
-	EndTime uint64 `json:"endTime"`
-
-	// Identity The unique identifier for the record.
-	Identity           string  `json:"identity"`
-	ListenerId         string  `json:"listenerId"`
-	Method             string  `json:"method"`
-	ProcessGroupPairId *string `json:"processGroupPairId"`
-	ProcessPairId      *string `json:"processPairId"`
-	Protocol           string  `json:"protocol"`
-	Result             string  `json:"result"`
-	RoutingKey         string  `json:"routingKey"`
-	SitePairId         *string `json:"sitePairId"`
-	SourceProcessId    string  `json:"sourceProcessId"`
-	SourceProcessName  string  `json:"sourceProcessName"`
-	SourceSiteId       string  `json:"sourceSiteId"`
-	SourceSiteName     string  `json:"sourceSiteName"`
-
-	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
-	StartTime uint64 `json:"startTime"`
-}
-
 // RouterAccessListResponse defines model for RouterAccessListResponse.
 type RouterAccessListResponse struct {
 	// Count number of results in response
@@ -645,6 +645,9 @@ type GetAddressByID = AddressResponse
 // GetAddresses defines model for getAddresses.
 type GetAddresses = AddressListResponse
 
+// GetApplicationFlows defines model for getApplicationFlows.
+type GetApplicationFlows = ApplicationFlowResponse
+
 // GetConnections defines model for getConnections.
 type GetConnections = ConnectionListResponse
 
@@ -683,9 +686,6 @@ type GetProcessGroups = ProcessGroupListResponse
 
 // GetProcesses defines model for getProcesses.
 type GetProcesses = ProcessListResponse
-
-// GetRequests defines model for getRequests.
-type GetRequests = RequestListResponse
 
 // GetRouterAccess defines model for getRouterAccess.
 type GetRouterAccess = RouterAccessListResponse
@@ -802,6 +802,9 @@ type ClientInterface interface {
 	// ProcessPairsByAddress request
 	ProcessPairsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// Applicationflows request
+	Applicationflows(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// Connections request
 	Connections(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -852,9 +855,6 @@ type ClientInterface interface {
 
 	// ProcesspairByID request
 	ProcesspairByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// Requests request
-	Requests(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// Routeraccess request
 	Routeraccess(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -952,6 +952,18 @@ func (c *Client) ProcessesByAddress(ctx context.Context, id PathID, reqEditors .
 
 func (c *Client) ProcessPairsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewProcessPairsByAddressRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) Applicationflows(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewApplicationflowsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -1156,18 +1168,6 @@ func (c *Client) Processpairs(ctx context.Context, reqEditors ...RequestEditorFn
 
 func (c *Client) ProcesspairByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewProcesspairByIDRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) Requests(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewRequestsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -1504,6 +1504,33 @@ func NewProcessPairsByAddressRequest(server string, id PathID) (*http.Request, e
 	}
 
 	operationPath := fmt.Sprintf("/api/v1alpha1/addresses/%s/processpairs/", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewApplicationflowsRequest generates requests for Applicationflows
+func NewApplicationflowsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1alpha1/applicationflows/")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2019,33 +2046,6 @@ func NewProcesspairByIDRequest(server string, id PathID) (*http.Request, error) 
 	}
 
 	operationPath := fmt.Sprintf("/api/v1alpha1/processpairs/%s/", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewRequestsRequest generates requests for Requests
-func NewRequestsRequest(server string) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1alpha1/requests/")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2596,6 +2596,9 @@ type ClientWithResponsesInterface interface {
 	// ProcessPairsByAddressWithResponse request
 	ProcessPairsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessPairsByAddressResponse, error)
 
+	// ApplicationflowsWithResponse request
+	ApplicationflowsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ApplicationflowsResponse, error)
+
 	// ConnectionsWithResponse request
 	ConnectionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ConnectionsResponse, error)
 
@@ -2646,9 +2649,6 @@ type ClientWithResponsesInterface interface {
 
 	// ProcesspairByIDWithResponse request
 	ProcesspairByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcesspairByIDResponse, error)
-
-	// RequestsWithResponse request
-	RequestsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RequestsResponse, error)
 
 	// RouteraccessWithResponse request
 	RouteraccessWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RouteraccessResponse, error)
@@ -2805,6 +2805,28 @@ func (r ProcessPairsByAddressResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ProcessPairsByAddressResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ApplicationflowsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *GetApplicationFlows
+}
+
+// Status returns HTTPResponse.Status
+func (r ApplicationflowsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ApplicationflowsResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -3200,28 +3222,6 @@ func (r ProcesspairByIDResponse) StatusCode() int {
 	return 0
 }
 
-type RequestsResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetRequests
-}
-
-// Status returns HTTPResponse.Status
-func (r RequestsResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r RequestsResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
 type RouteraccessResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3609,6 +3609,15 @@ func (c *ClientWithResponses) ProcessPairsByAddressWithResponse(ctx context.Cont
 	return ParseProcessPairsByAddressResponse(rsp)
 }
 
+// ApplicationflowsWithResponse request returning *ApplicationflowsResponse
+func (c *ClientWithResponses) ApplicationflowsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ApplicationflowsResponse, error) {
+	rsp, err := c.Applicationflows(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseApplicationflowsResponse(rsp)
+}
+
 // ConnectionsWithResponse request returning *ConnectionsResponse
 func (c *ClientWithResponses) ConnectionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ConnectionsResponse, error) {
 	rsp, err := c.Connections(ctx, reqEditors...)
@@ -3760,15 +3769,6 @@ func (c *ClientWithResponses) ProcesspairByIDWithResponse(ctx context.Context, i
 		return nil, err
 	}
 	return ParseProcesspairByIDResponse(rsp)
-}
-
-// RequestsWithResponse request returning *RequestsResponse
-func (c *ClientWithResponses) RequestsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RequestsResponse, error) {
-	rsp, err := c.Requests(ctx, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseRequestsResponse(rsp)
 }
 
 // RouteraccessWithResponse request returning *RouteraccessResponse
@@ -4065,6 +4065,32 @@ func ParseProcessPairsByAddressResponse(rsp *http.Response) (*ProcessPairsByAddr
 			return nil, err
 		}
 		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseApplicationflowsResponse parses an HTTP response from a ApplicationflowsWithResponse call
+func ParseApplicationflowsResponse(rsp *http.Response) (*ApplicationflowsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ApplicationflowsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetApplicationFlows
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	}
 
@@ -4618,32 +4644,6 @@ func ParseProcesspairByIDResponse(rsp *http.Response) (*ProcesspairByIDResponse,
 	return response, nil
 }
 
-// ParseRequestsResponse parses an HTTP response from a RequestsWithResponse call
-func ParseRequestsResponse(rsp *http.Response) (*RequestsResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &RequestsResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetRequests
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	}
-
-	return response, nil
-}
-
 // ParseRouteraccessResponse parses an HTTP response from a RouteraccessWithResponse call
 func ParseRouteraccessResponse(rsp *http.Response) (*RouteraccessResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -5136,6 +5136,9 @@ type ServerInterface interface {
 	// (GET /api/v1alpha1/addresses/{id}/processpairs/)
 	ProcessPairsByAddress(w http.ResponseWriter, r *http.Request, id PathID)
 
+	// (GET /api/v1alpha1/applicationflows/)
+	Applicationflows(w http.ResponseWriter, r *http.Request)
+
 	// (GET /api/v1alpha1/connections/)
 	Connections(w http.ResponseWriter, r *http.Request)
 
@@ -5186,9 +5189,6 @@ type ServerInterface interface {
 
 	// (GET /api/v1alpha1/processpairs/{id}/)
 	ProcesspairByID(w http.ResponseWriter, r *http.Request, id PathID)
-
-	// (GET /api/v1alpha1/requests/)
-	Requests(w http.ResponseWriter, r *http.Request)
 
 	// (GET /api/v1alpha1/routeraccess/)
 	Routeraccess(w http.ResponseWriter, r *http.Request)
@@ -5355,6 +5355,21 @@ func (siw *ServerInterfaceWrapper) ProcessPairsByAddress(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ProcessPairsByAddress(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// Applicationflows operation middleware
+func (siw *ServerInterfaceWrapper) Applicationflows(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Applicationflows(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5698,21 +5713,6 @@ func (siw *ServerInterfaceWrapper) ProcesspairByID(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ProcesspairByID(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// Requests operation middleware
-func (siw *ServerInterfaceWrapper) Requests(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.Requests(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6180,6 +6180,8 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/{id}/processpairs/", wrapper.ProcessPairsByAddress).Methods("GET")
 
+	r.HandleFunc(options.BaseURL+"/api/v1alpha1/applicationflows/", wrapper.Applicationflows).Methods("GET")
+
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/connections/", wrapper.Connections).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/connectors/", wrapper.Connectors).Methods("GET")
@@ -6213,8 +6215,6 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processpairs/", wrapper.Processpairs).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processpairs/{id}/", wrapper.ProcesspairByID).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/requests/", wrapper.Requests).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v1alpha1/routeraccess/", wrapper.Routeraccess).Methods("GET")
 
