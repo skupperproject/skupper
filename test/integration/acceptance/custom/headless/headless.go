@@ -26,7 +26,7 @@ const (
 	appPort     = "8080"
 	appPortInt  = 8080
 	appPortName = "web"
-	appImage    = "quay.io/skupper/nginx-unprivileged:stable-alpine"
+	appImage    = "quay.io/nginx/nginx-unprivileged:stable-alpine"
 	pod0Name    = appName + "-0"
 	pod1Name    = appName + "-1"
 )
