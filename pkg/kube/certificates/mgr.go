@@ -2,6 +2,7 @@ package certificates
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -11,18 +12,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/informers/internalinterfaces"
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
-
-func options() internalinterfaces.TweakListOptionsFunc {
-	return func(options *metav1.ListOptions) {
-		options.LabelSelector = "internal.skupper.io/certificate"
-	}
-}
 
 type CertificateManager interface {
 	EnsureCA(namespace string, name string, subject string, refs []metav1.OwnerReference) error
@@ -31,7 +25,6 @@ type CertificateManager interface {
 
 type CertificateManagerImpl struct {
 	definitions        map[string]*skupperv1alpha1.Certificate
-	changed            map[string]bool
 	secrets            map[string]*corev1.Secret
 	certificateWatcher *kube.CertificateWatcher
 	secretWatcher      *kube.SecretWatcher
@@ -41,7 +34,6 @@ type CertificateManagerImpl struct {
 func NewCertificateManager(controller *kube.Controller) *CertificateManagerImpl {
 	return &CertificateManagerImpl{
 		definitions: map[string]*skupperv1alpha1.Certificate{},
-		changed:     map[string]bool{},
 		secrets:     map[string]*corev1.Secret{},
 		controller:  controller,
 	}
@@ -49,7 +41,7 @@ func NewCertificateManager(controller *kube.Controller) *CertificateManagerImpl 
 
 func (m *CertificateManagerImpl) Watch(watchNamespace string) {
 	m.certificateWatcher = m.controller.WatchCertificates(watchNamespace, m.checkCertificate)
-	m.secretWatcher = m.controller.WatchSecrets(options(), watchNamespace, m.checkSecret)
+	m.secretWatcher = m.controller.WatchAllSecrets(watchNamespace, m.checkSecret)
 }
 
 func (m *CertificateManagerImpl) Recover() {
@@ -83,8 +75,6 @@ func (m *CertificateManagerImpl) Ensure(namespace string, name string, ca string
 }
 
 func (m *CertificateManagerImpl) definitionUpdated(key string, def *skupperv1alpha1.Certificate) {
-	m.definitions[key] = def
-	m.changed[key] = true
 }
 
 func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skupperv1alpha1.CertificateSpec, refs []metav1.OwnerReference) error {
@@ -101,7 +91,7 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 		if err != nil {
 			return err
 		}
-		m.definitionUpdated(key, updated)
+		m.definitions[key] = updated
 		return nil
 	} else {
 		cert := &skupperv1alpha1.Certificate{
@@ -128,17 +118,9 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 		if err != nil {
 			return err
 		}
-		m.definitionUpdated(key, created)
+		m.definitions[key] = created
 		return nil
 	}
-}
-
-func (m *CertificateManagerImpl) checkChanged(key string) bool {
-	if _, ok := m.changed[key]; !ok {
-		return false
-	}
-	delete(m.changed, key)
-	return true
 }
 
 func (m *CertificateManagerImpl) checkCertificate(key string, certificate *skupperv1alpha1.Certificate) error {
@@ -147,10 +129,14 @@ func (m *CertificateManagerImpl) checkCertificate(key string, certificate *skupp
 		return m.certificateDeleted(key)
 	}
 	if secret, ok := m.secrets[key]; ok {
-		if existing, ok := m.definitions[key]; ok && reflect.DeepEqual(existing.Spec, certificate.Spec) && !m.checkChanged(key) {
-			log.Printf("Certificate %s is unchanged", key)
-			return nil
-		}
+		return m.reconcile(key, certificate, secret)
+	} else {
+		return m.reconcile(key, certificate, nil)
+	}
+}
+
+func (m *CertificateManagerImpl) reconcile(key string, certificate *skupperv1alpha1.Certificate, secret *corev1.Secret) error {
+	if secret != nil {
 		if err := m.updateSecret(key, certificate, secret); err != nil {
 			return m.updateStatus(certificate, err)
 		}
@@ -197,6 +183,10 @@ func (m *CertificateManagerImpl) updateStatus(certificate *skupperv1alpha1.Certi
 
 func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv1alpha1.Certificate, secret *corev1.Secret) error {
 	if !isSecretCorrect(certificate, secret) {
+		if !isSecretControlled(secret) {
+			return errors.New("Secret exists but is not controlled by skupper")
+		}
+
 		secret, err := m.generateSecret(certificate)
 		if err != nil {
 			log.Printf("Error generating secret %s/%s for Certificate %s", certificate.Namespace, secret.Name, key)
@@ -240,6 +230,12 @@ func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv1
 		log.Printf("Error generating secret for Certificate %s: %s", key, err)
 		return err
 	}
+	secret.Annotations = map[string]string{
+		"internal.skupper.io/controlled":  "true",
+		"internal.skupper.io/certificate": "true",
+		"internal.skupper.io/hosts":       strings.Join(certificate.Spec.Hosts, ","),
+	}
+
 	log.Printf("Creating secret %s/%s for Certificate %s for hosts %v", certificate.Namespace, secret.Name, key, certificate.Spec.Hosts)
 	created, err := m.controller.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
@@ -253,6 +249,11 @@ func (m *CertificateManagerImpl) checkSecret(key string, secret *corev1.Secret) 
 	if secret == nil {
 		return m.secretDeleted(key)
 	}
+	m.secrets[key] = secret
+	if definition, ok := m.definitions[key]; ok {
+		return m.reconcile(key, definition, secret)
+	}
+
 	return nil
 }
 
@@ -286,6 +287,14 @@ func isSecretCorrect(certificate *skupperv1alpha1.Certificate, secret *corev1.Se
 		}
 	}
 	return true
+}
+
+func isSecretControlled(secret *corev1.Secret) bool {
+	if secret.Annotations == nil {
+		return false
+	}
+	_, ok := secret.Annotations["internal.skupper.io/controlled"]
+	return ok
 }
 
 func secretKey(secret *corev1.Secret) string {
