@@ -281,39 +281,6 @@ func TestMarshalUnmarshalRouterConfig(t *testing.T) {
 					SiteId:  "def",
 				},
 			},
-			HttpConnectors: map[string]HttpEndpoint{
-				"c3": HttpEndpoint{
-					Name:    "c3",
-					Address: "foo",
-					Host:    "nowhere.com",
-					Port:    "4321",
-					SiteId:  "abc",
-				},
-				"c4": HttpEndpoint{
-					Name:           "c4",
-					Address:        "bar",
-					Host:           "here.com",
-					Port:           "8765",
-					SiteId:         "def",
-					VerifyHostname: verifyHostName,
-				},
-			},
-			HttpListeners: map[string]HttpEndpoint{
-				"l3": HttpEndpoint{
-					Name:    "l3",
-					Address: "green",
-					Host:    "0.0.0.0",
-					Port:    "4321",
-					SiteId:  "abc",
-				},
-				"l4": HttpEndpoint{
-					Name:    "l4",
-					Address: "blue",
-					Host:    "localhost",
-					Port:    "8765",
-					SiteId:  "def",
-				},
-			},
 		},
 		Addresses: map[string]Address{
 			"happy": Address{
@@ -444,20 +411,6 @@ func TestUnmarshalErrorInvalidTcpListenerValue(t *testing.T) {
 	}
 }
 
-func TestUnmarshalErrorInvalidHttpConnectorValue(t *testing.T) {
-	_, err := UnmarshalRouterConfig(`[["httpConnector", ["wrong"]]]`)
-	if err == nil {
-		t.Errorf("Expected error for invalid httpconnector value")
-	}
-}
-
-func TestUnmarshalErrorInvalidHttpListenerValue(t *testing.T) {
-	_, err := UnmarshalRouterConfig(`[["httpListener", ["wrong"]]]`)
-	if err == nil {
-		t.Errorf("Expected error for invalid httplistener value")
-	}
-}
-
 func TestUnmarshalErrorInvalidLogValue(t *testing.T) {
 	_, err := UnmarshalRouterConfig(`[["log", ["wrong"]]]`)
 	if err == nil {
@@ -564,101 +517,64 @@ func TestFailedConvert(t *testing.T) {
 func TestGetSslProfilesDifference(t *testing.T) {
 	before := BridgeConfig{
 
-		HttpConnectors: map[string]HttpEndpoint{
+		TcpConnectors: map[string]TcpEndpoint{
 			"c3": {
-				Name:            "c3",
-				Address:         "foo",
-				Host:            "nowhere.com",
-				Port:            "4321",
-				SiteId:          "abc",
-				ProtocolVersion: HttpVersion2,
-				SslProfile:      types.ServiceClientSecret,
+				Name:       "c3",
+				Address:    "foo",
+				Host:       "nowhere.com",
+				Port:       "4321",
+				SiteId:     "abc",
+				SslProfile: types.ServiceClientSecret,
 			},
 			"c4": {
-				Name:            "c4",
-				Address:         "bar",
-				Host:            "here.com",
-				Port:            "8765",
-				SiteId:          "def",
-				ProtocolVersion: HttpVersion2,
-				SslProfile:      types.ServiceClientSecret,
+				Name:       "c4",
+				Address:    "bar",
+				Host:       "here.com",
+				Port:       "8765",
+				SiteId:     "def",
+				SslProfile: types.ServiceClientSecret,
 			},
 		},
-		HttpListeners: map[string]HttpEndpoint{
+		TcpListeners: map[string]TcpEndpoint{
 			"l3": {
-				Name:            "l3",
-				Address:         "green",
-				Host:            "0.0.0.0",
-				Port:            "4321",
-				SiteId:          "abc",
-				ProtocolVersion: HttpVersion2,
-				SslProfile:      types.SkupperServiceCertPrefix + "green",
+				Name:       "l3",
+				Address:    "green",
+				Host:       "0.0.0.0",
+				Port:       "4321",
+				SiteId:     "abc",
+				SslProfile: types.SkupperServiceCertPrefix + "green",
 			},
 			"l4": {
-				Name:            "l4",
-				Address:         "blue",
-				Host:            "localhost",
-				Port:            "8765",
-				SiteId:          "def",
-				ProtocolVersion: HttpVersion2,
-				SslProfile:      types.SkupperServiceCertPrefix + "blue",
+				Name:       "l4",
+				Address:    "blue",
+				Host:       "localhost",
+				Port:       "8765",
+				SiteId:     "def",
+				SslProfile: types.SkupperServiceCertPrefix + "blue",
 			},
 		},
 	}
 
 	after := BridgeConfig{
 
-		HttpConnectors: map[string]HttpEndpoint{
-			"newConnector": {
-				Name:            "newConnector",
-				Address:         "new-connector",
-				Host:            "nowhere.com",
-				Port:            "4321",
-				SiteId:          "abc",
-				ProtocolVersion: HttpVersion2,
-				SslProfile:      types.ServiceClientSecret,
-			},
-			"c4": {
-				Name:            "c4",
-				Address:         "bar",
-				Host:            "here.com",
-				Port:            "8765",
-				SiteId:          "def",
-				ProtocolVersion: HttpVersion2,
-				SslProfile:      types.ServiceClientSecret,
-			},
-		},
-		HttpListeners: map[string]HttpEndpoint{
-			"l3": {
-				Name:            "l3",
-				Address:         "green",
-				Host:            "0.0.0.0",
-				Port:            "4321",
-				SiteId:          "abc",
-				ProtocolVersion: HttpVersion2,
-				SslProfile:      types.SkupperServiceCertPrefix + "green",
-			},
-			"newListener": {
-				Name:            "newListener",
-				Address:         "new-listener",
-				Host:            "localhost",
-				Port:            "8765",
-				SiteId:          "def",
-				ProtocolVersion: HttpVersion2,
-				SslProfile:      types.SkupperServiceCertPrefix + "new-listener",
-			},
-			"anotherNewListener": {
-				Name:            "anotherNewListener",
-				Address:         "another-new-listener",
-				Host:            "localhost",
-				Port:            "8765",
-				SiteId:          "def",
-				ProtocolVersion: HttpVersion2,
-				SslProfile:      types.SkupperServiceCertPrefix + "another-new-listener",
-			},
-		},
 		TcpConnectors: map[string]TcpEndpoint{
 			"newConnector": {
+				Name:       "newConnector",
+				Address:    "new-connector",
+				Host:       "nowhere.com",
+				Port:       "4321",
+				SiteId:     "abc",
+				SslProfile: types.ServiceClientSecret,
+			},
+			"c4": {
+				Name:       "c4",
+				Address:    "bar",
+				Host:       "here.com",
+				Port:       "8765",
+				SiteId:     "def",
+				SslProfile: types.ServiceClientSecret,
+			},
+			"newTcpConnector": {
 				Name:       "newTcpConnector",
 				Address:    "new-tcp-connector",
 				Host:       "abc.io",
@@ -668,7 +584,31 @@ func TestGetSslProfilesDifference(t *testing.T) {
 			},
 		},
 		TcpListeners: map[string]TcpEndpoint{
+			"l3": {
+				Name:       "l3",
+				Address:    "green",
+				Host:       "0.0.0.0",
+				Port:       "4321",
+				SiteId:     "abc",
+				SslProfile: types.SkupperServiceCertPrefix + "green",
+			},
 			"newListener": {
+				Name:       "newListener",
+				Address:    "new-listener",
+				Host:       "localhost",
+				Port:       "8765",
+				SiteId:     "def",
+				SslProfile: types.SkupperServiceCertPrefix + "new-listener",
+			},
+			"anotherNewListener": {
+				Name:       "anotherNewListener",
+				Address:    "another-new-listener",
+				Host:       "localhost",
+				Port:       "8765",
+				SiteId:     "def",
+				SslProfile: types.SkupperServiceCertPrefix + "another-new-listener",
+			},
+			"newTcpListener": {
 				Name:       "newTCPListener",
 				Address:    "new-tcp-listener",
 				Host:       "localhost",

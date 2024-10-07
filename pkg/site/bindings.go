@@ -160,10 +160,8 @@ func (b *Bindings) deleteListener(name string) qdr.ConfigUpdate {
 
 func (b *Bindings) ToBridgeConfig() qdr.BridgeConfig {
 	config := qdr.BridgeConfig{
-		TcpListeners:   qdr.TcpEndpointMap{},
-		TcpConnectors:  qdr.TcpEndpointMap{},
-		HttpListeners:  qdr.HttpEndpointMap{},
-		HttpConnectors: qdr.HttpEndpointMap{},
+		TcpListeners:  qdr.TcpEndpointMap{},
+		TcpConnectors: qdr.TcpEndpointMap{},
 	}
 	for _, c := range b.connectors {
 		b.configure.connector(b.SiteId, c, &config)
