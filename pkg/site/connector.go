@@ -31,23 +31,5 @@ func updateBridgeConfigForConnector(siteId string, connector *skupperv1alpha1.Co
 			//TODO:
 			//VerifyHostname
 		})
-	} else if connector.Spec.Type == "http" || connector.Spec.Type == "http2" {
-		endpoint := qdr.HttpEndpoint{
-			Name:       name,
-			SiteId:     siteId,
-			Host:       host,
-			Port:       strconv.Itoa(connector.Spec.Port),
-			Address:    connector.Spec.RoutingKey,
-			SslProfile: connector.Spec.TlsCredentials,
-			//TODO:
-			//Aggregation
-			//EventChannel
-			//HostOverride
-			//VerifyHostname
-		}
-		if connector.Spec.Type == "http2" {
-			endpoint.ProtocolVersion = qdr.HttpVersion2
-		}
-		config.AddHttpConnector(endpoint)
 	}
 }

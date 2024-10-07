@@ -24,23 +24,5 @@ func UpdateBridgeConfigForListenerWithHostAndPort(siteId string, listener *skupp
 			//TODO:
 			//VerifyHostname
 		})
-	} else if listener.Spec.Type == "http" || listener.Spec.Type == "http2" {
-		endpoint := qdr.HttpEndpoint{
-			Name:       name,
-			SiteId:     siteId,
-			Host:       host,
-			Port:       strconv.Itoa(port),
-			Address:    listener.Spec.RoutingKey,
-			SslProfile: listener.Spec.TlsCredentials,
-			//TODO:
-			//Aggregation
-			//EventChannel
-			//HostOverride
-			//VerifyHostname
-		}
-		if listener.Spec.Type == "http2" {
-			endpoint.ProtocolVersion = qdr.HttpVersion2
-		}
-		config.AddHttpListener(endpoint)
 	}
 }

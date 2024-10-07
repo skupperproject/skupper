@@ -18,12 +18,10 @@ func TestUpdateBridgeConfigForListener(t *testing.T) {
 		config   qdr.BridgeConfig
 	}
 	tests := []struct {
-		name                string
-		args                args
-		expectedTcpAdded    int
-		expectedTcpDeleted  int
-		expectedHttpAdded   int
-		expectedHttpDeleted int
+		name               string
+		args               args
+		expectedTcpAdded   int
+		expectedTcpDeleted int
 	}{
 		{
 			name: "no spec type",
@@ -43,10 +41,8 @@ func TestUpdateBridgeConfigForListener(t *testing.T) {
 				},
 				config: qdr.NewBridgeConfig(),
 			},
-			expectedTcpAdded:    1,
-			expectedTcpDeleted:  0,
-			expectedHttpAdded:   0,
-			expectedHttpDeleted: 0,
+			expectedTcpAdded:   1,
+			expectedTcpDeleted: 0,
 		},
 		{
 			name: "tcp spec type",
@@ -66,56 +62,8 @@ func TestUpdateBridgeConfigForListener(t *testing.T) {
 				},
 				config: qdr.NewBridgeConfig(),
 			},
-			expectedTcpAdded:    1,
-			expectedTcpDeleted:  0,
-			expectedHttpAdded:   0,
-			expectedHttpDeleted: 0,
-		},
-		{
-			name: "http spec type",
-			args: args{
-				siteId: "my-site-123",
-				listener: &skupperv1alpha1.Listener{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-web",
-						Namespace: "test",
-					},
-					Spec: skupperv1alpha1.ListenerSpec{
-						RoutingKey: "my-web:8080",
-						Host:       "10.10.10.1",
-						Port:       8080,
-						Type:       "http",
-					},
-				},
-				config: qdr.NewBridgeConfig(),
-			},
-			expectedTcpAdded:    0,
-			expectedTcpDeleted:  0,
-			expectedHttpAdded:   1,
-			expectedHttpDeleted: 0,
-		},
-		{
-			name: "http2 spec type",
-			args: args{
-				siteId: "my-site-123",
-				listener: &skupperv1alpha1.Listener{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-web",
-						Namespace: "test",
-					},
-					Spec: skupperv1alpha1.ListenerSpec{
-						RoutingKey: "my-web:8080",
-						Host:       "10.10.10.1",
-						Port:       8080,
-						Type:       "http2",
-					},
-				},
-				config: qdr.NewBridgeConfig(),
-			},
-			expectedTcpAdded:    0,
-			expectedTcpDeleted:  0,
-			expectedHttpAdded:   1,
-			expectedHttpDeleted: 0,
+			expectedTcpAdded:   1,
+			expectedTcpDeleted: 0,
 		},
 		{
 			name: "bad spec type",
@@ -135,10 +83,8 @@ func TestUpdateBridgeConfigForListener(t *testing.T) {
 				},
 				config: qdr.NewBridgeConfig(),
 			},
-			expectedTcpAdded:    0,
-			expectedTcpDeleted:  0,
-			expectedHttpAdded:   0,
-			expectedHttpDeleted: 0,
+			expectedTcpAdded:   0,
+			expectedTcpDeleted: 0,
 		},
 	}
 
@@ -149,8 +95,6 @@ func TestUpdateBridgeConfigForListener(t *testing.T) {
 			result := tt.args.config.Difference(&configToUpdate)
 			assert.Assert(t, len(result.TcpListeners.Added) == tt.expectedTcpAdded)
 			assert.Assert(t, len(result.TcpListeners.Deleted) == tt.expectedTcpDeleted)
-			assert.Assert(t, len(result.HttpListeners.Added) == tt.expectedHttpAdded)
-			assert.Assert(t, len(result.HttpListeners.Deleted) == tt.expectedHttpDeleted)
 		})
 	}
 }
