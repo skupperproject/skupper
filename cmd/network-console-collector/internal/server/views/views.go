@@ -3,6 +3,7 @@
 package views
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/api"
@@ -309,10 +310,10 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 
 		node := graph.Process(record.ID)
 
-		var addresses []api.AtmarkDelimitedString
+		addresses := make(map[api.AtmarkDelimitedString]struct{})
 		for _, cNode := range node.Connectors() {
 			if address, ok := cNode.Address().GetRecord(); ok {
-				addresses = append(addresses, api.NewAtmarkDelimitedString(address.Name, address.ID, address.Protocol))
+				addresses[api.NewAtmarkDelimitedString(address.Name, address.ID, address.Protocol)] = struct{}{}
 			}
 		}
 		if site, ok := node.Parent().GetRecord(); ok {
@@ -321,7 +322,12 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 
 		if len(addresses) > 0 {
 			out.ProcessBinding = api.Bound
-			out.Addresses = &addresses
+			addressList := make([]api.AtmarkDelimitedString, 0, len(addresses))
+			for addr := range addresses {
+				addressList = append(addressList, addr)
+			}
+			sort.Slice(addressList, func(i, j int) bool { return addressList[i] < addressList[j] })
+			out.Addresses = &addressList
 		}
 
 		return out

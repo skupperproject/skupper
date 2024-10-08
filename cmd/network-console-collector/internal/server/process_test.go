@@ -66,7 +66,7 @@ func TestProcesses(t *testing.T) {
 					Identity:       "1",
 					Parent:         "site-1",
 					ParentName:     "site one",
-					Addresses:      ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp"), api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp")}),
+					Addresses:      ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp"), api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp")}),
 					GroupName:      "group-one",
 					GroupIdentity:  "group-1-id",
 					ProcessBinding: api.Bound,
@@ -153,6 +153,13 @@ func exProcessWithAddresses() []store.Entry {
 		vanflow.ConnectorRecord{
 			Parent:     ptrTo("router-1"),
 			BaseRecord: vanflow.NewBase("c2"),
+			Address:    ptrTo("icecream"),
+			Protocol:   ptrTo("tcp"),
+			DestHost:   ptrTo("10.99.99.2"),
+		},
+		vanflow.ConnectorRecord{
+			Parent:     ptrTo("router-1"),
+			BaseRecord: vanflow.NewBase("c3"),
 			Address:    ptrTo("icecream"),
 			Protocol:   ptrTo("tcp"),
 			DestHost:   ptrTo("10.99.99.2"),
