@@ -36,27 +36,27 @@ func TestSkupperNetworkStatusVolumeUpdate(t *testing.T) {
 		{
 			name:       "newer-version",
 			curVersion: "1.5.3",
-			version:    "1.5.4",
+			version:    "1.6.0",
 			applies:    true,
 			changed:    true,
 		},
 		{
 			name:       "newer-version-volume-exists",
 			curVersion: "1.5.3",
-			version:    "1.5.4",
+			version:    "1.6.0",
 			applies:    true,
 			changed:    false,
 		},
 		{
 			name:       "older-version",
-			curVersion: "1.5.4",
+			curVersion: "1.6.0",
 			version:    "1.5.3",
 			applies:    false,
 		},
 		{
 			name:       "invalid-old-version",
 			curVersion: "invalid-old-version",
-			version:    "1.5.4",
+			version:    "1.6.0",
 			applies:    false,
 		},
 		{
