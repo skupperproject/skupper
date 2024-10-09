@@ -476,8 +476,8 @@ func defaultRouterLink(id string) api.RouterLinkRecord {
 	}
 }
 
-func NewAddressSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.AddressRecord {
-	provider := NewAddressProvider(graph)
+func NewAddressSliceProvider(stor store.Interface, graph collector.Graph) func(entries []store.Entry) []api.AddressRecord {
+	provider := NewAddressProvider(stor, graph)
 	return func(entries []store.Entry) []api.AddressRecord {
 		results := make([]api.AddressRecord, 0, len(entries))
 		for _, e := range entries {
@@ -491,19 +491,43 @@ func NewAddressSliceProvider(graph collector.Graph) func(entries []store.Entry) 
 	}
 }
 
-func NewAddressProvider(graph collector.Graph) func(collector.AddressRecord) api.AddressRecord {
+func NewAddressProvider(stor store.Interface, graph collector.Graph) func(collector.AddressRecord) api.AddressRecord {
+	requestRecordType := collector.RequestRecord{}.GetTypeMeta().String()
+	flowIndex := stor.IndexValues(collector.IndexFlowByAddress)
+	addressAppProtocols := make(map[string]map[string]struct{})
+	for _, value := range flowIndex {
+		addressProtocol, found := strings.CutPrefix(value, requestRecordType+"/")
+		if !found {
+			continue
+		}
+		last := strings.LastIndex(addressProtocol, "/")
+		if last < 0 {
+			continue
+		}
+		address, protocol := addressProtocol[:last], addressProtocol[last+1:]
+		if addressAppProtocols[address] == nil {
+			addressAppProtocols[address] = make(map[string]struct{})
+		}
+		addressAppProtocols[address][protocol] = struct{}{}
+	}
 	return func(record collector.AddressRecord) api.AddressRecord {
 		node := graph.Address(record.ID).RoutingKey()
 		listenerCt := len(node.Listeners())
 		connectorCt := len(node.Connectors())
+
+		protocols := make([]string, 0, 2)
+		for proto := range addressAppProtocols[record.Name] {
+			protocols = append(protocols, proto)
+		}
 		return api.AddressRecord{
-			Identity:       record.ID,
-			StartTime:      uint64(record.Start.UnixMicro()),
-			Protocol:       record.Protocol,
-			Name:           record.Name,
-			ListenerCount:  listenerCt,
-			ConnectorCount: connectorCt,
-			IsBound:        listenerCt > 0 && connectorCt > 0,
+			Identity:                     record.ID,
+			StartTime:                    uint64(record.Start.UnixMicro()),
+			Protocol:                     record.Protocol,
+			ObservedApplicationProtocols: protocols,
+			Name:                         record.Name,
+			ListenerCount:                listenerCt,
+			ConnectorCount:               connectorCt,
+			IsBound:                      listenerCt > 0 && connectorCt > 0,
 		}
 	}
 }

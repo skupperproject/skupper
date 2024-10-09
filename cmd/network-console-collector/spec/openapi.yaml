@@ -1031,6 +1031,7 @@ components:
           required:
             - name
             - protocol
+            - observedApplicationProtocols
             - listenerCount
             - connectorCount
             - isBound
@@ -1039,6 +1040,11 @@ components:
               type: string
             protocol:
               type: string
+            observedApplicationProtocols:
+              type: array
+              description: Array of the observed application level protocols
+              items:
+                type: string
             listenerCount:
               type: integer
             connectorCount:

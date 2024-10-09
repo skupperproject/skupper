@@ -82,7 +82,10 @@ type AddressRecord struct {
 	IsBound       bool   `json:"isBound"`
 	ListenerCount int    `json:"listenerCount"`
 	Name          string `json:"name"`
-	Protocol      string `json:"protocol"`
+
+	// ObservedApplicationProtocols Array of the observed application level protocols
+	ObservedApplicationProtocols []string `json:"observedApplicationProtocols"`
+	Protocol                     string   `json:"protocol"`
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64 `json:"startTime"`
