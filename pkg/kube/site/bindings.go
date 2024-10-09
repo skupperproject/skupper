@@ -2,7 +2,7 @@ package site
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -11,6 +11,14 @@ import (
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/site"
 )
+
+var bindings_logger *slog.Logger
+
+func init() {
+	bindings_logger = slog.New(slog.Default().Handler()).With(
+		slog.String("component", "kube.site.bindings"),
+	)
+}
 
 type BindingContext interface {
 	Select(connector *skupperv1alpha1.Connector) TargetSelection
@@ -75,7 +83,10 @@ func (a *BindingAdaptor) ConnectorDeleted(connector *skupperv1alpha1.Connector) 
 func (a *BindingAdaptor) ListenerUpdated(listener *skupperv1alpha1.Listener) {
 	allocatedRouterPort, err := a.mapping.GetPortForKey(listener.Name)
 	if err != nil {
-		log.Printf("Unable to get port for listener %s/%s: %s", listener.Namespace, listener.Name, err)
+		bindings_logger.Error("Unable to get port for listener",
+			slog.String("namespace", listener.Namespace),
+			slog.String("name", listener.Name))
+		slog.Any("error", err)
 	} else {
 		port := Port{
 			Name:       listener.Name,
@@ -103,10 +114,14 @@ func (a *BindingAdaptor) updateBridgeConfigForConnector(siteId string, connector
 				site.UpdateBridgeConfigForConnectorToPod(siteId, connector, pod, config)
 			}
 		} else {
-			log.Printf("Error: not yet tracking pods for connector %s/%s with selector set", connector.Namespace, connector.Name)
+			bindings_logger.Error("Error: not yet tracking pods for connector with selector set",
+				slog.String("namespace", connector.Namespace),
+				slog.String("name", connector.Name))
 		}
 	} else {
-		log.Printf("Error: connector %s/%s has neither host nor selector set", connector.Namespace, connector.Name)
+		bindings_logger.Error("Error: connector %s/%s has neither host nor selector set",
+			slog.String("namespace", connector.Namespace),
+			slog.String("name", connector.Name))
 	}
 }
 
@@ -114,7 +129,9 @@ func (a *BindingAdaptor) updateBridgeConfigForListener(siteId string, listener *
 	if port, err := a.mapping.GetPortForKey(listener.Name); err == nil {
 		site.UpdateBridgeConfigForListenerWithHostAndPort(siteId, listener, "0.0.0.0", port, config)
 	} else {
-		log.Printf("Could not allocate port for %s/%s: %s", listener.Namespace, listener.Name, err)
+		bindings_logger.Error("Could not allocate port for %s/%s: %s",
+			slog.String("namespace", listener.Namespace),
+			slog.String("name", listener.Name))
 	}
 }
 
@@ -165,10 +182,12 @@ func (w *TargetSelectionImpl) Updated(pods []skupperv1alpha1.PodDetails) error {
 		return w.site.updateConnectorConfiguredStatus(connector, err)
 	}
 	if len(pods) == 0 {
-		log.Printf("No pods available for %s", w.Id())
+		bindings_logger.Info("No pods available for target selection",
+			slog.String("id", w.Id()))
 		return w.site.updateConnectorConfiguredStatus(connector, fmt.Errorf("No matches for selector"))
 	}
-	log.Printf("Pods are available for %s", w.Id())
+	bindings_logger.Info("No pods available for target selection",
+		slog.String("id", w.Id()))
 	return w.site.updateConnectorConfiguredStatus(connector, nil)
 }
 
@@ -190,17 +209,23 @@ func (w *PodWatcher) pods() []skupperv1alpha1.PodDetails {
 	for _, pod := range w.watcher.List() {
 		if kube.IsPodReady(pod) || w.context.IncludeNotReady() {
 			if kube.IsPodRunning(pod) && pod.DeletionTimestamp == nil {
-				log.Printf("Pod %s selected for connector %s", pod.ObjectMeta.Name, w.context.Id())
+				bindings_logger.Info("Pod selected for connector",
+					slog.String("pod", pod.ObjectMeta.Name),
+					slog.String("connector", w.context.Id()))
 				targets = append(targets, skupperv1alpha1.PodDetails{
 					UID:  string(pod.UID),
 					Name: pod.Name,
 					IP:   pod.Status.PodIP,
 				})
 			} else {
-				log.Printf("Pod %s not running for connector %s", pod.ObjectMeta.Name, w.context.Id())
+				bindings_logger.Info("Pod not running for connector",
+					slog.String("pod", pod.ObjectMeta.Name),
+					slog.String("connector", w.context.Id()))
 			}
 		} else {
-			log.Printf("Pod %s not ready for connector %s", pod.ObjectMeta.Name, w.context.Id())
+			bindings_logger.Info("Pod not ready for connector",
+				slog.String("pod", pod.ObjectMeta.Name),
+				slog.String("connector", w.context.Id()))
 		}
 	}
 	return targets
