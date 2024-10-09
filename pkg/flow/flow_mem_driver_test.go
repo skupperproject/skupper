@@ -1623,3 +1623,96 @@ func TestGraph(t *testing.T) {
 		})
 	}
 }
+
+func TestLinkOutgoingDelete(t *testing.T) {
+	name1 := "east-skupper-router-1111-r2"
+	name2 := "west-skupper-router-1111-r1"
+
+	links := []LinkRecord{
+		{
+			Base: Base{
+				RecType:   recordNames[Link],
+				Identity:  "link:0",
+				Parent:    "router:2",
+				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
+			},
+			Name:      &name1,
+			Direction: &Incoming,
+		},
+		{
+			Base: Base{
+				RecType:   recordNames[Link],
+				Identity:  "link:1",
+				Parent:    "router:1",
+				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
+			},
+			Name:      &name2,
+			Direction: &Outgoing,
+		},
+	}
+
+	routers := []RouterRecord{
+		{
+			Base: Base{
+				RecType:   recordNames[Router],
+				Identity:  "router:0",
+				Parent:    "site:0",
+				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
+			},
+			Name: &name2,
+		},
+		{
+			Base: Base{
+				RecType:   recordNames[Router],
+				Identity:  "router:1",
+				Parent:    "site:0",
+				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
+			},
+			Name: &name1,
+		},
+	}
+
+	u, _ := time.ParseDuration("5m")
+	client := fake.NewSimpleClientset()
+	configMapClient := client.CoreV1().ConfigMaps("default")
+	_, err := configMapClient.Create(
+		context.Background(),
+		&v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: types.NetworkStatusConfigMapName}},
+		metav1.CreateOptions{},
+	)
+	if err != nil {
+		t.Fatalf("kube cliet setup failed: %v", err)
+	}
+	fc := NewFlowCollector(FlowCollectorSpec{
+		Mode:                RecordStatus,
+		Namespace:           "default",
+		Origin:              "origin",
+		PromReg:             nil,
+		ConnectionFactory:   nil,
+		FlowRecordTtl:       u,
+		NetworkStatusClient: client,
+	})
+
+	for _, r := range routers {
+		err := fc.updateRecord(r)
+		assert.Assert(t, err)
+	}
+
+	for _, l := range links {
+		err := fc.updateRecord(l)
+		assert.Assert(t, err)
+	}
+
+	assert.Equal(t, len(fc.Links), 2)
+	assert.Equal(t, len(fc.Routers), 2)
+
+	endTime := uint64(time.Now().UnixNano()) / uint64(time.Microsecond)
+
+	links[0].EndTime = endTime
+	err = fc.updateRecord(links[0])
+	assert.Assert(t, err)
+
+	// expect code to remove both incoming and corresponding outgoing links
+	assert.Equal(t, len(fc.Links), 0)
+
+}
