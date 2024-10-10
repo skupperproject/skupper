@@ -17,27 +17,47 @@ spec:
               properties:
                 routerMode:
                   type: string
+                  description: |
+                    Defines the mode of the router for the site.
+                    - **interior**: Full linking capability across the network.
+                    - **edge**: Limited to linking to an interior site, acts as a leaf node.
                 serviceAccount:
                   type: string
+                  description: |
+                    The site uses the specified service account to interact with Kubernetes resources.
                 linkAccess:
                   type: string
+                  description: |
+                    Controls access for linking this site to other sites in the Skupper network.
                 defaultIssuer:
                   type: string
+                  description: |
+                    Defines the default certificate issuer for TLS communication within the site.
                 ha:
                   type: boolean
+                  description: |
+                    Enables high availability (HA) mode for the site, ensuring redundancy and fault tolerance.
                 settings:
                   type: object
                   additionalProperties:
                     type: string
+                  description: |
+                    Additional configuration settings for the site, stored as key-value pairs.
             status:
               type: object
               properties:
                 defaultIssuer:
                   type: string
+                  description: |
+                    Displays the default certificate issuer currently configured for the site.
                 active:
                   type: boolean
+                  description: |
+                    Indicates whether the site is currently active and operational.
                 status:
                   type: string
+                  description: |
+                    The current operational status of the site (e.g. Active, Failed, Starting).
                 conditions:
                   type: array
                   items:
@@ -46,28 +66,40 @@ spec:
                       lastTransitionTime:
                         format: date-time
                         type: string
+                        description: |
+                          Timestamp for the last change in condition status.
                       message:
                         maxLength: 32768
                         type: string
+                        description: |
+                          A message providing additional information about the condition.
                       observedGeneration:
                         format: int64
                         minimum: 0
                         type: integer
+                        description: |
+                          The most recent generation observed for the site.
                       reason:
                         maxLength: 1024
                         minLength: 1
                         pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
                         type: string
+                        description: |
+                          A brief explanation for the condition status.
                       status:
                         enum:
                         - "True"
                         - "False"
                         - Unknown
                         type: string
+                        description: |
+                          The status of the condition (e.g. True, False, Unknown).
                       type:
                         maxLength: 316
-                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][- A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                         type: string
+                        description: |
+                          Type of condition (e.g. Ready, Configured).
                     required:
                     - lastTransitionTime
                     - message
@@ -81,14 +113,24 @@ spec:
                     properties:
                       host:
                         type: string
+                        description: |
+                          Hostname or IP address of the endpoint.
                       port:
                         type: string
+                        description: |
+                          Port number for the endpoint.
                       name:
                         type: string
+                        description: |
+                          Name of the endpoint.
                       group:
                         type: string
+                        description: |
+                          Group or category to which the endpoint belongs.
                 sitesInNetwork:
                   type: integer
+                  description: |
+                    The number of sites currently active in the network.
                 network:
                   type: array
                   items:
@@ -96,14 +138,24 @@ spec:
                     properties:
                       id:
                         type: string
+                        description: |
+                          The unique identifier for the site in the network.
                       name:
                         type: string
+                        description: |
+                          The name of the site in the network.
                       namespace:
                         type: string
+                        description: |
+                          Kubernetes namespace where the site is deployed.
                       platform:
                         type: string
+                        description: |
+                          The platform on which the site is running (e.g. Kubernetes, Docker).
                       version:
                         type: string
+                        description: |
+                          The version of Skupper running on the site.
                       links:
                         type: array
                         items:
@@ -111,12 +163,20 @@ spec:
                           properties:
                             name:
                               type: string
+                              description: |
+                                Name of the link between this site and another.
                             remoteSiteId:
                               type: string
+                              description: |
+                                Identifier of the remote site linked to this site.
                             remoteSiteName:
                               type: string
+                              description: |
+                                Name of the remote site linked to this site.
                             operational:
                               type: boolean
+                              description: |
+                                Indicates whether the link to the remote site is operational.
                       services:
                         type: array
                         items:
@@ -124,14 +184,20 @@ spec:
                           properties:
                             routingKey:
                               type: string
+                              description: |
+                                The routing key associated with the service.
                             connectors:
                               type: array
                               items:
                                 type: string
+                              description: |
+                                Connectors associated with the service.
                             listeners:
                               type: array
                               items:
                                 type: string
+                              description: |
+                                Listeners associated with the service.
       subresources:
         status: {}
       additionalPrinterColumns:
