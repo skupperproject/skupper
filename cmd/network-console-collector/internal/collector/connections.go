@@ -158,9 +158,8 @@ func (c *connectionManager) handleAppFlow(record vanflow.AppBiflowRecord) {
 		if terminated {
 			state.Terminated = true
 			metrics.requests.With(prometheus.Labels{
-				"protocol": dref(record.Protocol),
-				"method":   normalizeHTTPMethod(record.Method),
-				"code":     normalizeHTTPResponseClass(record.Result),
+				"method": normalizeHTTPMethod(record.Method),
+				"code":   normalizeHTTPResponseClass(record.Result),
 			}).Inc()
 		}
 	}
@@ -233,6 +232,7 @@ const (
 	missingSource
 	missingDest
 	missingTransport
+	missingProtocol
 	unreconciledTransport
 )
 
@@ -263,21 +263,28 @@ func (c *connectionManager) reconcileRequest(state appState) (RequestRecord, rec
 		return r, missingRecord
 	}
 
+	protocol, ok := normalizeApplicationProtocol(record.Protocol)
+	if !ok {
+		return r, missingProtocol
+	}
+
 	rr := RequestRecord{
-		ID:          record.ID,
-		TransportID: transState.ID,
-		StartTime:   dref(record.StartTime).Time,
-		EndTime:     dref(record.EndTime).Time,
-		RoutingKey:  connRecord.RoutingKey,
-		Protocol:    connRecord.Protocol,
-		Connector:   connRecord.Connector,
-		Listener:    connRecord.Listener,
-		Source:      connRecord.Source,
-		SourceSite:  connRecord.SourceSite,
-		Dest:        connRecord.Dest,
-		DestSite:    connRecord.DestSite,
-		SourceGroup: connRecord.SourceGroup,
-		DestGroup:   connRecord.DestGroup,
+		ID:           record.ID,
+		TransportID:  transState.ID,
+		StartTime:    dref(record.StartTime).Time,
+		EndTime:      dref(record.EndTime).Time,
+		RoutingKey:   connRecord.RoutingKey,
+		Protocol:     protocol,
+		Connector:    connRecord.Connector,
+		Listener:     connRecord.Listener,
+		Source:       connRecord.Source,
+		SourceSite:   connRecord.SourceSite,
+		SourceRouter: connRecord.SourceRouter,
+		Dest:         connRecord.Dest,
+		DestSite:     connRecord.DestSite,
+		DestRouter:   connRecord.DestRouter,
+		SourceGroup:  connRecord.SourceGroup,
+		DestGroup:    connRecord.DestGroup,
 
 		stor: c.flows,
 	}
@@ -295,7 +302,6 @@ func (c *connectionManager) getAppMetricSet(l labelSet) appMetrics {
 		return m
 	}
 	labels := l.asLabels()
-	delete(labels, "protocol") // set protocol at observation time
 	m := appMetrics{
 		requests: c.metrics.requestsCounter.MustCurryWith(labels),
 	}
@@ -455,43 +461,43 @@ func (c *connectionManager) run(ctx context.Context) {
 				defer func() {
 					reconcileSources.Observe(time.Since(start).Seconds())
 				}()
+				for _, state := range c.transportFlows.Items() {
+					if state.metrics != nil {
+						continue
+					}
+					if time.Since(state.FirstSeen) < 15*time.Second {
+						continue
+					}
+					ent, ok := c.flows.Get(state.ID)
+					if !ok {
+						continue
+					}
+					flow, ok := ent.Record.(vanflow.TransportBiflowRecord)
+					if !ok {
+						continue
+					}
+					listener := c.graph.Listener(dref(flow.Parent))
+					sourceSiteID := listener.Parent().Parent().ID()
+					sourceSiteHost := dref(flow.SourceHost)
+
+					if sourceSiteID == "" || sourceSiteHost == "" {
+						continue
+					}
+
+					flowSourceID := c.idp.ID("flowsource", sourceSiteID, sourceSiteHost)
+					if _, ok := flowSources[flowSourceID]; ok {
+						continue
+					}
+					c.logger.Info("registering flow source", slog.String("site", sourceSiteID), slog.String("host", sourceSiteHost))
+					c.records.Add(FlowSourceRecord{
+						ID:    flowSourceID,
+						Site:  sourceSiteID,
+						Host:  sourceSiteHost,
+						Start: time.Now(),
+					}, c.source)
+					flowSources[flowSourceID] = struct{}{}
+				}
 			}()
-			for _, state := range c.transportFlows.Items() {
-				if state.metrics != nil {
-					continue
-				}
-				if time.Since(state.FirstSeen) < 15*time.Second {
-					continue
-				}
-				ent, ok := c.flows.Get(state.ID)
-				if !ok {
-					continue
-				}
-				flow, ok := ent.Record.(vanflow.TransportBiflowRecord)
-				if !ok {
-					continue
-				}
-				listener := c.graph.Listener(dref(flow.Parent))
-				sourceSiteID := listener.Parent().Parent().ID()
-				sourceSiteHost := dref(flow.SourceHost)
-
-				if sourceSiteID == "" || sourceSiteHost == "" {
-					continue
-				}
-
-				flowSourceID := c.idp.ID("flowsource", sourceSiteID, sourceSiteHost)
-				if _, ok := flowSources[flowSourceID]; ok {
-					continue
-				}
-				c.logger.Info("registering flow source", slog.String("site", sourceSiteID), slog.String("host", sourceSiteHost))
-				c.records.Add(FlowSourceRecord{
-					ID:    flowSourceID,
-					Site:  sourceSiteID,
-					Host:  sourceSiteHost,
-					Start: time.Now(),
-				}, c.source)
-				flowSources[flowSourceID] = struct{}{}
-			}
 		case <-invalidateCache.C:
 			func() {
 				c.attrMu.Lock()
@@ -612,6 +618,10 @@ func (c *connectionManager) runReconcileApp(ctx context.Context) {
 		"type":   ttyp,
 		"reason": "transport_reconcile",
 	})
+	pendingProtocol := pending.With(prometheus.Labels{
+		"type":   ttyp,
+		"reason": "transport_protocol",
+	})
 	pendingUnknown := pending.With(prometheus.Labels{
 		"type":   ttyp,
 		"reason": "unknown",
@@ -641,6 +651,7 @@ func (c *connectionManager) runReconcileApp(ctx context.Context) {
 			var (
 				pendingTransportCt      int
 				pendingTransportReconCt int
+				pendingProtocolCt       int
 				pendingUnknownCt        int
 			)
 			for _, state := range states {
@@ -656,6 +667,8 @@ func (c *connectionManager) runReconcileApp(ctx context.Context) {
 					switch result {
 					case missingTransport:
 						pendingTransportCt++
+					case missingProtocol:
+						pendingProtocolCt++
 					case unreconciledTransport:
 						pendingTransportReconCt++
 					case success:
@@ -664,6 +677,17 @@ func (c *connectionManager) runReconcileApp(ctx context.Context) {
 						metrics := request.metrics
 						state.metrics = &metrics
 						reconciled = append(reconciled, request)
+
+						c.pairMu.Lock()
+						p := pair{
+							Protocol: request.Protocol,
+							Source:   request.Source.ID,
+							Dest:     request.Dest.ID,
+						}
+						if _, ok := c.processPairs[p]; !ok {
+							c.processPairs[p] = true
+						}
+						c.pairMu.Unlock()
 					default:
 						pendingUnknownCt++
 					}
@@ -674,6 +698,7 @@ func (c *connectionManager) runReconcileApp(ctx context.Context) {
 			}
 			pendingTransport.Set(float64(pendingTransportCt))
 			pendingReconcile.Set(float64(pendingTransportReconCt))
+			pendingProtocol.Set(float64(pendingProtocolCt))
 			pendingUnknown.Set(float64(pendingUnknownCt))
 
 			for _, r := range reconciled {
@@ -1018,6 +1043,22 @@ func normalizeHTTPResponseClass(result *string) string {
 		return "5xx"
 	default:
 		return class
+	}
+}
+
+func normalizeApplicationProtocol(result *string) (string, bool) {
+	if result == nil {
+		return "", false
+	}
+	switch *result {
+	case "HTTP/1.0":
+		fallthrough
+	case "HTTP/1.1":
+		return "http1", true
+	case "HTTP/2":
+		return "http2", true
+	default:
+		return *result, true
 	}
 }
 

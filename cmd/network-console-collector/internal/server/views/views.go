@@ -3,6 +3,7 @@
 package views
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/api"
@@ -309,10 +310,10 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 
 		node := graph.Process(record.ID)
 
-		var addresses []api.AtmarkDelimitedString
+		addresses := make(map[api.AtmarkDelimitedString]struct{})
 		for _, cNode := range node.Connectors() {
 			if address, ok := cNode.Address().GetRecord(); ok {
-				addresses = append(addresses, api.NewAtmarkDelimitedString(address.Name, address.ID, address.Protocol))
+				addresses[api.NewAtmarkDelimitedString(address.Name, address.ID, address.Protocol)] = struct{}{}
 			}
 		}
 		if site, ok := node.Parent().GetRecord(); ok {
@@ -321,7 +322,12 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 
 		if len(addresses) > 0 {
 			out.ProcessBinding = api.Bound
-			out.Addresses = &addresses
+			addressList := make([]api.AtmarkDelimitedString, 0, len(addresses))
+			for addr := range addresses {
+				addressList = append(addressList, addr)
+			}
+			sort.Slice(addressList, func(i, j int) bool { return addressList[i] < addressList[j] })
+			out.Addresses = &addressList
 		}
 
 		return out
@@ -470,8 +476,8 @@ func defaultRouterLink(id string) api.RouterLinkRecord {
 	}
 }
 
-func NewAddressSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.AddressRecord {
-	provider := NewAddressProvider(graph)
+func NewAddressSliceProvider(stor store.Interface, graph collector.Graph) func(entries []store.Entry) []api.AddressRecord {
+	provider := NewAddressProvider(stor, graph)
 	return func(entries []store.Entry) []api.AddressRecord {
 		results := make([]api.AddressRecord, 0, len(entries))
 		for _, e := range entries {
@@ -485,19 +491,43 @@ func NewAddressSliceProvider(graph collector.Graph) func(entries []store.Entry) 
 	}
 }
 
-func NewAddressProvider(graph collector.Graph) func(collector.AddressRecord) api.AddressRecord {
+func NewAddressProvider(stor store.Interface, graph collector.Graph) func(collector.AddressRecord) api.AddressRecord {
+	requestRecordType := collector.RequestRecord{}.GetTypeMeta().String()
+	flowIndex := stor.IndexValues(collector.IndexFlowByAddress)
+	addressAppProtocols := make(map[string]map[string]struct{})
+	for _, value := range flowIndex {
+		addressProtocol, found := strings.CutPrefix(value, requestRecordType+"/")
+		if !found {
+			continue
+		}
+		last := strings.LastIndex(addressProtocol, "/")
+		if last < 0 {
+			continue
+		}
+		address, protocol := addressProtocol[:last], addressProtocol[last+1:]
+		if addressAppProtocols[address] == nil {
+			addressAppProtocols[address] = make(map[string]struct{})
+		}
+		addressAppProtocols[address][protocol] = struct{}{}
+	}
 	return func(record collector.AddressRecord) api.AddressRecord {
 		node := graph.Address(record.ID).RoutingKey()
 		listenerCt := len(node.Listeners())
 		connectorCt := len(node.Connectors())
+
+		protocols := make([]string, 0, 2)
+		for proto := range addressAppProtocols[record.Name] {
+			protocols = append(protocols, proto)
+		}
 		return api.AddressRecord{
-			Identity:       record.ID,
-			StartTime:      uint64(record.Start.UnixMicro()),
-			Protocol:       record.Protocol,
-			Name:           record.Name,
-			ListenerCount:  listenerCt,
-			ConnectorCount: connectorCt,
-			IsBound:        listenerCt > 0 && connectorCt > 0,
+			Identity:                     record.ID,
+			StartTime:                    uint64(record.Start.UnixMicro()),
+			Protocol:                     record.Protocol,
+			ObservedApplicationProtocols: protocols,
+			Name:                         record.Name,
+			ListenerCount:                listenerCt,
+			ConnectorCount:               connectorCt,
+			IsBound:                      listenerCt > 0 && connectorCt > 0,
 		}
 	}
 }

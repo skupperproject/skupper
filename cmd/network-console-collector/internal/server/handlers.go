@@ -32,16 +32,16 @@ func (s *server) ConnectionsByAddress(w http.ResponseWriter, r *http.Request, id
 	}
 }
 
-func (s *server) Requests(w http.ResponseWriter, r *http.Request) {
-	results := views.NewRequestSliceProvider()(listByType[collector.RequestRecord](s.records))
-	if err := handleCollection(w, r, &api.RequestListResponse{}, results); err != nil {
+func (s *server) Applicationflows(w http.ResponseWriter, r *http.Request) {
+	results := views.NewRequestSliceProvider(s.records)(listByType[collector.RequestRecord](s.records))
+	if err := handleCollection(w, r, &api.ApplicationFlowResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
 }
 
 // (GET /api/v1alpha1/addresses/)
 func (s *server) Addresses(w http.ResponseWriter, r *http.Request) {
-	results := views.NewAddressSliceProvider(s.graph)(listByType[collector.AddressRecord](s.records))
+	results := views.NewAddressSliceProvider(s.records, s.graph)(listByType[collector.AddressRecord](s.records))
 	if err := handleCollection(w, r, &api.AddressListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
@@ -49,7 +49,7 @@ func (s *server) Addresses(w http.ResponseWriter, r *http.Request) {
 
 // (GET /api/v1alpha1/addresses/{id}/)
 func (s *server) AddressByID(w http.ResponseWriter, r *http.Request, id string) {
-	getRecord := fetchAndMap(s.records, views.NewAddressProvider(s.graph), id)
+	getRecord := fetchAndMap(s.records, views.NewAddressProvider(s.records, s.graph), id)
 	if err := handleSingle(w, r, &api.AddressResponse{}, getRecord); err != nil {
 		s.logWriteError(r, err)
 	}
