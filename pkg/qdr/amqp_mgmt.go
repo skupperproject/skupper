@@ -130,21 +130,6 @@ func asTcpEndpoint(record Record) TcpEndpoint {
 	}
 }
 
-func asHttpEndpoint(record Record) HttpEndpoint {
-	return HttpEndpoint{
-		Name:            record.AsString("name"),
-		Host:            record.AsString("host"),
-		Port:            record.AsString("port"),
-		Address:         record.AsString("address"),
-		SiteId:          record.AsString("siteId"),
-		ProtocolVersion: record.AsString("protocolVersion"),
-		Aggregation:     record.AsString("aggregation"),
-		EventChannel:    record.AsBool("eventChannel"),
-		HostOverride:    record.AsString("hostOverride"),
-		SslProfile:      record.AsString("sslProfile"),
-	}
-}
-
 func asConnection(record Record) Connection {
 	return Connection{
 		Role:       record.AsString("role"),
@@ -794,19 +779,6 @@ func (a *Agent) getLocalTcpEndpoints(typename string, filter TcpEndpointFilter) 
 	return records, nil
 }
 
-type HttpEndpointFilter func(*HttpEndpoint) bool
-
-func asHttpEndpoints(records []Record, filter HttpEndpointFilter) []HttpEndpoint {
-	endpoints := []HttpEndpoint{}
-	for _, record := range records {
-		endpoint := asHttpEndpoint(record)
-		if filter == nil || filter(&endpoint) {
-			endpoints = append(endpoints, endpoint)
-		}
-	}
-	return endpoints
-}
-
 func (a *Agent) GetConnectorByName(name string) (*Connector, error) {
 
 	results, err := a.Query("io.skupper.router.connector", []string{})
@@ -857,29 +829,12 @@ func (a *Agent) GetSslProfiles() (map[string]SslProfile, error) {
 	return profiles, nil
 }
 
-func (a *Agent) getLocalHttpEndpoints(typename string, filter HttpEndpointFilter) ([]HttpEndpoint, error) {
-	results, err := a.Query(typename, []string{})
-	if err != nil {
-		return nil, err
-	}
-	records := asHttpEndpoints(results, filter)
-	return records, nil
-}
-
 func (a *Agent) GetLocalTcpListeners(filter TcpEndpointFilter) ([]TcpEndpoint, error) {
 	return a.getLocalTcpEndpoints("io.skupper.router.tcpListener", filter)
 }
 
-func (a *Agent) GetLocalHttpListeners(filter HttpEndpointFilter) ([]HttpEndpoint, error) {
-	return a.getLocalHttpEndpoints("io.skupper.router.httpListener", filter)
-}
-
 func (a *Agent) GetLocalTcpConnectors(filter TcpEndpointFilter) ([]TcpEndpoint, error) {
 	return a.getLocalTcpEndpoints("io.skupper.router.tcpConnector", filter)
-}
-
-func (a *Agent) GetLocalHttpConnectors(filter HttpEndpointFilter) ([]HttpEndpoint, error) {
-	return a.getLocalHttpEndpoints("io.skupper.router.httpConnector", filter)
 }
 
 func (a *Agent) GetLocalBridgeConfig() (*BridgeConfig, error) {
@@ -901,22 +856,6 @@ func (a *Agent) GetLocalBridgeConfig() (*BridgeConfig, error) {
 		config.AddTcpListener(asTcpEndpoint(record))
 	}
 
-	results, err = a.Query("io.skupper.router.httpConnector", []string{})
-	if err != nil {
-		return nil, err
-	}
-	for _, record := range results {
-		config.AddHttpConnector(asHttpEndpoint(record))
-	}
-
-	results, err = a.Query("io.skupper.router.httpListener", []string{})
-	if err != nil {
-		return nil, err
-	}
-	for _, record := range results {
-		config.AddHttpListener(asHttpEndpoint(record))
-	}
-
 	return &config, nil
 }
 
@@ -926,19 +865,9 @@ func (a *Agent) UpdateLocalBridgeConfig(changes *BridgeConfigDifference) error {
 			return fmt.Errorf("Error deleting tcp connectors: %s", err)
 		}
 	}
-	for _, deleted := range changes.HttpConnectors.Deleted {
-		if err := a.Delete("io.skupper.router.httpConnector", deleted.Name); err != nil {
-			return fmt.Errorf("Error deleting http connectors: %s", err)
-		}
-	}
 	for _, deleted := range changes.TcpListeners.Deleted {
 		if err := a.Delete("io.skupper.router.tcpListener", deleted); err != nil {
 			return fmt.Errorf("Error deleting tcp listeners: %s", err)
-		}
-	}
-	for _, deleted := range changes.HttpListeners.Deleted {
-		if err := a.Delete("io.skupper.router.httpListener", deleted.Name); err != nil {
-			return fmt.Errorf("Error deleting http listeners: %s", err)
 		}
 	}
 	for _, added := range changes.TcpConnectors.Added {
@@ -950,25 +879,11 @@ func (a *Agent) UpdateLocalBridgeConfig(changes *BridgeConfigDifference) error {
 			return fmt.Errorf("Error adding tcp connectors: %s", err)
 		}
 	}
-	for _, added := range changes.HttpConnectors.Added {
-		record := map[string]interface{}{}
-		convert(added, &record)
-		if err := a.Create("io.skupper.router.httpConnector", added.Name, record); err != nil {
-			return fmt.Errorf("Error adding http connectors: %s", err)
-		}
-	}
 	for _, added := range changes.TcpListeners.Added {
 		record := map[string]interface{}{}
 		convert(added, &record)
 		if err := a.Create("io.skupper.router.tcpListener", added.Name, record); err != nil {
 			return fmt.Errorf("Error adding tcp listeners: %s", err)
-		}
-	}
-	for _, added := range changes.HttpListeners.Added {
-		record := map[string]interface{}{}
-		convert(added, &record)
-		if err := a.Create("io.skupper.router.httpListener", added.Name, record); err != nil {
-			return fmt.Errorf("Error adding http listeners: %s", err)
 		}
 	}
 	return nil
@@ -993,21 +908,6 @@ func (a *Agent) GetBridges(routers []Router) ([]BridgeConfig, error) {
 		}
 		for _, record := range results {
 			config.AddTcpListener(asTcpEndpoint(record))
-		}
-		results, err = a.QueryByAgentAddress("io.skupper.router.httpConnector", []string{}, agent)
-		if err != nil {
-			return nil, err
-		}
-		for _, record := range results {
-			config.AddHttpConnector(asHttpEndpoint(record))
-		}
-
-		results, err = a.QueryByAgentAddress("io.skupper.router.httpListener", []string{}, agent)
-		if err != nil {
-			return nil, err
-		}
-		for _, record := range results {
-			config.AddHttpListener(asHttpEndpoint(record))
 		}
 
 		configs = append(configs, config)
@@ -1067,56 +967,6 @@ func (a *Agent) GetLocalTcpConnections() ([]TcpConnection, error) {
 		return nil, err
 	}
 	return getTcpConnectionsFromRecords(records)
-}
-
-type HttpRequestInfo struct {
-	Name       string         `json:"name"`
-	Host       string         `json:"host"`
-	Address    string         `json:"address"`
-	Site       string         `json:"site"`
-	Direction  string         `json:"direction"`
-	Requests   int            `json:"requests"`
-	BytesIn    int            `json:"bytesIn"`
-	BytesOut   int            `json:"bytesOut"`
-	MaxLatency int            `json:"maxLatency"`
-	Details    map[string]int `json:"details"`
-}
-
-func getHttpRequestInfoFromRecords(records []Record) ([]HttpRequestInfo, error) {
-	reqs := []HttpRequestInfo{}
-	for _, record := range records {
-		var req HttpRequestInfo
-		if err := convert(record, &req); err != nil {
-			return reqs, fmt.Errorf("Failed to convert to HttpRequestInfo: %s", err)
-		}
-		reqs = append(reqs, req)
-	}
-	return reqs, nil
-}
-
-func (a *Agent) GetHttpRequestInfo(routers []Router) ([][]HttpRequestInfo, error) {
-	queries := queryAllAgents("io.skupper.router.httpRequestInfo", getAddressesFor(routers))
-	results, err := a.BatchQuery(queries)
-	if err != nil {
-		return nil, err
-	}
-	converted := [][]HttpRequestInfo{}
-	for _, records := range results {
-		reqs, err := getHttpRequestInfoFromRecords(records)
-		if err != nil {
-			return converted, err
-		}
-		converted = append(converted, reqs)
-	}
-	return converted, nil
-}
-
-func (a *Agent) GetLocalHttpRequestInfo() ([]HttpRequestInfo, error) {
-	records, err := a.Query("io.skupper.router.httpRequestInfo", []string{})
-	if err != nil {
-		return nil, err
-	}
-	return getHttpRequestInfoFromRecords(records)
 }
 
 func (a *Agent) getAllEdgeRouters(agents []string) ([]Router, error) {

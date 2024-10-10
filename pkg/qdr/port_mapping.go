@@ -59,9 +59,6 @@ func RecoverPortMapping(config *RouterConfig) *PortMapping {
 	for key, listener := range config.Bridges.TcpListeners {
 		mapping.recovered(key, listener.Port)
 	}
-	for key, listener := range config.Bridges.HttpListeners {
-		mapping.recovered(key, listener.Port)
-	}
 
 	return mapping
 }

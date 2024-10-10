@@ -33,13 +33,10 @@ type RouterConfigHandler interface {
 }
 
 type TcpEndpointMap map[string]TcpEndpoint
-type HttpEndpointMap map[string]HttpEndpoint
 
 type BridgeConfig struct {
-	TcpListeners   TcpEndpointMap
-	TcpConnectors  TcpEndpointMap
-	HttpListeners  HttpEndpointMap
-	HttpConnectors HttpEndpointMap
+	TcpListeners  TcpEndpointMap
+	TcpConnectors TcpEndpointMap
 }
 
 func InitialConfig(id string, siteId string, version string, edge bool, helloAge int) RouterConfig {
@@ -55,10 +52,8 @@ func InitialConfig(id string, siteId string, version string, edge bool, helloAge
 		Connectors:  map[string]Connector{},
 		LogConfig:   map[string]LogConfig{},
 		Bridges: BridgeConfig{
-			TcpListeners:   map[string]TcpEndpoint{},
-			TcpConnectors:  map[string]TcpEndpoint{},
-			HttpListeners:  map[string]HttpEndpoint{},
-			HttpConnectors: map[string]HttpEndpoint{},
+			TcpListeners:  map[string]TcpEndpoint{},
+			TcpConnectors: map[string]TcpEndpoint{},
 		},
 	}
 	if edge {
@@ -124,10 +119,8 @@ func (r *RouterConfig) SetListenersForMode(options types.RouterOptions, path str
 
 func NewBridgeConfig() BridgeConfig {
 	return BridgeConfig{
-		TcpListeners:   map[string]TcpEndpoint{},
-		TcpConnectors:  map[string]TcpEndpoint{},
-		HttpListeners:  map[string]HttpEndpoint{},
-		HttpConnectors: map[string]HttpEndpoint{},
+		TcpListeners:  map[string]TcpEndpoint{},
+		TcpConnectors: map[string]TcpEndpoint{},
 	}
 }
 
@@ -138,12 +131,6 @@ func NewBridgeConfigCopy(src BridgeConfig) BridgeConfig {
 	}
 	for k, v := range src.TcpConnectors {
 		newBridges.TcpConnectors[k] = v
-	}
-	for k, v := range src.HttpListeners {
-		newBridges.HttpListeners[k] = v
-	}
-	for k, v := range src.HttpConnectors {
-		newBridges.HttpConnectors[k] = v
 	}
 	return newBridges
 }
@@ -241,12 +228,6 @@ func (r *RouterConfig) UnreferencedSslProfiles() map[string]SslProfile {
 	for _, o := range r.Bridges.TcpConnectors {
 		delete(results, o.SslProfile)
 	}
-	for _, o := range r.Bridges.HttpListeners {
-		delete(results, o.SslProfile)
-	}
-	for _, o := range r.Bridges.HttpConnectors {
-		delete(results, o.SslProfile)
-	}
 
 	return results
 }
@@ -269,22 +250,6 @@ func (r *RouterConfig) AddTcpListener(e TcpEndpoint) {
 
 func (r *RouterConfig) RemoveTcpListener(name string) (bool, TcpEndpoint) {
 	return r.Bridges.RemoveTcpListener(name)
-}
-
-func (r *RouterConfig) AddHttpConnector(e HttpEndpoint) {
-	r.Bridges.AddHttpConnector(e)
-}
-
-func (r *RouterConfig) RemoveHttpConnector(name string) (bool, HttpEndpoint) {
-	return r.Bridges.RemoveHttpConnector(name)
-}
-
-func (r *RouterConfig) AddHttpListener(e HttpEndpoint) {
-	r.Bridges.AddHttpListener(e)
-}
-
-func (r *RouterConfig) RemoveHttpListener(name string) (bool, HttpEndpoint) {
-	return r.Bridges.RemoveHttpListener(name)
 }
 
 func (r *RouterConfig) UpdateBridgeConfig(desired BridgeConfig) bool {
@@ -330,54 +295,6 @@ func (bc *BridgeConfig) RemoveTcpListener(name string) (bool, TcpEndpoint) {
 	} else {
 		return false, TcpEndpoint{}
 	}
-}
-
-func (bc *BridgeConfig) AddHttpConnector(e HttpEndpoint) {
-	bc.HttpConnectors[e.Name] = e
-}
-
-func (bc *BridgeConfig) RemoveHttpConnector(name string) (bool, HttpEndpoint) {
-	tc, ok := bc.HttpConnectors[name]
-	if ok {
-		delete(bc.HttpConnectors, name)
-		return true, tc
-	} else {
-		return false, HttpEndpoint{}
-	}
-}
-
-func (bc *BridgeConfig) AddHttpListener(e HttpEndpoint) {
-	bc.HttpListeners[e.Name] = e
-}
-
-func (bc *BridgeConfig) RemoveHttpListener(name string) (bool, HttpEndpoint) {
-	tc, ok := bc.HttpListeners[name]
-	if ok {
-		delete(bc.HttpListeners, name)
-		return true, tc
-	} else {
-		return false, HttpEndpoint{}
-	}
-}
-
-func GetHttpConnectors(bridges []BridgeConfig) []HttpEndpoint {
-	connectors := []HttpEndpoint{}
-	for _, bridge := range bridges {
-		for _, connector := range bridge.HttpConnectors {
-			connectors = append(connectors, connector)
-		}
-	}
-	return connectors
-}
-
-func GetHttpListeners(bridges []BridgeConfig) []HttpEndpoint {
-	listeners := []HttpEndpoint{}
-	for _, bridge := range bridges {
-		for _, listener := range bridge.HttpListeners {
-			listeners = append(listeners, listener)
-		}
-	}
-	return listeners
 }
 
 func GetTcpConnectors(bridges []BridgeConfig) []TcpEndpoint {
@@ -475,11 +392,6 @@ const (
 	ModeEdge          = "edge"
 )
 
-const (
-	HttpVersion1 string = "HTTP1"
-	HttpVersion2        = "HTTP2"
-)
-
 type RouterMetadata struct {
 	Id                  string `json:"id,omitempty"`
 	Mode                Mode   `json:"mode,omitempty"`
@@ -574,20 +486,6 @@ type TcpEndpoint struct {
 	ProcessID      string `json:"processId,omitempty"`
 }
 
-type HttpEndpoint struct {
-	Name            string `json:"name,omitempty"`
-	Host            string `json:"host,omitempty"`
-	Port            string `json:"port,omitempty"`
-	Address         string `json:"address,omitempty"`
-	SiteId          string `json:"siteId,omitempty"`
-	ProtocolVersion string `json:"protocolVersion,omitempty"`
-	Aggregation     string `json:"aggregation,omitempty"`
-	EventChannel    bool   `json:"eventChannel,omitempty"`
-	HostOverride    string `json:"hostOverride,omitempty"`
-	SslProfile      string `json:"sslProfile,omitempty"`
-	VerifyHostname  *bool  `json:"verifyHostname,omitempty"`
-}
-
 type SiteConfig struct {
 	Name      string `json:"name,omitempty"`
 	Location  string `json:"location,omitempty"`
@@ -629,10 +527,8 @@ func UnmarshalRouterConfig(config string) (RouterConfig, error) {
 		Connectors:  map[string]Connector{},
 		LogConfig:   map[string]LogConfig{},
 		Bridges: BridgeConfig{
-			TcpListeners:   map[string]TcpEndpoint{},
-			TcpConnectors:  map[string]TcpEndpoint{},
-			HttpListeners:  map[string]HttpEndpoint{},
-			HttpConnectors: map[string]HttpEndpoint{},
+			TcpListeners:  map[string]TcpEndpoint{},
+			TcpConnectors: map[string]TcpEndpoint{},
 		},
 	}
 	var obj interface{}
@@ -717,20 +613,6 @@ func UnmarshalRouterConfig(config string) (RouterConfig, error) {
 				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
 			}
 			result.Bridges.TcpListeners[listener.Name] = listener
-		case "httpConnector":
-			connector := HttpEndpoint{}
-			err = convert(element[1], &connector)
-			if err != nil {
-				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
-			}
-			result.Bridges.HttpConnectors[connector.Name] = connector
-		case "httpListener":
-			listener := HttpEndpoint{}
-			err = convert(element[1], &listener)
-			if err != nil {
-				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
-			}
-			result.Bridges.HttpListeners[listener.Name] = listener
 		default:
 		}
 	}
@@ -782,20 +664,6 @@ func MarshalRouterConfig(config RouterConfig) (string, error) {
 	for _, e := range config.Bridges.TcpListeners {
 		tuple := []interface{}{
 			"tcpListener",
-			e,
-		}
-		elements = append(elements, tuple)
-	}
-	for _, e := range config.Bridges.HttpConnectors {
-		tuple := []interface{}{
-			"httpConnector",
-			e,
-		}
-		elements = append(elements, tuple)
-	}
-	for _, e := range config.Bridges.HttpListeners {
-		tuple := []interface{}{
-			"httpListener",
 			e,
 		}
 		elements = append(elements, tuple)
@@ -932,16 +800,9 @@ type TcpEndpointDifference struct {
 	Added   []TcpEndpoint
 }
 
-type HttpEndpointDifference struct {
-	Deleted []HttpEndpoint
-	Added   []HttpEndpoint
-}
-
 type BridgeConfigDifference struct {
 	TcpListeners       TcpEndpointDifference
 	TcpConnectors      TcpEndpointDifference
-	HttpListeners      HttpEndpointDifference
-	HttpConnectors     HttpEndpointDifference
 	AddedSslProfiles   []string
 	DeletedSSlProfiles []string
 }
@@ -991,44 +852,10 @@ func (a TcpEndpointMap) Difference(b TcpEndpointMap) TcpEndpointDifference {
 	return result
 }
 
-func (a HttpEndpoint) Equivalent(b HttpEndpoint) bool {
-	if !equivalentHost(a.Host, b.Host) || a.Port != b.Port || a.Address != b.Address ||
-		a.SiteId != b.SiteId || a.Aggregation != b.Aggregation ||
-		a.EventChannel != b.EventChannel || a.HostOverride != b.HostOverride {
-		return false
-	}
-	if a.ProtocolVersion == HttpVersion2 && b.ProtocolVersion != HttpVersion2 {
-		return false
-	}
-	return true
-}
-
-func (a HttpEndpointMap) Difference(b HttpEndpointMap) HttpEndpointDifference {
-	result := HttpEndpointDifference{}
-	for key, v1 := range b {
-		v2, ok := a[key]
-		if !ok {
-			result.Added = append(result.Added, v1)
-		} else if !v1.Equivalent(v2) {
-			result.Deleted = append(result.Deleted, v1)
-			result.Added = append(result.Added, v1)
-		}
-	}
-	for key, v1 := range a {
-		_, ok := b[key]
-		if !ok {
-			result.Deleted = append(result.Deleted, v1)
-		}
-	}
-	return result
-}
-
 func (a *BridgeConfig) Difference(b *BridgeConfig) *BridgeConfigDifference {
 	result := BridgeConfigDifference{
-		TcpConnectors:  a.TcpConnectors.Difference(b.TcpConnectors),
-		TcpListeners:   a.TcpListeners.Difference(b.TcpListeners),
-		HttpConnectors: a.HttpConnectors.Difference(b.HttpConnectors),
-		HttpListeners:  a.HttpListeners.Difference(b.HttpListeners),
+		TcpConnectors: a.TcpConnectors.Difference(b.TcpConnectors),
+		TcpListeners:  a.TcpListeners.Difference(b.TcpListeners),
 	}
 
 	result.AddedSslProfiles, result.DeletedSSlProfiles = getSslProfilesDifference(a, b)
@@ -1046,25 +873,11 @@ func getSslProfilesDifference(before *BridgeConfig, desired *BridgeConfig) (Adde
 	originalSslConfig := make(map[string]string)
 	newSslConfig := make(map[string]string)
 
-	for _, httpConnector := range before.HttpConnectors {
-		originalSslConfig[httpConnector.SslProfile] = httpConnector.SslProfile
-	}
-	for _, httpListener := range before.HttpListeners {
-		originalSslConfig[httpListener.SslProfile] = httpListener.SslProfile
-	}
-
 	for _, tcpConnector := range before.TcpConnectors {
 		originalSslConfig[tcpConnector.SslProfile] = tcpConnector.SslProfile
 	}
 	for _, tcpListener := range before.TcpListeners {
 		originalSslConfig[tcpListener.SslProfile] = tcpListener.SslProfile
-	}
-
-	for _, httpConnector := range desired.HttpConnectors {
-		newSslConfig[httpConnector.SslProfile] = httpConnector.SslProfile
-	}
-	for _, httpListener := range desired.HttpListeners {
-		newSslConfig[httpListener.SslProfile] = httpListener.SslProfile
 	}
 
 	for _, tcpConnector := range desired.TcpConnectors {
@@ -1103,19 +916,13 @@ func (a *TcpEndpointDifference) Empty() bool {
 	return len(a.Deleted) == 0 && len(a.Added) == 0
 }
 
-func (a *HttpEndpointDifference) Empty() bool {
-	return len(a.Deleted) == 0 && len(a.Added) == 0
-}
-
 func (a *BridgeConfigDifference) Empty() bool {
-	return a.TcpConnectors.Empty() && a.TcpListeners.Empty() && a.HttpConnectors.Empty() && a.HttpListeners.Empty()
+	return a.TcpConnectors.Empty() && a.TcpListeners.Empty()
 }
 
 func (a *BridgeConfigDifference) Print() {
 	log.Printf("TcpConnectors added=%v, deleted=%v", a.TcpConnectors.Added, a.TcpConnectors.Deleted)
 	log.Printf("TcpListeners added=%v, deleted=%v", a.TcpListeners.Added, a.TcpListeners.Deleted)
-	log.Printf("HttpConnectors added=%v, deleted=%v", a.HttpConnectors.Added, a.HttpConnectors.Deleted)
-	log.Printf("HttpListeners added=%v, deleted=%v", a.HttpListeners.Added, a.HttpListeners.Deleted)
 	log.Printf("SslProfiles added=%v, deleted=%v", a.AddedSslProfiles, a.DeletedSSlProfiles)
 }
 
@@ -1239,23 +1046,6 @@ func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId s
 					Address: address,
 					SiteId:  siteId,
 				})
-			case "http":
-				config.AddHttpConnector(HttpEndpoint{
-					Name:    name,
-					Host:    host,
-					Port:    strconv.Itoa(ePort),
-					Address: address,
-					SiteId:  siteId,
-				})
-			case "http2":
-				config.AddHttpConnector(HttpEndpoint{
-					Name:            name,
-					Host:            host,
-					Port:            strconv.Itoa(ePort),
-					Address:         address,
-					ProtocolVersion: HttpVersion2,
-					SiteId:          siteId,
-				})
 			default:
 			}
 		} else {
@@ -1268,21 +1058,6 @@ func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId s
 					Port:    strconv.Itoa(iPort),
 					Address: address,
 					SiteId:  siteId,
-				})
-			case "http":
-				config.AddHttpListener(HttpEndpoint{
-					Name:    name,
-					Port:    strconv.Itoa(iPort),
-					Address: address,
-					SiteId:  siteId,
-				})
-			case "http2":
-				config.AddHttpListener(HttpEndpoint{
-					Name:            name,
-					Port:            strconv.Itoa(iPort),
-					Address:         address,
-					ProtocolVersion: HttpVersion2,
-					SiteId:          siteId,
 				})
 			default:
 			}
