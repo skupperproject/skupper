@@ -38,15 +38,34 @@ files in the internal/api package.
 
 ## Metrics
 
-The network console collector exposes a set of prometheus metrics alongside the
+The network console collector exposes a set of Prometheus metrics alongside the
 API at `/metrics`.
 
-### Application Network Traffic
+### Operational Site Metrics
+
+This set of metrics exposes coarse details pertaining to the operation of a
+site.
+
+* `skupper_site_info`: Metadata about the active sites in the network. Labels are `site_id`, `name` and `version`.
+* `skupper_routers_total`: Number of active routers in each site. Labels are `site_id` and `mode`.
+* `skupper_site_links_total`: Number of links from each site. Counts all router
+  links so may not map directly to the number of links.skupper.io resources in
+  the case of HA deployments. Labels are `site_id`, `status` and `role`.
+* `skupper_site_link_errors_total`: Count of link connection errors from
+  routers in a site. Labels are `site_id` and `role`.
+* `skupper_site_listeners_total`: Number of listeners on each site. Counts all listeners
+  so may not map directly to the number of listeners.skupper.io resources in
+  the case of HA deployments. Label is `site_id`.
+* `skupper_site_connectors_total`: Number of connectors on each site. Counts
+  all connectors so may not map directly to the number of connectors.skupper.io
+  resources in the case of HA deployments or connectors with a selector
+  matching any number of pods. Label is `site_id`.
+
+### Application Network Traffic Metrics
 
 This set of metrics exposes details about service traffic though the skupper
 network. These metrics have a shared set of labels that allow us to expose
 traffic patterns on a per client/service basis.
-
 
 Signals:
 
@@ -76,7 +95,7 @@ Dimensions:
 | source_process_name | The name of the client process as reflected in the collector API |
 | dest_process_name | The name of the server process as reflected in the collector API |
 
-### Application Network Request Traffic (Application Layer)
+### Application Network Request Traffic Metrics (Application Layer)
 
 A proposed set of metrics that expose details about HTTP and HTTP/2 exchanges
 when enabled in the router.
