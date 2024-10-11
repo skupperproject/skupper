@@ -6,22 +6,25 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
 )
 
 type pairManager struct {
-	logger *slog.Logger
-	stor   store.Interface
-	graph  *graph
-	idp    idProvider
-	source store.SourceRef
+	logger          *slog.Logger
+	stor            store.Interface
+	graph           *graph
+	idp             idProvider
+	source          store.SourceRef
+	reconcileMetric prometheus.Observer
 
 	mu          sync.Mutex
 	pairs       map[string]struct{}
 	updatePairs chan ProcPairRecord
 }
 
-func newPairManager(logger *slog.Logger, stor store.Interface, graph *graph) *pairManager {
+func newPairManager(logger *slog.Logger, stor store.Interface, graph *graph, m metrics) *pairManager {
+
 	return &pairManager{
 		logger:      logger,
 		stor:        stor,
@@ -33,6 +36,7 @@ func newPairManager(logger *slog.Logger, stor store.Interface, graph *graph) *pa
 			Version: "0.1",
 			ID:      "self",
 		},
+		reconcileMetric: m.internal.reconcileTime.WithLabelValues("self", "flowpairs"),
 	}
 }
 
@@ -55,6 +59,10 @@ func (m *pairManager) run(ctx context.Context) func() error {
 				}()
 			case pair := <-m.updatePairs:
 				func() {
+					start := time.Now()
+					defer func() {
+						m.reconcileMetric.Observe(time.Since(start).Seconds())
+					}()
 					m.mu.Lock()
 					defer m.mu.Unlock()
 					var (
@@ -143,13 +151,21 @@ func (m *pairManager) handleChangeEvent(event changeEvent, stor readonly) {
 	}
 	switch r := entry.Record.(type) {
 	case ProcPairRecord:
-		m.mu.Lock()
-		defer m.mu.Unlock()
-		if _, ok := m.pairs[r.ID]; ok {
-			return
+		if !m.hasPair(r.ID) {
+			select {
+			case m.updatePairs <- r:
+			default:
+				// skip if queue is full - will eventually be reconciled
+			}
 		}
-		m.updatePairs <- r
 	default:
 	}
 
+}
+
+func (m *pairManager) hasPair(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	_, ok := m.pairs[id]
+	return ok
 }
