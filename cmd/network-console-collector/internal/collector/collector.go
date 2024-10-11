@@ -48,7 +48,7 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 	collector.graph = NewGraph(collector.Records).(*graph)
 	collector.processManager = newProcessManager(logger, collector.Records, collector.graph, newStableIdentityProvider(), collector.metrics)
 	collector.addressManager = newAddressManager(collector.logger, collector.Records)
-	collector.pairManager = newPairManager(logger, collector.Records, collector.graph)
+	collector.pairManager = newPairManager(logger, collector.Records, collector.graph, collector.metrics)
 	routerCfg := collector.recordRouting
 	for _, typ := range standardRecordTypes {
 		routerCfg[typ.String()] = collector.Records
