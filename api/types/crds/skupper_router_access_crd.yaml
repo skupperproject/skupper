@@ -5,7 +5,7 @@ metadata:
 spec:
   group: skupper.io
   versions:
-    - name: v1alpha1
+    - name: v2alpha1
       served: true
       storage: true
       schema:
@@ -38,7 +38,7 @@ spec:
                   type: array
                   items:
                     type: string
-                options:
+                settings:
                   type: object
                   additionalProperties:
                     type: string
@@ -49,6 +49,8 @@ spec:
               type: object
               properties:
                 status:
+                  type: string
+                message:
                   type: string
                 conditions:
                   type: array
@@ -106,6 +108,10 @@ spec:
         type: string
         description: The status of the router access
         jsonPath: .status.status
+      - name: Message
+        type: string
+        description: Any relevant human readable message
+        jsonPath: .status.message
   scope: Namespaced
   names:
     plural: routeraccesses

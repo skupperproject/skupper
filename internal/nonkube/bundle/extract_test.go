@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/utils"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -82,41 +82,41 @@ func fakeSiteCrs(routerAccess bool) (string, error) {
 		return "", err
 	}
 	ss := &api.SiteState{
-		Site: &v1alpha1.Site{
+		Site: &v2alpha1.Site{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "skupper.io/v1alpha1",
+				APIVersion: "skupper.io/v2alpha1",
 				Kind:       "Site",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "my-site",
 			},
 		},
-		Connectors: map[string]*v1alpha1.Connector{
+		Connectors: map[string]*v2alpha1.Connector{
 			"my-backend": {
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "Connector",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "my-backend",
 				},
-				Spec: v1alpha1.ConnectorSpec{
+				Spec: v2alpha1.ConnectorSpec{
 					RoutingKey: "my-backend",
 					Host:       "127.0.0.1",
 					Port:       8080,
 				},
 			},
 		},
-		Listeners: map[string]*v1alpha1.Listener{
+		Listeners: map[string]*v2alpha1.Listener{
 			"my-listener": {
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "Listener",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "my-listener",
 				},
-				Spec: v1alpha1.ListenerSpec{
+				Spec: v2alpha1.ListenerSpec{
 					RoutingKey: "my-listener",
 					Host:       "127.0.0.1",
 					Port:       9090,
@@ -125,17 +125,17 @@ func fakeSiteCrs(routerAccess bool) (string, error) {
 		},
 	}
 	if routerAccess {
-		ss.RouterAccesses = map[string]*v1alpha1.RouterAccess{
+		ss.RouterAccesses = map[string]*v2alpha1.RouterAccess{
 			"default": {
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "RouterAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "default",
 				},
-				Spec: v1alpha1.RouterAccessSpec{
-					Roles: []v1alpha1.RouterAccessRole{
+				Spec: v2alpha1.RouterAccessSpec{
+					Roles: []v2alpha1.RouterAccessRole{
 						{
 							Name: "inter-router",
 							Port: 55671,

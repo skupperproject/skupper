@@ -11,7 +11,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 type IngressAccessType struct {
@@ -28,7 +28,7 @@ func newIngressAccess(manager *SecuredAccessManager, nginx bool, domain string) 
 	}
 }
 
-func (o *IngressAccessType) RealiseAndResolve(access *skupperv1alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv1alpha1.Endpoint, error) {
+func (o *IngressAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv2alpha1.Endpoint, error) {
 	desired := toIngress(qualify(access.Namespace, o.domain), access)
 	if o.nginx {
 		className := "nginx"
@@ -43,9 +43,9 @@ func (o *IngressAccessType) RealiseAndResolve(access *skupperv1alpha1.SecuredAcc
 		return nil, nil
 	}
 
-	var endpoints []skupperv1alpha1.Endpoint
+	var endpoints []skupperv2alpha1.Endpoint
 	for _, rule := range ingress.Spec.Rules {
-		endpoints = append(endpoints, skupperv1alpha1.Endpoint{
+		endpoints = append(endpoints, skupperv2alpha1.Endpoint{
 			Name: prefix(rule.Host),
 			Host: rule.Host,
 			Port: "443",
@@ -70,8 +70,9 @@ func (o *IngressAccessType) ensureIngress(namespace string, ingress *networkingv
 			log.Printf("No change to ingress %s/%s is required", namespace, ingress.Name)
 			return existing, domain != "", nil
 		}
-		existing.Spec = ingress.Spec
-		updated, err := o.manager.clients.GetKubeClient().NetworkingV1().Ingresses(namespace).Update(context.Background(), existing, metav1.UpdateOptions{})
+		copy := *existing
+		copy.Spec = ingress.Spec
+		updated, err := o.manager.clients.GetKubeClient().NetworkingV1().Ingresses(namespace).Update(context.Background(), &copy, metav1.UpdateOptions{})
 		if err != nil {
 			log.Printf("Error on update for ingress %s/%s: %s", namespace, ingress.Name, err)
 			return existing, false, err
@@ -90,7 +91,7 @@ func (o *IngressAccessType) ensureIngress(namespace string, ingress *networkingv
 	return created, domain != "", nil
 }
 
-func toIngress(domain string, access *skupperv1alpha1.SecuredAccess) *networkingv1.Ingress {
+func toIngress(domain string, access *skupperv2alpha1.SecuredAccess) *networkingv1.Ingress {
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: access.Name,

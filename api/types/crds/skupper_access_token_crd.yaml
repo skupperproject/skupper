@@ -5,7 +5,7 @@ metadata:
 spec:
   group: skupper.io
   versions:
-    - name: v1alpha1
+    - name: v2alpha1
       served: true
       storage: true
       schema:
@@ -21,6 +21,10 @@ spec:
                   type: string
                 ca:
                   type: string
+                settings:
+                  type: object
+                  additionalProperties:
+                    type: string
               required:
               - url
               - code
@@ -31,6 +35,8 @@ spec:
                 redeemed:
                   type: boolean
                 status:
+                  type: string
+                message:
                   type: string
                 conditions:
                   type: array
@@ -83,6 +89,10 @@ spec:
         type: string
         description: The status of the access token
         jsonPath: .status.status
+      - name: Message
+        type: string
+        description: Any human readable message relevant to the token
+        jsonPath: .status.message
   scope: Namespaced
   names:
     plural: accesstokens

@@ -17,14 +17,14 @@ import (
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 func Test_postTokenRequest(t *testing.T) {
 	var tests = []struct {
 		name          string
-		token         *v1alpha1.AccessToken
-		site          *v1alpha1.Site
+		token         *v2alpha1.AccessToken
+		site          *v2alpha1.Site
 		code          int
 		body          string
 		err           string
@@ -102,8 +102,8 @@ func (t *TestTripper) RoundTrip(request *http.Request) (*http.Response, error) {
 func Test_handleTokenResponse(t *testing.T) {
 	var tests = []struct {
 		name                 string
-		token                *v1alpha1.AccessToken
-		site                 *v1alpha1.Site
+		token                *v2alpha1.AccessToken
+		site                 *v2alpha1.Site
 		body                 *CertToken
 		failReadAt           int
 		expectedStatus       string
@@ -120,8 +120,8 @@ func Test_handleTokenResponse(t *testing.T) {
 			site:  tf.site("my-site", "test"),
 			body: &CertToken{
 				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
-				links: []*v1alpha1.Link{
-					tf.link("my-token", "", []v1alpha1.Endpoint{
+				links: []*v2alpha1.Link{
+					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
 							Host: "foo",
 							Port: "1234",
@@ -145,8 +145,8 @@ func Test_handleTokenResponse(t *testing.T) {
 			site:  tf.site("my-site", "test"),
 			body: &CertToken{
 				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
-				links: []*v1alpha1.Link{
-					tf.link("my-token", "", []v1alpha1.Endpoint{
+				links: []*v2alpha1.Link{
+					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
 							Host: "foo",
 							Port: "1234",
@@ -163,8 +163,8 @@ func Test_handleTokenResponse(t *testing.T) {
 			site:  tf.site("my-site", "test"),
 			body: &CertToken{
 				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
-				links: []*v1alpha1.Link{
-					tf.link("my-token", "", []v1alpha1.Endpoint{
+				links: []*v2alpha1.Link{
+					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
 							Host: "foo",
 							Port: "1234",
@@ -181,8 +181,8 @@ func Test_handleTokenResponse(t *testing.T) {
 			site:  tf.site("my-site", "test"),
 			body: &CertToken{
 				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
-				links: []*v1alpha1.Link{
-					tf.link("my-token", "", []v1alpha1.Endpoint{
+				links: []*v2alpha1.Link{
+					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
 							Host: "foo",
 							Port: "1234",
@@ -219,11 +219,11 @@ func Test_handleTokenResponse(t *testing.T) {
 			} else if err != nil {
 				t.Error(err)
 			} else {
-				token, err := client.GetSkupperClient().SkupperV1alpha1().AccessTokens("test").Get(context.TODO(), tt.token.Name, metav1.GetOptions{})
+				token, err := client.GetSkupperClient().SkupperV2alpha1().AccessTokens("test").Get(context.TODO(), tt.token.Name, metav1.GetOptions{})
 				if err != nil {
 					t.Error(err)
 				} else {
-					assert.Equal(t, token.Status.StatusMessage, tt.expectedStatus)
+					assert.Equal(t, token.Status.Message, tt.expectedStatus)
 					if tt.expectedSecret != "" {
 						secret, err := client.GetKubeClient().CoreV1().Secrets("test").Get(context.TODO(), tt.expectedSecret, metav1.GetOptions{})
 						if err != nil {
@@ -232,7 +232,7 @@ func Test_handleTokenResponse(t *testing.T) {
 						assert.Assert(t, secret.Data["tls.crt"] != nil)
 					}
 					for _, name := range tt.expectedLinks {
-						link, err := client.GetSkupperClient().SkupperV1alpha1().Links("test").Get(context.TODO(), name, metav1.GetOptions{})
+						link, err := client.GetSkupperClient().SkupperV2alpha1().Links("test").Get(context.TODO(), name, metav1.GetOptions{})
 						if err != nil {
 							t.Error(err)
 						} else {
@@ -252,7 +252,7 @@ func Test_RedeemAccessToken(t *testing.T) {
 		tokenName      string
 		grantUID       string
 		defaultIssuer  string
-		endpoints      []v1alpha1.Endpoint
+		endpoints      []v2alpha1.Endpoint
 		expectedError  string
 		expectedStatus string
 		expectedLinks  []string
@@ -263,7 +263,7 @@ func Test_RedeemAccessToken(t *testing.T) {
 			name:      "simple",
 			scheme:    "https",
 			tokenName: "my-token",
-			endpoints: []v1alpha1.Endpoint{
+			endpoints: []v2alpha1.Endpoint{
 				{
 					Name: "inter-router",
 					Host: "my-link-host",
@@ -284,7 +284,7 @@ func Test_RedeemAccessToken(t *testing.T) {
 			name:      "ha",
 			scheme:    "https",
 			tokenName: "my-token",
-			endpoints: []v1alpha1.Endpoint{
+			endpoints: []v2alpha1.Endpoint{
 				{
 					Name:  "inter-router",
 					Host:  "my-link-host-1",
@@ -319,7 +319,7 @@ func Test_RedeemAccessToken(t *testing.T) {
 			name:      "tls disabled",
 			scheme:    "http",
 			tokenName: "my-token",
-			endpoints: []v1alpha1.Endpoint{
+			endpoints: []v2alpha1.Endpoint{
 				{
 					Name: "inter-router",
 					Host: "my-link-host",
@@ -361,7 +361,7 @@ func Test_RedeemAccessToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client, err := fake.NewFakeClient("test", []runtime.Object{tf.secret("skupper-site-ca", "test", "Test Site CA", nil)}, []runtime.Object{tf.site("my-site", "test"), tf.grant("my-grant", "test", "")}, "")
-			site, err := client.GetSkupperClient().SkupperV1alpha1().Sites("test").Get(context.TODO(), "my-site", metav1.GetOptions{})
+			site, err := client.GetSkupperClient().SkupperV2alpha1().Sites("test").Get(context.TODO(), "my-site", metav1.GetOptions{})
 			if err != nil {
 				t.Error(err)
 			}
@@ -371,7 +371,7 @@ func Test_RedeemAccessToken(t *testing.T) {
 				site.Status.DefaultIssuer = "skupper-site-ca"
 			}
 			site.Status.Endpoints = tt.endpoints
-			site, err = client.GetSkupperClient().SkupperV1alpha1().Sites("test").UpdateStatus(context.TODO(), site, metav1.UpdateOptions{})
+			site, err = client.GetSkupperClient().SkupperV2alpha1().Sites("test").UpdateStatus(context.TODO(), site, metav1.UpdateOptions{})
 			if err != nil {
 				t.Error(err)
 			}
@@ -392,7 +392,7 @@ func Test_RedeemAccessToken(t *testing.T) {
 					grants.recheckCa()
 				}
 			}
-			grant, err := client.GetSkupperClient().SkupperV1alpha1().AccessGrants("test").Get(context.TODO(), "my-grant", metav1.GetOptions{})
+			grant, err := client.GetSkupperClient().SkupperV2alpha1().AccessGrants("test").Get(context.TODO(), "my-grant", metav1.GetOptions{})
 			if err != nil {
 				t.Error(err)
 			}
@@ -405,7 +405,7 @@ func Test_RedeemAccessToken(t *testing.T) {
 			if tt.grantUID != "" {
 				token.Spec.Url = fmt.Sprintf("%s://localhost:%d/%s", tt.scheme, server.port(), tt.grantUID)
 			}
-			token, err = client.GetSkupperClient().SkupperV1alpha1().AccessTokens("test").Create(context.TODO(), token, metav1.CreateOptions{})
+			token, err = client.GetSkupperClient().SkupperV2alpha1().AccessTokens("test").Create(context.TODO(), token, metav1.CreateOptions{})
 			if err != nil {
 				t.Error(err)
 			}
@@ -416,16 +416,16 @@ func Test_RedeemAccessToken(t *testing.T) {
 				t.Error(err)
 			} else {
 				// verify the access token status is redeemed
-				token, err = client.GetSkupperClient().SkupperV1alpha1().AccessTokens("test").Get(context.TODO(), tt.tokenName, metav1.GetOptions{})
+				token, err = client.GetSkupperClient().SkupperV2alpha1().AccessTokens("test").Get(context.TODO(), tt.tokenName, metav1.GetOptions{})
 				if err != nil {
 					t.Error(err)
 				} else {
-					assert.Equal(t, token.Status.StatusMessage, tt.expectedStatus)
+					assert.Equal(t, token.Status.Message, tt.expectedStatus)
 					if tt.expectRedeemed {
-						assert.Assert(t, meta.IsStatusConditionTrue(token.Status.Conditions, v1alpha1.CONDITION_TYPE_REDEEMED))
+						assert.Assert(t, meta.IsStatusConditionTrue(token.Status.Conditions, v2alpha1.CONDITION_TYPE_REDEEMED))
 						// verify we have link(s) and secret as expected
 						for _, name := range tt.expectedLinks {
-							link, err := client.GetSkupperClient().SkupperV1alpha1().Links("test").Get(context.TODO(), name, metav1.GetOptions{})
+							link, err := client.GetSkupperClient().SkupperV2alpha1().Links("test").Get(context.TODO(), name, metav1.GetOptions{})
 							if err != nil {
 								t.Error(err)
 							} else {
@@ -445,7 +445,7 @@ func Test_RedeemAccessToken(t *testing.T) {
 }
 
 type TestTokenGenerator struct {
-	site    *v1alpha1.Site
+	site    *v2alpha1.Site
 	clients internalclient.Clients
 }
 
@@ -458,14 +458,14 @@ func (g *TestTokenGenerator) generate(namespace string, name string, subject str
 	return token.Write(writer)
 }
 
-func newTestTokenGenerator(site *v1alpha1.Site, clients internalclient.Clients) *TestTokenGenerator {
+func newTestTokenGenerator(site *v2alpha1.Site, clients internalclient.Clients) *TestTokenGenerator {
 	return &TestTokenGenerator{
 		site:    site,
 		clients: clients,
 	}
 }
 
-func generator(site *v1alpha1.Site, clients internalclient.Clients) GrantResponse {
+func generator(site *v2alpha1.Site, clients internalclient.Clients) GrantResponse {
 	return newTestTokenGenerator(site, clients).generate
 }
 
@@ -500,18 +500,18 @@ func Test_updateAccessTokenStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			client, _ := fake.NewFakeClient("test", nil, []runtime.Object{tf.token("my-token", "test", "", "", "")}, "")
 			for _, err := range tt.errs {
-				token, apiError := client.GetSkupperClient().SkupperV1alpha1().AccessTokens("test").Get(context.TODO(), "my-token", metav1.GetOptions{})
+				token, apiError := client.GetSkupperClient().SkupperV2alpha1().AccessTokens("test").Get(context.TODO(), "my-token", metav1.GetOptions{})
 				if apiError != nil {
 					t.Error(apiError)
 				} else {
 					updateAccessTokenStatus(token, err, client)
 				}
 			}
-			token, apiError := client.GetSkupperClient().SkupperV1alpha1().AccessTokens("test").Get(context.TODO(), "my-token", metav1.GetOptions{})
+			token, apiError := client.GetSkupperClient().SkupperV2alpha1().AccessTokens("test").Get(context.TODO(), "my-token", metav1.GetOptions{})
 			if apiError != nil {
 				t.Error(apiError)
 			} else {
-				assert.Equal(t, token.Status.StatusMessage, tt.expectedStatus)
+				assert.Equal(t, token.Status.Message, tt.expectedStatus)
 			}
 		})
 	}

@@ -8,7 +8,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
@@ -65,13 +65,13 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				Timeout:       1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector-type",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -93,13 +93,13 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				Timeout:    60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector-rk",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -121,13 +121,13 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				Timeout:   50 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector-tls",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -148,13 +148,13 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				Timeout: 40 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector-port",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -176,13 +176,13 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				Timeout:  70 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "bad-workload",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -204,13 +204,13 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				Timeout:  1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "bad-selector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -234,13 +234,13 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				Host:     "test",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "selector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -265,13 +265,13 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				Host:     "test",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "workload",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -313,13 +313,13 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				Timeout:  1 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "bad-timeout",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -340,13 +340,13 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				Timeout: 10 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "bad-output",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -373,13 +373,13 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				Output:          "json",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector-flags",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -440,13 +440,13 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 				Workload: "deployment/backend",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "workload-deployment",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -469,13 +469,13 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 				Workload: "deployment/backend",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "workload-deployment-no-labels",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -511,13 +511,13 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 				Workload: "deployment/backend",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "workload-deployment",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -558,13 +558,13 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 				Workload: "service/backend",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "workload-no-service",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -587,13 +587,13 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 				Workload: "service/backend",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "workload-service-no-labels",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -627,13 +627,13 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 				Workload: "service/backend",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "workload-service",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -672,13 +672,13 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 				Workload: "daemonset/backend",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "workload-no-daemonset",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -701,13 +701,13 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 				Workload: "daemonset/backend",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "workload-daemonset-no-labels",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -743,13 +743,13 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 				Workload: "DaemonSet/backend",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "workload-daemonset",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -790,13 +790,13 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 				Workload: "StatefulSet/backend",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "workload-no-statefulset",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -819,13 +819,13 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 				Workload: "statefulset/backend",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "workload-statefulset-no-labels",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -861,13 +861,13 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 				Workload: "statefulset/backend",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "workload-statefulset",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -949,13 +949,13 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 				timeout:         10 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector-ok",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -983,13 +983,13 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 				output:          "json",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector-json",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -1037,12 +1037,12 @@ func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 		{
 			name: "connector is not ready",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{},
+					Status: v2alpha1.ConnectorStatus{},
 				},
 			},
 			expectError: true,
@@ -1054,13 +1054,13 @@ func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 		{
 			name: "connector is ready",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -1077,13 +1077,13 @@ func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 			name:   "connector is ready json output",
 			output: "json",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -1133,7 +1133,7 @@ func newCmdConnectorUpdateWithMocks(namespace string, k8sObjects []runtime.Objec
 		return nil, err
 	}
 	cmdConnectorUpdate := &CmdConnectorUpdate{
-		client:     client.GetSkupperClient().SkupperV1alpha1(),
+		client:     client.GetSkupperClient().SkupperV2alpha1(),
 		KubeClient: client.GetKubeClient(),
 		namespace:  namespace,
 	}

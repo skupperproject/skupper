@@ -4,14 +4,14 @@ import (
 	"reflect"
 	"strings"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
 type Link struct {
 	name        string
 	profilePath string
-	definition  *skupperv1alpha1.Link
+	definition  *skupperv2alpha1.Link
 }
 
 func NewLink(name string, profilePath string) *Link {
@@ -47,7 +47,7 @@ func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	return true //TODO: optimise by indicating if no change was actually needed
 }
 
-func sslProfileName(link *skupperv1alpha1.Link) string {
+func sslProfileName(link *skupperv2alpha1.Link) string {
 	return link.Spec.TlsCredentials + "-profile"
 }
 
@@ -68,13 +68,13 @@ func (m LinkMap) Apply(current *qdr.RouterConfig) bool {
 	return true //TODO: can optimise by indicating if no change was required
 }
 
-func (link *Link) Update(definition *skupperv1alpha1.Link) bool {
+func (link *Link) Update(definition *skupperv2alpha1.Link) bool {
 	changed := !reflect.DeepEqual(link.definition, definition)
 	link.definition = definition
 	return changed
 }
 
-func (link *Link) Definition() *skupperv1alpha1.Link {
+func (link *Link) Definition() *skupperv2alpha1.Link {
 	return link.definition
 }
 

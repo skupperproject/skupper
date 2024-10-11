@@ -12,8 +12,8 @@ import (
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	fakev1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	fakev2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1/fake"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
@@ -155,7 +155,7 @@ func Test_configure(t *testing.T) {
 				t.Error(err)
 			} else {
 				// verify that Certificate & SecuredAccess exist and match expectations
-				cert, err := client.GetSkupperClient().SkupperV1alpha1().Certificates(tt.namespace).Get(context.Background(), "skupper-grant-server-ca", metav1.GetOptions{})
+				cert, err := client.GetSkupperClient().SkupperV2alpha1().Certificates(tt.namespace).Get(context.Background(), "skupper-grant-server-ca", metav1.GetOptions{})
 				if err != nil {
 					t.Error(err)
 				}
@@ -166,7 +166,7 @@ func Test_configure(t *testing.T) {
 				assert.Equal(t, cert.Spec.Server, false)
 				assert.DeepEqual(t, cert.ObjectMeta.OwnerReferences, tt.expectedOwnerRefs)
 
-				sa, err := client.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(tt.namespace).Get(context.Background(), "skupper-grant-server", metav1.GetOptions{})
+				sa, err := client.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(tt.namespace).Get(context.Background(), "skupper-grant-server", metav1.GetOptions{})
 				if err != nil {
 					t.Error(err)
 				}
@@ -208,8 +208,8 @@ func Test_newAutoconfigure(t *testing.T) {
 				Port:     9090,
 				Hostname: "my-pod",
 			}
-			var found *v1alpha1.SecuredAccess
-			handler := func(key string, sa *v1alpha1.SecuredAccess) error {
+			var found *v2alpha1.SecuredAccess
+			handler := func(key string, sa *v2alpha1.SecuredAccess) error {
 				found = sa
 				return nil
 			}
@@ -256,7 +256,7 @@ type SkupperClientError struct {
 }
 
 func (e *SkupperClientError) prepend(client internalclient.Clients) {
-	client.GetSkupperClient().SkupperV1alpha1().(*fakev1alpha1.FakeSkupperV1alpha1).PrependReactor(e.verb, e.resource, func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+	client.GetSkupperClient().SkupperV2alpha1().(*fakev2alpha1.FakeSkupperV2alpha1).PrependReactor(e.verb, e.resource, func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, errors.New(e.err)
 	})
 }

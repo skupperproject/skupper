@@ -3,7 +3,7 @@ package common
 import (
 	"testing"
 
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -61,7 +61,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 			info: "invalid-link-access-roles-required",
 			siteState: customize(func(siteState *api.SiteState) {
 				for _, la := range siteState.RouterAccesses {
-					la.Spec.Roles = make([]v1alpha1.RouterAccessRole, 0)
+					la.Spec.Roles = make([]v2alpha1.RouterAccessRole, 0)
 					break
 				}
 			}),
@@ -204,10 +204,10 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		{
 			info: "invalid-claim-name",
 			siteState: customize(func(siteState *api.SiteState) {
-				siteState.Claims["bad_name"] = &v1alpha1.AccessToken{
+				siteState.Claims["bad_name"] = &v2alpha1.AccessToken{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Claim",
-						APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						APIVersion: v2alpha1.SchemeGroupVersion.String(),
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "bad_name",
@@ -220,10 +220,10 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 		{
 			info: "invalid-grant-name",
 			siteState: customize(func(siteState *api.SiteState) {
-				siteState.Grants["bad_name"] = &v1alpha1.AccessGrant{
+				siteState.Grants["bad_name"] = &v2alpha1.AccessGrant{
 					TypeMeta: metav1.TypeMeta{
 						Kind:       "Grant",
-						APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						APIVersion: v2alpha1.SchemeGroupVersion.String(),
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "bad_name",

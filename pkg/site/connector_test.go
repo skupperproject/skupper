@@ -3,7 +3,7 @@ package site
 import (
 	"testing"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,7 +12,7 @@ import (
 func TestUpdateBridgeConfigForConnector(t *testing.T) {
 	type args struct {
 		siteId    string
-		connector *skupperv1alpha1.Connector
+		connector *skupperv2alpha1.Connector
 		config    qdr.BridgeConfig
 	}
 	tests := []struct {
@@ -25,12 +25,12 @@ func TestUpdateBridgeConfigForConnector(t *testing.T) {
 			name: "no spec type",
 			args: args{
 				siteId: "my-site-123",
-				connector: &skupperv1alpha1.Connector{
+				connector: &skupperv2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "echo",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.ConnectorSpec{
+					Spec: skupperv2alpha1.ConnectorSpec{
 						RoutingKey: "echo:9090",
 						Host:       "10.10.10.1",
 						Port:       9090,
@@ -46,12 +46,12 @@ func TestUpdateBridgeConfigForConnector(t *testing.T) {
 			name: "tcp spec type",
 			args: args{
 				siteId: "my-site-123",
-				connector: &skupperv1alpha1.Connector{
+				connector: &skupperv2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "echo",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.ConnectorSpec{
+					Spec: skupperv2alpha1.ConnectorSpec{
 						RoutingKey: "echo:9090",
 						Host:       "10.10.10.1",
 						Port:       9090,
@@ -67,12 +67,12 @@ func TestUpdateBridgeConfigForConnector(t *testing.T) {
 			name: "bad spec type",
 			args: args{
 				siteId: "my-site-123",
-				connector: &skupperv1alpha1.Connector{
+				connector: &skupperv2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-web",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.ConnectorSpec{
+					Spec: skupperv2alpha1.ConnectorSpec{
 						RoutingKey: "my-web:8080",
 						Host:       "10.10.10.1",
 						Port:       8080,

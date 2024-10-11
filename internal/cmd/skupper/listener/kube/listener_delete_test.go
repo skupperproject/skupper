@@ -8,7 +8,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -60,13 +60,13 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 			name: "timeout is not valid",
 			args: []string{"bad-timeout"},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "bad-timeout",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -115,13 +115,13 @@ func TestCmdListenerDelete_Run(t *testing.T) {
 			name:         "runs ok",
 			listenerName: "listener-delete",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "listener-delete",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -173,13 +173,13 @@ func TestCmdListenerDelete_WaitUntil(t *testing.T) {
 		{
 			name: "error deleting listener",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -230,7 +230,7 @@ func newCmdListenerDeleteWithMocks(namespace string, k8sObjects []runtime.Object
 		return nil, err
 	}
 	cmdListenerDelete := &CmdListenerDelete{
-		client:    client.GetSkupperClient().SkupperV1alpha1(),
+		client:    client.GetSkupperClient().SkupperV2alpha1(),
 		namespace: namespace,
 	}
 	return cmdListenerDelete, nil

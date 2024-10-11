@@ -17,10 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
-func RedeemAccessToken(token *skupperv1alpha1.AccessToken, site *skupperv1alpha1.Site, clients internalclient.Clients) error {
+func RedeemAccessToken(token *skupperv2alpha1.AccessToken, site *skupperv2alpha1.Site, clients internalclient.Clients) error {
 	transport := &http.Transport{
 		TLSClientConfig: tlsConfig(token),
 	}
@@ -32,7 +32,7 @@ func RedeemAccessToken(token *skupperv1alpha1.AccessToken, site *skupperv1alpha1
 	return handleTokenResponse(body, token, site, clients)
 }
 
-func tlsConfig(token *skupperv1alpha1.AccessToken) *tls.Config {
+func tlsConfig(token *skupperv2alpha1.AccessToken) *tls.Config {
 	if token.Spec.Ca == "" {
 		return nil
 	}
@@ -43,7 +43,7 @@ func tlsConfig(token *skupperv1alpha1.AccessToken) *tls.Config {
 	}
 }
 
-func postTokenRequest(token *skupperv1alpha1.AccessToken, site *skupperv1alpha1.Site, transport http.RoundTripper) (io.Reader, error) {
+func postTokenRequest(token *skupperv2alpha1.AccessToken, site *skupperv2alpha1.Site, transport http.RoundTripper) (io.Reader, error) {
 	client := &http.Client{
 		Transport: transport,
 	}
@@ -64,7 +64,7 @@ func postTokenRequest(token *skupperv1alpha1.AccessToken, site *skupperv1alpha1.
 	return response.Body, nil
 }
 
-func handleTokenResponse(body io.Reader, token *skupperv1alpha1.AccessToken, site *skupperv1alpha1.Site, clients internalclient.Clients) error {
+func handleTokenResponse(body io.Reader, token *skupperv2alpha1.AccessToken, site *skupperv2alpha1.Site, clients internalclient.Clients) error {
 	decoder := newLinkDecoder(body)
 	if err := decoder.decodeAll(); err != nil {
 		log.Printf("Could not decode response for AccessToken %s/%s: %s", token.Namespace, token.Name, err)
@@ -73,7 +73,7 @@ func handleTokenResponse(body io.Reader, token *skupperv1alpha1.AccessToken, sit
 	refs := []metav1.OwnerReference{
 		{
 			Kind:       "Site",
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Name:       site.Name,
 			UID:        site.ObjectMeta.UID,
 		},
@@ -84,7 +84,7 @@ func handleTokenResponse(body io.Reader, token *skupperv1alpha1.AccessToken, sit
 	}
 	for _, link := range decoder.links {
 		link.ObjectMeta.OwnerReferences = refs
-		if _, err := clients.GetSkupperClient().SkupperV1alpha1().Links(token.ObjectMeta.Namespace).Create(context.TODO(), &link, metav1.CreateOptions{}); err != nil {
+		if _, err := clients.GetSkupperClient().SkupperV2alpha1().Links(token.ObjectMeta.Namespace).Create(context.TODO(), &link, metav1.CreateOptions{}); err != nil {
 			return updateAccessTokenStatus(token, fmt.Errorf("Could not create received link: %s", err), clients)
 		}
 	}
@@ -92,9 +92,9 @@ func handleTokenResponse(body io.Reader, token *skupperv1alpha1.AccessToken, sit
 	return updateAccessTokenStatus(token, nil, clients)
 }
 
-func updateAccessTokenStatus(token *skupperv1alpha1.AccessToken, err error, clients internalclient.Clients) error {
+func updateAccessTokenStatus(token *skupperv2alpha1.AccessToken, err error, clients internalclient.Clients) error {
 	if token.SetRedeemed(err) {
-		_, err = clients.GetSkupperClient().SkupperV1alpha1().AccessTokens(token.ObjectMeta.Namespace).UpdateStatus(context.TODO(), token, metav1.UpdateOptions{})
+		_, err = clients.GetSkupperClient().SkupperV2alpha1().AccessTokens(token.ObjectMeta.Namespace).UpdateStatus(context.TODO(), token, metav1.UpdateOptions{})
 		return err
 	}
 	return nil
@@ -103,7 +103,7 @@ func updateAccessTokenStatus(token *skupperv1alpha1.AccessToken, err error, clie
 type LinkDecoder struct {
 	decoder *yaml.YAMLOrJSONDecoder
 	secret  corev1.Secret
-	links   []skupperv1alpha1.Link
+	links   []skupperv2alpha1.Link
 }
 
 func newLinkDecoder(r io.Reader) *LinkDecoder {
@@ -117,7 +117,7 @@ func (d *LinkDecoder) decodeSecret() error {
 }
 
 func (d *LinkDecoder) decodeLink() error {
-	var link skupperv1alpha1.Link
+	var link skupperv2alpha1.Link
 	if err := d.decoder.Decode(&link); err != nil {
 		return err
 	}

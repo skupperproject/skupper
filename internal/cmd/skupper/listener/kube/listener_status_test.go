@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -52,20 +52,20 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 			args:  []string{"out-listener"},
 			flags: common.CommandListenerStatusFlags{Output: "not-supported"},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ListenerList{
-					Items: []v1alpha1.Listener{
+				&v2alpha1.ListenerList{
+					Items: []v2alpha1.Listener{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "out-listener",
 								Namespace: "test",
 							},
-							Spec: v1alpha1.ListenerSpec{
+							Spec: v2alpha1.ListenerSpec{
 								Port: 8080,
 								Type: "tcp",
 								Host: "test",
 							},
-							Status: v1alpha1.ListenerStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ListenerStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -131,15 +131,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 			name:         "runs ok, returns 1 listener",
 			listenerName: "listener1",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ListenerList{
-					Items: []v1alpha1.Listener{
+				&v2alpha1.ListenerList{
+					Items: []v2alpha1.Listener{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "listener1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ListenerStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ListenerStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -158,20 +158,20 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 			listenerName: "listener-yaml",
 			flags:        common.CommandListenerStatusFlags{Output: "yaml"},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ListenerList{
-					Items: []v1alpha1.Listener{
+				&v2alpha1.ListenerList{
+					Items: []v2alpha1.Listener{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "listener-yaml",
 								Namespace: "test",
 							},
-							Spec: v1alpha1.ListenerSpec{
+							Spec: v2alpha1.ListenerSpec{
 								Port: 8080,
 								Type: "tcp",
 								Host: "test",
 							},
-							Status: v1alpha1.ListenerStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ListenerStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -188,15 +188,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 		{
 			name: "returns all listeners",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ListenerList{
-					Items: []v1alpha1.Listener{
+				&v2alpha1.ListenerList{
+					Items: []v2alpha1.Listener{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "my-listener1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ListenerStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ListenerStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -211,8 +211,8 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 								Name:      "my-listener2",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ListenerStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ListenerStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -230,15 +230,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 			name:  "returns all listeners output json",
 			flags: common.CommandListenerStatusFlags{Output: "json"},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ListenerList{
-					Items: []v1alpha1.Listener{
+				&v2alpha1.ListenerList{
+					Items: []v2alpha1.Listener{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "my-listener1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ListenerStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ListenerStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -253,8 +253,8 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 								Name:      "my-listener2",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ListenerStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ListenerStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -272,15 +272,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 			name:  "returns all listeners output bad",
 			flags: common.CommandListenerStatusFlags{Output: "bad-value"},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ListenerList{
-					Items: []v1alpha1.Listener{
+				&v2alpha1.ListenerList{
+					Items: []v2alpha1.Listener{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "my-listener1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ListenerStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ListenerStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -295,8 +295,8 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 								Name:      "my-listener2",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ListenerStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ListenerStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -316,15 +316,15 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 			listenerName: "my-listener",
 			flags:        common.CommandListenerStatusFlags{Output: "bad-value"},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ListenerList{
-					Items: []v1alpha1.Listener{
+				&v2alpha1.ListenerList{
+					Items: []v2alpha1.Listener{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "my-listener",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ListenerStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ListenerStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -370,7 +370,7 @@ func newCmdListenerStatusWithMocks(namespace string, k8sObjects []runtime.Object
 		return nil, err
 	}
 	cmdListenerStatus := &CmdListenerStatus{
-		client:    client.GetSkupperClient().SkupperV1alpha1(),
+		client:    client.GetSkupperClient().SkupperV2alpha1(),
 		namespace: namespace,
 	}
 	return cmdListenerStatus, nil

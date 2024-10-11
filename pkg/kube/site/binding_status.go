@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 type BindingStatus struct {
@@ -17,7 +17,7 @@ type BindingStatus struct {
 	logger     *slog.Logger
 }
 
-func newBindingStatus(client internalclient.Clients, network []skupperv1alpha1.SiteRecord) *BindingStatus {
+func newBindingStatus(client internalclient.Clients, network []skupperv2alpha1.SiteRecord) *BindingStatus {
 	s := &BindingStatus{
 		client:     client,
 		connectors: map[string][]string{},
@@ -30,7 +30,7 @@ func newBindingStatus(client internalclient.Clients, network []skupperv1alpha1.S
 	return s
 }
 
-func (s *BindingStatus) populate(network []skupperv1alpha1.SiteRecord) {
+func (s *BindingStatus) populate(network []skupperv2alpha1.SiteRecord) {
 	for _, site := range network {
 		for _, svc := range site.Services {
 			connectors := s.connectors[svc.RoutingKey]
@@ -48,7 +48,7 @@ func (s *BindingStatus) populate(network []skupperv1alpha1.SiteRecord) {
 	}
 }
 
-func (s *BindingStatus) updateMatchingListenerCount(connector *skupperv1alpha1.Connector) *skupperv1alpha1.Connector {
+func (s *BindingStatus) updateMatchingListenerCount(connector *skupperv2alpha1.Connector) *skupperv2alpha1.Connector {
 	if connector.SetMatchingListenerCount(len(s.listeners[connector.Spec.RoutingKey])) {
 		updated, err := updateConnectorStatus(s.client, connector)
 		if err != nil {
@@ -63,7 +63,7 @@ func (s *BindingStatus) updateMatchingListenerCount(connector *skupperv1alpha1.C
 	return nil
 }
 
-func (s *BindingStatus) updateMatchingConnectorCount(listener *skupperv1alpha1.Listener) *skupperv1alpha1.Listener {
+func (s *BindingStatus) updateMatchingConnectorCount(listener *skupperv2alpha1.Listener) *skupperv2alpha1.Listener {
 	if listener.SetMatchingConnectorCount(len(s.connectors[listener.Spec.RoutingKey])) {
 		updated, err := updateListenerStatus(s.client, listener)
 		if err != nil {

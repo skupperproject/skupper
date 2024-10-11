@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -26,31 +26,31 @@ type StaticSiteStateRenderer interface {
 
 type SiteState struct {
 	SiteId          string
-	Site            *v1alpha1.Site
-	Listeners       map[string]*v1alpha1.Listener
-	Connectors      map[string]*v1alpha1.Connector
-	RouterAccesses  map[string]*v1alpha1.RouterAccess
-	Grants          map[string]*v1alpha1.AccessGrant
-	Links           map[string]*v1alpha1.Link
+	Site            *v2alpha1.Site
+	Listeners       map[string]*v2alpha1.Listener
+	Connectors      map[string]*v2alpha1.Connector
+	RouterAccesses  map[string]*v2alpha1.RouterAccess
+	Grants          map[string]*v2alpha1.AccessGrant
+	Links           map[string]*v2alpha1.Link
 	Secrets         map[string]*corev1.Secret
-	Claims          map[string]*v1alpha1.AccessToken
-	Certificates    map[string]*v1alpha1.Certificate
-	SecuredAccesses map[string]*v1alpha1.SecuredAccess
+	Claims          map[string]*v2alpha1.AccessToken
+	Certificates    map[string]*v2alpha1.Certificate
+	SecuredAccesses map[string]*v2alpha1.SecuredAccess
 	bundle          bool
 }
 
 func NewSiteState(bundle bool) *SiteState {
 	return &SiteState{
-		Site:            &v1alpha1.Site{},
-		Listeners:       make(map[string]*v1alpha1.Listener),
-		Connectors:      make(map[string]*v1alpha1.Connector),
-		RouterAccesses:  map[string]*v1alpha1.RouterAccess{},
-		Grants:          make(map[string]*v1alpha1.AccessGrant),
-		Links:           make(map[string]*v1alpha1.Link),
+		Site:            &v2alpha1.Site{},
+		Listeners:       make(map[string]*v2alpha1.Listener),
+		Connectors:      make(map[string]*v2alpha1.Connector),
+		RouterAccesses:  map[string]*v2alpha1.RouterAccess{},
+		Grants:          make(map[string]*v2alpha1.AccessGrant),
+		Links:           make(map[string]*v2alpha1.Link),
 		Secrets:         make(map[string]*corev1.Secret),
-		Claims:          make(map[string]*v1alpha1.AccessToken),
-		Certificates:    map[string]*v1alpha1.Certificate{},
-		SecuredAccesses: map[string]*v1alpha1.SecuredAccess{},
+		Claims:          make(map[string]*v2alpha1.AccessToken),
+		Certificates:    map[string]*v2alpha1.Certificate{},
+		SecuredAccesses: map[string]*v2alpha1.SecuredAccess{},
 		bundle:          bundle,
 	}
 }
@@ -86,17 +86,17 @@ func (s *SiteState) CreateRouterAccess(name string, port int) {
 	tlsCaName := fmt.Sprintf("%s-ca", name)
 	tlsServerName := fmt.Sprintf("%s-server", name)
 	tlsClientName := fmt.Sprintf("%s-client", name)
-	s.RouterAccesses[name] = &v1alpha1.RouterAccess{
+	s.RouterAccesses[name] = &v2alpha1.RouterAccess{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "RouterAccess",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: s.GetNamespace(),
 		},
-		Spec: v1alpha1.RouterAccessSpec{
-			Roles: []v1alpha1.RouterAccessRole{
+		Spec: v2alpha1.RouterAccessSpec{
+			Roles: []v2alpha1.RouterAccessRole{
 				{
 					Name: "normal",
 					Port: port,
@@ -108,18 +108,18 @@ func (s *SiteState) CreateRouterAccess(name string, port int) {
 		},
 	}
 	s.RouterAccesses[name].SetConfigured(nil)
-	s.Certificates[tlsCaName] = s.newCertificate(tlsCaName, &v1alpha1.CertificateSpec{
+	s.Certificates[tlsCaName] = s.newCertificate(tlsCaName, &v2alpha1.CertificateSpec{
 		Subject: tlsCaName,
 		Hosts:   []string{"127.0.0.1", "localhost"},
 		Signing: true,
 	})
-	s.Certificates[tlsServerName] = s.newCertificate(tlsServerName, &v1alpha1.CertificateSpec{
+	s.Certificates[tlsServerName] = s.newCertificate(tlsServerName, &v2alpha1.CertificateSpec{
 		Subject: "127.0.0.1",
 		Hosts:   []string{"127.0.0.1", "localhost"},
 		Ca:      tlsCaName,
 		Server:  true,
 	})
-	s.Certificates[tlsClientName] = s.newCertificate(tlsClientName, &v1alpha1.CertificateSpec{
+	s.Certificates[tlsClientName] = s.newCertificate(tlsClientName, &v2alpha1.CertificateSpec{
 		Subject: "127.0.0.1",
 		Hosts:   []string{"127.0.0.1", "localhost"},
 		Ca:      tlsCaName,
@@ -129,7 +129,7 @@ func (s *SiteState) CreateRouterAccess(name string, port int) {
 
 func (s *SiteState) CreateLinkAccessesCertificates() {
 	caName := fmt.Sprintf("skupper-site-ca")
-	s.Certificates[caName] = s.newCertificate(caName, &v1alpha1.CertificateSpec{
+	s.Certificates[caName] = s.newCertificate(caName, &v2alpha1.CertificateSpec{
 		Subject: caName,
 		Signing: true,
 	})
@@ -154,7 +154,7 @@ func (s *SiteState) CreateLinkAccessesCertificates() {
 			linkAccessCaName = linkAccess.Spec.Issuer
 		}
 		if linkAccessCaName != caName {
-			s.Certificates[linkAccessCaName] = s.newCertificate(linkAccessCaName, &v1alpha1.CertificateSpec{
+			s.Certificates[linkAccessCaName] = s.newCertificate(linkAccessCaName, &v2alpha1.CertificateSpec{
 				Subject: linkAccessCaName,
 				Signing: true,
 			})
@@ -165,14 +165,14 @@ func (s *SiteState) CreateLinkAccessesCertificates() {
 		} else {
 			linkAccess.Spec.TlsCredentials = name
 		}
-		s.Certificates[certName] = s.newCertificate(certName, &v1alpha1.CertificateSpec{
+		s.Certificates[certName] = s.newCertificate(certName, &v2alpha1.CertificateSpec{
 			Ca:      linkAccessCaName,
 			Subject: name,
 			Hosts:   hosts,
 			Server:  true,
 		})
 		clientCertificateName := fmt.Sprintf("client-%s", certName)
-		s.Certificates[clientCertificateName] = s.newCertificate(clientCertificateName, &v1alpha1.CertificateSpec{
+		s.Certificates[clientCertificateName] = s.newCertificate(clientCertificateName, &v2alpha1.CertificateSpec{
 			Ca:      linkAccessCaName,
 			Subject: clientCertificateName,
 			Client:  true,
@@ -184,13 +184,13 @@ func (s *SiteState) CreateLinkAccessesCertificates() {
 
 func (s *SiteState) CreateBridgeCertificates() {
 	caName := fmt.Sprintf("skupper-service-ca")
-	s.Certificates[caName] = s.newCertificate(caName, &v1alpha1.CertificateSpec{
+	s.Certificates[caName] = s.newCertificate(caName, &v2alpha1.CertificateSpec{
 		Subject: caName,
 		Signing: true,
 	})
 	for _, listener := range s.Listeners {
 		if listener.Spec.TlsCredentials != "" {
-			s.Certificates[listener.Spec.TlsCredentials] = s.newCertificate(listener.Spec.TlsCredentials, &v1alpha1.CertificateSpec{
+			s.Certificates[listener.Spec.TlsCredentials] = s.newCertificate(listener.Spec.TlsCredentials, &v2alpha1.CertificateSpec{
 				Ca:      caName,
 				Subject: listener.Spec.Host,
 				Hosts:   []string{listener.Spec.Host},
@@ -200,7 +200,7 @@ func (s *SiteState) CreateBridgeCertificates() {
 	}
 	for _, connector := range s.Connectors {
 		if connector.Spec.TlsCredentials != "" {
-			s.Certificates[connector.Spec.TlsCredentials] = s.newCertificate(connector.Spec.TlsCredentials, &v1alpha1.CertificateSpec{
+			s.Certificates[connector.Spec.TlsCredentials] = s.newCertificate(connector.Spec.TlsCredentials, &v2alpha1.CertificateSpec{
 				Ca:      caName,
 				Subject: connector.Spec.Host,
 				Hosts:   []string{connector.Spec.Host},
@@ -210,10 +210,10 @@ func (s *SiteState) CreateBridgeCertificates() {
 	}
 }
 
-func (s *SiteState) newCertificate(name string, spec *v1alpha1.CertificateSpec) *v1alpha1.Certificate {
-	return &v1alpha1.Certificate{
+func (s *SiteState) newCertificate(name string, spec *v2alpha1.CertificateSpec) *v2alpha1.Certificate {
+	return &v2alpha1.Certificate{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "Certificate",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -221,9 +221,9 @@ func (s *SiteState) newCertificate(name string, spec *v1alpha1.CertificateSpec) 
 			Namespace: s.GetNamespace(),
 		},
 		Spec: *spec,
-		Status: v1alpha1.CertificateStatus{
-			Status: v1alpha1.Status{
-				StatusMessage: v1alpha1.STATUS_OK,
+		Status: v2alpha1.CertificateStatus{
+			Status: v2alpha1.Status{
+				Message: v2alpha1.STATUS_OK,
 			},
 		},
 	}

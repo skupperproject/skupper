@@ -8,7 +8,7 @@ import (
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,14 +47,14 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			args:       []string{"my", "site"},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -67,25 +67,25 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			args:       []string{},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "another-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -98,25 +98,25 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			args:       []string{"special-site"},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "another-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -129,25 +129,25 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			args:       []string{"my-site"},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "another-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -160,14 +160,14 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			args:       []string{"siteb"},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -180,14 +180,14 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			args:       []string{},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -201,14 +201,14 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			flags:      &common.CommandSiteDeleteFlags{Timeout: time.Second * 0},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -228,7 +228,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
 
-			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 
 			if test.flags != nil {
 				command.Flags = test.flags
@@ -288,14 +288,14 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 			name:       "runs ok",
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 							Conditions: []v1.Condition{
 								{
 									Message:            "OK",
@@ -329,7 +329,7 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 
 		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 		assert.Assert(t, err)
-		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 
 		command.siteName = test.siteName
 
@@ -359,14 +359,14 @@ func TestCmdSiteDelete_WaitUntil(t *testing.T) {
 			name:       "site is not deleted",
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 							Conditions: []v1.Condition{
 								{
 									Message:            "OK",
@@ -400,7 +400,7 @@ func TestCmdSiteDelete_WaitUntil(t *testing.T) {
 		utils.SetRetryProfile(utils.TestRetryProfile)
 		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 		assert.Assert(t, err)
-		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 		command.siteName = "my-site"
 		command.timeout = time.Second
 

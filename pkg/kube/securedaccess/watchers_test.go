@@ -10,8 +10,8 @@ import (
 	fakeroute "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1/fake"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	fakev1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	fakev2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1/fake"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"gotest.tools/assert"
 	"gotest.tools/assert/cmp"
@@ -44,7 +44,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 		expectedIngresses    []*networkingv1.Ingress
 		expectedProxies      []ExpectedHttpProxy
 		expectedCertificates []MockCertificate
-		expectedStatuses     []*skupperv1alpha1.SecuredAccess
+		expectedStatuses     []*skupperv2alpha1.SecuredAccess
 	}{
 		{
 			name: "simple loadbalancer recovery",
@@ -60,7 +60,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			expectedServices: []*corev1.Service{
 				service("mysvc", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts()),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "OK", endpoint("a", "8080", "10.1.1.10"), endpoint("b", "9090", "10.1.1.10")),
 			},
 		},
@@ -90,7 +90,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			expectedServices: []*corev1.Service{
 				service("mysvc", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts()),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "OK", endpoint("a", "8080", "10.1.1.10"), endpoint("b", "9090", "10.1.1.10")),
 			},
 		},
@@ -108,7 +108,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			expectedServices: []*corev1.Service{
 				service("mysvc", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts()),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "OK", endpoint("a", "8080", "10.1.1.10"), endpoint("b", "9090", "10.1.1.10")),
 			},
 		},
@@ -126,7 +126,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			expectedServices: []*corev1.Service{
 				service("mysvc", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts()),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "OK", endpoint("a", "8080", "10.1.1.10"), endpoint("b", "9090", "10.1.1.10")),
 			},
 		},
@@ -144,7 +144,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			expectedServices: []*corev1.Service{
 				service("mysvc", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts()),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "OK", endpoint("a", "8080", "10.1.1.10"), endpoint("b", "9090", "10.1.1.10")),
 			},
 		},
@@ -166,8 +166,8 @@ func TestSecuredAccessRecovery(t *testing.T) {
 				route("mysvc-a", "test", "mysvc", "a", ""),
 				route("mysvc-b", "test", "mysvc", "b", ""),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
-				status("mysvc", "test", ""),
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
+				status("mysvc", "test", "Pending"),
 			},
 		},
 		{
@@ -190,8 +190,8 @@ func TestSecuredAccessRecovery(t *testing.T) {
 				route("mysvc-a", "test", "mysvc", "a", ""),
 				route("mysvc-b", "test", "mysvc", "b", ""),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
-				status("mysvc", "test", ""),
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
+				status("mysvc", "test", "Pending"),
 			},
 		},
 		{
@@ -211,8 +211,8 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			expectedIngresses: []*networkingv1.Ingress{
 				ingress("mysvc", "test", ingressRule("a.test", "mysvc", 8080), ingressRule("b.test", "mysvc", 9090)),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
-				status("mysvc", "test", ""),
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
+				status("mysvc", "test", "Pending"),
 			},
 		},
 		{
@@ -233,8 +233,8 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			expectedIngresses: []*networkingv1.Ingress{
 				ingress("mysvc", "test", ingressRule("a.test", "mysvc", 8080), ingressRule("b.test", "mysvc", 9090)),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
-				status("mysvc", "test", ""),
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
+				status("mysvc", "test", "Pending"),
 			},
 		},
 		{
@@ -256,8 +256,8 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			expectedIngresses: []*networkingv1.Ingress{
 				ingress("mysvc", "test", ingressRule("a.test", "mysvc", 8080), ingressRule("b.test", "mysvc", 9090)),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
-				status("mysvc", "test", ""),
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
+				status("mysvc", "test", "Pending"),
 			},
 		},
 		{
@@ -279,8 +279,8 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			expectedIngresses: []*networkingv1.Ingress{
 				ingress("mysvc", "test", ingressRule("a.test", "mysvc", 8080), ingressRule("b.test", "mysvc", 9090)),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
-				status("mysvc", "test", ""),
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
+				status("mysvc", "test", "Pending"),
 			},
 		},
 		{
@@ -302,8 +302,8 @@ func TestSecuredAccessRecovery(t *testing.T) {
 				route("mysvc-a", "test", "mysvc", "a", ""),
 				route("mysvc-b", "test", "mysvc", "b", ""),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
-				status("mysvc", "test", ""),
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
+				status("mysvc", "test", "Pending"),
 			},
 		},
 		{
@@ -326,7 +326,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 				expectedHttpProxy("mysvc-a", "test", "mysvc-a.test", "mysvc", 8080),
 				expectedHttpProxy("mysvc-b", "test", "mysvc-b.test", "mysvc", 9090),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "OK", endpoint("a", "443", "mysvc-a.test"), endpoint("b", "443", "mysvc-b.test")),
 			},
 		},
@@ -348,7 +348,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 				expectedHttpProxy("mysvc-a", "test", "mysvc-a.test", "mysvc", 8080),
 				expectedHttpProxy("mysvc-b", "test", "mysvc-b.test", "mysvc", 9090),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "OK", endpoint("a", "443", "mysvc-a.test"), endpoint("b", "443", "mysvc-b.test")),
 			},
 		},
@@ -372,7 +372,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 				expectedHttpProxy("mysvc-a", "test", "mysvc-a.test", "mysvc", 8080),
 				expectedHttpProxy("mysvc-b", "test", "mysvc-b.test", "mysvc", 9090),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "OK", endpoint("a", "443", "mysvc-a.test"), endpoint("b", "443", "mysvc-b.test")),
 			},
 		},
@@ -396,7 +396,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 				expectedHttpProxy("mysvc-a", "test", "mysvc-a.test", "mysvc", 8080),
 				expectedHttpProxy("mysvc-b", "test", "mysvc-b.test", "mysvc", 9090),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "OK", endpoint("a", "443", "mysvc-a.test"), endpoint("b", "443", "mysvc-b.test")),
 			},
 		},
@@ -421,7 +421,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 				expectedHttpProxy("mysvc-a", "test", "mysvc-a.test", "mysvc", 8080),
 				expectedHttpProxy("mysvc-b", "test", "mysvc-b.test", "mysvc", 9090),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "OK", endpoint("a", "443", "mysvc-a.test"), endpoint("b", "443", "mysvc-b.test")),
 			},
 		},
@@ -445,8 +445,8 @@ func TestSecuredAccessRecovery(t *testing.T) {
 				route("mysvc-a", "test", "mysvc", "a", ""),
 				route("mysvc-b", "test", "mysvc", "b", ""),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
-				status("mysvc", "test", ""),
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
+				status("mysvc", "test", "Pending"),
 			},
 		},
 		{
@@ -467,8 +467,8 @@ func TestSecuredAccessRecovery(t *testing.T) {
 				route("mysvc-a", "test", "mysvc", "a", ""),
 				route("mysvc-b", "test", "mysvc", "b", ""),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
-				status("mysvc", "test", ""),
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
+				status("mysvc", "test", "Pending"),
 			},
 		},
 		{
@@ -503,7 +503,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			expectedServices: []*corev1.Service{
 				service("mysvc", "test", selector(), "", servicePorts()),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "create is blocked"),
 			},
 		},
@@ -529,7 +529,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 				route("mysvc-a", "test", "mysvc", "x", ""),
 				route("mysvc-b", "test", "mysvc", "y", ""),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "update is blocked"),
 			},
 		},
@@ -544,7 +544,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			errors: []ClientError{
 				CoreClientError("create", "services", "service create is blocked"),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "service create is blocked"),
 			},
 		},
@@ -565,7 +565,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			expectedServices: []*corev1.Service{
 				service("mysvc", "test", selector(), "", servicePorts()),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "ingress create is blocked"),
 			},
 		},
@@ -590,7 +590,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			expectedIngresses: []*networkingv1.Ingress{
 				ingress("mysvc", "test", ingressRule("a.test", "foo", 1111), ingressRule("b.test", "bar", 2222)),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "ingress update is blocked"),
 			},
 		},
@@ -614,7 +614,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 				expectedHttpProxy("mysvc-a", "test", "", "", 0),
 				expectedHttpProxy("mysvc-b", "test", "", "", 0),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "Unexpected structure for HTTPProxy"),
 			},
 		},
@@ -641,7 +641,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 				expectedHttpProxy("mysvc-a", "test", "mysvc-a.test", "mysvc", 1234),
 				expectedHttpProxy("mysvc-b", "test", "mysvc-b.test", "mysvc", 4321),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "http proxy update is blocked"),
 			},
 		},
@@ -659,7 +659,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			expectedServices: []*corev1.Service{
 				service("mysvc", "test", selector(), "", servicePorts()),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "http proxy create is blocked"),
 			},
 		},
@@ -680,7 +680,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			expectedServices: []*corev1.Service{
 				service("mysvc", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts()),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", ""),
 			},
 		},
@@ -699,7 +699,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			w := NewSecuredAccessResourceWatcher(m)
 			controller := kube.NewController("Controller", client)
 			w.WatchResources(controller, metav1.NamespaceAll)
-			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv1alpha1.SecuredAccess) error { return nil })
+			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv2alpha1.SecuredAccess) error { return nil })
 			stopCh := make(chan struct{})
 			controller.StartWatchers(stopCh)
 			controller.WaitForCacheSync(stopCh)
@@ -758,9 +758,9 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			assert.Equal(t, len(tt.expectedProxies), len(proxies.Items), "wrong number of proxies")
 			certs.checkCertificates(t, tt.expectedCertificates)
 			for _, desired := range tt.expectedStatuses {
-				actual, err := client.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
+				actual, err := client.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
 				assert.Assert(t, err)
-				assert.Equal(t, desired.Status.StatusMessage, actual.Status.StatusMessage)
+				assert.Equal(t, desired.Status.Message, actual.Status.Message)
 				assert.Equal(t, len(desired.Status.Endpoints), len(actual.Status.Endpoints))
 				for _, endpoint := range desired.Status.Endpoints {
 					assert.Assert(t, cmp.Contains(actual.Status.Endpoints, endpoint))
@@ -770,23 +770,23 @@ func TestSecuredAccessRecovery(t *testing.T) {
 	}
 }
 
-func securedAccessWithType(name string, namespace string, accessType string, selector map[string]string, ports []skupperv1alpha1.SecuredAccessPort) *skupperv1alpha1.SecuredAccess {
+func securedAccessWithType(name string, namespace string, accessType string, selector map[string]string, ports []skupperv2alpha1.SecuredAccessPort) *skupperv2alpha1.SecuredAccess {
 	sa := securedAccess(name, namespace, selector, ports)
 	sa.Spec.AccessType = accessType
 	return sa
 }
 
-func securedAccess(name string, namespace string, selector map[string]string, ports []skupperv1alpha1.SecuredAccessPort) *skupperv1alpha1.SecuredAccess {
-	return &skupperv1alpha1.SecuredAccess{
+func securedAccess(name string, namespace string, selector map[string]string, ports []skupperv2alpha1.SecuredAccessPort) *skupperv2alpha1.SecuredAccess {
+	return &skupperv2alpha1.SecuredAccess{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "SecuredAccess",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: skupperv1alpha1.SecuredAccessSpec{
+		Spec: skupperv2alpha1.SecuredAccessSpec{
 			Selector: selector,
 			Ports:    ports,
 			Issuer:   "skupper-site-ca",
@@ -794,8 +794,8 @@ func securedAccess(name string, namespace string, selector map[string]string, po
 	}
 }
 
-func securedAccessPorts() []skupperv1alpha1.SecuredAccessPort {
-	return []skupperv1alpha1.SecuredAccessPort{
+func securedAccessPorts() []skupperv2alpha1.SecuredAccessPort {
+	return []skupperv2alpha1.SecuredAccessPort{
 		{
 			Name:       "a",
 			Port:       8080,
@@ -890,21 +890,21 @@ func addLoadbalancerHostname(svc *corev1.Service, hostname string) *corev1.Servi
 	return svc
 }
 
-func status(name string, namespace string, message string, endpoints ...skupperv1alpha1.Endpoint) *skupperv1alpha1.SecuredAccess {
+func status(name string, namespace string, message string, endpoints ...skupperv2alpha1.Endpoint) *skupperv2alpha1.SecuredAccess {
 	sa := securedAccess(name, namespace, nil, nil)
-	sa.Status.StatusMessage = message
+	sa.Status.Message = message
 	for _, endpoint := range endpoints {
 		sa.Status.Endpoints = append(sa.Status.Endpoints, endpoint)
 	}
 	return sa
 }
 
-func statusOnly(message string, endpoints ...skupperv1alpha1.Endpoint) skupperv1alpha1.SecuredAccessStatus {
+func statusOnly(message string, endpoints ...skupperv2alpha1.Endpoint) skupperv2alpha1.SecuredAccessStatus {
 	return status("", "", message, endpoints...).Status
 }
 
-func endpoint(name string, port string, host string) skupperv1alpha1.Endpoint {
-	return skupperv1alpha1.Endpoint{
+func endpoint(name string, port string, host string) skupperv2alpha1.Endpoint {
+	return skupperv2alpha1.Endpoint{
 		Name: name,
 		Port: port,
 		Host: host,
@@ -1075,7 +1075,7 @@ func TestGateway(t *testing.T) {
 		k8sObjects     []runtime.Object
 		namespace      string
 		ssaRecorder    *ServerSideApplyRecorder
-		expectedStatus skupperv1alpha1.SecuredAccessStatus
+		expectedStatus skupperv2alpha1.SecuredAccessStatus
 		gatewayUpdates []GatewayUpdate
 	}{
 		{
@@ -1202,7 +1202,7 @@ func TestGateway(t *testing.T) {
 			w := NewSecuredAccessResourceWatcher(m)
 			controller := kube.NewController("Controller", client)
 			w.WatchResources(controller, metav1.NamespaceAll)
-			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv1alpha1.SecuredAccess) error { return nil })
+			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv2alpha1.SecuredAccess) error { return nil })
 			w.WatchGateway(controller, tt.namespace)
 			stopCh := make(chan struct{})
 			controller.StartWatchers(stopCh)
@@ -1219,9 +1219,9 @@ func TestGateway(t *testing.T) {
 					m.CheckGateway(update.gateway.GetNamespace()+"/"+update.gateway.GetName(), update.gateway)
 				}
 			}
-			actual, err := client.GetSkupperClient().SkupperV1alpha1().SecuredAccesses("test").Get(context.Background(), "mysvc", metav1.GetOptions{})
+			actual, err := client.GetSkupperClient().SkupperV2alpha1().SecuredAccesses("test").Get(context.Background(), "mysvc", metav1.GetOptions{})
 			assert.Assert(t, err)
-			assert.Equal(t, tt.expectedStatus.StatusMessage, actual.Status.StatusMessage)
+			assert.Equal(t, tt.expectedStatus.Message, actual.Status.Message)
 			assert.Equal(t, len(tt.expectedStatus.Endpoints), len(actual.Status.Endpoints))
 			for _, endpoint := range tt.expectedStatus.Endpoints {
 				assert.Assert(t, cmp.Contains(actual.Status.Endpoints, endpoint))
@@ -1258,7 +1258,7 @@ func clientError(verb string, resource string, err string, scope func(internalcl
 
 func SkupperClientError(verb string, resource string, err string) ClientError {
 	return clientError(verb, resource, err, func(clients internalclient.Clients) FakeClient {
-		f, _ := clients.GetSkupperClient().SkupperV1alpha1().(*fakev1alpha1.FakeSkupperV1alpha1)
+		f, _ := clients.GetSkupperClient().SkupperV2alpha1().(*fakev2alpha1.FakeSkupperV2alpha1)
 		return f
 	})
 }

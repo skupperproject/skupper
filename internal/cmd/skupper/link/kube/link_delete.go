@@ -6,7 +6,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +14,7 @@ import (
 )
 
 type CmdLinkDelete struct {
-	Client    skupperv1alpha1.SkupperV1alpha1Interface
+	Client    skupperv2alpha1.SkupperV2alpha1Interface
 	CobraCmd  *cobra.Command
 	Namespace string
 	Flags     *common.CommandLinkDeleteFlags
@@ -30,7 +30,7 @@ func (cmd *CmdLinkDelete) NewClient(cobraCommand *cobra.Command, args []string) 
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
 	utils.HandleError(err)
 
-	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
+	cmd.Client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.Namespace = cli.Namespace
 }
 

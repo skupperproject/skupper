@@ -21,7 +21,7 @@ package versioned
 import (
 	"fmt"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -29,19 +29,19 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	SkupperV1alpha1() skupperv1alpha1.SkupperV1alpha1Interface
+	SkupperV2alpha1() skupperv2alpha1.SkupperV2alpha1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	skupperV1alpha1 *skupperv1alpha1.SkupperV1alpha1Client
+	skupperV2alpha1 *skupperv2alpha1.SkupperV2alpha1Client
 }
 
-// SkupperV1alpha1 retrieves the SkupperV1alpha1Client
-func (c *Clientset) SkupperV1alpha1() skupperv1alpha1.SkupperV1alpha1Interface {
-	return c.skupperV1alpha1
+// SkupperV2alpha1 retrieves the SkupperV2alpha1Client
+func (c *Clientset) SkupperV2alpha1() skupperv2alpha1.SkupperV2alpha1Interface {
+	return c.skupperV2alpha1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -65,7 +65,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.skupperV1alpha1, err = skupperv1alpha1.NewForConfig(&configShallowCopy)
+	cs.skupperV2alpha1, err = skupperv2alpha1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.skupperV1alpha1 = skupperv1alpha1.NewForConfigOrDie(c)
+	cs.skupperV2alpha1 = skupperv2alpha1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -90,7 +90,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.skupperV1alpha1 = skupperv1alpha1.New(c)
+	cs.skupperV2alpha1 = skupperv2alpha1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

@@ -5,7 +5,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 type NodeportAccessType struct {
@@ -20,11 +20,11 @@ func newNodeportAccess(m *SecuredAccessManager, clusterHost string) AccessType {
 	}
 }
 
-func (o *NodeportAccessType) RealiseAndResolve(access *skupperv1alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv1alpha1.Endpoint, error) {
-	var endpoints []skupperv1alpha1.Endpoint
+func (o *NodeportAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv2alpha1.Endpoint, error) {
+	var endpoints []skupperv2alpha1.Endpoint
 	for _, p := range svc.Spec.Ports {
 		if p.NodePort != 0 {
-			endpoints = append(endpoints, skupperv1alpha1.Endpoint{
+			endpoints = append(endpoints, skupperv2alpha1.Endpoint{
 				Name: p.Name,
 				Host: o.clusterHost,
 				Port: strconv.Itoa(int(p.NodePort)),

@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
@@ -22,7 +22,7 @@ func Test_Initialise(t *testing.T) {
 		extraSteps     int
 		expectedStatus string
 		expectedUrl    string
-		endpoint       *v1alpha1.Endpoint
+		endpoint       *v2alpha1.Endpoint
 	}{
 		{
 			name:           "disabled",
@@ -49,7 +49,7 @@ func Test_Initialise(t *testing.T) {
 			},
 			//add pregenerated secret as the certificate controller is not in action in this test
 			k8sObjects: []runtime.Object{tf.pod("my-pod", "test", map[string]string{"foo": "bar"}, ref1), tf.secret("skupper-grant-server", "test", "grant server", nil)},
-			endpoint: &v1alpha1.Endpoint{
+			endpoint: &v2alpha1.Endpoint{
 				Host: "my-host",
 				Port: "1234",
 			},
@@ -97,11 +97,11 @@ func Test_Initialise(t *testing.T) {
 			}
 			assert.Assert(t, controller.TestProcess())
 
-			latest, err := client.GetSkupperClient().SkupperV1alpha1().AccessGrants("test").Get(context.TODO(), "my-grant", metav1.GetOptions{})
+			latest, err := client.GetSkupperClient().SkupperV2alpha1().AccessGrants("test").Get(context.TODO(), "my-grant", metav1.GetOptions{})
 			if err != nil {
 				t.Error(err)
 			}
-			assert.Equal(t, latest.Status.StatusMessage, tt.expectedStatus)
+			assert.Equal(t, latest.Status.Message, tt.expectedStatus)
 			if tt.expectedUrl != "" {
 				assert.Equal(t, latest.Status.Url, tt.expectedUrl)
 			}
@@ -111,13 +111,13 @@ func Test_Initialise(t *testing.T) {
 
 }
 
-func updateSecuredAccessEndpoint(controller *kube.Controller, name string, namespace string, endpoint *v1alpha1.Endpoint) error {
-	sa, err := controller.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+func updateSecuredAccessEndpoint(controller *kube.Controller, name string, namespace string, endpoint *v2alpha1.Endpoint) error {
+	sa, err := controller.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
 	if sa.Status.UpdateEndpoint(endpoint) {
-		_, err = controller.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(sa.Namespace).UpdateStatus(context.TODO(), sa, metav1.UpdateOptions{})
+		_, err = controller.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(sa.Namespace).UpdateStatus(context.TODO(), sa, metav1.UpdateOptions{})
 		return err
 	}
 	return nil

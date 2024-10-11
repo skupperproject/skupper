@@ -206,7 +206,7 @@ spec:
     app.kubernetes.io/component: metrics
   type: ClusterIP
 ---
-apiVersion: skupper.io/v1alpha1
+apiVersion: skupper.io/v2alpha1
 kind: Certificate
 metadata:
   name: skupper-management-client

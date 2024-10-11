@@ -14,7 +14,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/kube/certificates"
 	"github.com/skupperproject/skupper/pkg/kube/grants"
@@ -36,7 +36,7 @@ type Controller struct {
 	accessMgr            *securedaccess.SecuredAccessManager
 	accessRecovery       *securedaccess.SecuredAccessResourceWatcher
 	certMgr              *certificates.CertificateManagerImpl
-	attachableConnectors map[string]*skupperv1alpha1.AttachedConnector
+	attachableConnectors map[string]*skupperv2alpha1.AttachedConnector
 }
 
 func skupperRouterService() internalinterfaces.TweakListOptionsFunc {
@@ -55,7 +55,7 @@ func NewController(cli internalclient.Clients, grantConfig *grants.GrantConfig, 
 	controller := &Controller{
 		controller:           kube.NewController("Controller", cli),
 		sites:                map[string]*site.Site{},
-		attachableConnectors: map[string]*skupperv1alpha1.AttachedConnector{},
+		attachableConnectors: map[string]*skupperv2alpha1.AttachedConnector{},
 	}
 
 	podname := os.Getenv("HOSTNAME")
@@ -149,7 +149,7 @@ func (c *Controller) getSite(namespace string) *site.Site {
 	return site
 }
 
-func (c *Controller) checkSite(key string, site *skupperv1alpha1.Site) error {
+func (c *Controller) checkSite(key string, site *skupperv2alpha1.Site) error {
 	log.Printf("Checking site %s", key)
 	if site != nil {
 		err := c.getSite(site.ObjectMeta.Namespace).Reconcile(site)
@@ -167,7 +167,7 @@ func (c *Controller) checkSite(key string, site *skupperv1alpha1.Site) error {
 	return nil
 }
 
-func (c *Controller) checkConnector(key string, connector *skupperv1alpha1.Connector) error {
+func (c *Controller) checkConnector(key string, connector *skupperv2alpha1.Connector) error {
 	log.Printf("checkConnector(%s)", key)
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -176,7 +176,7 @@ func (c *Controller) checkConnector(key string, connector *skupperv1alpha1.Conne
 	return c.getSite(namespace).CheckConnector(name, connector)
 }
 
-func (c *Controller) checkListener(key string, listener *skupperv1alpha1.Listener) error {
+func (c *Controller) checkListener(key string, listener *skupperv2alpha1.Listener) error {
 	log.Printf("checkListener(%s)", key)
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -185,7 +185,7 @@ func (c *Controller) checkListener(key string, listener *skupperv1alpha1.Listene
 	return c.getSite(namespace).CheckListener(name, listener)
 }
 
-func (c *Controller) checkLink(key string, linkconfig *skupperv1alpha1.Link) error {
+func (c *Controller) checkLink(key string, linkconfig *skupperv2alpha1.Link) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -193,7 +193,7 @@ func (c *Controller) checkLink(key string, linkconfig *skupperv1alpha1.Link) err
 	return c.getSite(namespace).CheckLink(name, linkconfig)
 }
 
-func (c *Controller) checkAccessToken(key string, token *skupperv1alpha1.AccessToken) error {
+func (c *Controller) checkAccessToken(key string, token *skupperv2alpha1.AccessToken) error {
 	if token == nil || token.IsRedeemed() {
 		return nil
 	}
@@ -225,12 +225,12 @@ func (c *Controller) generateLinkConfig(namespace string, name string, subject s
 	return token.Write(writer)
 }
 
-func (c *Controller) checkSecuredAccess(key string, se *skupperv1alpha1.SecuredAccess) error {
+func (c *Controller) checkSecuredAccess(key string, se *skupperv2alpha1.SecuredAccess) error {
 	c.getSite(se.ObjectMeta.Namespace).CheckSecuredAccess(se)
 	return nil
 }
 
-func (c *Controller) checkRouterAccess(key string, ra *skupperv1alpha1.RouterAccess) error {
+func (c *Controller) checkRouterAccess(key string, ra *skupperv2alpha1.RouterAccess) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -238,7 +238,7 @@ func (c *Controller) checkRouterAccess(key string, ra *skupperv1alpha1.RouterAcc
 	return c.getSite(namespace).CheckRouterAccess(name, ra)
 }
 
-func (c *Controller) checkAttachedConnectorAnchor(key string, anchor *skupperv1alpha1.AttachedConnectorAnchor) error {
+func (c *Controller) checkAttachedConnectorAnchor(key string, anchor *skupperv2alpha1.AttachedConnectorAnchor) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -246,7 +246,7 @@ func (c *Controller) checkAttachedConnectorAnchor(key string, anchor *skupperv1a
 	return c.getSite(namespace).CheckAttachedConnectorAnchor(namespace, name, anchor)
 }
 
-func (c *Controller) checkAttachedConnector(key string, connector *skupperv1alpha1.AttachedConnector) error {
+func (c *Controller) checkAttachedConnector(key string, connector *skupperv2alpha1.AttachedConnector) error {
 	if connector == nil {
 		if previous, ok := c.attachableConnectors[key]; ok {
 			delete(c.attachableConnectors, key)
@@ -278,8 +278,8 @@ func (c *Controller) networkStatusUpdate(key string, cm *corev1.ConfigMap) error
 	return c.getSite(cm.ObjectMeta.Namespace).NetworkStatusUpdated(extractSiteRecords(status))
 }
 
-func extractSiteRecords(status network.NetworkStatusInfo) []skupperv1alpha1.SiteRecord {
-	var records []skupperv1alpha1.SiteRecord
+func extractSiteRecords(status network.NetworkStatusInfo) []skupperv2alpha1.SiteRecord {
+	var records []skupperv2alpha1.SiteRecord
 	routerAPs := map[string]string{} // router access point ID -> site ID
 	siteNames := map[string]string{} // site ID -> site name
 	for _, site := range status.SiteStatus {
@@ -291,14 +291,14 @@ func extractSiteRecords(status network.NetworkStatusInfo) []skupperv1alpha1.Site
 		}
 	}
 	for _, site := range status.SiteStatus {
-		record := skupperv1alpha1.SiteRecord{
+		record := skupperv2alpha1.SiteRecord{
 			Id:        site.Site.Identity,
 			Name:      site.Site.Name,
 			Platform:  site.Site.Platform,
 			Namespace: site.Site.Namespace,
 			Version:   site.Site.Version,
 		}
-		services := map[string]*skupperv1alpha1.ServiceRecord{}
+		services := map[string]*skupperv2alpha1.ServiceRecord{}
 		for _, router := range site.RouterStatus {
 			for _, link := range router.Links {
 				if link.Name == "" || link.Peer == "" {
@@ -306,7 +306,7 @@ func extractSiteRecords(status network.NetworkStatusInfo) []skupperv1alpha1.Site
 				}
 
 				if site, ok := routerAPs[link.Peer]; ok {
-					record.Links = append(record.Links, skupperv1alpha1.LinkRecord{
+					record.Links = append(record.Links, skupperv2alpha1.LinkRecord{
 						Name:           link.Name,
 						RemoteSiteId:   site,
 						RemoteSiteName: siteNames[site],
@@ -319,7 +319,7 @@ func extractSiteRecords(status network.NetworkStatusInfo) []skupperv1alpha1.Site
 					address := connector.Address
 					service, ok := services[address]
 					if !ok {
-						service = &skupperv1alpha1.ServiceRecord{
+						service = &skupperv2alpha1.ServiceRecord{
 							RoutingKey: address,
 						}
 						services[address] = service
@@ -332,7 +332,7 @@ func extractSiteRecords(status network.NetworkStatusInfo) []skupperv1alpha1.Site
 					address := listener.Address
 					service, ok := services[address]
 					if !ok {
-						service = &skupperv1alpha1.ServiceRecord{
+						service = &skupperv2alpha1.ServiceRecord{
 							RoutingKey: address,
 						}
 						services[address] = service

@@ -20,8 +20,8 @@ package fake
 
 import (
 	clientset "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
-	fakeskupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
+	fakeskupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -76,7 +76,7 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 
 var _ clientset.Interface = &Clientset{}
 
-// SkupperV1alpha1 retrieves the SkupperV1alpha1Client
-func (c *Clientset) SkupperV1alpha1() skupperv1alpha1.SkupperV1alpha1Interface {
-	return &fakeskupperv1alpha1.FakeSkupperV1alpha1{Fake: &c.Fake}
+// SkupperV2alpha1 retrieves the SkupperV2alpha1Client
+func (c *Clientset) SkupperV2alpha1() skupperv2alpha1.SkupperV2alpha1Interface {
+	return &fakeskupperv2alpha1.FakeSkupperV2alpha1{Fake: &c.Fake}
 }

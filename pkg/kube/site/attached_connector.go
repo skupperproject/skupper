@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/site"
@@ -44,15 +45,15 @@ func (b *ExtendedBindings) SetBindingEventHandler(handler site.BindingEventHandl
 	b.bindings.SetBindingEventHandler(handler)
 }
 
-func (b *ExtendedBindings) UpdateConnector(name string, connector *skupperv1alpha1.Connector) qdr.ConfigUpdate {
+func (b *ExtendedBindings) UpdateConnector(name string, connector *skupperv2alpha1.Connector) qdr.ConfigUpdate {
 	return b.bindings.UpdateConnector(name, connector)
 }
 
-func (b *ExtendedBindings) UpdateListener(name string, listener *skupperv1alpha1.Listener) qdr.ConfigUpdate {
+func (b *ExtendedBindings) UpdateListener(name string, listener *skupperv2alpha1.Listener) qdr.ConfigUpdate {
 	return b.bindings.UpdateListener(name, listener)
 }
 
-func (b *ExtendedBindings) GetConnector(name string) *skupperv1alpha1.Connector {
+func (b *ExtendedBindings) GetConnector(name string) *skupperv2alpha1.Connector {
 	return b.bindings.GetConnector(name)
 }
 
@@ -83,7 +84,7 @@ func (b *ExtendedBindings) SetSite(site *Site) {
 	b.site = site
 }
 
-func (b *ExtendedBindings) checkAttachedConnectorAnchor(namespace string, name string, anchor *skupperv1alpha1.AttachedConnectorAnchor) error {
+func (b *ExtendedBindings) checkAttachedConnectorAnchor(namespace string, name string, anchor *skupperv2alpha1.AttachedConnectorAnchor) error {
 	connector, ok := b.connectors[name]
 	if !ok {
 		connector = NewAttachedConnector(name, namespace, b)
@@ -101,7 +102,7 @@ func (b *ExtendedBindings) checkAttachedConnectorAnchor(namespace string, name s
 	return nil
 }
 
-func (b *ExtendedBindings) attachedConnectorUpdated(name string, definition *skupperv1alpha1.AttachedConnector) error {
+func (b *ExtendedBindings) attachedConnectorUpdated(name string, definition *skupperv2alpha1.AttachedConnector) error {
 	connector, ok := b.connectors[name]
 	if !ok {
 		connector = NewAttachedConnector(name, definition.Spec.SiteNamespace, b)
@@ -135,8 +136,8 @@ func (b *ExtendedBindings) attachedConnectorDeleted(namespace string, name strin
 type AttachedConnector struct {
 	name        string
 	namespace   string
-	definitions map[string]*skupperv1alpha1.AttachedConnector
-	anchor      *skupperv1alpha1.AttachedConnectorAnchor
+	definitions map[string]*skupperv2alpha1.AttachedConnector
+	anchor      *skupperv2alpha1.AttachedConnectorAnchor
 	watcher     *PodWatcher
 	parent      *ExtendedBindings
 }
@@ -146,11 +147,11 @@ func NewAttachedConnector(name string, namespace string, parent *ExtendedBinding
 		name:        name,
 		namespace:   namespace,
 		parent:      parent,
-		definitions: map[string]*skupperv1alpha1.AttachedConnector{},
+		definitions: map[string]*skupperv2alpha1.AttachedConnector{},
 	}
 }
 
-func (a *AttachedConnector) activeDefinition() *skupperv1alpha1.AttachedConnector {
+func (a *AttachedConnector) activeDefinition() *skupperv2alpha1.AttachedConnector {
 	if a.anchor == nil {
 		return nil
 	}
@@ -223,7 +224,7 @@ func (a *AttachedConnector) updateStatusNoAnchor() error {
 	return error_(errors)
 }
 
-func (a *AttachedConnector) updateStatusTo(err error, activeDefinition *skupperv1alpha1.AttachedConnector) error {
+func (a *AttachedConnector) updateStatusTo(err error, activeDefinition *skupperv2alpha1.AttachedConnector) error {
 	var errors []string
 	if a.anchor.SetConfigured(err) {
 		if err := a.updateAnchorStatus(); err != nil {
@@ -259,7 +260,7 @@ func (a *AttachedConnector) setMatchingListenerCount(count int) {
 	}
 }
 
-func (a *AttachedConnector) Updated(pods []skupperv1alpha1.PodDetails) error {
+func (a *AttachedConnector) Updated(pods []skupperv2alpha1.PodDetails) error {
 	if a.anchor == nil {
 		return a.updateStatusNoAnchor()
 	}
@@ -290,8 +291,8 @@ func (a *AttachedConnector) configurationError(err error) error {
 	return err
 }
 
-func (a *AttachedConnector) updateDefinitionStatus(definition *skupperv1alpha1.AttachedConnector) error {
-	updated, err := a.parent.controller.GetSkupperClient().SkupperV1alpha1().AttachedConnectors(definition.ObjectMeta.Namespace).UpdateStatus(context.TODO(), definition, metav1.UpdateOptions{})
+func (a *AttachedConnector) updateDefinitionStatus(definition *skupperv2alpha1.AttachedConnector) error {
+	updated, err := a.parent.controller.GetSkupperClient().SkupperV2alpha1().AttachedConnectors(definition.ObjectMeta.Namespace).UpdateStatus(context.TODO(), definition, metav1.UpdateOptions{})
 	if err != nil {
 		a.parent.logger.Error("Failed to update status for selector",
 			slog.String("namespace", definition.Namespace),
@@ -307,7 +308,7 @@ func (a *AttachedConnector) updateAnchorStatus() error {
 	if a.anchor == nil {
 		return nil
 	}
-	updated, err := a.parent.controller.GetSkupperClient().SkupperV1alpha1().AttachedConnectorAnchors(a.anchor.ObjectMeta.Namespace).UpdateStatus(context.TODO(), a.anchor, metav1.UpdateOptions{})
+	updated, err := a.parent.controller.GetSkupperClient().SkupperV2alpha1().AttachedConnectorAnchors(a.anchor.ObjectMeta.Namespace).UpdateStatus(context.TODO(), a.anchor, metav1.UpdateOptions{})
 	if err != nil {
 		a.parent.logger.Error("Failed to update status for AttachedConnectorAnchor",
 			slog.String("namespace", a.anchor.Namespace),
@@ -330,11 +331,11 @@ func (a *AttachedConnector) watchPods() {
 	}
 }
 
-func (a *AttachedConnector) definitionUpdated(definition *skupperv1alpha1.AttachedConnector) bool {
+func (a *AttachedConnector) definitionUpdated(definition *skupperv2alpha1.AttachedConnector) bool {
 	specChanged := true
 	selectorChanged := true
 	if existing, ok := a.definitions[definition.Namespace]; ok {
-		if existing.Spec == definition.Spec {
+		if reflect.DeepEqual(existing.Spec, definition.Spec) {
 			specChanged = false
 			selectorChanged = false
 			slog.Debug("Spec has not changed for AttachedConnector",
@@ -380,8 +381,8 @@ func (a *AttachedConnector) definitionUpdated(definition *skupperv1alpha1.Attach
 	}
 }
 
-func (a *AttachedConnector) anchorUpdated(anchor *skupperv1alpha1.AttachedConnectorAnchor) bool {
-	changed := a.anchor == nil || a.anchor.Spec != anchor.Spec
+func (a *AttachedConnector) anchorUpdated(anchor *skupperv2alpha1.AttachedConnectorAnchor) bool {
+	changed := a.anchor == nil || !reflect.DeepEqual(a.anchor.Spec, anchor.Spec)
 	a.anchor = anchor
 	return changed
 }
@@ -410,11 +411,11 @@ func (a *AttachedConnector) updateBridgeConfig(siteId string, config *qdr.Bridge
 	if definition == nil || a.watcher == nil {
 		return
 	}
-	connector := &skupperv1alpha1.Connector{
+	connector := &skupperv2alpha1.Connector{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: definition.Name,
 		},
-		Spec: skupperv1alpha1.ConnectorSpec{
+		Spec: skupperv2alpha1.ConnectorSpec{
 			RoutingKey:     a.anchor.Spec.RoutingKey,
 			Type:           definition.Spec.Type,
 			Port:           definition.Spec.Port,

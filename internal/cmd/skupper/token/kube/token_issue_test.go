@@ -9,7 +9,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,15 +36,15 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				Name:               "my-token",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -54,23 +54,27 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 											Type:   "Running",
 											Status: "True",
 										},
+										{
+											Type:   "Ready",
+											Status: "True",
+										},
 									},
 								},
 							},
 						},
 					},
 				},
-				&v1alpha1.AccessGrant{
+				&v2alpha1.AccessGrant{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-token",
 						Namespace: "test",
 					},
-					Spec: v1alpha1.AccessGrantSpec{
+					Spec: v2alpha1.AccessGrantSpec{
 						RedemptionsAllowed: 1,
 						ExpirationWindow:   "15m0s",
 					},
-					Status: v1alpha1.AccessGrantStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.AccessGrantStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Ready",
@@ -92,13 +96,13 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.AccessGrant{
+				&v2alpha1.AccessGrant{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-token",
 						Namespace: "test",
 					},
-					Status: v1alpha1.AccessGrantStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.AccessGrantStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Ready",
@@ -120,20 +124,20 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{},
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{},
 							},
 						},
 					},
 				},
-				&v1alpha1.AccessGrant{
+				&v2alpha1.AccessGrant{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-token",
 						Namespace: "test",
@@ -151,15 +155,15 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -167,6 +171,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 										},
 										{
 											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
 											Status: "True",
 										},
 									},
@@ -187,15 +195,15 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -203,6 +211,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 										},
 										{
 											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
 											Status: "True",
 										},
 									},
@@ -223,15 +235,15 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -239,6 +251,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 										},
 										{
 											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
 											Status: "True",
 										},
 									},
@@ -260,15 +276,15 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				Name:               "my new token",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -276,6 +292,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 										},
 										{
 											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
 											Status: "True",
 										},
 									},
@@ -296,15 +316,15 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -312,6 +332,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 										},
 										{
 											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
 											Status: "True",
 										},
 									},
@@ -332,15 +356,15 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -348,6 +372,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 										},
 										{
 											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
 											Status: "True",
 										},
 									},
@@ -369,15 +397,15 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -385,6 +413,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 										},
 										{
 											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
 											Status: "True",
 										},
 									},
@@ -405,15 +437,15 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				Timeout:            0 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -421,6 +453,10 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 										},
 										{
 											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
 											Status: "True",
 										},
 									},
@@ -441,15 +477,15 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -459,23 +495,27 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 											Type:   "Running",
 											Status: "True",
 										},
+										{
+											Type:   "Ready",
+											Status: "True",
+										},
 									},
 								},
 							},
 						},
 					},
 				},
-				&v1alpha1.AccessGrant{
+				&v2alpha1.AccessGrant{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-token",
 						Namespace: "test",
 					},
-					Spec: v1alpha1.AccessGrantSpec{
+					Spec: v2alpha1.AccessGrantSpec{
 						RedemptionsAllowed: 1,
 						ExpirationWindow:   "15m0s",
 					},
-					Status: v1alpha1.AccessGrantStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.AccessGrantStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Ready",
@@ -531,13 +571,13 @@ func TestCmdTokenIssue_Run(t *testing.T) {
 				Timeout:            60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.AccessGrant{
+				&v2alpha1.AccessGrant{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-token",
 						Namespace: "test",
 					},
-					Status: v1alpha1.AccessGrantStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.AccessGrantStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Ready",
@@ -593,12 +633,12 @@ func TestCmdTokenIssue_WaitUntil(t *testing.T) {
 		{
 			name: "token is not ready",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.AccessGrant{
+				&v2alpha1.AccessGrant{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-token",
 						Namespace: "test",
 					},
-					Status: v1alpha1.AccessGrantStatus{},
+					Status: v2alpha1.AccessGrantStatus{},
 				},
 			},
 			skupperErrorMessage: "",
@@ -612,17 +652,17 @@ func TestCmdTokenIssue_WaitUntil(t *testing.T) {
 		{
 			name: "token is ready",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.AccessGrant{
+				&v2alpha1.AccessGrant{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-token",
 						Namespace: "test",
 					},
-					Spec: v1alpha1.AccessGrantSpec{
+					Spec: v2alpha1.AccessGrantSpec{
 						RedemptionsAllowed: 1,
 						ExpirationWindow:   "15m0s",
 					},
-					Status: v1alpha1.AccessGrantStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.AccessGrantStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Ready",
@@ -674,7 +714,7 @@ func newCmdTokenIssueWithMocks(namespace string, k8sObjects []runtime.Object, sk
 		return nil, err
 	}
 	cmdTokenIssue := &CmdTokenIssue{
-		client:    client.GetSkupperClient().SkupperV1alpha1(),
+		client:    client.GetSkupperClient().SkupperV2alpha1(),
 		namespace: namespace,
 	}
 
