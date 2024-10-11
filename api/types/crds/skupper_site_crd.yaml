@@ -5,7 +5,7 @@ metadata:
 spec:
   group: skupper.io
   versions:
-    - name: v1alpha1
+    - name: v2alpha1
       served: true
       storage: true
       schema:
@@ -34,9 +34,9 @@ spec:
               properties:
                 defaultIssuer:
                   type: string
-                active:
-                  type: boolean
                 status:
+                  type: string
+                message:
                   type: string
                 conditions:
                   type: array
@@ -143,6 +143,10 @@ spec:
         type: integer
         description: The number of sites in the network
         jsonPath: .status.sitesInNetwork
+      - name: Message
+        type: string
+        description: Any human readable message relevant to the site
+        jsonPath: .status.message
   scope: Namespaced
   names:
     plural: sites

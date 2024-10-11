@@ -1,6 +1,6 @@
 package fs
 
-import "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+import "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 
 type RouterAccessHandler struct {
 	BaseCustomResourceHandler
@@ -15,7 +15,7 @@ func NewRouterAccessHandler(namespace string) *RouterAccessHandler {
 	}
 }
 
-func (s *RouterAccessHandler) Add(resource v1alpha1.RouterAccess) error {
+func (s *RouterAccessHandler) Add(resource v2alpha1.RouterAccess) error {
 
 	fileName := resource.Name + ".yaml"
 	content, err := s.EncodeToYaml(resource)
@@ -30,6 +30,6 @@ func (s *RouterAccessHandler) Add(resource v1alpha1.RouterAccess) error {
 
 	return nil
 }
-func (s *RouterAccessHandler) Update(resource v1alpha1.RouterAccess) error { return nil }
-func (s *RouterAccessHandler) Get(name string) *v1alpha1.Site              { return nil }
+func (s *RouterAccessHandler) Update(resource v2alpha1.RouterAccess) error { return nil }
+func (s *RouterAccessHandler) Get(name string) *v2alpha1.Site              { return nil }
 func (s *RouterAccessHandler) Delete(name string) error                    { return nil }

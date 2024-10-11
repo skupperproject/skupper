@@ -13,7 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/skupperproject/skupper/internal/kube/resource"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 //go:embed gateway.yaml
@@ -47,7 +47,7 @@ type GatewayAccessType struct {
 	gatewayNamespace string
 	controllerName   string
 	controllerUID    string
-	unreconciled     map[string]*skupperv1alpha1.SecuredAccess
+	unreconciled     map[string]*skupperv2alpha1.SecuredAccess
 }
 
 func newGatewayAccess(manager *SecuredAccessManager, class string, domain string, port int, context ControllerContext) (AccessType, func() error, error) {
@@ -59,7 +59,7 @@ func newGatewayAccess(manager *SecuredAccessManager, class string, domain string
 		gatewayNamespace: context.Namespace,
 		controllerName:   context.Name,
 		controllerUID:    context.UID,
-		unreconciled:     map[string]*skupperv1alpha1.SecuredAccess{},
+		unreconciled:     map[string]*skupperv2alpha1.SecuredAccess{},
 	}
 	if err := at.init(); err != nil {
 		return nil, nil, err
@@ -102,15 +102,15 @@ func (o *GatewayAccessType) processUnreconciled() {
 	for _, access := range o.unreconciled {
 		o.manager.reconcile(access)
 	}
-	o.unreconciled = map[string]*skupperv1alpha1.SecuredAccess{}
+	o.unreconciled = map[string]*skupperv2alpha1.SecuredAccess{}
 }
 
-func (o *GatewayAccessType) RealiseAndResolve(access *skupperv1alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv1alpha1.Endpoint, error) {
+func (o *GatewayAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv2alpha1.Endpoint, error) {
 	if o.domain == "" {
 		o.unreconciled[string(access.UID)] = access
 		return nil, errors.New("Gateway base domain not yet resolved")
 	}
-	var endpoints []skupperv1alpha1.Endpoint
+	var endpoints []skupperv2alpha1.Endpoint
 	for _, port := range access.Spec.Ports {
 		name := fmt.Sprintf("%s-%s", access.Name, port.Name)
 		hostname := fmt.Sprintf("%s.%s.%s", name, access.Namespace, o.domain)
@@ -136,7 +136,7 @@ func (o *GatewayAccessType) RealiseAndResolve(access *skupperv1alpha1.SecuredAcc
 		if _, err := template.Apply(o.manager.clients.GetDynamicClient(), context.Background(), access.Namespace); err != nil {
 			return nil, err
 		}
-		endpoints = append(endpoints, skupperv1alpha1.Endpoint{
+		endpoints = append(endpoints, skupperv2alpha1.Endpoint{
 			Name: port.Name,
 			Host: hostname,
 			Port: strconv.Itoa(o.port),

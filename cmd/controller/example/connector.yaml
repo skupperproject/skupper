@@ -1,4 +1,4 @@
-apiVersion: skupper.io/v1alpha1
+apiVersion: skupper.io/v2alpha1
 kind: Connector
 metadata:
   name: backend

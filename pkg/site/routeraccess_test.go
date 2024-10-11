@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -308,15 +308,15 @@ func TestRouterAccessMap_DesiredConfig(t *testing.T) {
 	}{
 		{
 			name: "inter-router with target",
-			m: map[string]*skupperv1alpha1.RouterAccess{
-				"default": &skupperv1alpha1.RouterAccess{
+			m: map[string]*skupperv2alpha1.RouterAccess{
+				"default": &skupperv2alpha1.RouterAccess{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-ra",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.RouterAccessSpec{
+					Spec: skupperv2alpha1.RouterAccessSpec{
 						AccessType: "loadbalancer",
-						Roles: []skupperv1alpha1.RouterAccessRole{
+						Roles: []skupperv2alpha1.RouterAccessRole{
 							{
 								Name: "inter-router",
 								Port: 55671,
@@ -359,15 +359,15 @@ func TestRouterAccessMap_DesiredConfig(t *testing.T) {
 		},
 		{
 			name: "inter-router sans target",
-			m: map[string]*skupperv1alpha1.RouterAccess{
-				"default": &skupperv1alpha1.RouterAccess{
+			m: map[string]*skupperv2alpha1.RouterAccess{
+				"default": &skupperv2alpha1.RouterAccess{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-ra",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.RouterAccessSpec{
+					Spec: skupperv2alpha1.RouterAccessSpec{
 						AccessType: "loadbalancer",
-						Roles: []skupperv1alpha1.RouterAccessRole{
+						Roles: []skupperv2alpha1.RouterAccessRole{
 							{
 								Name: "inter-router",
 								Port: 55671,
@@ -402,15 +402,15 @@ func TestRouterAccessMap_DesiredConfig(t *testing.T) {
 		},
 		{
 			name: "edge with target",
-			m: map[string]*skupperv1alpha1.RouterAccess{
-				"default": &skupperv1alpha1.RouterAccess{
+			m: map[string]*skupperv2alpha1.RouterAccess{
+				"default": &skupperv2alpha1.RouterAccess{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-ra",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.RouterAccessSpec{
+					Spec: skupperv2alpha1.RouterAccessSpec{
 						AccessType: "loadbalancer",
-						Roles: []skupperv1alpha1.RouterAccessRole{
+						Roles: []skupperv2alpha1.RouterAccessRole{
 							{
 								Name: "edge",
 								Port: 45671,

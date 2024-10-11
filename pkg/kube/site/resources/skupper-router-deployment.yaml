@@ -9,7 +9,7 @@ metadata:
     skupper.io/type: site
   name: {{ .Group }}
   ownerReferences:
-  - apiVersion: skupper.io/v1alpha1
+  - apiVersion: skupper.io/v2alpha1
     kind: Site
     name: {{ .SiteName }}
     uid: {{ .SiteId }}

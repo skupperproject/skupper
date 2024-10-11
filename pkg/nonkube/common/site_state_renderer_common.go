@@ -3,7 +3,7 @@ package common
 import (
 	"fmt"
 
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -34,21 +34,21 @@ func copySiteStateMap[T any](m map[string]T) map[string]T {
 	for k, v := range m {
 		var c any
 		switch vv := any(v).(type) {
-		case *v1alpha1.Listener:
+		case *v2alpha1.Listener:
 			c = vv.DeepCopy()
-		case *v1alpha1.Connector:
+		case *v2alpha1.Connector:
 			c = vv.DeepCopy()
-		case *v1alpha1.RouterAccess:
+		case *v2alpha1.RouterAccess:
 			c = vv.DeepCopy()
-		case *v1alpha1.AccessGrant:
+		case *v2alpha1.AccessGrant:
 			c = vv.DeepCopy()
-		case *v1alpha1.Link:
+		case *v2alpha1.Link:
 			c = vv.DeepCopy()
-		case *v1alpha1.AccessToken:
+		case *v2alpha1.AccessToken:
 			c = vv.DeepCopy()
-		case *v1alpha1.Certificate:
+		case *v2alpha1.Certificate:
 			c = vv.DeepCopy()
-		case *v1alpha1.SecuredAccess:
+		case *v2alpha1.SecuredAccess:
 			c = vv.DeepCopy()
 		case *corev1.Secret:
 			c = vv.DeepCopy()

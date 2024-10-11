@@ -9,8 +9,8 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	commonutils "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	pkgutils "github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
@@ -23,7 +23,7 @@ import (
 )
 
 type CmdLinkGenerate struct {
-	Client             skupperv1alpha1.SkupperV1alpha1Interface
+	Client             skupperv2alpha1.SkupperV2alpha1Interface
 	KubeClient         kubernetes.Interface
 	CobraCmd           *cobra.Command
 	Flags              *common.CommandLinkGenerateFlags
@@ -32,9 +32,9 @@ type CmdLinkGenerate struct {
 	tlsSecret          string
 	cost               int
 	output             string
-	activeSite         *v1alpha1.Site
+	activeSite         *v2alpha1.Site
 	generateCredential bool
-	generatedLink      v1alpha1.Link
+	generatedLink      v2alpha1.Link
 	timeout            time.Duration
 }
 
@@ -49,7 +49,7 @@ func (cmd *CmdLinkGenerate) NewClient(cobraCommand *cobra.Command, args []string
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
 	commonutils.HandleError(err)
 
-	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
+	cmd.Client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.KubeClient = cli.GetKubeClient()
 	cmd.Namespace = cli.Namespace
 }
@@ -149,15 +149,15 @@ func (cmd *CmdLinkGenerate) Run() error {
 		return fmt.Errorf("output format has not been specified")
 	}
 
-	resource := v1alpha1.Link{
+	resource := v2alpha1.Link{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "Link",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: cmd.linkName,
 		},
-		Spec: v1alpha1.LinkSpec{
+		Spec: v2alpha1.LinkSpec{
 			TlsCredentials: cmd.tlsSecret,
 			Cost:           cmd.cost,
 			Endpoints:      cmd.activeSite.Status.Endpoints,
@@ -167,15 +167,15 @@ func (cmd *CmdLinkGenerate) Run() error {
 	cmd.generatedLink = resource
 
 	if cmd.generateCredential {
-		certificate := v1alpha1.Certificate{
+		certificate := v2alpha1.Certificate{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "skupper.io/v1alpha1",
+				APIVersion: "skupper.io/v2alpha1",
 				Kind:       "Certificate",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: cmd.tlsSecret,
 			},
-			Spec: v1alpha1.CertificateSpec{
+			Spec: v2alpha1.CertificateSpec{
 				Ca:      cmd.activeSite.Status.DefaultIssuer,
 				Client:  true,
 				Subject: getSubjectsFromEndpoints(cmd.activeSite.Status.Endpoints),
@@ -255,7 +255,7 @@ func (cmd *CmdLinkGenerate) WaitUntil() error {
 	return nil
 }
 
-func getSubjectsFromEndpoints(endpointList []v1alpha1.Endpoint) string {
+func getSubjectsFromEndpoints(endpointList []v2alpha1.Endpoint) string {
 
 	var hosts []string
 	for _, endpoint := range endpointList {

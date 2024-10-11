@@ -8,13 +8,13 @@ import (
 	"text/tabwriter"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type CmdSiteStatus struct {
-	Client    skupperv1alpha1.SkupperV1alpha1Interface
+	Client    skupperv2alpha1.SkupperV2alpha1Interface
 	CobraCmd  *cobra.Command
 	Namespace string
 }
@@ -30,7 +30,7 @@ func (cmd *CmdSiteStatus) NewClient(cobraCommand *cobra.Command, args []string) 
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
 	utils.HandleError(err)
 
-	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
+	cmd.Client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.Namespace = cli.Namespace
 }
 
@@ -59,10 +59,10 @@ func (cmd *CmdSiteStatus) Run() error {
 	}
 
 	writer := tabwriter.NewWriter(os.Stdout, 0, 8, 1, '\t', tabwriter.AlignRight)
-	fmt.Fprintln(writer, "NAME\tSTATUS")
+	fmt.Fprintln(writer, "NAME\tSTATUS\tMESSAGE")
 
 	for _, site := range siteList.Items {
-		fmt.Fprintf(writer, "%s\t%s", site.Name, site.Status.StatusMessage)
+		fmt.Fprintf(writer, "%s\t%s\t%s", site.Name, site.Status.StatusType, site.Status.Message)
 		fmt.Fprintln(writer)
 	}
 

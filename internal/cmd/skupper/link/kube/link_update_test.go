@@ -4,7 +4,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,7 +29,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 			args:  []string{"my-link"},
 			flags: common.CommandLinkUpdateFlags{Cost: "1", Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -43,8 +43,8 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 			args:  []string{"my-link"},
 			flags: common.CommandLinkUpdateFlags{Cost: "1", Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -61,8 +61,8 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 			args:  []string{"my"},
 			flags: common.CommandLinkUpdateFlags{Cost: "1", Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -71,7 +71,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 						},
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -85,8 +85,8 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 			args:  []string{},
 			flags: common.CommandLinkUpdateFlags{Cost: "1", Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -95,7 +95,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 						},
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -109,8 +109,8 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 			args:  []string{"my", "link"},
 			flags: common.CommandLinkUpdateFlags{Cost: "1", Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -119,7 +119,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 						},
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -133,8 +133,8 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 			args:  []string{"my-link"},
 			flags: common.CommandLinkUpdateFlags{Cost: "one", Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -143,7 +143,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 						},
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -157,8 +157,8 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 			args:  []string{"my-link"},
 			flags: common.CommandLinkUpdateFlags{Cost: "-4", Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -167,7 +167,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 						},
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -183,8 +183,8 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 			args:  []string{"my-link"},
 			flags: common.CommandLinkUpdateFlags{Cost: "1", Output: "not-valid", Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -193,7 +193,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 						},
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -209,8 +209,8 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 			args:  []string{"my-link"},
 			flags: common.CommandLinkUpdateFlags{Cost: "1", TlsSecret: "secret", Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -219,7 +219,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 						},
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -243,8 +243,8 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 				},
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -253,7 +253,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 						},
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -345,7 +345,7 @@ func TestCmdLinkUpdate_Run(t *testing.T) {
 			Cost:      1,
 			tlsSecret: "secret",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -369,7 +369,7 @@ func TestCmdLinkUpdate_Run(t *testing.T) {
 			linkName: "my-link",
 			output:   "yaml",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -383,7 +383,7 @@ func TestCmdLinkUpdate_Run(t *testing.T) {
 			output:       "unsupported",
 			errorMessage: "format unsupported not supported",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -430,12 +430,12 @@ func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 		{
 			name: "link is not configured",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
 					},
-					Status: v1alpha1.LinkStatus{},
+					Status: v2alpha1.LinkStatus{},
 				},
 			},
 			linkName:    "my-link",
@@ -458,14 +458,14 @@ func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 		{
 			name: "link is configured",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
 					},
-					Status: v1alpha1.LinkStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.LinkStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 							Conditions: []v1.Condition{
 								{
 									Message:            "OK",
@@ -518,7 +518,7 @@ func newCmdLinkUpdateWithMocks(namespace string, k8sObjects []runtime.Object, sk
 		return nil, err
 	}
 	cmdLinkUpdate := &CmdLinkUpdate{
-		Client:     client.GetSkupperClient().SkupperV1alpha1(),
+		Client:     client.GetSkupperClient().SkupperV2alpha1(),
 		KubeClient: client.GetKubeClient(),
 		Namespace:  namespace,
 	}

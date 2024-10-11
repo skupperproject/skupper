@@ -8,7 +8,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
@@ -132,32 +132,32 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 
 func (cmd *CmdSiteCreate) Run() error {
 
-	siteResource := v1alpha1.Site{
+	siteResource := v2alpha1.Site{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "Site",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmd.siteName,
 			Namespace: cmd.namespace,
 		},
-		Spec: v1alpha1.SiteSpec{
+		Spec: v2alpha1.SiteSpec{
 			Settings:   cmd.options,
 			LinkAccess: cmd.linkAccessType,
 		},
 	}
 
-	routerAccessResource := v1alpha1.RouterAccess{
+	routerAccessResource := v2alpha1.RouterAccess{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "RouterAccess",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmd.routerAccessName,
 			Namespace: cmd.namespace,
 		},
-		Spec: v1alpha1.RouterAccessSpec{
-			Roles: []v1alpha1.RouterAccessRole{
+		Spec: v2alpha1.RouterAccessSpec{
+			Roles: []v2alpha1.RouterAccessRole{
 				{
 					Name: "inter-router",
 					Port: 55671,

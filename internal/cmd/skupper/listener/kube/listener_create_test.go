@@ -8,7 +8,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,13 +32,13 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 			args:  []string{"my-listener", "8080"},
 			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -166,13 +166,13 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 				Output:       "json",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -344,13 +344,13 @@ func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 		{
 			name: "listener is not ready",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{},
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{},
 					},
 				},
 			},
@@ -363,13 +363,13 @@ func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 		{
 			name: "listener is ready",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -386,13 +386,13 @@ func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 			name:   "listener is ready yaml output",
 			output: "yaml",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -440,7 +440,7 @@ func newCmdListenerCreateWithMocks(namespace string, k8sObjects []runtime.Object
 		return nil, err
 	}
 	cmdListenerCreate := &CmdListenerCreate{
-		client:     client.GetSkupperClient().SkupperV1alpha1(),
+		client:     client.GetSkupperClient().SkupperV2alpha1(),
 		KubeClient: client.GetKubeClient(),
 		namespace:  namespace,
 	}

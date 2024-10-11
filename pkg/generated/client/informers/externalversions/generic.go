@@ -21,7 +21,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -52,31 +52,29 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=skupper.io, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithResource("accessgrants"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().AccessGrants().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("accesstokens"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().AccessTokens().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("attachedconnectors"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().AttachedConnectors().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("attachedconnectoranchors"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().AttachedConnectorAnchors().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("certificates"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Certificates().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("connectors"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Connectors().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("links"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Links().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("listeners"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Listeners().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("routeraccesses"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().RouterAccesses().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("securedaccesses"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().SecuredAccesses().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("sites"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().Sites().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("skupperclusterpolicies"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V1alpha1().SkupperClusterPolicies().Informer()}, nil
+	// Group=skupper.io, Version=v2alpha1
+	case v2alpha1.SchemeGroupVersion.WithResource("accessgrants"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().AccessGrants().Informer()}, nil
+	case v2alpha1.SchemeGroupVersion.WithResource("accesstokens"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().AccessTokens().Informer()}, nil
+	case v2alpha1.SchemeGroupVersion.WithResource("attachedconnectors"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().AttachedConnectors().Informer()}, nil
+	case v2alpha1.SchemeGroupVersion.WithResource("attachedconnectoranchors"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().AttachedConnectorAnchors().Informer()}, nil
+	case v2alpha1.SchemeGroupVersion.WithResource("certificates"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().Certificates().Informer()}, nil
+	case v2alpha1.SchemeGroupVersion.WithResource("connectors"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().Connectors().Informer()}, nil
+	case v2alpha1.SchemeGroupVersion.WithResource("links"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().Links().Informer()}, nil
+	case v2alpha1.SchemeGroupVersion.WithResource("listeners"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().Listeners().Informer()}, nil
+	case v2alpha1.SchemeGroupVersion.WithResource("routeraccesses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().RouterAccesses().Informer()}, nil
+	case v2alpha1.SchemeGroupVersion.WithResource("securedaccesses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().SecuredAccesses().Informer()}, nil
+	case v2alpha1.SchemeGroupVersion.WithResource("sites"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().Sites().Informer()}, nil
 
 	}
 

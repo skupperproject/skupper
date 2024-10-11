@@ -17,12 +17,12 @@ import (
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/resource"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/kube/certificates"
 )
 
 type AccessType interface {
-	RealiseAndResolve(access *skupperv1alpha1.SecuredAccess, service *corev1.Service) ([]skupperv1alpha1.Endpoint, error)
+	RealiseAndResolve(access *skupperv2alpha1.SecuredAccess, service *corev1.Service) ([]skupperv2alpha1.Endpoint, error)
 }
 
 type ControllerContext struct {
@@ -32,7 +32,7 @@ type ControllerContext struct {
 }
 
 type SecuredAccessManager struct {
-	definitions        map[string]*skupperv1alpha1.SecuredAccess
+	definitions        map[string]*skupperv2alpha1.SecuredAccess
 	services           map[string]*corev1.Service
 	routes             map[string]*routev1.Route
 	ingresses          map[string]*networkingv1.Ingress
@@ -47,7 +47,7 @@ type SecuredAccessManager struct {
 
 func NewSecuredAccessManager(clients internalclient.Clients, certMgr certificates.CertificateManager, config *Config, context ControllerContext) *SecuredAccessManager {
 	mgr := &SecuredAccessManager{
-		definitions:        map[string]*skupperv1alpha1.SecuredAccess{},
+		definitions:        map[string]*skupperv2alpha1.SecuredAccess{},
 		services:           map[string]*corev1.Service{},
 		routes:             map[string]*routev1.Route{},
 		ingresses:          map[string]*networkingv1.Ingress{},
@@ -85,7 +85,7 @@ func NewSecuredAccessManager(clients internalclient.Clients, certMgr certificate
 	return mgr
 }
 
-func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skupperv1alpha1.SecuredAccessSpec, annotations map[string]string, refs []metav1.OwnerReference) error {
+func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skupperv2alpha1.SecuredAccessSpec, annotations map[string]string, refs []metav1.OwnerReference) error {
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
 		if reflect.DeepEqual(spec, current.Spec) && reflect.DeepEqual(annotations, current.ObjectMeta.Annotations) {
@@ -93,16 +93,16 @@ func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skuppe
 		}
 		current.Spec = spec
 		current.ObjectMeta.Annotations = annotations
-		updated, err := m.clients.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
+		updated, err := m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 		m.definitions[key] = updated
 		return nil
 	} else {
-		sa := &skupperv1alpha1.SecuredAccess{
+		sa := &skupperv2alpha1.SecuredAccess{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "skupper.io/v1alpha1",
+				APIVersion: "skupper.io/v2alpha1",
 				Kind:       "SecuredAccess",
 			},
 			ObjectMeta: metav1.ObjectMeta{
@@ -112,7 +112,7 @@ func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skuppe
 			},
 			Spec: spec,
 		}
-		created, err := m.clients.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(namespace).Create(context.Background(), sa, metav1.CreateOptions{})
+		created, err := m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Create(context.Background(), sa, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -122,19 +122,19 @@ func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skuppe
 
 }
 
-func (m *SecuredAccessManager) SecuredAccessChanged(key string, current *skupperv1alpha1.SecuredAccess) error {
+func (m *SecuredAccessManager) SecuredAccessChanged(key string, current *skupperv2alpha1.SecuredAccess) error {
 	m.definitions[key] = current
 	return m.reconcile(current)
 }
 
-func (m *SecuredAccessManager) actualAccessType(sa *skupperv1alpha1.SecuredAccess) string {
+func (m *SecuredAccessManager) actualAccessType(sa *skupperv2alpha1.SecuredAccess) string {
 	if sa.Spec.AccessType == "" {
 		return m.defaultAccessType
 	}
 	return sa.Spec.AccessType
 }
 
-func (m *SecuredAccessManager) accessType(sa *skupperv1alpha1.SecuredAccess) AccessType {
+func (m *SecuredAccessManager) accessType(sa *skupperv2alpha1.SecuredAccess) AccessType {
 	accessType := sa.Spec.AccessType
 	if accessType == "" {
 		accessType = m.defaultAccessType
@@ -145,7 +145,7 @@ func (m *SecuredAccessManager) accessType(sa *skupperv1alpha1.SecuredAccess) Acc
 	return newUnsupportedAccess(m)
 }
 
-func (m *SecuredAccessManager) reconcile(sa *skupperv1alpha1.SecuredAccess) error {
+func (m *SecuredAccessManager) reconcile(sa *skupperv2alpha1.SecuredAccess) error {
 	svc, err := m.checkService(sa)
 	if err != nil {
 		if sa.SetConfigured(err) {
@@ -172,8 +172,8 @@ func (m *SecuredAccessManager) reconcile(sa *skupperv1alpha1.SecuredAccess) erro
 	}
 	return m.updateStatus(sa)
 }
-func (m *SecuredAccessManager) updateStatus(sa *skupperv1alpha1.SecuredAccess) error {
-	latest, err := m.clients.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(sa.Namespace).UpdateStatus(context.TODO(), sa, metav1.UpdateOptions{})
+func (m *SecuredAccessManager) updateStatus(sa *skupperv2alpha1.SecuredAccess) error {
+	latest, err := m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(sa.Namespace).UpdateStatus(context.TODO(), sa, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -181,7 +181,7 @@ func (m *SecuredAccessManager) updateStatus(sa *skupperv1alpha1.SecuredAccess) e
 	return nil
 }
 
-func (m *SecuredAccessManager) checkCertificate(sa *skupperv1alpha1.SecuredAccess) error {
+func (m *SecuredAccessManager) checkCertificate(sa *skupperv2alpha1.SecuredAccess) error {
 	if sa.Spec.Issuer == "" {
 		return nil
 	}
@@ -192,7 +192,7 @@ func (m *SecuredAccessManager) checkCertificate(sa *skupperv1alpha1.SecuredAcces
 	return m.certMgr.Ensure(sa.Namespace, name, sa.Spec.Issuer, sa.Name, getHosts(sa), false, true, ownerReferences(sa))
 }
 
-func (m *SecuredAccessManager) checkService(sa *skupperv1alpha1.SecuredAccess) (*corev1.Service, error) {
+func (m *SecuredAccessManager) checkService(sa *skupperv2alpha1.SecuredAccess) (*corev1.Service, error) {
 	key := sa.Key()
 	if svc, ok := m.services[key]; ok {
 		update := false
@@ -218,7 +218,7 @@ func (m *SecuredAccessManager) checkService(sa *skupperv1alpha1.SecuredAccess) (
 	return m.createService(sa)
 }
 
-func (m *SecuredAccessManager) createService(sa *skupperv1alpha1.SecuredAccess) (*corev1.Service, error) {
+func (m *SecuredAccessManager) createService(sa *skupperv2alpha1.SecuredAccess) (*corev1.Service, error) {
 	key := sa.Key()
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -286,7 +286,7 @@ func (m *SecuredAccessManager) RecoverService(svc *corev1.Service) {
 	m.services[key] = svc
 }
 
-func (m *SecuredAccessManager) getDefinitionForPortQualifiedResourceKey(qualifiedKey string, expectedAccessType string) *skupperv1alpha1.SecuredAccess {
+func (m *SecuredAccessManager) getDefinitionForPortQualifiedResourceKey(qualifiedKey string, expectedAccessType string) *skupperv2alpha1.SecuredAccess {
 	for _, p := range possibleKeyPortNamePairs(qualifiedKey) {
 		key, portName := p.get()
 		if sa, ok := m.definitions[key]; ok {
@@ -410,15 +410,15 @@ func updateSelector(spec *corev1.ServiceSpec, desired map[string]string) bool {
 	return true
 }
 
-func portsAsMap(ports []skupperv1alpha1.SecuredAccessPort) map[string]skupperv1alpha1.SecuredAccessPort {
-	desired := map[string]skupperv1alpha1.SecuredAccessPort{}
+func portsAsMap(ports []skupperv2alpha1.SecuredAccessPort) map[string]skupperv2alpha1.SecuredAccessPort {
+	desired := map[string]skupperv2alpha1.SecuredAccessPort{}
 	for _, port := range ports {
 		desired[port.Name] = port
 	}
 	return desired
 }
 
-func updatePorts(spec *corev1.ServiceSpec, desired []skupperv1alpha1.SecuredAccessPort) bool {
+func updatePorts(spec *corev1.ServiceSpec, desired []skupperv2alpha1.SecuredAccessPort) bool {
 	expected := toServicePorts(portsAsMap(desired))
 	changed := false
 	var ports []corev1.ServicePort
@@ -457,7 +457,7 @@ func equivalentProtocols(desired corev1.Protocol, actual corev1.Protocol) bool {
 	return desired == actual || (desired == "" && actual == corev1.ProtocolTCP)
 }
 
-func toServicePorts(desired map[string]skupperv1alpha1.SecuredAccessPort) map[string]corev1.ServicePort {
+func toServicePorts(desired map[string]skupperv2alpha1.SecuredAccessPort) map[string]corev1.ServicePort {
 	results := map[string]corev1.ServicePort{}
 	for name, details := range desired {
 		results[name] = corev1.ServicePort{
@@ -480,18 +480,18 @@ func serviceType(accessType string) corev1.ServiceType {
 	return ""
 }
 
-func ownerReferences(sa *skupperv1alpha1.SecuredAccess) []metav1.OwnerReference {
+func ownerReferences(sa *skupperv2alpha1.SecuredAccess) []metav1.OwnerReference {
 	return []metav1.OwnerReference{
 		{
 			Kind:       "SecuredAccess",
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Name:       sa.Name,
 			UID:        sa.ObjectMeta.UID,
 		},
 	}
 }
 
-func getHosts(sa *skupperv1alpha1.SecuredAccess) []string {
+func getHosts(sa *skupperv2alpha1.SecuredAccess) []string {
 	hosts := map[string]string{}
 	for _, endpoint := range sa.Status.Endpoints {
 		if endpoint.Host != "" {
@@ -502,7 +502,10 @@ func getHosts(sa *skupperv1alpha1.SecuredAccess) []string {
 	for key, _ := range hosts {
 		results = append(results, key)
 	}
-	results = append(results, sa.Name)
-	results = append(results, sa.Name+"."+sa.Namespace)
+	for _, h := range []string{sa.Name, sa.Name + "." + sa.Namespace} {
+		if _, ok := hosts[h]; !ok {
+			results = append(results, h)
+		}
+	}
 	return results
 }

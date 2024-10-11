@@ -6,8 +6,8 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,7 +16,7 @@ import (
 )
 
 type CmdLinkStatus struct {
-	Client    skupperv1alpha1.SkupperV1alpha1Interface
+	Client    skupperv2alpha1.SkupperV2alpha1Interface
 	CobraCmd  *cobra.Command
 	Flags     *common.CommandLinkStatusFlags
 	Namespace string
@@ -33,7 +33,7 @@ func (cmd *CmdLinkStatus) NewClient(cobraCommand *cobra.Command, args []string) 
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
 	utils.HandleError(err)
 
-	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
+	cmd.Client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.Namespace = cli.Namespace
 }
 
@@ -113,24 +113,25 @@ func (cmd *CmdLinkStatus) Run() error {
 }
 func (cmd *CmdLinkStatus) WaitUntil() error { return nil }
 
-func printEncodedOuptut(outputType string, link *v1alpha1.Link) error {
+func printEncodedOuptut(outputType string, link *v2alpha1.Link) error {
 	encodedOutput, err := utils.Encode(outputType, link)
 	fmt.Println(encodedOutput)
 	return err
 }
 
-func displaySingleLink(link *v1alpha1.Link) {
+func displaySingleLink(link *v2alpha1.Link) {
 	fmt.Printf("%s\t: %s\n", "Name", link.Name)
-	fmt.Printf("%s\t: %s\n", "Status", link.Status.StatusMessage)
+	fmt.Printf("%s\t: %s\n", "Status", link.Status.StatusType)
 	fmt.Printf("%s\t: %d\n", "Cost", link.Spec.Cost)
+	fmt.Printf("%s\t: %s\n", "Message", link.Status.Message)
 }
 
-func displayLinkList(linkList []v1alpha1.Link) {
+func displayLinkList(linkList []v2alpha1.Link) {
 	writer := tabwriter.NewWriter(os.Stdout, 0, 8, 1, '\t', tabwriter.AlignRight)
-	fmt.Fprintln(writer, "NAME\tSTATUS\tCOST")
+	fmt.Fprintln(writer, "NAME\tSTATUS\tCOST\tMESSAGE")
 
 	for _, link := range linkList {
-		fmt.Fprintf(writer, "%s\t%s\t%d", link.Name, link.Status.StatusMessage, link.Spec.Cost)
+		fmt.Fprintf(writer, "%s\t%s\t%d\t%s", link.Name, link.Status.StatusType, link.Spec.Cost, link.Status.Message)
 		fmt.Fprintln(writer)
 	}
 

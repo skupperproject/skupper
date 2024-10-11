@@ -7,7 +7,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,16 +35,16 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 			name: "arguments were specified and they are not needed",
 			args: []string{"something"},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									StatusMessage: "OK",
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
+									Message: "OK",
 									Conditions: []v1.Condition{
 										{
 											Message:            "OK",
@@ -66,6 +66,13 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 											Reason:             "OK",
 											Status:             "True",
 											Type:               "Configured",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Ready",
 										},
 									},
 								},
@@ -80,16 +87,16 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 		{
 			name: "tls secret was not specified",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									StatusMessage: "OK",
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
+									Message: "OK",
 									Conditions: []v1.Condition{
 										{
 											Message:            "OK",
@@ -111,6 +118,13 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 											Reason:             "OK",
 											Status:             "True",
 											Type:               "Configured",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Ready",
 										},
 									},
 								},
@@ -125,16 +139,16 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 		{
 			name: "cost is not valid.",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									StatusMessage: "OK",
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
+									Message: "OK",
 									Conditions: []v1.Condition{
 										{
 											Message:            "OK",
@@ -156,6 +170,13 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 											Reason:             "OK",
 											Status:             "True",
 											Type:               "Configured",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Ready",
 										},
 									},
 								},
@@ -170,16 +191,16 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 		{
 			name: "cost is not positive",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									StatusMessage: "OK",
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
+									Message: "OK",
 									Conditions: []v1.Condition{
 										{
 											Message:            "OK",
@@ -201,6 +222,13 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 											Reason:             "OK",
 											Status:             "True",
 											Type:               "Configured",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Ready",
 										},
 									},
 								},
@@ -217,16 +245,16 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 		{
 			name: "output format is not valid",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									StatusMessage: "OK",
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
+									Message: "OK",
 									Conditions: []v1.Condition{
 										{
 											Message:            "OK",
@@ -248,6 +276,13 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 											Reason:             "OK",
 											Status:             "True",
 											Type:               "Configured",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Ready",
 										},
 									},
 								},
@@ -264,16 +299,16 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 		{
 			name: "tls secret name is not valid",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									StatusMessage: "OK",
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
+									Message: "OK",
 									Conditions: []v1.Condition{
 										{
 											Message:            "OK",
@@ -295,6 +330,13 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 											Reason:             "OK",
 											Status:             "True",
 											Type:               "Configured",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Ready",
 										},
 									},
 								},
@@ -311,16 +353,16 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 		{
 			name: "timeout is not valid",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									StatusMessage: "OK",
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
+									Message: "OK",
 									Conditions: []v1.Condition{
 										{
 											Message:            "OK",
@@ -342,6 +384,13 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 											Reason:             "OK",
 											Status:             "True",
 											Type:               "Configured",
+										},
+										{
+											Message:            "OK",
+											ObservedGeneration: 1,
+											Reason:             "OK",
+											Status:             "True",
+											Type:               "Ready",
 										},
 									},
 								},
@@ -380,7 +429,7 @@ func TestCmdLinkGenerate_InputToOptions(t *testing.T) {
 		name                        string
 		args                        []string
 		flags                       common.CommandLinkGenerateFlags
-		activeSite                  *v1alpha1.Site
+		activeSite                  *v2alpha1.Site
 		expectedLinkname            string
 		expectedTlsSecret           string
 		expectedCost                int
@@ -400,15 +449,15 @@ func TestCmdLinkGenerate_InputToOptions(t *testing.T) {
 		{
 			name:  "credentials are not needed",
 			flags: common.CommandLinkGenerateFlags{"", "1", "json", true, time.Minute},
-			activeSite: &v1alpha1.Site{
+			activeSite: &v2alpha1.Site{
 
 				ObjectMeta: v1.ObjectMeta{
 					Name:      "the-site",
 					Namespace: "test",
 				},
-				Status: v1alpha1.SiteStatus{
-					Status: v1alpha1.Status{
-						StatusMessage: "OK",
+				Status: v2alpha1.SiteStatus{
+					Status: v2alpha1.Status{
+						Message: "OK",
 						Conditions: []v1.Condition{
 							{
 								Message:            "OK",
@@ -466,15 +515,15 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 				command.tlsSecret = "secret"
 				command.output = "yaml"
 				command.generateCredential = true
-				command.activeSite = &v1alpha1.Site{
+				command.activeSite = &v2alpha1.Site{
 
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "the-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 							Conditions: []v1.Condition{
 								{
 									Message:            "OK",
@@ -485,7 +534,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 								},
 							},
 						},
-						Endpoints: []v1alpha1.Endpoint{
+						Endpoints: []v2alpha1.Endpoint{
 							{
 								Name:  "inter-router",
 								Host:  "127.0.0.1",
@@ -511,15 +560,15 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 				command.tlsSecret = "secret"
 				command.output = "yaml"
 				command.generateCredential = false
-				command.activeSite = &v1alpha1.Site{
+				command.activeSite = &v2alpha1.Site{
 
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "the-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 							Conditions: []v1.Condition{
 								{
 									Message:            "OK",
@@ -530,7 +579,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 								},
 							},
 						},
-						Endpoints: []v1alpha1.Endpoint{
+						Endpoints: []v2alpha1.Endpoint{
 							{
 								Name:  "inter-router",
 								Host:  "127.0.0.1",
@@ -556,15 +605,15 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 				command.tlsSecret = "secret"
 				command.output = ""
 				command.generateCredential = true
-				command.activeSite = &v1alpha1.Site{
+				command.activeSite = &v2alpha1.Site{
 
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "the-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 							Conditions: []v1.Condition{
 								{
 									Message:            "OK",
@@ -575,7 +624,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 								},
 							},
 						},
-						Endpoints: []v1alpha1.Endpoint{
+						Endpoints: []v2alpha1.Endpoint{
 							{
 								Name:  "inter-router",
 								Host:  "127.0.0.1",
@@ -602,15 +651,15 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 				command.tlsSecret = "secret"
 				command.output = "unsupported"
 				command.generateCredential = true
-				command.activeSite = &v1alpha1.Site{
+				command.activeSite = &v2alpha1.Site{
 
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "the-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 							Conditions: []v1.Condition{
 								{
 									Message:            "OK",
@@ -621,7 +670,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 								},
 							},
 						},
-						Endpoints: []v1alpha1.Endpoint{
+						Endpoints: []v2alpha1.Endpoint{
 							{
 								Name:  "inter-router",
 								Host:  "127.0.0.1",
@@ -648,15 +697,15 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 				command.tlsSecret = "secret"
 				command.output = "yaml"
 				command.generateCredential = false
-				command.activeSite = &v1alpha1.Site{
+				command.activeSite = &v2alpha1.Site{
 
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "the-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 							Conditions: []v1.Condition{
 								{
 									Message:            "OK",
@@ -692,15 +741,15 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 				command.tlsSecret = "secret"
 				command.output = "yaml"
 				command.generateCredential = true
-				command.activeSite = &v1alpha1.Site{
+				command.activeSite = &v2alpha1.Site{
 
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "the-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 							Conditions: []v1.Condition{
 								{
 									Message:            "OK",
@@ -711,7 +760,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 								},
 							},
 						},
-						Endpoints: []v1alpha1.Endpoint{
+						Endpoints: []v2alpha1.Endpoint{
 							{
 								Name:  "inter-router",
 								Host:  "127.0.0.1",
@@ -755,7 +804,7 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 	type test struct {
 		name               string
 		generateCredential bool
-		generatedLink      v1alpha1.Link
+		generatedLink      v2alpha1.Link
 		outputType         string
 		tlsSecret          string
 		timeout            time.Duration
@@ -813,7 +862,7 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 				},
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Certificate{
+				&v2alpha1.Certificate{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "link-test",
 						Namespace: "test",
@@ -885,7 +934,7 @@ func newCmdLinkGenerateWithMocks(namespace string, k8sObjects []runtime.Object, 
 		return nil, err
 	}
 	CmdLinkGenerate := &CmdLinkGenerate{
-		Client:     client.GetSkupperClient().SkupperV1alpha1(),
+		Client:     client.GetSkupperClient().SkupperV2alpha1(),
 		KubeClient: client.GetKubeClient(),
 		Namespace:  namespace,
 	}

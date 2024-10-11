@@ -1,4 +1,4 @@
-apiVersion: skupper.io/v1alpha1
+apiVersion: skupper.io/v2alpha1
 kind: AccessGrant
 metadata:
   name: my-grant

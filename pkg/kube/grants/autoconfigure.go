@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
@@ -38,10 +38,10 @@ func (s *AutoConfigure) getConfigurationFromPod(clients internalclient.Clients, 
 	return nil
 }
 
-func (s *AutoConfigure) ensureCert(clients internalclient.Clients, namespace string, desired *skupperv1alpha1.Certificate) error {
-	existing, err := clients.GetSkupperClient().SkupperV1alpha1().Certificates(namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
+func (s *AutoConfigure) ensureCert(clients internalclient.Clients, namespace string, desired *skupperv2alpha1.Certificate) error {
+	existing, err := clients.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
-		_, err = clients.GetSkupperClient().SkupperV1alpha1().Certificates(namespace).Create(context.Background(), desired, metav1.CreateOptions{})
+		_, err = clients.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Create(context.Background(), desired, metav1.CreateOptions{})
 		return err
 	} else if err != nil {
 		return err
@@ -58,14 +58,14 @@ func (s *AutoConfigure) ensureCert(clients internalclient.Clients, namespace str
 	if !changed {
 		return nil
 	}
-	_, err = clients.GetSkupperClient().SkupperV1alpha1().Certificates(namespace).Update(context.Background(), existing, metav1.UpdateOptions{})
+	_, err = clients.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Update(context.Background(), existing, metav1.UpdateOptions{})
 	return err
 }
 
-func (s *AutoConfigure) ensureSecuredAccess(clients internalclient.Clients, namespace string, desired *skupperv1alpha1.SecuredAccess) error {
-	existing, err := clients.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
+func (s *AutoConfigure) ensureSecuredAccess(clients internalclient.Clients, namespace string, desired *skupperv2alpha1.SecuredAccess) error {
+	existing, err := clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
-		_, err = clients.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(namespace).Create(context.Background(), desired, metav1.CreateOptions{})
+		_, err = clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Create(context.Background(), desired, metav1.CreateOptions{})
 		return err
 	} else if err != nil {
 		return err
@@ -82,7 +82,7 @@ func (s *AutoConfigure) ensureSecuredAccess(clients internalclient.Clients, name
 	if !changed {
 		return nil
 	}
-	_, err = clients.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(namespace).Update(context.Background(), existing, metav1.UpdateOptions{})
+	_, err = clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Update(context.Background(), existing, metav1.UpdateOptions{})
 	return err
 }
 
@@ -91,16 +91,16 @@ func (s *AutoConfigure) configure(clients internalclient.Clients, namespace stri
 		return err
 	}
 
-	cert := &skupperv1alpha1.Certificate{
+	cert := &skupperv2alpha1.Certificate{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "Certificate",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "skupper-grant-server-ca",
 			OwnerReferences: s.ownerRefs,
 		},
-		Spec: skupperv1alpha1.CertificateSpec{
+		Spec: skupperv2alpha1.CertificateSpec{
 			Ca:      "",
 			Subject: "SkupperGrantServerCA",
 			Signing: true,
@@ -112,18 +112,18 @@ func (s *AutoConfigure) configure(clients internalclient.Clients, namespace stri
 		return err
 	}
 
-	sa := &skupperv1alpha1.SecuredAccess{
+	sa := &skupperv2alpha1.SecuredAccess{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "SecuredAccess",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "skupper-grant-server",
 			OwnerReferences: s.ownerRefs,
 		},
-		Spec: skupperv1alpha1.SecuredAccessSpec{
+		Spec: skupperv2alpha1.SecuredAccessSpec{
 			Selector: s.selector,
-			Ports: []skupperv1alpha1.SecuredAccessPort{
+			Ports: []skupperv2alpha1.SecuredAccessPort{
 				{
 					Name: "https",
 					Port: s.port,

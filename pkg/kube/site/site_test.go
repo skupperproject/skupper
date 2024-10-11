@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/kube/certificates"
 	"github.com/skupperproject/skupper/pkg/kube/securedaccess"
@@ -23,7 +23,7 @@ import (
 
 func TestSite_Recover(t *testing.T) {
 	type args struct {
-		site *skupperv1alpha1.Site
+		site *skupperv2alpha1.Site
 	}
 	tests := []struct {
 		name                string
@@ -36,7 +36,7 @@ func TestSite_Recover(t *testing.T) {
 		{
 			name: "site inactive",
 			args: args{
-				site: &skupperv1alpha1.Site{
+				site: &skupperv2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "siteInactive",
 						Namespace: "test",
@@ -50,23 +50,23 @@ func TestSite_Recover(t *testing.T) {
 		{
 			name: "site fail CA",
 			args: args{
-				site: &skupperv1alpha1.Site{
+				site: &skupperv2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "site1",
 						Namespace: "test",
 						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 					},
-					Spec: skupperv1alpha1.SiteSpec{
+					Spec: skupperv2alpha1.SiteSpec{
 						DefaultIssuer: "skupper-spec-issuer-ca",
 						LinkAccess:    "loadbalancer",
 					},
-					Status: skupperv1alpha1.SiteStatus{
+					Status: skupperv2alpha1.SiteStatus{
 						DefaultIssuer: "skupper-status-issuer-ca",
 					},
 				},
 			},
 			skupperObjects: []runtime.Object{
-				&skupperv1alpha1.RouterAccess{
+				&skupperv2alpha1.RouterAccess{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "Router1",
 						Namespace: "test",
@@ -92,12 +92,12 @@ func TestSite_Recover(t *testing.T) {
 
 func TestSite_checkDefaultRouterAccess(t *testing.T) {
 	type args struct {
-		site *skupperv1alpha1.Site
+		site *skupperv2alpha1.Site
 	}
 	tests := []struct {
 		name                string
 		args                args
-		rtr                 *skupperv1alpha1.RouterAccess
+		rtr                 *skupperv2alpha1.RouterAccess
 		wantErr             bool
 		wantLinkAccess      int
 		k8sObjects          []runtime.Object
@@ -107,7 +107,7 @@ func TestSite_checkDefaultRouterAccess(t *testing.T) {
 		{
 			name: "no link access config",
 			args: args{
-				site: &skupperv1alpha1.Site{
+				site: &skupperv2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "site1",
 						Namespace: "test",
@@ -120,12 +120,12 @@ func TestSite_checkDefaultRouterAccess(t *testing.T) {
 		{
 			name: "default router config",
 			args: args{
-				site: &skupperv1alpha1.Site{
+				site: &skupperv2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "site1",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.SiteSpec{
+					Spec: skupperv2alpha1.SiteSpec{
 						LinkAccess: "loadbalancer",
 					},
 				},
@@ -136,31 +136,31 @@ func TestSite_checkDefaultRouterAccess(t *testing.T) {
 		{
 			name: "default router config exists",
 			args: args{
-				site: &skupperv1alpha1.Site{
+				site: &skupperv2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "site1",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.SiteSpec{
+					Spec: skupperv2alpha1.SiteSpec{
 						LinkAccess: "loadbalancer",
 					},
 				},
 			},
-			rtr: &skupperv1alpha1.RouterAccess{
+			rtr: &skupperv2alpha1.RouterAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "RouterAccess",
 				},
 				ObjectMeta: v1.ObjectMeta{
 					Name:      "skupper-router",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.RouterAccessSpec{
+				Spec: skupperv2alpha1.RouterAccessSpec{
 					AccessType: "nodeport",
 				},
 			},
 			skupperObjects: []runtime.Object{
-				&skupperv1alpha1.RouterAccess{
+				&skupperv2alpha1.RouterAccess{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "skupper-router",
 						Namespace: "test",
@@ -282,7 +282,7 @@ func TestSite_ExposeUnexpose(t *testing.T) {
 func TestSite_CheckListener(t *testing.T) {
 	type args struct {
 		name     string
-		listener *skupperv1alpha1.Listener
+		listener *skupperv2alpha1.Listener
 	}
 	tests := []struct {
 		name                string
@@ -305,13 +305,13 @@ func TestSite_CheckListener(t *testing.T) {
 			name: "one listener added",
 			args: args{
 				name: "listener1",
-				listener: &skupperv1alpha1.Listener{
+				listener: &skupperv2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "listener1",
 						Namespace: "test",
 						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 					},
-					Spec: skupperv1alpha1.ListenerSpec{
+					Spec: skupperv2alpha1.ListenerSpec{
 						RoutingKey: "backend",
 						Port:       8080,
 						Type:       "tcp",
@@ -320,7 +320,7 @@ func TestSite_CheckListener(t *testing.T) {
 				},
 			},
 			skupperObjects: []runtime.Object{
-				&skupperv1alpha1.Listener{
+				&skupperv2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "listener1",
 						Namespace: "test",
@@ -337,13 +337,13 @@ func TestSite_CheckListener(t *testing.T) {
 				name: "listener error",
 				args: args{
 					name: "listener1",
-					listener: &skupperv1alpha1.Listener{
+					listener: &skupperv2alpha1.Listener{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "listener1",
 							Namespace: "test",
 							UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 						},
-						Spec: skupperv1alpha1.ListenerSpec{
+						Spec: skupperv2alpha1.ListenerSpec{
 							RoutingKey: "backend",
 							Port:       8080,
 							Type:       "tcp",
@@ -384,7 +384,7 @@ func TestSite_CheckListener(t *testing.T) {
 						t.Errorf("Site.CheckListener() expected listener doesn't have correct values")
 					}
 					for _, condition := range listener.Status.Conditions {
-						if condition.Type == "Configured" && condition.Reason == "OK" {
+						if condition.Type == "Configured" && condition.Status == "True" {
 							listenerConfigured = true
 						}
 					}
@@ -402,7 +402,7 @@ func TestSite_CheckListener(t *testing.T) {
 func TestSite_CheckConnector(t *testing.T) {
 	type args struct {
 		name      string
-		connector *skupperv1alpha1.Connector
+		connector *skupperv2alpha1.Connector
 	}
 	tests := []struct {
 		name                string
@@ -424,13 +424,13 @@ func TestSite_CheckConnector(t *testing.T) {
 			name: "one connector added",
 			args: args{
 				name: "connector1",
-				connector: &skupperv1alpha1.Connector{
+				connector: &skupperv2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "connector1",
 						Namespace: "test",
 						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 					},
-					Spec: skupperv1alpha1.ConnectorSpec{
+					Spec: skupperv2alpha1.ConnectorSpec{
 						RoutingKey: "backend",
 						Port:       8080,
 						Type:       "tcp",
@@ -439,7 +439,7 @@ func TestSite_CheckConnector(t *testing.T) {
 				},
 			},
 			skupperObjects: []runtime.Object{
-				&skupperv1alpha1.Connector{
+				&skupperv2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "connector1",
 						Namespace: "test",
@@ -477,7 +477,7 @@ func TestSite_CheckConnector(t *testing.T) {
 						t.Errorf("Site.Checkconnector() expected connector doesn't have correct values")
 					}
 					for _, condition := range connector.Status.Conditions {
-						if condition.Type == "Configured" && condition.Reason == "OK" {
+						if condition.Type == "Configured" && condition.Status == "True" {
 							connectorConfigured = true
 						}
 					}
@@ -495,7 +495,7 @@ func TestSite_CheckConnector(t *testing.T) {
 func TestSite_CheckLink(t *testing.T) {
 	type args struct {
 		name       string
-		linkconfig *skupperv1alpha1.Link
+		linkconfig *skupperv2alpha1.Link
 	}
 	tests := []struct {
 		name                string
@@ -519,15 +519,15 @@ func TestSite_CheckLink(t *testing.T) {
 			name: "link - site not initialized",
 			args: args{
 				name: "link1",
-				linkconfig: &skupperv1alpha1.Link{
+				linkconfig: &skupperv2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "link1",
 						Namespace: "test",
 						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 					},
-					Spec: skupperv1alpha1.LinkSpec{
+					Spec: skupperv2alpha1.LinkSpec{
 						Cost: 1,
-						Endpoints: []skupperv1alpha1.Endpoint{
+						Endpoints: []skupperv2alpha1.Endpoint{
 							{
 								Name: string(qdr.RoleInterRouter),
 								Host: "10.10.10.1",
@@ -544,15 +544,15 @@ func TestSite_CheckLink(t *testing.T) {
 			name: "link - not found",
 			args: args{
 				name: "link1",
-				linkconfig: &skupperv1alpha1.Link{
+				linkconfig: &skupperv2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "link1",
 						Namespace: "test",
 						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 					},
-					Spec: skupperv1alpha1.LinkSpec{
+					Spec: skupperv2alpha1.LinkSpec{
 						Cost: 1,
-						Endpoints: []skupperv1alpha1.Endpoint{
+						Endpoints: []skupperv2alpha1.Endpoint{
 							{
 								Name: string(qdr.RoleInterRouter),
 								Host: "10.10.10.1",
@@ -571,15 +571,15 @@ func TestSite_CheckLink(t *testing.T) {
 			name: "link - ok",
 			args: args{
 				name: "link1",
-				linkconfig: &skupperv1alpha1.Link{
+				linkconfig: &skupperv2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "link1",
 						Namespace: "test",
 						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 					},
-					Spec: skupperv1alpha1.LinkSpec{
+					Spec: skupperv2alpha1.LinkSpec{
 						Cost: 2,
-						Endpoints: []skupperv1alpha1.Endpoint{
+						Endpoints: []skupperv2alpha1.Endpoint{
 							{
 								Name: string(qdr.RoleInterRouter),
 								Host: "1.1.1.1",
@@ -590,7 +590,7 @@ func TestSite_CheckLink(t *testing.T) {
 				},
 			},
 			skupperObjects: []runtime.Object{
-				&skupperv1alpha1.Link{
+				&skupperv2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "link1",
 						Namespace: "test",
@@ -605,15 +605,15 @@ func TestSite_CheckLink(t *testing.T) {
 			name: "link - error",
 			args: args{
 				name: "link1",
-				linkconfig: &skupperv1alpha1.Link{
+				linkconfig: &skupperv2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "link1",
 						Namespace: "test",
 						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 					},
-					Spec: skupperv1alpha1.LinkSpec{
+					Spec: skupperv2alpha1.LinkSpec{
 						Cost: 2,
-						Endpoints: []skupperv1alpha1.Endpoint{
+						Endpoints: []skupperv2alpha1.Endpoint{
 							{
 								Name: string(qdr.RoleInterRouter),
 								Host: "1.1.1.1",
@@ -655,7 +655,7 @@ func TestSite_CheckLink(t *testing.T) {
 				}
 
 				for _, condition := range link.Status.Conditions {
-					if condition.Type == "Configured" && condition.Reason == "OK" {
+					if condition.Type == "Configured" && condition.Status == "True" {
 						linkConfigured = true
 					}
 				}
@@ -679,7 +679,7 @@ func TestSite_CheckLink(t *testing.T) {
 				if numLinks != 0 {
 					link := s.links[tt.args.name].Definition()
 					for _, condition := range link.Status.Conditions {
-						if condition.Type == "Configured" && condition.Reason == "OK" {
+						if condition.Type == "Configured" && condition.Status == "True" {
 							t.Errorf("Site.CheckLink() link in configured state but should not be")
 						}
 					}
@@ -692,7 +692,7 @@ func TestSite_CheckLink(t *testing.T) {
 func TestSite_CheckRouterAccess(t *testing.T) {
 	type args struct {
 		name string
-		la   *skupperv1alpha1.RouterAccess
+		la   *skupperv2alpha1.RouterAccess
 	}
 	tests := []struct {
 		name                string
@@ -718,22 +718,22 @@ func TestSite_CheckRouterAccess(t *testing.T) {
 			name: "router access config",
 			args: args{
 				name: "skupper-router",
-				la: &skupperv1alpha1.RouterAccess{
+				la: &skupperv2alpha1.RouterAccess{
 					TypeMeta: metav1.TypeMeta{
-						APIVersion: "skupper.io/v1alpha1",
+						APIVersion: "skupper.io/v2alpha1",
 						Kind:       "RouterAccess",
 					},
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "skupper-router",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.RouterAccessSpec{
+					Spec: skupperv2alpha1.RouterAccessSpec{
 						AccessType: "nodeport",
 					},
 				},
 			},
 			skupperObjects: []runtime.Object{
-				&skupperv1alpha1.RouterAccess{
+				&skupperv2alpha1.RouterAccess{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "skupper-router",
 						Namespace: "test",
@@ -775,12 +775,12 @@ func TestSite_CheckRouterAccess(t *testing.T) {
 
 func Test_NetworkStatusUpdate(t *testing.T) {
 	type args struct {
-		siteRecord []skupperv1alpha1.SiteRecord
+		siteRecord []skupperv2alpha1.SiteRecord
 	}
 	tests := []struct {
 		name                string
 		args                args
-		linkconfig          *skupperv1alpha1.Link
+		linkconfig          *skupperv2alpha1.Link
 		wantErr             bool
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
@@ -789,7 +789,7 @@ func Test_NetworkStatusUpdate(t *testing.T) {
 		{
 			name: "no site",
 			args: args{
-				siteRecord: []skupperv1alpha1.SiteRecord{
+				siteRecord: []skupperv2alpha1.SiteRecord{
 					{
 						Id:        "",
 						Name:      "site1",
@@ -805,14 +805,14 @@ func Test_NetworkStatusUpdate(t *testing.T) {
 		{
 			name: "site1",
 			args: args{
-				siteRecord: []skupperv1alpha1.SiteRecord{
+				siteRecord: []skupperv2alpha1.SiteRecord{
 					{
 						Id:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 						Name:      "site1",
 						Namespace: "test",
 						Platform:  "podman",
 						Version:   "1.8.0",
-						Links: []skupperv1alpha1.LinkRecord{
+						Links: []skupperv2alpha1.LinkRecord{
 							{
 								Name:           "link1",
 								RemoteSiteName: "east",
@@ -821,32 +821,20 @@ func Test_NetworkStatusUpdate(t *testing.T) {
 					},
 				},
 			},
-			linkconfig: &skupperv1alpha1.Link{
+			linkconfig: &skupperv2alpha1.Link{
 				ObjectMeta: v1.ObjectMeta{
 					Name:      "link1",
 					Namespace: "test",
 					UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 				},
-				Spec: skupperv1alpha1.LinkSpec{
+				Spec: skupperv2alpha1.LinkSpec{
 					Cost: 2,
-					Endpoints: []skupperv1alpha1.Endpoint{
+					Endpoints: []skupperv2alpha1.Endpoint{
 						{
 							Name: string(qdr.RoleInterRouter),
 							Host: "1.1.1.1",
 							Port: "55671",
 						},
-					},
-				},
-			},
-			skupperObjects: []runtime.Object{
-				&skupperv1alpha1.Site{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: "skupper.io/v1alpha1",
-						Kind:       "Site",
-					},
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "site1",
-						Namespace: "test",
 					},
 				},
 			},
@@ -887,12 +875,12 @@ func Test_NetworkStatusUpdate(t *testing.T) {
 
 func Test_CheckSecuredAccess(t *testing.T) {
 	type args struct {
-		sa *skupperv1alpha1.SecuredAccess
+		sa *skupperv2alpha1.SecuredAccess
 	}
 	tests := []struct {
 		name                string
 		args                args
-		rtr                 *skupperv1alpha1.RouterAccess
+		rtr                 *skupperv2alpha1.RouterAccess
 		wantErr             bool
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
@@ -901,9 +889,9 @@ func Test_CheckSecuredAccess(t *testing.T) {
 		{
 			name: "no linkAccess name",
 			args: args{
-				sa: &skupperv1alpha1.SecuredAccess{
+				sa: &skupperv2alpha1.SecuredAccess{
 					TypeMeta: metav1.TypeMeta{
-						APIVersion: "skupper.io/v1alpha1",
+						APIVersion: "skupper.io/v2alpha1",
 						Kind:       "SecuredAccess",
 					},
 				},
@@ -913,9 +901,9 @@ func Test_CheckSecuredAccess(t *testing.T) {
 		{
 			name: "no existing linkAccess",
 			args: args{
-				sa: &skupperv1alpha1.SecuredAccess{
+				sa: &skupperv2alpha1.SecuredAccess{
 					TypeMeta: metav1.TypeMeta{
-						APIVersion: "skupper.io/v1alpha1",
+						APIVersion: "skupper.io/v2alpha1",
 						Kind:       "SecuredAccess",
 					},
 					ObjectMeta: v1.ObjectMeta{
@@ -933,9 +921,9 @@ func Test_CheckSecuredAccess(t *testing.T) {
 		{
 			name: "linkAccess modified",
 			args: args{
-				sa: &skupperv1alpha1.SecuredAccess{
+				sa: &skupperv2alpha1.SecuredAccess{
 					TypeMeta: metav1.TypeMeta{
-						APIVersion: "skupper.io/v1alpha1",
+						APIVersion: "skupper.io/v2alpha1",
 						Kind:       "SecuredAccess",
 					},
 					ObjectMeta: v1.ObjectMeta{
@@ -946,11 +934,11 @@ func Test_CheckSecuredAccess(t *testing.T) {
 							"internal.skupper.io/routeraccess": "skupper-router",
 						},
 					},
-					Spec: v1alpha1.SecuredAccessSpec{
+					Spec: v2alpha1.SecuredAccessSpec{
 						AccessType: "loadbalancer",
 					},
-					Status: v1alpha1.SecuredAccessStatus{
-						Endpoints: []skupperv1alpha1.Endpoint{
+					Status: v2alpha1.SecuredAccessStatus{
+						Endpoints: []skupperv2alpha1.Endpoint{
 							{
 								Name: string(qdr.RoleInterRouter),
 								Host: "10.10.10.1",
@@ -960,21 +948,21 @@ func Test_CheckSecuredAccess(t *testing.T) {
 					},
 				},
 			},
-			rtr: &skupperv1alpha1.RouterAccess{
+			rtr: &skupperv2alpha1.RouterAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "RouterAccess",
 				},
 				ObjectMeta: v1.ObjectMeta{
 					Name:      "skupper-router",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.RouterAccessSpec{
+				Spec: skupperv2alpha1.RouterAccessSpec{
 					AccessType: "nodeport",
 				},
 			},
 			skupperObjects: []runtime.Object{
-				&skupperv1alpha1.RouterAccess{
+				&skupperv2alpha1.RouterAccess{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "skupper-router",
 						Namespace: "test",
@@ -1022,20 +1010,20 @@ func Test_CheckSecuredAccess(t *testing.T) {
 
 func newSiteMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string, accessMgr bool) (*Site, error) {
 
-	site := &skupperv1alpha1.Site{
+	site := &skupperv2alpha1.Site{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      "site1",
 			Namespace: "test",
 			UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 		},
-		Spec: skupperv1alpha1.SiteSpec{
+		Spec: skupperv2alpha1.SiteSpec{
 			DefaultIssuer: "skupper-spec-issuer-ca",
 		},
-		Status: skupperv1alpha1.SiteStatus{
+		Status: skupperv2alpha1.SiteStatus{
 			DefaultIssuer: "skupper-status-issuer-ca",
 		},
 	}
-
+	skupperObjects = append(skupperObjects, site)
 	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
 	if err != nil {
 		return nil, err
@@ -1047,7 +1035,7 @@ func newSiteMocks(namespace string, k8sObjects []runtime.Object, skupperObjects 
 		bindings:   NewExtendedBindings(controller),
 		links:      make(map[string]*site1.Link),
 		errors:     make(map[string]string),
-		linkAccess: make(map[string]*skupperv1alpha1.RouterAccess),
+		linkAccess: make(map[string]*skupperv2alpha1.RouterAccess),
 		certs:      certificates.NewCertificateManager(controller),
 		access:     securedaccess.NewSecuredAccessManager(client, nil, &securedaccess.Config{DefaultAccessType: "loadbalancer"}, securedaccess.ControllerContext{}),
 		adaptor:    BindingAdaptor{},

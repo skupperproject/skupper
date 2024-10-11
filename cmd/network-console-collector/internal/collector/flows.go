@@ -53,7 +53,7 @@ func (r ConnectionRecord) Identity() string {
 func (r ConnectionRecord) GetTypeMeta() vanflow.TypeMeta {
 	return vanflow.TypeMeta{
 		Type:       "ConnectionRecord",
-		APIVersion: "v1alpha1",
+		APIVersion: "v2alpha1",
 	}
 }
 
@@ -126,7 +126,7 @@ func (r RequestRecord) Identity() string {
 func (r RequestRecord) GetTypeMeta() vanflow.TypeMeta {
 	return vanflow.TypeMeta{
 		Type:       "RequestRecord",
-		APIVersion: "v1alpha1",
+		APIVersion: "v2alpha1",
 	}
 }
 

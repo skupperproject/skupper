@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/config"
 	"gopkg.in/yaml.v3"
 	"gotest.tools/assert"
@@ -378,11 +378,11 @@ func TestPlatformInfo_Update(t *testing.T) {
 }
 
 func TestGetHostSiteHome(t *testing.T) {
-	fakeSite := &v1alpha1.Site{
+	fakeSite := &v2alpha1.Site{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "my-test-site",
 		},
-		Spec: v1alpha1.SiteSpec{},
+		Spec: v2alpha1.SiteSpec{},
 	}
 	homeDir, err := os.UserHomeDir()
 	assert.Assert(t, err)

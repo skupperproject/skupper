@@ -8,7 +8,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,13 +64,13 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				Timeout:      60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener-type",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -92,12 +92,12 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				Timeout:    30 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener-rk",
 						Namespace: "test",
-					}, Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					}, Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -119,13 +119,13 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				Timeout:   50 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener-tls",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -146,13 +146,13 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				Timeout: 60 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener-port",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -170,13 +170,13 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 			args:  []string{"bad-timeout"},
 			flags: common.CommandListenerUpdateFlags{Timeout: 5 * time.Second},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "bad-timeout",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -197,13 +197,13 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				Timeout: 10 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "bad-output",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -230,13 +230,13 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				Output:       "json",
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener-flags",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -302,13 +302,13 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 				Timeout:      1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "run-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -328,13 +328,13 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 			},
 			newOutput: "json",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "run-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -389,13 +389,13 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 		{
 			name: "listener is not ready",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{},
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{},
 					},
 				},
 			},
@@ -408,13 +408,13 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 		{
 			name: "listener is ready",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -431,13 +431,13 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 			name:   "listener is ready json output",
 			output: "json",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Listener{
+				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-listener",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ListenerStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -487,7 +487,7 @@ func newCmdListenerUpdateWithMocks(namespace string, k8sObjects []runtime.Object
 		return nil, err
 	}
 	cmdListenerUpdate := &CmdListenerUpdate{
-		client:     client.GetSkupperClient().SkupperV1alpha1(),
+		client:     client.GetSkupperClient().SkupperV2alpha1(),
 		KubeClient: client.GetKubeClient(),
 		namespace:  namespace,
 	}

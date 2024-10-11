@@ -13,7 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
@@ -24,7 +24,7 @@ type CertificateManager interface {
 }
 
 type CertificateManagerImpl struct {
-	definitions        map[string]*skupperv1alpha1.Certificate
+	definitions        map[string]*skupperv2alpha1.Certificate
 	secrets            map[string]*corev1.Secret
 	certificateWatcher *kube.CertificateWatcher
 	secretWatcher      *kube.SecretWatcher
@@ -33,7 +33,7 @@ type CertificateManagerImpl struct {
 
 func NewCertificateManager(controller *kube.Controller) *CertificateManagerImpl {
 	return &CertificateManagerImpl{
-		definitions: map[string]*skupperv1alpha1.Certificate{},
+		definitions: map[string]*skupperv2alpha1.Certificate{},
 		secrets:     map[string]*corev1.Secret{},
 		controller:  controller,
 	}
@@ -56,7 +56,7 @@ func (m *CertificateManagerImpl) Recover() {
 }
 
 func (m *CertificateManagerImpl) EnsureCA(namespace string, name string, subject string, refs []metav1.OwnerReference) error {
-	spec := skupperv1alpha1.CertificateSpec{
+	spec := skupperv2alpha1.CertificateSpec{
 		Subject: subject,
 		Signing: true,
 	}
@@ -64,7 +64,7 @@ func (m *CertificateManagerImpl) EnsureCA(namespace string, name string, subject
 }
 
 func (m *CertificateManagerImpl) Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error {
-	spec := skupperv1alpha1.CertificateSpec{
+	spec := skupperv2alpha1.CertificateSpec{
 		Ca:      ca,
 		Subject: subject,
 		Hosts:   hosts,
@@ -74,10 +74,10 @@ func (m *CertificateManagerImpl) Ensure(namespace string, name string, ca string
 	return m.ensure(namespace, name, spec, refs)
 }
 
-func (m *CertificateManagerImpl) definitionUpdated(key string, def *skupperv1alpha1.Certificate) {
+func (m *CertificateManagerImpl) definitionUpdated(key string, def *skupperv2alpha1.Certificate) {
 }
 
-func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skupperv1alpha1.CertificateSpec, refs []metav1.OwnerReference) error {
+func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skupperv2alpha1.CertificateSpec, refs []metav1.OwnerReference) error {
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
 		if !mergeOwnerReferences(current.ObjectMeta.OwnerReferences, refs) && reflect.DeepEqual(spec, current.Spec) {
@@ -87,16 +87,16 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 		hosts := getHostChanges(getPreviousHosts(current, refs), spec.Hosts, key).apply(current.Spec.Hosts)
 		current.Spec = spec
 		current.Spec.Hosts = hosts
-		updated, err := m.controller.GetSkupperClient().SkupperV1alpha1().Certificates(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
+		updated, err := m.controller.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 		m.definitions[key] = updated
 		return nil
 	} else {
-		cert := &skupperv1alpha1.Certificate{
+		cert := &skupperv2alpha1.Certificate{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "skupper.io/v1alpha1",
+				APIVersion: "skupper.io/v2alpha1",
 				Kind:       "Certificate",
 			},
 			ObjectMeta: metav1.ObjectMeta{
@@ -114,7 +114,7 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 		if len(refs) > 0 {
 			cert.ObjectMeta.Annotations["internal.skupper.io/hosts-"+string(refs[0].UID)] = strings.Join(spec.Hosts, ",")
 		}
-		created, err := m.controller.GetSkupperClient().SkupperV1alpha1().Certificates(namespace).Create(context.Background(), cert, metav1.CreateOptions{})
+		created, err := m.controller.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Create(context.Background(), cert, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -123,7 +123,7 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 	}
 }
 
-func (m *CertificateManagerImpl) checkCertificate(key string, certificate *skupperv1alpha1.Certificate) error {
+func (m *CertificateManagerImpl) checkCertificate(key string, certificate *skupperv2alpha1.Certificate) error {
 	if certificate == nil {
 		return m.certificateDeleted(key)
 	}
@@ -134,7 +134,7 @@ func (m *CertificateManagerImpl) checkCertificate(key string, certificate *skupp
 	}
 }
 
-func (m *CertificateManagerImpl) reconcile(key string, certificate *skupperv1alpha1.Certificate, secret *corev1.Secret) error {
+func (m *CertificateManagerImpl) reconcile(key string, certificate *skupperv2alpha1.Certificate, secret *corev1.Secret) error {
 	if secret != nil {
 		if err := m.updateSecret(key, certificate, secret); err != nil {
 			return m.updateStatus(certificate, err)
@@ -166,13 +166,9 @@ func (m *CertificateManagerImpl) secretDeleted(key string) error {
 	return nil
 }
 
-func (m *CertificateManagerImpl) updateStatus(certificate *skupperv1alpha1.Certificate, err error) error {
-	if err == nil {
-		certificate.Status.StatusMessage = skupperv1alpha1.STATUS_OK
-	} else {
-		certificate.Status.StatusMessage = err.Error()
-	}
-	latest, err := m.controller.GetSkupperClient().SkupperV1alpha1().Certificates(certificate.Namespace).UpdateStatus(context.TODO(), certificate, metav1.UpdateOptions{})
+func (m *CertificateManagerImpl) updateStatus(certificate *skupperv2alpha1.Certificate, err error) error {
+	certificate.SetReady(err)
+	latest, err := m.controller.GetSkupperClient().SkupperV2alpha1().Certificates(certificate.Namespace).UpdateStatus(context.TODO(), certificate, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -180,7 +176,7 @@ func (m *CertificateManagerImpl) updateStatus(certificate *skupperv1alpha1.Certi
 	return nil
 }
 
-func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv1alpha1.Certificate, secret *corev1.Secret) error {
+func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv2alpha1.Certificate, secret *corev1.Secret) error {
 	if !isSecretCorrect(certificate, secret) {
 		if !isSecretControlled(secret) {
 			return errors.New("Secret exists but is not controlled by skupper")
@@ -202,7 +198,7 @@ func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv1
 	return nil
 }
 
-func (m *CertificateManagerImpl) generateSecret(certificate *skupperv1alpha1.Certificate) (*corev1.Secret, error) {
+func (m *CertificateManagerImpl) generateSecret(certificate *skupperv2alpha1.Certificate) (*corev1.Secret, error) {
 	var secret corev1.Secret
 	if certificate.Spec.Signing {
 		secret = certs.GenerateCASecret(certificate.Name, certificate.Spec.Subject)
@@ -222,7 +218,7 @@ func (m *CertificateManagerImpl) generateSecret(certificate *skupperv1alpha1.Cer
 	return &secret, nil
 }
 
-func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv1alpha1.Certificate) error {
+func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv2alpha1.Certificate) error {
 	secret, err := m.generateSecret(certificate)
 	if err != nil {
 		log.Printf("Error generating secret for Certificate %s: %s", key, err)
@@ -257,7 +253,7 @@ func (m *CertificateManagerImpl) checkSecret(key string, secret *corev1.Secret) 
 	return nil
 }
 
-func isSecretCorrect(certificate *skupperv1alpha1.Certificate, secret *corev1.Secret) bool {
+func isSecretCorrect(certificate *skupperv2alpha1.Certificate, secret *corev1.Secret) bool {
 	data, ok := secret.Data["tls.crt"]
 	if !ok {
 		return false
@@ -301,11 +297,11 @@ func secretKey(secret *corev1.Secret) string {
 	return fmt.Sprintf("%s/%s", secret.Namespace, secret.Name)
 }
 
-func ownerReferences(cert *skupperv1alpha1.Certificate) []metav1.OwnerReference {
+func ownerReferences(cert *skupperv2alpha1.Certificate) []metav1.OwnerReference {
 	return []metav1.OwnerReference{
 		{
 			Kind:       "Certificate",
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Name:       cert.Name,
 			UID:        cert.ObjectMeta.UID,
 		},
@@ -362,7 +358,7 @@ func (changes *HostChanges) apply(original []string) []string {
 	return hosts
 }
 
-func getPreviousHosts(cert *skupperv1alpha1.Certificate, refs []metav1.OwnerReference) map[string]bool {
+func getPreviousHosts(cert *skupperv2alpha1.Certificate, refs []metav1.OwnerReference) map[string]bool {
 	if len(refs) > 0 {
 		if value, ok := cert.ObjectMeta.Annotations["internal.skupper.io/hosts-"+string(refs[0].UID)]; ok {
 			hosts := map[string]bool{}

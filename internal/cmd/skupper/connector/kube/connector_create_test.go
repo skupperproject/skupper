@@ -8,7 +8,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	v12 "k8s.io/api/core/v1"
@@ -35,18 +35,18 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 				Timeout:  1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Spec: v1alpha1.ConnectorSpec{
+					Spec: v2alpha1.ConnectorSpec{
 						Port:     8080,
 						Type:     "tcp",
 						Selector: "app=mySelector",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -713,12 +713,12 @@ func TestCmdConnectorCreate_WaitUntil(t *testing.T) {
 		{
 			name: "connector is not ready",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{},
+					Status: v2alpha1.ConnectorStatus{},
 				},
 			},
 			expectError: true,
@@ -730,13 +730,13 @@ func TestCmdConnectorCreate_WaitUntil(t *testing.T) {
 		{
 			name: "connector is ready",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -753,13 +753,13 @@ func TestCmdConnectorCreate_WaitUntil(t *testing.T) {
 			name:   "connector is ready yaml output",
 			output: "yaml",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -806,7 +806,7 @@ func newCmdConnectorCreateWithMocks(namespace string, k8sObjects []runtime.Objec
 		return nil, err
 	}
 	cmdConnectorCreate := &CmdConnectorCreate{
-		client:     client.GetSkupperClient().SkupperV1alpha1(),
+		client:     client.GetSkupperClient().SkupperV2alpha1(),
 		KubeClient: client.GetKubeClient(),
 		namespace:  namespace,
 	}

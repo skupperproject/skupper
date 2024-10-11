@@ -10,7 +10,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/scheme"
 	"gotest.tools/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,17 +47,12 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 			args:  []string{"/tmp/token-redeem.yaml"},
 			flags: common.CommandTokenRedeemFlags{Timeout: 60 * time.Second},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
-							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
-									StatusMessage: "",
-								},
 							},
 						},
 					},
@@ -70,15 +65,15 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 			args:  []string{},
 			flags: common.CommandTokenRedeemFlags{Timeout: 60 * time.Second},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -86,6 +81,10 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 										},
 										{
 											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
 											Status: "True",
 										},
 									},
@@ -102,15 +101,15 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 			args:  []string{""},
 			flags: common.CommandTokenRedeemFlags{Timeout: 60 * time.Second},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -118,6 +117,10 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 										},
 										{
 											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
 											Status: "True",
 										},
 									},
@@ -134,15 +137,15 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 			args:  []string{"my-grant", "/home/user/my-grant.yaml"},
 			flags: common.CommandTokenRedeemFlags{Timeout: 60 * time.Second},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -150,6 +153,10 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 										},
 										{
 											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
 											Status: "True",
 										},
 									},
@@ -166,15 +173,15 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 			args:  []string{"my new file"},
 			flags: common.CommandTokenRedeemFlags{Timeout: 60 * time.Second},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -182,6 +189,10 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 										},
 										{
 											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
 											Status: "True",
 										},
 									},
@@ -198,15 +209,15 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 			args:  []string{"~/token.yaml"},
 			flags: common.CommandTokenRedeemFlags{Timeout: 0 * time.Second},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -214,6 +225,10 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 										},
 										{
 											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
 											Status: "True",
 										},
 									},
@@ -232,15 +247,15 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 			args:  []string{"/tmp/token-redeem.yaml"},
 			flags: common.CommandTokenRedeemFlags{Timeout: 50 * time.Second},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
-							Status: v1alpha1.SiteStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -248,6 +263,10 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 										},
 										{
 											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
 											Status: "True",
 										},
 									},
@@ -297,12 +316,12 @@ func TestCmdTokenRedeem_Run(t *testing.T) {
 		{
 			name: "runs ok",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.AccessToken{
+				&v2alpha1.AccessToken{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-token",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
+					Status: v2alpha1.Status{
 						Conditions: []v1.Condition{
 							{
 								Type:   "Redeemed",
@@ -353,12 +372,12 @@ func TestCmdTokenRedeem_WaitUntil(t *testing.T) {
 		{
 			name: "token cannot be redeemed",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.AccessToken{
+				&v2alpha1.AccessToken{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-grant",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{},
+					Status: v2alpha1.Status{},
 				},
 			},
 			expectError: true,
@@ -371,12 +390,12 @@ func TestCmdTokenRedeem_WaitUntil(t *testing.T) {
 		{
 			name: "token is redeemed",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.AccessToken{
+				&v2alpha1.AccessToken{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-grant",
 						Namespace: "test",
 					},
-					Status: v1alpha1.Status{
+					Status: v2alpha1.Status{
 						Conditions: []v1.Condition{
 							{
 								Type:   "Redeemed",
@@ -414,15 +433,15 @@ func TestCmdTokenRedeem_WaitUntil(t *testing.T) {
 
 func newCmdCreateAccessTokenFile(fileName string) error {
 
-	resource := v1alpha1.AccessToken{
+	resource := v2alpha1.AccessToken{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "AccessToken",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "token",
 		},
-		Spec: v1alpha1.AccessTokenSpec{
+		Spec: v2alpha1.AccessTokenSpec{
 			Url:  "AAA",
 			Ca:   "BBB",
 			Code: "CCC",
@@ -452,7 +471,7 @@ func newCmdTokenRedeemWithMocks(namespace string, k8sObjects []runtime.Object, s
 		return nil, err
 	}
 	cmdTokenRedeem := &CmdTokenRedeem{
-		client:    client.GetSkupperClient().SkupperV1alpha1(),
+		client:    client.GetSkupperClient().SkupperV2alpha1(),
 		namespace: namespace,
 	}
 

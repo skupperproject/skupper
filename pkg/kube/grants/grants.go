@@ -14,7 +14,7 @@ import (
 	kubetypes "k8s.io/apimachinery/pkg/types"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
@@ -26,7 +26,7 @@ type Grants struct {
 	url        string
 	ca         string
 	scheme     string
-	grants     map[kubetypes.UID]*skupperv1alpha1.AccessGrant
+	grants     map[kubetypes.UID]*skupperv2alpha1.AccessGrant
 	grantIndex map[string]kubetypes.UID
 	lock       sync.Mutex
 }
@@ -37,7 +37,7 @@ func newGrants(clients internalclient.Clients, generator GrantResponse, scheme s
 		generator:  generator,
 		scheme:     scheme,
 		url:        url,
-		grants:     map[kubetypes.UID]*skupperv1alpha1.AccessGrant{},
+		grants:     map[kubetypes.UID]*skupperv2alpha1.AccessGrant{},
 		grantIndex: map[string]kubetypes.UID{},
 	}
 }
@@ -58,7 +58,7 @@ func (g *Grants) getCA() string {
 	return g.ca
 }
 
-func (g *Grants) record(key string, grant *skupperv1alpha1.AccessGrant) {
+func (g *Grants) record(key string, grant *skupperv2alpha1.AccessGrant) {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 	if uid, ok := g.grantIndex[key]; ok && uid != grant.ObjectMeta.UID {
@@ -77,14 +77,14 @@ func (g *Grants) remove(key string) {
 	}
 }
 
-func (g *Grants) put(grant *skupperv1alpha1.AccessGrant) error {
+func (g *Grants) put(grant *skupperv2alpha1.AccessGrant) error {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 	g.grants[grant.ObjectMeta.UID] = grant
 	return nil
 }
 
-func (g *Grants) get(key string) *skupperv1alpha1.AccessGrant {
+func (g *Grants) get(key string) *skupperv2alpha1.AccessGrant {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 
@@ -94,10 +94,10 @@ func (g *Grants) get(key string) *skupperv1alpha1.AccessGrant {
 	return nil
 }
 
-func (g *Grants) getAll() []*skupperv1alpha1.AccessGrant {
+func (g *Grants) getAll() []*skupperv2alpha1.AccessGrant {
 	g.lock.Lock()
 	defer g.lock.Unlock()
-	var grants []*skupperv1alpha1.AccessGrant
+	var grants []*skupperv2alpha1.AccessGrant
 	for _, grant := range g.grants {
 		grants = append(grants, grant)
 	}
@@ -144,14 +144,14 @@ func (g *Grants) recheckCa() {
 	}
 }
 
-func (g *Grants) claimUrl(grant *skupperv1alpha1.AccessGrant) string {
+func (g *Grants) claimUrl(grant *skupperv2alpha1.AccessGrant) string {
 	if url := g.getUrl(); url != "" {
 		return fmt.Sprintf("%s://%s/%s", g.scheme, url, string(grant.ObjectMeta.UID))
 	}
 	return ""
 }
 
-func (g *Grants) checkUrl(key string, grant *skupperv1alpha1.AccessGrant) bool {
+func (g *Grants) checkUrl(key string, grant *skupperv2alpha1.AccessGrant) bool {
 	url := g.claimUrl(grant)
 	if grant.Status.Url == url {
 		return false
@@ -161,7 +161,7 @@ func (g *Grants) checkUrl(key string, grant *skupperv1alpha1.AccessGrant) bool {
 	return true
 }
 
-func (g *Grants) checkCa(key string, grant *skupperv1alpha1.AccessGrant) bool {
+func (g *Grants) checkCa(key string, grant *skupperv2alpha1.AccessGrant) bool {
 	ca := g.getCA()
 	if grant.Status.Ca == ca {
 		return false
@@ -170,7 +170,7 @@ func (g *Grants) checkCa(key string, grant *skupperv1alpha1.AccessGrant) bool {
 	return true
 }
 
-func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.AccessGrant) error {
+func (g *Grants) checkGrant(key string, grant *skupperv2alpha1.AccessGrant) error {
 	if grant == nil {
 		g.remove(key)
 		return nil
@@ -228,8 +228,8 @@ func (g *Grants) checkGrant(key string, grant *skupperv1alpha1.AccessGrant) erro
 	return g.updateGrantStatus(grant)
 }
 
-func (g *Grants) updateGrantStatus(grant *skupperv1alpha1.AccessGrant) error {
-	updated, err := g.clients.GetSkupperClient().SkupperV1alpha1().AccessGrants(grant.ObjectMeta.Namespace).UpdateStatus(context.TODO(), grant, metav1.UpdateOptions{})
+func (g *Grants) updateGrantStatus(grant *skupperv2alpha1.AccessGrant) error {
+	updated, err := g.clients.GetSkupperClient().SkupperV2alpha1().AccessGrants(grant.ObjectMeta.Namespace).UpdateStatus(context.TODO(), grant, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -237,7 +237,7 @@ func (g *Grants) updateGrantStatus(grant *skupperv1alpha1.AccessGrant) error {
 	return nil
 }
 
-func (g *Grants) checkAndUpdateAccessToken(key string, data []byte) (*skupperv1alpha1.AccessGrant, *HttpError) {
+func (g *Grants) checkAndUpdateAccessToken(key string, data []byte) (*skupperv2alpha1.AccessGrant, *HttpError) {
 	log.Printf("Checking access token for %s", key)
 	grant := g.get(key)
 	if grant == nil {

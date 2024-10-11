@@ -18,7 +18,7 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/resource"
 	skupperclientfake "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/fake"
-	fakeskupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1/fake"
+	fakeskupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1/fake"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -43,7 +43,7 @@ func NewFakeClient(namespace string, k8sObjects []runtime.Object, skupperObjects
 	c.Skupper = skupperclientfake.NewSimpleClientset(skupperObjects...)
 	// Note: brute force error return for any client access, we could make it more granular if needed
 	if fakeSkupperError != "" {
-		c.Skupper.SkupperV1alpha1().(*fakeskupperv1alpha1.FakeSkupperV1alpha1).PrependReactor("*", "*", func(action testing.Action) (handled bool, ret runtime.Object, err error) {
+		c.Skupper.SkupperV2alpha1().(*fakeskupperv2alpha1.FakeSkupperV2alpha1).PrependReactor("*", "*", func(action testing.Action) (handled bool, ret runtime.Object, err error) {
 			return true, nil, fmt.Errorf(fakeSkupperError)
 		})
 	}
