@@ -95,6 +95,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.connectorType = connector.Spec.Type
 			cmd.newSettings.selector = connector.Spec.Selector
 			cmd.newSettings.includeNotReady = connector.Spec.IncludeNotReady
+			cmd.newSettings.routingKey = connector.Spec.RoutingKey
 		}
 	}
 
