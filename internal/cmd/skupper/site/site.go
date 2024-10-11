@@ -4,13 +4,14 @@ Copyright © 2024 Skupper Team <skupper@googlegroups.com>
 package site
 
 import (
+	"time"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/site/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/site/nonkube"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/spf13/cobra"
-	"time"
 )
 
 func NewCmdSite() *cobra.Command {
