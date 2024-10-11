@@ -3,7 +3,7 @@ package site
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -18,6 +18,7 @@ type ExtendedBindings struct {
 	connectors map[string]*AttachedConnector
 	controller *kube.Controller
 	site       *Site
+	logger     *slog.Logger
 }
 
 func NewExtendedBindings(controller *kube.Controller) *ExtendedBindings {
@@ -25,6 +26,9 @@ func NewExtendedBindings(controller *kube.Controller) *ExtendedBindings {
 		bindings:   site.NewBindings(),
 		connectors: map[string]*AttachedConnector{},
 		controller: controller,
+		logger: slog.New(slog.Default().Handler()).With(
+			slog.String("component", "kube.site.attached_connector"),
+		),
 	}
 }
 
@@ -241,7 +245,10 @@ func (a *AttachedConnector) updateStatusTo(err error, activeDefinition *skupperv
 func (a *AttachedConnector) setMatchingListenerCount(count int) {
 	if a.anchor.SetMatchingListenerCount(count) {
 		if err := a.updateAnchorStatus(); err != nil {
-			log.Printf("Failed to update AttachedConnectorAnchor %s/%s: %s", a.anchor.Namespace, a.anchor.Name, err)
+			a.parent.logger.Error("Failed to update AttachedConnectorAnchor",
+				slog.String("namespace", a.anchor.Namespace),
+				slog.String("name", a.anchor.Name),
+				slog.Any("error", err))
 		}
 	}
 }
@@ -259,10 +266,14 @@ func (a *AttachedConnector) Updated(pods []skupperv1alpha1.PodDetails) error {
 		return a.updateStatusTo(err, definition)
 	}
 	if len(pods) == 0 {
-		log.Printf("No pods available for %s/%s", definition.Namespace, definition.Name)
+		a.parent.logger.Info("No pods available for selector",
+			slog.String("namespace", definition.Namespace),
+			slog.String("name", definition.Name))
 		return a.updateStatusTo(fmt.Errorf("No matches for selector"), definition)
 	}
-	log.Printf("Pods are available for %s/%s", definition.Namespace, definition.Name)
+	a.parent.logger.Info("Pods are available for selector",
+		slog.String("namespace", definition.Namespace),
+		slog.String("name", definition.Name))
 	return a.updateStatusTo(nil, definition)
 }
 
@@ -276,7 +287,10 @@ func (a *AttachedConnector) configurationError(err error) error {
 func (a *AttachedConnector) updateDefinitionStatus(definition *skupperv1alpha1.AttachedConnector) error {
 	updated, err := a.parent.controller.GetSkupperClient().SkupperV1alpha1().AttachedConnectors(definition.ObjectMeta.Namespace).UpdateStatus(context.TODO(), definition, metav1.UpdateOptions{})
 	if err != nil {
-		log.Printf("Failed to update status for %s/%s: %s", definition.Namespace, definition.Name, err)
+		a.parent.logger.Error("Failed to update status for selector",
+			slog.String("namespace", definition.Namespace),
+			slog.String("name", definition.Name),
+			slog.Any("error", err))
 		return err
 	}
 	a.definitions[updated.Namespace] = updated
@@ -289,7 +303,10 @@ func (a *AttachedConnector) updateAnchorStatus() error {
 	}
 	updated, err := a.parent.controller.GetSkupperClient().SkupperV1alpha1().AttachedConnectorAnchors(a.anchor.ObjectMeta.Namespace).UpdateStatus(context.TODO(), a.anchor, metav1.UpdateOptions{})
 	if err != nil {
-		log.Printf("Failed to update status for AttachedConnectorAnchor %s/%s: %s", a.anchor.Namespace, a.anchor.Name, err)
+		a.parent.logger.Error("Failed to update status for AttachedConnectorAnchor",
+			slog.String("namespace", a.anchor.Namespace),
+			slog.String("name", a.anchor.Name),
+			slog.Any("error", err))
 		return err
 	}
 	a.anchor = updated
@@ -314,16 +331,22 @@ func (a *AttachedConnector) definitionUpdated(definition *skupperv1alpha1.Attach
 		if existing.Spec == definition.Spec {
 			specChanged = false
 			selectorChanged = false
-			log.Printf("Spec has not changed for AttachedConnector %s/%s", definition.Namespace, definition.Name)
+			slog.Debug("Spec has not changed for AttachedConnector",
+				slog.String("namespace", definition.Namespace),
+				slog.String("name", definition.Name))
 		} else if existing.Spec.Selector == definition.Spec.Selector {
 			selectorChanged = false
-			log.Printf("Selector has not changed for AttachedConnector %s/%s", definition.Namespace, definition.Name)
+			slog.Debug("Selector has not changed for AttachedConnector",
+				slog.String("namespace", definition.Namespace),
+				slog.String("name", definition.Name))
 		}
 	}
 	a.definitions[definition.Namespace] = definition
 	if a.anchor != nil && a.anchor.Spec.ConnectorNamespace == definition.Namespace {
 		if selectorChanged || a.watcher == nil {
-			log.Printf("Watching pods for AttachedConnector %s/%s", definition.Namespace, definition.Name)
+			a.parent.logger.Info("Watching pods for AttachedConnector",
+				slog.String("namespace", definition.Namespace),
+				slog.String("name", definition.Name))
 			a.watchPods()
 			return false // not ready to configure until selector returns pods
 		}
@@ -331,14 +354,20 @@ func (a *AttachedConnector) definitionUpdated(definition *skupperv1alpha1.Attach
 	} else if a.anchor == nil {
 		if definition.SetConfigured(fmt.Errorf("No matching AttachedConnectorAnchor in site namespace")) {
 			if err := a.updateDefinitionStatus(definition); err != nil {
-				log.Printf("Error updating status for AttachedConnector %s/%s: %s", definition.Namespace, definition.Name, err)
+				a.parent.logger.Error("Error updating status for AttachedConnector",
+					slog.String("namespace", definition.Namespace),
+					slog.String("name", definition.Name),
+					slog.Any("error", err))
 			}
 		}
 		return false
 	} else {
 		if definition.SetConfigured(fmt.Errorf("AttachedConnectorAnchor %s/%s does not allow AttachedConnector in %s (only %s)", a.anchor.Namespace, a.anchor.Name, definition.Namespace, a.anchor.Spec.ConnectorNamespace)) {
 			if err := a.updateDefinitionStatus(definition); err != nil {
-				log.Printf("Error updating status for AttachedConnector %s/%s: %s", definition.Namespace, definition.Name, err)
+				a.parent.logger.Error("Error updating status for AttachedConnector",
+					slog.String("namespace", definition.Namespace),
+					slog.String("name", definition.Name),
+					slog.Any("error", err))
 			}
 		}
 		return false
