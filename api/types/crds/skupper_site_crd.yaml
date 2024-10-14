@@ -28,7 +28,7 @@ spec:
                 linkAccess:
                   type: string
                   description: |
-                    Controls access for linking this site to other sites in the Skupper network.
+                    Controls access for linking from other sites to this site.
                 defaultIssuer:
                   type: string
                   description: |
@@ -36,7 +36,7 @@ spec:
                 ha:
                   type: boolean
                   description: |
-                    Enables high availability (HA) mode for the site, ensuring redundancy and fault tolerance.
+                    Enables high availability (HA) mode for the site.
                 settings:
                   type: object
                   additionalProperties:
@@ -78,7 +78,7 @@ spec:
                         minimum: 0
                         type: integer
                         description: |
-                          The most recent generation observed for the site.
+                          The most recent version of resources observed for the site.
                       reason:
                         maxLength: 1024
                         minLength: 1
@@ -168,11 +168,11 @@ spec:
                             remoteSiteId:
                               type: string
                               description: |
-                                Identifier of the remote site linked to this site.
+                                Identifier of the remote site with a link to this site.
                             remoteSiteName:
                               type: string
                               description: |
-                                Name of the remote site linked to this site.
+                                Name of the remote site with a link to this site.
                             operational:
                               type: boolean
                               description: |
