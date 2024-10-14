@@ -1116,6 +1116,110 @@ func TestSecuredAccessGeneral(t *testing.T) {
 			},
 		},
 		{
+			name: "nodeport resolved",
+			config: Config{
+				ClusterHost: "mycluster.com",
+				EnabledAccessTypes: []string{
+					ACCESS_TYPE_LOADBALANCER,
+					ACCESS_TYPE_NODEPORT,
+					ACCESS_TYPE_ROUTE,
+					ACCESS_TYPE_LOCAL,
+				},
+			},
+			k8sObjects: []runtime.Object{
+				&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "mysvc",
+						Namespace: "test",
+					},
+					Spec: corev1.ServiceSpec{
+						Selector: map[string]string{
+							"app": "foo",
+						},
+						Type: corev1.ServiceTypeNodePort,
+						Ports: []corev1.ServicePort{
+							{
+								Name:       "port1",
+								Port:       8080,
+								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
+								Protocol:   corev1.Protocol("TCP"),
+								NodePort:   34567,
+							},
+						},
+					},
+				},
+			},
+			definition: &skupperv1alpha1.SecuredAccess{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "skupper.io/v1alpha1",
+					Kind:       "SecuredAccess",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "mysvc",
+					Namespace: "test",
+				},
+				Spec: skupperv1alpha1.SecuredAccessSpec{
+					AccessType: ACCESS_TYPE_NODEPORT,
+					Selector: map[string]string{
+						"app": "foo",
+					},
+					Ports: []skupperv1alpha1.SecuredAccessPort{
+						{
+							Name:       "port1",
+							Port:       8080,
+							TargetPort: 8081,
+							Protocol:   "TCP",
+						},
+					},
+					Certificate: "my-cert",
+					Issuer:      "skupper-site-ca",
+				},
+			},
+			expectedServices: []*corev1.Service{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "mysvc",
+						Namespace: "test",
+					},
+					Spec: corev1.ServiceSpec{
+						Selector: map[string]string{
+							"app": "foo",
+						},
+						Type: corev1.ServiceTypeNodePort,
+						Ports: []corev1.ServicePort{
+							{
+								Name:       "port1",
+								Port:       8080,
+								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
+								Protocol:   corev1.Protocol("TCP"),
+								NodePort:   34567,
+							},
+						},
+					},
+				},
+			},
+			expectedCertificates: []MockCertificate{
+				{
+					namespace: "test",
+					name:      "my-cert",
+					ca:        "skupper-site-ca",
+					subject:   "mysvc",
+					hosts:     []string{"mycluster.com", "mysvc", "mysvc.test"},
+					client:    false,
+					server:    true,
+					refs:      nil,
+				},
+			},
+			expectedStatus: "OK",
+			expectedEndpoints: []skupperv1alpha1.Endpoint{
+				{
+					Name: "port1",
+					Host: "mycluster.com",
+					Port: "34567",
+				},
+			},
+		},
+		{
 			name: "local",
 			config: Config{
 				ClusterHost: "mycluster.com",

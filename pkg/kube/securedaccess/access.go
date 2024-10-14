@@ -425,6 +425,7 @@ func updatePorts(spec *corev1.ServiceSpec, desired []skupperv1alpha1.SecuredAcce
 	for _, actual := range spec.Ports {
 		if port, ok := expected[actual.Name]; ok {
 			ports = append(ports, port)
+			port.NodePort = actual.NodePort
 			delete(expected, actual.Name)
 			if actual != port {
 				changed = true
