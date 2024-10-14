@@ -460,7 +460,7 @@ func mockContainers() []*container.Container {
 		}, {
 			ID:     strings.Replace(uuid.New().String(), "-", "", -1),
 			Name:   "nginx",
-			Image:  "quay.io/nginx/nginx-unprivileged:stable-alpine",
+			Image:  "quay.io/skupper/nginx-unprivileged:stable-alpine",
 			Labels: map[string]string{},
 			Networks: map[string]container.ContainerNetworkInfo{
 				"skupper": {
