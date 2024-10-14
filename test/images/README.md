@@ -9,7 +9,7 @@ copies the images from their original locations into our Quay repo.
 
 The second operation was created in response to an image used by our tests that
 stopped getting updates, while the actual project continued to evolve.  It
-builds images from Dockerfile and pushes them into our Quay repo.
+builds images from Containerfiles and pushes them into our Quay repo.
 
 Finally, the third one also allows for the running of tests on disconnected
 clusters, which cannot access the original locations of these dependencies to
