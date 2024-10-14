@@ -250,7 +250,7 @@ func createDeployment(cluster *client.VanClient, annotations map[string]string) 
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
-						{Name: "nginx", Image: "quay.io/nginx/nginx-unprivileged:stable-alpine", Ports: []corev1.ContainerPort{{Name: "web", ContainerPort: 8080}}, ImagePullPolicy: corev1.PullIfNotPresent},
+						{Name: "nginx", Image: "quay.io/skupper/nginx-unprivileged:stable-alpine", Ports: []corev1.ContainerPort{{Name: "web", ContainerPort: 8080}}, ImagePullPolicy: corev1.PullIfNotPresent},
 					},
 					RestartPolicy: corev1.RestartPolicyAlways,
 				},
@@ -325,7 +325,7 @@ func createStatefulSet(cluster *client.VanClient, annotations map[string]string)
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
-						{Name: "nginx", Image: "quay.io/nginx/nginx-unprivileged:stable-alpine", Ports: []corev1.ContainerPort{{Name: "web", ContainerPort: 8080}}, ImagePullPolicy: corev1.PullIfNotPresent},
+						{Name: "nginx", Image: "quay.io/skupper/nginx-unprivileged:stable-alpine", Ports: []corev1.ContainerPort{{Name: "web", ContainerPort: 8080}}, ImagePullPolicy: corev1.PullIfNotPresent},
 					},
 					RestartPolicy: corev1.RestartPolicyAlways,
 				},
@@ -373,7 +373,7 @@ func createDaemonSet(cluster *client.VanClient, annotations map[string]string) (
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
-						{Name: "nginx", Image: "quay.io/nginx/nginx-unprivileged:stable-alpine", Ports: []corev1.ContainerPort{{Name: "web", ContainerPort: 8080}}, ImagePullPolicy: corev1.PullIfNotPresent},
+						{Name: "nginx", Image: "quay.io/skupper/nginx-unprivileged:stable-alpine", Ports: []corev1.ContainerPort{{Name: "web", ContainerPort: 8080}}, ImagePullPolicy: corev1.PullIfNotPresent},
 					},
 					RestartPolicy: corev1.RestartPolicyAlways,
 				},

@@ -94,7 +94,7 @@ var nginxDep = &appsv1.Deployment{
 				Containers: []apiv1.Container{
 					{
 						Name:            "nginx1",
-						Image:           "quay.io/nginx/nginx-unprivileged:stable-alpine",
+						Image:           "quay.io/skupper/nginx-unprivileged:stable-alpine",
 						ImagePullPolicy: apiv1.PullIfNotPresent,
 						Ports: []apiv1.ContainerPort{
 							{
@@ -331,7 +331,7 @@ var nghttp1TlsDep = &appsv1.Deployment{
 				Containers: []apiv1.Container{
 					{
 						Name:            "nghttp1tls",
-						Image:           "quay.io/nginx/nginx-unprivileged:stable-alpine",
+						Image:           "quay.io/skupper/nginx-unprivileged:stable-alpine",
 						ImagePullPolicy: apiv1.PullIfNotPresent,
 						Ports: []apiv1.ContainerPort{
 							{
@@ -575,7 +575,7 @@ var nghttp1TlsDepWithCertFiles = &appsv1.Deployment{
 				Containers: []apiv1.Container{
 					{
 						Name:            "nghttp1tls",
-						Image:           "quay.io/nginx/nginx-unprivileged:stable-alpine",
+						Image:           "quay.io/skupper/nginx-unprivileged:stable-alpine",
 						ImagePullPolicy: apiv1.PullIfNotPresent,
 						Ports: []apiv1.ContainerPort{
 							{
