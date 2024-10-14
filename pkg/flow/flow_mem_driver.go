@@ -809,6 +809,29 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 				}
 			} else {
 				if link.EndTime > 0 {
+					if current.Direction != nil {
+						var routerId string
+						peerDirection := Outgoing
+						if *current.Direction == Outgoing {
+							peerDirection = Incoming
+						}
+						// link being deleted, find peer router entry
+						for _, router := range fc.Routers {
+							if *current.Name == normalizeRouterName(*router.Name) {
+								routerId = router.Identity
+								break
+							}
+						}
+
+						// find any links to the peer router and delete
+						for _, eLink := range fc.Links {
+							if eLink.Direction != nil && *eLink.Direction == peerDirection {
+								if routerId == eLink.Parent {
+									fc.deleteRecord(eLink)
+								}
+							}
+						}
+					}
 					current.EndTime = link.EndTime
 					fc.deleteRecord(current)
 				} else {
