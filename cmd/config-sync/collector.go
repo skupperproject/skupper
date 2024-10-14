@@ -108,7 +108,7 @@ func startFlowController(ctx context.Context, cli *internalclient.KubeClient) er
 	return nil
 }
 
-func runLeaderElection(lock *resourcelock.ConfigMapLock, id string, cli *internalclient.KubeClient) {
+func runLeaderElection(lock *resourcelock.LeaseLock, id string, cli *internalclient.KubeClient) {
 	ctx := context.Background()
 	begin := time.Now()
 	podname, _ := os.Hostname()
@@ -147,18 +147,18 @@ func startCollector(cli *internalclient.KubeClient) {
 	namespace := cli.Namespace
 	podname, _ := os.Hostname()
 
-	cmLock := &resourcelock.ConfigMapLock{
-		ConfigMapMeta: metav1.ObjectMeta{
+	leaseLock := &resourcelock.LeaseLock{
+		LeaseMeta: metav1.ObjectMeta{
 			Name:      lockname,
 			Namespace: namespace,
 		},
-		Client: cli.Kube.CoreV1(),
+		Client: cli.Kube.CoordinationV1(),
 		LockConfig: resourcelock.ResourceLockConfig{
 			Identity: podname,
 		},
 	}
 
-	runLeaderElection(cmLock, podname, cli)
+	runLeaderElection(leaseLock, podname, cli)
 }
 
 func deploymentName() string {
