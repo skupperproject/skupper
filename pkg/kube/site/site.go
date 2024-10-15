@@ -336,6 +336,12 @@ func (s *Site) checkRole(ctxt context.Context) error {
 			APIGroups: []string{""},
 			Resources: []string{"services"},
 		},
+		//needed for leader election
+		{
+			Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
+			APIGroups: []string{"coordination.k8s.io"},
+			Resources: []string{"leases"},
+		},
 	}
 	desired := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{

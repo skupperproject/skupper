@@ -24,7 +24,7 @@ import (
 )
 
 func updateLockOwner(lockname, namespace string, owner *metav1.OwnerReference, cli *internalclient.KubeClient) error {
-	current, err := cli.Kube.CoreV1().ConfigMaps(namespace).Get(context.TODO(), lockname, metav1.GetOptions{})
+	current, err := cli.Kube.CoordinationV1().Leases(namespace).Get(context.TODO(), lockname, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func updateLockOwner(lockname, namespace string, owner *metav1.OwnerReference, c
 			*owner,
 		}
 	}
-	_, err = cli.Kube.CoreV1().ConfigMaps(namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
+	_, err = cli.Kube.CoordinationV1().Leases(namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
 	return err
 }
 
