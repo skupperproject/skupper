@@ -51,6 +51,9 @@ func TestNewPodmanClient(t *testing.T) {
 // PodmanSkipValidation skips the current test if podman binary is not
 // available or if the client version found is lesser than 4.0.0.
 func PodmanSkipValidation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("short: skipping test with dependency on podman")
+	}
 	stdout := new(bytes.Buffer)
 	cmd := exec.Command("podman", "version", "--format=json")
 	cmd.Stdout = stdout

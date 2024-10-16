@@ -8,8 +8,6 @@ executors:
   go_cimg:
     docker:
       - image: cimg/go:1.22
-    environment:
-      CGO_ENABLED: 0
 
   local_cluster_test_executor:
     machine:
@@ -480,14 +478,14 @@ jobs:
       - run:
           name: Creating artifacts directory
           command: mkdir /tmp/artifacts
-      - go/test:
-          coverpkg: "./internal/...,./pkg/...,./cmd/..."
-          verbose: true
-          coverprofile: "/tmp/artifacts/cover.out"
-          parallel: "3"
+      - run:
+          name: Run tests
+          command: make cover
       - run:
           name: Generating HTML coverage report
-          command: go tool cover -html /tmp/artifacts/cover.out -o /tmp/artifacts/cover.html
+          command: |
+            mv ./cover.out /tmp/artifacts
+            go tool cover -html /tmp/artifacts/cover.out -o /tmp/artifacts/cover.html
       - store_artifacts:
           path: /tmp/artifacts
           destination: test-artifacts
@@ -519,6 +517,8 @@ jobs:
   build-all:
     executor:
       name: go_cimg
+    environment:
+      CGO_ENABLED: 0
     steps:
       - checkout
       - go/mod-download-cached
