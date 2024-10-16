@@ -82,7 +82,7 @@ spec:
       - name: Redemptions Allowed
         type: integer
         description: The number of claims the grant is valid for
-        jsonPath: .spec.claims
+        jsonPath: .spec.redemptionsAllowed
       - name: Redemptions Made
         type: integer
         description: The number of times an access token originating from this grant has been redeemed

@@ -1,3 +1,6 @@
-replicaCount: 1
-controller:
-  image: "quay.io/skupper/controller:v2-latest"
+images:
+  controller: "quay.io/skupper/controller:v2-latest"
+  configSync: "quay.io/skupper/config-sync:v2-latest"
+
+# available options: cluster, namespace
+scope: cluster
