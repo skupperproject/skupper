@@ -184,18 +184,18 @@ func TestNewResourceStringValidator_Evaluate(t *testing.T) {
 	}
 }
 
-func TestNewWorkloadStringValidator(t *testing.T) {
+func TestNewSelectorStringValidator(t *testing.T) {
 
-	t.Run("Test New Resource String Validator constructor", func(t *testing.T) {
+	t.Run("Test New Selector String Validator constructor", func(t *testing.T) {
 
 		validRegexp, _ := regexp.Compile("^[A-Za-z0-9=:./-]+$")
 		expectedResult := &StringValidator{validRegexp}
-		actualResult := NewWorkloadStringValidator()
+		actualResult := NewSelectorStringValidator()
 		assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
 	})
 }
 
-func TestNewWorkloadStringValidator_Evaluate(t *testing.T) {
+func TestNewSelectorStringValidator_Evaluate(t *testing.T) {
 	type test struct {
 		name   string
 		value  interface{}
@@ -217,7 +217,7 @@ func TestNewWorkloadStringValidator_Evaluate(t *testing.T) {
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			stringValidator := NewWorkloadStringValidator()
+			stringValidator := NewSelectorStringValidator()
 			expectedResult := test.result
 			actualResult, _ := stringValidator.Evaluate(test.value)
 			assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
@@ -262,6 +262,47 @@ func TestNewFilePathStringValidator_Evaluate(t *testing.T) {
 			stringValidator := NewFilePathStringValidator()
 			expectedResult := test.result
 			actualResult, _ := stringValidator.Evaluate(test.value)
+			assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
+		})
+	}
+}
+
+func TestNewWorkloadStringValidator(t *testing.T) {
+
+	t.Run("Test New Workload String Validator constructor", func(t *testing.T) {
+
+		validRegexp, _ := regexp.Compile("^[A-Za-z0-9.-_]+$")
+		expectedResult := &WorkloadValidator{validRegexp, []string{"a", "b"}}
+		actualResult := NewWorkloadStringValidator([]string{"a", "b"})
+		assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
+	})
+}
+func TestWorkloadStringValidator_Evaluate(t *testing.T) {
+	type test struct {
+		name   string
+		value  interface{}
+		result bool
+	}
+
+	testTable := []test{
+		{name: "empty string", value: "", result: false},
+		{name: "valid value", value: "a/name", result: true},
+		{name: "string without /", value: "aname", result: false},
+		{name: "string with numbers", value: "b/name123", result: true},
+		{name: "number", value: 123, result: false},
+		{name: "nil value", value: nil, result: false},
+		{name: "string without name", value: "a/", result: false},
+		{name: "string without type", value: "/name", result: false},
+		{name: "string non matching type", value: "c/name", result: false},
+		{name: "bad value", value: "a/name@#", result: false},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+
+			stringValidator := NewWorkloadStringValidator([]string{"a", "b"})
+			expectedResult := test.result
+			_, _, actualResult, _ := stringValidator.Evaluate(test.value)
 			assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
 		})
 	}
