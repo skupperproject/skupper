@@ -147,6 +147,9 @@ create_service() {
 }
 
 remove_service() {
+    # if systemd is not available, skip it
+    ${SYSTEMCTL} list-units > /dev/null 2>&1 || return
+
     service="skupper-${NAMESPACE}.service"
     ${SYSTEMCTL} stop "${service}"
     ${SYSTEMCTL} disable "${service}"
@@ -239,9 +242,15 @@ create_containers() {
 }
 
 create_site() {
-    if [ -d "${NAMESPACES_PATH}/${NAMESPACE}" ]; then
+    if [ -d "${NAMESPACES_PATH:?}/${NAMESPACE:?}/runtime" ]; then
         echo "Failed: namespace \"${NAMESPACE}\" is already defined"
         echo "Location: ${NAMESPACES_PATH}/${NAMESPACE}"
+        exit 1
+    fi
+
+    if [ -d "${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/sources" ]; then
+        echo "Failed: namespace \"${NAMESPACE}\" already contains input sources"
+        echo "Location: ${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/sources"
         exit 1
     fi
 
@@ -249,14 +258,14 @@ create_site() {
     echo "Namespace : ${NAMESPACE}"
     echo "Site name : ${SITE_NAME}"
     echo "Platform  : ${SKUPPER_PLATFORM}"
-    echo "Definition: ${NAMESPACES_PATH:?}/${NAMESPACE:?}/sources"
+    echo "Definition: ${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/sources"
     echo "Version   : ${VERSION}"
 
     # Create base directory tree
-    mkdir -p "${NAMESPACES_PATH}"
+    mkdir -p "${NAMESPACES_PATH}/${NAMESPACE}"
 
     # Installing site definition files
-    cp -rf "./${SOURCE_NAMESPACE}" "${NAMESPACES_PATH}/${NAMESPACE}"
+    cp -rf "./${SOURCE_NAMESPACE}"/* "${NAMESPACES_PATH}/${NAMESPACE}/"
 
     # Creating platform.yaml
     echo "platform: ${SKUPPER_PLATFORM}" > "${PLATFORM_FILE}"
@@ -282,7 +291,7 @@ create_site() {
 
 sanity_check() {
     required_fields="SITE_NAME SOURCE_NAMESPACE NAMESPACE SKUPPER_OUTPUT_PATH SERVICE_DIR NAMESPACES_PATH SKUPPER_PLATFORM"
-    required_commands="python sed find grep xargs tar getent id ${PLATFORM_COMMAND}"
+    required_commands="python sed find grep wc xargs tar getent echo cp id cut ls rm mkdir ${PLATFORM_COMMAND}"
 
     for field_name in ${required_fields}; do
         eval [ -n "\${${field_name}}" ] || exit_error "Internal error: required field ${field_name} not defined"
@@ -291,6 +300,125 @@ sanity_check() {
         if ! command -v "${cmd}" > /dev/null 2>&1; then
             exit_error "A required command could not be found: ${cmd}"
         fi
+    done
+}
+
+list_valid_certificates() {
+    base_path="${1}"
+    cd "${base_path}"
+    for dir in $(find ./* -type d | cut -c 3-); do
+        [ -f "${dir}/tls.key" ] && [ -f "${dir}/tls.crt" ] && [ -f "${dir}/ca.crt" ] && echo "$dir"
+    done
+}
+
+handle_provided_certificates() {
+    export USER_CERTIFICATES_PATH="${NAMESPACES_PATH}/${NAMESPACE}/input/certificates"
+    [ ! -d "${USER_CERTIFICATES_PATH}" ] && return
+    cas=""
+    clients=""
+    servers=""
+    if [ -d "${USER_CERTIFICATES_PATH}/ca" ]; then
+        cas=$(list_valid_certificates "${USER_CERTIFICATES_PATH}/ca")
+    fi
+    if [ -d "${USER_CERTIFICATES_PATH}/client" ]; then
+        clients=$(list_valid_certificates "${USER_CERTIFICATES_PATH}/client")
+    fi
+    if [ -d "${USER_CERTIFICATES_PATH}/server" ]; then
+        servers=$(list_valid_certificates "${USER_CERTIFICATES_PATH}/server")
+    fi
+    if [ -z "${cas}" ] && [ -z "${clients}" ] && [ -z "${servers}" ]; then
+        return
+    fi
+    echo "User provided certificates found:"
+    if [ -n "${cas}" ]; then
+        echo "- CA certificates:"
+        for ca in ${cas}; do
+            echo "  - ${ca}"
+        done
+    fi
+    if [ -n "${clients}" ]; then
+        echo "- Client certificates:"
+        for client in ${clients}; do
+            echo "  - ${client}"
+        done
+    fi
+    if [ -n "${servers}" ]; then
+        echo "- Server certificates:"
+        for server in ${servers}; do
+            echo "  - ${server}"
+        done
+    fi
+    cp -r "${USER_CERTIFICATES_PATH}"/* "./${SOURCE_NAMESPACE}/certificates"
+    update_static_links
+    generate_static_links_for_sans
+}
+
+update_static_links() {
+    DIR="./${SOURCE_NAMESPACE}"
+    export USER_CERTIFICATES_PATH="${NAMESPACES_PATH}/${NAMESPACE}/input/certificates"
+    router_access_files=$(find "${DIR:?}/sources/routerAccesses" -type f)
+
+    for ra in ${router_access_files}; do
+        ra_name=$(grep name: "${ra}" | grep -v '\- name:' | awk '{print $NF}' | sed 's/"//g')
+        tls_credential=$(grep tlsCredentials: "${ra}" | awk '{print $NF}' | sed 's/"//g')
+        bind_host=$(grep bindHost: "${ra}" | awk '{print $NF}' | sed 's/"//g')
+        client_cert_path="${USER_CERTIFICATES_PATH}/client/client-${tls_credential:-${ra_name}}"
+
+        # no client certificate provided, skip
+        [ ! -d "${client_cert_path}" ] && continue
+
+        found=true
+        for file in tls.key tls.crt ca.crt; do
+            if [ ! -f "${client_cert_path}/${file}" ]; then
+                found=false
+                break
+            fi
+        done
+        ! ${found} && continue
+
+        # client certs found, reading client certificates
+        ca_crt=$(base64 -w0 "${client_cert_path}/ca.crt")
+        tls_crt=$(base64 -w0 "${client_cert_path}/tls.crt")
+        tls_key=$(base64 -w0 "${client_cert_path}/tls.key")
+        # find all static links generated for the given RouterAccess
+        static_link_files=$(find "${DIR:?}/runtime/link" -type f -name "link-${ra_name}-*")
+        for link in ${static_link_files}; do
+            echo "- Updating client credentials on static link: ${link}"
+            sed -i "s/tls.key: .*/tls.key: ${tls_key}/g" "${link}"
+            sed -i "s/tls.crt: .*/tls.crt: ${tls_crt}/g" "${link}"
+            sed -i "s/ca.crt: .*/ca.crt: ${ca_crt}/g" "${link}"
+        done
+    done
+}
+
+generate_static_links_for_sans() {
+    DIR="./${SOURCE_NAMESPACE}"
+
+    # if openssl is present, discover SANs and create missing static links
+    if ! command -v openssl > /dev/null 2>&1; then
+        return
+    fi
+
+    router_access_files=$(find "${DIR:?}/sources/routerAccesses" -type f)
+
+    for ra in ${router_access_files}; do
+        ra_name=$(grep name: "${ra}" | grep -v '\- name:' | awk '{print $NF}' | sed 's/"//g')
+        tls_credential=$(grep tlsCredentials: "${ra}" | awk '{print $NF}' | sed 's/"//g')
+        bind_host=$(grep bindHost: "${ra}" | awk '{print $NF}' | sed 's/"//g')
+
+        # discovering SANS
+        server_cert="${DIR}/certificates/server/${tls_credential:-${ra_name}}/tls.crt"
+        [ ! -f "${server_cert}" ] && continue
+        subjects="$(openssl x509 -noout -ext subjectAltName -in "${server_cert}" |grep -v 'Subject Alternative Name:' | \
+                    sed 's/ //g;s/,/\n/g' |  awk -F: '{if ($1 == "DNS" || $1 == "IPAddress") print $2}')"
+        [ -z "${subjects}" ] && continue
+        for subject in ${subjects}; do
+            link_file="${DIR}/runtime/link/link-${ra_name}-${subject}.yaml"
+            [ -f "${link_file}" ] && continue
+            echo "- Creating static link for new server subject found: ${subject}"
+            cp "${DIR}/runtime/link/link-${ra_name}-${bind_host:-127.0.0.1}.yaml" "${DIR}/runtime/link/link-${ra_name}-${subject}.yaml"
+            sed -i "s/host: .*/host: ${subject}/g" "${DIR}/runtime/link/link-${ra_name}-${subject}.yaml"
+        done
     done
 }
 
@@ -304,7 +432,11 @@ main() {
         remove_site
         remove_service
         return
-    elif ${DUMP_TOKENS}; then
+    fi
+
+    handle_provided_certificates
+
+    if ${DUMP_TOKENS}; then
         dump_tokens
         return
     fi
