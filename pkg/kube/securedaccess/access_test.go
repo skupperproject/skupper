@@ -47,6 +47,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 		expectedEndpoints    []skupperv1alpha1.Endpoint
 		expectedError        string
 		defaultDomain        string
+		nodePorts            map[string]int32
 	}{
 		{
 			name: "loadbalancer",
@@ -1111,8 +1112,11 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				{
 					Name: "port1",
 					Host: "mycluster.com",
-					Port: "0", //FIXME
+					Port: "33333",
 				},
+			},
+			nodePorts: map[string]int32{
+				"port1": 33333,
 			},
 		},
 		{
@@ -1842,6 +1846,20 @@ func TestSecuredAccessGeneral(t *testing.T) {
 						actual.Status = desired.Status
 						actual, err = m.clients.GetKubeClient().CoreV1().Services(desired.Namespace).UpdateStatus(context.Background(), actual, metav1.UpdateOptions{})
 						assert.Assert(t, err)
+					}
+					if tt.nodePorts != nil {
+						var updatedPorts []corev1.ServicePort
+						for _, port := range actual.Spec.Ports {
+							if nodePort, ok := tt.nodePorts[port.Name]; ok {
+								port.NodePort = nodePort
+							}
+							updatedPorts = append(updatedPorts, port)
+						}
+						if !reflect.DeepEqual(updatedPorts, actual.Spec.Ports) {
+							actual.Spec.Ports = updatedPorts
+							actual, err = m.clients.GetKubeClient().CoreV1().Services(desired.Namespace).Update(context.Background(), actual, metav1.UpdateOptions{})
+							assert.Assert(t, err)
+						}
 					}
 					err = m.CheckService(serviceKey(actual), actual)
 					assert.Assert(t, err)

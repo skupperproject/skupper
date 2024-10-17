@@ -424,11 +424,13 @@ func updatePorts(spec *corev1.ServiceSpec, desired []skupperv1alpha1.SecuredAcce
 	var ports []corev1.ServicePort
 	for _, actual := range spec.Ports {
 		if port, ok := expected[actual.Name]; ok {
-			ports = append(ports, port)
-			delete(expected, actual.Name)
-			if actual != port {
+			if equivalentPorts(port, actual) {
+				ports = append(ports, actual)
+			} else {
+				ports = append(ports, port)
 				changed = true
 			}
+			delete(expected, actual.Name)
 		} else {
 			changed = true
 		}
@@ -441,6 +443,18 @@ func updatePorts(spec *corev1.ServiceSpec, desired []skupperv1alpha1.SecuredAcce
 		spec.Ports = ports
 	}
 	return changed
+}
+
+func equivalentPorts(desired corev1.ServicePort, actual corev1.ServicePort) bool {
+	return desired.Name == actual.Name && desired.Port == actual.Port && equivalentTargetPorts(desired, actual) && equivalentProtocols(desired.Protocol, actual.Protocol)
+}
+
+func equivalentTargetPorts(desired corev1.ServicePort, actual corev1.ServicePort) bool {
+	return desired.TargetPort == actual.TargetPort || (desired.TargetPort.IntVal == 0 && actual.TargetPort.IntVal == desired.Port)
+}
+
+func equivalentProtocols(desired corev1.Protocol, actual corev1.Protocol) bool {
+	return desired == actual || (desired == "" && actual == corev1.ProtocolTCP)
 }
 
 func toServicePorts(desired map[string]skupperv1alpha1.SecuredAccessPort) map[string]corev1.ServicePort {
