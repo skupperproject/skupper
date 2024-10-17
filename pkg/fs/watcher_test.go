@@ -69,6 +69,8 @@ func TestFileWatcher(t *testing.T) {
 
 			// validate results
 			watcher.waitDone(test.expected)
+			watcher.mutex.Lock()
+			defer watcher.mutex.Unlock()
 			assert.DeepEqual(t, test.expected.created, watcher.results.created)
 			assert.DeepEqual(t, test.expected.updated, watcher.results.updated)
 			assert.DeepEqual(t, test.expected.deleted, watcher.results.deleted)
@@ -154,6 +156,8 @@ func (m *ModificationHandler) OnRemove(s string) {
 
 func (m *ModificationHandler) waitDone(expected modificationResult) {
 	_ = utils.RetryError(time.Millisecond*200, 10, func() error {
+		m.mutex.Lock()
+		defer m.mutex.Unlock()
 		if reflect.DeepEqual(m.results.created, expected.created) &&
 			reflect.DeepEqual(m.results.updated, expected.updated) &&
 			reflect.DeepEqual(m.results.deleted, expected.deleted) {

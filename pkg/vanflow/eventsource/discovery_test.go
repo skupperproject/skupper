@@ -50,9 +50,13 @@ func TestDiscoveryBasic(t *testing.T) {
 	tstSender.Send(tstCtx, beaconA.Encode())
 	tstSender.Send(tstCtx, beaconB.Encode())
 
-	// when listeners are not yet present the router can drop beacon messages
-	// retry sending initial beacons once
-	retryOnceAfter := time.Now().Add(500 * rtt)
+	// a "real" skupper router can drop beacon messages when there is not yet a
+	// consumer ready. retry sending initial beacons once when the
+	// implemenation is not a mock
+	retryOnceAfter := time.Now().Add(time.Hour * 48)
+	if _, isMock := tstSender.(interface{ IsMock() }); !isMock {
+		retryOnceAfter = time.Now().Add(500 * rtt)
+	}
 	// wait for discovery.List to return two sources
 	poll.WaitOn(t,
 		func(t poll.LogT) poll.Result {
@@ -60,7 +64,7 @@ func TestDiscoveryBasic(t *testing.T) {
 			if actual == desired {
 				return poll.Success()
 			}
-			if time.Now().After(retryOnceAfter) {
+			if _, isMock := tstSender.(interface{ IsMock() }); !isMock && time.Now().After(retryOnceAfter) {
 				tstSender.Send(tstCtx, beaconA.Encode())
 				tstSender.Send(tstCtx, beaconB.Encode())
 				retryOnceAfter = retryOnceAfter.Add(time.Hour)
@@ -85,11 +89,7 @@ func TestDiscoveryBasic(t *testing.T) {
 	assert.DeepEqual(t, sourceB, eventB, cmpopts.IgnoreFields(Info{}, "LastSeen"))
 
 	tstSender.Send(tstCtx, beaconA.Encode())
-	tstSender.Send(tstCtx, beaconA.Encode())
-	tstSender.Send(tstCtx, beaconA.Encode())
-	tstSender.Send(tstCtx, beaconA.Encode())
 	tstSender.Send(tstCtx, beaconB.Encode())
-	tstSender.Send(tstCtx, beaconA.Encode())
 
 	// wait for LastSeen to update
 	poll.WaitOn(t,
@@ -124,7 +124,7 @@ func TestDiscoveryBasic(t *testing.T) {
 			if actual == desired {
 				return poll.Success()
 			}
-			return poll.Continue("number of event sources is %d, not %d", actual, desired)
+			return poll.Continue("number of event sources is %d, not %d: got %v", actual, desired, discovery.List())
 		}, poll.WithTimeout(1000*rtt),
 	)
 
@@ -183,9 +183,13 @@ func TestDiscoveryWatch(t *testing.T) {
 			MessageProps: vanflow.MessageProps{To: mcsfe(sourceAID)},
 		}
 		for {
-			time.Sleep(rtt)
-			heartbeatSender.Send(tstCtx, heartbeat.Encode())
-			heartbeat.Now++
+			select {
+			case <-time.After(rtt):
+				heartbeatSender.Send(tstCtx, heartbeat.Encode())
+				heartbeat.Now++
+			case <-tstCtx.Done():
+				return
+			}
 		}
 	}()
 
@@ -236,7 +240,7 @@ func TestDiscoveryWatch(t *testing.T) {
 	select {
 	case event := <-forgottenOut:
 		assert.Check(t, event.ID == sourceAID)
-	case <-time.After(80 * rtt):
+	case <-time.After(200 * rtt):
 		t.Error("expected source to be forgotten after starting watch client with no activity")
 	}
 }

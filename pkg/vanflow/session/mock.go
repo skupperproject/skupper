@@ -19,6 +19,8 @@ type mockContainer struct {
 	Router *MockRouter
 }
 
+func (c *mockContainer) IsMock() {}
+
 func (c *mockContainer) Start(ctx context.Context) {
 }
 

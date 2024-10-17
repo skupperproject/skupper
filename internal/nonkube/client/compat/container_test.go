@@ -256,6 +256,9 @@ func TestContainer(t *testing.T) {
 }
 
 func NewClientOrSkip(t *testing.T, endpoint string, ctx context.Context) (*CompatClient, *sync.WaitGroup) {
+	if testing.Short() {
+		t.Skip("short: skipping test with dependency on podman")
+	}
 	var cli *CompatClient
 	var err error
 	var wg *sync.WaitGroup

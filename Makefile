@@ -7,6 +7,7 @@ TEST_IMAGE := quay.io/skupper/skupper-tests:v2-latest
 TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
 DOCKER := docker
 LDFLAGS := -X github.com/skupperproject/skupper/pkg/version.Version=${VERSION}
+TESTFLAGS := -v -race -short
 PLATFORMS ?= linux/amd64,linux/arm64
 GOOS ?= linux
 GOARCH ?= amd64
@@ -86,18 +87,16 @@ force-generate-client:
 vet:
 	go vet ./...
 
-cmd-test:
-	go test -v -count=1 ./cmd/...
-
-pkg-test:
-	go test -v -count=1 ./pkg/...
-
-internal-test:
-	go test -v -count=1 ./internal/...
-
 .PHONY: test
 test:
-	go test -v -count=1 ./pkg/... ./internal/... ./cmd/...
+	go test ${TESTFLAGS} ./...
+
+.PHONY: cover
+cover:
+	go test ${TESTFLAGS} \
+		-cover \
+		-coverprofile cover.out \
+		./...
 
 clean:
 	rm -rf skupper controller release config-sync manifest bootstrap network-console-collector ${TEST_BINARIES_FOLDER}

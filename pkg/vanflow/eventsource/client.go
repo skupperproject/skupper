@@ -136,10 +136,10 @@ func (c *Client) Listen(ctx context.Context, attributes ListenerConfigProvider) 
 // Close stops all listeners
 func (c *Client) Close() {
 	c.lock.Lock()
-	defer c.lock.Unlock()
 	for _, cancel := range c.cleanup {
 		cancel()
 	}
+	c.lock.Unlock()
 	c.wg.Wait()
 }
 
