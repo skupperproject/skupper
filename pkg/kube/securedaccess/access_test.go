@@ -697,8 +697,8 @@ func TestSecuredAccessGeneral(t *testing.T) {
 						},
 					},
 					Status: networkingv1.IngressStatus{
-						LoadBalancer: corev1.LoadBalancerStatus{
-							Ingress: []corev1.LoadBalancerIngress{
+						LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+							Ingress: []networkingv1.IngressLoadBalancerIngress{
 								{
 									Hostname: "my-ingress-gateway.net",
 								},
@@ -855,8 +855,8 @@ func TestSecuredAccessGeneral(t *testing.T) {
 						},
 					},
 					Status: networkingv1.IngressStatus{
-						LoadBalancer: corev1.LoadBalancerStatus{
-							Ingress: []corev1.LoadBalancerIngress{
+						LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+							Ingress: []networkingv1.IngressLoadBalancerIngress{
 								{
 									IP: "100.5.10.5",
 								},
@@ -1013,8 +1013,8 @@ func TestSecuredAccessGeneral(t *testing.T) {
 						},
 					},
 					Status: networkingv1.IngressStatus{
-						LoadBalancer: corev1.LoadBalancerStatus{
-							Ingress: []corev1.LoadBalancerIngress{
+						LoadBalancer: networkingv1.IngressLoadBalancerStatus{
+							Ingress: []networkingv1.IngressLoadBalancerIngress{
 								{},
 							},
 						},
