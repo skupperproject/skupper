@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/test/integration/performance/common"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -222,7 +223,7 @@ func getAmqpServerInfo(settings *amqpSettings) *common.ServerInfo {
 
 func getAmqpDeployment() *appsv1.Deployment {
 	dep, _ := k8s.NewDeployment("amqp-server", "", k8s.DeploymentOpts{
-		Image:  "quay.io/skupper/skupper-router:2.7.0",
+		Image:  images.GetRouterImageName(),
 		Labels: map[string]string{"app": "amqp-server"},
 	})
 	return dep

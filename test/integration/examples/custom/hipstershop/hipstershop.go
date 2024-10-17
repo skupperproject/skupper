@@ -10,6 +10,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/test/utils/arch"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -49,6 +50,11 @@ func Setup(t *testing.T, testRunner base.ClusterTestRunner) {
 	assert.Assert(t, err)
 	prv1, err := testRunner.GetPrivateContext(1)
 	assert.Assert(t, err)
+
+	// Hipstershop is currently supported only on amd64
+	//
+	// https://github.com/GoogleCloudPlatform/microservices-demo/issues/622#issuecomment-2066712947
+	assert.Assert(t, arch.Skip(t, pub1, pub2, prv1))
 
 	// creating namespaces
 	assert.Assert(t, pub1.CreateNamespace())
