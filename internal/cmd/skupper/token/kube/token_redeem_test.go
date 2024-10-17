@@ -2,11 +2,12 @@ package kube
 
 import (
 	"fmt"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -224,7 +225,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 			},
 			expectedErrors: []string{
 				"token file does not exist: stat ~/token.yaml: no such file or directory",
-				"timeout is not valid"},
+				"timeout is not valid: duration must not be less than 10s; got 0s"},
 		},
 		{
 			name:  "flags all valid",

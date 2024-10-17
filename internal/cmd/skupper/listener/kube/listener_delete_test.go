@@ -1,10 +1,11 @@
 package kube
 
 import (
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 	"time"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -78,7 +79,7 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 			},
 			flags:               common.CommandListenerDeleteFlags{Timeout: 0 * time.Minute},
 			skupperErrorMessage: "timeout is not valid",
-			expectedErrors:      []string{"timeout is not valid"},
+			expectedErrors:      []string{"timeout is not valid: duration must not be less than 10s; got 0s"},
 		},
 	}
 

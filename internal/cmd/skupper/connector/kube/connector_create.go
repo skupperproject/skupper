@@ -58,6 +58,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	workloadStringValidator := validator.NewWorkloadStringValidator()
+	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 
 	// Validate arguments name and port
 	if len(args) < 2 {
@@ -95,33 +96,33 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	}
 
 	// Validate flags
-	if cmd.Flags.RoutingKey != "" {
+	if cmd.Flags != nil && cmd.Flags.RoutingKey != "" {
 		ok, err := resourceStringValidator.Evaluate(cmd.Flags.RoutingKey)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("routing key is not valid: %s", err))
 		}
 	}
-	if cmd.Flags.TlsSecret != "" {
+	if cmd.Flags != nil && cmd.Flags.TlsSecret != "" {
 		// check that the secret exists
 		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsSecret, metav1.GetOptions{})
 		if err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("tls-secret is not valid: does not exist"))
 		}
 	}
-	if cmd.Flags.ConnectorType != "" {
+	if cmd.Flags != nil && cmd.Flags.ConnectorType != "" {
 		ok, err := connectorTypeValidator.Evaluate(cmd.Flags.ConnectorType)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("connector type is not valid: %s", err))
 		}
 	}
 	// only one of workload, selector or host can be specified
-	if cmd.Flags.Host != "" {
+	if cmd.Flags != nil && cmd.Flags.Host != "" {
 		if cmd.Flags.Workload != "" || cmd.Flags.Selector != "" {
 			validationErrors = append(validationErrors, fmt.Errorf("If host is configured, cannot configure workload or selector"))
 		}
 		//TBD what characters are not allowed for host flag
 	}
-	if cmd.Flags.Selector != "" {
+	if cmd.Flags != nil && cmd.Flags.Selector != "" {
 		if cmd.Flags.Workload != "" || cmd.Flags.Host != "" {
 			validationErrors = append(validationErrors, fmt.Errorf("If selector is configured, cannot configure workload or host"))
 		}
@@ -130,7 +131,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("selector is not valid: %s", err))
 		}
 	}
-	if cmd.Flags.Workload != "" {
+	if cmd.Flags != nil && cmd.Flags.Workload != "" {
 		if cmd.Flags.Selector != "" || cmd.Flags.Host != "" {
 			validationErrors = append(validationErrors, fmt.Errorf("If workload is configured, cannot configure selector or host"))
 		}
@@ -140,10 +141,13 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 		}
 	}
 	//TBD what is valid timeout
-	if cmd.Flags.Timeout <= 0*time.Minute {
-		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid"))
+	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
+		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
+		}
 	}
-	if cmd.Flags.Output != "" {
+	if cmd.Flags != nil && cmd.Flags.Output != "" {
 		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
