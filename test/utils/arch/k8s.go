@@ -10,10 +10,10 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// If the target clusters are found to contain any non-amd64 nodes, the test is skipped
+// If the target clusters are found to contain any non-amd64 nodes, return true.
 //
-// Notice that it is perfectly valid to run such a test from an arm64 machine; only the cluster
-// needs to be amd64
+// Notice that only the cluster is checked to be amd64; if the VM needs checked,
+// use build flags or some other technique.
 //
 // Usage: check first skip; only check err if skip is false.  If skip is true, error
 // will be non-nil, with information on why skipping
@@ -34,7 +34,7 @@ func Check(clusters ...*base.ClusterContext) (err error, skip bool) {
 			arch := node.Labels["beta.kubernetes.io/arch"]
 			if arch != "amd64" {
 				return fmt.Errorf(
-					"at least one cluster node is not amd64 -- skipping (%s at %s is %s)",
+					"at least one cluster node is not amd64 -- skipping (%s at %s is %q)",
 					node.Name,
 					c.VanClient.RestConfig.Host,
 					arch,
