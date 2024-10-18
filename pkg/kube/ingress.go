@@ -22,7 +22,6 @@ import (
 	"time"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -68,7 +67,7 @@ func fromRule(rule *networkingv1.IngressRule) IngressRoute {
 	}
 }
 
-func getStatus(ingress *networkingv1.Ingress) *corev1.LoadBalancerIngress {
+func getStatus(ingress *networkingv1.Ingress) *networkingv1.IngressLoadBalancerIngress {
 	if len(ingress.Status.LoadBalancer.Ingress) > 0 {
 		status := ingress.Status.LoadBalancer.Ingress[0]
 		if status.IP != "" || status.Hostname != "" {

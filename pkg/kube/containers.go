@@ -34,7 +34,7 @@ func controllerStartupProbe() *corev1.Probe {
 		InitialDelaySeconds: 1,
 		PeriodSeconds:       1,
 		FailureThreshold:    60,
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Port: intstr.FromInt(8182),
 				Path: "/healthz",
@@ -46,7 +46,7 @@ func controllerStartupProbe() *corev1.Probe {
 func controllerLivenessProbe() *corev1.Probe {
 	return &corev1.Probe{
 		InitialDelaySeconds: 60,
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Port: intstr.FromInt(8182),
 				Path: "/healthz",
@@ -59,7 +59,7 @@ func controllerReadinessProbe() *corev1.Probe {
 	return &corev1.Probe{
 		InitialDelaySeconds: 5,
 		PeriodSeconds:       5,
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Port: intstr.FromInt(8182),
 				Path: "/healthz",
@@ -103,7 +103,7 @@ func ContainerForController(ds types.DeploymentSpec) corev1.Container {
 func transportLivenessProbe() *corev1.Probe {
 	return &corev1.Probe{
 		InitialDelaySeconds: 60,
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Port: intstr.FromInt(int(types.TransportLivenessPort)),
 				Path: "/healthz",
@@ -115,7 +115,7 @@ func transportLivenessProbe() *corev1.Probe {
 func transportReadinessProbe() *corev1.Probe {
 	return &corev1.Probe{
 		InitialDelaySeconds: 1,
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Port: intstr.FromInt(int(types.TransportLivenessPort)),
 				Path: "/healthz",
@@ -154,7 +154,7 @@ func ContainerForTransport(ds types.DeploymentSpec) corev1.Container {
 func configSyncReadinessProbe() *corev1.Probe {
 	return &corev1.Probe{
 		InitialDelaySeconds: 1,
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Port: intstr.FromInt(9191),
 				Path: "/healthz",

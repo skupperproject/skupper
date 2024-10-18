@@ -989,7 +989,7 @@ func ingressRule(host string, svc string, port int) networkingv1.IngressRule {
 }
 
 func addIngressHostname(ingress *networkingv1.Ingress, hostname string) *networkingv1.Ingress {
-	ingress.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
+	ingress.Status.LoadBalancer.Ingress = []networkingv1.IngressLoadBalancerIngress{
 		{
 			Hostname: hostname,
 		},
@@ -998,7 +998,7 @@ func addIngressHostname(ingress *networkingv1.Ingress, hostname string) *network
 }
 
 func addIngressIP(ingress *networkingv1.Ingress, ip string) *networkingv1.Ingress {
-	ingress.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
+	ingress.Status.LoadBalancer.Ingress = []networkingv1.IngressLoadBalancerIngress{
 		{
 			IP: ip,
 		},
