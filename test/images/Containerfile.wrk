@@ -1,0 +1,17 @@
+ARG TARGETPLATFORM
+
+FROM --platform=$TARGETPLATFORM registry.fedoraproject.org/fedora-minimal AS build
+
+RUN microdnf -y install gcc git make unzip openssl-devel && microdnf -y clean all
+
+WORKDIR /home/root
+RUN git clone https://github.com/wg/wrk.git
+
+WORKDIR /home/root/wrk
+RUN make WITH_OPENSSL=/usr
+
+FROM registry.fedoraproject.org/fedora-minimal
+
+COPY --from=build /home/root/wrk/wrk /usr/bin/wrk
+
+CMD ["/usr/bin/wrk"]
