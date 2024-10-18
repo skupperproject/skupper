@@ -416,7 +416,6 @@ func (s *Site) Select(connector *skupperv1alpha1.Connector) TargetSelection {
 		return nil
 	}
 	handler := &TargetSelectionImpl{
-		stopCh:          make(chan struct{}),
 		site:            s,
 		name:            name,
 		selector:        selector,

@@ -174,11 +174,17 @@ func (a *AttachedConnector) IncludeNotReady() bool {
 	return false
 }
 
-func (a *AttachedConnector) Id() string {
+func (a *AttachedConnector) Attr() slog.Attr {
 	if definition := a.activeDefinition(); definition != nil {
-		return fmt.Sprintf("AttachedConnector %s/%s", definition.Name, definition.Namespace)
+		return slog.Group("AttachedConnector",
+			slog.Bool("Active", true),
+			slog.String("Name", definition.Name),
+			slog.String("Namespace", definition.Namespace))
 	}
-	return ""
+	return slog.Group("AttachedConnector",
+		slog.Bool("Active", false),
+		slog.String("Name", a.name),
+		slog.String("Namespace", a.namespace))
 }
 
 func error_(errors []string) error {
