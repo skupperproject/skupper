@@ -153,6 +153,12 @@ func (s *SiteState) CreateLinkAccessesCertificates() {
 		if linkAccess.Spec.Issuer != "" {
 			linkAccessCaName = linkAccess.Spec.Issuer
 		}
+		if linkAccessCaName != caName {
+			s.Certificates[linkAccessCaName] = s.newCertificate(linkAccessCaName, &v1alpha1.CertificateSpec{
+				Subject: linkAccessCaName,
+				Signing: true,
+			})
+		}
 		certName := name
 		if linkAccess.Spec.TlsCredentials != "" {
 			certName = linkAccess.Spec.TlsCredentials

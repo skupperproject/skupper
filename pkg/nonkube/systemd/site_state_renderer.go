@@ -77,10 +77,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	s.siteState.CreateLinkAccessesCertificates()
 	s.siteState.CreateBridgeCertificates()
 	// rendering non-kube configuration files and certificates
-	siteHome, err := api.GetHostSiteHome(s.siteState.Site)
-	if err != nil {
-		return fmt.Errorf("failed to get site home: %w", err)
-	}
+	siteHome := api.GetHostSiteHome(s.siteState.Site)
 	s.configRenderer = &common.FileSystemConfigurationRenderer{
 		SslProfileBasePath: siteHome,
 		Platform:           string(types.PlatformSystemd),
