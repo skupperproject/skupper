@@ -143,7 +143,6 @@ type TargetSelection interface {
 
 type TargetSelectionImpl struct {
 	watcher         *PodWatcher
-	stopCh          chan struct{}
 	site            *Site
 	selector        string
 	name            string
@@ -156,16 +155,17 @@ func (w *TargetSelectionImpl) Selector() string {
 }
 
 func (w *TargetSelectionImpl) Close() {
-	//w.watcher.Close()
-	close(w.stopCh)
+	w.watcher.Close()
 }
 
 func (w *TargetSelectionImpl) IncludeNotReady() bool {
 	return w.includeNotReady
 }
 
-func (w *TargetSelectionImpl) Id() string {
-	return fmt.Sprintf("Connector %s/%s", w.name, w.namespace)
+func (w *TargetSelectionImpl) Attr() slog.Attr {
+	return slog.Group("Connector",
+		slog.String("Name", w.name),
+		slog.String("Namespace", w.namespace))
 }
 
 func (w *TargetSelectionImpl) List() []skupperv1alpha1.PodDetails {
@@ -182,19 +182,16 @@ func (w *TargetSelectionImpl) Updated(pods []skupperv1alpha1.PodDetails) error {
 		return w.site.updateConnectorConfiguredStatus(connector, err)
 	}
 	if len(pods) == 0 {
-		bindings_logger.Info("No pods available for target selection",
-			slog.String("id", w.Id()))
+		bindings_logger.Debug("No pods available for target selection", w.Attr())
 		return w.site.updateConnectorConfiguredStatus(connector, fmt.Errorf("No matches for selector"))
 	}
-	bindings_logger.Info("No pods available for target selection",
-		slog.String("id", w.Id()))
 	return w.site.updateConnectorConfiguredStatus(connector, nil)
 }
 
 type PodWatchingContext interface {
 	Selector() string
 	IncludeNotReady() bool
-	Id() string
+	Attr() slog.Attr
 	Updated(pods []skupperv1alpha1.PodDetails) error
 }
 
@@ -209,23 +206,23 @@ func (w *PodWatcher) pods() []skupperv1alpha1.PodDetails {
 	for _, pod := range w.watcher.List() {
 		if kube.IsPodReady(pod) || w.context.IncludeNotReady() {
 			if kube.IsPodRunning(pod) && pod.DeletionTimestamp == nil {
-				bindings_logger.Info("Pod selected for connector",
+				bindings_logger.Debug("Pod selected for connector",
 					slog.String("pod", pod.ObjectMeta.Name),
-					slog.String("connector", w.context.Id()))
+					w.context.Attr())
 				targets = append(targets, skupperv1alpha1.PodDetails{
 					UID:  string(pod.UID),
 					Name: pod.Name,
 					IP:   pod.Status.PodIP,
 				})
 			} else {
-				bindings_logger.Info("Pod not running for connector",
+				bindings_logger.Debug("Pod not running for connector",
 					slog.String("pod", pod.ObjectMeta.Name),
-					slog.String("connector", w.context.Id()))
+					w.context.Attr())
 			}
 		} else {
-			bindings_logger.Info("Pod not ready for connector",
+			bindings_logger.Debug("Pod not ready for connector",
 				slog.String("pod", pod.ObjectMeta.Name),
-				slog.String("connector", w.context.Id()))
+				w.context.Attr())
 		}
 	}
 	return targets
