@@ -2,20 +2,27 @@ package fs
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+
 	"sigs.k8s.io/yaml"
 )
 
 type CustomResourceHandler[T any] interface {
 	Add(T) error
 	Update(T) error
-	Get(name string) T
+	Get(name string) (T, error)
+	GetRuntime(name string) (T, []fs.DirEntry, error)
 	Delete(name string) error
 
 	//Common methods
 	EncodeToYaml(resource interface{}) (string, error)
 	WriteFile(path string, name string, content string, kind string) error
+	EncodeYaml(content []byte, resource interface{}) (interface{}, error)
+	ReadFile(path string, name string, kind string) (error, []byte)
+	DeleteFile(path string, name string, kind string) error
+	ReadDir(path string, kind string) (error, []fs.DirEntry)
 }
 
 type BaseCustomResourceHandler struct{}
@@ -25,6 +32,15 @@ func (b *BaseCustomResourceHandler) EncodeToYaml(resource interface{}) (string, 
 
 	result, err := yaml.Marshal(resource)
 	return string(result), err
+}
+
+// TBD better name
+func (b *BaseCustomResourceHandler) EncodeYaml(content []byte, resource interface{}) error {
+
+	if err := yaml.Unmarshal(content, &resource); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (b *BaseCustomResourceHandler) WriteFile(path string, name string, content string, kind string) error {
@@ -60,4 +76,59 @@ func (b *BaseCustomResourceHandler) WriteFile(path string, name string, content 
 	fmt.Println("File written to", completeFilePath)
 
 	return nil
+}
+
+func (b *BaseCustomResourceHandler) ReadFile(path string, name string, kind string) (error, []byte) {
+
+	// Resolve the home directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return err, nil
+	}
+
+	fullPath := filepath.Join(homeDir, path, kind)
+	completeFilePath := filepath.Join(fullPath, name)
+
+	file, err := os.ReadFile(completeFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %s", err), nil
+	}
+
+	return nil, file
+}
+
+func (b *BaseCustomResourceHandler) DeleteFile(path string, name string, kind string) error {
+	var completeFilePath string
+
+	// Resolve the home directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+
+	fullPath := filepath.Join(homeDir, path, kind)
+	completeFilePath = filepath.Join(fullPath, name)
+
+	if err := os.RemoveAll(completeFilePath); err != nil {
+		return fmt.Errorf("failed to delete file: %s", err)
+	}
+
+	return nil
+}
+
+func (b *BaseCustomResourceHandler) ReadDir(path string, kind string) (error, []fs.DirEntry) {
+	// Resolve the home directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return err, nil
+	}
+
+	fullPath := filepath.Join(homeDir, path, kind)
+
+	files, err := os.ReadDir(fullPath)
+	if err != nil {
+		return fmt.Errorf("failed to read directory: %s", err), nil
+	}
+
+	return nil, files
 }
