@@ -53,18 +53,13 @@ func main() {
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
 
-	namespace, err := kube.CurrentNamespace()
-	if err != nil {
-		log.Fatal("Error determining namespace: ", err.Error())
-	}
-
-	cli, err := internalclient.NewClient(namespace, "", "")
+	cli, err := internalclient.NewClient("", "", "")
 	if err != nil {
 		log.Fatal("Error getting van client: ", err.Error())
 	}
 
 	log.Println("CONFIG_SYNC: Waiting for Skupper router to be ready")
-	_, err = kube.WaitForPodsSelectorStatus(namespace, cli.Kube, "skupper.io/component=router", corev1.PodRunning, time.Second*180, time.Second*5)
+	_, err = kube.WaitForPodsSelectorStatus(cli.GetNamespace(), cli.Kube, "skupper.io/component=router", corev1.PodRunning, time.Second*180, time.Second*5)
 	if err != nil {
 		log.Fatal("Error waiting for router pods to be ready ", err.Error())
 	}
@@ -84,7 +79,7 @@ func main() {
 		routerConfigMap = "skupper-internal" // change defult?
 	}
 
-	configSync := newConfigSync(cli, namespace, SHARED_TLS_DIRECTORY, routerConfigMap)
+	configSync := newConfigSync(cli, cli.GetNamespace(), SHARED_TLS_DIRECTORY, routerConfigMap)
 	log.Println("CONFIG_SYNC: Starting controller loop...")
 	configSync.start(stopCh)
 
