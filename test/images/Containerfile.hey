@@ -11,6 +11,10 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o hey ./hey.go
 
 FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
 
+# The image needs to be compatible with the older entry point used
+# in the previous version
+RUN ln -s /app/hey /usr/bin/hey_linux_amd64
+
 # Create user and group and switch to user's context
 RUN microdnf -y install shadow-utils \
 && microdnf clean all
