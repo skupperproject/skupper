@@ -17,3 +17,15 @@ func (p *PathProvider) GetNamespace() string {
 	}
 	return fmt.Sprintf(".local/share/skupper/namespaces/%s/input/sources", p.Namespace)
 }
+
+func (p *PathProvider) getRuntimeDefaultNamespace() string {
+	return ".local/share/skupper/namespaces/default/runtime/state"
+}
+
+func (p *PathProvider) GetRuntimeNamespace() string {
+
+	if p.Namespace == "" {
+		return p.getRuntimeDefaultNamespace()
+	}
+	return fmt.Sprintf(".local/share/skupper/namespaces/%s/runtime/state", p.Namespace)
+}

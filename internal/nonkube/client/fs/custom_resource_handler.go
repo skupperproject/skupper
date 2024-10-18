@@ -2,6 +2,7 @@ package fs
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -13,7 +14,8 @@ import (
 type CustomResourceHandler[T any] interface {
 	Add(T) error
 	Update(T) error
-	Get(name string) T
+	Get(name string) (T, error)
+	GetRuntime(name string) (T, []fs.DirEntry, error)
 	Delete(name string) error
 
 	//Common methods
@@ -22,6 +24,7 @@ type CustomResourceHandler[T any] interface {
 	EncodeYaml(content []byte, resource interface{}) (interface{}, error)
 	ReadFile(path string, name string, kind string) (error, []byte)
 	DeleteFile(path string, name string, kind string) error
+	ReadDir(path string, kind string) (error, []fs.DirEntry)
 }
 
 type BaseCustomResourceHandler struct{}
@@ -111,4 +114,21 @@ func (b *BaseCustomResourceHandler) DeleteFile(path string, name string, kind st
 	}
 
 	return nil
+}
+
+func (b *BaseCustomResourceHandler) ReadDir(path string, kind string) (error, []fs.DirEntry) {
+	// Resolve the home directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return err, nil
+	}
+
+	fullPath := filepath.Join(homeDir, path, kind)
+
+	files, err := os.ReadDir(fullPath)
+	if err != nil {
+		return fmt.Errorf("failed to read directory: %s", err), nil
+	}
+
+	return nil, files
 }
