@@ -7,6 +7,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fs2 "github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/spf13/cobra"
 	"gotest.tools/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -79,6 +80,16 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
 		},
 		{
+			name:  "kubernetes flags are not valid on this platform",
+			args:  []string{"my-connector"},
+			flags: &common.CommandConnectorUpdateFlags{},
+			cobraGenericFlags: map[string]string{
+				common.FlagNameContext:    "test",
+				common.FlagNameKubeconfig: "test",
+			},
+			expectedErrors: []string{},
+		},
+		{
 			name: "flags all valid",
 			args: []string{"my-connector"},
 			flags: &common.CommandConnectorUpdateFlags{
@@ -104,7 +115,8 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		},
 	}
 
-	command := &CmdConnectorUpdate{}
+	command := &CmdConnectorUpdate{Flags: &common.CommandConnectorUpdateFlags{}}
+	command.CobraCmd = &cobra.Command{Use: "test"}
 	command.namespace = "test"
 	command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
 

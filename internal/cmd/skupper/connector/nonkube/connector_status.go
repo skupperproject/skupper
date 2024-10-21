@@ -105,9 +105,12 @@ func (cmd *CmdConnectorStatus) Run() error {
 					fmt.Println("failed getting connector")
 					return err
 				}
+				status := "Not Ready"
+				if connector.IsConfigured() {
+					status = "Ok"
+				}
 				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%d",
-					connector.Name, connector.Status.Conditions[0].Type, connector.Spec.RoutingKey,
-					connector.Spec.Host, connector.Spec.Port))
+					connector.Name, status, connector.Spec.RoutingKey, connector.Spec.Host, connector.Spec.Port))
 			}
 			_ = tw.Flush()
 		}
@@ -124,10 +127,13 @@ func (cmd *CmdConnectorStatus) Run() error {
 			}
 			fmt.Println(encodedOutput)
 		} else {
+			status := "Not Ready"
+			if connector.IsConfigured() {
+				status = "Ok"
+			}
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
 			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nHost:\t%s\nPort:\t%d\n",
-				connector.Name, connector.Status.Conditions[0].Type, connector.Spec.RoutingKey,
-				connector.Spec.Host, connector.Spec.Port))
+				connector.Name, status, connector.Spec.RoutingKey, connector.Spec.Host, connector.Spec.Port))
 			_ = tw.Flush()
 		}
 	}

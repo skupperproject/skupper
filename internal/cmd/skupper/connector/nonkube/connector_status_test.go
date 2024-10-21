@@ -235,8 +235,46 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 		command.connectorName = test.connectorName
 		command.Flags = &test.flags
 		command.output = command.Flags.Output
-		command.namespace = "test"
 
+		t.Run(test.name, func(t *testing.T) {
+			err := command.Run()
+			if err != nil {
+				assert.Check(t, test.errorMessage == err.Error())
+			} else {
+				assert.Check(t, err == nil)
+			}
+		})
+	}
+}
+
+func TestCmdConnectorStatus_RunNoDirectory(t *testing.T) {
+	type test struct {
+		name                string
+		connectorName       string
+		flags               common.CommandConnectorStatusFlags
+		k8sObjects          []runtime.Object
+		skupperObjects      []runtime.Object
+		skupperErrorMessage string
+		errorMessage        string
+	}
+
+	homeDir, err := os.UserHomeDir()
+	assert.Check(t, err == nil)
+
+	testTable := []test{
+		{
+			name:         "runs fails no directory",
+			errorMessage: "failed to read directory: open " + homeDir + "/.local/share/skupper/namespaces/default/runtime/state/connectors: no such file or directory",
+		},
+	}
+
+	for _, test := range testTable {
+		command := &CmdConnectorStatus{}
+		command.namespace = "default"
+		command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
+		command.connectorName = test.connectorName
+		command.Flags = &test.flags
+		command.output = command.Flags.Output
 		t.Run(test.name, func(t *testing.T) {
 
 			err := command.Run()
