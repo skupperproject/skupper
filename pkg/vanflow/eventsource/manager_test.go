@@ -14,7 +14,9 @@ import (
 )
 
 func TestManagerClient(t *testing.T) {
-	t.Parallel()
+	if testing.Short() {
+		t.Skip("skipping flaky test: #1738")
+	}
 	tstCtx, tstCancel := context.WithCancel(context.Background())
 	defer tstCancel()
 
