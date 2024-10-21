@@ -1,12 +1,14 @@
 package common
 
 import (
+	"bytes"
 	"os"
 	"path"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -14,15 +16,27 @@ import (
 )
 
 func TestFileSystemConfigurationRenderer_Render(t *testing.T) {
+	testFileSystemConfigurationRendererRender(t, false)
+}
+
+func TestFileSystemConfigurationRendererWithInputCertificates_Render(t *testing.T) {
+	testFileSystemConfigurationRendererRender(t, true)
+}
+
+func testFileSystemConfigurationRendererRender(t *testing.T, addInputCertificates bool) {
 	ss := fakeSiteState()
 	ss.CreateLinkAccessesCertificates()
 	ss.CreateBridgeCertificates()
 	customOutputPath, err := os.MkdirTemp("", "fs-config-renderer-*")
 	assert.Assert(t, err)
 	defer func() {
-		err := os.RemoveAll(customOutputPath)
-		assert.Assert(t, err)
+		//err := os.RemoveAll(customOutputPath)
+		//assert.Assert(t, err)
 	}()
+	if addInputCertificates {
+		t.Logf(customOutputPath)
+		createInputCertificates(t, customOutputPath)
+	}
 	fsConfigRenderer := new(FileSystemConfigurationRenderer)
 	fsConfigRenderer.customOutputPath = customOutputPath
 	assert.Assert(t, fsConfigRenderer.Render(ss))
@@ -61,13 +75,74 @@ func TestFileSystemConfigurationRenderer_Render(t *testing.T) {
 		"certificates/link/link-one-profile/tls.key",
 		"runtime/state/platform.yaml",
 		"runtime/link/link-link-access-one-127.0.0.1.yaml",
-		"runtime/link/link-link-access-one-localhost.yaml",
+	}
+	if !addInputCertificates {
+		expectedFiles = append(expectedFiles, "runtime/link/link-link-access-one-localhost.yaml")
+	} else {
+		expectedFiles = append(expectedFiles, "runtime/link/link-link-access-one-10.0.0.1.yaml")
+		expectedFiles = append(expectedFiles, "runtime/link/link-link-access-one-10.0.0.2.yaml")
+		expectedFiles = append(expectedFiles, "runtime/link/link-link-access-one-fake.domain.yaml")
 	}
 	for _, fileName := range expectedFiles {
 		fs, err := os.Stat(path.Join(customOutputPath, fileName))
 		assert.Assert(t, err)
 		assert.Assert(t, fs.Mode().IsRegular())
 		assert.Assert(t, fs.Size() > 0)
+	}
+	if addInputCertificates {
+		compareCertificates(t, customOutputPath)
+	}
+}
+
+func compareCertificates(t *testing.T, customOutputPath string) {
+	caPath := path.Join(customOutputPath, "certificates/ca/skupper-site-ca")
+	serverPath := path.Join(customOutputPath, "certificates/server/link-access-one")
+	clientPath := path.Join(customOutputPath, "certificates/client/client-link-access-one")
+	inputCaPath := path.Join(customOutputPath, "input/certificates/ca/skupper-site-ca")
+	inputServerPath := path.Join(customOutputPath, "input/certificates/server/link-access-one")
+	inputClientPath := path.Join(customOutputPath, "input/certificates/client/client-link-access-one")
+	pathsToCompare := map[string]string{
+		caPath:     inputCaPath,
+		serverPath: inputServerPath,
+		clientPath: inputClientPath,
+	}
+	for certPath, inputCertPath := range pathsToCompare {
+		entries, err := os.ReadDir(certPath)
+		assert.Assert(t, err)
+		assert.Assert(t, len(entries) == 3)
+		for _, filename := range []string{"ca.crt", "tls.key", "tls.crt"} {
+			activeData, err := os.ReadFile(path.Join(certPath, filename))
+			assert.Assert(t, err)
+			inputData, err := os.ReadFile(path.Join(inputCertPath, filename))
+			assert.Assert(t, err)
+			assert.Assert(t, bytes.Equal(activeData, inputData))
+		}
+	}
+}
+
+func createInputCertificates(t *testing.T, customOutputPath string) {
+	// preparing certificates
+	fakeHosts := "10.0.0.1,10.0.0.2,fake.domain"
+	ca := certs.GenerateCASecret("fake-ca", "fake-ca")
+	server := certs.GenerateSecret("fake-server-cert", "fake-server-cert", fakeHosts, &ca)
+	client := certs.GenerateSecret("fake-client-cert", "fake-client-cert", "", &ca)
+
+	// paths for each provided certificate
+	caPath := path.Join(customOutputPath, "namespaces/default/input/certificates/ca/skupper-site-ca")
+	serverPath := path.Join(customOutputPath, "namespaces/default/input/certificates/server/link-access-one")
+	clientPath := path.Join(customOutputPath, "namespaces/default/input/certificates/client/client-link-access-one")
+	certsMap := map[string]corev1.Secret{
+		caPath:     ca,
+		serverPath: server,
+		clientPath: client,
+	}
+
+	// writing certificates to disk
+	for certPath, secret := range certsMap {
+		assert.Assert(t, os.MkdirAll(certPath, 0755))
+		for filename, data := range secret.Data {
+			assert.Assert(t, os.WriteFile(path.Join(certPath, filename), data, 0644))
+		}
 	}
 }
 

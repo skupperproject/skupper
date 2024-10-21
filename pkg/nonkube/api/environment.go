@@ -12,15 +12,19 @@ type InternalPath string
 type InternalPathProvider func(namespace string, internalPath InternalPath) string
 
 const (
-	ConfigRouterPath       InternalPath = "config/router"
-	CertificatesCaPath     InternalPath = "certificates/ca"
-	CertificatesClientPath InternalPath = "certificates/client"
-	CertificatesServerPath InternalPath = "certificates/server"
-	CertificatesLinkPath   InternalPath = "certificates/link"
-	LoadedSiteStatePath    InternalPath = "sources"
-	RuntimeSiteStatePath   InternalPath = "runtime/state"
-	RuntimeTokenPath       InternalPath = "runtime/link"
-	RuntimeScriptsPath     InternalPath = "runtime/scripts"
+	ConfigRouterPath            InternalPath = "config/router"
+	CertificatesCaPath          InternalPath = "certificates/ca"
+	CertificatesClientPath      InternalPath = "certificates/client"
+	CertificatesServerPath      InternalPath = "certificates/server"
+	CertificatesLinkPath        InternalPath = "certificates/link"
+	InputCertificatesCaPath     InternalPath = "input/certificates/ca"
+	InputCertificatesClientPath InternalPath = "input/certificates/client"
+	InputCertificatesServerPath InternalPath = "input/certificates/server"
+	InputSiteStatePath          InternalPath = "input/sources"
+	LoadedSiteStatePath         InternalPath = "sources"
+	RuntimeSiteStatePath        InternalPath = "runtime/state"
+	RuntimeTokenPath            InternalPath = "runtime/link"
+	RuntimeScriptsPath          InternalPath = "runtime/scripts"
 )
 
 type IdGetter func() int
@@ -63,40 +67,42 @@ func GetRuntimeDir() string {
 // GetHostDataHome returns the value of the SKUPPER_OUTPUT_PATH environment
 // variable when running via container or the result of GetDataHome() otherwise.
 // This is only useful during the bootstrap process.
-func GetHostDataHome() (string, error) {
+func GetHostDataHome() string {
 	// If container provides SKUPPER_OUTPUT_PATH use it
 	if os.Getenv("SKUPPER_OUTPUT_PATH") != "" {
-		return os.Getenv("SKUPPER_OUTPUT_PATH"), nil
+		return os.Getenv("SKUPPER_OUTPUT_PATH")
 	}
-	return GetDataHome(), nil
+	return GetDataHome()
 }
 
-func GetHostSiteHome(site *v1alpha1.Site) (string, error) {
-	dataHome, err := GetHostDataHome()
-	if err != nil {
-		return "", err
-	}
+func GetHostSiteHome(site *v1alpha1.Site) string {
+	dataHome := GetHostDataHome()
 	ns := site.Namespace
 	if ns == "" {
 		ns = "default"
 	}
-	return path.Join(dataHome, "namespaces", ns), nil
+	return path.Join(dataHome, "namespaces", ns)
 }
 
-func GetHostNamespacesPath() (string, error) {
+func GetHostNamespaceHome(ns string) string {
+	dataHome := GetHostDataHome()
+	if ns == "" {
+		ns = "default"
+	}
+	return path.Join(dataHome, "namespaces", ns)
+}
+
+func GetHostNamespacesPath() string {
 	return getHostPath("namespaces")
 }
 
-func GetHostBundlesPath() (string, error) {
+func GetHostBundlesPath() string {
 	return getHostPath("bundles")
 }
 
-func getHostPath(basePath string) (string, error) {
-	dataHome, err := GetHostDataHome()
-	if err != nil {
-		return "", err
-	}
-	return path.Join(dataHome, basePath), nil
+func getHostPath(basePath string) string {
+	dataHome := GetHostDataHome()
+	return path.Join(dataHome, basePath)
 }
 
 func GetCustomSiteHome(site *v1alpha1.Site, customBaseDir string) string {
@@ -115,12 +121,9 @@ func getCustomSiteHome(site *v1alpha1.Site, customBaseDir string, basePath strin
 	return path.Join(customBaseDir, basePath, ns)
 }
 
-func GetHostSiteInternalPath(site *v1alpha1.Site, internalPath InternalPath) (string, error) {
-	dataHome, err := GetHostSiteHome(site)
-	if err != nil {
-		return "", err
-	}
-	return path.Join(dataHome, string(internalPath)), nil
+func GetHostSiteInternalPath(site *v1alpha1.Site, internalPath InternalPath) string {
+	dataHome := GetHostSiteHome(site)
+	return path.Join(dataHome, string(internalPath))
 }
 
 func IsRunningInContainer() bool {

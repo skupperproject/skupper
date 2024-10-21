@@ -3,7 +3,10 @@ package api
 import (
 	"bufio"
 	"bytes"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
@@ -41,7 +44,7 @@ func (t *Token) Marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func CreateTokens(routerAccess v1alpha1.RouterAccess, secret v1.Secret) []*Token {
+func CreateTokens(routerAccess v1alpha1.RouterAccess, serverSecret v1.Secret, clientSecret v1.Secret) []*Token {
 	var tokens []*Token
 	interRouter := 0
 	edge := 0
@@ -60,7 +63,7 @@ func CreateTokens(routerAccess v1alpha1.RouterAccess, secret v1.Secret) []*Token
 		name := routerAccess.Name
 		linkName := fmt.Sprintf("link-%s", name)
 		// adjusting name to match the standard used by pkg/site/link.go
-		secret.Name = fmt.Sprintf("link-%s", name)
+		clientSecret.Name = fmt.Sprintf("link-%s", name)
 		token := &Token{
 			Links: []*v1alpha1.Link{
 				{
@@ -72,12 +75,12 @@ func CreateTokens(routerAccess v1alpha1.RouterAccess, secret v1.Secret) []*Token
 						Name: linkName,
 					},
 					Spec: v1alpha1.LinkSpec{
-						TlsCredentials: secret.Name,
+						TlsCredentials: clientSecret.Name,
 						Cost:           1,
 					},
 				},
 			},
-			Secret: &secret,
+			Secret: &clientSecret,
 		}
 		var endpoints []v1alpha1.Endpoint
 		if interRouter > 0 {
@@ -102,8 +105,29 @@ func CreateTokens(routerAccess v1alpha1.RouterAccess, secret v1.Secret) []*Token
 	}
 	var hosts []string
 	hosts = append(hosts, utils.DefaultStr(routerAccess.Spec.BindHost, "127.0.0.1"))
-	if len(routerAccess.Spec.SubjectAlternativeNames) > 0 {
-		hosts = append(hosts, routerAccess.Spec.SubjectAlternativeNames...)
+	// reading SANs from server certificate
+	serverCertificateData := serverSecret.Data["tls.crt"]
+	serverCertificateBlk, _ := pem.Decode(serverCertificateData)
+	if serverCertificateBlk != nil {
+		serverCertificate, err := x509.ParseCertificate(serverCertificateBlk.Bytes)
+		if err == nil {
+			for _, ipAddr := range serverCertificate.IPAddresses {
+				if ipAddr.String() != "" && !slices.Contains(hosts, ipAddr.String()) {
+					hosts = append(hosts, ipAddr.String())
+				}
+			}
+			for _, dnsName := range serverCertificate.DNSNames {
+				if dnsName != "" && !slices.Contains(hosts, dnsName) {
+					hosts = append(hosts, dnsName)
+				}
+			}
+		}
+	}
+	// if no server certificate provided, use routerAccess.spec.subjectAlternativeNames
+	if len(hosts) == 1 {
+		if len(routerAccess.Spec.SubjectAlternativeNames) > 0 {
+			hosts = append(hosts, routerAccess.Spec.SubjectAlternativeNames...)
+		}
 	}
 	for _, host := range hosts {
 		tokens = append(tokens, createToken(host))
