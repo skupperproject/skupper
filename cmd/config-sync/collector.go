@@ -43,11 +43,17 @@ func siteCollector(ctx context.Context, cli *internalclient.KubeClient) {
 	if platform != types.PlatformKubernetes {
 		return
 	}
-	current, err := kube.GetDeployment(deploymentName(), cli.Namespace, cli.Kube)
+	current, err := cli.Kube.AppsV1().Deployments(cli.Namespace).Get(context.TODO(), deploymentName(), metav1.GetOptions{})
 	if err != nil {
 		log.Fatal("Failed to get transport deployment", err.Error())
 	}
-	owner := kube.GetDeploymentOwnerReference(current)
+
+	owner := metav1.OwnerReference{
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       current.ObjectMeta.Name,
+		UID:        current.ObjectMeta.UID,
+	}
 
 	existing, err := kube.NewConfigMap(types.NetworkStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.Kube)
 	if err != nil && existing == nil {
@@ -66,7 +72,7 @@ func siteCollector(ctx context.Context, cli *internalclient.KubeClient) {
 }
 
 func startFlowController(ctx context.Context, cli *internalclient.KubeClient) error {
-	deployment, err := kube.GetDeployment(deploymentName(), cli.Namespace, cli.Kube)
+	deployment, err := cli.Kube.AppsV1().Deployments(cli.Namespace).Get(context.TODO(), deploymentName(), metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get transport deployment: %s", err)
 	}
