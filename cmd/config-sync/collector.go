@@ -24,7 +24,7 @@ import (
 )
 
 func updateLockOwner(lockname, namespace string, owner *metav1.OwnerReference, cli *internalclient.KubeClient) error {
-	current, err := cli.Kube.CoreV1().ConfigMaps(namespace).Get(context.TODO(), lockname, metav1.GetOptions{})
+	current, err := cli.Kube.CoordinationV1().Leases(namespace).Get(context.TODO(), lockname, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func updateLockOwner(lockname, namespace string, owner *metav1.OwnerReference, c
 			*owner,
 		}
 	}
-	_, err = cli.Kube.CoreV1().ConfigMaps(namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
+	_, err = cli.Kube.CoordinationV1().Leases(namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
 	return err
 }
 
@@ -108,7 +108,7 @@ func startFlowController(ctx context.Context, cli *internalclient.KubeClient) er
 	return nil
 }
 
-func runLeaderElection(lock *resourcelock.ConfigMapLock, id string, cli *internalclient.KubeClient) {
+func runLeaderElection(lock *resourcelock.LeaseLock, id string, cli *internalclient.KubeClient) {
 	ctx := context.Background()
 	begin := time.Now()
 	podname, _ := os.Hostname()
@@ -147,18 +147,18 @@ func startCollector(cli *internalclient.KubeClient) {
 	namespace := cli.Namespace
 	podname, _ := os.Hostname()
 
-	cmLock := &resourcelock.ConfigMapLock{
-		ConfigMapMeta: metav1.ObjectMeta{
+	leaseLock := &resourcelock.LeaseLock{
+		LeaseMeta: metav1.ObjectMeta{
 			Name:      lockname,
 			Namespace: namespace,
 		},
-		Client: cli.Kube.CoreV1(),
+		Client: cli.Kube.CoordinationV1(),
 		LockConfig: resourcelock.ResourceLockConfig{
 			Identity: podname,
 		},
 	}
 
-	runLeaderElection(cmLock, podname, cli)
+	runLeaderElection(leaseLock, podname, cli)
 }
 
 func deploymentName() string {
