@@ -12,7 +12,7 @@ PLATFORMS ?= linux/amd64,linux/arm64
 GOOS ?= linux
 GOARCH ?= amd64
 
-all: build-cmd build-config-sync build-controller build-bootstrap build-tests build-manifest build-network-console-collector
+all: build-cmd build-config-sync build-controller build-bootstrap build-tests build-manifest build-network-console-collector update-helm-crd
 
 build-tests:
 	mkdir -p ${TEST_BINARIES_FOLDER}
@@ -138,3 +138,6 @@ release/arm64/skupper: cmd/skupper/skupper.go
 
 release/arm64.tgz: release/arm64/skupper
 	tar -czf release/arm64.tgz release/arm64/skupper
+
+update-helm-crd:
+	./scripts/update-helm-crds.sh
