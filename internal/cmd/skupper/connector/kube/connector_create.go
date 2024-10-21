@@ -12,6 +12,7 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
+	pkgUtils "github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -57,8 +58,9 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
-	workloadStringValidator := validator.NewWorkloadStringValidator()
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
+	workloadStringValidator := validator.NewWorkloadStringValidator(common.WorkloadTypes)
+	selectorStringValidator := validator.NewSelectorStringValidator()
 
 	// Validate arguments name and port
 	if len(args) < 2 {
@@ -94,7 +96,6 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("there is already a connector %s created for namespace %s", cmd.name, cmd.namespace))
 		}
 	}
-
 	// Validate flags
 	if cmd.Flags != nil && cmd.Flags.RoutingKey != "" {
 		ok, err := resourceStringValidator.Evaluate(cmd.Flags.RoutingKey)
@@ -126,18 +127,67 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 		if cmd.Flags.Workload != "" || cmd.Flags.Host != "" {
 			validationErrors = append(validationErrors, fmt.Errorf("If selector is configured, cannot configure workload or host"))
 		}
-		ok, err := workloadStringValidator.Evaluate(cmd.Flags.Selector)
+		ok, err := selectorStringValidator.Evaluate(cmd.Flags.Selector)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("selector is not valid: %s", err))
 		}
+		cmd.selector = cmd.Flags.Selector
 	}
 	if cmd.Flags != nil && cmd.Flags.Workload != "" {
 		if cmd.Flags.Selector != "" || cmd.Flags.Host != "" {
 			validationErrors = append(validationErrors, fmt.Errorf("If workload is configured, cannot configure selector or host"))
 		}
-		ok, err := workloadStringValidator.Evaluate(cmd.Flags.Workload)
+		//workload get resource-type/resource-name and find selector labels
+		resourceType, resourceName, ok, err := workloadStringValidator.Evaluate(cmd.Flags.Workload)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("workload is not valid: %s", err))
+		} else {
+			switch resourceType {
+			case "deployment":
+				deployment, err := cmd.KubeClient.AppsV1().Deployments(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
+				if err != nil {
+					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get Deployment specified by workload: %s", err))
+				} else {
+					if deployment.Spec.Selector.MatchLabels != nil {
+						cmd.selector = pkgUtils.StringifySelector(deployment.Spec.Selector.MatchLabels)
+					} else {
+						validationErrors = append(validationErrors, fmt.Errorf("workload, no selector Matchlabels found"))
+					}
+				}
+			case "service":
+				service, err := cmd.KubeClient.CoreV1().Services(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
+				if err != nil {
+					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get Service specified by workload: %s", err))
+				} else {
+					if service.Spec.Selector != nil {
+						cmd.selector = pkgUtils.StringifySelector(service.Spec.Selector)
+					} else {
+						validationErrors = append(validationErrors, fmt.Errorf("workload, no selector labels found"))
+					}
+				}
+			case "daemonset":
+				daemonSet, err := cmd.KubeClient.AppsV1().DaemonSets(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
+				if err != nil {
+					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get DaemonSet specified by workload: %s", err))
+				} else {
+					if daemonSet.Spec.Selector.MatchLabels != nil {
+						cmd.selector = pkgUtils.StringifySelector(daemonSet.Spec.Selector.MatchLabels)
+					} else {
+						validationErrors = append(validationErrors, fmt.Errorf("workload, no selector Matchlabels found"))
+					}
+				}
+			case "statefulset":
+				statefulSet, err := cmd.KubeClient.AppsV1().StatefulSets(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
+				if err != nil {
+					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get StatefulSet specified by workload: %s", err))
+				} else {
+					if statefulSet.Spec.Selector.MatchLabels != nil {
+						cmd.selector = pkgUtils.StringifySelector(statefulSet.Spec.Selector.MatchLabels)
+					} else {
+						validationErrors = append(validationErrors, fmt.Errorf("workload, no selector Matchlabels found"))
+					}
+				}
+			}
 		}
 	}
 	//TBD what is valid timeout

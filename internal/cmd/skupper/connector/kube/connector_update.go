@@ -11,6 +11,7 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
+	pkgUtils "github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,14 +33,16 @@ type ConnectorUpdates struct {
 }
 
 type CmdConnectorUpdate struct {
-	client          skupperv1alpha1.SkupperV1alpha1Interface
-	CobraCmd        *cobra.Command
-	Flags           *common.CommandConnectorUpdateFlags
-	namespace       string
-	name            string
-	resourceVersion string
-	newSettings     ConnectorUpdates
-	KubeClient      kubernetes.Interface
+	client           skupperv1alpha1.SkupperV1alpha1Interface
+	CobraCmd         *cobra.Command
+	Flags            *common.CommandConnectorUpdateFlags
+	namespace        string
+	name             string
+	resourceVersion  string
+	newSettings      ConnectorUpdates
+	existingHost     string
+	existingSelector string
+	KubeClient       kubernetes.Interface
 }
 
 func NewCmdConnectorUpdate() *CmdConnectorUpdate {
@@ -63,8 +66,9 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
-	workloadStringValidator := validator.NewWorkloadStringValidator()
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
+	workloadStringValidator := validator.NewWorkloadStringValidator(common.WorkloadTypes)
+	selectorStringValidator := validator.NewSelectorStringValidator()
 
 	// Validate arguments name
 	if len(args) < 1 {
@@ -90,12 +94,14 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 		} else {
 			// save existing values
 			cmd.resourceVersion = connector.ResourceVersion
-			cmd.newSettings.host = connector.Spec.Host
 			cmd.newSettings.port = connector.Spec.Port
 			cmd.newSettings.tlsSecret = connector.Spec.TlsCredentials
 			cmd.newSettings.connectorType = connector.Spec.Type
-			cmd.newSettings.selector = connector.Spec.Selector
 			cmd.newSettings.includeNotReady = connector.Spec.IncludeNotReady
+			cmd.newSettings.routingKey = connector.Spec.RoutingKey
+
+			cmd.existingHost = connector.Spec.Host
+			cmd.existingSelector = connector.Spec.Selector
 		}
 	}
 
@@ -143,33 +149,83 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 		cmd.newSettings.host = cmd.Flags.Host
 	}
 	if cmd.Flags != nil && cmd.Flags.Selector != "" {
-		ok, err := workloadStringValidator.Evaluate(cmd.Flags.Selector)
+		ok, err := selectorStringValidator.Evaluate(cmd.Flags.Selector)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("selector is not valid: %s", err))
 		}
 		cmd.newSettings.selector = cmd.Flags.Selector
 	}
+	//workload get resource-type/resource-name and find selector labels
 	if cmd.Flags != nil && cmd.Flags.Workload != "" {
-		ok, err := workloadStringValidator.Evaluate(cmd.Flags.Workload)
+		resourceType, resourceName, ok, err := workloadStringValidator.Evaluate(cmd.Flags.Workload)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("workload is not valid: %s", err))
+		} else {
+			switch resourceType {
+			case "deployment":
+				deployment, err := cmd.KubeClient.AppsV1().Deployments(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
+				if err != nil {
+					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get Deployment specified by workload: %s", err))
+				} else {
+					if deployment.Spec.Selector.MatchLabels != nil {
+						cmd.newSettings.workload = pkgUtils.StringifySelector(deployment.Spec.Selector.MatchLabels)
+					} else {
+						validationErrors = append(validationErrors, fmt.Errorf("workload, no selector Matchlabels found"))
+					}
+				}
+			case "service":
+				service, err := cmd.KubeClient.CoreV1().Services(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
+				if err != nil {
+					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get Service specified by workload: %s", err))
+				} else {
+					if service.Spec.Selector != nil {
+						cmd.newSettings.workload = pkgUtils.StringifySelector(service.Spec.Selector)
+					} else {
+						validationErrors = append(validationErrors, fmt.Errorf("workload, no selector labels found"))
+					}
+				}
+			case "daemonset":
+				daemonSet, err := cmd.KubeClient.AppsV1().DaemonSets(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
+				if err != nil {
+					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get DaemonSet specified by workload: %s", err))
+				} else {
+					if daemonSet.Spec.Selector.MatchLabels != nil {
+						cmd.newSettings.workload = pkgUtils.StringifySelector(daemonSet.Spec.Selector.MatchLabels)
+					} else {
+						validationErrors = append(validationErrors, fmt.Errorf("workload, no selector Matchlabels found"))
+					}
+				}
+			case "statefulset":
+				statefulSet, err := cmd.KubeClient.AppsV1().StatefulSets(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
+				if err != nil {
+					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get StatefulSet specified by workload: %s", err))
+				} else {
+					if statefulSet.Spec.Selector.MatchLabels != nil {
+						cmd.newSettings.workload = pkgUtils.StringifySelector(statefulSet.Spec.Selector.MatchLabels)
+					} else {
+						validationErrors = append(validationErrors, fmt.Errorf("workload, no selector Matchlabels found"))
+					}
+				}
+			}
 		}
-		cmd.newSettings.workload = cmd.Flags.Workload
 	}
 	//Can only have one workload/Selector/host set
-	if cmd.Flags != nil && cmd.newSettings.host != "" {
-		if cmd.newSettings.workload != "" || cmd.newSettings.selector != "" {
+	if cmd.newSettings.host == "" && cmd.newSettings.selector == "" && cmd.newSettings.workload == "" {
+		// no host/selector/workload being modified use existing values
+		cmd.newSettings.selector = cmd.existingSelector
+		cmd.newSettings.host = cmd.existingHost
+	} else {
+		if cmd.newSettings.host != "" && (cmd.newSettings.workload != "" || cmd.newSettings.selector != "") {
 			validationErrors = append(validationErrors, fmt.Errorf("If host is configured, cannot configure workload or selector"))
 		}
-	}
-	if cmd.Flags != nil && cmd.newSettings.selector != "" {
-		if cmd.newSettings.host != "" || cmd.newSettings.workload != "" {
+		if cmd.newSettings.selector != "" && (cmd.newSettings.host != "" || cmd.newSettings.workload != "") {
 			validationErrors = append(validationErrors, fmt.Errorf("If selector is configured, cannot configure workload or host"))
 		}
-	}
-	if cmd.Flags != nil && cmd.newSettings.workload != "" {
-		if cmd.newSettings.selector != "" || cmd.newSettings.host != "" {
-			validationErrors = append(validationErrors, fmt.Errorf("If workload is configured, cannot configure selector or host"))
+		if cmd.newSettings.workload != "" {
+			if cmd.newSettings.selector != "" || cmd.newSettings.host != "" {
+				validationErrors = append(validationErrors, fmt.Errorf("If workload is configured, cannot configure selector or host"))
+			}
+			cmd.newSettings.selector = cmd.newSettings.workload
 		}
 	}
 	if cmd.Flags != nil && cmd.Flags.Output != "" {
@@ -180,7 +236,6 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.output = cmd.Flags.Output
 		}
 	}
-
 	return validationErrors
 }
 
