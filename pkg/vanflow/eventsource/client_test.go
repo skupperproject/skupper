@@ -19,7 +19,6 @@ import (
 )
 
 func TestClient(t *testing.T) {
-	t.Parallel()
 	tstCtx, tstCancel := context.WithCancel(context.Background())
 	defer tstCancel()
 	factory, rtt := requireContainers(t)
@@ -179,7 +178,6 @@ func TestClientFlush(t *testing.T) {
 	for _, _tc := range testCases {
 		tc := _tc
 		t.Run(tc.ClientName, func(t *testing.T) {
-			t.Parallel()
 			tstCtx, tstCancel := context.WithCancel(context.Background())
 			defer tstCancel()
 			client := NewClient(ctr, ClientOptions{Source: Info{

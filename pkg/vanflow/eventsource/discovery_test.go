@@ -14,7 +14,6 @@ import (
 )
 
 func TestDiscoveryBasic(t *testing.T) {
-	t.Parallel()
 	tstCtx, tstCancel := context.WithCancel(context.Background())
 	defer tstCancel()
 	factory, rtt := requireContainers(t)
@@ -144,7 +143,9 @@ func TestDiscoveryBasic(t *testing.T) {
 }
 
 func TestDiscoveryWatch(t *testing.T) {
-	t.Parallel()
+	if testing.Short() {
+		t.Skip("skipping flaky test: #1738")
+	}
 	tstCtx, tstCancel := context.WithCancel(context.Background())
 	defer tstCancel()
 	factory, rtt := requireContainers(t)
