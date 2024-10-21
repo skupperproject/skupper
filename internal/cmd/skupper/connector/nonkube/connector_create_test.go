@@ -32,9 +32,9 @@ func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
 		},
 		{
 			name:           "Connector name is not valid",
-			args:           []string{"my new Connector"},
+			args:           []string{"my new Connector", "8080"},
 			flags:          &common.CommandConnectorCreateFlags{},
-			expectedErrors: []string{"connector name and port must be configured"},
+			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
 			name:           "Connector name is empty",
@@ -53,6 +53,12 @@ func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
 			args:           []string{"my-connector-port", "abcd"},
 			flags:          &common.CommandConnectorCreateFlags{},
 			expectedErrors: []string{"connector port is not valid: strconv.Atoi: parsing \"abcd\": invalid syntax"},
+		},
+		{
+			name:           "port not positive",
+			args:           []string{"my-port-positive", "-45"},
+			flags:          &common.CommandConnectorCreateFlags{},
+			expectedErrors: []string{"connector port is not valid: value is not positive"},
 		},
 		{
 			name:           "more than two arguments was specified",
