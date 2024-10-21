@@ -120,6 +120,17 @@ rules:
       - update
       - patch
   - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - update
+  - apiGroups:
       - rbac.authorization.k8s.io
     resources:
       - rolebindings
