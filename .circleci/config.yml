@@ -479,7 +479,7 @@ jobs:
           command: mkdir /tmp/artifacts
       - run:
           name: Run tests
-          command: make cover TESTFLAGS="-v -race -short -count=25"
+          command: make cover
       - run:
           name: Generating HTML coverage report
           command: |
