@@ -2,11 +2,12 @@ package nonkube
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,6 +48,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
+	hostStringValidator := validator.NewHostStringValidator()
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
 		fmt.Println("Warning: --context flag is not supported on this platform")
@@ -74,7 +76,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 
 	// Validate that there is already a connector with this name in the namespace
 	if cmd.connectorName != "" {
-		connector, err := cmd.connectorHandler.Get(cmd.connectorName)
+		connector, err := cmd.connectorHandler.Update(cmd.connectorName)
 		if connector == nil || err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("connector %s must exist in namespace %s to be updated", cmd.connectorName, cmd.namespace))
 		} else {
@@ -113,8 +115,13 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 		}
 	}
 	if cmd.Flags.Host != "" {
-		//TBD what characters are not allowed for host flag
-		cmd.newSettings.host = cmd.Flags.Host
+		ip := net.ParseIP(cmd.Flags.Host)
+		ok, _ := hostStringValidator.Evaluate(cmd.Flags.Host)
+		if !ok && ip == nil {
+			validationErrors = append(validationErrors, fmt.Errorf("host is not valid: a valid IP address or hostname is expected"))
+		} else {
+			cmd.newSettings.host = cmd.Flags.Host
+		}
 	}
 	if cmd.Flags.Output != "" {
 		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
@@ -135,16 +142,16 @@ func (cmd *CmdConnectorUpdate) InputToOptions() {
 }
 
 func (cmd *CmdConnectorUpdate) Run() error {
-	connectorResource := v1alpha1.Connector{
+	connectorResource := v2alpha1.Connector{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "Connector",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmd.connectorName,
 			Namespace: cmd.namespace,
 		},
-		Spec: v1alpha1.ConnectorSpec{
+		Spec: v2alpha1.ConnectorSpec{
 			Host:           cmd.newSettings.host,
 			Port:           cmd.newSettings.port,
 			RoutingKey:     cmd.newSettings.routingKey,

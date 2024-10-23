@@ -2,12 +2,13 @@ package nonkube
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,6 +55,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
+	hostStringValidator := validator.NewHostStringValidator()
 
 	// Validate arguments name and port
 	if len(args) < 2 {
@@ -101,7 +103,13 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 		}
 	}
 	if cmd.Flags.Host != "" {
-		// TBD what is valid host
+		ip := net.ParseIP(cmd.Flags.Host)
+		ok, _ := hostStringValidator.Evaluate(cmd.Flags.Host)
+		if !ok && ip == nil {
+			validationErrors = append(validationErrors, fmt.Errorf("host is not valid: a valid IP address or hostname is expected"))
+		}
+	} else {
+		validationErrors = append(validationErrors, fmt.Errorf("host name must be configured: an IP address or hostname is expected"))
 	}
 	if cmd.Flags.TlsSecret != "" {
 		// TBD what is valid TlsSecret
@@ -129,16 +137,16 @@ func (cmd *CmdConnectorCreate) InputToOptions() {
 }
 
 func (cmd *CmdConnectorCreate) Run() error {
-	connectorResource := v1alpha1.Connector{
+	connectorResource := v2alpha1.Connector{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "Connector",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmd.connectorName,
 			Namespace: cmd.namespace,
 		},
-		Spec: v1alpha1.ConnectorSpec{
+		Spec: v2alpha1.ConnectorSpec{
 			Host:           cmd.host,
 			Port:           cmd.port,
 			RoutingKey:     cmd.routingKey,

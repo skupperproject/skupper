@@ -15,13 +15,13 @@ type CustomResourceHandler[T any] interface {
 	Add(T) error
 	Update(T) error
 	Get(name string) (T, error)
-	GetRuntime(name string) (T, []fs.DirEntry, error)
+	List() ([]T, error)
 	Delete(name string) error
 
 	//Common methods
 	EncodeToYaml(resource interface{}) (string, error)
 	WriteFile(path string, name string, content string, kind string) error
-	EncodeYaml(content []byte, resource interface{}) (interface{}, error)
+	DecodeYaml(content []byte, resource interface{}) (interface{}, error)
 	ReadFile(path string, name string, kind string) (error, []byte)
 	DeleteFile(path string, name string, kind string) error
 	ReadDir(path string, kind string) (error, []fs.DirEntry)
@@ -34,8 +34,7 @@ func (b *BaseCustomResourceHandler) EncodeToYaml(resource interface{}) (string, 
 	return utils.Encode("yaml", resource)
 }
 
-// TBD better name
-func (b *BaseCustomResourceHandler) EncodeYaml(content []byte, resource interface{}) error {
+func (b *BaseCustomResourceHandler) DecodeYaml(content []byte, resource interface{}) error {
 
 	if err := yaml.Unmarshal(content, &resource); err != nil {
 		return err
@@ -45,17 +44,11 @@ func (b *BaseCustomResourceHandler) EncodeYaml(content []byte, resource interfac
 
 func (b *BaseCustomResourceHandler) WriteFile(path string, name string, content string, kind string) error {
 
-	// Resolve the home directory
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-
-	fullPath := filepath.Join(homeDir, path, kind)
+	fullPath := filepath.Join(path, kind)
 	completeFilePath := filepath.Join(fullPath, name)
 
 	// Create the directories recursively
-	err = os.MkdirAll(fullPath, 0775)
+	err := os.MkdirAll(fullPath, 0775)
 	if err != nil {
 		return fmt.Errorf("failed to create directories: %s", err)
 	}
@@ -80,13 +73,7 @@ func (b *BaseCustomResourceHandler) WriteFile(path string, name string, content 
 
 func (b *BaseCustomResourceHandler) ReadFile(path string, name string, kind string) (error, []byte) {
 
-	// Resolve the home directory
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return err, nil
-	}
-
-	fullPath := filepath.Join(homeDir, path, kind)
+	fullPath := filepath.Join(path, kind)
 	completeFilePath := filepath.Join(fullPath, name)
 
 	file, err := os.ReadFile(completeFilePath)
@@ -100,13 +87,7 @@ func (b *BaseCustomResourceHandler) ReadFile(path string, name string, kind stri
 func (b *BaseCustomResourceHandler) DeleteFile(path string, name string, kind string) error {
 	var completeFilePath string
 
-	// Resolve the home directory
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-
-	fullPath := filepath.Join(homeDir, path, kind)
+	fullPath := filepath.Join(path, kind)
 	completeFilePath = filepath.Join(fullPath, name)
 
 	if err := os.RemoveAll(completeFilePath); err != nil {
@@ -117,13 +98,8 @@ func (b *BaseCustomResourceHandler) DeleteFile(path string, name string, kind st
 }
 
 func (b *BaseCustomResourceHandler) ReadDir(path string, kind string) (error, []fs.DirEntry) {
-	// Resolve the home directory
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return err, nil
-	}
 
-	fullPath := filepath.Join(homeDir, path, kind)
+	fullPath := filepath.Join(path, kind)
 
 	files, err := os.ReadDir(fullPath)
 	if err != nil {

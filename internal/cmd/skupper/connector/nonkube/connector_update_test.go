@@ -1,12 +1,15 @@
 package nonkube
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	fs2 "github.com/skupperproject/skupper/internal/nonkube/client/fs"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
 	"gotest.tools/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,6 +27,9 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		expectedErrors    []string
 	}
 
+	homeDir, err := os.UserHomeDir()
+	assert.Check(t, err == nil)
+	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
 	testTable := []test{
 		{
 			name:           "connector is not updated because get connector returned error",
@@ -68,6 +74,12 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
+			name:           "host is not valid",
+			args:           []string{"my-connector"},
+			flags:          &common.CommandConnectorUpdateFlags{Host: "not-valid$"},
+			expectedErrors: []string{"host is not valid: a valid IP address or hostname is expected"},
+		},
+		{
 			name:           "port is not valid",
 			args:           []string{"my-connector"},
 			flags:          &common.CommandConnectorUpdateFlags{Port: -1},
@@ -98,15 +110,16 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				Port:          1234,
 				ConnectorType: "tcp",
 				Output:        "json",
+				Host:          "1.2.3.4",
 			},
 			expectedErrors: []string{},
 		},
 	}
 
-	//TBD add a temp file so connector exists for update tests will pass
-	connectorResource := v1alpha1.Connector{
+	//Add a temp file so connector exists for update tests will pass
+	connectorResource := v2alpha1.Connector{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "Connector",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -118,10 +131,12 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 	command := &CmdConnectorUpdate{Flags: &common.CommandConnectorUpdateFlags{}}
 	command.CobraCmd = &cobra.Command{Use: "test"}
 	command.namespace = "test"
-	command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
+	command.connectorHandler = fs.NewConnectorHandler(command.namespace)
 
 	defer command.connectorHandler.Delete("my-connector")
-	err := command.connectorHandler.Add(connectorResource)
+	content, err := command.connectorHandler.EncodeToYaml(connectorResource)
+	assert.Check(t, err == nil)
+	err = command.connectorHandler.WriteFile(path, "my-connector.yaml", content, common.Connectors)
 	assert.Check(t, err == nil)
 
 	for _, test := range testTable {
@@ -197,7 +212,7 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 		command.newSettings.routingKey = test.routingKey
 		command.newSettings.tlsSecret = test.tlsSecret
 		command.namespace = test.namespace
-		command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
+		command.connectorHandler = fs.NewConnectorHandler(command.namespace)
 		defer command.connectorHandler.Delete("my-connector")
 		t.Run(test.name, func(t *testing.T) {
 			command.InputToOptions()

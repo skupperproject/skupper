@@ -28,6 +28,17 @@ func NewStringValidator() *StringValidator {
 	}
 }
 
+func NewHostStringValidator() *StringValidator {
+	re, err := regexp.Compile(`^[a-z0-9]+([-.]{1}[a-z0-9]+)*$`)
+	if err != nil {
+		fmt.Printf("Error compiling regex: %v", err)
+		return nil
+	}
+	return &StringValidator{
+		Expression: re,
+	}
+}
+
 func NewResourceStringValidator() *StringValidator {
 	re, err := regexp.Compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$")
 	if err != nil {

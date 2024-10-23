@@ -2,12 +2,14 @@ package nonkube
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	fs2 "github.com/skupperproject/skupper/internal/nonkube/client/fs"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -23,6 +25,10 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 		skupperObjects    []runtime.Object
 		expectedErrors    []string
 	}
+
+	homeDir, err := os.UserHomeDir()
+	assert.Check(t, err == nil)
+	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.RuntimeSiteStatePath))
 
 	testTable := []test{
 		{
@@ -69,9 +75,9 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 	}
 
 	//Add a temp file so connector exists for status tests
-	connectorResource := v1alpha1.Connector{
+	connectorResource := v2alpha1.Connector{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "Connector",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -82,10 +88,12 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 
 	command := &CmdConnectorStatus{}
 	command.namespace = "test"
-	command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
+	command.connectorHandler = fs.NewConnectorHandler(command.namespace)
 
 	defer command.connectorHandler.Delete("my-connector")
-	err := command.connectorHandler.Add(connectorResource)
+	content, err := command.connectorHandler.EncodeToYaml(connectorResource)
+	assert.Check(t, err == nil)
+	err = command.connectorHandler.WriteFile(path, "my-connector.yaml", content, common.Connectors)
 	assert.Check(t, err == nil)
 
 	for _, test := range testTable {
@@ -125,12 +133,13 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 
 	homeDir, err := os.UserHomeDir()
 	assert.Check(t, err == nil)
+	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
 
 	testTable := []test{
 		{
 			name:          "run fails connector doesn't exist",
 			connectorName: "no-connector",
-			errorMessage:  "failed to read file: open " + homeDir + "/.local/share/skupper/namespaces/test/runtime/state/connectors/no-connector.yaml: no such file or directory",
+			errorMessage:  "failed to read file: open " + path + "/connectors/no-connector.yaml: no such file or directory",
 		},
 		{
 			name:          "runs ok, returns 1 connectors",
@@ -162,22 +171,22 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 	}
 
 	//Add a temp file so connector exists for status tests
-	connectorResource1 := v1alpha1.Connector{
+	connectorResource1 := v2alpha1.Connector{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "Connector",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-connector",
 			Namespace: "test",
 		},
-		Spec: v1alpha1.ConnectorSpec{
+		Spec: v2alpha1.ConnectorSpec{
 			Host:       "1.2.3.4",
 			Port:       8080,
 			RoutingKey: "backend-8080",
 		},
-		Status: v1alpha1.ConnectorStatus{
-			Status: v1alpha1.Status{
+		Status: v2alpha1.ConnectorStatus{
+			Status: v2alpha1.Status{
 				Conditions: []metav1.Condition{
 					{
 						Type:   "Configured",
@@ -187,22 +196,22 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 			},
 		},
 	}
-	connectorResource2 := v1alpha1.Connector{
+	connectorResource2 := v2alpha1.Connector{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "Connector",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-connector2",
 			Namespace: "test",
 		},
-		Spec: v1alpha1.ConnectorSpec{
+		Spec: v2alpha1.ConnectorSpec{
 			Host:       "1.1.1.1",
 			Port:       9999,
 			RoutingKey: "test-9999",
 		},
-		Status: v1alpha1.ConnectorStatus{
-			Status: v1alpha1.Status{
+		Status: v2alpha1.ConnectorStatus{
+			Status: v2alpha1.Status{
 				Conditions: []metav1.Condition{
 					{
 						Type:   "Configured",
@@ -216,19 +225,20 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 	// add two connectors in runtime directory
 	command := &CmdConnectorStatus{}
 	command.namespace = "test"
-	command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
+	command.connectorHandler = fs.NewConnectorHandler(command.namespace)
 
 	defer command.connectorHandler.Delete("my-connector")
 	defer command.connectorHandler.Delete("my-connector2")
 
+	path = filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.RuntimeSiteStatePath))
 	content, err := command.connectorHandler.EncodeToYaml(connectorResource1)
 	assert.Check(t, err == nil)
-	err = command.connectorHandler.WriteFile(".local/share/skupper/namespaces/test/runtime/state", "my-connector.yaml", content, "connectors")
+	err = command.connectorHandler.WriteFile(path, "my-connector.yaml", content, common.Connectors)
 	assert.Check(t, err == nil)
 
 	content, err = command.connectorHandler.EncodeToYaml(connectorResource2)
 	assert.Check(t, err == nil)
-	err = command.connectorHandler.WriteFile(".local/share/skupper/namespaces/test/runtime/state", "my-connector2.yaml", content, "connectors")
+	err = command.connectorHandler.WriteFile(path, "my-connector2.yaml", content, common.Connectors)
 	assert.Check(t, err == nil)
 
 	for _, test := range testTable {
@@ -250,7 +260,6 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 func TestCmdConnectorStatus_RunNoDirectory(t *testing.T) {
 	type test struct {
 		name                string
-		connectorName       string
 		flags               common.CommandConnectorStatusFlags
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
@@ -260,19 +269,20 @@ func TestCmdConnectorStatus_RunNoDirectory(t *testing.T) {
 
 	homeDir, err := os.UserHomeDir()
 	assert.Check(t, err == nil)
+	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test1/", string(api.InputSiteStatePath))
 
 	testTable := []test{
 		{
 			name:         "runs fails no directory",
-			errorMessage: "failed to read directory: open " + homeDir + "/.local/share/skupper/namespaces/default/runtime/state/connectors: no such file or directory",
+			errorMessage: "failed to read file: open " + path + "/connectors/my-connector.yaml: no such file or directory",
 		},
 	}
 
 	for _, test := range testTable {
 		command := &CmdConnectorStatus{}
-		command.namespace = "default"
-		command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
-		command.connectorName = test.connectorName
+		command.namespace = "test1"
+		command.connectorHandler = fs.NewConnectorHandler(command.namespace)
+		command.connectorName = "my-connector"
 		command.Flags = &test.flags
 		command.output = command.Flags.Output
 		t.Run(test.name, func(t *testing.T) {

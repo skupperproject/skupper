@@ -75,22 +75,15 @@ func (cmd *CmdConnectorStatus) ValidateInput(args []string) []error {
 
 func (cmd *CmdConnectorStatus) Run() error {
 	if cmd.connectorName == "" {
-		_, connectors, err := cmd.connectorHandler.GetRuntime("")
-		if err != nil {
-			fmt.Println("failed getting directory")
+		connectors, err := cmd.connectorHandler.List()
+		if connectors == nil || err != nil {
+			fmt.Println("No connectors found:")
 			return err
 		}
 		if cmd.output != "" {
-			for _, file := range connectors {
-				fmt.Println("file name:", file.Name())
-				connector, _, err := cmd.connectorHandler.GetRuntime(file.Name())
-				if err != nil {
-					fmt.Println("failed getting connector")
-					return err
-				}
+			for _, connector := range connectors {
 				encodedOutput, err := utils.Encode(cmd.output, connector)
 				if err != nil {
-					fmt.Println("failed encoding connector output")
 					return err
 				}
 				fmt.Println(encodedOutput)
@@ -99,12 +92,7 @@ func (cmd *CmdConnectorStatus) Run() error {
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
 			_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s",
 				"NAME", "STATUS", "ROUTING-KEY", "HOST", "PORT"))
-			for _, file := range connectors {
-				connector, _, err := cmd.connectorHandler.GetRuntime(file.Name())
-				if err != nil {
-					fmt.Println("failed getting connector")
-					return err
-				}
+			for _, connector := range connectors {
 				status := "Not Ready"
 				if connector.IsConfigured() {
 					status = "Ok"
@@ -115,9 +103,9 @@ func (cmd *CmdConnectorStatus) Run() error {
 			_ = tw.Flush()
 		}
 	} else {
-		connector, _, err := cmd.connectorHandler.GetRuntime(cmd.connectorName + ".yaml")
+		connector, err := cmd.connectorHandler.Get(cmd.connectorName)
 		if connector == nil || err != nil {
-			fmt.Println("No connectors found:", err)
+			fmt.Println("No connectors found:")
 			return err
 		}
 		if cmd.output != "" {

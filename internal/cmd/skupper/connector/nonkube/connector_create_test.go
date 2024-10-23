@@ -5,7 +5,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	fs2 "github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/spf13/cobra"
 
 	"gotest.tools/assert"
@@ -27,67 +27,79 @@ func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
 		{
 			name:           "Connector name and port are not specified",
 			args:           []string{},
-			flags:          &common.CommandConnectorCreateFlags{},
+			flags:          &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedErrors: []string{"connector name and port must be configured"},
 		},
 		{
 			name:           "Connector name is not valid",
 			args:           []string{"my new Connector", "8080"},
-			flags:          &common.CommandConnectorCreateFlags{},
+			flags:          &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
 			name:           "Connector name is empty",
 			args:           []string{"", "1234"},
-			flags:          &common.CommandConnectorCreateFlags{},
+			flags:          &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedErrors: []string{"connector name must not be empty"},
 		},
 		{
 			name:           "connector port empty",
 			args:           []string{"my-name-port-empty", ""},
-			flags:          &common.CommandConnectorCreateFlags{},
+			flags:          &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedErrors: []string{"connector port must not be empty"},
 		},
 		{
 			name:           "port is not valid",
 			args:           []string{"my-connector-port", "abcd"},
-			flags:          &common.CommandConnectorCreateFlags{},
+			flags:          &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedErrors: []string{"connector port is not valid: strconv.Atoi: parsing \"abcd\": invalid syntax"},
 		},
 		{
 			name:           "port not positive",
 			args:           []string{"my-port-positive", "-45"},
-			flags:          &common.CommandConnectorCreateFlags{},
+			flags:          &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedErrors: []string{"connector port is not valid: value is not positive"},
 		},
 		{
 			name:           "more than two arguments was specified",
 			args:           []string{"my", "Connector", "test"},
-			flags:          &common.CommandConnectorCreateFlags{},
+			flags:          &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedErrors: []string{"only two arguments are allowed for this command"},
 		},
 		{
 			name:           "type is not valid",
 			args:           []string{"my-connector", "8080"},
-			flags:          &common.CommandConnectorCreateFlags{ConnectorType: "not-valid"},
+			flags:          &common.CommandConnectorCreateFlags{ConnectorType: "not-valid", Host: "1.2.3.4"},
 			expectedErrors: []string{"connector type is not valid: value not-valid not allowed. It should be one of this options: [tcp]"},
 		},
 		{
 			name:           "routing key is not valid",
 			args:           []string{"my-connector-rk", "8080"},
-			flags:          &common.CommandConnectorCreateFlags{RoutingKey: "not-valid$"},
+			flags:          &common.CommandConnectorCreateFlags{RoutingKey: "not-valid$", Host: "1.2.3.4"},
 			expectedErrors: []string{"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+		},
+		{
+			name:           "host is not valid",
+			args:           []string{"my-connector-host", "8080"},
+			flags:          &common.CommandConnectorCreateFlags{Host: "not-valid$"},
+			expectedErrors: []string{"host is not valid: a valid IP address or hostname is expected"},
+		},
+		{
+			name:           "host is not configued",
+			args:           []string{"my-connector-host", "8080"},
+			flags:          &common.CommandConnectorCreateFlags{},
+			expectedErrors: []string{"host name must be configured: an IP address or hostname is expected"},
 		},
 		{
 			name:           "output format is not valid",
 			args:           []string{"my-connector", "8080"},
-			flags:          &common.CommandConnectorCreateFlags{Output: "not-valid"},
+			flags:          &common.CommandConnectorCreateFlags{Output: "not-valid", Host: "1.2.3.4"},
 			expectedErrors: []string{"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]"},
 		},
 		{
 			name:           "kubernetes flags are not valid on this platform",
 			args:           []string{"my-connector", "8080"},
-			flags:          &common.CommandConnectorCreateFlags{},
+			flags:          &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedErrors: []string{},
 			cobraGenericFlags: map[string]string{
 				common.FlagNameContext:    "test",
@@ -190,7 +202,7 @@ func TestNonKubeCmdConnectorCreate_InputToOptions(t *testing.T) {
 			cmd.Flags = &test.flags
 			cmd.connectorName = "my-Connector"
 			cmd.namespace = test.namespace
-			cmd.connectorHandler = fs2.NewConnectorHandler(cmd.namespace)
+			cmd.connectorHandler = fs.NewConnectorHandler(cmd.namespace)
 
 			cmd.InputToOptions()
 
@@ -266,7 +278,7 @@ func TestNonKubeCmdConnectorCreate_Run(t *testing.T) {
 		command.host = test.host
 		command.connectorType = test.connectorType
 		command.namespace = test.namespace
-		command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
+		command.connectorHandler = fs.NewConnectorHandler(command.namespace)
 		defer command.connectorHandler.Delete("test1")
 		t.Run(test.name, func(t *testing.T) {
 
