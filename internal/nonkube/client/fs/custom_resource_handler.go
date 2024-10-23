@@ -13,13 +13,14 @@ type CustomResourceHandler[T any] interface {
 	Add(T) error
 	Update(T) error
 	Get(name string) (T, error)
+	List() ([]T, error)
 	GetRuntime(name string) (T, []fs.DirEntry, error)
 	Delete(name string) error
 
 	//Common methods
 	EncodeToYaml(resource interface{}) (string, error)
 	WriteFile(path string, name string, content string, kind string) error
-	EncodeYaml(content []byte, resource interface{}) (interface{}, error)
+	DecodeYaml(content []byte, resource interface{}) (interface{}, error)
 	ReadFile(path string, name string, kind string) (error, []byte)
 	DeleteFile(path string, name string, kind string) error
 	ReadDir(path string, kind string) (error, []fs.DirEntry)
@@ -34,8 +35,7 @@ func (b *BaseCustomResourceHandler) EncodeToYaml(resource interface{}) (string, 
 	return string(result), err
 }
 
-// TBD better name
-func (b *BaseCustomResourceHandler) EncodeYaml(content []byte, resource interface{}) error {
+func (b *BaseCustomResourceHandler) DecodeYaml(content []byte, resource interface{}) error {
 
 	if err := yaml.Unmarshal(content, &resource); err != nil {
 		return err

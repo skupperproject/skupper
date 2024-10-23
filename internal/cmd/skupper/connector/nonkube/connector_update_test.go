@@ -121,7 +121,9 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 	command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
 
 	defer command.connectorHandler.Delete("my-connector")
-	err := command.connectorHandler.Add(connectorResource)
+	content, err := command.connectorHandler.EncodeToYaml(connectorResource)
+	assert.Check(t, err == nil)
+	err = command.connectorHandler.WriteFile(".local/share/skupper/namespaces/test/runtime/state", "my-connector.yaml", content, "connectors")
 	assert.Check(t, err == nil)
 
 	for _, test := range testTable {

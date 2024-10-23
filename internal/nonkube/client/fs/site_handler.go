@@ -30,6 +30,7 @@ func (s *SiteHandler) Add(resource v1alpha1.Site) error {
 
 	return nil
 }
-func (s *SiteHandler) Update(resource v1alpha1.Site) error { return nil }
-func (s *SiteHandler) Get(name string) *v1alpha1.Site      { return nil }
-func (s *SiteHandler) Delete(name string) error            { return nil }
+func (s *SiteHandler) Update(resource v1alpha1.Site) error           { return nil }
+func (s *SiteHandler) Get(name string) *v1alpha1.Site                { return nil }
+func (s *SiteHandler) Delete(name string) error                      { return nil }
+func (s *SiteHandler) List([]*v1alpha1.Site, error) []*v1alpha1.Site { return nil }

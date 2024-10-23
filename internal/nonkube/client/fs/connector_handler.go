@@ -40,39 +40,16 @@ func (s *ConnectorHandler) Get(name string) (*v1alpha1.Connector, error) {
 	var context v1alpha1.Connector
 	fileName := name + ".yaml"
 
-	err, file := s.ReadFile(s.pathProvider.GetNamespace(), fileName, "connectors")
+	err, file := s.ReadFile(s.pathProvider.GetRuntimeNamespace(), fileName, "connectors")
 	if err != nil {
 		return nil, err
 	}
 
-	if err = s.EncodeYaml(file, &context); err != nil {
+	if err = s.DecodeYaml(file, &context); err != nil {
 		return nil, err
 	}
 
 	return &context, nil
-}
-
-func (s *ConnectorHandler) GetRuntime(fileName string) (*v1alpha1.Connector, []fs.DirEntry, error) {
-	var context v1alpha1.Connector
-
-	if fileName == "" {
-		err, files := s.ReadDir(s.pathProvider.GetRuntimeNamespace(), "connectors")
-		if err != nil {
-			return nil, nil, err
-		}
-		return nil, files, nil
-	} else {
-		err, file := s.ReadFile(s.pathProvider.GetRuntimeNamespace(), fileName, "connectors")
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if err = s.EncodeYaml(file, &context); err != nil {
-			return nil, nil, err
-		}
-
-		return &context, nil, nil
-	}
 }
 
 func (s *ConnectorHandler) Delete(name string) error {
@@ -90,6 +67,27 @@ func (s *ConnectorHandler) Delete(name string) error {
 		}
 	}
 	return nil
+}
+
+func (s *ConnectorHandler) List() ([]*v1alpha1.Connector, error) {
+	var connectors []*v1alpha1.Connector
+
+	err, files := s.ReadDir(s.pathProvider.GetRuntimeNamespace(), "connectors")
+	if err != nil {
+		return nil, err
+	}
+	for _, file := range files {
+		err, connector := s.ReadFile(s.pathProvider.GetRuntimeNamespace(), file.Name(), "connectors")
+		if err != nil {
+			return nil, err
+		}
+		var context v1alpha1.Connector
+		if err = s.DecodeYaml(connector, &context); err != nil {
+			return nil, err
+		}
+		connectors = append(connectors, &context)
+	}
+	return connectors, nil
 }
 
 func (s *ConnectorHandler) Update(resource v1alpha1.Site) error { return nil }
