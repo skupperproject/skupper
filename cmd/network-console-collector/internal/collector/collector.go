@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	opmetrics "github.com/skupperproject/skupper/cmd/network-console-collector/internal/collector/metrics"
 	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/eventsource"
 	"github.com/skupperproject/skupper/pkg/vanflow/session"
@@ -26,15 +27,16 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 	sessionCtr := factory.Create()
 
 	collector := &Collector{
-		logger:        logger,
-		flowRecordTTL: flowRecordTTL,
-		session:       sessionCtr,
-		discovery:     eventsource.NewDiscovery(sessionCtr, eventsource.DiscoveryOptions{}),
-		sources:       make(map[string]eventSource),
-		events:        make(chan changeEvent, 1024),
-		purgeQueue:    make(chan store.SourceRef, 8),
-		recordRouting: make(eventsource.RecordStoreMap),
-		metrics:       register(reg),
+		logger:         logger,
+		flowRecordTTL:  flowRecordTTL,
+		session:        sessionCtr,
+		discovery:      eventsource.NewDiscovery(sessionCtr, eventsource.DiscoveryOptions{}),
+		sources:        make(map[string]eventSource),
+		events:         make(chan changeEvent, 1024),
+		purgeQueue:     make(chan store.SourceRef, 8),
+		recordRouting:  make(eventsource.RecordStoreMap),
+		metrics:        register(reg),
+		metricsAdaptor: opmetrics.New(reg),
 	}
 
 	collector.Records = store.NewSyncMapStore(store.SyncMapStoreConfig{
@@ -73,6 +75,7 @@ type Collector struct {
 	processManager *processManager
 	addressManager *addressManager
 	pairManager    *pairManager
+	metricsAdaptor *opmetrics.Adaptor
 
 	events     chan changeEvent
 	purgeQueue chan store.SourceRef
@@ -139,12 +142,23 @@ func (c *Collector) monitoring(ctx context.Context) func() error {
 	}
 }
 
+func (c *Collector) dispatchMetricsEvents(event changeEvent, _ readonly) {
+	switch event := event.(type) {
+	case addEvent:
+		c.metricsAdaptor.Add(event.Record)
+	case updateEvent:
+		c.metricsAdaptor.Update(event.Prev, event.Curr)
+	case deleteEvent:
+		c.metricsAdaptor.Remove(event.Record)
+	}
+}
+
 func (c *Collector) runWorkQueue(ctx context.Context) func() error {
 	// reactors respond to record changes. Should be quick, and perform minimal
 	// read-only store ops. Handle any changes out of band.
 	reactors := map[vanflow.TypeMeta][]func(event changeEvent, stor readonly){}
 	for _, r := range standardRecordTypes {
-		reactors[r] = append(reactors[r], c.updateGraph)
+		reactors[r] = append(reactors[r], c.updateGraph, c.dispatchMetricsEvents)
 	}
 
 	reactors[AddressRecord{}.GetTypeMeta()] = append(reactors[AddressRecord{}.GetTypeMeta()], c.updateGraph)
