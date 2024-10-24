@@ -5,7 +5,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	fs2 "github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/spf13/cobra"
 
 	"gotest.tools/assert"
@@ -119,7 +119,7 @@ func TestCmdConnectorDelete_Run(t *testing.T) {
 
 			cmd.connectorName = test.deleteName
 			cmd.namespace = test.namespace
-			cmd.connectorHandler = fs2.NewConnectorHandler(cmd.namespace)
+			cmd.connectorHandler = fs.NewConnectorHandler(cmd.namespace)
 			cmd.InputToOptions()
 
 			err := cmd.Run()

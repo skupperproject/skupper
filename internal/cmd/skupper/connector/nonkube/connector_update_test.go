@@ -5,7 +5,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	fs2 "github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"github.com/spf13/cobra"
 	"gotest.tools/assert"
@@ -68,6 +68,12 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
+			name:           "host is not valid",
+			args:           []string{"my-connector"},
+			flags:          &common.CommandConnectorUpdateFlags{Host: "not-valid$"},
+			expectedErrors: []string{"host is not valid: a valid IP address or hostname is expected"},
+		},
+		{
 			name:           "port is not valid",
 			args:           []string{"my-connector"},
 			flags:          &common.CommandConnectorUpdateFlags{Port: -1},
@@ -98,6 +104,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				Port:          1234,
 				ConnectorType: "tcp",
 				Output:        "json",
+				Host:          "1.2.3.4",
 			},
 			expectedErrors: []string{},
 		},
@@ -118,7 +125,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 	command := &CmdConnectorUpdate{Flags: &common.CommandConnectorUpdateFlags{}}
 	command.CobraCmd = &cobra.Command{Use: "test"}
 	command.namespace = "test"
-	command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
+	command.connectorHandler = fs.NewConnectorHandler(command.namespace)
 
 	defer command.connectorHandler.Delete("my-connector")
 	content, err := command.connectorHandler.EncodeToYaml(connectorResource)
@@ -199,7 +206,7 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 		command.newSettings.routingKey = test.routingKey
 		command.newSettings.tlsSecret = test.tlsSecret
 		command.namespace = test.namespace
-		command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
+		command.connectorHandler = fs.NewConnectorHandler(command.namespace)
 		defer command.connectorHandler.Delete("my-connector")
 		t.Run(test.name, func(t *testing.T) {
 			command.InputToOptions()

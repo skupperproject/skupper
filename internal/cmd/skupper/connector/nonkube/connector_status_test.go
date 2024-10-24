@@ -6,7 +6,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	fs2 "github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
 	"gotest.tools/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -82,7 +82,7 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 
 	command := &CmdConnectorStatus{}
 	command.namespace = "test"
-	command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
+	command.connectorHandler = fs.NewConnectorHandler(command.namespace)
 
 	defer command.connectorHandler.Delete("my-connector")
 	content, err := command.connectorHandler.EncodeToYaml(connectorResource)
@@ -132,8 +132,7 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 		{
 			name:          "run fails connector doesn't exist",
 			connectorName: "no-connector",
-			errorMessage:  "failed to read file: open " + homeDir + "/.local/share/skupper/namespaces/test/runtime/state/connectors/no-connector.yaml: no such file or directory",
-		},
+			errorMessage:  "failed to read file: open " + homeDir + "/.local/share/skupper/namespaces/test/input/sources/connectors/no-connector.yaml: no such file or directory"},
 		{
 			name:          "runs ok, returns 1 connectors",
 			connectorName: "my-connector",
@@ -218,7 +217,7 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 	// add two connectors in runtime directory
 	command := &CmdConnectorStatus{}
 	command.namespace = "test"
-	command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
+	command.connectorHandler = fs.NewConnectorHandler(command.namespace)
 
 	defer command.connectorHandler.Delete("my-connector")
 	defer command.connectorHandler.Delete("my-connector2")
@@ -241,6 +240,9 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			err := command.Run()
 			if err != nil {
+				t.Log("test: ", test.name)
+				t.Log(test.errorMessage)
+				t.Log(err.Error())
 				assert.Check(t, test.errorMessage == err.Error())
 			} else {
 				assert.Check(t, err == nil)
@@ -273,7 +275,7 @@ func TestCmdConnectorStatus_RunNoDirectory(t *testing.T) {
 	for _, test := range testTable {
 		command := &CmdConnectorStatus{}
 		command.namespace = "default"
-		command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
+		command.connectorHandler = fs.NewConnectorHandler(command.namespace)
 		command.connectorName = test.connectorName
 		command.Flags = &test.flags
 		command.output = command.Flags.Output

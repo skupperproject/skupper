@@ -36,20 +36,27 @@ func (s *ConnectorHandler) Add(resource v1alpha1.Connector) error {
 	return nil
 }
 
-func (s *ConnectorHandler) Get(name string) (*v1alpha1.Connector, error) {
+func (s *ConnectorHandler) Get(name string) (*v1alpha1.Connector, bool, error) {
 	var context v1alpha1.Connector
 	fileName := name + ".yaml"
 
+	// First read from runtime directory, where output is found after bootstrap
+	// has run.  If no runtime connectors try and display configured connectors
+	runtime := true
 	err, file := s.ReadFile(s.pathProvider.GetRuntimeNamespace(), fileName, "connectors")
 	if err != nil {
-		return nil, err
+		runtime = false
+		err, file = s.ReadFile(s.pathProvider.GetNamespace(), fileName, "connectors")
+		if err != nil {
+			return nil, runtime, err
+		}
 	}
 
 	if err = s.DecodeYaml(file, &context); err != nil {
-		return nil, err
+		return nil, runtime, err
 	}
 
-	return &context, nil
+	return &context, runtime, nil
 }
 
 func (s *ConnectorHandler) Delete(name string) error {
@@ -69,25 +76,35 @@ func (s *ConnectorHandler) Delete(name string) error {
 	return nil
 }
 
-func (s *ConnectorHandler) List() ([]*v1alpha1.Connector, error) {
+func (s *ConnectorHandler) List() ([]*v1alpha1.Connector, bool, error) {
 	var connectors []*v1alpha1.Connector
 
-	err, files := s.ReadDir(s.pathProvider.GetRuntimeNamespace(), "connectors")
+	// First read from runtime directory, where output is found after bootstrap
+	// has run.  If no runtime connectors try and display configured connectors
+	path := s.pathProvider.GetRuntimeNamespace()
+	err, files := s.ReadDir(path, "connectors")
+	runtime := true
 	if err != nil {
-		return nil, err
-	}
-	for _, file := range files {
-		err, connector := s.ReadFile(s.pathProvider.GetRuntimeNamespace(), file.Name(), "connectors")
+		path = s.pathProvider.GetNamespace()
+		runtime = false
+		err, files = s.ReadDir(path, "connectors")
 		if err != nil {
-			return nil, err
+			return nil, runtime, err
+		}
+	}
+
+	for _, file := range files {
+		err, connector := s.ReadFile(path, file.Name(), "connectors")
+		if err != nil {
+			return nil, runtime, err
 		}
 		var context v1alpha1.Connector
 		if err = s.DecodeYaml(connector, &context); err != nil {
-			return nil, err
+			return nil, runtime, err
 		}
 		connectors = append(connectors, &context)
 	}
-	return connectors, nil
+	return connectors, runtime, nil
 }
 
 func (s *ConnectorHandler) Update(resource v1alpha1.Site) error { return nil }

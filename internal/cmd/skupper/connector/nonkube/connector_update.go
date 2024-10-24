@@ -2,6 +2,7 @@ package nonkube
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -47,6 +48,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
+	hostStringValidator := validator.NewHostStringValidator()
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
 		fmt.Println("Warning: --context flag is not supported on this platform")
@@ -74,7 +76,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 
 	// Validate that there is already a connector with this name in the namespace
 	if cmd.connectorName != "" {
-		connector, err := cmd.connectorHandler.Get(cmd.connectorName)
+		connector, _, err := cmd.connectorHandler.Get(cmd.connectorName)
 		if connector == nil || err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("connector %s must exist in namespace %s to be updated", cmd.connectorName, cmd.namespace))
 		} else {
@@ -113,8 +115,13 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 		}
 	}
 	if cmd.Flags.Host != "" {
-		//TBD what characters are not allowed for host flag
-		cmd.newSettings.host = cmd.Flags.Host
+		ip := net.ParseIP(cmd.Flags.Host)
+		ok, _ := hostStringValidator.Evaluate(cmd.Flags.Host)
+		if !ok || ip == nil {
+			validationErrors = append(validationErrors, fmt.Errorf("host is not valid: a valid IP address or hostname is expected"))
+		} else {
+			cmd.newSettings.host = cmd.Flags.Host
+		}
 	}
 	if cmd.Flags.Output != "" {
 		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)

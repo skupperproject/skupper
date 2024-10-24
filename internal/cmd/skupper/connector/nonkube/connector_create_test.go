@@ -5,7 +5,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	fs2 "github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/spf13/cobra"
 
 	"gotest.tools/assert"
@@ -77,6 +77,12 @@ func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
 			args:           []string{"my-connector-rk", "8080"},
 			flags:          &common.CommandConnectorCreateFlags{RoutingKey: "not-valid$"},
 			expectedErrors: []string{"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+		},
+		{
+			name:           "host is not valid",
+			args:           []string{"my-connector-host", "8080"},
+			flags:          &common.CommandConnectorCreateFlags{Host: "not-valid$"},
+			expectedErrors: []string{"host is not valid: a valid IP address or hostname is expected"},
 		},
 		{
 			name:           "output format is not valid",
@@ -190,7 +196,7 @@ func TestNonKubeCmdConnectorCreate_InputToOptions(t *testing.T) {
 			cmd.Flags = &test.flags
 			cmd.connectorName = "my-Connector"
 			cmd.namespace = test.namespace
-			cmd.connectorHandler = fs2.NewConnectorHandler(cmd.namespace)
+			cmd.connectorHandler = fs.NewConnectorHandler(cmd.namespace)
 
 			cmd.InputToOptions()
 
@@ -266,7 +272,7 @@ func TestNonKubeCmdConnectorCreate_Run(t *testing.T) {
 		command.host = test.host
 		command.connectorType = test.connectorType
 		command.namespace = test.namespace
-		command.connectorHandler = fs2.NewConnectorHandler(command.namespace)
+		command.connectorHandler = fs.NewConnectorHandler(command.namespace)
 		defer command.connectorHandler.Delete("test1")
 		t.Run(test.name, func(t *testing.T) {
 

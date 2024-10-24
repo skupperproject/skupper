@@ -55,7 +55,7 @@ func (cmd *CmdConnectorStatus) ValidateInput(args []string) []error {
 	}
 	// Validate that there is a connector with this name in the namespace
 	if cmd.connectorName != "" {
-		connector, err := cmd.connectorHandler.Get(cmd.connectorName)
+		connector, _, err := cmd.connectorHandler.Get(cmd.connectorName)
 		if connector == nil || err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("connector %s does not exist in namespace %s", cmd.connectorName, cmd.namespace))
 		}
@@ -75,7 +75,10 @@ func (cmd *CmdConnectorStatus) ValidateInput(args []string) []error {
 
 func (cmd *CmdConnectorStatus) Run() error {
 	if cmd.connectorName == "" {
-		connectors, err := cmd.connectorHandler.List()
+		connectors, runtime, err := cmd.connectorHandler.List()
+		if runtime == false {
+			fmt.Println("Site not initialized yet")
+		}
 		if connectors == nil || err != nil {
 			fmt.Println("No connectors found:")
 			return err
@@ -103,7 +106,10 @@ func (cmd *CmdConnectorStatus) Run() error {
 			_ = tw.Flush()
 		}
 	} else {
-		connector, err := cmd.connectorHandler.Get(cmd.connectorName)
+		connector, runtime, err := cmd.connectorHandler.Get(cmd.connectorName)
+		if runtime == false {
+			fmt.Println("Site not initialized yet")
+		}
 		if connector == nil || err != nil {
 			fmt.Println("No connectors found:")
 			return err

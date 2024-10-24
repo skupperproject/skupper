@@ -2,6 +2,7 @@ package nonkube
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -54,6 +55,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
+	hostStringValidator := validator.NewHostStringValidator()
 
 	// Validate arguments name and port
 	if len(args) < 2 {
@@ -101,7 +103,11 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 		}
 	}
 	if cmd.Flags.Host != "" {
-		// TBD what is valid host
+		ip := net.ParseIP(cmd.Flags.Host)
+		ok, _ := hostStringValidator.Evaluate(cmd.Flags.Host)
+		if !ok || ip == nil {
+			validationErrors = append(validationErrors, fmt.Errorf("host is not valid: a valid IP address or hostname is expected"))
+		}
 	}
 	if cmd.Flags.TlsSecret != "" {
 		// TBD what is valid TlsSecret
