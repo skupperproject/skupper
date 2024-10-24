@@ -2,9 +2,9 @@ package fs
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"os"
 	"path/filepath"
-	"sigs.k8s.io/yaml"
 )
 
 type CustomResourceHandler[T any] interface {
@@ -21,10 +21,8 @@ type CustomResourceHandler[T any] interface {
 type BaseCustomResourceHandler struct{}
 
 func (b *BaseCustomResourceHandler) EncodeToYaml(resource interface{}) (string, error) {
-	var result []byte
 
-	result, err := yaml.Marshal(resource)
-	return string(result), err
+	return utils.Encode("yaml", resource)
 }
 
 func (b *BaseCustomResourceHandler) WriteFile(path string, name string, content string, kind string) error {
