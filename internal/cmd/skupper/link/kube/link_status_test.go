@@ -4,7 +4,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,8 +27,8 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 			name: "more than one argument was specified",
 			args: []string{"my-link", ""},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -50,8 +50,8 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 			args:  []string{"my-link"},
 			flags: common.CommandLinkStatusFlags{Output: "not-valid"},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -60,7 +60,7 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 						},
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -122,13 +122,13 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 		{
 			name: "runs ok showing all the links",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "link2",
 						Namespace: "test",
@@ -139,13 +139,13 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 		{
 			name: "runs ok showing all the links in yaml format",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "link2",
 						Namespace: "test",
@@ -157,13 +157,13 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 		{
 			name: "runs ok showing one of the links",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "link2",
 						Namespace: "test",
@@ -175,13 +175,13 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 		{
 			name: "runs ok showing one of the links in json format",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "link2",
 						Namespace: "test",
@@ -202,13 +202,13 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 		{
 			name: "there is no link with the name specified as an argument",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "link2",
 						Namespace: "test",
@@ -221,13 +221,13 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 		{
 			name: "fails showing all the links in yaml format",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "link2",
 						Namespace: "test",
@@ -280,7 +280,7 @@ func newCmdLinkStatusWithMocks(namespace string, k8sObjects []runtime.Object, sk
 		return nil, err
 	}
 	cmdLinkStatus := &CmdLinkStatus{
-		Client:    client.GetSkupperClient().SkupperV1alpha1(),
+		Client:    client.GetSkupperClient().SkupperV2alpha1(),
 		Namespace: namespace,
 	}
 

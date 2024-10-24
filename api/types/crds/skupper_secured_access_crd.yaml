@@ -5,7 +5,7 @@ metadata:
 spec:
   group: skupper.io
   versions:
-    - name: v1alpha1
+    - name: v2alpha1
       served: true
       storage: true
       schema:
@@ -38,7 +38,7 @@ spec:
                   type: string
                 accessType:
                   type: string
-                options:
+                settings:
                   type: object
                   additionalProperties:
                     type: string
@@ -64,6 +64,8 @@ spec:
                 ca:
                   type: string
                 status:
+                  type: string
+                message:
                   type: string
                 conditions:
                   type: array
@@ -108,6 +110,10 @@ spec:
         type: string
         description: The status of the secured access
         jsonPath: .status.status
+      - name: Message
+        type: string
+        description: Any relevant human readable message
+        jsonPath: .status.message
   scope: Namespaced
   names:
     plural: securedaccesses

@@ -22,7 +22,7 @@ func (r AddressRecord) Identity() string {
 func (r AddressRecord) GetTypeMeta() vanflow.TypeMeta {
 	return vanflow.TypeMeta{
 		Type:       "AddressRecord",
-		APIVersion: "v1alpha1",
+		APIVersion: "v2alpha1",
 	}
 }
 
@@ -39,7 +39,7 @@ func (r ProcessGroupRecord) Identity() string {
 func (r ProcessGroupRecord) GetTypeMeta() vanflow.TypeMeta {
 	return vanflow.TypeMeta{
 		Type:       "ProcessGroupRecord",
-		APIVersion: "v1alpha1",
+		APIVersion: "v2alpha1",
 	}
 }
 
@@ -57,7 +57,7 @@ func (r SitePairRecord) Identity() string {
 func (r SitePairRecord) GetTypeMeta() vanflow.TypeMeta {
 	return vanflow.TypeMeta{
 		Type:       "SitePairRecord",
-		APIVersion: "v1alpha1",
+		APIVersion: "v2alpha1",
 	}
 }
 
@@ -78,7 +78,7 @@ func (r ProcGroupPairRecord) Identity() string {
 func (r ProcGroupPairRecord) GetTypeMeta() vanflow.TypeMeta {
 	return vanflow.TypeMeta{
 		Type:       "ProcGroupPairRecord",
-		APIVersion: "v1alpha1",
+		APIVersion: "v2alpha1",
 	}
 }
 
@@ -98,7 +98,7 @@ func (r ProcPairRecord) Identity() string {
 func (r ProcPairRecord) GetTypeMeta() vanflow.TypeMeta {
 	return vanflow.TypeMeta{
 		Type:       "ProcPairRecord",
-		APIVersion: "v1alpha1",
+		APIVersion: "v2alpha1",
 	}
 }
 
@@ -118,6 +118,6 @@ func (r FlowSourceRecord) Identity() string {
 func (r FlowSourceRecord) GetTypeMeta() vanflow.TypeMeta {
 	return vanflow.TypeMeta{
 		Type:       "FlowSourceRecord",
-		APIVersion: "v1alpha1",
+		APIVersion: "v2alpha1",
 	}
 }

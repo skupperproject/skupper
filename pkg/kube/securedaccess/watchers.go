@@ -7,7 +7,7 @@ import (
 
 	routev1interfaces "github.com/openshift/client-go/route/informers/externalversions/internalinterfaces"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
@@ -40,7 +40,7 @@ func (m *SecuredAccessResourceWatcher) WatchGateway(controller *kube.Controller,
 }
 
 func (m *SecuredAccessResourceWatcher) WatchSecuredAccesses(controller *kube.Controller, namespace string, handler kube.SecuredAccessHandler) {
-	f := func(key string, sa *skupperv1alpha1.SecuredAccess) error {
+	f := func(key string, sa *skupperv2alpha1.SecuredAccess) error {
 		if sa == nil {
 			return m.accessMgr.SecuredAccessDeleted(key)
 		}

@@ -6,7 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
 )
 
@@ -58,7 +58,7 @@ func (c *GrantsEnabled) recoverSecrets() {
 	}
 }
 
-func (s *GrantsEnabled) securedAccessChanged(key string, se *skupperv1alpha1.SecuredAccess) error {
+func (s *GrantsEnabled) securedAccessChanged(key string, se *skupperv2alpha1.SecuredAccess) error {
 	if se != nil && len(se.Status.Endpoints) > 0 {
 		if s.grants.setUrl(se.Status.Endpoints[0].Url()) {
 			s.grants.recheckUrl()

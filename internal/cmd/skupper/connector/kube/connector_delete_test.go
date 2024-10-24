@@ -8,7 +8,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -60,13 +60,13 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 			args:  []string{"bad-timeout"},
 			flags: common.CommandConnectorDeleteFlags{Timeout: 5 * time.Second},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "bad-timeout",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -150,13 +150,13 @@ func TestCmdConnectorDelete_WaitUntil(t *testing.T) {
 		{
 			name: "error deleting connector",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Connector{
+				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-connector",
 						Namespace: "test",
 					},
-					Status: v1alpha1.ConnectorStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Type:   "Configured",
@@ -206,7 +206,7 @@ func newCmdConnectorDeleteWithMocks(namespace string, k8sObjects []runtime.Objec
 		return nil, err
 	}
 	cmdConnectorCreate := &CmdConnectorDelete{
-		client:    client.GetSkupperClient().SkupperV1alpha1(),
+		client:    client.GetSkupperClient().SkupperV2alpha1(),
 		namespace: namespace,
 	}
 	return cmdConnectorCreate, nil

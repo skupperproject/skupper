@@ -1,6 +1,6 @@
 package fs
 
-import "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+import "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 
 type SiteHandler struct {
 	BaseCustomResourceHandler
@@ -15,7 +15,7 @@ func NewSiteHandler(namespace string) *SiteHandler {
 	}
 }
 
-func (s *SiteHandler) Add(resource v1alpha1.Site) error {
+func (s *SiteHandler) Add(resource v2alpha1.Site) error {
 
 	fileName := resource.Name + ".yaml"
 	content, err := s.EncodeToYaml(resource)
@@ -30,6 +30,6 @@ func (s *SiteHandler) Add(resource v1alpha1.Site) error {
 
 	return nil
 }
-func (s *SiteHandler) Update(resource v1alpha1.Site) error { return nil }
-func (s *SiteHandler) Get(name string) *v1alpha1.Site      { return nil }
+func (s *SiteHandler) Update(resource v2alpha1.Site) error { return nil }
+func (s *SiteHandler) Get(name string) *v2alpha1.Site      { return nil }
 func (s *SiteHandler) Delete(name string) error            { return nil }

@@ -5,7 +5,7 @@ metadata:
 spec:
   group: skupper.io
   versions:
-    - name: v1alpha1
+    - name: v2alpha1
       served: true
       storage: true
       schema:
@@ -27,6 +27,10 @@ spec:
                   type: string
                 includeNotReady:
                   type: boolean
+                settings:
+                  type: object
+                  additionalProperties:
+                    type: string
               required:
               - port
               - selector

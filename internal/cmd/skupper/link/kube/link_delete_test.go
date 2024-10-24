@@ -4,7 +4,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,8 +34,8 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 			args:  []string{"my-link"},
 			flags: common.CommandLinkDeleteFlags{Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -52,8 +52,8 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 			args:  []string{"my", "link"},
 			flags: common.CommandLinkDeleteFlags{Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -70,8 +70,8 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 			args:  []string{""},
 			flags: common.CommandLinkDeleteFlags{Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -88,8 +88,8 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 			args:  []string{"my-link"},
 			flags: common.CommandLinkDeleteFlags{Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -98,7 +98,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 						},
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -112,8 +112,8 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 			args:  []string{"my-link"},
 			flags: common.CommandLinkDeleteFlags{Timeout: time.Second * 0},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "the-site",
@@ -122,7 +122,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 						},
 					},
 				},
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -194,7 +194,7 @@ func TestCmdLinkDelete_Run(t *testing.T) {
 			name:     "runs ok",
 			linkName: "my-link",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
@@ -238,14 +238,14 @@ func TestCmdLinkDelete_WaitUntil(t *testing.T) {
 		{
 			name: "link is not deleted",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Link{
+				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-link",
 						Namespace: "test",
 					},
-					Status: v1alpha1.LinkStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.LinkStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 							Conditions: []v1.Condition{
 								{
 									Message:            "OK",
@@ -296,7 +296,7 @@ func newCmdLinkDeleteWithMocks(namespace string, k8sObjects []runtime.Object, sk
 		return nil, err
 	}
 	cmdLinkDelete := &CmdLinkDelete{
-		Client:    client.GetSkupperClient().SkupperV1alpha1(),
+		Client:    client.GetSkupperClient().SkupperV2alpha1(),
 		Namespace: namespace,
 	}
 

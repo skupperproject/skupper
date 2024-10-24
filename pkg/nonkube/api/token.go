@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/utils"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,7 +18,7 @@ import (
 )
 
 type Token struct {
-	Links  []*v1alpha1.Link
+	Links  []*v2alpha1.Link
 	Secret *v1.Secret
 }
 
@@ -44,7 +44,7 @@ func (t *Token) Marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func CreateTokens(routerAccess v1alpha1.RouterAccess, serverSecret v1.Secret, clientSecret v1.Secret) []*Token {
+func CreateTokens(routerAccess v2alpha1.RouterAccess, serverSecret v1.Secret, clientSecret v1.Secret) []*Token {
 	var tokens []*Token
 	interRouter := 0
 	edge := 0
@@ -65,16 +65,16 @@ func CreateTokens(routerAccess v1alpha1.RouterAccess, serverSecret v1.Secret, cl
 		// adjusting name to match the standard used by pkg/site/link.go
 		clientSecret.Name = fmt.Sprintf("link-%s", name)
 		token := &Token{
-			Links: []*v1alpha1.Link{
+			Links: []*v2alpha1.Link{
 				{
 					TypeMeta: metav1.TypeMeta{
-						APIVersion: "skupper.io/v1alpha1",
+						APIVersion: "skupper.io/v2alpha1",
 						Kind:       "Link",
 					},
 					ObjectMeta: metav1.ObjectMeta{
 						Name: linkName,
 					},
-					Spec: v1alpha1.LinkSpec{
+					Spec: v2alpha1.LinkSpec{
 						TlsCredentials: clientSecret.Name,
 						Cost:           1,
 					},
@@ -82,9 +82,9 @@ func CreateTokens(routerAccess v1alpha1.RouterAccess, serverSecret v1.Secret, cl
 			},
 			Secret: &clientSecret,
 		}
-		var endpoints []v1alpha1.Endpoint
+		var endpoints []v2alpha1.Endpoint
 		if interRouter > 0 {
-			endpoints = append(endpoints, v1alpha1.Endpoint{
+			endpoints = append(endpoints, v2alpha1.Endpoint{
 				Name:  "inter-router",
 				Host:  host,
 				Port:  strconv.Itoa(interRouter),
@@ -92,7 +92,7 @@ func CreateTokens(routerAccess v1alpha1.RouterAccess, serverSecret v1.Secret, cl
 			})
 		}
 		if edge > 0 {
-			endpoints = append(endpoints, v1alpha1.Endpoint{
+			endpoints = append(endpoints, v2alpha1.Endpoint{
 				Name:  "edge",
 				Host:  host,
 				Port:  strconv.Itoa(edge),

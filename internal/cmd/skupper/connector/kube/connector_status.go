@@ -10,7 +10,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -18,7 +18,7 @@ import (
 )
 
 type CmdConnectorStatus struct {
-	client    skupperv1alpha1.SkupperV1alpha1Interface
+	client    skupperv2alpha1.SkupperV2alpha1Interface
 	CobraCmd  *cobra.Command
 	Flags     *common.CommandConnectorStatusFlags
 	namespace string
@@ -35,7 +35,7 @@ func (cmd *CmdConnectorStatus) NewClient(cobraCommand *cobra.Command, args []str
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
 	utils.HandleError(err)
 
-	cmd.client = cli.GetSkupperClient().SkupperV1alpha1()
+	cmd.client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.namespace = cli.Namespace
 }
 
@@ -96,12 +96,12 @@ func (cmd *CmdConnectorStatus) Run() error {
 			}
 		} else {
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
-			_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s",
-				"NAME", "STATUS", "ROUTING-KEY", "SELECTOR", "HOST", "PORT", "LISTENERS"))
+			_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
+				"NAME", "STATUS", "ROUTING-KEY", "SELECTOR", "HOST", "PORT", "LISTENERS", "MESSAGE"))
 			for _, resource := range resources.Items {
-				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%d\t%d",
-					resource.Name, resource.Status.StatusMessage, resource.Spec.RoutingKey,
-					resource.Spec.Selector, resource.Spec.Host, resource.Spec.Port, resource.Status.MatchingListenerCount))
+				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%d\t%d\t%s",
+					resource.Name, resource.Status.StatusType, resource.Spec.RoutingKey,
+					resource.Spec.Selector, resource.Spec.Host, resource.Spec.Port, resource.Status.MatchingListenerCount, resource.Status.Message))
 			}
 			_ = tw.Flush()
 		}
@@ -119,9 +119,9 @@ func (cmd *CmdConnectorStatus) Run() error {
 			fmt.Println(encodedOutput)
 		} else {
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
-			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nSelector:\t%s\nHost:\t%s\nPort:\t%d\nListeners:%d\n",
-				resource.Name, resource.Status.StatusMessage, resource.Spec.RoutingKey, resource.Spec.Selector,
-				resource.Spec.Host, resource.Spec.Port, resource.Status.MatchingListenerCount))
+			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nSelector:\t%s\nHost:\t%s\nPort:\t%d\nListeners:%d\nMessage:\t%s\n",
+				resource.Name, resource.Status.StatusType, resource.Spec.RoutingKey, resource.Spec.Selector,
+				resource.Spec.Host, resource.Spec.Port, resource.Status.MatchingListenerCount, resource.Status.Message))
 			_ = tw.Flush()
 		}
 	}

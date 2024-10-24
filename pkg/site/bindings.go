@@ -2,28 +2,29 @@ package site
 
 import (
 	"log"
+	"reflect"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-type ListenerConfiguration func(siteId string, listener *skupperv1alpha1.Listener, config *qdr.BridgeConfig)
-type ConnectorConfiguration func(siteId string, connector *skupperv1alpha1.Connector, config *qdr.BridgeConfig)
+type ListenerConfiguration func(siteId string, listener *skupperv2alpha1.Listener, config *qdr.BridgeConfig)
+type ConnectorConfiguration func(siteId string, connector *skupperv2alpha1.Connector, config *qdr.BridgeConfig)
 
 type BindingEventHandler interface {
-	ListenerUpdated(listener *skupperv1alpha1.Listener)
-	ListenerDeleted(listener *skupperv1alpha1.Listener)
-	ConnectorUpdated(connector *skupperv1alpha1.Connector) bool
-	ConnectorDeleted(connector *skupperv1alpha1.Connector)
+	ListenerUpdated(listener *skupperv2alpha1.Listener)
+	ListenerDeleted(listener *skupperv2alpha1.Listener)
+	ConnectorUpdated(connector *skupperv2alpha1.Connector) bool
+	ConnectorDeleted(connector *skupperv2alpha1.Connector)
 }
 
-type ConnectorFunction func(*skupperv1alpha1.Connector) *skupperv1alpha1.Connector
-type ListenerFunction func(*skupperv1alpha1.Listener) *skupperv1alpha1.Listener
+type ConnectorFunction func(*skupperv2alpha1.Connector) *skupperv2alpha1.Connector
+type ListenerFunction func(*skupperv2alpha1.Listener) *skupperv2alpha1.Listener
 
 type Bindings struct {
 	SiteId     string
-	connectors map[string]*skupperv1alpha1.Connector
-	listeners  map[string]*skupperv1alpha1.Listener
+	connectors map[string]*skupperv2alpha1.Connector
+	listeners  map[string]*skupperv2alpha1.Listener
 	handler    BindingEventHandler
 	configure  struct {
 		listener  ListenerConfiguration
@@ -33,8 +34,8 @@ type Bindings struct {
 
 func NewBindings() *Bindings {
 	bindings := &Bindings{
-		connectors: map[string]*skupperv1alpha1.Connector{},
-		listeners:  map[string]*skupperv1alpha1.Listener{},
+		connectors: map[string]*skupperv2alpha1.Connector{},
+		listeners:  map[string]*skupperv2alpha1.Listener{},
 	}
 	bindings.configure.listener = UpdateBridgeConfigForListener
 	bindings.configure.connector = UpdateBridgeConfigForConnector
@@ -80,32 +81,32 @@ func (b *Bindings) Map(cf ConnectorFunction, lf ListenerFunction) {
 	}
 }
 
-func (b *Bindings) GetConnector(name string) *skupperv1alpha1.Connector {
+func (b *Bindings) GetConnector(name string) *skupperv2alpha1.Connector {
 	if existing, ok := b.connectors[name]; ok {
 		return existing
 	}
 	return nil
 }
 
-func (b *Bindings) GetListener(name string) *skupperv1alpha1.Listener {
+func (b *Bindings) GetListener(name string) *skupperv2alpha1.Listener {
 	if existing, ok := b.listeners[name]; ok {
 		return existing
 	}
 	return nil
 }
 
-func (b *Bindings) UpdateConnector(name string, connector *skupperv1alpha1.Connector) qdr.ConfigUpdate {
+func (b *Bindings) UpdateConnector(name string, connector *skupperv2alpha1.Connector) qdr.ConfigUpdate {
 	if connector == nil {
 		return b.deleteConnector(name)
 	}
 	return b.updateConnector(connector)
 }
 
-func (b *Bindings) updateConnector(connector *skupperv1alpha1.Connector) qdr.ConfigUpdate {
+func (b *Bindings) updateConnector(connector *skupperv2alpha1.Connector) qdr.ConfigUpdate {
 	name := connector.ObjectMeta.Name
 	existing, ok := b.connectors[name]
 	b.connectors[name] = connector // always update pointer, even if spec has not changed
-	if ok && existing.Spec == connector.Spec {
+	if ok && reflect.DeepEqual(existing.Spec, connector.Spec) {
 		return nil
 	}
 	if b.handler == nil || b.handler.ConnectorUpdated(connector) {
@@ -125,14 +126,14 @@ func (b *Bindings) deleteConnector(name string) qdr.ConfigUpdate {
 	return nil
 }
 
-func (b *Bindings) UpdateListener(name string, listener *skupperv1alpha1.Listener) qdr.ConfigUpdate {
+func (b *Bindings) UpdateListener(name string, listener *skupperv2alpha1.Listener) qdr.ConfigUpdate {
 	if listener == nil {
 		return b.deleteListener(name)
 	}
 	return b.updateListener(listener)
 }
 
-func (b *Bindings) updateListener(latest *skupperv1alpha1.Listener) qdr.ConfigUpdate {
+func (b *Bindings) updateListener(latest *skupperv2alpha1.Listener) qdr.ConfigUpdate {
 	log.Printf("updating listener %s/%s...", latest.Namespace, latest.Name)
 	name := latest.ObjectMeta.Name
 	existing, ok := b.listeners[name]
@@ -141,7 +142,7 @@ func (b *Bindings) updateListener(latest *skupperv1alpha1.Listener) qdr.ConfigUp
 		b.handler.ListenerUpdated(latest)
 	}
 
-	if !ok || existing.Spec != latest.Spec {
+	if !ok || !reflect.DeepEqual(existing.Spec, latest.Spec) {
 		return b
 	}
 	return nil

@@ -12,7 +12,7 @@ import (
 
 	routev1 "github.com/openshift/api/route/v1"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 type RouteAccessType struct {
@@ -25,8 +25,8 @@ func newRouteAccess(m *SecuredAccessManager) AccessType {
 	}
 }
 
-func (o *RouteAccessType) RealiseAndResolve(access *skupperv1alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv1alpha1.Endpoint, error) {
-	var endpoints []skupperv1alpha1.Endpoint
+func (o *RouteAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv2alpha1.Endpoint, error) {
+	var endpoints []skupperv2alpha1.Endpoint
 	for _, port := range access.Spec.Ports {
 		desired := desiredRouteForPort(access, port)
 		err, route := o.ensureRoute(access.Namespace, desired)
@@ -34,7 +34,7 @@ func (o *RouteAccessType) RealiseAndResolve(access *skupperv1alpha1.SecuredAcces
 			return nil, err
 		}
 		for _, ingress := range route.Status.Ingress {
-			endpoints = append(endpoints, skupperv1alpha1.Endpoint{
+			endpoints = append(endpoints, skupperv2alpha1.Endpoint{
 				Name: port.Name,
 				Host: ingress.Host,
 				Port: "443",
@@ -50,8 +50,9 @@ func (o *RouteAccessType) ensureRoute(namespace string, route *routev1.Route) (e
 		if equivalentRoute(existing, route) {
 			return nil, existing
 		}
-		existing.Spec = route.Spec
-		updated, err := o.manager.clients.GetRouteClient().Routes(namespace).Update(context.Background(), existing, metav1.UpdateOptions{})
+		copy := *existing
+		copy.Spec = route.Spec
+		updated, err := o.manager.clients.GetRouteClient().Routes(namespace).Update(context.Background(), &copy, metav1.UpdateOptions{})
 		if err != nil {
 			log.Printf("Error on update for route %s/%s: %s", namespace, route.Name, err)
 			return err, nil
@@ -70,7 +71,7 @@ func (o *RouteAccessType) ensureRoute(namespace string, route *routev1.Route) (e
 	return nil, created
 }
 
-func desiredRouteForPort(sa *skupperv1alpha1.SecuredAccess, port skupperv1alpha1.SecuredAccessPort) *routev1.Route {
+func desiredRouteForPort(sa *skupperv2alpha1.SecuredAccess, port skupperv2alpha1.SecuredAccessPort) *routev1.Route {
 	name := fmt.Sprintf("%s-%s", sa.Name, port.Name)
 	host := sa.Spec.Options["domain"]
 	if host != "" {

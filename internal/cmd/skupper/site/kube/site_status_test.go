@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -40,7 +40,7 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 
 			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
-			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 
 			actualErrors := command.ValidateInput(test.args)
 
@@ -66,14 +66,14 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 			name:       "runs ok",
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "old-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -104,7 +104,7 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 
 		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 		assert.Assert(t, err)
-		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 
 		t.Run(test.name, func(t *testing.T) {
 
@@ -128,7 +128,7 @@ func TestCmdSiteStatus_WaitUntil(t *testing.T) {
 
 		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, nil, nil, "")
 		assert.Assert(t, err)
-		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 
 		result := command.WaitUntil()
 		assert.Check(t, result == nil)

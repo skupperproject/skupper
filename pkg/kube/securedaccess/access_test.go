@@ -11,7 +11,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"gotest.tools/assert"
 	"gotest.tools/assert/cmp"
@@ -33,7 +33,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 	testTable := []struct {
 		name                 string
 		config               Config
-		definition           *skupperv1alpha1.SecuredAccess
+		definition           *skupperv2alpha1.SecuredAccess
 		k8sObjects           []runtime.Object
 		ssaRecorder          *ServerSideApplyRecorder
 		skupperObjects       []runtime.Object
@@ -44,7 +44,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 		expectedSSA          map[string]*unstructured.Unstructured
 		expectedCertificates []MockCertificate
 		expectedStatus       string
-		expectedEndpoints    []skupperv1alpha1.Endpoint
+		expectedEndpoints    []skupperv2alpha1.Endpoint
 		expectedError        string
 		defaultDomain        string
 		nodePorts            map[string]int32
@@ -58,21 +58,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ACCESS_TYPE_LOCAL,
 				},
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_LOADBALANCER,
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "port1",
 							Port:       8080,
@@ -128,7 +128,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 			},
 			expectedStatus: "OK",
-			expectedEndpoints: []skupperv1alpha1.Endpoint{
+			expectedEndpoints: []skupperv2alpha1.Endpoint{
 				{
 					Name: "port1",
 					Port: "8080",
@@ -145,21 +145,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ACCESS_TYPE_LOCAL,
 				},
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_LOADBALANCER,
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "port1",
 							Port:       8080,
@@ -214,7 +214,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 			},
 			expectedStatus: "OK",
-			expectedEndpoints: []skupperv1alpha1.Endpoint{
+			expectedEndpoints: []skupperv2alpha1.Endpoint{
 				{
 					Name: "port1",
 					Port: "8080",
@@ -231,21 +231,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ACCESS_TYPE_LOCAL,
 				},
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_LOADBALANCER,
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "port1",
 							Port:       8080,
@@ -298,7 +298,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					refs:      nil,
 				},
 			},
-			expectedStatus: "",
+			expectedStatus: "Pending",
 		},
 		{
 			name: "route",
@@ -309,21 +309,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ACCESS_TYPE_LOCAL,
 				},
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_ROUTE,
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "a",
 							Port:       8080,
@@ -423,7 +423,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 			},
 			expectedStatus: "OK",
-			expectedEndpoints: []skupperv1alpha1.Endpoint{
+			expectedEndpoints: []skupperv2alpha1.Endpoint{
 				{
 					Name: "a",
 					Port: "443",
@@ -446,16 +446,16 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ACCESS_TYPE_LOCAL,
 				},
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_ROUTE,
 					Options: map[string]string{
 						"domain": "users.domain.org",
@@ -463,7 +463,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "a",
 							Port:       8080,
@@ -563,7 +563,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 			},
 			expectedStatus: "OK",
-			expectedEndpoints: []skupperv1alpha1.Endpoint{
+			expectedEndpoints: []skupperv2alpha1.Endpoint{
 				{
 					Name: "a",
 					Port: "443",
@@ -586,21 +586,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ACCESS_TYPE_LOCAL,
 				},
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_INGRESS_NGINX,
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "a",
 							Port:       8080,
@@ -721,7 +721,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 			},
 			expectedStatus: "OK",
-			expectedEndpoints: []skupperv1alpha1.Endpoint{
+			expectedEndpoints: []skupperv2alpha1.Endpoint{
 				{
 					Name: "a",
 					Port: "443",
@@ -744,21 +744,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ACCESS_TYPE_LOCAL,
 				},
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_INGRESS_NGINX,
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "a",
 							Port:       8080,
@@ -879,7 +879,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 			},
 			expectedStatus: "OK",
-			expectedEndpoints: []skupperv1alpha1.Endpoint{
+			expectedEndpoints: []skupperv2alpha1.Endpoint{
 				{
 					Name: "a",
 					Port: "443",
@@ -902,21 +902,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ACCESS_TYPE_LOCAL,
 				},
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_INGRESS_NGINX,
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "a",
 							Port:       8080,
@@ -1034,7 +1034,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					refs:      nil,
 				},
 			},
-			expectedStatus: "",
+			expectedStatus: "Pending",
 		},
 		{
 			name: "nodeport",
@@ -1047,21 +1047,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ACCESS_TYPE_LOCAL,
 				},
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_NODEPORT,
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "port1",
 							Port:       8080,
@@ -1108,7 +1108,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 			},
 			expectedStatus: "OK",
-			expectedEndpoints: []skupperv1alpha1.Endpoint{
+			expectedEndpoints: []skupperv2alpha1.Endpoint{
 				{
 					Name: "port1",
 					Host: "mycluster.com",
@@ -1130,21 +1130,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ACCESS_TYPE_LOCAL,
 				},
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_LOCAL,
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "port1",
 							Port:       8080,
@@ -1177,6 +1177,13 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					},
 				},
 			},
+			expectedEndpoints: []skupperv2alpha1.Endpoint{
+				{
+					Name: "port1",
+					Port: "8080",
+					Host: "mysvc.test",
+				},
+			},
 			expectedCertificates: []MockCertificate{
 				{
 					namespace: "test",
@@ -1200,21 +1207,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ACCESS_TYPE_LOCAL,
 				},
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: "surpriseme!",
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "port1",
 							Port:       8080,
@@ -1238,20 +1245,20 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 				DefaultAccessType: ACCESS_TYPE_LOADBALANCER,
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "port1",
 							Port:       8080,
@@ -1307,7 +1314,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 			},
 			expectedStatus: "OK",
-			expectedEndpoints: []skupperv1alpha1.Endpoint{
+			expectedEndpoints: []skupperv2alpha1.Endpoint{
 				{
 					Name: "port1",
 					Port: "8080",
@@ -1325,21 +1332,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 				HttpProxyDomain: "gateway.acme.com",
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_CONTOUR_HTTP_PROXY,
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "a",
 							Port:       8080,
@@ -1411,7 +1418,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 			},
 			expectedStatus: "OK",
-			expectedEndpoints: []skupperv1alpha1.Endpoint{
+			expectedEndpoints: []skupperv2alpha1.Endpoint{
 				{
 					Name: "a",
 					Port: "443",
@@ -1440,21 +1447,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				"test/mysvc-a": tlsroute("mysvc-a", "test"),
 				"test/mysvc-b": tlsroute("mysvc-b", "test"),
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_GATEWAY,
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "a",
 							Port:       8080,
@@ -1512,7 +1519,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 			},
 			expectedStatus: "OK",
-			expectedEndpoints: []skupperv1alpha1.Endpoint{
+			expectedEndpoints: []skupperv2alpha1.Endpoint{
 				{
 					Name: "a",
 					Port: "8443",
@@ -1540,21 +1547,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				"test/mysvc-a": tlsroute("mysvc-a", "test"),
 				"test/mysvc-b": tlsroute("mysvc-b", "test"),
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_GATEWAY,
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "a",
 							Port:       8080,
@@ -1612,7 +1619,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 			},
 			expectedStatus: "OK",
-			expectedEndpoints: []skupperv1alpha1.Endpoint{
+			expectedEndpoints: []skupperv2alpha1.Endpoint{
 				{
 					Name: "a",
 					Port: "7443",
@@ -1640,21 +1647,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				"test/mysvc-a": tlsroute("mysvc-a", "test"),
 				"test/mysvc-b": tlsroute("mysvc-b", "test"),
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_GATEWAY,
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "a",
 							Port:       8080,
@@ -1712,7 +1719,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 			},
 			expectedStatus: "OK",
-			expectedEndpoints: []skupperv1alpha1.Endpoint{
+			expectedEndpoints: []skupperv2alpha1.Endpoint{
 				{
 					Name: "a",
 					Port: "7443",
@@ -1738,21 +1745,21 @@ func TestSecuredAccessGeneral(t *testing.T) {
 			expectedSSA: map[string]*unstructured.Unstructured{
 				"test/skupper": gateway("skupper", "test"),
 			},
-			definition: &skupperv1alpha1.SecuredAccess{
+			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "mysvc",
 					Namespace: "test",
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_GATEWAY,
 					Selector: map[string]string{
 						"app": "foo",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "a",
 							Port:       8080,
@@ -1830,7 +1837,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 			} else if err != nil {
 				t.Error(err)
 			} else {
-				sa, err := m.clients.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(tt.definition.Namespace).Get(context.Background(), tt.definition.Name, metav1.GetOptions{})
+				sa, err := m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(tt.definition.Namespace).Get(context.Background(), tt.definition.Name, metav1.GetOptions{})
 				assert.Assert(t, err)
 				err = m.SecuredAccessChanged(fmt.Sprintf("%s/%s", sa.Namespace, sa.Name), sa)
 				for _, desired := range tt.expectedServices {
@@ -1920,13 +1927,13 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				}
 				certs.checkCertificates(t, tt.expectedCertificates)
 				//retrieve securedaccess again and verify status
-				sa, err = m.clients.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(tt.definition.Namespace).Get(context.Background(), tt.definition.Name, metav1.GetOptions{})
+				sa, err = m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(tt.definition.Namespace).Get(context.Background(), tt.definition.Name, metav1.GetOptions{})
 				assert.Assert(t, err)
-				assert.Equal(t, tt.expectedStatus, sa.Status.StatusMessage)
-				assert.Equal(t, len(tt.expectedEndpoints), len(sa.Status.Endpoints))
+				assert.Equal(t, tt.expectedStatus, sa.Status.Message)
 				for _, endpoint := range tt.expectedEndpoints {
 					assert.Assert(t, cmp.Contains(sa.Status.Endpoints, endpoint))
 				}
+				assert.Equal(t, len(tt.expectedEndpoints), len(sa.Status.Endpoints), "wrong number of endpoints")
 			}
 		})
 	}
@@ -1936,7 +1943,7 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 	type args struct {
 		namespace   string
 		name        string
-		spec        skupperv1alpha1.SecuredAccessSpec
+		spec        skupperv2alpha1.SecuredAccessSpec
 		annotations map[string]string
 		refs        []metav1.OwnerReference
 	}
@@ -1956,9 +1963,9 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 				{
 					namespace: "test",
 					name:      "skupper",
-					spec: skupperv1alpha1.SecuredAccessSpec{
+					spec: skupperv2alpha1.SecuredAccessSpec{
 						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv1alpha1.SecuredAccessPort{
+						Ports: []skupperv2alpha1.SecuredAccessPort{
 							{
 								Name:       "port1",
 								Port:       8080,
@@ -1976,7 +1983,7 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 					refs: []metav1.OwnerReference{
 						{
 							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v1alpha1",
+							APIVersion: "skupper.io/v2alpha1",
 							Name:       "ownerRef",
 							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 						},
@@ -1990,9 +1997,9 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 				{
 					namespace: "test",
 					name:      "skupper",
-					spec: skupperv1alpha1.SecuredAccessSpec{
+					spec: skupperv2alpha1.SecuredAccessSpec{
 						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv1alpha1.SecuredAccessPort{
+						Ports: []skupperv2alpha1.SecuredAccessPort{
 							{
 								Name:       "port1",
 								Port:       8080,
@@ -2010,7 +2017,7 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 					refs: []metav1.OwnerReference{
 						{
 							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v1alpha1",
+							APIVersion: "skupper.io/v2alpha1",
 							Name:       "ownerRef",
 							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 						},
@@ -2019,9 +2026,9 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 				{
 					namespace: "test",
 					name:      "skupper",
-					spec: skupperv1alpha1.SecuredAccessSpec{
+					spec: skupperv2alpha1.SecuredAccessSpec{
 						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv1alpha1.SecuredAccessPort{
+						Ports: []skupperv2alpha1.SecuredAccessPort{
 							{
 								Name:       "port1",
 								Port:       9090,
@@ -2039,7 +2046,7 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 					refs: []metav1.OwnerReference{
 						{
 							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v1alpha1",
+							APIVersion: "skupper.io/v2alpha1",
 							Name:       "ownerRef",
 							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 						},
@@ -2053,9 +2060,9 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 				{
 					namespace: "test",
 					name:      "skupper",
-					spec: skupperv1alpha1.SecuredAccessSpec{
+					spec: skupperv2alpha1.SecuredAccessSpec{
 						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv1alpha1.SecuredAccessPort{
+						Ports: []skupperv2alpha1.SecuredAccessPort{
 							{
 								Name:       "port1",
 								Port:       8080,
@@ -2073,7 +2080,7 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 					refs: []metav1.OwnerReference{
 						{
 							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v1alpha1",
+							APIVersion: "skupper.io/v2alpha1",
 							Name:       "ownerRef",
 							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 						},
@@ -2082,9 +2089,9 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 				{
 					namespace: "test",
 					name:      "skupper",
-					spec: skupperv1alpha1.SecuredAccessSpec{
+					spec: skupperv2alpha1.SecuredAccessSpec{
 						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv1alpha1.SecuredAccessPort{
+						Ports: []skupperv2alpha1.SecuredAccessPort{
 							{
 								Name:       "port1",
 								Port:       8080,
@@ -2103,7 +2110,7 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 					refs: []metav1.OwnerReference{
 						{
 							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v1alpha1",
+							APIVersion: "skupper.io/v2alpha1",
 							Name:       "ownerRef",
 							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 						},
@@ -2117,9 +2124,9 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 				{
 					namespace: "test",
 					name:      "skupper",
-					spec: skupperv1alpha1.SecuredAccessSpec{
+					spec: skupperv2alpha1.SecuredAccessSpec{
 						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv1alpha1.SecuredAccessPort{
+						Ports: []skupperv2alpha1.SecuredAccessPort{
 							{
 								Name:       "port1",
 								Port:       8080,
@@ -2137,7 +2144,7 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 					refs: []metav1.OwnerReference{
 						{
 							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v1alpha1",
+							APIVersion: "skupper.io/v2alpha1",
 							Name:       "ownerRef",
 							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 						},
@@ -2146,9 +2153,9 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 				{
 					namespace: "test",
 					name:      "skupper",
-					spec: skupperv1alpha1.SecuredAccessSpec{
+					spec: skupperv2alpha1.SecuredAccessSpec{
 						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv1alpha1.SecuredAccessPort{
+						Ports: []skupperv2alpha1.SecuredAccessPort{
 							{
 								Name:       "port1",
 								Port:       8080,
@@ -2166,7 +2173,7 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 					refs: []metav1.OwnerReference{
 						{
 							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v1alpha1",
+							APIVersion: "skupper.io/v2alpha1",
 							Name:       "ownerRef",
 							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 						},
@@ -2180,9 +2187,9 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 				{
 					namespace: "test",
 					name:      "skupper",
-					spec: skupperv1alpha1.SecuredAccessSpec{
+					spec: skupperv2alpha1.SecuredAccessSpec{
 						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv1alpha1.SecuredAccessPort{
+						Ports: []skupperv2alpha1.SecuredAccessPort{
 							{
 								Name:       "port1",
 								Port:       8080,
@@ -2200,7 +2207,7 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 					refs: []metav1.OwnerReference{
 						{
 							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v1alpha1",
+							APIVersion: "skupper.io/v2alpha1",
 							Name:       "ownerRef",
 							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 						},
@@ -2218,9 +2225,9 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 				{
 					namespace: "test",
 					name:      "skupper",
-					spec: skupperv1alpha1.SecuredAccessSpec{
+					spec: skupperv2alpha1.SecuredAccessSpec{
 						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv1alpha1.SecuredAccessPort{
+						Ports: []skupperv2alpha1.SecuredAccessPort{
 							{
 								Name:       "port1",
 								Port:       8080,
@@ -2238,7 +2245,7 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 					refs: []metav1.OwnerReference{
 						{
 							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v1alpha1",
+							APIVersion: "skupper.io/v2alpha1",
 							Name:       "ownerRef",
 							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 						},
@@ -2247,9 +2254,9 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 				{
 					namespace: "test",
 					name:      "skupper",
-					spec: skupperv1alpha1.SecuredAccessSpec{
+					spec: skupperv2alpha1.SecuredAccessSpec{
 						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv1alpha1.SecuredAccessPort{
+						Ports: []skupperv2alpha1.SecuredAccessPort{
 							{
 								Name:       "port1",
 								Port:       8086,
@@ -2267,7 +2274,7 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 					refs: []metav1.OwnerReference{
 						{
 							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v1alpha1",
+							APIVersion: "skupper.io/v2alpha1",
 							Name:       "ownerRef",
 							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 						},
@@ -2300,7 +2307,7 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 					t.Error(err)
 				} else {
 					// retrieve SecuredAccess instance from API and verify it natches expectations
-					actual, err := m.clients.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(args.namespace).Get(context.Background(), args.name, metav1.GetOptions{})
+					actual, err := m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(args.namespace).Get(context.Background(), args.name, metav1.GetOptions{})
 					if err != nil {
 						t.Error(err)
 					} else {
@@ -2320,7 +2327,7 @@ func TestSecuredAccessDeleted(t *testing.T) {
 	type recreate struct {
 		namespace string
 		name      string
-		spec      skupperv1alpha1.SecuredAccessSpec
+		spec      skupperv2alpha1.SecuredAccessSpec
 	}
 	testTable := []struct {
 		name                 string
@@ -2334,7 +2341,7 @@ func TestSecuredAccessDeleted(t *testing.T) {
 		expectedIngresses    []*networkingv1.Ingress
 		expectedProxies      []ExpectedHttpProxy
 		expectedCertificates []MockCertificate
-		expectedStatuses     []*skupperv1alpha1.SecuredAccess
+		expectedStatuses     []*skupperv2alpha1.SecuredAccess
 	}{
 		{
 			name: "simple",
@@ -2357,7 +2364,7 @@ func TestSecuredAccessDeleted(t *testing.T) {
 			expectedServices: []*corev1.Service{
 				service("mysvc", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts()),
 			},
-			expectedStatuses: []*skupperv1alpha1.SecuredAccess{
+			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
 				status("mysvc", "test", "OK", endpoint("a", "8080", "10.1.1.10"), endpoint("b", "9090", "10.1.1.10")),
 			},
 		},
@@ -2376,7 +2383,7 @@ func TestSecuredAccessDeleted(t *testing.T) {
 			w := NewSecuredAccessResourceWatcher(m)
 			controller := kube.NewController("Controller", client)
 			w.WatchResources(controller, metav1.NamespaceAll)
-			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv1alpha1.SecuredAccess) error { return nil })
+			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv2alpha1.SecuredAccess) error { return nil })
 			stopCh := make(chan struct{})
 			controller.StartWatchers(stopCh)
 			controller.WaitForCacheSync(stopCh)
@@ -2387,7 +2394,7 @@ func TestSecuredAccessDeleted(t *testing.T) {
 
 			for _, def := range tt.recreate {
 				controller.TestProcess() //assume we have an event from the status update of each resource to recreate; need to process that before deleting
-				err := client.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(def.namespace).Delete(context.Background(), def.name, metav1.DeleteOptions{})
+				err := client.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(def.namespace).Delete(context.Background(), def.name, metav1.DeleteOptions{})
 				assert.Assert(t, err)
 				controller.TestProcess()
 				err = m.Ensure(def.namespace, def.name, def.spec, nil, nil)
@@ -2447,9 +2454,9 @@ func TestSecuredAccessDeleted(t *testing.T) {
 			assert.Equal(t, len(tt.expectedProxies), len(proxies.Items), "wrong number of proxies")
 			certs.checkCertificates(t, tt.expectedCertificates)
 			for _, desired := range tt.expectedStatuses {
-				actual, err := client.GetSkupperClient().SkupperV1alpha1().SecuredAccesses(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
+				actual, err := client.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
 				assert.Assert(t, err)
-				assert.Equal(t, desired.Status.StatusMessage, actual.Status.StatusMessage)
+				assert.Equal(t, desired.Status.Message, actual.Status.Message)
 				assert.Equal(t, len(desired.Status.Endpoints), len(actual.Status.Endpoints))
 				for _, endpoint := range desired.Status.Endpoints {
 					assert.Assert(t, cmp.Contains(actual.Status.Endpoints, endpoint))
@@ -2463,7 +2470,7 @@ func TestSecuredAccessManagerChangeDelete(t *testing.T) {
 	type args struct {
 		namespace   string
 		name        string
-		spec        *skupperv1alpha1.SecuredAccessSpec
+		spec        *skupperv2alpha1.SecuredAccessSpec
 		annotations *map[string]string
 		refs        *[]metav1.OwnerReference
 	}
@@ -2474,16 +2481,16 @@ func TestSecuredAccessManagerChangeDelete(t *testing.T) {
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
-		current             *skupperv1alpha1.SecuredAccess
+		current             *skupperv2alpha1.SecuredAccess
 	}{
 		{
 			name: "no existing secureAccess",
 			args: args{
 				namespace: "test",
 				name:      "skupper",
-				spec: &skupperv1alpha1.SecuredAccessSpec{
+				spec: &skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_LOADBALANCER,
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "port1",
 							Port:       8080,
@@ -2501,15 +2508,15 @@ func TestSecuredAccessManagerChangeDelete(t *testing.T) {
 				refs: &[]metav1.OwnerReference{
 					{
 						Kind:       "SecuredAccess",
-						APIVersion: "skupper.io/v1alpha1",
+						APIVersion: "skupper.io/v2alpha1",
 						Name:       "ownerRef",
 						UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 					},
 				},
 			},
-			current: &skupperv1alpha1.SecuredAccess{
+			current: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "SecuredAccess",
 				},
 				ObjectMeta: metav1.ObjectMeta{
@@ -2518,7 +2525,7 @@ func TestSecuredAccessManagerChangeDelete(t *testing.T) {
 					OwnerReferences: []metav1.OwnerReference{
 						{
 							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v1alpha1",
+							APIVersion: "skupper.io/v2alpha1",
 							Name:       "ownerRef",
 							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 						},
@@ -2528,9 +2535,9 @@ func TestSecuredAccessManagerChangeDelete(t *testing.T) {
 						"internal.skupper.io/routeraccess": "name",
 					},
 				},
-				Spec: skupperv1alpha1.SecuredAccessSpec{
+				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_LOCAL,
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "port1",
 							Port:       8080,
@@ -2584,7 +2591,7 @@ func TestSecuredAccessManagerCheckService(t *testing.T) {
 	type args struct {
 		namespace   string
 		name        string
-		spec        *skupperv1alpha1.SecuredAccessSpec
+		spec        *skupperv2alpha1.SecuredAccessSpec
 		annotations *map[string]string
 		refs        *[]metav1.OwnerReference
 	}
@@ -2603,9 +2610,9 @@ func TestSecuredAccessManagerCheckService(t *testing.T) {
 			args: args{
 				namespace: "test",
 				name:      "skupper",
-				spec: &skupperv1alpha1.SecuredAccessSpec{
+				spec: &skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_LOADBALANCER,
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "port1",
 							Port:       8080,
@@ -2623,7 +2630,7 @@ func TestSecuredAccessManagerCheckService(t *testing.T) {
 				refs: &[]metav1.OwnerReference{
 					{
 						Kind:       "SecuredAccess",
-						APIVersion: "skupper.io/v1alpha1",
+						APIVersion: "skupper.io/v2alpha1",
 						Name:       "ownerRef",
 						UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 					},
@@ -2636,12 +2643,12 @@ func TestSecuredAccessManagerCheckService(t *testing.T) {
 			args: args{
 				namespace: "test",
 				name:      "skupper",
-				spec: &skupperv1alpha1.SecuredAccessSpec{
+				spec: &skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_LOADBALANCER,
 					Selector: map[string]string{
 						"skupper.io/component": "router",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "port1",
 							Port:       8080,
@@ -2658,7 +2665,7 @@ func TestSecuredAccessManagerCheckService(t *testing.T) {
 				refs: &[]metav1.OwnerReference{
 					{
 						Kind:       "SecuredAccess",
-						APIVersion: "skupper.io/v1alpha1",
+						APIVersion: "skupper.io/v2alpha1",
 						Name:       "ownerRef",
 						UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 					},
@@ -2701,12 +2708,12 @@ func TestSecuredAccessManagerCheckService(t *testing.T) {
 			args: args{
 				namespace: "test",
 				name:      "skupper",
-				spec: &skupperv1alpha1.SecuredAccessSpec{
+				spec: &skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_LOADBALANCER,
 					Selector: map[string]string{
 						"skupper.io/component": "router",
 					},
-					Ports: []skupperv1alpha1.SecuredAccessPort{
+					Ports: []skupperv2alpha1.SecuredAccessPort{
 						{
 							Name:       "port1",
 							Port:       8080,
@@ -2723,7 +2730,7 @@ func TestSecuredAccessManagerCheckService(t *testing.T) {
 				refs: &[]metav1.OwnerReference{
 					{
 						Kind:       "SecuredAccess",
-						APIVersion: "skupper.io/v1alpha1",
+						APIVersion: "skupper.io/v2alpha1",
 						Name:       "ownerRef",
 						UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
 					},
@@ -2901,7 +2908,7 @@ func newSecureAccessManagerMocks(namespace string, k8sObjects []runtime.Object, 
 
 	securedAccessManager := &SecuredAccessManager{
 		clients:     client,
-		definitions: make(map[string]*skupperv1alpha1.SecuredAccess),
+		definitions: make(map[string]*skupperv2alpha1.SecuredAccess),
 		services:    make(map[string]*corev1.Service),
 		routes:      make(map[string]*routev1.Route),
 		ingresses:   make(map[string]*networkingv1.Ingress),
@@ -3449,7 +3456,7 @@ func TestRecreateOnDelete(t *testing.T) {
 			w := NewSecuredAccessResourceWatcher(m)
 			controller := kube.NewController("Controller", client)
 			w.WatchResources(controller, metav1.NamespaceAll)
-			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv1alpha1.SecuredAccess) error { return nil })
+			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv2alpha1.SecuredAccess) error { return nil })
 			stopCh := make(chan struct{})
 			controller.StartWatchers(stopCh)
 			controller.WaitForCacheSync(stopCh)

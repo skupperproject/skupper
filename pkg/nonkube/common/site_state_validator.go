@@ -5,7 +5,7 @@ import (
 	"net"
 	"regexp"
 
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -55,7 +55,7 @@ func (s *SiteStateValidator) Validate(siteState *api.SiteState) error {
 	return nil
 }
 
-func (s *SiteStateValidator) validateSite(site *v1alpha1.Site) error {
+func (s *SiteStateValidator) validateSite(site *v2alpha1.Site) error {
 	namespace := site.Namespace
 	if namespace != "" {
 		if err := ValidateName(namespace); err != nil {
@@ -68,7 +68,7 @@ func (s *SiteStateValidator) validateSite(site *v1alpha1.Site) error {
 	return nil
 }
 
-func (s *SiteStateValidator) validateRouterAccesses(routerAccesses map[string]*v1alpha1.RouterAccess) error {
+func (s *SiteStateValidator) validateRouterAccesses(routerAccesses map[string]*v2alpha1.RouterAccess) error {
 	for _, routerAccess := range routerAccesses {
 		if err := ValidateName(routerAccess.Name); err != nil {
 			return fmt.Errorf("invalid router access name: %w", err)
@@ -91,7 +91,7 @@ func (s *SiteStateValidator) validateRouterAccesses(routerAccesses map[string]*v
 	return nil
 }
 
-func (s *SiteStateValidator) validateLinks(links map[string]*v1alpha1.Link, secrets map[string]*corev1.Secret) error {
+func (s *SiteStateValidator) validateLinks(links map[string]*v2alpha1.Link, secrets map[string]*corev1.Secret) error {
 	if links == nil || len(links) == 0 {
 		return nil
 	}
@@ -110,7 +110,7 @@ func (s *SiteStateValidator) validateLinks(links map[string]*v1alpha1.Link, secr
 	return nil
 }
 
-func (s *SiteStateValidator) validateClaims(claims map[string]*v1alpha1.AccessToken) error {
+func (s *SiteStateValidator) validateClaims(claims map[string]*v2alpha1.AccessToken) error {
 	for _, claim := range claims {
 		if err := ValidateName(claim.Name); err != nil {
 			return fmt.Errorf("invalid access token name: %w", err)
@@ -119,7 +119,7 @@ func (s *SiteStateValidator) validateClaims(claims map[string]*v1alpha1.AccessTo
 	return nil
 }
 
-func (s *SiteStateValidator) validateGrants(grants map[string]*v1alpha1.AccessGrant) error {
+func (s *SiteStateValidator) validateGrants(grants map[string]*v2alpha1.AccessGrant) error {
 	for _, grant := range grants {
 		if err := ValidateName(grant.Name); err != nil {
 			return fmt.Errorf("invalid grant name: %w", err)
@@ -128,7 +128,7 @@ func (s *SiteStateValidator) validateGrants(grants map[string]*v1alpha1.AccessGr
 	return nil
 }
 
-func (s *SiteStateValidator) validateListeners(listeners map[string]*v1alpha1.Listener) error {
+func (s *SiteStateValidator) validateListeners(listeners map[string]*v2alpha1.Listener) error {
 	hostPorts := map[string][]int{}
 	for name, listener := range listeners {
 		if err := ValidateName(listener.Name); err != nil {
@@ -151,7 +151,7 @@ func (s *SiteStateValidator) validateListeners(listeners map[string]*v1alpha1.Li
 	return nil
 }
 
-func (s *SiteStateValidator) validateConnectors(connectors map[string]*v1alpha1.Connector) error {
+func (s *SiteStateValidator) validateConnectors(connectors map[string]*v2alpha1.Connector) error {
 	for _, connector := range connectors {
 		if err := ValidateName(connector.Name); err != nil {
 			return fmt.Errorf("invalid connector name: %w", err)

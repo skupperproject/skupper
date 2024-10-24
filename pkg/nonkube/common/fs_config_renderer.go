@@ -11,7 +11,7 @@ import (
 	"syscall"
 
 	"github.com/skupperproject/skupper/internal/utils"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/qdr"
@@ -123,11 +123,11 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *api.SiteState) error
 		}
 	}
 	siteState.Site.SetConfigured(nil)
-	endpoints := make([]v1alpha1.Endpoint, 0)
+	endpoints := make([]v2alpha1.Endpoint, 0)
 	for raName, ra := range siteState.RouterAccesses {
 		for _, role := range ra.Spec.Roles {
 			if role.Name != "normal" {
-				endpoints = append(endpoints, v1alpha1.Endpoint{
+				endpoints = append(endpoints, v2alpha1.Endpoint{
 					Name: fmt.Sprintf("%s-%s", raName, role.Name),
 					Host: ra.Spec.BindHost,
 					Port: strconv.Itoa(role.Port),

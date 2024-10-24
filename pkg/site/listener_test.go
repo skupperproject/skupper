@@ -3,7 +3,7 @@ package site
 import (
 	"testing"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"gotest.tools/assert"
 
@@ -14,7 +14,7 @@ import (
 func TestUpdateBridgeConfigForListener(t *testing.T) {
 	type args struct {
 		siteId   string
-		listener *skupperv1alpha1.Listener
+		listener *skupperv2alpha1.Listener
 		config   qdr.BridgeConfig
 	}
 	tests := []struct {
@@ -27,12 +27,12 @@ func TestUpdateBridgeConfigForListener(t *testing.T) {
 			name: "no spec type",
 			args: args{
 				siteId: "my-site-123",
-				listener: &skupperv1alpha1.Listener{
+				listener: &skupperv2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "echo",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.ListenerSpec{
+					Spec: skupperv2alpha1.ListenerSpec{
 						RoutingKey: "echo:9090",
 						Host:       "10.10.10.1",
 						Port:       9090,
@@ -48,12 +48,12 @@ func TestUpdateBridgeConfigForListener(t *testing.T) {
 			name: "tcp spec type",
 			args: args{
 				siteId: "my-site-123",
-				listener: &skupperv1alpha1.Listener{
+				listener: &skupperv2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "echo",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.ListenerSpec{
+					Spec: skupperv2alpha1.ListenerSpec{
 						RoutingKey: "echo:9090",
 						Host:       "10.10.10.1",
 						Port:       9090,
@@ -69,12 +69,12 @@ func TestUpdateBridgeConfigForListener(t *testing.T) {
 			name: "bad spec type",
 			args: args{
 				siteId: "my-site-123",
-				listener: &skupperv1alpha1.Listener{
+				listener: &skupperv2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "echo",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.ListenerSpec{
+					Spec: skupperv2alpha1.ListenerSpec{
 						RoutingKey: "echo:9090",
 						Host:       "10.10.10.1",
 						Port:       9090,

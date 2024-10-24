@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 func dummyGenerator(namespace string, name string, subject string, writer io.Writer) error {
@@ -31,25 +31,25 @@ func dummyGeneratorWithError(namespace string, name string, subject string, writ
 }
 
 func TestGrantRegistryGeneral(t *testing.T) {
-	grants := []*v1alpha1.AccessGrant{
-		&v1alpha1.AccessGrant{
+	grants := []*v2alpha1.AccessGrant{
+		&v2alpha1.AccessGrant{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "one",
 				Namespace: "test",
 				UID:       "0bde3bc8-a4a2-404a-bfbe-44fdf7bf3231",
 			},
-			Spec: v1alpha1.AccessGrantSpec{
+			Spec: v2alpha1.AccessGrantSpec{
 				Code:               "supersecret",
 				RedemptionsAllowed: 1,
 			},
 		},
-		&v1alpha1.AccessGrant{
+		&v2alpha1.AccessGrant{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "two",
 				Namespace: "test",
 				UID:       "a40fbe84-f276-4755-bf22-5ba980ab1661",
 			},
-			Spec: v1alpha1.AccessGrantSpec{
+			Spec: v2alpha1.AccessGrantSpec{
 				ExpirationWindow:   "30m",
 				RedemptionsAllowed: 3,
 			},
@@ -70,7 +70,7 @@ func TestGrantRegistryGeneral(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		latest, err := client.GetSkupperClient().SkupperV1alpha1().AccessGrants(grant.Namespace).Get(context.TODO(), grant.Name, metav1.GetOptions{})
+		latest, err := client.GetSkupperClient().SkupperV2alpha1().AccessGrants(grant.Namespace).Get(context.TODO(), grant.Name, metav1.GetOptions{})
 		if err != nil {
 			t.Error(err)
 		}
@@ -85,14 +85,14 @@ func TestGrantRegistryGeneral(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		assert.Assert(t, meta.IsStatusConditionTrue(latest.Status.Conditions, v1alpha1.CONDITION_TYPE_PROCESSED))
+		assert.Assert(t, meta.IsStatusConditionTrue(latest.Status.Conditions, v2alpha1.CONDITION_TYPE_PROCESSED))
 	}
 	for _, ca := range []string{"dummydataformyCA", "dummydataformyCA", "changedCAdata"} {
 		if registry.setCA(ca) {
 			registry.recheckCa()
 		}
 		for _, grant := range grants {
-			latest, err := client.GetSkupperClient().SkupperV1alpha1().AccessGrants(grant.Namespace).Get(context.TODO(), grant.Name, metav1.GetOptions{})
+			latest, err := client.GetSkupperClient().SkupperV2alpha1().AccessGrants(grant.Namespace).Get(context.TODO(), grant.Name, metav1.GetOptions{})
 			if err != nil {
 				t.Error(err)
 			}
@@ -104,14 +104,14 @@ func TestGrantRegistryGeneral(t *testing.T) {
 			registry.recheckUrl()
 		}
 		for _, grant := range grants {
-			latest, err := client.GetSkupperClient().SkupperV1alpha1().AccessGrants(grant.Namespace).Get(context.TODO(), grant.Name, metav1.GetOptions{})
+			latest, err := client.GetSkupperClient().SkupperV2alpha1().AccessGrants(grant.Namespace).Get(context.TODO(), grant.Name, metav1.GetOptions{})
 			if err != nil {
 				t.Error(err)
 			}
 			expectedUrl := "https://" + url + "/" + string(latest.ObjectMeta.UID)
 			assert.Equal(t, latest.Status.Url, expectedUrl)
-			assert.Assert(t, meta.IsStatusConditionTrue(latest.Status.Conditions, v1alpha1.CONDITION_TYPE_RESOLVED))
-			assert.Assert(t, meta.IsStatusConditionTrue(latest.Status.Conditions, v1alpha1.CONDITION_TYPE_READY))
+			assert.Assert(t, meta.IsStatusConditionTrue(latest.Status.Conditions, v2alpha1.CONDITION_TYPE_RESOLVED))
+			assert.Assert(t, meta.IsStatusConditionTrue(latest.Status.Conditions, v2alpha1.CONDITION_TYPE_READY))
 		}
 	}
 
@@ -120,7 +120,7 @@ func TestGrantRegistryGeneral(t *testing.T) {
 		res := httptest.NewRecorder()
 		registry.ServeHTTP(res, req)
 		assert.Equal(t, res.Code, http.StatusOK)
-		latest, err := client.GetSkupperClient().SkupperV1alpha1().AccessGrants(grant.Namespace).Get(context.TODO(), grant.Name, metav1.GetOptions{})
+		latest, err := client.GetSkupperClient().SkupperV2alpha1().AccessGrants(grant.Namespace).Get(context.TODO(), grant.Name, metav1.GetOptions{})
 		if err != nil {
 			t.Error(err)
 		}
@@ -130,74 +130,74 @@ func TestGrantRegistryGeneral(t *testing.T) {
 }
 
 func Test_ServeHttp(t *testing.T) {
-	good := &v1alpha1.AccessGrant{
+	good := &v2alpha1.AccessGrant{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "good",
 			Namespace: "test",
 			UID:       "0bde3bc8-a4a2-404a-bfbe-44fdf7bf3231",
 		},
-		Spec: v1alpha1.AccessGrantSpec{
+		Spec: v2alpha1.AccessGrantSpec{
 			RedemptionsAllowed: 4,
 		},
-		Status: v1alpha1.AccessGrantStatus{
+		Status: v2alpha1.AccessGrantStatus{
 			Code:       "supersecret",
 			Expiration: time.Date(2124, time.January, 0, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
 		},
 	}
-	expired := &v1alpha1.AccessGrant{
+	expired := &v2alpha1.AccessGrant{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "expired",
 			Namespace: "test",
 			UID:       "a40fbe84-f276-4755-bf22-5ba980ab1661",
 		},
-		Spec: v1alpha1.AccessGrantSpec{
+		Spec: v2alpha1.AccessGrantSpec{
 			RedemptionsAllowed: 1,
 		},
-		Status: v1alpha1.AccessGrantStatus{
+		Status: v2alpha1.AccessGrantStatus{
 			Code:       "supersecret",
 			Expiration: time.Date(2024, time.January, 0, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
 		},
 	}
-	used := &v1alpha1.AccessGrant{
+	used := &v2alpha1.AccessGrant{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "used-up",
 			Namespace: "test",
 			UID:       "cec708de-b907-48a0-b6e2-6ee64ca11f08",
 		},
-		Spec: v1alpha1.AccessGrantSpec{
+		Spec: v2alpha1.AccessGrantSpec{
 			RedemptionsAllowed: 1,
 		},
-		Status: v1alpha1.AccessGrantStatus{
+		Status: v2alpha1.AccessGrantStatus{
 			Code:       "supersecret",
 			Redeemed:   1,
 			Expiration: time.Date(2124, time.January, 0, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
 		},
 	}
-	badExpiration := &v1alpha1.AccessGrant{
+	badExpiration := &v2alpha1.AccessGrant{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "bad-expiration",
 			Namespace: "test",
 			UID:       "6904f3e1-6802-4428-9b49-1b006114c496",
 		},
-		Spec: v1alpha1.AccessGrantSpec{
+		Spec: v2alpha1.AccessGrantSpec{
 			RedemptionsAllowed: 1,
 		},
-		Status: v1alpha1.AccessGrantStatus{
+		Status: v2alpha1.AccessGrantStatus{
 			Code:       "supersecret",
 			Redeemed:   1,
 			Expiration: "iamnotadate",
 		},
 	}
-	deleted := &v1alpha1.AccessGrant{
+	deleted := &v2alpha1.AccessGrant{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "deleted",
 			Namespace: "test",
 			UID:       "cd125f09-d14a-4bef-b53b-fe7edd80908b",
 		},
-		Spec: v1alpha1.AccessGrantSpec{
+		Spec: v2alpha1.AccessGrantSpec{
 			RedemptionsAllowed: 1,
 		},
-		Status: v1alpha1.AccessGrantStatus{
+		Status: v2alpha1.AccessGrantStatus{
 			Code:       "supersecret",
 			Expiration: time.Date(2124, time.January, 0, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
 		},
@@ -301,13 +301,13 @@ func Test_ServeHttp(t *testing.T) {
 				generator = dummyGenerator
 			}
 			registry := newGrants(client, generator, "https", "")
-			for _, grant := range []*v1alpha1.AccessGrant{good, expired, used, badExpiration, deleted} {
+			for _, grant := range []*v2alpha1.AccessGrant{good, expired, used, badExpiration, deleted} {
 				err = registry.checkGrant(grant.Namespace+"/"+grant.Name, grant)
 				if err != nil {
 					t.Error(err)
 				}
 			}
-			err = client.GetSkupperClient().SkupperV1alpha1().AccessGrants(deleted.Namespace).Delete(context.TODO(), deleted.Name, metav1.DeleteOptions{})
+			err = client.GetSkupperClient().SkupperV2alpha1().AccessGrants(deleted.Namespace).Delete(context.TODO(), deleted.Name, metav1.DeleteOptions{})
 			if err != nil {
 				t.Error(err)
 			}
@@ -322,7 +322,7 @@ func Test_ServeHttp(t *testing.T) {
 
 type CheckGrantTestInvocation struct {
 	key           string
-	grant         *v1alpha1.AccessGrant
+	grant         *v2alpha1.AccessGrant
 	expectedError string
 	url           string //set url before invocation
 	ca            string //set ca before invocation
@@ -331,20 +331,20 @@ type CheckGrantTestInvocation struct {
 }
 
 func Test_checkGrant(t *testing.T) {
-	good := &v1alpha1.AccessGrant{
+	good := &v2alpha1.AccessGrant{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "good",
 			Namespace: "test",
 			UID:       "0bde3bc8-a4a2-404a-bfbe-44fdf7bf3231",
 		},
 	}
-	badExpirationWindow := &v1alpha1.AccessGrant{
+	badExpirationWindow := &v2alpha1.AccessGrant{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "bad-expiration",
 			Namespace: "test",
 			UID:       "6904f3e1-6802-4428-9b49-1b006114c496",
 		},
-		Spec: v1alpha1.AccessGrantSpec{
+		Spec: v2alpha1.AccessGrantSpec{
 			ExpirationWindow: "iamnotaduration",
 		},
 	}
@@ -435,7 +435,7 @@ func Test_checkGrant(t *testing.T) {
 			calls: []CheckGrantTestInvocation{
 				{
 					key: "test/failedUpdate",
-					grant: &v1alpha1.AccessGrant{
+					grant: &v2alpha1.AccessGrant{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "failedUpdate",
 							Namespace: "test",
@@ -451,7 +451,7 @@ func Test_checkGrant(t *testing.T) {
 			calls: []CheckGrantTestInvocation{
 				{
 					key: "test/good",
-					grant: &v1alpha1.AccessGrant{
+					grant: &v2alpha1.AccessGrant{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "good",
 							Namespace: "test",
@@ -471,7 +471,7 @@ func Test_checkGrant(t *testing.T) {
 			calls: []CheckGrantTestInvocation{
 				{
 					key: "test/failedUpdate",
-					grant: &v1alpha1.AccessGrant{
+					grant: &v2alpha1.AccessGrant{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "failedUpdate",
 							Namespace: "test",

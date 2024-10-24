@@ -36,7 +36,7 @@ go get -d k8s.io/code-generator@${API_VERSION}
 
 bash ${GOPATH}/pkg/mod/k8s.io/code-generator@${API_VERSION}/generate-groups.sh "scheme,deepcopy,client,informer,lister" \
     github.com/skupperproject/skupper/pkg/generated/client github.com/skupperproject/skupper/pkg/apis \
-    skupper:v1alpha1 \
+    skupper:v2alpha1 \
     --go-header-file ./scripts/boilerplate.go.txt \
     --output-base ${TMP_DEST} \
     "$@"

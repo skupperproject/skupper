@@ -6,7 +6,7 @@ metadata:
     internal.skupper.io/securedaccess: {{ .ServiceName }}
     internal.skupper.io/controlled: "true"
   ownerReferences:
-  - apiVersion: skupper.io/v1alpha1
+  - apiVersion: skupper.io/v2alpha1
     kind: SecuredAccess
     name: {{ .ServiceName }}
     uid: {{ .OwnerUID }}

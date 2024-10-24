@@ -5,7 +5,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 type InternalPath string
@@ -75,7 +75,7 @@ func GetHostDataHome() string {
 	return GetDataHome()
 }
 
-func GetHostSiteHome(site *v1alpha1.Site) string {
+func GetHostSiteHome(site *v2alpha1.Site) string {
 	dataHome := GetHostDataHome()
 	ns := site.Namespace
 	if ns == "" {
@@ -105,15 +105,15 @@ func getHostPath(basePath string) string {
 	return path.Join(dataHome, basePath)
 }
 
-func GetCustomSiteHome(site *v1alpha1.Site, customBaseDir string) string {
+func GetCustomSiteHome(site *v2alpha1.Site, customBaseDir string) string {
 	return getCustomSiteHome(site, customBaseDir, "namespaces")
 }
 
-func GetCustomBundleHome(site *v1alpha1.Site, customBaseDir string) string {
+func GetCustomBundleHome(site *v2alpha1.Site, customBaseDir string) string {
 	return getCustomSiteHome(site, customBaseDir, "bundles")
 }
 
-func getCustomSiteHome(site *v1alpha1.Site, customBaseDir string, basePath string) string {
+func getCustomSiteHome(site *v2alpha1.Site, customBaseDir string, basePath string) string {
 	ns := site.Namespace
 	if ns == "" {
 		ns = "default"
@@ -121,7 +121,7 @@ func getCustomSiteHome(site *v1alpha1.Site, customBaseDir string, basePath strin
 	return path.Join(customBaseDir, basePath, ns)
 }
 
-func GetHostSiteInternalPath(site *v1alpha1.Site, internalPath InternalPath) string {
+func GetHostSiteInternalPath(site *v2alpha1.Site, internalPath InternalPath) string {
 	dataHome := GetHostSiteHome(site)
 	return path.Join(dataHome, string(internalPath))
 }

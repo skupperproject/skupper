@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/certs"
 )
 
@@ -65,10 +65,10 @@ func (*factory) pod(name string, namespace string, labels map[string]string, own
 	}
 }
 
-func (*factory) cert(name string, namespace string, subject string, ca string, signing bool, client bool, server bool, ownerRefs []metav1.OwnerReference) *v1alpha1.Certificate {
-	return &v1alpha1.Certificate{
+func (*factory) cert(name string, namespace string, subject string, ca string, signing bool, client bool, server bool, ownerRefs []metav1.OwnerReference) *v2alpha1.Certificate {
+	return &v2alpha1.Certificate{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "Certificate",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -76,7 +76,7 @@ func (*factory) cert(name string, namespace string, subject string, ca string, s
 			Namespace:       namespace,
 			OwnerReferences: ownerRefs,
 		},
-		Spec: v1alpha1.CertificateSpec{
+		Spec: v2alpha1.CertificateSpec{
 			Ca:      ca,
 			Subject: subject,
 			Signing: signing,
@@ -86,10 +86,10 @@ func (*factory) cert(name string, namespace string, subject string, ca string, s
 	}
 }
 
-func (*factory) securedAccess(name string, namespace string, selector map[string]string, port int, ownerRefs []metav1.OwnerReference) *v1alpha1.SecuredAccess {
-	return &v1alpha1.SecuredAccess{
+func (*factory) securedAccess(name string, namespace string, selector map[string]string, port int, ownerRefs []metav1.OwnerReference) *v2alpha1.SecuredAccess {
+	return &v2alpha1.SecuredAccess{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "SecuredAccess",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -97,9 +97,9 @@ func (*factory) securedAccess(name string, namespace string, selector map[string
 			Namespace:       namespace,
 			OwnerReferences: ownerRefs,
 		},
-		Spec: v1alpha1.SecuredAccessSpec{
+		Spec: v2alpha1.SecuredAccessSpec{
 			Selector: selector,
-			Ports: []v1alpha1.SecuredAccessPort{
+			Ports: []v2alpha1.SecuredAccessPort{
 				{
 					Name: "https",
 					Port: port,
@@ -111,13 +111,13 @@ func (*factory) securedAccess(name string, namespace string, selector map[string
 	}
 }
 
-func (*factory) grant(name string, namespace string, uid string) *v1alpha1.AccessGrant {
+func (*factory) grant(name string, namespace string, uid string) *v2alpha1.AccessGrant {
 	if uid == "" {
 		uid = uuid.NewString()
 	}
-	return &v1alpha1.AccessGrant{
+	return &v2alpha1.AccessGrant{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "AccessGrant",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -125,7 +125,7 @@ func (*factory) grant(name string, namespace string, uid string) *v1alpha1.Acces
 			Namespace: namespace,
 			UID:       types.UID(uid),
 		},
-		Spec: v1alpha1.AccessGrantSpec{
+		Spec: v2alpha1.AccessGrantSpec{
 			RedemptionsAllowed: 1,
 		},
 	}
@@ -152,10 +152,10 @@ func (*factory) genericSecret(name string, namespace string) *corev1.Secret {
 	}
 }
 
-func (*factory) site(name string, namespace string) *v1alpha1.Site {
-	return &v1alpha1.Site{
+func (*factory) site(name string, namespace string) *v2alpha1.Site {
+	return &v2alpha1.Site{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "Site",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -166,10 +166,10 @@ func (*factory) site(name string, namespace string) *v1alpha1.Site {
 	}
 }
 
-func (*factory) link(name string, namespace string, endpoints []v1alpha1.Endpoint, tlsCredentials string) *v1alpha1.Link {
-	return &v1alpha1.Link{
+func (*factory) link(name string, namespace string, endpoints []v2alpha1.Endpoint, tlsCredentials string) *v2alpha1.Link {
+	return &v2alpha1.Link{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "Link",
 		},
 		ObjectMeta: metav1.ObjectMeta{
@@ -177,24 +177,24 @@ func (*factory) link(name string, namespace string, endpoints []v1alpha1.Endpoin
 			Namespace: namespace,
 			UID:       types.UID(uuid.NewString()),
 		},
-		Spec: v1alpha1.LinkSpec{
+		Spec: v2alpha1.LinkSpec{
 			Endpoints:      endpoints,
 			TlsCredentials: tlsCredentials,
 		},
 	}
 }
 
-func (*factory) token(name string, namespace string, url string, code string, ca string) *v1alpha1.AccessToken {
-	return &v1alpha1.AccessToken{
+func (*factory) token(name string, namespace string, url string, code string, ca string) *v2alpha1.AccessToken {
+	return &v2alpha1.AccessToken{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "AccessToken",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: v1alpha1.AccessTokenSpec{
+		Spec: v2alpha1.AccessTokenSpec{
 			Url:  url,
 			Code: code,
 			Ca:   ca,

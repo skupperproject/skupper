@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -52,15 +52,15 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 			args:  []string{"out-connector"},
 			flags: common.CommandConnectorStatusFlags{Output: "not-supported"},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ConnectorList{
-					Items: []v1alpha1.Connector{
+				&v2alpha1.ConnectorList{
+					Items: []v2alpha1.Connector{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "out-connector",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ConnectorStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ConnectorStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -80,15 +80,15 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 			args:  []string{"out-connector"},
 			flags: common.CommandConnectorStatusFlags{Output: "json"},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ConnectorList{
-					Items: []v1alpha1.Connector{
+				&v2alpha1.ConnectorList{
+					Items: []v2alpha1.Connector{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "out-connector",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ConnectorStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ConnectorStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -148,15 +148,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 			name:          "runs ok, returns 1 connectors",
 			connectorName: "my-connector",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ConnectorList{
-					Items: []v1alpha1.Connector{
+				&v2alpha1.ConnectorList{
+					Items: []v2alpha1.Connector{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "my-connector",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ConnectorStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ConnectorStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -175,15 +175,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 			connectorName: "my-connector",
 			flags:         common.CommandConnectorStatusFlags{Output: "yaml"},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ConnectorList{
-					Items: []v1alpha1.Connector{
+				&v2alpha1.ConnectorList{
+					Items: []v2alpha1.Connector{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "my-connector",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ConnectorStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ConnectorStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -200,15 +200,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 		{
 			name: "runs ok, returns all connectors",
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ConnectorList{
-					Items: []v1alpha1.Connector{
+				&v2alpha1.ConnectorList{
+					Items: []v2alpha1.Connector{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "my-connector1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ConnectorStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ConnectorStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -223,8 +223,8 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 								Name:      "my-connector2",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ConnectorStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ConnectorStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -242,15 +242,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 			name:  "runs ok, returns all connectors json",
 			flags: common.CommandConnectorStatusFlags{Output: "json"},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ConnectorList{
-					Items: []v1alpha1.Connector{
+				&v2alpha1.ConnectorList{
+					Items: []v2alpha1.Connector{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "my-connector1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ConnectorStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ConnectorStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -265,8 +265,8 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 								Name:      "my-connector2",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ConnectorStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ConnectorStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -284,15 +284,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 			name:  "runs ok, returns all connectors output bad",
 			flags: common.CommandConnectorStatusFlags{Output: "bad-value"},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ConnectorList{
-					Items: []v1alpha1.Connector{
+				&v2alpha1.ConnectorList{
+					Items: []v2alpha1.Connector{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "my-connector1",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ConnectorStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ConnectorStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -307,8 +307,8 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 								Name:      "my-connector2",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ConnectorStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ConnectorStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -328,15 +328,15 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 			connectorName: "my-connector",
 			flags:         common.CommandConnectorStatusFlags{Output: "bad-value"},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.ConnectorList{
-					Items: []v1alpha1.Connector{
+				&v2alpha1.ConnectorList{
+					Items: []v2alpha1.Connector{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "my-connector",
 								Namespace: "test",
 							},
-							Status: v1alpha1.ConnectorStatus{
-								Status: v1alpha1.Status{
+							Status: v2alpha1.ConnectorStatus{
+								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
 										{
 											Type:   "Configured",
@@ -383,7 +383,7 @@ func newCmdConnectorStatusWithMocks(namespace string, k8sObjects []runtime.Objec
 		return nil, err
 	}
 	cmdConnectorStatus := &CmdConnectorStatus{
-		client:    client.GetSkupperClient().SkupperV1alpha1(),
+		client:    client.GetSkupperClient().SkupperV2alpha1(),
 		namespace: namespace,
 	}
 	return cmdConnectorStatus, nil

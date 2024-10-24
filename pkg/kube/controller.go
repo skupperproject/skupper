@@ -47,10 +47,10 @@ import (
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/resource"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
-	skupperv1alpha1interfaces "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/internalinterfaces"
-	skupperv1alpha1informer "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/skupper/v1alpha1"
+	skupperv2alpha1interfaces "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/internalinterfaces"
+	skupperv2alpha1informer "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/skupper/v2alpha1"
 )
 
 type ResourceChange struct {
@@ -875,7 +875,7 @@ func (w *NodeWatcher) List() []*corev1.Node {
 func (c *Controller) WatchSites(namespace string, handler SiteHandler) *SiteWatcher {
 	watcher := &SiteWatcher{
 		handler: handler,
-		informer: skupperv1alpha1informer.NewSiteInformer(
+		informer: skupperv2alpha1informer.NewSiteInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -887,7 +887,7 @@ func (c *Controller) WatchSites(namespace string, handler SiteHandler) *SiteWatc
 	return watcher
 }
 
-type SiteHandler func(string, *skupperv1alpha1.Site) error
+type SiteHandler func(string, *skupperv2alpha1.Site) error
 
 type SiteWatcher struct {
 	handler   SiteHandler
@@ -919,7 +919,7 @@ func (w *SiteWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *SiteWatcher) Get(key string) (*skupperv1alpha1.Site, error) {
+func (w *SiteWatcher) Get(key string) (*skupperv2alpha1.Site, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -927,14 +927,14 @@ func (w *SiteWatcher) Get(key string) (*skupperv1alpha1.Site, error) {
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv1alpha1.Site), nil
+	return entity.(*skupperv2alpha1.Site), nil
 }
 
-func (w *SiteWatcher) List() []*skupperv1alpha1.Site {
+func (w *SiteWatcher) List() []*skupperv2alpha1.Site {
 	list := w.informer.GetStore().List()
-	results := []*skupperv1alpha1.Site{}
+	results := []*skupperv2alpha1.Site{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv1alpha1.Site))
+		results = append(results, o.(*skupperv2alpha1.Site))
 	}
 	return results
 }
@@ -942,7 +942,7 @@ func (w *SiteWatcher) List() []*skupperv1alpha1.Site {
 func (c *Controller) WatchListeners(namespace string, handler ListenerHandler) *ListenerWatcher {
 	watcher := &ListenerWatcher{
 		handler: handler,
-		informer: skupperv1alpha1informer.NewListenerInformer(
+		informer: skupperv2alpha1informer.NewListenerInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -954,7 +954,7 @@ func (c *Controller) WatchListeners(namespace string, handler ListenerHandler) *
 	return watcher
 }
 
-type ListenerHandler func(string, *skupperv1alpha1.Listener) error
+type ListenerHandler func(string, *skupperv2alpha1.Listener) error
 
 type ListenerWatcher struct {
 	handler   ListenerHandler
@@ -986,7 +986,7 @@ func (w *ListenerWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *ListenerWatcher) Get(key string) (*skupperv1alpha1.Listener, error) {
+func (w *ListenerWatcher) Get(key string) (*skupperv2alpha1.Listener, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -994,14 +994,14 @@ func (w *ListenerWatcher) Get(key string) (*skupperv1alpha1.Listener, error) {
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv1alpha1.Listener), nil
+	return entity.(*skupperv2alpha1.Listener), nil
 }
 
-func (w *ListenerWatcher) List() []*skupperv1alpha1.Listener {
+func (w *ListenerWatcher) List() []*skupperv2alpha1.Listener {
 	list := w.informer.GetStore().List()
-	results := []*skupperv1alpha1.Listener{}
+	results := []*skupperv2alpha1.Listener{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv1alpha1.Listener))
+		results = append(results, o.(*skupperv2alpha1.Listener))
 	}
 	return results
 }
@@ -1009,7 +1009,7 @@ func (w *ListenerWatcher) List() []*skupperv1alpha1.Listener {
 func (c *Controller) WatchConnectors(namespace string, handler ConnectorHandler) *ConnectorWatcher {
 	watcher := &ConnectorWatcher{
 		handler: handler,
-		informer: skupperv1alpha1informer.NewConnectorInformer(
+		informer: skupperv2alpha1informer.NewConnectorInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1021,7 +1021,7 @@ func (c *Controller) WatchConnectors(namespace string, handler ConnectorHandler)
 	return watcher
 }
 
-type ConnectorHandler func(string, *skupperv1alpha1.Connector) error
+type ConnectorHandler func(string, *skupperv2alpha1.Connector) error
 
 type ConnectorWatcher struct {
 	handler   ConnectorHandler
@@ -1053,7 +1053,7 @@ func (w *ConnectorWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *ConnectorWatcher) Get(key string) (*skupperv1alpha1.Connector, error) {
+func (w *ConnectorWatcher) Get(key string) (*skupperv2alpha1.Connector, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -1061,14 +1061,14 @@ func (w *ConnectorWatcher) Get(key string) (*skupperv1alpha1.Connector, error) {
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv1alpha1.Connector), nil
+	return entity.(*skupperv2alpha1.Connector), nil
 }
 
-func (w *ConnectorWatcher) List() []*skupperv1alpha1.Connector {
+func (w *ConnectorWatcher) List() []*skupperv2alpha1.Connector {
 	list := w.informer.GetStore().List()
-	results := []*skupperv1alpha1.Connector{}
+	results := []*skupperv2alpha1.Connector{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv1alpha1.Connector))
+		results = append(results, o.(*skupperv2alpha1.Connector))
 	}
 	return results
 }
@@ -1076,7 +1076,7 @@ func (w *ConnectorWatcher) List() []*skupperv1alpha1.Connector {
 func (c *Controller) WatchLinks(namespace string, handler LinkHandler) *LinkWatcher {
 	watcher := &LinkWatcher{
 		handler: handler,
-		informer: skupperv1alpha1informer.NewLinkInformer(
+		informer: skupperv2alpha1informer.NewLinkInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1088,7 +1088,7 @@ func (c *Controller) WatchLinks(namespace string, handler LinkHandler) *LinkWatc
 	return watcher
 }
 
-type LinkHandler func(string, *skupperv1alpha1.Link) error
+type LinkHandler func(string, *skupperv2alpha1.Link) error
 
 type LinkWatcher struct {
 	handler   LinkHandler
@@ -1120,7 +1120,7 @@ func (w *LinkWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *LinkWatcher) Get(key string) (*skupperv1alpha1.Link, error) {
+func (w *LinkWatcher) Get(key string) (*skupperv2alpha1.Link, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -1128,14 +1128,14 @@ func (w *LinkWatcher) Get(key string) (*skupperv1alpha1.Link, error) {
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv1alpha1.Link), nil
+	return entity.(*skupperv2alpha1.Link), nil
 }
 
-func (w *LinkWatcher) List() []*skupperv1alpha1.Link {
+func (w *LinkWatcher) List() []*skupperv2alpha1.Link {
 	list := w.informer.GetStore().List()
-	results := []*skupperv1alpha1.Link{}
+	results := []*skupperv2alpha1.Link{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv1alpha1.Link))
+		results = append(results, o.(*skupperv2alpha1.Link))
 	}
 	return results
 }
@@ -1143,7 +1143,7 @@ func (w *LinkWatcher) List() []*skupperv1alpha1.Link {
 func (c *Controller) WatchAccessTokens(namespace string, handler AccessTokenHandler) *AccessTokenWatcher {
 	watcher := &AccessTokenWatcher{
 		handler: handler,
-		informer: skupperv1alpha1informer.NewAccessTokenInformer(
+		informer: skupperv2alpha1informer.NewAccessTokenInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1155,7 +1155,7 @@ func (c *Controller) WatchAccessTokens(namespace string, handler AccessTokenHand
 	return watcher
 }
 
-type AccessTokenHandler func(string, *skupperv1alpha1.AccessToken) error
+type AccessTokenHandler func(string, *skupperv2alpha1.AccessToken) error
 
 type AccessTokenWatcher struct {
 	handler   AccessTokenHandler
@@ -1187,7 +1187,7 @@ func (w *AccessTokenWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *AccessTokenWatcher) Get(key string) (*skupperv1alpha1.AccessToken, error) {
+func (w *AccessTokenWatcher) Get(key string) (*skupperv2alpha1.AccessToken, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -1195,14 +1195,14 @@ func (w *AccessTokenWatcher) Get(key string) (*skupperv1alpha1.AccessToken, erro
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv1alpha1.AccessToken), nil
+	return entity.(*skupperv2alpha1.AccessToken), nil
 }
 
-func (w *AccessTokenWatcher) List() []*skupperv1alpha1.AccessToken {
+func (w *AccessTokenWatcher) List() []*skupperv2alpha1.AccessToken {
 	list := w.informer.GetStore().List()
-	results := []*skupperv1alpha1.AccessToken{}
+	results := []*skupperv2alpha1.AccessToken{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv1alpha1.AccessToken))
+		results = append(results, o.(*skupperv2alpha1.AccessToken))
 	}
 	return results
 }
@@ -1210,7 +1210,7 @@ func (w *AccessTokenWatcher) List() []*skupperv1alpha1.AccessToken {
 func (c *Controller) WatchAccessGrants(namespace string, handler AccessGrantHandler) *AccessGrantWatcher {
 	watcher := &AccessGrantWatcher{
 		handler: handler,
-		informer: skupperv1alpha1informer.NewAccessGrantInformer(
+		informer: skupperv2alpha1informer.NewAccessGrantInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1222,7 +1222,7 @@ func (c *Controller) WatchAccessGrants(namespace string, handler AccessGrantHand
 	return watcher
 }
 
-type AccessGrantHandler func(string, *skupperv1alpha1.AccessGrant) error
+type AccessGrantHandler func(string, *skupperv2alpha1.AccessGrant) error
 
 type AccessGrantWatcher struct {
 	handler   AccessGrantHandler
@@ -1254,7 +1254,7 @@ func (w *AccessGrantWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *AccessGrantWatcher) Get(key string) (*skupperv1alpha1.AccessGrant, error) {
+func (w *AccessGrantWatcher) Get(key string) (*skupperv2alpha1.AccessGrant, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -1262,14 +1262,14 @@ func (w *AccessGrantWatcher) Get(key string) (*skupperv1alpha1.AccessGrant, erro
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv1alpha1.AccessGrant), nil
+	return entity.(*skupperv2alpha1.AccessGrant), nil
 }
 
-func (w *AccessGrantWatcher) List() []*skupperv1alpha1.AccessGrant {
+func (w *AccessGrantWatcher) List() []*skupperv2alpha1.AccessGrant {
 	list := w.informer.GetStore().List()
-	results := []*skupperv1alpha1.AccessGrant{}
+	results := []*skupperv2alpha1.AccessGrant{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv1alpha1.AccessGrant))
+		results = append(results, o.(*skupperv2alpha1.AccessGrant))
 	}
 	return results
 }
@@ -1277,7 +1277,7 @@ func (w *AccessGrantWatcher) List() []*skupperv1alpha1.AccessGrant {
 func (c *Controller) WatchSecuredAccesses(namespace string, handler SecuredAccessHandler) *SecuredAccessWatcher {
 	watcher := &SecuredAccessWatcher{
 		handler: handler,
-		informer: skupperv1alpha1informer.NewSecuredAccessInformer(
+		informer: skupperv2alpha1informer.NewSecuredAccessInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1289,10 +1289,10 @@ func (c *Controller) WatchSecuredAccesses(namespace string, handler SecuredAcces
 	return watcher
 }
 
-func (c *Controller) WatchSecuredAccessesWithOptions(options skupperv1alpha1interfaces.TweakListOptionsFunc, namespace string, handler SecuredAccessHandler) *SecuredAccessWatcher {
+func (c *Controller) WatchSecuredAccessesWithOptions(options skupperv2alpha1interfaces.TweakListOptionsFunc, namespace string, handler SecuredAccessHandler) *SecuredAccessWatcher {
 	watcher := &SecuredAccessWatcher{
 		handler: handler,
-		informer: skupperv1alpha1informer.NewFilteredSecuredAccessInformer(
+		informer: skupperv2alpha1informer.NewFilteredSecuredAccessInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1305,7 +1305,7 @@ func (c *Controller) WatchSecuredAccessesWithOptions(options skupperv1alpha1inte
 	return watcher
 }
 
-type SecuredAccessHandler func(string, *skupperv1alpha1.SecuredAccess) error
+type SecuredAccessHandler func(string, *skupperv2alpha1.SecuredAccess) error
 
 type SecuredAccessWatcher struct {
 	handler   SecuredAccessHandler
@@ -1337,7 +1337,7 @@ func (w *SecuredAccessWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *SecuredAccessWatcher) Get(key string) (*skupperv1alpha1.SecuredAccess, error) {
+func (w *SecuredAccessWatcher) Get(key string) (*skupperv2alpha1.SecuredAccess, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -1345,14 +1345,14 @@ func (w *SecuredAccessWatcher) Get(key string) (*skupperv1alpha1.SecuredAccess, 
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv1alpha1.SecuredAccess), nil
+	return entity.(*skupperv2alpha1.SecuredAccess), nil
 }
 
-func (w *SecuredAccessWatcher) List() []*skupperv1alpha1.SecuredAccess {
+func (w *SecuredAccessWatcher) List() []*skupperv2alpha1.SecuredAccess {
 	list := w.informer.GetStore().List()
-	results := []*skupperv1alpha1.SecuredAccess{}
+	results := []*skupperv2alpha1.SecuredAccess{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv1alpha1.SecuredAccess))
+		results = append(results, o.(*skupperv2alpha1.SecuredAccess))
 	}
 	return results
 }
@@ -1501,7 +1501,7 @@ func (w *RouteWatcher) List() []*routev1.Route {
 func (c *Controller) WatchCertificates(namespace string, handler CertificateHandler) *CertificateWatcher {
 	watcher := &CertificateWatcher{
 		handler: handler,
-		informer: skupperv1alpha1informer.NewCertificateInformer(
+		informer: skupperv2alpha1informer.NewCertificateInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1513,7 +1513,7 @@ func (c *Controller) WatchCertificates(namespace string, handler CertificateHand
 	return watcher
 }
 
-type CertificateHandler func(string, *skupperv1alpha1.Certificate) error
+type CertificateHandler func(string, *skupperv2alpha1.Certificate) error
 
 type CertificateWatcher struct {
 	handler   CertificateHandler
@@ -1545,7 +1545,7 @@ func (w *CertificateWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *CertificateWatcher) Get(key string) (*skupperv1alpha1.Certificate, error) {
+func (w *CertificateWatcher) Get(key string) (*skupperv2alpha1.Certificate, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -1553,14 +1553,14 @@ func (w *CertificateWatcher) Get(key string) (*skupperv1alpha1.Certificate, erro
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv1alpha1.Certificate), nil
+	return entity.(*skupperv2alpha1.Certificate), nil
 }
 
-func (w *CertificateWatcher) List() []*skupperv1alpha1.Certificate {
+func (w *CertificateWatcher) List() []*skupperv2alpha1.Certificate {
 	list := w.informer.GetStore().List()
-	results := []*skupperv1alpha1.Certificate{}
+	results := []*skupperv2alpha1.Certificate{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv1alpha1.Certificate))
+		results = append(results, o.(*skupperv2alpha1.Certificate))
 	}
 	return results
 }
@@ -1568,7 +1568,7 @@ func (w *CertificateWatcher) List() []*skupperv1alpha1.Certificate {
 func (c *Controller) WatchRouterAccesses(namespace string, handler RouterAccessHandler) *RouterAccessWatcher {
 	watcher := &RouterAccessWatcher{
 		handler: handler,
-		informer: skupperv1alpha1informer.NewRouterAccessInformer(
+		informer: skupperv2alpha1informer.NewRouterAccessInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1580,7 +1580,7 @@ func (c *Controller) WatchRouterAccesses(namespace string, handler RouterAccessH
 	return watcher
 }
 
-type RouterAccessHandler func(string, *skupperv1alpha1.RouterAccess) error
+type RouterAccessHandler func(string, *skupperv2alpha1.RouterAccess) error
 
 type RouterAccessWatcher struct {
 	handler   RouterAccessHandler
@@ -1612,7 +1612,7 @@ func (w *RouterAccessWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *RouterAccessWatcher) Get(key string) (*skupperv1alpha1.RouterAccess, error) {
+func (w *RouterAccessWatcher) Get(key string) (*skupperv2alpha1.RouterAccess, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -1620,14 +1620,14 @@ func (w *RouterAccessWatcher) Get(key string) (*skupperv1alpha1.RouterAccess, er
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv1alpha1.RouterAccess), nil
+	return entity.(*skupperv2alpha1.RouterAccess), nil
 }
 
-func (w *RouterAccessWatcher) List() []*skupperv1alpha1.RouterAccess {
+func (w *RouterAccessWatcher) List() []*skupperv2alpha1.RouterAccess {
 	list := w.informer.GetStore().List()
-	results := []*skupperv1alpha1.RouterAccess{}
+	results := []*skupperv2alpha1.RouterAccess{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv1alpha1.RouterAccess))
+		results = append(results, o.(*skupperv2alpha1.RouterAccess))
 	}
 	return results
 }
@@ -1638,7 +1638,7 @@ func ByName(name string) internalinterfaces.TweakListOptionsFunc {
 	}
 }
 
-func SkupperResourceByName(name string) skupperv1alpha1interfaces.TweakListOptionsFunc {
+func SkupperResourceByName(name string) skupperv2alpha1interfaces.TweakListOptionsFunc {
 	return func(options *metav1.ListOptions) {
 		options.FieldSelector = "metadata.name=" + name
 	}
@@ -1647,7 +1647,7 @@ func SkupperResourceByName(name string) skupperv1alpha1interfaces.TweakListOptio
 func (c *Controller) WatchAttachedConnectorAnchors(namespace string, handler AttachedConnectorAnchorHandler) *AttachedConnectorAnchorWatcher {
 	watcher := &AttachedConnectorAnchorWatcher{
 		handler: handler,
-		informer: skupperv1alpha1informer.NewAttachedConnectorAnchorInformer(
+		informer: skupperv2alpha1informer.NewAttachedConnectorAnchorInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1659,7 +1659,7 @@ func (c *Controller) WatchAttachedConnectorAnchors(namespace string, handler Att
 	return watcher
 }
 
-type AttachedConnectorAnchorHandler func(string, *skupperv1alpha1.AttachedConnectorAnchor) error
+type AttachedConnectorAnchorHandler func(string, *skupperv2alpha1.AttachedConnectorAnchor) error
 
 type AttachedConnectorAnchorWatcher struct {
 	handler   AttachedConnectorAnchorHandler
@@ -1691,7 +1691,7 @@ func (w *AttachedConnectorAnchorWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *AttachedConnectorAnchorWatcher) Get(key string) (*skupperv1alpha1.AttachedConnectorAnchor, error) {
+func (w *AttachedConnectorAnchorWatcher) Get(key string) (*skupperv2alpha1.AttachedConnectorAnchor, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -1699,14 +1699,14 @@ func (w *AttachedConnectorAnchorWatcher) Get(key string) (*skupperv1alpha1.Attac
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv1alpha1.AttachedConnectorAnchor), nil
+	return entity.(*skupperv2alpha1.AttachedConnectorAnchor), nil
 }
 
-func (w *AttachedConnectorAnchorWatcher) List() []*skupperv1alpha1.AttachedConnectorAnchor {
+func (w *AttachedConnectorAnchorWatcher) List() []*skupperv2alpha1.AttachedConnectorAnchor {
 	list := w.informer.GetStore().List()
-	results := []*skupperv1alpha1.AttachedConnectorAnchor{}
+	results := []*skupperv2alpha1.AttachedConnectorAnchor{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv1alpha1.AttachedConnectorAnchor))
+		results = append(results, o.(*skupperv2alpha1.AttachedConnectorAnchor))
 	}
 	return results
 }
@@ -1714,7 +1714,7 @@ func (w *AttachedConnectorAnchorWatcher) List() []*skupperv1alpha1.AttachedConne
 func (c *Controller) WatchAttachedConnectors(namespace string, handler AttachedConnectorHandler) *AttachedConnectorWatcher {
 	watcher := &AttachedConnectorWatcher{
 		handler: handler,
-		informer: skupperv1alpha1informer.NewAttachedConnectorInformer(
+		informer: skupperv2alpha1informer.NewAttachedConnectorInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1726,7 +1726,7 @@ func (c *Controller) WatchAttachedConnectors(namespace string, handler AttachedC
 	return watcher
 }
 
-type AttachedConnectorHandler func(string, *skupperv1alpha1.AttachedConnector) error
+type AttachedConnectorHandler func(string, *skupperv2alpha1.AttachedConnector) error
 
 type AttachedConnectorWatcher struct {
 	handler   AttachedConnectorHandler
@@ -1758,7 +1758,7 @@ func (w *AttachedConnectorWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *AttachedConnectorWatcher) Get(key string) (*skupperv1alpha1.AttachedConnector, error) {
+func (w *AttachedConnectorWatcher) Get(key string) (*skupperv2alpha1.AttachedConnector, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -1766,14 +1766,14 @@ func (w *AttachedConnectorWatcher) Get(key string) (*skupperv1alpha1.AttachedCon
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv1alpha1.AttachedConnector), nil
+	return entity.(*skupperv2alpha1.AttachedConnector), nil
 }
 
-func (w *AttachedConnectorWatcher) List() []*skupperv1alpha1.AttachedConnector {
+func (w *AttachedConnectorWatcher) List() []*skupperv2alpha1.AttachedConnector {
 	list := w.informer.GetStore().List()
-	results := []*skupperv1alpha1.AttachedConnector{}
+	results := []*skupperv2alpha1.AttachedConnector{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv1alpha1.AttachedConnector))
+		results = append(results, o.(*skupperv2alpha1.AttachedConnector))
 	}
 	return results
 }

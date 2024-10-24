@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
 )
@@ -13,21 +13,21 @@ func Test_Marshal(t *testing.T) {
 		expectedOutput string
 		hasError       bool
 	}{
-		{"json", v1alpha1.Site{
+		{"json", v2alpha1.Site{
 			TypeMeta: v1.TypeMeta{
-				APIVersion: "skupper.io/v1alpha1",
+				APIVersion: "skupper.io/v2alpha1",
 				Kind:       "Site",
 			},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "my-site",
 				Namespace: "test",
 			},
-			Spec: v1alpha1.SiteSpec{
+			Spec: v2alpha1.SiteSpec{
 				LinkAccess: "default",
 			},
 		},
 			`{
-  "apiVersion": "skupper.io/v1alpha1",
+  "apiVersion": "skupper.io/v2alpha1",
   "kind": "Site",
   "metadata": {
     "name": "my-site",
@@ -37,20 +37,20 @@ func Test_Marshal(t *testing.T) {
     "linkAccess": "default"
   }
 }`, false},
-		{"yaml", v1alpha1.Site{
+		{"yaml", v2alpha1.Site{
 			TypeMeta: v1.TypeMeta{
-				APIVersion: "skupper.io/v1alpha1",
+				APIVersion: "skupper.io/v2alpha1",
 				Kind:       "Site",
 			},
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "my-site",
 				Namespace: "test",
 			},
-			Spec: v1alpha1.SiteSpec{
+			Spec: v2alpha1.SiteSpec{
 				LinkAccess: "default",
 			},
 		},
-			`apiVersion: skupper.io/v1alpha1
+			`apiVersion: skupper.io/v2alpha1
 kind: Site
 metadata:
   name: my-site
@@ -59,7 +59,7 @@ spec:
   linkAccess: default
 `,
 			false},
-		{"unsupported", v1alpha1.Site{
+		{"unsupported", v2alpha1.Site{
 			ObjectMeta: v1.ObjectMeta{
 				Name:      "my-site",
 				Namespace: "test",

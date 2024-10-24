@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 type ContourHttpProxyAccessType struct {
@@ -27,10 +27,10 @@ func newContourHttpProxyAccess(manager *SecuredAccessManager, domain string) Acc
 	}
 }
 
-func (o *ContourHttpProxyAccessType) RealiseAndResolve(access *skupperv1alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv1alpha1.Endpoint, error) {
+func (o *ContourHttpProxyAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv2alpha1.Endpoint, error) {
 	desired := desiredHttpProxies(qualify(access.Namespace, o.domain), access)
 
-	var endpoints []skupperv1alpha1.Endpoint
+	var endpoints []skupperv2alpha1.Endpoint
 	for _, proxy := range desired {
 		obj, err := o.ensureHttpProxy(access.Namespace, proxy, ownerReferences(access))
 		if err != nil {
@@ -43,9 +43,9 @@ func (o *ContourHttpProxyAccessType) RealiseAndResolve(access *skupperv1alpha1.S
 	return endpoints, nil
 }
 
-func extractEndpoint(obj *unstructured.Unstructured) skupperv1alpha1.Endpoint {
+func extractEndpoint(obj *unstructured.Unstructured) skupperv2alpha1.Endpoint {
 	_, portName := getKeyAndPortNameForHttpProxy(obj)
-	return skupperv1alpha1.Endpoint{
+	return skupperv2alpha1.Endpoint{
 		Name: portName,
 		Host: extractHost(obj),
 		Port: "443",
@@ -115,7 +115,7 @@ type HttpProxy struct {
 	ServicePort int
 }
 
-func desiredHttpProxies(domain string, access *skupperv1alpha1.SecuredAccess) []HttpProxy {
+func desiredHttpProxies(domain string, access *skupperv2alpha1.SecuredAccess) []HttpProxy {
 	var proxies []HttpProxy
 	for _, port := range access.Spec.Ports {
 		name := httpProxyName(access.Name, port.Name)

@@ -5,7 +5,7 @@ metadata:
 spec:
   group: skupper.io
   versions:
-    - name: v1alpha1
+    - name: v2alpha1
       served: true
       storage: true
       schema:
@@ -24,6 +24,10 @@ spec:
                   type: string
                 issuer:
                   type: string
+                settings:
+                  type: object
+                  additionalProperties:
+                    type: string
             status:
               type: object
               properties:
@@ -39,6 +43,8 @@ spec:
                   type: string
                   format: date-time
                 status:
+                  type: string
+                message:
                   type: string
                 conditions:
                   type: array
@@ -95,6 +101,10 @@ spec:
         type: string
         description: The status of the grant
         jsonPath: .status.status
+      - name: Message
+        type: string
+        description: Any human readable message relevant to the grant
+        jsonPath: .status.message
   scope: Namespaced
   names:
     plural: accessgrants

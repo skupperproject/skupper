@@ -11,7 +11,7 @@ import (
 	skuppertypes "github.com/skupperproject/skupper/api/types"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/resource"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/images"
 )
 
@@ -21,7 +21,7 @@ var routerDeploymentTemplate string
 //go:embed skupper-router-local-service.yaml
 var routerLocalServiceTemplate string
 
-func resourceTemplates(site *skupperv1alpha1.Site, group string) []resource.Template {
+func resourceTemplates(site *skupperv2alpha1.Site, group string) []resource.Template {
 	options := getCoreParams(site, group)
 	templates := []resource.Template{
 		{
@@ -59,7 +59,7 @@ type CoreParams struct {
 	ConfigSyncImage skuppertypes.ImageDetails
 }
 
-func configDigest(config *skupperv1alpha1.SiteSpec) string {
+func configDigest(config *skupperv2alpha1.SiteSpec) string {
 	if config != nil {
 		// add any values from spec which require a router restart if changed:
 		h := sha256.New()
@@ -75,7 +75,7 @@ func configDigest(config *skupperv1alpha1.SiteSpec) string {
 	return ""
 }
 
-func getCoreParams(site *skupperv1alpha1.Site, group string) CoreParams {
+func getCoreParams(site *skupperv2alpha1.Site, group string) CoreParams {
 	return CoreParams{
 		SiteId:          site.GetSiteId(),
 		SiteName:        site.Name,
@@ -88,7 +88,7 @@ func getCoreParams(site *skupperv1alpha1.Site, group string) CoreParams {
 	}
 }
 
-func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv1alpha1.Site, group string) error {
+func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv2alpha1.Site, group string) error {
 	for _, t := range resourceTemplates(site, group) {
 		_, err := t.Apply(clients.GetDynamicClient(), ctx, site.Namespace)
 		if err != nil {

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/assert"
@@ -149,26 +149,26 @@ func createInputCertificates(t *testing.T, customOutputPath string) {
 func fakeSiteState() *api.SiteState {
 	return &api.SiteState{
 		SiteId: "site-id",
-		Site: &v1alpha1.Site{
+		Site: &v2alpha1.Site{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Site",
-				APIVersion: "skupper.io/v1alpha1",
+				APIVersion: "skupper.io/v2alpha1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "site-name",
 			},
-			Spec: v1alpha1.SiteSpec{},
+			Spec: v2alpha1.SiteSpec{},
 		},
-		Listeners: map[string]*v1alpha1.Listener{
+		Listeners: map[string]*v2alpha1.Listener{
 			"listener-one": {
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Listener",
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "listener-one",
 				},
-				Spec: v1alpha1.ListenerSpec{
+				Spec: v2alpha1.ListenerSpec{
 					RoutingKey:     "listener-one-key",
 					Host:           "10.0.0.1",
 					Port:           1234,
@@ -179,12 +179,12 @@ func fakeSiteState() *api.SiteState {
 			"listener-two": {
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Listener",
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "listener-two",
 				},
-				Spec: v1alpha1.ListenerSpec{
+				Spec: v2alpha1.ListenerSpec{
 					RoutingKey:     "listener-two-key",
 					Host:           "10.0.0.2",
 					Port:           1234,
@@ -193,16 +193,16 @@ func fakeSiteState() *api.SiteState {
 				},
 			},
 		},
-		Connectors: map[string]*v1alpha1.Connector{
+		Connectors: map[string]*v2alpha1.Connector{
 			"connector-one": {
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Connector",
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "connector-one",
 				},
-				Spec: v1alpha1.ConnectorSpec{
+				Spec: v2alpha1.ConnectorSpec{
 					RoutingKey:     "connector-one-key",
 					Host:           "connector-one-host",
 					Port:           1234,
@@ -211,17 +211,17 @@ func fakeSiteState() *api.SiteState {
 				},
 			},
 		},
-		RouterAccesses: map[string]*v1alpha1.RouterAccess{
+		RouterAccesses: map[string]*v2alpha1.RouterAccess{
 			"link-access-one": {
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "RouterAccess",
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "link-access-one",
 				},
-				Spec: v1alpha1.RouterAccessSpec{
-					Roles: []v1alpha1.RouterAccessRole{
+				Spec: v2alpha1.RouterAccessSpec{
+					Roles: []v2alpha1.RouterAccessRole{
 						{
 							Name: "inter-router",
 							Port: 55671,
@@ -239,18 +239,18 @@ func fakeSiteState() *api.SiteState {
 				},
 			},
 		},
-		Grants: make(map[string]*v1alpha1.AccessGrant),
-		Links: map[string]*v1alpha1.Link{
+		Grants: make(map[string]*v2alpha1.AccessGrant),
+		Links: map[string]*v2alpha1.Link{
 			"link-one": {
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Link",
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "link-one",
 				},
-				Spec: v1alpha1.LinkSpec{
-					Endpoints: []v1alpha1.Endpoint{
+				Spec: v2alpha1.LinkSpec{
+					Endpoints: []v2alpha1.Endpoint{
 						{
 							Name: "inter-router",
 							Host: "127.0.0.1",
@@ -283,8 +283,8 @@ func fakeSiteState() *api.SiteState {
 				},
 			},
 		},
-		Claims:          make(map[string]*v1alpha1.AccessToken),
-		Certificates:    make(map[string]*v1alpha1.Certificate),
-		SecuredAccesses: make(map[string]*v1alpha1.SecuredAccess),
+		Claims:          make(map[string]*v2alpha1.AccessToken),
+		Certificates:    make(map[string]*v2alpha1.Certificate),
+		SecuredAccesses: make(map[string]*v2alpha1.SecuredAccess),
 	}
 }

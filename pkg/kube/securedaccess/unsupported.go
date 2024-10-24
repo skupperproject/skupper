@@ -6,7 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 type UnsupportedAccessType struct {
@@ -19,7 +19,7 @@ func newUnsupportedAccess(m *SecuredAccessManager) AccessType {
 	}
 }
 
-func (o *UnsupportedAccessType) RealiseAndResolve(access *skupperv1alpha1.SecuredAccess, service *corev1.Service) ([]skupperv1alpha1.Endpoint, error) {
+func (o *UnsupportedAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAccess, service *corev1.Service) ([]skupperv2alpha1.Endpoint, error) {
 	log.Printf("Unsupported access type %q in SecuredAccess %s/%s", access.Spec.AccessType, access.Namespace, access.Name)
 	return nil, errors.New("unsupported access type")
 }

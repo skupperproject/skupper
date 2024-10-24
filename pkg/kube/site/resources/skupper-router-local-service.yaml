@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: skupper-router-local
   ownerReferences:
-  - apiVersion: skupper.io/v1alpha1
+  - apiVersion: skupper.io/v2alpha1
     kind: Site
     name: {{ .SiteName }}
     uid: {{ .SiteId }}

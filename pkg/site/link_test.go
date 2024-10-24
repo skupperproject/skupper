@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +24,7 @@ func TestLink_Apply(t *testing.T) {
 	type fields struct {
 		name        string
 		profilePath string
-		definition  *skupperv1alpha1.Link
+		definition  *skupperv2alpha1.Link
 	}
 	type args struct {
 		current qdr.RouterConfig
@@ -52,12 +52,12 @@ func TestLink_Apply(t *testing.T) {
 			fields: fields{
 				name:        "link1",
 				profilePath: "/etc/skupper-router-certs/skupper-internal/ca.crt",
-				definition: &skupperv1alpha1.Link{
+				definition: &skupperv2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "old-site",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.LinkSpec{},
+					Spec: skupperv2alpha1.LinkSpec{},
 				},
 			},
 			args: args{
@@ -70,13 +70,13 @@ func TestLink_Apply(t *testing.T) {
 			fields: fields{
 				name:        "link1",
 				profilePath: "/etc/skupper-router-certs/skupper-internal/ca.crt",
-				definition: &skupperv1alpha1.Link{
+				definition: &skupperv2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "old-site",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.LinkSpec{
-						Endpoints: []skupperv1alpha1.Endpoint{
+					Spec: skupperv2alpha1.LinkSpec{
+						Endpoints: []skupperv2alpha1.Endpoint{
 							{
 								Name: string(qdr.RoleInterRouter),
 								Host: "10.10.10.1",
@@ -96,13 +96,13 @@ func TestLink_Apply(t *testing.T) {
 			fields: fields{
 				name:        "link1",
 				profilePath: "/etc/skupper-router-certs/skupper-internal/ca.crt",
-				definition: &skupperv1alpha1.Link{
+				definition: &skupperv2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "old-site",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.LinkSpec{
-						Endpoints: []skupperv1alpha1.Endpoint{
+					Spec: skupperv2alpha1.LinkSpec{
+						Endpoints: []skupperv2alpha1.Endpoint{
 							{
 								Name: string(qdr.RoleEdge),
 								Host: "10.10.10.1",
@@ -142,7 +142,7 @@ func TestLinkMap_Apply(t *testing.T) {
 	type fields struct {
 		name        string
 		profilePath string
-		definition  *skupperv1alpha1.Link
+		definition  *skupperv2alpha1.Link
 	}
 	tests := []struct {
 		name               string
@@ -170,13 +170,13 @@ func TestLinkMap_Apply(t *testing.T) {
 				{
 					name:        "link1",
 					profilePath: "/etc/skupper-router-certs/skupper-internal/ca.crt",
-					definition: &skupperv1alpha1.Link{
+					definition: &skupperv2alpha1.Link{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "site-1",
 							Namespace: "test",
 						},
-						Spec: skupperv1alpha1.LinkSpec{
-							Endpoints: []skupperv1alpha1.Endpoint{
+						Spec: skupperv2alpha1.LinkSpec{
+							Endpoints: []skupperv2alpha1.Endpoint{
 								{
 									Name: string(qdr.RoleInterRouter),
 									Host: "10.10.10.1",
@@ -197,13 +197,13 @@ func TestLinkMap_Apply(t *testing.T) {
 				{
 					name:        "link1",
 					profilePath: "/etc/skupper-router-certs/skupper-internal/ca.crt",
-					definition: &skupperv1alpha1.Link{
+					definition: &skupperv2alpha1.Link{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "site-1",
 							Namespace: "test",
 						},
-						Spec: skupperv1alpha1.LinkSpec{
-							Endpoints: []skupperv1alpha1.Endpoint{
+						Spec: skupperv2alpha1.LinkSpec{
+							Endpoints: []skupperv2alpha1.Endpoint{
 								{
 									Name: string(qdr.RoleEdge),
 									Host: "10.10.10.1",
@@ -225,13 +225,13 @@ func TestLinkMap_Apply(t *testing.T) {
 				{
 					name:        "link1",
 					profilePath: "/etc/skupper-router-certs/skupper-internal/ca.crt",
-					definition: &skupperv1alpha1.Link{
+					definition: &skupperv2alpha1.Link{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "site-1",
 							Namespace: "test",
 						},
-						Spec: skupperv1alpha1.LinkSpec{
-							Endpoints: []skupperv1alpha1.Endpoint{
+						Spec: skupperv2alpha1.LinkSpec{
+							Endpoints: []skupperv2alpha1.Endpoint{
 								{
 									Name: string(qdr.RoleInterRouter),
 									Host: "10.10.10.1",
@@ -244,13 +244,13 @@ func TestLinkMap_Apply(t *testing.T) {
 				{
 					name:        "link2",
 					profilePath: "/etc/skupper-router-certs/skupper-internal/ca.crt",
-					definition: &skupperv1alpha1.Link{
+					definition: &skupperv2alpha1.Link{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "site-2",
 							Namespace: "test",
 						},
-						Spec: skupperv1alpha1.LinkSpec{
-							Endpoints: []skupperv1alpha1.Endpoint{
+						Spec: skupperv2alpha1.LinkSpec{
+							Endpoints: []skupperv2alpha1.Endpoint{
 								{
 									Name: string(qdr.RoleInterRouter),
 									Host: "10.10.100.1",
@@ -271,13 +271,13 @@ func TestLinkMap_Apply(t *testing.T) {
 				{
 					name:        "link1",
 					profilePath: "/etc/skupper-router-certs/skupper-internal/ca.crt",
-					definition: &skupperv1alpha1.Link{
+					definition: &skupperv2alpha1.Link{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "site-1",
 							Namespace: "test",
 						},
-						Spec: skupperv1alpha1.LinkSpec{
-							Endpoints: []skupperv1alpha1.Endpoint{
+						Spec: skupperv2alpha1.LinkSpec{
+							Endpoints: []skupperv2alpha1.Endpoint{
 								{
 									Name: string(qdr.RoleInterRouter),
 									Host: "10.10.10.1",
@@ -324,10 +324,10 @@ func TestLink_Update(t *testing.T) {
 	type fields struct {
 		name        string
 		profilePath string
-		definition  *skupperv1alpha1.Link
+		definition  *skupperv2alpha1.Link
 	}
 	type args struct {
-		definition *skupperv1alpha1.Link
+		definition *skupperv2alpha1.Link
 	}
 	tests := []struct {
 		name   string
@@ -340,13 +340,13 @@ func TestLink_Update(t *testing.T) {
 			fields: fields{
 				name:        "link1",
 				profilePath: "/etc/skupper-router-certs/skupper-internal/ca.crt",
-				definition: &skupperv1alpha1.Link{
+				definition: &skupperv2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "site-1",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.LinkSpec{
-						Endpoints: []skupperv1alpha1.Endpoint{
+					Spec: skupperv2alpha1.LinkSpec{
+						Endpoints: []skupperv2alpha1.Endpoint{
 							{
 								Name: string(qdr.RoleInterRouter),
 								Host: "10.10.10.1",
@@ -357,13 +357,13 @@ func TestLink_Update(t *testing.T) {
 				},
 			},
 			args: args{
-				definition: &skupperv1alpha1.Link{
+				definition: &skupperv2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "site-1",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.LinkSpec{
-						Endpoints: []skupperv1alpha1.Endpoint{
+					Spec: skupperv2alpha1.LinkSpec{
+						Endpoints: []skupperv2alpha1.Endpoint{
 							{
 								Name: string(qdr.RoleInterRouter),
 								Host: "10.10.10.1",
@@ -380,13 +380,13 @@ func TestLink_Update(t *testing.T) {
 			fields: fields{
 				name:        "link1",
 				profilePath: "/etc/skupper-router-certs/skupper-internal/ca.crt",
-				definition: &skupperv1alpha1.Link{
+				definition: &skupperv2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "site-1",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.LinkSpec{
-						Endpoints: []skupperv1alpha1.Endpoint{
+					Spec: skupperv2alpha1.LinkSpec{
+						Endpoints: []skupperv2alpha1.Endpoint{
 							{
 								Name: string(qdr.RoleInterRouter),
 								Host: "10.10.10.1",
@@ -397,13 +397,13 @@ func TestLink_Update(t *testing.T) {
 				},
 			},
 			args: args{
-				definition: &skupperv1alpha1.Link{
+				definition: &skupperv2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "site-1",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.LinkSpec{
-						Endpoints: []skupperv1alpha1.Endpoint{
+					Spec: skupperv2alpha1.LinkSpec{
+						Endpoints: []skupperv2alpha1.Endpoint{
 							{
 								Name: string(qdr.RoleInterRouter),
 								Host: "10.10.10.2",

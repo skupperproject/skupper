@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,8 +30,8 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 			args:       []string{"my-new-site"},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.SiteList{
-					Items: []v1alpha1.Site{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
 						{
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "old-site",
@@ -121,7 +121,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 
 			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, "")
 			assert.Assert(t, err)
-			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 			command.KubeClient = fakeSkupperClient.GetKubeClient()
 
 			if test.flags != nil {
@@ -238,15 +238,13 @@ func TestCmdSiteCreate_Run(t *testing.T) {
 			name:       "runs fails",
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "",
-						},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{},
 					},
 				},
 			},
@@ -286,7 +284,7 @@ func TestCmdSiteCreate_Run(t *testing.T) {
 
 		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 		assert.Assert(t, err)
-		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 
 		command.siteName = test.siteName
 		command.serviceAccountName = test.serviceAccountName
@@ -318,15 +316,13 @@ func TestCmdSiteCreate_WaitUntil(t *testing.T) {
 			name:       "site is not ready",
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "",
-						},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{},
 					},
 				},
 			},
@@ -342,14 +338,14 @@ func TestCmdSiteCreate_WaitUntil(t *testing.T) {
 			name:       "there is no need to wait for a site, the user just wanted the output",
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -362,13 +358,13 @@ func TestCmdSiteCreate_WaitUntil(t *testing.T) {
 			name:       "site is ready",
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
 									Message:            "OK",
@@ -395,7 +391,7 @@ func TestCmdSiteCreate_WaitUntil(t *testing.T) {
 		utils.SetRetryProfile(utils.TestRetryProfile)
 		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 		assert.Assert(t, err)
-		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 		command.siteName = "my-site"
 		command.output = test.output
 		command.timeout = time.Second
@@ -423,7 +419,7 @@ func newCmdSiteCreateWithMocks(namespace string) (*CmdSiteCreate, error) {
 		return nil, err
 	}
 	cmdSiteCreate := &CmdSiteCreate{
-		Client:     client.GetSkupperClient().SkupperV1alpha1(),
+		Client:     client.GetSkupperClient().SkupperV2alpha1(),
 		KubeClient: client.GetKubeClient(),
 		Namespace:  namespace,
 	}

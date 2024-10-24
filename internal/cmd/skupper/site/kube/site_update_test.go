@@ -8,7 +8,7 @@ import (
 	"time"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -32,14 +32,14 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			flags:      &common.CommandSiteUpdateFlags{Timeout: time.Minute},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -53,14 +53,14 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			flags:      &common.CommandSiteUpdateFlags{Timeout: time.Minute},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -74,14 +74,14 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			flags:      &common.CommandSiteUpdateFlags{Timeout: time.Minute},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -95,14 +95,14 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			flags:      &common.CommandSiteUpdateFlags{ServiceAccount: "not valid service account name", Timeout: time.Minute},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -115,14 +115,14 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			args:  []string{"my-site"},
 			flags: &common.CommandSiteUpdateFlags{BindHost: "host", Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -135,14 +135,14 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			flags:      &common.CommandSiteUpdateFlags{LinkAccessType: "not-valid", Timeout: time.Minute},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -159,14 +159,14 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			flags:      &common.CommandSiteUpdateFlags{Output: "not-valid", Timeout: time.Minute},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -192,25 +192,25 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			flags:      &common.CommandSiteUpdateFlags{Timeout: time.Minute},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "another-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -224,25 +224,25 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			flags:      &common.CommandSiteUpdateFlags{Timeout: time.Minute},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "another-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -256,25 +256,25 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			flags:      &common.CommandSiteUpdateFlags{Timeout: time.Minute},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "another-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -288,14 +288,14 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			flags:      &common.CommandSiteUpdateFlags{Timeout: time.Minute},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -311,14 +311,14 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			flags:      &common.CommandSiteUpdateFlags{Timeout: time.Second * 0},
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
 					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "OK",
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
 						},
 					},
 				},
@@ -338,7 +338,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 
 			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
-			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 			command.KubeClient = fakeSkupperClient.GetKubeClient()
 
 			if test.flags != nil {
@@ -413,7 +413,7 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 
 			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, nil, nil, "")
 			assert.Assert(t, err)
-			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 			command.Flags = &test.flags
 			command.siteName = "my-site"
 
@@ -442,15 +442,10 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 			name:       "runs ok",
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
-					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "",
-						},
 					},
 				},
 			},
@@ -503,7 +498,7 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 
 		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 		assert.Assert(t, err)
-		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 		command.siteName = test.siteName
 		command.serviceAccountName = test.serviceAccountName
 		command.linkAccessType = test.linkAccessType
@@ -538,15 +533,10 @@ func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 			name:       "site is not ready",
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
-				&v1alpha1.Site{
+				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-site",
 						Namespace: "test",
-					},
-					Status: v1alpha1.SiteStatus{
-						Status: v1alpha1.Status{
-							StatusMessage: "",
-						},
 					},
 				},
 			},
@@ -565,7 +555,7 @@ func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 		utils.SetRetryProfile(utils.TestRetryProfile)
 		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 		assert.Assert(t, err)
-		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV1alpha1()
+		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 		command.siteName = test.siteName
 		command.timeout = 1
 

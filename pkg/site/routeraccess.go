@@ -3,11 +3,11 @@ package site
 import (
 	"strconv"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
-type RouterAccessMap map[string]*skupperv1alpha1.RouterAccess
+type RouterAccessMap map[string]*skupperv2alpha1.RouterAccess
 
 func (m RouterAccessMap) desiredListeners() map[string]qdr.Listener {
 	desired := map[string]qdr.Listener{}
@@ -49,7 +49,7 @@ func (m RouterAccessMap) desiredConnectors(targetGroups []string) []qdr.Connecto
 	return connectors
 }
 
-func (m RouterAccessMap) findInterRouterRole() (*skupperv1alpha1.RouterAccessRole, *skupperv1alpha1.RouterAccess) {
+func (m RouterAccessMap) findInterRouterRole() (*skupperv2alpha1.RouterAccessRole, *skupperv2alpha1.RouterAccess) {
 	for _, value := range m {
 		if role := value.FindRole("inter-router"); role != nil {
 			return role, value

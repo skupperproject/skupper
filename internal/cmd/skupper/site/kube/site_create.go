@@ -11,8 +11,8 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,7 +20,7 @@ import (
 )
 
 type CmdSiteCreate struct {
-	Client             skupperv1alpha1.SkupperV1alpha1Interface
+	Client             skupperv2alpha1.SkupperV2alpha1Interface
 	KubeClient         kubernetes.Interface
 	CobraCmd           *cobra.Command
 	Flags              *common.CommandSiteCreateFlags
@@ -43,7 +43,7 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
 	utils.HandleError(err)
 
-	cmd.Client = cli.GetSkupperClient().SkupperV1alpha1()
+	cmd.Client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.KubeClient = cli.GetKubeClient()
 	cmd.Namespace = cli.Namespace
 }
@@ -137,16 +137,16 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 
 func (cmd *CmdSiteCreate) Run() error {
 
-	resource := v1alpha1.Site{
+	resource := v2alpha1.Site{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "Site",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmd.siteName,
 			Namespace: cmd.Namespace,
 		},
-		Spec: v1alpha1.SiteSpec{
+		Spec: v2alpha1.SiteSpec{
 			ServiceAccount: cmd.serviceAccountName,
 			LinkAccess:     cmd.linkAccessType,
 		},

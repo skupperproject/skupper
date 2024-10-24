@@ -14,12 +14,12 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/certs"
 )
 
 type CertToken struct {
-	links          []*skupperv1alpha1.Link
+	links          []*skupperv2alpha1.Link
 	tlsCredentials *corev1.Secret
 }
 
@@ -34,11 +34,11 @@ type TokenGenerator struct {
 	namespace string
 	clients   internalclient.Clients
 	ca        *corev1.Secret
-	endpoints [][]skupperv1alpha1.Endpoint
+	endpoints [][]skupperv2alpha1.Endpoint
 	hosts     []string
 }
 
-func NewTokenGenerator(site *skupperv1alpha1.Site, clients internalclient.Clients) (*TokenGenerator, error) {
+func NewTokenGenerator(site *skupperv2alpha1.Site, clients internalclient.Clients) (*TokenGenerator, error) {
 	generator := &TokenGenerator{
 		namespace: site.Namespace,
 		clients:   clients,
@@ -63,7 +63,7 @@ func (g *TokenGenerator) loadCA(name string) error {
 	return nil
 }
 
-func (g *TokenGenerator) setValidHostsFromSite(site *skupperv1alpha1.Site) bool {
+func (g *TokenGenerator) setValidHostsFromSite(site *skupperv2alpha1.Site) bool {
 	//TODO: if site is edge site, then return an error as it
 	//cannot issue certificates
 	var hosts []string
@@ -73,7 +73,7 @@ func (g *TokenGenerator) setValidHostsFromSite(site *skupperv1alpha1.Site) bool 
 	if len(hosts) == 0 {
 		return false
 	}
-	byGroup := map[string][]skupperv1alpha1.Endpoint{}
+	byGroup := map[string][]skupperv2alpha1.Endpoint{}
 	//TODO: should only include groups that are valid for the defined issuer
 	for _, endpoint := range site.Status.Endpoints {
 		if endpoint.Name == "inter-router" || endpoint.Name == "edge" {
@@ -98,15 +98,15 @@ func (g *TokenGenerator) NewCertToken(name string, subject string) Token {
 		if len(g.endpoints) > 1 {
 			linkName = fmt.Sprintf("%s-%d", name, i+1)
 		}
-		link := &skupperv1alpha1.Link{
+		link := &skupperv2alpha1.Link{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "skupper.io/v1alpha1",
+				APIVersion: "skupper.io/v2alpha1",
 				Kind:       "Link",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: linkName,
 			},
-			Spec: skupperv1alpha1.LinkSpec{
+			Spec: skupperv2alpha1.LinkSpec{
 				Endpoints:      endpoints,
 				TlsCredentials: name,
 			},

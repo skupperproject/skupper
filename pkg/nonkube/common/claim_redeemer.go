@@ -12,7 +12,7 @@ import (
 
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -37,7 +37,7 @@ func RedeemClaims(siteState *api.SiteState) error {
 }
 
 // Redeem logic that populates siteState.Secrets and siteState.Links
-func redeemAccessToken(claim *skupperv1alpha1.AccessToken, siteState *api.SiteState) error {
+func redeemAccessToken(claim *skupperv2alpha1.AccessToken, siteState *api.SiteState) error {
 	transport := &http.Transport{}
 	if claim.Spec.Ca != "" {
 		caPool := x509.NewCertPool()
@@ -89,7 +89,7 @@ func redeemAccessToken(claim *skupperv1alpha1.AccessToken, siteState *api.SiteSt
 type LinkDecoder struct {
 	decoder *yaml.YAMLOrJSONDecoder
 	secret  corev1.Secret
-	links   []skupperv1alpha1.Link
+	links   []skupperv2alpha1.Link
 }
 
 func newLinkDecoder(r io.Reader) *LinkDecoder {
@@ -103,7 +103,7 @@ func (d *LinkDecoder) decodeSecret() error {
 }
 
 func (d *LinkDecoder) decodeLink() error {
-	var link skupperv1alpha1.Link
+	var link skupperv2alpha1.Link
 	if err := d.decoder.Decode(&link); err != nil {
 		return err
 	}

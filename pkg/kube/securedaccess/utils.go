@@ -3,7 +3,7 @@ package securedaccess
 import (
 	"strings"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 type pair struct {
@@ -54,7 +54,7 @@ func possibleKeyPortNamePairs(qualifiedKey string) []pair {
 	return results
 }
 
-func hasPort(sa *skupperv1alpha1.SecuredAccess, portName string) bool {
+func hasPort(sa *skupperv2alpha1.SecuredAccess, portName string) bool {
 	for _, port := range sa.Spec.Ports {
 		if port.Name == portName {
 			return true

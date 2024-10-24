@@ -6,7 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/site"
@@ -21,7 +21,7 @@ func init() {
 }
 
 type BindingContext interface {
-	Select(connector *skupperv1alpha1.Connector) TargetSelection
+	Select(connector *skupperv2alpha1.Connector) TargetSelection
 	Expose(ports *ExposedPortSet)
 	Unexpose(host string)
 }
@@ -48,7 +48,7 @@ func (a *BindingAdaptor) cleanup() {
 	}
 }
 
-func (a *BindingAdaptor) ConnectorUpdated(connector *skupperv1alpha1.Connector) bool {
+func (a *BindingAdaptor) ConnectorUpdated(connector *skupperv2alpha1.Connector) bool {
 	if selector, ok := a.selectors[connector.Name]; ok {
 		if selector.Selector() == connector.Spec.Selector {
 			// don't need to change the pod watcher, but may need to reconfigure for other change to spec
@@ -73,14 +73,14 @@ func (a *BindingAdaptor) ConnectorUpdated(connector *skupperv1alpha1.Connector) 
 	return false
 }
 
-func (a *BindingAdaptor) ConnectorDeleted(connector *skupperv1alpha1.Connector) {
+func (a *BindingAdaptor) ConnectorDeleted(connector *skupperv2alpha1.Connector) {
 	if current, ok := a.selectors[connector.Name]; ok {
 		current.Close()
 		delete(a.selectors, connector.Name)
 	}
 }
 
-func (a *BindingAdaptor) ListenerUpdated(listener *skupperv1alpha1.Listener) {
+func (a *BindingAdaptor) ListenerUpdated(listener *skupperv2alpha1.Listener) {
 	allocatedRouterPort, err := a.mapping.GetPortForKey(listener.Name)
 	if err != nil {
 		bindings_logger.Error("Unable to get port for listener",
@@ -100,12 +100,12 @@ func (a *BindingAdaptor) ListenerUpdated(listener *skupperv1alpha1.Listener) {
 	}
 }
 
-func (a *BindingAdaptor) ListenerDeleted(listener *skupperv1alpha1.Listener) {
+func (a *BindingAdaptor) ListenerDeleted(listener *skupperv2alpha1.Listener) {
 	a.context.Unexpose(listener.Spec.Host)
 	a.mapping.ReleasePortForKey(listener.Name)
 }
 
-func (a *BindingAdaptor) updateBridgeConfigForConnector(siteId string, connector *skupperv1alpha1.Connector, config *qdr.BridgeConfig) {
+func (a *BindingAdaptor) updateBridgeConfigForConnector(siteId string, connector *skupperv2alpha1.Connector, config *qdr.BridgeConfig) {
 	if connector.Spec.Host != "" {
 		site.UpdateBridgeConfigForConnector(siteId, connector, config)
 	} else if connector.Spec.Selector != "" {
@@ -125,7 +125,7 @@ func (a *BindingAdaptor) updateBridgeConfigForConnector(siteId string, connector
 	}
 }
 
-func (a *BindingAdaptor) updateBridgeConfigForListener(siteId string, listener *skupperv1alpha1.Listener, config *qdr.BridgeConfig) {
+func (a *BindingAdaptor) updateBridgeConfigForListener(siteId string, listener *skupperv2alpha1.Listener, config *qdr.BridgeConfig) {
 	if port, err := a.mapping.GetPortForKey(listener.Name); err == nil {
 		site.UpdateBridgeConfigForListenerWithHostAndPort(siteId, listener, "0.0.0.0", port, config)
 	} else {
@@ -138,7 +138,7 @@ func (a *BindingAdaptor) updateBridgeConfigForListener(siteId string, listener *
 type TargetSelection interface {
 	Selector() string
 	Close()
-	List() []skupperv1alpha1.PodDetails
+	List() []skupperv2alpha1.PodDetails
 }
 
 type TargetSelectionImpl struct {
@@ -168,11 +168,11 @@ func (w *TargetSelectionImpl) Attr() slog.Attr {
 		slog.String("Namespace", w.namespace))
 }
 
-func (w *TargetSelectionImpl) List() []skupperv1alpha1.PodDetails {
+func (w *TargetSelectionImpl) List() []skupperv2alpha1.PodDetails {
 	return w.watcher.pods()
 }
 
-func (w *TargetSelectionImpl) Updated(pods []skupperv1alpha1.PodDetails) error {
+func (w *TargetSelectionImpl) Updated(pods []skupperv2alpha1.PodDetails) error {
 	err := w.site.updateRouterConfigForGroups(w.site.bindings)
 	connector := w.site.bindings.GetConnector(w.name)
 	if connector == nil {
@@ -192,7 +192,7 @@ type PodWatchingContext interface {
 	Selector() string
 	IncludeNotReady() bool
 	Attr() slog.Attr
-	Updated(pods []skupperv1alpha1.PodDetails) error
+	Updated(pods []skupperv2alpha1.PodDetails) error
 }
 
 type PodWatcher struct {
@@ -201,15 +201,15 @@ type PodWatcher struct {
 	context PodWatchingContext
 }
 
-func (w *PodWatcher) pods() []skupperv1alpha1.PodDetails {
-	var targets []skupperv1alpha1.PodDetails
+func (w *PodWatcher) pods() []skupperv2alpha1.PodDetails {
+	var targets []skupperv2alpha1.PodDetails
 	for _, pod := range w.watcher.List() {
 		if kube.IsPodReady(pod) || w.context.IncludeNotReady() {
 			if kube.IsPodRunning(pod) && pod.DeletionTimestamp == nil {
 				bindings_logger.Debug("Pod selected for connector",
 					slog.String("pod", pod.ObjectMeta.Name),
 					w.context.Attr())
-				targets = append(targets, skupperv1alpha1.PodDetails{
+				targets = append(targets, skupperv2alpha1.PodDetails{
 					UID:  string(pod.UID),
 					Name: pod.Name,
 					IP:   pod.Status.PodIP,

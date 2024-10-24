@@ -3,7 +3,7 @@ package site
 import (
 	"testing"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"gotest.tools/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,8 +12,8 @@ import (
 func TestBindings_Apply(t *testing.T) {
 	type fields struct {
 		SiteId     string
-		connectors map[string]*skupperv1alpha1.Connector
-		listeners  map[string]*skupperv1alpha1.Listener
+		connectors map[string]*skupperv2alpha1.Connector
+		listeners  map[string]*skupperv2alpha1.Listener
 	}
 	type args struct {
 		tcpListeners  map[string]qdr.TcpEndpoint
@@ -30,14 +30,14 @@ func TestBindings_Apply(t *testing.T) {
 			name: "bind a tcp listener",
 			fields: fields{
 				SiteId:     "site-1",
-				connectors: make(map[string]*skupperv1alpha1.Connector),
-				listeners: map[string]*skupperv1alpha1.Listener{
-					"listener1": &skupperv1alpha1.Listener{
+				connectors: make(map[string]*skupperv2alpha1.Connector),
+				listeners: map[string]*skupperv2alpha1.Listener{
+					"listener1": &skupperv2alpha1.Listener{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "listener1",
 							Namespace: "test",
 						},
-						Spec: skupperv1alpha1.ListenerSpec{
+						Spec: skupperv2alpha1.ListenerSpec{
 							RoutingKey: "echo:9090",
 							Host:       "10.10.10.1",
 							Port:       9090,
@@ -57,13 +57,13 @@ func TestBindings_Apply(t *testing.T) {
 			name: "bind a tcp connector",
 			fields: fields{
 				SiteId: "site-1",
-				connectors: map[string]*skupperv1alpha1.Connector{
-					"connector1": &skupperv1alpha1.Connector{
+				connectors: map[string]*skupperv2alpha1.Connector{
+					"connector1": &skupperv2alpha1.Connector{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "listener1",
 							Namespace: "test",
 						},
-						Spec: skupperv1alpha1.ConnectorSpec{
+						Spec: skupperv2alpha1.ConnectorSpec{
 							RoutingKey: "echo:9090",
 							Host:       "10.10.10.1",
 							Port:       9090,
@@ -71,7 +71,7 @@ func TestBindings_Apply(t *testing.T) {
 						},
 					},
 				},
-				listeners: make(map[string]*skupperv1alpha1.Listener),
+				listeners: make(map[string]*skupperv2alpha1.Listener),
 			},
 			args: args{
 				tcpListeners:  map[string]qdr.TcpEndpoint{},
@@ -84,8 +84,8 @@ func TestBindings_Apply(t *testing.T) {
 			name: "unbind a tcp listener",
 			fields: fields{
 				SiteId:     "site-1",
-				connectors: make(map[string]*skupperv1alpha1.Connector),
-				listeners:  make(map[string]*skupperv1alpha1.Listener),
+				connectors: make(map[string]*skupperv2alpha1.Connector),
+				listeners:  make(map[string]*skupperv2alpha1.Listener),
 			},
 			args: args{
 				tcpListeners: map[string]qdr.TcpEndpoint{
@@ -105,8 +105,8 @@ func TestBindings_Apply(t *testing.T) {
 			name: "unbind a tcp connector",
 			fields: fields{
 				SiteId:     "site-1",
-				connectors: make(map[string]*skupperv1alpha1.Connector),
-				listeners:  make(map[string]*skupperv1alpha1.Listener),
+				connectors: make(map[string]*skupperv2alpha1.Connector),
+				listeners:  make(map[string]*skupperv2alpha1.Listener),
 			},
 			args: args{
 				tcpListeners: map[string]qdr.TcpEndpoint{},
@@ -150,13 +150,13 @@ func TestBindings_Apply(t *testing.T) {
 func TestBindings_UpdateListener(t *testing.T) {
 	type fields struct {
 		SiteId     string
-		connectors map[string]*skupperv1alpha1.Connector
-		listeners  map[string]*skupperv1alpha1.Listener
+		connectors map[string]*skupperv2alpha1.Connector
+		listeners  map[string]*skupperv2alpha1.Listener
 		handler    BindingEventHandler
 	}
 	type args struct {
 		name     string
-		listener *skupperv1alpha1.Listener
+		listener *skupperv2alpha1.Listener
 	}
 	tests := []struct {
 		name    string
@@ -169,17 +169,17 @@ func TestBindings_UpdateListener(t *testing.T) {
 			name: "add listener",
 			fields: fields{
 				SiteId:     "site-1",
-				connectors: make(map[string]*skupperv1alpha1.Connector),
-				listeners:  make(map[string]*skupperv1alpha1.Listener),
+				connectors: make(map[string]*skupperv2alpha1.Connector),
+				listeners:  make(map[string]*skupperv2alpha1.Listener),
 			},
 			args: args{
 				name: "listener1",
-				listener: &skupperv1alpha1.Listener{
+				listener: &skupperv2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "listener1",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.ListenerSpec{
+					Spec: skupperv2alpha1.ListenerSpec{
 						RoutingKey: "echo:9090",
 						Host:       "10.10.10.1",
 						Port:       9090,
@@ -193,14 +193,14 @@ func TestBindings_UpdateListener(t *testing.T) {
 			name: "delete listener",
 			fields: fields{
 				SiteId:     "site-1",
-				connectors: make(map[string]*skupperv1alpha1.Connector),
-				listeners: map[string]*skupperv1alpha1.Listener{
-					"listener1": &skupperv1alpha1.Listener{
+				connectors: make(map[string]*skupperv2alpha1.Connector),
+				listeners: map[string]*skupperv2alpha1.Listener{
+					"listener1": &skupperv2alpha1.Listener{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "listener1",
 							Namespace: "test",
 						},
-						Spec: skupperv1alpha1.ListenerSpec{
+						Spec: skupperv2alpha1.ListenerSpec{
 							RoutingKey: "echo:9090",
 							Host:       "10.10.10.1",
 							Port:       9090,
@@ -231,8 +231,8 @@ func TestBindings_UpdateListener(t *testing.T) {
 func TestBindings_UpdateConnector(t *testing.T) {
 	type fields struct {
 		SiteId     string
-		connectors map[string]*skupperv1alpha1.Connector
-		listeners  map[string]*skupperv1alpha1.Listener
+		connectors map[string]*skupperv2alpha1.Connector
+		listeners  map[string]*skupperv2alpha1.Listener
 		handler    BindingEventHandler
 		configure  struct {
 			listener  ListenerConfiguration
@@ -241,7 +241,7 @@ func TestBindings_UpdateConnector(t *testing.T) {
 	}
 	type args struct {
 		name      string
-		connector *skupperv1alpha1.Connector
+		connector *skupperv2alpha1.Connector
 	}
 	tests := []struct {
 		name    string
@@ -254,17 +254,17 @@ func TestBindings_UpdateConnector(t *testing.T) {
 			name: "add connector",
 			fields: fields{
 				SiteId:     "site-1",
-				connectors: make(map[string]*skupperv1alpha1.Connector),
-				listeners:  make(map[string]*skupperv1alpha1.Listener),
+				connectors: make(map[string]*skupperv2alpha1.Connector),
+				listeners:  make(map[string]*skupperv2alpha1.Listener),
 			},
 			args: args{
 				name: "connector1",
-				connector: &skupperv1alpha1.Connector{
+				connector: &skupperv2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "connector1",
 						Namespace: "test",
 					},
-					Spec: skupperv1alpha1.ConnectorSpec{
+					Spec: skupperv2alpha1.ConnectorSpec{
 						RoutingKey: "echo:9090",
 						Host:       "10.10.10.1",
 						Port:       9090,
@@ -278,13 +278,13 @@ func TestBindings_UpdateConnector(t *testing.T) {
 			name: "delete connector",
 			fields: fields{
 				SiteId: "site-1",
-				connectors: map[string]*skupperv1alpha1.Connector{
-					"connector1": &skupperv1alpha1.Connector{
+				connectors: map[string]*skupperv2alpha1.Connector{
+					"connector1": &skupperv2alpha1.Connector{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "connector1",
 							Namespace: "test",
 						},
-						Spec: skupperv1alpha1.ConnectorSpec{
+						Spec: skupperv2alpha1.ConnectorSpec{
 							RoutingKey: "echo:9090",
 							Host:       "10.10.10.1",
 							Port:       9090,
@@ -292,7 +292,7 @@ func TestBindings_UpdateConnector(t *testing.T) {
 						},
 					},
 				},
-				listeners: make(map[string]*skupperv1alpha1.Listener),
+				listeners: make(map[string]*skupperv2alpha1.Listener),
 			},
 			args: args{
 				name:      "connector1",

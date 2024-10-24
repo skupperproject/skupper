@@ -6,7 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 type LoadbalancerAccessType struct {
@@ -19,9 +19,9 @@ func newLoadbalancerAccess(m *SecuredAccessManager) AccessType {
 	}
 }
 
-func (o *LoadbalancerAccessType) RealiseAndResolve(access *skupperv1alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv1alpha1.Endpoint, error) {
+func (o *LoadbalancerAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv2alpha1.Endpoint, error) {
 	log.Printf("Resolving endpoints for SecuredAccess %s of accessType 'loadbalancer'", access.Key())
-	var endpoints []skupperv1alpha1.Endpoint
+	var endpoints []skupperv2alpha1.Endpoint
 	for _, i := range svc.Status.LoadBalancer.Ingress {
 		var host string
 		if i.IP != "" {
@@ -32,7 +32,7 @@ func (o *LoadbalancerAccessType) RealiseAndResolve(access *skupperv1alpha1.Secur
 			continue
 		}
 		for _, p := range svc.Spec.Ports {
-			endpoints = append(endpoints, skupperv1alpha1.Endpoint{
+			endpoints = append(endpoints, skupperv2alpha1.Endpoint{
 				Name: p.Name,
 				Host: host,
 				Port: strconv.Itoa(int(p.Port)),

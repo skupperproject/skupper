@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/certs"
 	"gotest.tools/assert"
 	v1 "k8s.io/api/core/v1"
@@ -41,7 +41,7 @@ func TestCreateTokens(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		ra            v1alpha1.RouterAccess
+		ra            v2alpha1.RouterAccess
 		serverSecret  v1.Secret
 		expectedHosts []string
 	}{
@@ -162,15 +162,15 @@ func TestCreateTokens(t *testing.T) {
 	}
 }
 
-func fakeRouterAccess() v1alpha1.RouterAccess {
-	var ra v1alpha1.RouterAccess
+func fakeRouterAccess() v2alpha1.RouterAccess {
+	var ra v2alpha1.RouterAccess
 	ra.Name = "fake-router-access"
 	return ra
 }
 
-func fakeRouterAccessNoInterRouterEdgeRoles() v1alpha1.RouterAccess {
+func fakeRouterAccessNoInterRouterEdgeRoles() v2alpha1.RouterAccess {
 	var ra = fakeRouterAccess()
-	ra.Spec.Roles = []v1alpha1.RouterAccessRole{
+	ra.Spec.Roles = []v2alpha1.RouterAccessRole{
 		{
 			Name: "normal",
 			Port: 5671,
@@ -179,9 +179,9 @@ func fakeRouterAccessNoInterRouterEdgeRoles() v1alpha1.RouterAccess {
 	return ra
 }
 
-func fakeRouterAccessInterRouterRole() v1alpha1.RouterAccess {
+func fakeRouterAccessInterRouterRole() v2alpha1.RouterAccess {
 	var ra = fakeRouterAccess()
-	ra.Spec.Roles = []v1alpha1.RouterAccessRole{
+	ra.Spec.Roles = []v2alpha1.RouterAccessRole{
 		{
 			Name: "inter-router",
 			Port: 55671,
@@ -190,16 +190,16 @@ func fakeRouterAccessInterRouterRole() v1alpha1.RouterAccess {
 	return ra
 }
 
-func fakeRouterAccessBothRoles() v1alpha1.RouterAccess {
+func fakeRouterAccessBothRoles() v2alpha1.RouterAccess {
 	var ra = fakeRouterAccessInterRouterRole()
-	ra.Spec.Roles = append(ra.Spec.Roles, v1alpha1.RouterAccessRole{
+	ra.Spec.Roles = append(ra.Spec.Roles, v2alpha1.RouterAccessRole{
 		Name: "edge",
 		Port: 45671,
 	})
 	return ra
 }
 
-func fakeRouterAccessWithSANs(sans ...string) v1alpha1.RouterAccess {
+func fakeRouterAccessWithSANs(sans ...string) v2alpha1.RouterAccess {
 	var ra = fakeRouterAccessBothRoles()
 	ra.Spec.SubjectAlternativeNames = sans
 	return ra

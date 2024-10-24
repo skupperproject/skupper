@@ -10,8 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/skupperproject/skupper/internal/kube/client"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
-	skupperv1alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -19,7 +19,7 @@ import (
 )
 
 type CmdTokenIssue struct {
-	client    skupperv1alpha1.SkupperV1alpha1Interface
+	client    skupperv2alpha1.SkupperV2alpha1Interface
 	CobraCmd  *cobra.Command
 	Flags     *common.CommandTokenIssueFlags
 	namespace string
@@ -37,7 +37,7 @@ func (cmd *CmdTokenIssue) NewClient(cobraCommand *cobra.Command, args []string) 
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
 	utils.HandleError(err)
 
-	cmd.client = cli.GetSkupperClient().SkupperV1alpha1()
+	cmd.client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.namespace = cli.Namespace
 }
 
@@ -118,15 +118,15 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 }
 
 func (cmd *CmdTokenIssue) Run() error {
-	resource := v1alpha1.AccessGrant{
+	resource := v2alpha1.AccessGrant{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v1alpha1",
+			APIVersion: "skupper.io/v2alpha1",
 			Kind:       "AccessGrant",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: cmd.grantName,
 		},
-		Spec: v1alpha1.AccessGrantSpec{
+		Spec: v2alpha1.AccessGrantSpec{
 			RedemptionsAllowed: cmd.Flags.RedemptionsAllowed,
 			ExpirationWindow:   cmd.Flags.ExpirationWindow.String(),
 		},
@@ -148,15 +148,15 @@ func (cmd *CmdTokenIssue) WaitUntil() error {
 
 		if accessGrant != nil && accessGrant.IsReady() {
 
-			accessToken := v1alpha1.AccessToken{
+			accessToken := v2alpha1.AccessToken{
 				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v1alpha1",
+					APIVersion: "skupper.io/v2alpha1",
 					Kind:       "AccessToken",
 				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: accessGrant.Name,
 				},
-				Spec: v1alpha1.AccessTokenSpec{
+				Spec: v2alpha1.AccessTokenSpec{
 					Url:  accessGrant.Status.Url,
 					Code: accessGrant.Status.Code,
 					Ca:   accessGrant.Status.Ca,

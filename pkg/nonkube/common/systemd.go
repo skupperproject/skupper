@@ -11,7 +11,7 @@ import (
 	"text/template"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
@@ -35,7 +35,7 @@ type SystemdService interface {
 type CommandExecutor func(name string, arg ...string) *exec.Cmd
 
 type systemdServiceInfo struct {
-	Site                *v1alpha1.Site
+	Site                *v2alpha1.Site
 	SiteId              string
 	Namespace           string
 	SiteScriptPath      string

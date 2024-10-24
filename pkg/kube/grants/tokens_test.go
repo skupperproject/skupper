@@ -7,7 +7,7 @@ import (
 
 	"gotest.tools/assert"
 
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 func Test_CertTokenWrite(t *testing.T) {
@@ -21,8 +21,8 @@ func Test_CertTokenWrite(t *testing.T) {
 			name: "good",
 			cert: &CertToken{
 				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
-				links: []*v1alpha1.Link{
-					tf.link("my-token", "", []v1alpha1.Endpoint{
+				links: []*v2alpha1.Link{
+					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
 							Host: "foo",
 							Port: "1234",
@@ -35,8 +35,8 @@ func Test_CertTokenWrite(t *testing.T) {
 			name: "bad",
 			cert: &CertToken{
 				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
-				links: []*v1alpha1.Link{
-					tf.link("my-token", "", []v1alpha1.Endpoint{
+				links: []*v2alpha1.Link{
+					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
 							Host: "foo",
 							Port: "1234",
@@ -51,8 +51,8 @@ func Test_CertTokenWrite(t *testing.T) {
 			name: "later bad",
 			cert: &CertToken{
 				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
-				links: []*v1alpha1.Link{
-					tf.link("my-token", "", []v1alpha1.Endpoint{
+				links: []*v2alpha1.Link{
+					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
 							Host: "foo",
 							Port: "1234",

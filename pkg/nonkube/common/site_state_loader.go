@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/skupperproject/skupper/internal/utils"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v1alpha1"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	corev1 "k8s.io/api/core/v1"
@@ -103,8 +103,8 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 		if err != nil {
 			return err
 		}
-		// We only care about our v1alpha1 types
-		if v1alpha1.SchemeGroupVersion == gvk.GroupVersion() {
+		// We only care about our v2alpha1 types
+		if v2alpha1.SchemeGroupVersion == gvk.GroupVersion() {
 			switch gvk.Kind {
 			case "Site":
 				if siteState.Site.Name != "" {
@@ -112,35 +112,35 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 				}
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), siteState.Site)
 			case "Listener":
-				var listener v1alpha1.Listener
+				var listener v2alpha1.Listener
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &listener)
 				siteState.Listeners[listener.Name] = &listener
 			case "Connector":
-				var connector v1alpha1.Connector
+				var connector v2alpha1.Connector
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &connector)
 				siteState.Connectors[connector.Name] = &connector
 			case "RouterAccess":
-				var routerAccess v1alpha1.RouterAccess
+				var routerAccess v2alpha1.RouterAccess
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &routerAccess)
 				siteState.RouterAccesses[routerAccess.Name] = &routerAccess
 			case "Grant":
-				var grant v1alpha1.AccessGrant
+				var grant v2alpha1.AccessGrant
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &grant)
 				siteState.Grants[grant.Name] = &grant
 			case "Link":
-				var link v1alpha1.Link
+				var link v2alpha1.Link
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &link)
 				siteState.Links[link.Name] = &link
 			case "AccessToken":
-				var claim v1alpha1.AccessToken
+				var claim v2alpha1.AccessToken
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &claim)
 				siteState.Claims[claim.Name] = &claim
 			case "Certificate":
-				var certificate v1alpha1.Certificate
+				var certificate v2alpha1.Certificate
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &certificate)
 				siteState.Certificates[certificate.Name] = &certificate
 			case "SecuredAccess":
-				var securedAccess v1alpha1.SecuredAccess
+				var securedAccess v2alpha1.SecuredAccess
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &securedAccess)
 				siteState.SecuredAccesses[securedAccess.Name] = &securedAccess
 			}

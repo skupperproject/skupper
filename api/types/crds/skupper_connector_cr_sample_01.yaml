@@ -1,8 +1,0 @@
-apiVersion: skupper.io/v1alpha1
-kind: Connector
-metadata:
-  name: http-echo
-spec:
-  routingKey: echo
-  port: 8080
-  selector: app=backend

@@ -1,8 +1,0 @@
-apiVersion: skupper.io/v1alpha1
-kind: Listener
-metadata:
-  name: echo
-spec:
-  routingKey: echo
-  host: echo
-  port: 80
