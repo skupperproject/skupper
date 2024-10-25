@@ -64,25 +64,9 @@ func InitialConfig(id string, siteId string, version string, edge bool, helloAge
 	return config
 }
 
-func InitialConfigSkupperRouter(id string, siteId string, version string, edge bool, helloAge int, options types.RouterOptions, path string) RouterConfig {
-	routerConfig := InitialConfig(id, siteId, version, edge, helloAge)
-	routerConfig.Metadata.DataConnectionCount = options.DataConnectionCount
-
-	if options.Logging != nil {
-		ConfigureRouterLogging(&routerConfig, options.Logging)
-	}
-	routerConfig.AddAddress(Address{
-		Prefix:       "mc",
-		Distribution: "multicast",
-	})
-	routerConfig.SetListenersForMode(options, path)
-	return routerConfig
-}
-
-func (r *RouterConfig) SetNormalListeners(path string) {
-	r.Listeners = map[string]Listener{}
+func (r *RouterConfig) AddHealthAndMetricsListener(port int32) {
 	r.AddListener(Listener{
-		Port:        9090,
+		Port:        port,
 		Role:        "normal",
 		Http:        true,
 		HttpRootDir: "disabled",
@@ -90,31 +74,6 @@ func (r *RouterConfig) SetNormalListeners(path string) {
 		Healthz:     true,
 		Metrics:     true,
 	})
-	r.AddListener(Listener{
-		Name: "amqp",
-		Host: "localhost",
-		Port: types.AmqpDefaultPort,
-	})
-	r.AddSslProfile(ConfigureSslProfile("skupper-amqps", path, true))
-	r.AddListener(Listener{
-		Name:             "amqps",
-		Port:             types.AmqpsDefaultPort,
-		SslProfile:       "skupper-amqps",
-		SaslMechanisms:   "EXTERNAL",
-		AuthenticatePeer: true,
-	})
-	r.AddSslProfile(ConfigureSslProfile(types.ServiceClientSecret, path, false))
-}
-
-func (r *RouterConfig) SetListenersForMode(options types.RouterOptions, path string) {
-	r.SetNormalListeners(path)
-	if r.Metadata.Mode != ModeEdge {
-		r.AddSslProfile(ConfigureSslProfile(types.InterRouterProfile, path, true))
-		listeners := []Listener{InteriorListener(options), EdgeListener(options)}
-		for _, listener := range listeners {
-			r.AddListener(listener)
-		}
-	}
 }
 
 func NewBridgeConfig() BridgeConfig {

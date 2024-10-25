@@ -1,4 +1,4 @@
-package main
+package adaptor
 
 import (
 	"context"
@@ -142,7 +142,7 @@ func runLeaderElection(lock *resourcelock.LeaseLock, id string, cli *internalcli
 	})
 }
 
-func startCollector(cli *internalclient.KubeClient) {
+func StartCollector(cli *internalclient.KubeClient) {
 	lockname := types.SiteLeaderLockName
 	namespace := cli.Namespace
 	podname, _ := os.Hostname()

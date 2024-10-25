@@ -117,7 +117,20 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site) error {
 				Prefix:       "mc",
 				Distribution: "multicast",
 			})
-			rc.SetNormalListeners(SSL_PROFILE_PATH)
+			rc.AddHealthAndMetricsListener(9090)
+			rc.AddListener(qdr.Listener{
+				Name: "amqp",
+				Host: "localhost",
+				Port: 5672,
+			})
+			rc.AddSslProfile(qdr.ConfigureSslProfile("skupper-local-server", SSL_PROFILE_PATH, true))
+			rc.AddListener(qdr.Listener{
+				Name:             "amqps",
+				Port:             5671,
+				SslProfile:       "skupper-local-server",
+				SaslMechanisms:   "EXTERNAL",
+				AuthenticatePeer: true,
+			})
 			routerConfig = &rc
 		}
 		s.initialised = true

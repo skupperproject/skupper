@@ -47,35 +47,6 @@ func TestInitialConfig(t *testing.T) {
 	}
 }
 
-func TestInitialConfigSkupperRouter(t *testing.T) {
-	routerOptions := types.RouterOptions{
-		MaxFrameSize:     1518,
-		LoadBalancerIp:   "1.2.3.4",
-		DisableMutualTLS: true,
-		Logging: []types.RouterLogConfig{
-			{
-				Module: "PROTOCOL",
-				Level:  "trace",
-			},
-		},
-	}
-	path := "/tmp/skupper-router"
-	routerConfig := InitialConfigSkupperRouter("foo", "bar", "1.2.3", false, 10, routerOptions, path)
-
-	if routerConfig.Metadata.Id != "foo" {
-		t.Errorf("Invalid id, expected 'foo' got %q", routerConfig.Metadata.Id)
-	}
-	if len(routerConfig.LogConfig) != 1 {
-		t.Errorf("Expect one log entry")
-	}
-	if routerConfig.Addresses["mc"].Distribution != "multicast" {
-		t.Errorf("Expect address to configured as multicast")
-	}
-	if routerConfig.IsEdge() {
-		t.Errorf("Expected interior mode")
-	}
-}
-
 func TestAddRemoveListener(t *testing.T) {
 	config := InitialConfig("foo", "bar", "undefined", true, 3)
 	config.AddListener(Listener{
