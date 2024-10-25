@@ -30,7 +30,7 @@ export USERNS="keep-id"
 GID=$(id -g "${UID}")
 export RUNAS="${UID}:${GID}"
 if [ "${UID}" -eq 0 ]; then
-    export SKUPPER_OUTPUT_PATH="/usr/local/share/skupper"
+    export SKUPPER_OUTPUT_PATH="/var/lib/skupper"
     export SERVICE_DIR="/etc/systemd/system"
     export RUNTIME_DIR="/run"
     export SYSTEMCTL="systemctl"

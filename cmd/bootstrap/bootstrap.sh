@@ -79,7 +79,7 @@ container_env() {
             export CONTAINER_ENDPOINT_DEFAULT="unix:///run/podman/podman.sock"
         fi
         export USERNS=""
-        export SKUPPER_OUTPUT_PATH="/usr/local/share/skupper"
+        export SKUPPER_OUTPUT_PATH="/var/lib/skupper"
         export SERVICE_DIR="/etc/systemd/system"
     fi
     mkdir -p "${SKUPPER_OUTPUT_PATH}"

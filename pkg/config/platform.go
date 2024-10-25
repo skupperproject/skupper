@@ -161,7 +161,7 @@ func GetPlatform() types.Platform {
 
 func getDataHome() string {
 	if os.Getuid() == 0 {
-		return "/usr/local/share/skupper"
+		return "/var/lib/skupper"
 	}
 	dataHome, ok := os.LookupEnv("XDG_DATA_HOME")
 	if !ok {
