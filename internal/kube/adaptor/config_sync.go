@@ -1,12 +1,9 @@
-package main
+package adaptor
 
 import (
 	"fmt"
 	"log"
-	"os"
-	paths "path"
 	"reflect"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -21,26 +18,26 @@ type ConfigSync struct {
 	agentPool       *qdr.AgentPool
 	controller      *kube.Controller
 	namespace       string
-	tracking        map[string]*SyncTarget
+	profileSyncer   *SslProfileSyncer
 	config          *kube.ConfigMapWatcher
 	secrets         *kube.SecretWatcher
 	path            string
 	routerConfigMap string
 }
 
-func newConfigSync(cli internalclient.Clients, namespace string, path string, routerConfigMap string) *ConfigSync {
+func NewConfigSync(cli internalclient.Clients, namespace string, path string, routerConfigMap string) *ConfigSync {
 	configSync := &ConfigSync{
 		agentPool:       qdr.NewAgentPool("amqp://localhost:5672", nil),
 		controller:      kube.NewController("config-sync", cli),
 		namespace:       namespace,
-		tracking:        map[string]*SyncTarget{},
+		profileSyncer:   newSslProfileSyncer(path),
 		path:            path,
 		routerConfigMap: routerConfigMap,
 	}
 	return configSync
 }
 
-func (c *ConfigSync) start(stopCh <-chan struct{}) error {
+func (c *ConfigSync) Start(stopCh <-chan struct{}) error {
 	if err := mkdir(c.path); err != nil {
 		return err
 	}
@@ -58,7 +55,7 @@ func (c *ConfigSync) start(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *ConfigSync) stop() {
+func (c *ConfigSync) Stop() {
 	c.controller.Stop()
 }
 
@@ -66,30 +63,11 @@ func (c *ConfigSync) key(name string) string {
 	return fmt.Sprintf("%s/%s", c.namespace, name)
 }
 
-func (c *ConfigSync) track(name string, path string) (*SyncTarget, bool) {
-	if current, ok := c.tracking[name]; ok {
-		log.Printf("CONFIG_SYNC: Secret %q already being tracked", name)
-		return current, false
-	} else {
-		target := &SyncTarget{
-			name: name,
-			path: path,
-		}
-		c.tracking[name] = target
-		log.Printf("CONFIG_SYNC: Tracking secret %q", name)
-		return target, true
-	}
+func (c *ConfigSync) trackSslProfile(profile string) (*SslProfile, bool) {
+	return c.profileSyncer.get(profile)
 }
 
-func (c *ConfigSync) trackSslProfile(profile string) (*SyncTarget, bool) {
-	secret := profile
-	if strings.HasSuffix(profile, "-profile") {
-		secret = strings.TrimSuffix(profile, "-profile")
-	}
-	return c.track(secret, paths.Join(c.path, profile))
-}
-
-func (c *ConfigSync) sync(target *SyncTarget) error {
+func (c *ConfigSync) sync(target *SslProfile) error {
 	secret, err := c.secrets.Get(c.key(target.name))
 	if err != nil {
 		return fmt.Errorf("CONFIG_SYNC: Error looking up secret for %s: %s", target.name, err)
@@ -110,7 +88,7 @@ func (c *ConfigSync) secretEvent(key string, secret *corev1.Secret) error {
 	if secret == nil {
 		return nil
 	}
-	if current, ok := c.tracking[secret.Name]; ok {
+	if current, ok := c.profileSyncer.bySecretName(secret.Name); ok {
 		if current.secret != nil && reflect.DeepEqual(current.secret.Data, secret.Data) {
 			log.Printf("CONFIG_SYNC: Secret %q already up to date", secret.Name)
 			return nil
@@ -270,25 +248,11 @@ func (c *ConfigSync) syncSslProfilesToRouter(desired map[string]qdr.SslProfile) 
 
 func (c *ConfigSync) syncSslProfileCredentialsToDisk(profiles map[string]qdr.SslProfile) error {
 	for _, profile := range profiles {
-		if isExcludedProfile(profile.Name) {
-			continue
-		}
 		if tracker, sync := c.trackSslProfile(profile.Name); sync {
 			if err := c.sync(tracker); err != nil {
 				return fmt.Errorf("Error synchronising secret for profile %s: %s", profile.Name, err)
 			}
 		}
-	}
-	return nil
-}
-func (c *ConfigSync) trackSslProfiles(config *qdr.RouterConfig, path string) error {
-	for _, profile := range config.SslProfiles {
-		secretName := profile.Name
-
-		if strings.HasSuffix(profile.Name, "-profile") {
-			secretName = strings.TrimSuffix(profile.Name, "-profile")
-		}
-		c.track(secretName, paths.Join(path, profile.Name))
 	}
 	return nil
 }
@@ -309,57 +273,4 @@ func (c *ConfigSync) recoverTracking() error {
 		c.trackSslProfile(profile.Name)
 	}
 	return nil
-}
-
-type SyncTarget struct {
-	name   string
-	path   string
-	secret *corev1.Secret
-}
-
-func (s *SyncTarget) sync(secret *corev1.Secret) error {
-	if s.secret != nil && reflect.DeepEqual(s.secret.Data, secret.Data) {
-		return nil
-	}
-	if err := writeSecretToPath(secret, s.path); err != nil {
-		return err
-	}
-	s.secret = secret
-	return nil
-}
-
-func writeSecretToPath(secret *corev1.Secret, path string) error {
-	if err := mkdir(path); err != nil {
-		return err
-	}
-	for key, value := range secret.Data {
-		if err := os.WriteFile(paths.Join(path, key), value, 0777); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func mkdir(path string) error {
-	_, err := os.Stat(path)
-	if os.IsNotExist(err) {
-		err = os.Mkdir(path, 0777)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func excludedProfiles() []string {
-	return []string{"skupper-amqps", "skupper-service-client"}
-}
-
-func isExcludedProfile(name string) bool {
-	for _, v := range excludedProfiles() {
-		if name == v {
-			return true
-		}
-	}
-	return false
 }

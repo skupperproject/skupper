@@ -1058,7 +1058,6 @@ func createRouterConfigMock(s *Site) error {
 		Prefix:       "mc",
 		Distribution: "multicast",
 	})
-	rc.SetNormalListeners(SSL_PROFILE_PATH)
 
 	err := s.createRouterConfig(&rc)
 	if err != nil {

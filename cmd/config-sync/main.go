@@ -12,6 +12,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	iflag "github.com/skupperproject/skupper/internal/flag"
+	"github.com/skupperproject/skupper/internal/kube/adaptor"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/version"
@@ -36,12 +38,23 @@ func SetupSignalHandler() (stopCh <-chan struct{}) {
 	return stop
 }
 
-const SHARED_TLS_DIRECTORY = "/etc/skupper-router-certs"
-
 func main() {
+	flags := flag.NewFlagSet("", flag.ExitOnError)
+
+	var namespace string
+	var kubeconfig string
+	iflag.StringVar(flags, &namespace, "namespace", "NAMESPACE", "", "The Kubernetes namespace scope for the controller")
+	iflag.StringVar(flags, &kubeconfig, "kubeconfig", "KUBECONFIG", "", "A path to the kubeconfig file to use")
+
+	var configDir string
+	var configMapName string
+	iflag.StringVar(flags, &configDir, "config-dir", "SKUPPER_CONFIG_DIR", "/etc/skupper-router-certs", "The directory to which configuration should be saved")
+	iflag.StringVar(flags, &configMapName, "router-config", "SKUPPER_ROUTER_CONFIG", "skupper-router", "The name of the ConfigMap containg the router config")
+
 	// if -version used, report and exit
-	isVersion := flag.Bool("version", false, "Report the version of Config Sync")
-	flag.Parse()
+	isVersion := flags.Bool("version", false, "Report the version of Config Sync")
+	isInit := flags.Bool("init", false, "Downloads configuration and ssl profile artefacts")
+	flags.Parse(os.Args[1:])
 	if *isVersion {
 		fmt.Println(version.Version)
 		os.Exit(0)
@@ -53,9 +66,16 @@ func main() {
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
 
-	cli, err := internalclient.NewClient("", "", "")
+	cli, err := internalclient.NewClient(namespace, "", kubeconfig)
 	if err != nil {
 		log.Fatal("Error getting van client: ", err.Error())
+	}
+
+	if *isInit {
+		if err := adaptor.InitialiseConfig(cli.GetKubeClient(), cli.GetNamespace(), configDir, configMapName); err != nil {
+			log.Fatal("Error initialising config ", err.Error())
+		}
+		os.Exit(0)
 	}
 
 	log.Println("CONFIG_SYNC: Waiting for Skupper router to be ready")
@@ -65,7 +85,7 @@ func main() {
 	}
 
 	log.Println("CONFIG_SYNC: Starting collector...")
-	go startCollector(cli)
+	go adaptor.StartCollector(cli)
 
 	//start health check
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -74,16 +94,11 @@ func main() {
 	})
 	go http.ListenAndServe(":9191", nil)
 
-	routerConfigMap := os.Getenv("SKUPPER_CONFIG")
-	if routerConfigMap == "" {
-		routerConfigMap = "skupper-internal" // change defult?
-	}
-
-	configSync := newConfigSync(cli, cli.GetNamespace(), SHARED_TLS_DIRECTORY, routerConfigMap)
+	configSync := adaptor.NewConfigSync(cli, cli.GetNamespace(), configDir, configMapName)
 	log.Println("CONFIG_SYNC: Starting controller loop...")
-	configSync.start(stopCh)
+	configSync.Start(stopCh)
 
 	<-stopCh
 	log.Println("CONFIG_SYNC: Shutting down...")
-	configSync.stop()
+	configSync.Stop()
 }
