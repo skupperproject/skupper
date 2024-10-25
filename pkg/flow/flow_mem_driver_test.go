@@ -1625,15 +1625,15 @@ func TestGraph(t *testing.T) {
 }
 
 func TestLinkOutgoingDelete(t *testing.T) {
-	name1 := "east-skupper-router-1111-r2"
-	name2 := "west-skupper-router-1111-r1"
+	name1 := "east-skupper-router-1111-router1"
+	name2 := "west-skupper-router-1111-router0"
 
 	links := []LinkRecord{
 		{
 			Base: Base{
 				RecType:   recordNames[Link],
 				Identity:  "link:0",
-				Parent:    "router:2",
+				Parent:    "router0:0",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
 			Name:      &name1,
@@ -1643,7 +1643,7 @@ func TestLinkOutgoingDelete(t *testing.T) {
 			Base: Base{
 				RecType:   recordNames[Link],
 				Identity:  "link:1",
-				Parent:    "router:1",
+				Parent:    "router1:0",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
 			Name:      &name2,
@@ -1655,7 +1655,7 @@ func TestLinkOutgoingDelete(t *testing.T) {
 		{
 			Base: Base{
 				RecType:   recordNames[Router],
-				Identity:  "router:0",
+				Identity:  "router0:0",
 				Parent:    "site:0",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
@@ -1664,7 +1664,7 @@ func TestLinkOutgoingDelete(t *testing.T) {
 		{
 			Base: Base{
 				RecType:   recordNames[Router],
-				Identity:  "router:1",
+				Identity:  "router1:0",
 				Parent:    "site:0",
 				StartTime: uint64(time.Now().UnixNano()) / uint64(time.Microsecond),
 			},
@@ -1681,7 +1681,7 @@ func TestLinkOutgoingDelete(t *testing.T) {
 		metav1.CreateOptions{},
 	)
 	if err != nil {
-		t.Fatalf("kube cliet setup failed: %v", err)
+		t.Fatalf("kube client setup failed: %v", err)
 	}
 	fc := NewFlowCollector(FlowCollectorSpec{
 		Mode:                RecordStatus,
