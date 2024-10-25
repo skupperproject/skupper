@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/skupperproject/skupper/api/types"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"gotest.tools/assert"
@@ -15,11 +14,8 @@ func TestLink_Apply(t *testing.T) {
 	id := "router-1"
 	siteId := "site-1"
 	version := "v2.0"
-	isEdge := true
 	notEdge := false
 	helloAge := 10
-	sslPath := ""
-	options := types.RouterOptions{}
 
 	type fields struct {
 		name        string
@@ -43,7 +39,7 @@ func TestLink_Apply(t *testing.T) {
 				definition:  nil,
 			},
 			args: args{
-				current: qdr.InitialConfigSkupperRouter(id, siteId, version, notEdge, helloAge, options, sslPath),
+				current: qdr.InitialConfig(id, siteId, version, notEdge, helloAge),
 			},
 			want: false,
 		},
@@ -61,7 +57,7 @@ func TestLink_Apply(t *testing.T) {
 				},
 			},
 			args: args{
-				current: qdr.InitialConfigSkupperRouter(id, siteId, version, notEdge, helloAge, options, sslPath),
+				current: qdr.InitialConfig(id, siteId, version, notEdge, helloAge),
 			},
 			want: false,
 		},
@@ -87,7 +83,7 @@ func TestLink_Apply(t *testing.T) {
 				},
 			},
 			args: args{
-				current: qdr.InitialConfigSkupperRouter(id, siteId, version, notEdge, helloAge, options, sslPath),
+				current: qdr.InitialConfig(id, siteId, version, notEdge, helloAge),
 			},
 			want: true,
 		},
@@ -113,7 +109,7 @@ func TestLink_Apply(t *testing.T) {
 				},
 			},
 			args: args{
-				current: qdr.InitialConfigSkupperRouter(id, siteId, version, isEdge, helloAge, options, sslPath),
+				current: qdr.InitialConfig(id, siteId, version, true, helloAge),
 			},
 			want: true,
 		},
@@ -136,8 +132,6 @@ func TestLinkMap_Apply(t *testing.T) {
 	//	isEdge := true
 	notEdge := false
 	helloAge := 10
-	sslPath := ""
-	options := types.RouterOptions{}
 
 	type fields struct {
 		name        string
@@ -301,7 +295,7 @@ func TestLinkMap_Apply(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		routerConfig := qdr.InitialConfigSkupperRouter(id, siteId, version, notEdge, helloAge, options, sslPath)
+		routerConfig := qdr.InitialConfig(id, siteId, version, notEdge, helloAge)
 		linkMap := make(LinkMap)
 		t.Run(tt.name, func(t *testing.T) {
 			for i, link := range tt.links {

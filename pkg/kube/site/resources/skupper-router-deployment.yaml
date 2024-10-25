@@ -34,22 +34,8 @@ spec:
     spec:
       containers:
       - env:
-        - name: APPLICATION_NAME
-          value: skupper-router
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: metadata.namespace
-        - name: POD_IP
-          valueFrom:
-            fieldRef:
-              apiVersion: v1
-              fieldPath: status.podIP
-        - name: QDROUTERD_AUTO_MESH_DISCOVERY
-          value: QUERY
         - name: QDROUTERD_CONF
-          value: /etc/skupper-router/config/skrouterd.json
+          value: /etc/skupper-router-certs/skrouterd.json
         - name: QDROUTERD_CONF_TYPE
           value: json
         - name: SKUPPER_SITE_ID
@@ -93,8 +79,6 @@ spec:
         volumeMounts:
         - mountPath: /etc/skupper-router-certs/skupper-amqps/
           name: skupper-local-server
-        - mountPath: /etc/skupper-router/config/
-          name: router-config
         - mountPath: /etc/skupper-router-certs
           name: skupper-router-certs
       - env:
@@ -107,7 +91,7 @@ spec:
           value: {{ .SiteId }}
         - name: SKUPPER_SITE_NAME
           value: {{ .SiteName }}
-        - name: SKUPPER_CONFIG
+        - name: SKUPPER_ROUTER_CONFIG
           value: {{ .Group }}
         - name: SKUPPER_ROUTER_DEPLOYMENT
           value: {{ .Group }}
@@ -127,15 +111,22 @@ spec:
         volumeMounts:
         - mountPath: /etc/skupper-router-certs
           name: skupper-router-certs
+      initContainers:
+      - env:
+        - name: SKUPPER_ROUTER_CONFIG
+          value: {{ .Group }}
+        image: {{ .ConfigSyncImage.Name }}
+        imagePullPolicy: {{ .ConfigSyncImage.PullPolicy }}
+        name: config-init
+        command: ["/app/config-sync", "-init"]
+        volumeMounts:
+        - mountPath: /etc/skupper-router-certs
+          name: skupper-router-certs
       serviceAccount: {{ .ServiceAccount }}
       volumes:
       - name: skupper-local-server
         secret:
           defaultMode: 420
           secretName: skupper-local-server
-      - configMap:
-          defaultMode: 420
-          name: {{ .Group }}
-        name: router-config
       - emptyDir: {}
         name: skupper-router-certs
