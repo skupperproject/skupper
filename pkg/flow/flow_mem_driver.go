@@ -809,23 +809,26 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 				}
 			} else {
 				if link.EndTime > 0 {
-					if current.Direction != nil {
-						var peerRouterId string
-						peerDirection := Outgoing
-						if *current.Direction == Outgoing {
-							peerDirection = Incoming
-						}
-						// find any links to the peer router and delete the one that is for current link
-						for _, router := range fc.Routers {
-							if *current.Name == normalizeRouterName(*router.Name) {
-								peerRouterId = router.Identity
-								break
+					// find and delete the corresponding link for the peer router
+					if currentParentRouter, ok := fc.Routers[current.Parent]; ok {
+						if current.Direction != nil && current.Name != nil && currentParentRouter.Name != nil {
+							var peerRouterId string
+							peerDirection := Outgoing
+							if *current.Direction == Outgoing {
+								peerDirection = Incoming
 							}
-						}
-						for _, eLink := range fc.Links {
-							if eLink.Direction != nil && *eLink.Direction == peerDirection && peerRouterId == eLink.Parent && *eLink.Name == normalizeRouterName(*fc.Routers[current.Parent].Name) {
-								eLink.EndTime = link.EndTime
-								fc.deleteRecord(eLink)
+							for _, router := range fc.Routers {
+								if router.Name != nil && *current.Name == normalizeRouterName(*router.Name) {
+									peerRouterId = router.Identity
+									break
+								}
+							}
+							for _, eLink := range fc.Links {
+								if eLink.Direction != nil && *eLink.Direction == peerDirection && eLink.Parent == peerRouterId && eLink.Name != nil && *eLink.Name == normalizeRouterName(*currentParentRouter.Name) {
+									eLink.EndTime = link.EndTime
+									fc.deleteRecord(eLink)
+									break
+								}
 							}
 						}
 					}
