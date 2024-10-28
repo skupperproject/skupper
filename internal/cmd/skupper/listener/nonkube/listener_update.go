@@ -2,15 +2,32 @@ package nonkube
 
 import (
 	"fmt"
+	"net"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type ListenerUpdates struct {
+	routingKey   string
+	host         string
+	tlsSecret    string
+	listenerType string
+	port         int
+	output       string
+}
 type CmdListenerUpdate struct {
-	CobraCmd  *cobra.Command
-	Flags     *common.CommandListenerUpdateFlags
-	Namespace string
-	siteName  string
+	listenerHandler *fs.ListenerHandler
+	CobraCmd        *cobra.Command
+	Flags           *common.CommandListenerUpdateFlags
+	namespace       string
+	listenerName    string
+	newSettings     ListenerUpdates
 }
 
 func NewCmdListenerUpdate() *CmdListenerUpdate {
@@ -18,12 +35,145 @@ func NewCmdListenerUpdate() *CmdListenerUpdate {
 }
 
 func (cmd *CmdListenerUpdate) NewClient(cobraCommand *cobra.Command, args []string) {
-	//TODO
+	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace) != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String() != "" {
+		cmd.namespace = cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String()
+	}
+
+	cmd.listenerHandler = fs.NewListenerHandler(cmd.namespace)
 }
 
-func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error { return nil }
-func (cmd *CmdListenerUpdate) InputToOptions()                     {}
-func (cmd *CmdListenerUpdate) Run() error {
-	return fmt.Errorf("command not supported by the selected platform")
+func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
+	var validationErrors []error
+	opts := fs.GetOptions{RuntimeFirst: false}
+	resourceStringValidator := validator.NewResourceStringValidator()
+	numberValidator := validator.NewNumberValidator()
+	listenerTypeValidator := validator.NewOptionValidator(common.ListenerTypes)
+	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
+	hostStringValidator := validator.NewHostStringValidator()
+
+	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
+		fmt.Println("Warning: --context flag is not supported on this platform")
+	}
+
+	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameKubeconfig) != nil && cmd.CobraCmd.Flag(common.FlagNameKubeconfig).Value.String() != "" {
+		fmt.Println("Warning: --kubeconfig flag is not supported on this platform")
+	}
+
+	// Validate arguments name
+	if len(args) < 1 {
+		validationErrors = append(validationErrors, fmt.Errorf("listener name must be configured"))
+	} else if len(args) > 1 {
+		validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
+	} else if args[0] == "" {
+		validationErrors = append(validationErrors, fmt.Errorf("listener name must not be empty"))
+	} else {
+		ok, err := resourceStringValidator.Evaluate(args[0])
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("listener name is not valid: %s", err))
+		} else {
+			cmd.listenerName = args[0]
+		}
+	}
+
+	// Validate that there is already a listener with this name in the namespace
+	if cmd.listenerName != "" {
+		listener, err := cmd.listenerHandler.Get(cmd.listenerName, opts)
+		if listener == nil || err != nil {
+			validationErrors = append(validationErrors, fmt.Errorf("listener %s must exist in namespace %s to be updated", cmd.listenerName, cmd.namespace))
+		} else {
+			// save existing values
+			cmd.newSettings.host = listener.Spec.Host
+			cmd.newSettings.port = listener.Spec.Port
+			cmd.newSettings.tlsSecret = listener.Spec.TlsCredentials
+			cmd.newSettings.listenerType = listener.Spec.Type
+		}
+	}
+
+	// Validate flags
+	if cmd.Flags.RoutingKey != "" {
+		ok, err := resourceStringValidator.Evaluate(cmd.Flags.RoutingKey)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("routing key is not valid: %s", err))
+		} else {
+			cmd.newSettings.routingKey = cmd.Flags.RoutingKey
+		}
+	}
+	if cmd.Flags.Host != "" {
+		ip := net.ParseIP(cmd.Flags.Host)
+		ok, _ := hostStringValidator.Evaluate(cmd.Flags.Host)
+		if !ok || ip == nil {
+			validationErrors = append(validationErrors, fmt.Errorf("host is not valid: a valid IP address or hostname is expected"))
+		} else {
+			cmd.newSettings.host = cmd.Flags.Host
+		}
+	}
+	if cmd.Flags.TlsSecret != "" {
+		// TBD what validation for secret
+		cmd.newSettings.tlsSecret = cmd.Flags.TlsSecret
+	}
+	if cmd.Flags.ListenerType != "" {
+		ok, err := listenerTypeValidator.Evaluate(cmd.Flags.ListenerType)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("listener type is not valid: %s", err))
+		} else {
+			cmd.newSettings.listenerType = cmd.Flags.ListenerType
+		}
+	}
+	if cmd.Flags.Port != 0 {
+		ok, err := numberValidator.Evaluate(cmd.Flags.Port)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("listener port is not valid: %s", err))
+		} else {
+			cmd.newSettings.port = cmd.Flags.Port
+		}
+	}
+	if cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
+		} else {
+			cmd.newSettings.output = cmd.Flags.Output
+		}
+	}
+
+	return validationErrors
 }
+
+func (cmd *CmdListenerUpdate) InputToOptions() {
+	if cmd.namespace == "" {
+		cmd.namespace = "default"
+	}
+}
+
+func (cmd *CmdListenerUpdate) Run() error {
+	listenerResource := v2alpha1.Listener{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "Listener",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cmd.listenerName,
+			Namespace: cmd.namespace,
+		},
+		Spec: v2alpha1.ListenerSpec{
+			Host:           cmd.newSettings.host,
+			Port:           cmd.newSettings.port,
+			RoutingKey:     cmd.newSettings.routingKey,
+			TlsCredentials: cmd.newSettings.tlsSecret,
+			Type:           cmd.newSettings.listenerType,
+		},
+	}
+	if cmd.newSettings.output != "" {
+		encodedOutput, err := utils.Encode(cmd.newSettings.output, listenerResource)
+		fmt.Println(encodedOutput)
+		return err
+	} else {
+		err := cmd.listenerHandler.Add(listenerResource)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (cmd *CmdListenerUpdate) WaitUntil() error { return nil }
