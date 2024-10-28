@@ -20,12 +20,12 @@ func TestManifestManager(t *testing.T) {
 			title: "configured manifest has different images that the default manifest",
 			envVariablesWithValue: []string{
 				images.SkupperImageRegistryEnvKey,
-				images.ConfigSyncImageEnvKey,
+				images.AdaptorImageEnvKey,
 				images.RouterImageEnvKey},
 			expectedConfiguredManifest: Manifest{
 				Images: []SkupperImage{
 					{
-						Name: "SKUPPER_CONFIG_SYNC_IMAGE_TESTING",
+						Name: "SKUPPER_ADAPTOR_IMAGE_TESTING",
 					},
 					{
 						Name: "SKUPPER_ROUTER_IMAGE_TESTING"},
@@ -34,7 +34,7 @@ func TestManifestManager(t *testing.T) {
 			expectedDefaultManifestWithEnv: Manifest{
 				Images: []SkupperImage{
 					{
-						Name: strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
+						Name: strings.Join([]string{images.DefaultImageRegistry, images.AdaptorImageName}, "/"),
 					},
 					{
 						Name: strings.Join([]string{images.DefaultImageRegistry, images.RouterImageName}, "/"),
@@ -42,7 +42,7 @@ func TestManifestManager(t *testing.T) {
 				},
 				Variables: &map[string]string{
 					images.SkupperImageRegistryEnvKey: "SKUPPER_IMAGE_REGISTRY_TESTING",
-					images.ConfigSyncImageEnvKey:      "SKUPPER_CONFIG_SYNC_IMAGE_TESTING",
+					images.AdaptorImageEnvKey:         "SKUPPER_ADAPTOR_IMAGE_TESTING",
 					images.RouterImageEnvKey:          "SKUPPER_ROUTER_IMAGE_TESTING",
 				},
 			},
@@ -53,7 +53,7 @@ func TestManifestManager(t *testing.T) {
 			expectedConfiguredManifest: Manifest{
 				Images: []SkupperImage{
 					{
-						Name: strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
+						Name: strings.Join([]string{images.DefaultImageRegistry, images.AdaptorImageName}, "/"),
 					},
 					{
 						Name: strings.Join([]string{images.DefaultImageRegistry, images.RouterImageName}, "/"),
@@ -63,7 +63,7 @@ func TestManifestManager(t *testing.T) {
 			expectedDefaultManifestWithEnv: Manifest{
 				Images: []SkupperImage{
 					{
-						Name: strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
+						Name: strings.Join([]string{images.DefaultImageRegistry, images.AdaptorImageName}, "/"),
 					},
 					{
 						Name: strings.Join([]string{images.DefaultImageRegistry, images.RouterImageName}, "/"),

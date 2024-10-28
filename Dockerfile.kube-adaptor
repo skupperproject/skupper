@@ -21,5 +21,5 @@ RUN useradd --uid 10000 runner
 USER 10000
 
 WORKDIR /app
-COPY --from=builder /go/src/app/config-sync .
-CMD ["/app/config-sync"]
+COPY --from=builder /go/src/app/kube-adaptor .
+CMD ["/app/kube-adaptor"]

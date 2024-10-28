@@ -4,7 +4,7 @@ const (
 	DefaultImageRegistry             string = "quay.io/skupper"
 	RouterImageName                  string = "skupper-router:main"
 	ControllerImageName              string = "controller:v2-latest"
-	ConfigSyncImageName              string = "config-sync:v2-latest"
+	AdaptorImageName                 string = "kube-adaptor:v2-latest"
 	NetworkConsoleCollectorImageName string = "network-console-collector:v2-latest"
 	BootstrapImageName               string = "bootstrap:v2-latest"
 

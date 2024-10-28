@@ -77,8 +77,6 @@ spec:
           successThreshold: 1
           timeoutSeconds: 1
         volumeMounts:
-        - mountPath: /etc/skupper-router-certs/skupper-amqps/
-          name: skupper-local-server
         - mountPath: /etc/skupper-router-certs
           name: skupper-router-certs
       - env:
@@ -95,8 +93,8 @@ spec:
           value: {{ .Group }}
         - name: SKUPPER_ROUTER_DEPLOYMENT
           value: {{ .Group }}
-        image: {{ .ConfigSyncImage.Name }}
-        imagePullPolicy: {{ .ConfigSyncImage.PullPolicy }}
+        image: {{ .AdaptorImage.Name }}
+        imagePullPolicy: {{ .AdaptorImage.PullPolicy }}
         name: config-sync
         readinessProbe:
           failureThreshold: 3
@@ -115,18 +113,14 @@ spec:
       - env:
         - name: SKUPPER_ROUTER_CONFIG
           value: {{ .Group }}
-        image: {{ .ConfigSyncImage.Name }}
-        imagePullPolicy: {{ .ConfigSyncImage.PullPolicy }}
+        image: {{ .AdaptorImage.Name }}
+        imagePullPolicy: {{ .AdaptorImage.PullPolicy }}
         name: config-init
-        command: ["/app/config-sync", "-init"]
+        command: ["/app/kube-adaptor", "-init"]
         volumeMounts:
         - mountPath: /etc/skupper-router-certs
           name: skupper-router-certs
       serviceAccount: {{ .ServiceAccount }}
       volumes:
-      - name: skupper-local-server
-        secret:
-          defaultMode: 420
-          secretName: skupper-local-server
       - emptyDir: {}
         name: skupper-router-certs

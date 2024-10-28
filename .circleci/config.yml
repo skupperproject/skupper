@@ -96,7 +96,7 @@ commands:
             echo 'export GOPATH=$HOME/go' >> $BASH_ENV
             echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
             echo "export SKUPPER_CONTROLLER_IMAGE=${LOCAL_IP}:5000/controller" >> $BASH_ENV
-            echo "export SKUPPER_CONFIG_SYNC_IMAGE=${LOCAL_IP}:5000/config-sync" >> $BASH_ENV
+            echo "export SKUPPER_ADAPTOR_IMAGE=${LOCAL_IP}:5000/kube-adaptor" >> $BASH_ENV
             echo "export SKUPPER_NETWORK_CONSOLE_COLLECTOR_IMAGE=${LOCAL_IP}:5000/network-console-collector" >> $BASH_ENV
             echo "export SKUPPER_BOOTSTRAP_IMAGE=${LOCAL_IP}:5000/bootstrap" >> $BASH_ENV
             echo "export TEST_IMAGE=${LOCAL_IP}:5000/skupper-tests" >> $BASH_ENV
@@ -131,8 +131,8 @@ commands:
           command: |
             gunzip -c /tmp/images/controller.gz | docker import - 0.0.0.0:5000/controller
             gunzip -c /tmp/images/controller.gz | docker load
-            gunzip -c /tmp/images/config-sync.gz | docker import - 0.0.0.0:5000/config-sync
-            gunzip -c /tmp/images/config-sync.gz | docker load
+            gunzip -c /tmp/images/kube-adaptor.gz | docker import - 0.0.0.0:5000/kube-adaptor
+            gunzip -c /tmp/images/kube-adaptor.gz | docker load
             gunzip -c /tmp/images/network-console-collector.gz | docker import - 0.0.0.0:5000/network-console-collector
             gunzip -c /tmp/images/network-console-collector.gz | docker load
             gunzip -c /tmp/images/bootstrap.gz | docker import - 0.0.0.0:5000/bootstrap
@@ -141,7 +141,7 @@ commands:
           name: push to local registry
           command: |
             docker push 0.0.0.0:5000/controller
-            docker push 0.0.0.0:5000/config-sync
+            docker push 0.0.0.0:5000/kube-adaptor
             docker push 0.0.0.0:5000/network-console-collector
             docker push 0.0.0.0:5000/bootstrap
 
@@ -502,8 +502,8 @@ jobs:
             mkdir /tmp/images
             docker tag quay.io/skupper/controller:v2-latest 0.0.0.0:5000/controller
             docker save 0.0.0.0:5000/controller | gzip > /tmp/images/controller.gz
-            docker tag quay.io/skupper/config-sync:v2-latest 0.0.0.0:5000/config-sync
-            docker save 0.0.0.0:5000/config-sync | gzip > /tmp/images/config-sync.gz
+            docker tag quay.io/skupper/kube-adaptor:v2-latest 0.0.0.0:5000/kube-adaptor
+            docker save 0.0.0.0:5000/kube-adaptor | gzip > /tmp/images/kube-adaptor.gz
             docker tag quay.io/skupper/network-console-collector:v2-latest 0.0.0.0:5000/network-console-collector
             docker save 0.0.0.0:5000/network-console-collector | gzip > /tmp/images/network-console-collector.gz
             docker tag quay.io/skupper/bootstrap:v2-latest 0.0.0.0:5000/bootstrap
@@ -670,7 +670,7 @@ jobs:
           name:
           command: |
             echo 'export CONTROLLER_IMAGE=quay.io/skupper/controller:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:${CIRCLE_TAG}' >> $BASH_ENV
+            echo 'export ADAPTOR_IMAGE=quay.io/skupper/kube-adaptor:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export NETWORK_CONSOLE_COLLECTOR_IMAGE=quay.io/skupper/network-console-collector:${CIRCLE_TAG}' >> $BASH_ENV
             echo 'export BOOTSTRAP_IMAGE=quay.io/skupper/bootstrap:${CIRCLE_TAG}' >> $BASH_ENV
             source $BASH_ENV
@@ -689,7 +689,7 @@ jobs:
           name: "Publishing main images"
           command: |
             echo 'export CONTROLLER_IMAGE=quay.io/skupper/controller:main' >> $BASH_ENV
-            echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:main' >> $BASH_ENV
+            echo 'export ADAPTOR_IMAGE=quay.io/skupper/kube-adaptor:main' >> $BASH_ENV
             echo 'export NETWORK_CONSOLE_COLLECTOR_IMAGE=quay.io/skupper/network-console-collector:main' >> $BASH_ENV
             echo 'export BOOTSTRAP_IMAGE=quay.io/skupper/bootstrap:main' >> $BASH_ENV
             source $BASH_ENV
@@ -731,7 +731,7 @@ jobs:
           name: "Publishing v2 images"
           command: |
             echo 'export CONTROLLER_IMAGE=quay.io/skupper/controller:v2-latest' >> $BASH_ENV
-            echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:v2-latest' >> $BASH_ENV
+            echo 'export ADAPTOR_IMAGE=quay.io/skupper/kube-adaptor:v2-latest' >> $BASH_ENV
             echo 'export NETWORK_CONSOLE_COLLECTOR_IMAGE=quay.io/skupper/network-console-collector:v2-latest' >> $BASH_ENV
             echo 'export BOOTSTRAP_IMAGE=quay.io/skupper/bootstrap:v2-latest' >> $BASH_ENV
             source $BASH_ENV

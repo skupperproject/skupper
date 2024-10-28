@@ -1,7 +1,7 @@
 VERSION := $(shell git describe --tags --dirty=-modified --always)
 CONTROLLER_IMAGE := quay.io/skupper/controller:v2-latest
 BOOTSTRAP_IMAGE := quay.io/skupper/bootstrap:v2-latest
-CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync:v2-latest
+ADAPTOR_IMAGE := quay.io/skupper/kube-adaptor:v2-latest
 NETWORK_CONSOLE_COLLECTOR_IMAGE := quay.io/skupper/network-console-collector:v2-latest
 TEST_IMAGE := quay.io/skupper/skupper-tests:v2-latest
 TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
@@ -12,7 +12,7 @@ PLATFORMS ?= linux/amd64,linux/arm64
 GOOS ?= linux
 GOARCH ?= amd64
 
-all: build-cmd build-config-sync build-controller build-bootstrap build-tests build-manifest build-network-console-collector update-helm-crd
+all: build-cmd build-kube-adaptor build-controller build-bootstrap build-tests build-manifest build-network-console-collector update-helm-crd
 
 build-tests:
 	mkdir -p ${TEST_BINARIES_FOLDER}
@@ -32,8 +32,8 @@ build-bootstrap:
 build-controller:
 	go build -ldflags="${LDFLAGS}"  -o controller cmd/controller/main.go cmd/controller/controller.go
 
-build-config-sync:
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o config-sync cmd/config-sync/main.go
+build-kube-adaptor:
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o kube-adaptor cmd/kube-adaptor/main.go
 
 build-network-console-collector:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o network-console-collector ./cmd/network-console-collector
@@ -51,8 +51,8 @@ docker-build-test-image:
 docker-build: docker-build-test-image docker-build-bootstrap docker-build-network-console-collector
 	${DOCKER} buildx build --platform ${PLATFORMS} -t ${CONTROLLER_IMAGE} -f Dockerfile.controller .
 	${DOCKER} buildx build --load  -t ${CONTROLLER_IMAGE} -f Dockerfile.controller .
-	${DOCKER} buildx build --platform ${PLATFORMS} -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
-	${DOCKER} buildx build --load  -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
+	${DOCKER} buildx build --platform ${PLATFORMS} -t ${ADAPTOR_IMAGE} -f Dockerfile.kube-adaptor .
+	${DOCKER} buildx build --load  -t ${ADAPTOR_IMAGE} -f Dockerfile.kube-adaptor .
 
 docker-build-bootstrap:
 	${DOCKER} buildx build --platform ${PLATFORMS} -t ${BOOTSTRAP_IMAGE} -f Dockerfile.bootstrap .
@@ -72,7 +72,7 @@ docker-push-test-image:
 	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${TEST_IMAGE} -f Dockerfile.ci-test .
 
 docker-push: docker-push-test-image docker-push-bootstrap docker-push-network-console-collector
-	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
+	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${ADAPTOR_IMAGE} -f Dockerfile.kube-adaptor .
 	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${CONTROLLER_IMAGE} -f Dockerfile.controller .
 
 format:
@@ -99,7 +99,7 @@ cover:
 		./...
 
 clean:
-	rm -rf skupper controller release config-sync manifest bootstrap network-console-collector ${TEST_BINARIES_FOLDER}
+	rm -rf skupper controller release kube-adaptor manifest bootstrap network-console-collector ${TEST_BINARIES_FOLDER}
 
 package: release/windows.zip release/darwin.zip release/linux.tgz release/s390x.tgz release/arm64.tgz
 

@@ -49,14 +49,14 @@ func resourceTemplates(site *skupperv2alpha1.Site, group string) []resource.Temp
 }
 
 type CoreParams struct {
-	SiteId          string
-	SiteName        string
-	Group           string
-	Replicas        int
-	ServiceAccount  string
-	ConfigDigest    string
-	RouterImage     skuppertypes.ImageDetails
-	ConfigSyncImage skuppertypes.ImageDetails
+	SiteId         string
+	SiteName       string
+	Group          string
+	Replicas       int
+	ServiceAccount string
+	ConfigDigest   string
+	RouterImage    skuppertypes.ImageDetails
+	AdaptorImage   skuppertypes.ImageDetails
 }
 
 func configDigest(config *skupperv2alpha1.SiteSpec) string {
@@ -77,14 +77,14 @@ func configDigest(config *skupperv2alpha1.SiteSpec) string {
 
 func getCoreParams(site *skupperv2alpha1.Site, group string) CoreParams {
 	return CoreParams{
-		SiteId:          site.GetSiteId(),
-		SiteName:        site.Name,
-		Group:           group,
-		Replicas:        1,
-		ServiceAccount:  site.Spec.GetServiceAccount(),
-		ConfigDigest:    configDigest(&site.Spec),
-		RouterImage:     images.GetRouterImageDetails(),
-		ConfigSyncImage: images.GetConfigSyncImageDetails(),
+		SiteId:         site.GetSiteId(),
+		SiteName:       site.Name,
+		Group:          group,
+		Replicas:       1,
+		ServiceAccount: site.Spec.GetServiceAccount(),
+		ConfigDigest:   configDigest(&site.Spec),
+		RouterImage:    images.GetRouterImageDetails(),
+		AdaptorImage:   images.GetAdaptorImageDetails(),
 	}
 }
 

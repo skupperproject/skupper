@@ -81,8 +81,8 @@ func getSkupperConfiguredImages(enableSHA bool) []SkupperImage {
 			Repository: "https://github.com/skupperproject/skupper",
 		},
 		{
-			Name:       images.GetConfigSyncImageName(),
-			SHA:        getSHAIfEnabled(enableSHA, images.GetConfigSyncImageName()),
+			Name:       images.GetAdaptorImageName(),
+			SHA:        getSHAIfEnabled(enableSHA, images.GetAdaptorImageName()),
 			Repository: "https://github.com/skupperproject/skupper",
 		},
 		{
@@ -113,7 +113,7 @@ func getSkupperDefaultImages() []SkupperImage {
 			Repository: "https://github.com/skupperproject/skupper-router",
 		},
 		{
-			Name:       strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
+			Name:       strings.Join([]string{images.DefaultImageRegistry, images.AdaptorImageName}, "/"),
 			Repository: "https://github.com/skupperproject/skupper",
 		},
 		{
@@ -154,9 +154,9 @@ func getEnvironmentVariableMap() *map[string]string {
 		envVariables[images.ControllerImageEnvKey] = controllerImage
 	}
 
-	configSyncImage := os.Getenv(images.ConfigSyncImageEnvKey)
-	if configSyncImage != "" {
-		envVariables[images.ConfigSyncImageEnvKey] = configSyncImage
+	adaptorImage := os.Getenv(images.AdaptorImageEnvKey)
+	if adaptorImage != "" {
+		envVariables[images.AdaptorImageEnvKey] = adaptorImage
 	}
 
 	flowNetworkConsoleCollectorImage := os.Getenv(images.NetworkConsoleCollectorImageEnvKey)

@@ -206,8 +206,8 @@ spec:
         command: ["/app/controller"]
         args: ["-enable-grants", "-grant-server-autoconfigure"]
         env:
-        - name: SKUPPER_CONFIG_SYNC_IMAGE
-          value: quay.io/skupper/config-sync:v2-latest
+        - name: SKUPPER_ADAPTOR_IMAGE
+          value: quay.io/skupper/kube-adaptor:v2-latest
         - name: WATCH_NAMESPACE
           valueFrom:
              fieldRef:
