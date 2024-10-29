@@ -37,12 +37,10 @@ spec:
               - routingKey
               - port
               oneOf:
-                - properties:
-                  required:
-                  - selector
-                - properties:
-                  required:
-                  - host
+              - required:
+                - selector
+              - required:
+                - host
             status:
               type: object
               properties:
