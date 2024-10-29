@@ -65,7 +65,7 @@ files are stored, like certificates, configurations, the original sources
 (original custom resources used to bootstrap the nonkube site) and
 the runtime files generated during initialization.
 
-Namespaces are stored under ${XDG_DATA_HOME}/.local/share/skupper/namespaces
+Namespaces are stored under ${XDG_DATA_HOME}/skupper/namespaces
 for regular users when XDG_DATA_HOME environment variable is set, or under
 ${HOME}/.local/share/skupper/namespaces when it is not set.
 As the root user, namespaces are stored under: /var/lib/skupper/namespaces.
