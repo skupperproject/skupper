@@ -5,6 +5,8 @@ package nonkube
 
 import (
 	"fmt"
+	"net"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
@@ -14,10 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	SiteConfigNameKey string = "name"
-)
-
 type CmdSiteCreate struct {
 	siteHandler             *fs.SiteHandler
 	routerAccessHandler     *fs.RouterAccessHandler
@@ -25,7 +23,7 @@ type CmdSiteCreate struct {
 	Flags                   *common.CommandSiteCreateFlags
 	options                 map[string]string
 	siteName                string
-	linkAccessType          string
+	linkAccessEnabled       bool
 	output                  string
 	namespace               string
 	bindHost                string
@@ -48,12 +46,10 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 }
 
 func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
-
 	var validationErrors []error
-
-	if cmd.Flags.ServiceAccount != "" {
-		fmt.Println("Warning: --service-account flag is not supported on this platform")
-	}
+	hostStringValidator := validator.NewHostStringValidator()
+	resourceStringValidator := validator.NewResourceStringValidator()
+	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
 		fmt.Println("Warning: --context flag is not supported on this platform")
@@ -62,10 +58,6 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameKubeconfig) != nil && cmd.CobraCmd.Flag(common.FlagNameKubeconfig).Value.String() != "" {
 		fmt.Println("Warning: --kubeconfig flag is not supported on this platform")
 	}
-
-	resourceStringValidator := validator.NewResourceStringValidator()
-	linkAccessTypeValidator := validator.NewOptionValidator(common.LinkAccessTypes)
-	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
 	if len(args) == 0 || args[0] == "" {
 		validationErrors = append(validationErrors, fmt.Errorf("site name must not be empty"))
@@ -77,29 +69,34 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("site name is not valid: %s", err))
 		}
 		cmd.siteName = args[0]
-
 	}
 
-	if cmd.Flags.LinkAccessType != "" {
-		ok, err := linkAccessTypeValidator.Evaluate(cmd.Flags.LinkAccessType)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("link access type is not valid: %s", err))
-		}
-	}
-
-	if !cmd.Flags.EnableLinkAccess && len(cmd.Flags.LinkAccessType) > 0 {
-		validationErrors = append(validationErrors, fmt.Errorf("for the site to work with this type of linkAccess, the --enable-link-access option must be set to true"))
-	}
-
-	if cmd.Flags.Output != "" {
+	if cmd.Flags != nil && cmd.Flags.Output != "" {
 		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
 	}
 
-	if cmd.Flags.BindHost == "" {
-		validationErrors = append(validationErrors, fmt.Errorf("bind host should not be empty"))
+	if cmd.Flags != nil && cmd.Flags.BindHost == "" && cmd.Flags.EnableLinkAccess {
+		validationErrors = append(validationErrors, fmt.Errorf("bindhost should not be empty"))
+	}
+
+	if cmd.Flags != nil && cmd.Flags.BindHost != "" {
+		ip := net.ParseIP(cmd.Flags.BindHost)
+		ok, _ := hostStringValidator.Evaluate(cmd.Flags.BindHost)
+		if !ok && ip == nil {
+			validationErrors = append(validationErrors, fmt.Errorf("bindhost is not valid: a valid IP address or hostname is expected"))
+		}
+	}
+	if cmd.Flags != nil && len(cmd.Flags.SubjectAlternativeNames) != 0 {
+		for _, name := range cmd.Flags.SubjectAlternativeNames {
+			ip := net.ParseIP(name)
+			ok, _ := hostStringValidator.Evaluate(name)
+			if !ok && ip == nil {
+				validationErrors = append(validationErrors, fmt.Errorf("SubjectAlternativeNames is not valid: a valid IP address or hostname is expected"))
+			}
+		}
 	}
 
 	return validationErrors
@@ -108,17 +105,13 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 func (cmd *CmdSiteCreate) InputToOptions() {
 
 	if cmd.Flags.EnableLinkAccess {
-		if cmd.Flags.LinkAccessType == "" {
-			cmd.linkAccessType = "default"
-		} else {
-			cmd.linkAccessType = cmd.Flags.LinkAccessType
-		}
-	} else {
-		cmd.linkAccessType = "none"
+		cmd.linkAccessEnabled = true
+		cmd.bindHost = cmd.Flags.BindHost
+		cmd.routerAccessName = "router-access-" + cmd.siteName
+		cmd.subjectAlternativeNames = cmd.Flags.SubjectAlternativeNames
 	}
-
 	options := make(map[string]string)
-	options[SiteConfigNameKey] = cmd.siteName
+	options[common.SiteConfigNameKey] = cmd.siteName
 
 	cmd.options = options
 	cmd.output = cmd.Flags.Output
@@ -126,11 +119,6 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 	if cmd.namespace == "" {
 		cmd.namespace = "default"
 	}
-
-	cmd.bindHost = cmd.Flags.BindHost
-	cmd.routerAccessName = "router-access-" + cmd.siteName
-	cmd.subjectAlternativeNames = cmd.Flags.SubjectAlternativeNames
-
 }
 
 func (cmd *CmdSiteCreate) Run() error {
@@ -146,7 +134,7 @@ func (cmd *CmdSiteCreate) Run() error {
 		},
 		Spec: v2alpha1.SiteSpec{
 			Settings:   cmd.options,
-			LinkAccess: cmd.linkAccessType,
+			LinkAccess: "default",
 		},
 	}
 
@@ -177,22 +165,29 @@ func (cmd *CmdSiteCreate) Run() error {
 
 	if cmd.output != "" {
 		encodedSiteOutput, err := utils.Encode(cmd.output, siteResource)
+		if err != nil {
+			return err
+		}
 		fmt.Println(encodedSiteOutput)
-		fmt.Println("---")
-		encodedRouterAccessOutput, err := utils.Encode(cmd.output, routerAccessResource)
-		fmt.Println(encodedRouterAccessOutput)
-
-		return err
-
+		if cmd.linkAccessEnabled == true {
+			fmt.Println("---")
+			encodedRouterAccessOutput, err := utils.Encode(cmd.output, routerAccessResource)
+			if err != nil {
+				return err
+			}
+			fmt.Println(encodedRouterAccessOutput)
+		}
 	} else {
 		err := cmd.siteHandler.Add(siteResource)
 		if err != nil {
 			return err
 		}
 
-		err = cmd.routerAccessHandler.Add(routerAccessResource)
-		if err != nil {
-			return err
+		if cmd.linkAccessEnabled == true {
+			err = cmd.routerAccessHandler.Add(routerAccessResource)
+			if err != nil {
+				return err
+			}
 		}
 
 	}

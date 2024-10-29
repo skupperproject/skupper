@@ -126,8 +126,13 @@ func CmdSiteStatusFactory(configuredPlatform types.Platform) *cobra.Command {
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSiteStatusDesc, kubeCommand, nonKubeCommand)
 
+	cmdFlags := common.CommandSiteStatusFlags{}
+	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescConnectorStatusOutput)
+
 	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
 
 	return cmd
 
