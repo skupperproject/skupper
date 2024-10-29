@@ -1,0 +1,4 @@
+apiVersion: v2
+name: skupper-namespace-setup
+description:  Helm chart for setting up Skupper in a namespace.
+version: 0.1.0

@@ -1,0 +1,63 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: skupperclusterpolicies.skupper.io
+spec:
+  group: skupper.io
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                namespaces:
+                  type: array
+                  items:
+                    type: string
+                allowIncomingLinks:
+                  type: boolean
+                allowedOutgoingLinksHostnames:
+                  type: array
+                  items:
+                    type: string
+                allowedExposedResources:
+                  type: array
+                  items:
+                    type: string
+                allowedServices:
+                  type: array
+                  items:
+                    type: string
+  scope: Cluster
+  names:
+    plural: skupperclusterpolicies
+    singular: skupperclusterpolicy
+    kind: SkupperClusterPolicy
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    application: skupper-service-controller
+  name: skupper-service-controller
+rules:
+  - apiGroups:
+      - skupper.io
+    resources:
+      - skupperclusterpolicies
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+    verbs:
+      - get
