@@ -15,3 +15,7 @@ const (
 	Sites          string = "sites"
 	RouterAccesses string = "routerAccesses"
 )
+
+const (
+	SiteConfigNameKey string = "name"
+)

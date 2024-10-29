@@ -1,12 +1,13 @@
 package site
 
 import (
+	"testing"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
-	"testing"
 )
 
 func TestCmdSiteFactory(t *testing.T) {
@@ -55,9 +56,11 @@ func TestCmdSiteFactory(t *testing.T) {
 			command: CmdSiteDeleteFactory(types.PlatformKubernetes),
 		},
 		{
-			name:                          "CmdSiteStatusFactory",
-			expectedFlagsWithDefaultValue: map[string]interface{}{},
-			command:                       CmdSiteStatusFactory(types.PlatformKubernetes),
+			name: "CmdSiteStatusFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameOutput: "",
+			},
+			command: CmdSiteStatusFactory(types.PlatformKubernetes),
 		},
 	}
 
