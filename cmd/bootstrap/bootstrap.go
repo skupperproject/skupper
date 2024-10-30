@@ -174,7 +174,7 @@ func main() {
 	}
 
 	// if namespace already exists, fail if force is not set
-	_, err := os.Stat(api.GetInternalOutputPath(namespace, api.RuntimeSiteStatePath))
+	_, err := os.Stat(api.GetInternalOutputPath(namespace, api.RuntimePath))
 	if !isBundle && err == nil && !*force {
 		fmt.Printf("Namespace already exists: %s\n", namespace)
 		os.Exit(1)
@@ -239,7 +239,7 @@ func bootstrap(inputPath string, namespace string, bundleStrategy string) (*api.
 		nsPlatformLoader := &common.NamespacePlatformLoader{}
 		nsPlatform, err := nsPlatformLoader.Load(namespace)
 		if err != nil {
-			_, runtimeStateErr := os.Stat(api.GetInternalOutputPath(namespace, api.RuntimeSiteStatePath))
+			_, runtimeStateErr := os.Stat(api.GetInternalOutputPath(namespace, api.RuntimePath))
 			if runtimeStateErr == nil {
 				return nil, fmt.Errorf("unable to determine current platform used in namespace %q", namespace)
 			}

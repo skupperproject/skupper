@@ -21,7 +21,7 @@ func CreateSystemdServices(siteState *api.SiteState) error {
 		"systemd":   common.SystemdServiceTemplate,
 		"container": common.SystemdContainerServiceTemplate,
 	}
-	scriptsPath := api.GetInternalBundleOutputPath(siteState.Site.Namespace, api.RuntimeScriptsPath)
+	scriptsPath := api.GetInternalBundleOutputPath(siteState.Site.Namespace, api.ScriptsPath)
 	for platform, serviceTemplate := range serviceTemplates {
 		var buf = new(bytes.Buffer)
 		parsedTemplate := template.Must(template.New("service").Parse(serviceTemplate))

@@ -112,12 +112,12 @@ func (s *SiteStateRenderer) prepareContainers() error {
 		},
 		FileMounts: []container.FileMount{
 			{
-				Source:      path.Join("{{.NamespacesPath}}", "{{.Namespace}}", "config/router"),
+				Source:      path.Join("{{.NamespacesPath}}", "{{.Namespace}}", string(api.RouterConfigPath)),
 				Destination: "/etc/skupper-router/config",
 				Options:     []string{"z"},
 			},
 			{
-				Source:      path.Join("{{.NamespacesPath}}", "{{.Namespace}}", "certificates"),
+				Source:      path.Join("{{.NamespacesPath}}", "{{.Namespace}}", string(api.CertificatesBasePath)),
 				Destination: "/etc/skupper-router/certificates",
 				Options:     []string{"z"},
 			},
@@ -143,7 +143,7 @@ func (s *SiteStateRenderer) prepareContainers() error {
 
 func (s *SiteStateRenderer) createContainerScript() error {
 	logger := common.NewLogger()
-	scriptsPath := api.GetInternalBundleOutputPath(s.siteState.Site.Namespace, api.RuntimeScriptsPath)
+	scriptsPath := api.GetInternalBundleOutputPath(s.siteState.Site.Namespace, api.ScriptsPath)
 	scriptContent := containersToShell(s.containers)
 	logger.Debug("writing containers_create.sh", slog.String("path", scriptsPath))
 	err := os.WriteFile(path.Join(scriptsPath, "containers_create.sh"), scriptContent, 0755)
@@ -198,7 +198,7 @@ func (s *SiteStateRenderer) removeSiteFiles() error {
 
 func (s *SiteStateRenderer) createFreePortScript() error {
 	logger := common.NewLogger()
-	scriptsPath := api.GetInternalBundleOutputPath(s.siteState.Site.Namespace, api.RuntimeScriptsPath)
+	scriptsPath := api.GetInternalBundleOutputPath(s.siteState.Site.Namespace, api.ScriptsPath)
 	logger.Debug("writing freeport.sh", slog.String("path", scriptsPath))
 	err := os.WriteFile(path.Join(scriptsPath, "router_free_port.py"), []byte(FreePortScript), 0755)
 	if err != nil {
