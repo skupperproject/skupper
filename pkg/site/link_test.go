@@ -426,6 +426,63 @@ func TestLink_Update(t *testing.T) {
 			if got := link.Update(tt.args.definition); got != tt.want {
 				t.Errorf("Link.Update() = %v, want %v", got, tt.want)
 			}
+			assert.Equal(t, link.Definition(), tt.args.definition)
+			assert.DeepEqual(t, link.Definition(), tt.args.definition)
+		})
+	}
+}
+
+func TestRemoveConnector_Apply(t *testing.T) {
+	type fields struct {
+		name string
+	}
+	type args struct {
+		current qdr.RouterConfig
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   bool
+	}{
+		{
+			name: "remove connector",
+			fields: fields{
+				name: "link1",
+			},
+			args: args{
+				current: qdr.RouterConfig{
+					Connectors: map[string]qdr.Connector{
+						"link1": {
+							Name:       "link1",
+							SslProfile: "link1-profile",
+						},
+					},
+					SslProfiles: map[string]qdr.SslProfile{
+						"link1-profile": {
+							Name: "link1-profile",
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "connector does not exist",
+			fields: fields{
+				name: "link1",
+			},
+			args: args{
+				current: qdr.RouterConfig{},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NewRemoveConnector(tt.fields.name).Apply(&tt.args.current); got != tt.want {
+				t.Errorf("Link.Apply() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

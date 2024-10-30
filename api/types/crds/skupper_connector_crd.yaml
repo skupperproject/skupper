@@ -25,6 +25,10 @@ spec:
                   type: string
                 tlsCredentials:
                   type: string
+                noClientAuth:
+                  type: boolean
+                verifyHostname:
+                  type: boolean
                 type:
                   type: string
                 includeNotReady:

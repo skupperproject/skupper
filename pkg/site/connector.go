@@ -21,15 +21,32 @@ func updateBridgeConfigForConnector(siteId string, connector *skupperv2alpha1.Co
 	name := connector.Name + "-" + host
 	if connector.Spec.Type == "tcp" || connector.Spec.Type == "" {
 		config.AddTcpConnector(qdr.TcpEndpoint{
-			Name:       name,
-			SiteId:     siteId,
-			Host:       host,
-			Port:       strconv.Itoa(connector.Spec.Port),
-			Address:    connector.Spec.RoutingKey,
-			SslProfile: connector.Spec.TlsCredentials,
-			ProcessID:  processID,
-			//TODO:
-			//VerifyHostname
+			Name:           name,
+			SiteId:         siteId,
+			Host:           host,
+			Port:           strconv.Itoa(connector.Spec.Port),
+			Address:        connector.Spec.RoutingKey,
+			SslProfile:     getSslProfileName(connector),
+			ProcessID:      processID,
+			VerifyHostname: getVerifyHostname(connector),
 		})
 	}
+}
+
+func getSslProfileName(connector *skupperv2alpha1.Connector) string {
+	if connector.Spec.TlsCredentials == "" {
+		return ""
+	}
+	if connector.Spec.NoClientAuth {
+		return connector.Spec.TlsCredentials + "-profile"
+	}
+	return connector.Spec.TlsCredentials
+}
+
+func getVerifyHostname(connector *skupperv2alpha1.Connector) *bool {
+	if connector.Spec.TlsCredentials == "" {
+		return nil
+	}
+	value := connector.Spec.VerifyHostname
+	return &value
 }

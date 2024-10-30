@@ -47,7 +47,7 @@ type Site struct {
 
 func NewSite(namespace string, controller *kube.Controller, certs certificates.CertificateManager, access SecuredAccessFactory) *Site {
 	return &Site{
-		bindings:   NewExtendedBindings(controller),
+		bindings:   NewExtendedBindings(controller, SSL_PROFILE_PATH),
 		namespace:  namespace,
 		controller: controller,
 		links:      map[string]*site.Link{},

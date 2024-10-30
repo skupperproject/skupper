@@ -1032,7 +1032,7 @@ func newSiteMocks(namespace string, k8sObjects []runtime.Object, skupperObjects 
 	controller := kube.NewController("test", client)
 	newSite := &Site{
 		controller: controller,
-		bindings:   NewExtendedBindings(controller),
+		bindings:   NewExtendedBindings(controller, ""),
 		links:      make(map[string]*site1.Link),
 		errors:     make(map[string]string),
 		linkAccess: make(map[string]*skupperv2alpha1.RouterAccess),

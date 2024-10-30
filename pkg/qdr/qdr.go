@@ -210,6 +210,17 @@ func (r *RouterConfig) RemoveSslProfile(name string) bool {
 	}
 }
 
+func (r *RouterConfig) RemoveUnreferencedSslProfiles() bool {
+	unreferenced := r.UnreferencedSslProfiles()
+	changed := false
+	for _, profile := range unreferenced {
+		if r.RemoveSslProfile(profile.Name) {
+			changed = true
+		}
+	}
+	return changed
+}
+
 func (r *RouterConfig) UnreferencedSslProfiles() map[string]SslProfile {
 	results := map[string]SslProfile{}
 	for _, profile := range r.SslProfiles {
@@ -824,9 +835,19 @@ func equivalentHost(a string, b string) bool {
 	}
 }
 
+func (a TcpEndpoint) equivalentVerifyHostname(b TcpEndpoint) bool {
+	if a.VerifyHostname == nil {
+		return b.VerifyHostname == nil || *b.VerifyHostname == true
+	}
+	if b.VerifyHostname == nil {
+		return a.VerifyHostname == nil || *a.VerifyHostname == true
+	}
+	return *a.VerifyHostname == *b.VerifyHostname
+}
+
 func (a TcpEndpoint) Equivalent(b TcpEndpoint) bool {
 	if !equivalentHost(a.Host, b.Host) || a.Port != b.Port || a.Address != b.Address ||
-		a.SiteId != b.SiteId || a.ProcessID != b.ProcessID {
+		a.SiteId != b.SiteId || a.ProcessID != b.ProcessID || !a.equivalentVerifyHostname(b) {
 		return false
 	}
 	return true
