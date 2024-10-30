@@ -22,13 +22,10 @@ import (
 var (
 	configurationDirectories = []api.InternalPath{
 		api.RouterConfigPath,
-		api.CertificatesCaPath,
-		api.CertificatesClientPath,
-		api.CertificatesServerPath,
-		api.CertificatesLinkPath,
-		api.InputCertificatesCaPath,
-		api.InputCertificatesClientPath,
-		api.InputCertificatesServerPath,
+		api.IssuersPath,
+		api.CertificatesPath,
+		api.InputIssuersPath,
+		api.InputCertificatesPath,
 		api.InputSiteStatePath,
 		api.LoadedSiteStatePath,
 		api.RuntimeSiteStatePath,
@@ -37,9 +34,7 @@ var (
 	}
 	reloadDirectories = []api.InternalPath{
 		api.RouterConfigPath,
-		api.CertificatesClientPath,
-		api.CertificatesServerPath,
-		api.CertificatesLinkPath,
+		api.CertificatesPath,
 		api.RuntimeSiteStatePath,
 		api.RuntimeTokenPath,
 		api.ScriptsPath,
@@ -52,6 +47,7 @@ type InputPathType string
 const (
 	InputPathResources InputPathType = "resources"
 	InputPathCerts     InputPathType = "certs"
+	InputPathIssuers   InputPathType = "issuers"
 )
 
 const (
@@ -384,7 +380,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 			secret = *userCaSecret
 			fmt.Printf("-> User provided CA found: %s\n", name)
 		}
-		caPath := path.Join(outputPath, string(api.CertificatesCaPath), name)
+		caPath := path.Join(outputPath, string(api.IssuersPath), name)
 		err = writeSecretFilesIgnore(caPath, &secret, ignoreExisting)
 		if err != nil {
 			return err
@@ -420,7 +416,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 			secret = *userSecret
 			fmt.Printf("-> User provided %s certificate found: %s\n", purpose, name)
 		}
-		certPath := path.Join(outputPath, string(api.CertificatesBasePath), purpose, name)
+		certPath := path.Join(outputPath, string(api.CertificatesPath), name)
 		err = writeSecretFiles(certPath, &secret)
 		if err != nil {
 			return err
@@ -433,7 +429,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 		if !ok {
 			return fmt.Errorf("secret %s not found", secretName)
 		}
-		certPath := path.Join(outputPath, string(api.CertificatesLinkPath), secretName+"-profile")
+		certPath := path.Join(outputPath, string(api.CertificatesPath), secretName+"-profile")
 		err = writeSecretFiles(certPath, secret)
 		if err != nil {
 			return err
@@ -484,12 +480,18 @@ func (c *FileSystemConfigurationRenderer) loadClientSecret(siteState *api.SiteSt
 }
 
 func (c *FileSystemConfigurationRenderer) loadCertAsSecret(siteState *api.SiteState, purpose, name string) (*corev1.Secret, error) {
-	outputPath := path.Join(c.GetOutputPath(siteState), string(api.CertificatesBasePath))
+	outputPath := path.Join(c.GetOutputPath(siteState), string(api.CertificatesPath))
+	if purpose == "ca" {
+		outputPath = path.Join(c.GetOutputPath(siteState), string(api.IssuersPath))
+	}
 	return c.loadCertAsSecretFrom(outputPath, siteState, purpose, name)
 }
 
 func (c *FileSystemConfigurationRenderer) loadUserCertAsSecret(siteState *api.SiteState, purpose, name string) (*corev1.Secret, error) {
 	userInputPath := path.Join(c.GetInputPath(siteState, InputPathCerts))
+	if purpose == "ca" {
+		userInputPath = path.Join(c.GetInputPath(siteState, InputPathIssuers))
+	}
 	secret, err := c.loadCertAsSecretFrom(userInputPath, siteState, purpose, name)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -514,7 +516,7 @@ func (c *FileSystemConfigurationRenderer) loadUserCertAsSecret(siteState *api.Si
 }
 
 func (c *FileSystemConfigurationRenderer) loadCertAsSecretFrom(basePath string, siteState *api.SiteState, purpose, name string) (*corev1.Secret, error) {
-	certPath := path.Join(basePath, purpose, name)
+	certPath := path.Join(basePath, name)
 	var secret *corev1.Secret
 	certDir, err := os.Open(certPath)
 	if err != nil {
