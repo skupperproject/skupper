@@ -11,7 +11,7 @@ To deploy Skupper using this Helm chart, simply run the following command, speci
 namespace:
 
 ```
-helm install skupper-namespace-setup . --set scope=namespace --namespace <your-namespace>
+helm install skupper-setup . --set scope=namespace --namespace <your-namespace>
 ```
 
 If the namespace is not specified it will be deployed in the current namespace.
@@ -20,10 +20,10 @@ If the namespace is not specified it will be deployed in the current namespace.
 To deploy Skupper using this Helm chart, simply run the following command:
 
 ```
-helm install skupper-namespace-setup . --set scope=cluster 
+helm install skupper-setup . --set scope=cluster 
 ```
 
 ### How to uninstall the helm chart
 ```
-helm uninstall skupper-namespace-setup
+helm uninstall skupper-setup
 ``` 
