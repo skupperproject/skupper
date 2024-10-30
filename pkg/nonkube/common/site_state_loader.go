@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	yamlutil "k8s.io/apimachinery/pkg/util/yaml"
 )
@@ -46,6 +48,9 @@ func (f *FileSystemSiteStateLoader) Load() (*api.SiteState, error) {
 		if err != nil {
 			return siteState, fmt.Errorf("error loading %q: %v", yamlFileName, err)
 		}
+	}
+	if siteState.Site == nil || siteState.Site.Name == "" {
+		return nil, fmt.Errorf("no valid site definition has been found")
 	}
 	namespacesFound := GetNamespacesFound(siteState)
 	if len(namespacesFound) > 1 {
@@ -87,6 +92,10 @@ func GetNamespacesFound(s *api.SiteState) []string {
 
 func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 	var err error
+	logger := slog.New(slog.Default().Handler())
+	logInvalidResource := func(gvk *schema.GroupVersionKind) {
+		logger.Warn("invalid resource ignored:", slog.String("resource", gvk.String()))
+	}
 	yamlDecoder := yamlutil.NewYAMLOrJSONDecoder(reader, 1024)
 	// allow reading multiple-document yaml
 	for {
@@ -143,6 +152,8 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 				var securedAccess v2alpha1.SecuredAccess
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &securedAccess)
 				siteState.SecuredAccesses[securedAccess.Name] = &securedAccess
+			default:
+				logInvalidResource(gvk)
 			}
 		} else if corev1.SchemeGroupVersion == gvk.GroupVersion() {
 			switch gvk.Kind {
@@ -150,7 +161,11 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 				var secret corev1.Secret
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &secret)
 				siteState.Secrets[secret.Name] = &secret
+			default:
+				logInvalidResource(gvk)
 			}
+		} else {
+			logInvalidResource(gvk)
 		}
 	}
 	return nil
