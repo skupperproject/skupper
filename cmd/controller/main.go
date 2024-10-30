@@ -18,8 +18,10 @@ import (
 	"github.com/skupperproject/skupper/pkg/version"
 )
 
+var controllerLogLevel = new(slog.LevelVar) // defaults to Info
+
 func init() {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: controllerLogLevel}))
 	slog.SetDefault(logger)
 }
 
