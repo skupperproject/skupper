@@ -5,7 +5,7 @@ metadata:
 spec:
   group: skupper.io
   versions:
-    - name: v1alpha1
+    - name: v2alpha1
       served: true
       storage: true
       schema:
@@ -34,12 +34,18 @@ spec:
                   type: integer
                 noClientAuth:
                   type: boolean
+                settings:
+                  type: object
+                  additionalProperties:
+                    type: string
               required:
                 - endpoints
             status:
               type: object
               properties:
                 status:
+                  type: string
+                message:
                   type: string
                 remoteSiteId:
                   type: string
@@ -92,6 +98,10 @@ spec:
         type: string
         description: The name of the site linked to
         jsonPath: .status.remoteSiteName
+      - name: Message
+        type: string
+        description: Any human readable message relevant to the link
+        jsonPath: .status.message
   scope: Namespaced
   names:
     plural: links

@@ -5,7 +5,7 @@ metadata:
 spec:
   group: skupper.io
   versions:
-    - name: v1alpha1
+    - name: v2alpha1
       served: true
       storage: true
       schema:
@@ -29,20 +29,24 @@ spec:
                   type: string
                 includeNotReady:
                   type: boolean
+                settings:
+                  type: object
+                  additionalProperties:
+                    type: string
               required:
               - routingKey
               - port
               oneOf:
-                - properties:
-                  required:
-                  - selector
-                - properties:
-                  required:
-                  - host
+              - required:
+                - selector
+              - required:
+                - host
             status:
               type: object
               properties:
                 status:
+                  type: string
+                message:
                   type: string
                 conditions:
                   type: array
@@ -118,6 +122,10 @@ spec:
         type: integer
         description: The number of listeners in the network with a matching routing key.
         jsonPath: .status.matchingListenerCount
+      - name: Message
+        type: string
+        description: Any human readable message relevant to the connector
+        jsonPath: .status.message
   scope: Namespaced
   names:
     plural: connectors
