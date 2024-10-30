@@ -137,8 +137,10 @@ func (s *SiteStateValidator) validateListeners(listeners map[string]*v2alpha1.Li
 		if listener.Spec.Host == "" || listener.Spec.Port == 0 {
 			return fmt.Errorf("host and port are required")
 		}
-		if ip := net.ParseIP(listener.Spec.Host); ip == nil {
-			return fmt.Errorf("invalid listener host: %s - a valid IP address is expected", listener.Spec.Host)
+		ip := net.ParseIP(listener.Spec.Host)
+		validHostname := hostnameRfc1123Regex.MatchString(listener.Spec.Host)
+		if ip == nil && !validHostname {
+			return fmt.Errorf("invalid listener host: %s - a valid IP address or hostname is expected", listener.Spec.Host)
 		}
 		if utils.IntSliceContains(hostPorts[listener.Spec.Host], listener.Spec.Port) {
 			return fmt.Errorf("port %d is already mapped for host %q (listener: %q)", listener.Spec.Port, listener.Spec.Host, name)
