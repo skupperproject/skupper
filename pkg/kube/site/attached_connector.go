@@ -22,9 +22,9 @@ type ExtendedBindings struct {
 	logger     *slog.Logger
 }
 
-func NewExtendedBindings(controller *kube.Controller) *ExtendedBindings {
+func NewExtendedBindings(controller *kube.Controller, profilePath string) *ExtendedBindings {
 	return &ExtendedBindings{
-		bindings:   site.NewBindings(),
+		bindings:   site.NewBindings(profilePath),
 		connectors: map[string]*AttachedConnector{},
 		controller: controller,
 		logger: slog.New(slog.Default().Handler()).With(
@@ -74,8 +74,9 @@ func (b *ExtendedBindings) Apply(config *qdr.RouterConfig) bool {
 	for _, connector := range b.connectors {
 		connector.updateBridgeConfig(b.bindings.SiteId, &desired)
 	}
-	//TODO: add/remove SslProfiles as necessary
+	b.bindings.AddSslProfiles(config)
 	config.UpdateBridgeConfig(desired)
+	config.RemoveUnreferencedSslProfiles()
 	return true //TODO: can optimise by indicating if no change was required
 }
 

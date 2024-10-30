@@ -486,6 +486,8 @@ type ConnectorSpec struct {
 	Selector        string            `json:"selector,omitempty"`
 	Port            int               `json:"port"`
 	TlsCredentials  string            `json:"tlsCredentials,omitempty"`
+	NoClientAuth    bool              `json:"noClientAuth,omitempty"`
+	VerifyHostname  bool              `json:"verifyHostname,omitempty"`
 	Type            string            `json:"type,omitempty"`
 	IncludeNotReady bool              `json:"includeNotReady,omitempty"`
 	Settings        map[string]string `json:"settings,omitempty"`

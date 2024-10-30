@@ -22,20 +22,22 @@ type ConnectorFunction func(*skupperv2alpha1.Connector) *skupperv2alpha1.Connect
 type ListenerFunction func(*skupperv2alpha1.Listener) *skupperv2alpha1.Listener
 
 type Bindings struct {
-	SiteId     string
-	connectors map[string]*skupperv2alpha1.Connector
-	listeners  map[string]*skupperv2alpha1.Listener
-	handler    BindingEventHandler
-	configure  struct {
+	SiteId      string
+	profilePath string
+	connectors  map[string]*skupperv2alpha1.Connector
+	listeners   map[string]*skupperv2alpha1.Listener
+	handler     BindingEventHandler
+	configure   struct {
 		listener  ListenerConfiguration
 		connector ConnectorConfiguration
 	}
 }
 
-func NewBindings() *Bindings {
+func NewBindings(profilePath string) *Bindings {
 	bindings := &Bindings{
-		connectors: map[string]*skupperv2alpha1.Connector{},
-		listeners:  map[string]*skupperv2alpha1.Listener{},
+		profilePath: profilePath,
+		connectors:  map[string]*skupperv2alpha1.Connector{},
+		listeners:   map[string]*skupperv2alpha1.Listener{},
 	}
 	bindings.configure.listener = UpdateBridgeConfigForListener
 	bindings.configure.connector = UpdateBridgeConfigForConnector
@@ -138,11 +140,11 @@ func (b *Bindings) updateListener(latest *skupperv2alpha1.Listener) qdr.ConfigUp
 	name := latest.ObjectMeta.Name
 	existing, ok := b.listeners[name]
 	b.listeners[name] = latest
-	if b.handler != nil {
-		b.handler.ListenerUpdated(latest)
-	}
 
 	if !ok || !reflect.DeepEqual(existing.Spec, latest.Spec) {
+		if b.handler != nil {
+			b.handler.ListenerUpdated(latest)
+		}
 		return b
 	}
 	return nil
@@ -174,8 +176,41 @@ func (b *Bindings) ToBridgeConfig() qdr.BridgeConfig {
 	return config
 }
 
+func (b *Bindings) AddSslProfiles(config *qdr.RouterConfig) bool {
+	profiles := map[string]qdr.SslProfile{}
+	for _, c := range b.connectors {
+		if c.Spec.TlsCredentials != "" {
+			if c.Spec.NoClientAuth {
+				//if only ca is used, need to qualify the profile to ensure that it does not collide with
+				// use of the same secret where client auth *is* required
+				name := getSslProfileName(c)
+				if _, ok := profiles[name]; !ok {
+					profiles[name] = qdr.ConfigureSslProfile(name, b.profilePath, false)
+				}
+			} else {
+				if _, ok := profiles[c.Spec.TlsCredentials]; !ok {
+					profiles[c.Spec.TlsCredentials] = qdr.ConfigureSslProfile(c.Spec.TlsCredentials, b.profilePath, true)
+				}
+			}
+		}
+	}
+	for _, l := range b.listeners {
+		if _, ok := profiles[l.Spec.TlsCredentials]; l.Spec.TlsCredentials != "" && !ok {
+			profiles[l.Spec.TlsCredentials] = qdr.ConfigureSslProfile(l.Spec.TlsCredentials, b.profilePath, true)
+		}
+	}
+	changed := false
+	for _, profile := range profiles {
+		if config.AddSslProfile(profile) {
+			changed = true
+		}
+	}
+	return changed
+}
+
 func (b *Bindings) Apply(config *qdr.RouterConfig) bool {
-	//TODO: add/remove SslProfiles as necessary
+	b.AddSslProfiles(config)
 	config.UpdateBridgeConfig(b.ToBridgeConfig())
+	config.RemoveUnreferencedSslProfiles()
 	return true //TODO: can optimise by indicating if no change was required
 }

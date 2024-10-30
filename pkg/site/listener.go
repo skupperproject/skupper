@@ -21,8 +21,6 @@ func UpdateBridgeConfigForListenerWithHostAndPort(siteId string, listener *skupp
 			Port:       strconv.Itoa(port),
 			Address:    listener.Spec.RoutingKey,
 			SslProfile: listener.Spec.TlsCredentials,
-			//TODO:
-			//VerifyHostname
 		})
 	}
 }

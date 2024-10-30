@@ -247,8 +247,8 @@ func (s *SiteState) linkMap(sslProfileBasePath string) site.LinkMap {
 	return linkMap
 }
 
-func (s *SiteState) bindings() *site.Bindings {
-	b := site.NewBindings()
+func (s *SiteState) bindings(sslProfileBasePath string) *site.Bindings {
+	b := site.NewBindings(path.Join(sslProfileBasePath, "certificates/bindings"))
 	for name, connector := range s.Connectors {
 		connector.SetConfigured(nil)
 		_ = b.UpdateConnector(name, connector)
@@ -293,7 +293,7 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string, platform string) q
 	// Link
 	s.linkMap(sslProfileBasePath).Apply(&routerConfig)
 	// Bindings
-	s.bindings().Apply(&routerConfig)
+	s.bindings(sslProfileBasePath).Apply(&routerConfig)
 	// Log (static for now) TODO use site specific options to configure logging
 	routerConfig.SetLogLevel("ROUTER_CORE", "error+")
 

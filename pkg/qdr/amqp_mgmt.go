@@ -119,7 +119,7 @@ func (r Record) AsRecord(field string) Record {
 }
 
 func asTcpEndpoint(record Record) TcpEndpoint {
-	return TcpEndpoint{
+	endpoint := TcpEndpoint{
 		Name:       record.AsString("name"),
 		Host:       record.AsString("host"),
 		Port:       record.AsString("port"),
@@ -128,6 +128,12 @@ func asTcpEndpoint(record Record) TcpEndpoint {
 		SslProfile: record.AsString("sslProfile"),
 		ProcessID:  record.AsString("processId"),
 	}
+	if value, ok := record["verifyHostname"]; ok {
+		if verify, ok := value.(bool); ok {
+			endpoint.VerifyHostname = &verify
+		}
+	}
+	return endpoint
 }
 
 func asConnection(record Record) Connection {

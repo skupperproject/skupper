@@ -9,10 +9,13 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	SiteConfigNameKey string = "name"
 )
 
 type CmdSiteCreate struct {
@@ -115,7 +118,7 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 	}
 
 	options := make(map[string]string)
-	options[site.SiteConfigNameKey] = cmd.siteName
+	options[SiteConfigNameKey] = cmd.siteName
 
 	cmd.options = options
 	cmd.output = cmd.Flags.Output

@@ -110,7 +110,7 @@ func TestSiteState_ToRouterConfig(t *testing.T) {
 			}
 			assert.Equal(t, len(rolesFound), 3, "expecting normal, inter-router and edge, found: %s", rolesFound)
 			assert.Equal(t, len(routerConfig.Connectors), 1)
-			assert.Equal(t, len(routerConfig.SslProfiles), 3)
+			assert.Equal(t, len(routerConfig.SslProfiles), 6)
 			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["link-access-one"].CaCertFile, sslProfileBasePath))
 			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["link-one-profile"].CaCertFile, sslProfileBasePath))
 			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["local-access-one"].CaCertFile, sslProfileBasePath))
