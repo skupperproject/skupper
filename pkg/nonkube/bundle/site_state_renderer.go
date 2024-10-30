@@ -2,7 +2,9 @@ package bundle
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 
@@ -126,12 +128,24 @@ func (s *SiteStateRenderer) prepareContainers() error {
 		//      validate whether CPU and memory thresholds can be
 		//      set to the container
 	}
+	logger := common.NewLogger()
+	if logger.Enabled(nil, slog.LevelDebug) {
+		for name, newContainer := range s.containers {
+			containerJson, _ := json.Marshal(newContainer)
+			logger.Debug("container prepared:",
+				slog.String("name", name),
+				slog.String("container", string(containerJson)),
+			)
+		}
+	}
 	return nil
 }
 
 func (s *SiteStateRenderer) createContainerScript() error {
+	logger := common.NewLogger()
 	scriptsPath := api.GetInternalBundleOutputPath(s.siteState.Site.Namespace, api.RuntimeScriptsPath)
 	scriptContent := containersToShell(s.containers)
+	logger.Debug("writing containers_create.sh", slog.String("path", scriptsPath))
 	err := os.WriteFile(path.Join(scriptsPath, "containers_create.sh"), scriptContent, 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create containers script: %v", err)
@@ -140,6 +154,7 @@ func (s *SiteStateRenderer) createContainerScript() error {
 }
 
 func (s *SiteStateRenderer) createBundle() error {
+	var logger = common.NewLogger()
 	bundlesHomeDir := api.GetDefaultOutputBundlesPath()
 	siteHomeDir := api.GetDefaultBundleOutputPath(s.siteState.Site.Namespace)
 	tarball := utils.NewTarball()
@@ -162,6 +177,7 @@ func (s *SiteStateRenderer) createBundle() error {
 			OutputPath: bundlesHomeDir,
 		}
 	}
+	logger.Debug("generating bundle:", slog.String("path", bundlesHomeDir), slog.String("site", s.siteState.Site.Name))
 	err = generator.Generate(tarball, string(s.Platform))
 	if err != nil {
 		return fmt.Errorf("failed to generate site bundle (%q): %v", s.siteState.Site.Name, err)
@@ -170,7 +186,9 @@ func (s *SiteStateRenderer) createBundle() error {
 }
 
 func (s *SiteStateRenderer) removeSiteFiles() error {
+	logger := common.NewLogger()
 	siteHomeDir := api.GetDefaultBundleOutputPath(s.siteState.Site.Namespace)
+	logger.Debug("removing temporary bundle home", slog.String("path", siteHomeDir))
 	err := os.RemoveAll(siteHomeDir)
 	if err != nil {
 		return fmt.Errorf("file to remove temporary site directory %q: %v", siteHomeDir, err)
@@ -179,7 +197,9 @@ func (s *SiteStateRenderer) removeSiteFiles() error {
 }
 
 func (s *SiteStateRenderer) createFreePortScript() error {
+	logger := common.NewLogger()
 	scriptsPath := api.GetInternalBundleOutputPath(s.siteState.Site.Namespace, api.RuntimeScriptsPath)
+	logger.Debug("writing freeport.sh", slog.String("path", scriptsPath))
 	err := os.WriteFile(path.Join(scriptsPath, "router_free_port.py"), []byte(FreePortScript), 0755)
 	if err != nil {
 		return fmt.Errorf("failed to create router_free_port.py script: %v", err)

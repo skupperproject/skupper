@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path"
@@ -83,9 +84,11 @@ func (s *systemdServiceInfo) Create() error {
 		}
 		return fmt.Errorf(msg)
 	}
-
+	var logger = NewLogger()
+	logger.Debug("creating systemd service")
 	var buf = new(bytes.Buffer)
 	var service *template.Template
+	logger.Debug("using service template for:", slog.String("platform", s.platform))
 	if s.platform == string(types.PlatformSystemd) {
 		service = template.Must(template.New(s.GetServiceName()).Parse(SystemdServiceTemplate))
 	} else {
@@ -106,6 +109,7 @@ func (s *systemdServiceInfo) Create() error {
 
 	// Saving systemd user service
 	serviceName := s.GetServiceName()
+	logger.Debug("writing service file", slog.String("path", s.getServiceFile()))
 	err = os.WriteFile(s.getServiceFile(), buf.Bytes(), 0644)
 	if err != nil {
 		return fmt.Errorf("unable to write unit file (%s): %w", s.getServiceFile(), err)
@@ -113,6 +117,7 @@ func (s *systemdServiceInfo) Create() error {
 
 	// Only enable when running locally
 	if !api.IsRunningInContainer() {
+		logger.Debug("enabling systemd service", slog.String("name", serviceName))
 		return s.enableService(serviceName)
 	}
 
@@ -134,25 +139,32 @@ func (s *systemdServiceInfo) Remove() error {
 		return fmt.Errorf("SystemD is not enabled at user level")
 	}
 
+	logger := NewLogger()
+
 	// Stopping systemd user service
 	if !api.IsRunningInContainer() {
+		logger.Debug("stopping service", slog.String("name", s.GetServiceName()))
 		cmd := s.getCmdStopSystemdService(s.GetServiceName())
 		_ = cmd.Run()
 
 		// Disabling systemd user service
+		logger.Debug("disabling service", slog.String("name", s.GetServiceName()))
 		cmd = s.getCmdDisableSystemdService(s.GetServiceName())
 		_ = cmd.Run()
 	}
 
 	// Removing the .service file
+	logger.Debug("removing service", slog.String("path", s.getServiceFile()))
 	_ = os.Remove(s.getServiceFile())
 
 	// Reloading systemd user daemon
 	if !api.IsRunningInContainer() {
+		logger.Debug("reloading systemd daemon")
 		cmd := s.getCmdReloadSystemdDaemon()
 		_ = cmd.Run()
 
 		// Resetting failed status
+		logger.Debug("resetting failed systemd service", slog.String("name", s.GetServiceName()))
 		cmd = s.getCmdResetFailedSystemService(s.GetServiceName())
 		_ = cmd.Run()
 	}

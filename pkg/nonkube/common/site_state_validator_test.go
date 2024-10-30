@@ -66,7 +66,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 				}
 			}),
 			valid:         false,
-			errorContains: "invalid router access: roles are required",
+			errorContains: "invalid router access: link-access-one - roles are required",
 		},
 		{
 			info: "invalid-link-access-roles-invalid-role",

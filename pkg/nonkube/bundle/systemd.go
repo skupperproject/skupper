@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"text/template"
@@ -15,6 +16,7 @@ import (
 
 func CreateSystemdServices(siteState *api.SiteState) error {
 	var err error
+	var logger = common.NewLogger()
 	serviceTemplates := map[string]string{
 		"systemd":   common.SystemdServiceTemplate,
 		"container": common.SystemdContainerServiceTemplate,
@@ -36,6 +38,7 @@ func CreateSystemdServices(siteState *api.SiteState) error {
 			return fmt.Errorf("failed to execute %s service template: %w", platform, err)
 		}
 		serviceFile := path.Join(scriptsPath, fmt.Sprintf("skupper.service.%s", platform))
+		logger.Debug("writing systemd service file", slog.String("path", serviceFile))
 		err = os.WriteFile(serviceFile, buf.Bytes(), 0644)
 		if err != nil {
 			return fmt.Errorf("failed to write %s service file: %w", platform, err)

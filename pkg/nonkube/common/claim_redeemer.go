@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -21,11 +22,15 @@ import (
 func RedeemClaims(siteState *api.SiteState) error {
 	var errs []error
 
+	logger := NewLogger()
 	for name, claim := range siteState.Claims {
 		err := redeemAccessToken(claim, siteState)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to redeem claim %s: %w", name, err))
-			fmt.Printf("RedeemClaims: failed to redeem claim: %s: %s\n", name, err)
+			logger.Error("RedeemClaims: failed to redeem claim",
+				slog.String("name", name),
+				slog.String("error", err.Error()),
+			)
 		}
 	}
 
