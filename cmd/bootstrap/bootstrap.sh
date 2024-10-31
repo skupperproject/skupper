@@ -107,7 +107,7 @@ create_service() {
         return
     fi
     service_name="skupper-${namespace}.service"
-    service_file="${SKUPPER_OUTPUT_PATH}/namespaces/${namespace}/runtime/scripts/${service_name}"
+    service_file="${SKUPPER_OUTPUT_PATH}/namespaces/${namespace}/internal/scripts/${service_name}"
     if [ ! -f "${service_file}" ]; then
         echo "SystemD service has not been defined"
         return

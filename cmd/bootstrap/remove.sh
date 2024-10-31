@@ -26,7 +26,7 @@ usage() {
 }
 
 remove_definition() {
-    platform_file="${namespaces_path}/${namespace}/runtime/state/platform.yaml"
+    platform_file="${namespaces_path}/${namespace}/runtime/platform.yaml"
     if [ -f "${platform_file}" ]; then
         SKUPPER_PLATFORM=$(grep '^platform: ' "${platform_file}" | sed -e 's/.*: //g')
         if [ "${SKUPPER_PLATFORM}" = "podman" ] || [ "${SKUPPER_PLATFORM}" = "docker" ]; then

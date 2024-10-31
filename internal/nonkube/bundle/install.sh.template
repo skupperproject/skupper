@@ -38,7 +38,7 @@ if [ "${UID}" -eq 0 ]; then
     export USERNS="''"
 fi
 export NAMESPACES_PATH="${SKUPPER_OUTPUT_PATH}/namespaces"
-export PLATFORM_FILE="${NAMESPACES_PATH}/${NAMESPACE}/runtime/state/platform.yaml"
+export PLATFORM_FILE="${NAMESPACES_PATH}/${NAMESPACE}/runtime/platform.yaml"
 export USER="${USER:-$(id -un)}"
 SITE_ID="$(hostname -s)-${USER}-$(date +%s)"
 export SITE_ID
@@ -79,7 +79,7 @@ parse_opts() {
                 if [ -n "${OPTARG}" ]; then
                     export NAMESPACE="${OPTARG}"
                 fi
-                export PLATFORM_FILE="${NAMESPACES_PATH}/${NAMESPACE}/runtime/state/platform.yaml"
+                export PLATFORM_FILE="${NAMESPACES_PATH}/${NAMESPACE}/runtime/platform.yaml"
                 ;;
             d)
                 export DUMP_TOKENS=true
@@ -125,7 +125,7 @@ create_service() {
     service_name="skupper-${NAMESPACE}.service"
     service_file_suffix="container"
     [ "${SKUPPER_PLATFORM}" = "systemd" ] && service_file_suffix="systemd"
-    service_file="${SKUPPER_OUTPUT_PATH}/namespaces/${NAMESPACE}/runtime/scripts/skupper.service.${service_file_suffix}"
+    service_file="${SKUPPER_OUTPUT_PATH}/namespaces/${NAMESPACE}/internal/scripts/skupper.service.${service_file_suffix}"
 
     if [ ! -f "${service_file}" ]; then
         echo "SystemD service has not been defined"
@@ -164,7 +164,7 @@ remove_site() {
         exit 0
     fi
 
-    SITE_PATH="${NAMESPACES_PATH}/${NAMESPACE}/runtime/state/site/"
+    SITE_PATH="${NAMESPACES_PATH}/${NAMESPACE}/runtime/resources/site/"
     if ! grep -qr "name: ${SITE_NAME}\$" "${SITE_PATH}"; then
         echo "Site \"${SITE_NAME}\" is not defined on namespace \"${NAMESPACE}\""
         exit 0
@@ -181,20 +181,20 @@ remove_site() {
 }
 
 dump_tokens() {
-    tokens="$(ls "./${SOURCE_NAMESPACE}/runtime/link/")"
+    tokens="$(ls "./${SOURCE_NAMESPACE}/runtime/links/")"
     if [ -z "${tokens}" ]; then
         echo "No static links defined in this site bundle"
         return
     fi
     token_out_dir="${SKUPPER_TOKEN_OUTPUT_PATH:?}/${SITE_NAME:?}"
     mkdir -p "${token_out_dir}"
-    cp "./${SOURCE_NAMESPACE}/runtime/link/"*.yaml "${token_out_dir}"
+    cp "./${SOURCE_NAMESPACE}/runtime/links/"*.yaml "${token_out_dir}"
     echo "Static links for site \"${SITE_NAME}\" have been saved into ${token_out_dir}"
 }
 
 set_router_access_port() {
-    config_file="${NAMESPACES_PATH}/${NAMESPACE}/config/router/skrouterd.json"
-    python "${NAMESPACES_PATH:?}/${NAMESPACE:?}/runtime/scripts/router_free_port.py" "${config_file}"
+    config_file="${NAMESPACES_PATH}/${NAMESPACE}/runtime/router/skrouterd.json"
+    python "${NAMESPACES_PATH:?}/${NAMESPACE:?}/internal/scripts/router_free_port.py" "${config_file}"
 }
 
 create_sed_script() {
@@ -215,8 +215,8 @@ create_sed_script() {
         echo "s#{{"{{"}}.SiteId{{"}}"}}#${SITE_ID}#g"
         echo "s#{{"{{"}}.NamespacesPath{{"}}"}}#${NAMESPACES_PATH}#g"
         echo "s#{{"{{"}}.RuntimeDir{{"}}"}}#${RUNTIME_DIR}#g"
-        echo "s#{{"{{"}}.SiteScriptPath{{"}}"}}#${NAMESPACES_PATH}/${NAMESPACE}/runtime/scripts#g"
-        echo "s#{{"{{"}}.SiteConfigPath{{"}}"}}#${NAMESPACES_PATH}/${NAMESPACE}/config/router#g"
+        echo "s#{{"{{"}}.SiteScriptPath{{"}}"}}#${NAMESPACES_PATH}/${NAMESPACE}/internal/scripts#g"
+        echo "s#{{"{{"}}.SiteConfigPath{{"}}"}}#${NAMESPACES_PATH}/${NAMESPACE}/runtime/router#g"
         echo "s#{{"{{"}}.RunAs{{"}}"}}#${RUNAS}#g"
         echo "s#{{"{{"}}.UserNamespace{{"}}"}}#${USERNS}#g"
     } >> script.sed
@@ -228,7 +228,7 @@ render_sed_templates() {
 }
 
 show_token_info() {
-    token_path="${NAMESPACES_PATH:?}/${NAMESPACE:?}/runtime/link"
+    token_path="${NAMESPACES_PATH:?}/${NAMESPACE:?}/runtime/links"
     [ ! -d "${token_path}" ] && return
     tokens_found=$(find "${token_path}" -type f | wc -l)
     if [ "${tokens_found}" -gt 0 ]; then
@@ -238,7 +238,7 @@ show_token_info() {
 
 create_containers() {
     [ "${SKUPPER_PLATFORM}" = "systemd" ] && return
-    "${NAMESPACES_PATH:?}/${NAMESPACE:?}/runtime/scripts/containers_create.sh"
+    "${NAMESPACES_PATH:?}/${NAMESPACE:?}/internal/scripts/containers_create.sh"
 }
 
 create_site() {
@@ -248,9 +248,9 @@ create_site() {
         exit 1
     fi
 
-    if [ -d "${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/sources" ]; then
-        echo "Failed: namespace \"${NAMESPACE}\" already contains input sources"
-        echo "Location: ${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/sources"
+    if [ -d "${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/resources" ]; then
+        echo "Failed: namespace \"${NAMESPACE}\" already contains input resources"
+        echo "Location: ${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/resources"
         exit 1
     fi
 
@@ -258,7 +258,7 @@ create_site() {
     echo "Namespace : ${NAMESPACE}"
     echo "Site name : ${SITE_NAME}"
     echo "Platform  : ${SKUPPER_PLATFORM}"
-    echo "Definition: ${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/sources"
+    echo "Definition: ${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/resources"
     echo "Version   : ${VERSION}"
 
     # Create base directory tree
@@ -312,7 +312,7 @@ list_valid_certificates() {
 }
 
 handle_provided_certificates() {
-    export USER_CERTIFICATES_PATH="${NAMESPACES_PATH}/${NAMESPACE}/input/certificates"
+    export USER_CERTIFICATES_PATH="${NAMESPACES_PATH}/${NAMESPACE}/input/certs"
     [ ! -d "${USER_CERTIFICATES_PATH}" ] && return
     cas=""
     clients=""
@@ -348,15 +348,15 @@ handle_provided_certificates() {
             echo "  - ${server}"
         done
     fi
-    cp -r "${USER_CERTIFICATES_PATH}"/* "./${SOURCE_NAMESPACE}/certificates"
+    cp -r "${USER_CERTIFICATES_PATH}"/* "./${SOURCE_NAMESPACE}/runtime/certs"
     update_static_links
     generate_static_links_for_sans
 }
 
 update_static_links() {
     DIR="./${SOURCE_NAMESPACE}"
-    export USER_CERTIFICATES_PATH="${NAMESPACES_PATH}/${NAMESPACE}/input/certificates"
-    router_access_files=$(find "${DIR:?}/sources/routerAccesses" -type f)
+    export USER_CERTIFICATES_PATH="${NAMESPACES_PATH}/${NAMESPACE}/input/certs"
+    router_access_files=$(find "${DIR:?}/internal/snapshot/routerAccesses" -type f)
 
     for ra in ${router_access_files}; do
         ra_name=$(grep name: "${ra}" | grep -v '\- name:' | awk '{print $NF}' | sed 's/"//g')
@@ -381,7 +381,7 @@ update_static_links() {
         tls_crt=$(base64 -w0 "${client_cert_path}/tls.crt")
         tls_key=$(base64 -w0 "${client_cert_path}/tls.key")
         # find all static links generated for the given RouterAccess
-        static_link_files=$(find "${DIR:?}/runtime/link" -type f -name "link-${ra_name}-*")
+        static_link_files=$(find "${DIR:?}/runtime/links" -type f -name "link-${ra_name}-*")
         for link in ${static_link_files}; do
             echo "- Updating client credentials on static link: ${link}"
             sed -i "s/tls.key: .*/tls.key: ${tls_key}/g" "${link}"
@@ -399,7 +399,7 @@ generate_static_links_for_sans() {
         return
     fi
 
-    router_access_files=$(find "${DIR:?}/sources/routerAccesses" -type f)
+    router_access_files=$(find "${DIR:?}/internal/snapshot/routerAccesses" -type f)
 
     for ra in ${router_access_files}; do
         ra_name=$(grep name: "${ra}" | grep -v '\- name:' | awk '{print $NF}' | sed 's/"//g')
@@ -407,17 +407,17 @@ generate_static_links_for_sans() {
         bind_host=$(grep bindHost: "${ra}" | awk '{print $NF}' | sed 's/"//g')
 
         # discovering SANS
-        server_cert="${DIR}/certificates/server/${tls_credential:-${ra_name}}/tls.crt"
+        server_cert="${DIR}/runtime/certs/server/${tls_credential:-${ra_name}}/tls.crt"
         [ ! -f "${server_cert}" ] && continue
         subjects="$(openssl x509 -noout -ext subjectAltName -in "${server_cert}" |grep -v 'Subject Alternative Name:' | \
                     sed 's/ //g;s/,/\n/g' |  awk -F: '{if ($1 == "DNS" || $1 == "IPAddress") print $2}')"
         [ -z "${subjects}" ] && continue
         for subject in ${subjects}; do
-            link_file="${DIR}/runtime/link/link-${ra_name}-${subject}.yaml"
+            link_file="${DIR}/runtime/links/link-${ra_name}-${subject}.yaml"
             [ -f "${link_file}" ] && continue
             echo "- Creating static link for new server subject found: ${subject}"
-            cp "${DIR}/runtime/link/link-${ra_name}-${bind_host:-127.0.0.1}.yaml" "${DIR}/runtime/link/link-${ra_name}-${subject}.yaml"
-            sed -i "s/host: .*/host: ${subject}/g" "${DIR}/runtime/link/link-${ra_name}-${subject}.yaml"
+            cp "${DIR}/runtime/links/link-${ra_name}-${bind_host:-127.0.0.1}.yaml" "${DIR}/runtimes/links/link-${ra_name}-${subject}.yaml"
+            sed -i "s/host: .*/host: ${subject}/g" "${DIR}/runtime/links/link-${ra_name}-${subject}.yaml"
         done
     done
 }

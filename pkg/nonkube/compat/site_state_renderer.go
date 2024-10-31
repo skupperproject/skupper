@@ -218,7 +218,7 @@ func (s *SiteStateRenderer) prepareContainers() error {
 			},
 			{
 				Source:      path.Join(siteConfigPath, string(api.CertificatesBasePath)),
-				Destination: "/etc/skupper-router/certificates",
+				Destination: "/etc/skupper-router/runtime/certs",
 				Options:     []string{"z"},
 			},
 		},
