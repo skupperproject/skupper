@@ -2,7 +2,7 @@
 
 In this current phase of the Skupper V2 implementation, non-kubernetes sites
 can be bootstrapped using a locally built binary, that can be produced by running
-`make build-bootstrap`, or using the quay.io/skupper/bootstrap:v2-latest
+`make build-bootstrap`, using the quay.io/skupper/bootstrap:v2-latest
 container image by calling `./cmd/bootstrap/bootstrap.sh` with the appropriate
 flags.
 
@@ -71,7 +71,7 @@ ${HOME}/.local/share/skupper/namespaces when it is not set.
 As the root user, namespaces are stored under: /var/lib/skupper/namespaces.
 
 In case the path (-p) flag is omitted, Skupper will try to process
-custom resources stored at the sources directory of the default namespace,
+custom resources stored at the input/resources directory of the default namespace,
 or from the namespace provided through the namespace (-n) flag.
 
 If the respective namespace already exists and you want to bootstrap it
@@ -158,7 +158,7 @@ information like:
 
 * Location where static links have been defined (when a `RouterAccess` is provided)
 * Location where the site bundle has been saved (if bundle strategy flag `-b` set)
-* Namespace, Site name, Platform, Version and path to the sources
+* Namespace, Site name, Platform, Version and path to the resources
 
 #### Site bundles
 
@@ -257,7 +257,7 @@ The `west` site will be defined using the following CRs:
 
 ##### Site
 ```yaml
-apiVersion: skupper.io/v1alpha1
+apiVersion: skupper.io/v2alpha1
 kind: Site
 metadata:
   name: west
@@ -266,7 +266,7 @@ metadata:
 ##### Listener
 
 ```yaml
-apiVersion: skupper.io/v1alpha1
+apiVersion: skupper.io/v2alpha1
 kind: Listener
 metadata:
   name: backend
@@ -279,7 +279,7 @@ spec:
 ##### RouterAccess
 
 ```yaml
-apiVersion: skupper.io/v1alpha1
+apiVersion: skupper.io/v2alpha1
 kind: RouterAccess
 metadata:
   name: go-west
@@ -308,7 +308,7 @@ Now that the `west` site has been created, copy the generated link into
 the `east` site local directory. Example:
 
 ```shell
-cp ${HOME}/.local/share/skupper/namespaces/west/runtime/link/link-go-west.yaml ./east/link-go-west.yaml
+cp ${HOME}/.local/share/skupper/namespaces/west/runtime/links/link-go-west-127.0.0.1.yaml ./east/link-go-west.yaml
 ```
 
 #### East
@@ -317,7 +317,7 @@ The `east` site will be defined using the following CRs:
 
 **Site**
 ```yaml
-apiVersion: skupper.io/v1alpha1
+apiVersion: skupper.io/v2alpha1
 kind: Site
 metadata:
   name: east
@@ -326,7 +326,7 @@ metadata:
 **Connector**
 ```yaml
 ---
-apiVersion: skupper.io/v1alpha1
+apiVersion: skupper.io/v2alpha1
 kind: Connector
 metadata:
   name: backend
@@ -349,7 +349,7 @@ kind: Secret
 metadata:
   name: link-go-west
 ---
-apiVersion: skupper.io/v1alpha1
+apiVersion: skupper.io/v2alpha1
 kind: Link
 metadata:
   name: link-go-west
@@ -381,7 +381,7 @@ in your browser and it should work.
 ### Updating an existing installation
 
 Suppose modifications have been made to the `west` site CRs, directly at the
-namespace directory (i.e: ${HOME}/.local/share/skupper/namespaces/west/input/sources).
+namespace directory (i.e: ${HOME}/.local/share/skupper/namespaces/west/input/resources).
 
 To re-initialize the west site, run:
 
@@ -392,13 +392,6 @@ bootstrap -n west -f
 The command above will reprocess all source CRs from the namespace path and
 restart the related components. The Certificate Authorities (CAs) are preserved,
 therefore eventual incoming links must still work.
-
-In case the CRs are located somewhere else, then a path must also be specified, as
-in the example below:
-
-```shell
-bootstrap -n west -p <path> -f
-```
 
 ### Cleanup
 
@@ -421,22 +414,22 @@ Skupper nonkube bootstrap (version: main-release-161-g7c5100a2-modified)
 Site "west" has been created (as a distributable bundle)
 Installation bundle available at: /home/user/.local/share/skupper/bundles/skupper-install-west.sh
 Default namespace: default
-Default platform: docker
+Default platform: podman
 ```
 
-#### Extracting the static link
+#### Extracting the static links
 
-To extract the link, run:
+To extract the links, run:
 
 ```shell
 /home/user/.local/share/skupper/bundles/skupper-install-west.sh -d /tmp
 Static links for site "west" have been saved into /tmp/west
 ```
 
-Copy the static Link to the `east` site definition.
+Copy the static link to the `east` site definition.
 
 ```shell
-cp /tmp/west/link-go-west.yaml ./east/link-go-west.yaml
+cp /tmp/west/link-go-west-127.0.0.1.yaml ./east/link-go-west.yaml
 ```
 
 #### Creating the east bundle
