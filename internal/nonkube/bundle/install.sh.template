@@ -242,18 +242,6 @@ create_containers() {
 }
 
 create_site() {
-    if [ -d "${NAMESPACES_PATH:?}/${NAMESPACE:?}/runtime" ]; then
-        echo "Failed: namespace \"${NAMESPACE}\" is already defined"
-        echo "Location: ${NAMESPACES_PATH}/${NAMESPACE}"
-        exit 1
-    fi
-
-    if [ -d "${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/resources" ]; then
-        echo "Failed: namespace \"${NAMESPACE}\" already contains input resources"
-        echo "Location: ${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/resources"
-        exit 1
-    fi
-
     echo "Skupper site bundle installation"
     echo "Namespace : ${NAMESPACE}"
     echo "Site name : ${SITE_NAME}"
@@ -301,12 +289,26 @@ sanity_check() {
             exit_error "A required command could not be found: ${cmd}"
         fi
     done
+
+    if ! ${REMOVE} && ! ${DUMP_TOKENS}; then
+        if [ -d "${NAMESPACES_PATH:?}/${NAMESPACE:?}/runtime" ]; then
+            echo "Failed: namespace \"${NAMESPACE}\" is already defined"
+            echo "Location: ${NAMESPACES_PATH}/${NAMESPACE}"
+            exit 1
+        fi
+
+        if [ -d "${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/resources" ]; then
+            echo "Failed: namespace \"${NAMESPACE}\" already contains input resources"
+            echo "Location: ${NAMESPACES_PATH:?}/${NAMESPACE:?}/input/resources"
+            exit 1
+        fi
+    fi
 }
 
 list_valid_certificates() {
     base_path="${1}"
     cd "${base_path}"
-    for dir in $(find ./* -type d | cut -c 3-); do
+    for dir in $(find ./* -type d 2> /dev/null | cut -c 3-); do
         [ -f "${dir}/tls.key" ] && [ -f "${dir}/tls.crt" ] && [ -f "${dir}/ca.crt" ] && echo "$dir"
     done
 }
@@ -416,7 +418,7 @@ generate_static_links_for_sans() {
             link_file="${DIR}/runtime/links/link-${ra_name}-${subject}.yaml"
             [ -f "${link_file}" ] && continue
             echo "- Creating static link for new server subject found: ${subject}"
-            cp "${DIR}/runtime/links/link-${ra_name}-${bind_host:-127.0.0.1}.yaml" "${DIR}/runtimes/links/link-${ra_name}-${subject}.yaml"
+            cp "${DIR}/runtime/links/link-${ra_name}-${bind_host:-127.0.0.1}.yaml" "${DIR}/runtime/links/link-${ra_name}-${subject}.yaml"
             sed -i "s/host: .*/host: ${subject}/g" "${DIR}/runtime/links/link-${ra_name}-${subject}.yaml"
         done
     done
