@@ -373,7 +373,7 @@ func convertLogLevel(logLevel string) slog.Level {
 }
 
 func (c *Controller) logConfigUpdate(key string, cm *corev1.ConfigMap) error {
-	const controllerLogLevelKey = "SKUPPER_CONTROLLER_LOG_LEVEL"
+	const controllerLogLevelKey = "CONTROLLER_LOG_LEVEL"
 	var slogLevel slog.Level
 	if cm == nil {
 		// if configmap is deleted, then set log level to info
