@@ -1,6 +1,5 @@
 FROM --platform=$BUILDPLATFORM golang:1.22 AS builder
 
-ARG TARGETOS
 ARG TARGETARCH
 
 WORKDIR /go/src/app
@@ -11,9 +10,13 @@ RUN go mod download
 
 COPY . .
 
-RUN make GOOS=$TARGETOS GOARCH=$TARGETARCH build-network-console-collector
+ENV CGO_ENABLED=0
+RUN make GOARCH=$TARGETARCH build-network-console-collector
 
 FROM --platform=$BUILDPLATFORM node:18.18.2 AS console-builder
+LABEL \
+  org.opencontainers.image.title="Skupper Network Console Collector" \
+  org.opencontainers.image.description="Exposes Skupper network details thorugh an API, metrics and a web console"
 
 WORKDIR /skupper-console/
 ADD https://github.com/skupperproject/skupper-console/archive/v2.tar.gz .

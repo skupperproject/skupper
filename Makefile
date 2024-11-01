@@ -1,27 +1,31 @@
 VERSION := $(shell git describe --tags --dirty=-modified --always)
-CONTROLLER_IMAGE := quay.io/skupper/controller:v2-latest
-BOOTSTRAP_IMAGE := quay.io/skupper/bootstrap:v2-latest
-CONFIG_SYNC_IMAGE := quay.io/skupper/config-sync:v2-latest
-NETWORK_CONSOLE_COLLECTOR_IMAGE := quay.io/skupper/network-console-collector:v2-latest
-TEST_IMAGE := quay.io/skupper/skupper-tests:v2-latest
-TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
-DOCKER := docker
-LDFLAGS := -X github.com/skupperproject/skupper/pkg/version.Version=${VERSION}
+REVISION := $(shell git rev-parse HEAD)
+
+LDFLAGS_EXTRA ?= -s -w # default to building stripped executables
+LDFLAGS := ${LDFLAGS_EXTRA} -X github.com/skupperproject/skupper/pkg/version.Version=${VERSION}
 TESTFLAGS := -v -race -short
-PLATFORMS ?= linux/amd64,linux/arm64
 GOOS ?= linux
 GOARCH ?= amd64
 
-all: build-cmd build-config-sync build-controller build-bootstrap build-tests build-manifest build-network-console-collector update-helm-crd
+REGISTRY := quay.io/skupper
+IMAGE_TAG := v2-latest
+PLATFORMS ?= linux/amd64,linux/arm64
+CONTAINERFILES := Dockerfile.bootstrap Dockerfile.config-sync Dockerfile.controller Dockerfile.network-console-collector
+SHARED_IMAGE_LABELS = \
+    --label "org.opencontainers.image.created=$(shell TZ=GMT date --iso-8601=seconds)" \
+	--label "org.opencontainers.image.url=https://skupper.io/" \
+	--label "org.opencontainers.image.documentation=https://skupper.io/" \
+	--label "org.opencontainers.image.source=https://github.com/skupperproject/skupper" \
+	--label "org.opencontainers.image.version=${VERSION}" \
+	--label "org.opencontainers.image.revision=${REVISION}" \
+	--label "org.opencontainers.image.licenses=Apache-2.0"
 
-build-tests:
-	mkdir -p ${TEST_BINARIES_FOLDER}
-#	GOOS=${GOOS} GOARCH=${GOARCH} go test -c -tags=job -v ./test/integration/examples/tcp_echo/job -o ${TEST_BINARIES_FOLDER}/tcp_echo_test
-#	GOOS=${GOOS} GOARCH=${GOARCH} go test -c -tags=job -v ./test/integration/examples/http/job -o ${TEST_BINARIES_FOLDER}/http_test
-#	GOOS=${GOOS} GOARCH=${GOARCH} go test -c -tags=job -v ./test/integration/examples/bookinfo/job -o ${TEST_BINARIES_FOLDER}/bookinfo_test
-#	GOOS=${GOOS} GOARCH=${GOARCH} go test -c -tags=job -v ./test/integration/examples/mongodb/job -o ${TEST_BINARIES_FOLDER}/mongo_test
-#	GOOS=${GOOS} GOARCH=${GOARCH} go test -c -tags=job -v ./test/integration/examples/custom/hipstershop/job -o ${TEST_BINARIES_FOLDER}/grpcclient_test
-#	GOOS=${GOOS} GOARCH=${GOARCH} go test -c -tags=job -v ./test/integration/examples/tls_t/job -o ${TEST_BINARIES_FOLDER}/tls_test
+
+DOCKER := docker
+SKOPEO := skopeo
+PODMAN := podman
+
+all: build-cmd build-config-sync build-controller build-bootstrap build-manifest build-network-console-collector update-helm-crd
 
 build-cmd:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o skupper ./cmd/skupper
@@ -30,10 +34,10 @@ build-bootstrap:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o bootstrap ./cmd/bootstrap
 
 build-controller:
-	go build -ldflags="${LDFLAGS}"  -o controller cmd/controller/main.go cmd/controller/controller.go
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o controller ./cmd/controller
 
 build-config-sync:
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o config-sync cmd/config-sync/main.go cmd/config-sync/config_sync.go cmd/config-sync/collector.go
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o config-sync ./cmd/config-sync
 
 build-network-console-collector:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o network-console-collector ./cmd/network-console-collector
@@ -44,36 +48,46 @@ build-manifest:
 build-doc-generator:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o generate-doc ./internal/cmd/generate-doc
 
-docker-build-test-image:
-	${DOCKER} buildx build --platform ${PLATFORMS} -t ${TEST_IMAGE} -f Dockerfile.ci-test .
-	${DOCKER} buildx build --load -t ${TEST_IMAGE} -f Dockerfile.ci-test .
+## native/default container image builds
+docker-build: $(patsubst Dockerfile.%,docker-build-%,$(CONTAINERFILES))
+docker-build-%: Dockerfile.%
+	${DOCKER} build $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/$*:${IMAGE_TAG}" -f $< .
 
-docker-build: docker-build-test-image docker-build-bootstrap docker-build-network-console-collector
-	${DOCKER} buildx build --platform ${PLATFORMS} -t ${CONTROLLER_IMAGE} -f Dockerfile.controller .
-	${DOCKER} buildx build --load  -t ${CONTROLLER_IMAGE} -f Dockerfile.controller .
-	${DOCKER} buildx build --platform ${PLATFORMS} -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
-	${DOCKER} buildx build --load  -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
+podman-build: $(patsubst Dockerfile.%,podman-build-%,$(CONTAINERFILES))
+podman-build-%: Dockerfile.%
+	${PODMAN} build $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/$*:${IMAGE_TAG}" -f $< .
 
-docker-build-bootstrap:
-	${DOCKER} buildx build --platform ${PLATFORMS} -t ${BOOTSTRAP_IMAGE} -f Dockerfile.bootstrap .
-	${DOCKER} buildx build --load  -t ${BOOTSTRAP_IMAGE} -f Dockerfile.bootstrap .
 
-docker-push-bootstrap:
-	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${BOOTSTRAP_IMAGE} -f Dockerfile.bootstrap .
+## multi-platform container images built in docker buildkit builder and
+# exported to oci archive format.
+multiarch-oci: $(patsubst Dockerfile.%,multiarch-oci-%,$(CONTAINERFILES))
+multiarch-oci-%: Dockerfile.% oci-archives
+	${DOCKER} buildx build \
+		"--output=type=oci,dest=$(shell pwd)/oci-archives/$*.tar" \
+		-t "${REGISTRY}/$*:${IMAGE_TAG}" \
+		$(SHARED_IMAGE_LABELS) \
+		--platform ${PLATFORMS} \
+		-f $< .
 
-docker-build-network-console-collector:
-	${DOCKER} buildx build --platform ${PLATFORMS} -t ${NETWORK_CONSOLE_COLLECTOR_IMAGE} -f Dockerfile.network-console-collector .
-	${DOCKER} buildx build --load  -t ${NETWORK_CONSOLE_COLLECTOR_IMAGE} -f Dockerfile.network-console-collector .
+## push multiarch-oci images to a registry using skopeo
+push-multiarch-oci: $(patsubst Dockerfile.%,push-multiarch-oci-%,$(CONTAINERFILES))
+push-multiarch-oci-%: ./oci-archives/%.tar
+	${SKOPEO} copy --all \
+		oci-archive:$< \
+		"docker://${REGISTRY}/$*:${IMAGE_TAG}"
 
-docker-push-network-console-collector:
-	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${NETWORK_CONSOLE_COLLECTOR_IMAGE} -f Dockerfile.network-console-collector .
+## Load images from oci-archive into local image storage
+docker-load-oci:
+	for archive in ./oci-archives/*.tar; do ${DOCKER} load < "$archive"; done
+podman-load-oci:
+	for archive in ./oci-archives/*.tar; do ${PODMAN} load < "$$archive"; done
 
-docker-push-test-image:
-	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${TEST_IMAGE} -f Dockerfile.ci-test .
+## Print fully qualified image names by arch
+describe-multiarch-oci:
+	@scripts/oci-index-archive-info.sh amd64 arm64
 
-docker-push: docker-push-test-image docker-push-bootstrap docker-push-network-console-collector
-	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${CONFIG_SYNC_IMAGE} -f Dockerfile.config-sync .
-	${DOCKER} buildx build --push --platform ${PLATFORMS} -t ${CONTROLLER_IMAGE} -f Dockerfile.controller .
+oci-archives:
+	mkdir -p oci-archives
 
 format:
 	go fmt ./...
@@ -98,46 +112,16 @@ cover:
 		-coverprofile cover.out \
 		./...
 
-clean:
-	rm -rf skupper controller release config-sync manifest bootstrap network-console-collector ${TEST_BINARIES_FOLDER}
-
-package: release/windows.zip release/darwin.zip release/linux.tgz release/s390x.tgz release/arm64.tgz
-
-release/linux.tgz: release/linux/skupper
-	tar -czf release/linux.tgz -C release/linux/ skupper
-
-release/linux/skupper: cmd/skupper/skupper.go
-	GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o release/linux/skupper ./cmd/skupper
-
-release/windows/skupper: cmd/skupper/skupper.go
-	GOOS=windows GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o release/windows/skupper ./cmd/skupper
-
-release/windows.zip: release/windows/skupper
-	zip -j release/windows.zip release/windows/skupper
-
-release/darwin/skupper: cmd/skupper/skupper.go
-	GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o release/darwin/skupper ./cmd/skupper
-
-release/darwin.zip: release/darwin/skupper
-	zip -j release/darwin.zip release/darwin/skupper
-
 generate-manifest: build-manifest
 	./manifest
 
 generate-doc: build-doc-generator
 	./generate-doc ./doc/cli
 
-release/s390x/skupper: cmd/skupper/skupper.go
-	GOOS=linux GOARCH=s390x go build -ldflags="${LDFLAGS}" -o release/s390x/skupper ./cmd/skupper
-
-release/s390x.tgz: release/s390x/skupper
-	tar -czf release/s390x.tgz release/s390x/skupper
-
-release/arm64/skupper: cmd/skupper/skupper.go
-	GOOS=linux GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o release/arm64/skupper ./cmd/skupper
-
-release/arm64.tgz: release/arm64/skupper
-	tar -czf release/arm64.tgz release/arm64/skupper
-
 update-helm-crd:
 	./scripts/update-helm-crds.sh
+
+clean:
+	rm -rf skupper controller config-sync manifest \
+		bootstrap network-console-collector generate-doc \
+		cover.out oci-archives

@@ -10,6 +10,7 @@
 /generate-doc
 /bootstrap
 /controller
+/network-console-collector
 
 # Test binary, built with `go test -c`
 *.test
@@ -28,3 +29,4 @@
 
 # Generated files
 manifest.json
+oci-archives/
