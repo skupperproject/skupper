@@ -2,6 +2,7 @@ package adaptor
 
 import (
 	"context"
+	"log"
 	"os"
 	paths "path"
 
@@ -27,9 +28,11 @@ func InitialiseConfig(client kubernetes.Interface, namespace string, path string
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(paths.Join(path, "skrouterd.json"), []byte(value), 0777); err != nil {
+	configFile := paths.Join(path, "skrouterd.json")
+	if err := os.WriteFile(configFile, []byte(value), 0777); err != nil {
 		return err
 	}
+	log.Printf("Router configuration written to %s", configFile)
 
 	profileSyncer := newSslProfileSyncer(path)
 	for _, profile := range config.SslProfiles {
@@ -42,6 +45,7 @@ func InitialiseConfig(client kubernetes.Interface, namespace string, path string
 		if err := target.sync(secret); err != nil {
 			return err
 		}
+		log.Printf("Resources for SslProfile %s written to %s", profile.Name, target.path)
 	}
 	return nil
 }
