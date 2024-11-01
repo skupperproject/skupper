@@ -234,12 +234,21 @@ spec:
       containers:
         - name: controller
           image: {{ .Values.images.controller }}
-          imagePullPolicy: Always
+          imagePullPolicy: {{ .Values.images.pullPolicy | default "Always" }}
           command: ["/app/controller"]
-          args: ["-enable-grants", "-grant-server-autoconfigure"]
+          args:
+            - "-enable-grants"
+            - "-grant-server-autoconfigure"
+            {{- if .Values.defaultAccessType }}
+            - "-default-access-type={{ .Values.defaultAccessType }}"
+            {{- end }}
           env:
             - name: SKUPPER_CONFIG_SYNC_IMAGE
               value: {{ .Values.images.configSync}}
+            {{- if .Values.images.pullPolicy }}
+            - name: SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY
+              value:  "{{ .Values.images.pullPolicy }}"
+            {{- end }}
             {{ if eq .Values.scope "namespace"}}
             - name: WATCH_NAMESPACE
               valueFrom:

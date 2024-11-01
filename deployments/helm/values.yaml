@@ -1,6 +1,9 @@
 images:
   controller: "quay.io/skupper/controller:v2-latest"
   configSync: "quay.io/skupper/config-sync:v2-latest"
+  pullPolicy:
+
+defaultAccessType:
 
 # available options: cluster, namespace
 scope: cluster

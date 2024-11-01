@@ -76,6 +76,7 @@ yaml-templates:
       - test-skupper-binary
       - test
       - build-oci-images
+      - smoke-test
 
 workflows:
   version: 2.1
@@ -101,6 +102,12 @@ workflows:
       - build-oci-images:
           <<: *run_for_numeric_tags
           image_tag: << pipeline.git.tag >>
+      - smoke-test:
+          image_tag: v2-latest
+          <<: *run_for_all_branches
+          requires:
+            - build-oci-images
+            - build-all
       - publish-oci-images:
           <<: *run_for_numeric_tags
           <<: *v2_release_requires
@@ -135,6 +142,12 @@ workflows:
       - build-oci-images:
           image_tag: v2-latest
           <<: *run_for_all_branches
+      - smoke-test:
+          image_tag: v2-latest
+          <<: *run_for_all_branches
+          requires:
+            - build-oci-images
+            - build-all
       - publish-oci-images:
           <<: *run_for_v2_branch
           <<: *v2_release_requires
@@ -293,6 +306,72 @@ jobs:
           command: |
             cd dist/linux-amd64
             ./skupper site
+
+  smoke-test:
+    executor: local_cluster_test_executor
+    parameters:
+      image_tag:
+        type: string
+      registry:
+        type: string
+        default: "quay.io/skupper"
+    steps:
+      - checkout
+      - run:
+          name: Install test dependencies
+          command: |
+            curl -Lo kind https://github.com/kubernetes-sigs/kind/releases/download/v0.24.0/kind-linux-amd64
+            chmod +x kind
+            sudo mv kind /usr/local/bin/
+
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            chmod +x kubectl
+            sudo mv kubectl /usr/local/bin/
+
+            curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+            chmod 700 get_helm.sh
+            ./get_helm.sh
+      - attach_workspace:
+          at: /tmp/
+      - run:
+          name: Start Cluster
+          command: |
+            set -x
+            kind create cluster
+            for archive in /tmp/oci-archives/*; do
+              kind load image-archive "$archive"
+            done
+            helm install skupper ./deployments/helm \
+              --set images.pullPolicy=Never \
+              --set images.controller=<< parameters.registry >>/controller:<< parameters.image_tag >> \
+              --set images.configSync=<< parameters.registry >>/config-sync:<< parameters.image_tag >> \
+              --set defaultAccessType=local \
+              --wait
+            kubectl create namespace east
+            kubectl create namespace west
+            kubectl apply -n east -f ./cmd/controller/example/connector.yaml
+            kubectl create deployment backend --image quay.io/skupper/hello-world-backend -n east
+            kubectl apply -n west -f ./cmd/controller/example/listener.yaml
+            kubectl create deployment frontend --image quay.io/skupper/hello-world-frontend -n west
+            skupper=/tmp/dist/linux-amd64/skupper
+
+            $skupper site create east -n east \
+              --enable-link-access
+            $skupper site create west -n west
+            kubectl wait --for=condition=ready \
+              -n east site/east
+            kubectl wait --for=condition=ready \
+              -n west site/west
+
+            $skupper token issue -n east accesstoken.east.yaml
+            $skupper token redeem -n west accesstoken.east.yaml
+            kubectl wait --for=condition=ready \
+              -n east connector/backend
+
+            # assets that backend listener in west is attached to
+            # the connector in east
+            kubectl wait -n west listener/backend \
+            --for=jsonpath='{.status.matchingConnectorCount}=1'
 
   publish-github-release-artifacts:
     docker:

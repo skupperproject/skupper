@@ -78,7 +78,7 @@ push-multiarch-oci-%: ./oci-archives/%.tar
 
 ## Load images from oci-archive into local image storage
 docker-load-oci:
-	for archive in ./oci-archives/*.tar; do ${DOCKER} load < "$archive"; done
+	for archive in ./oci-archives/*.tar; do ${DOCKER} load < "$$archive"; done
 podman-load-oci:
 	for archive in ./oci-archives/*.tar; do ${PODMAN} load < "$$archive"; done
 
