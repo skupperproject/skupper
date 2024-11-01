@@ -142,8 +142,14 @@ parse_opts() {
         case "${opt}" in
             p)
                 export INPUT_PATH="${OPTARG}"
-                if [ -z "${INPUT_PATH}" ] || [ ! -d "${INPUT_PATH}" ]; then
-                    echo "Invalid custom resources path (it must be a directory)"
+                if [ -z "${INPUT_PATH}" ] || [ ! -d "${INPUT_PATH}" ] || [ ! -x "${INPUT_PATH}" ]; then
+                    echo "Invalid custom resources path (it must be an accessible directory)"
+                    usage
+                fi
+                INPUT_PATH="$(cd "${INPUT_PATH}" > /dev/null 2>&1 && echo "${PWD}" || echo "")"
+                export INPUT_PATH
+                if [ -z "${INPUT_PATH}" ]; then
+                    echo "Unable to determine custom resources fully qualified path"
                     usage
                 fi
                 ;;
