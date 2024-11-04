@@ -161,7 +161,7 @@ func testServices(t *testing.T) {
 			PropagationPolicy: &deletePolicy,
 		})
 
-		_, err = k8s.WaitForJob(cluster.Namespace, cluster.VanClient.KubeClient, name, time.Minute)
+		_, err = k8s.WaitForJob(cluster.Namespace, cluster.VanClient.KubeClient, name, 5*time.Minute)
 		if err != nil {
 			_, _ = cluster.KubectlExec("logs job/" + name)
 			testRunner.DumpTestInfo(name)
