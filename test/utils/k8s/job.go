@@ -184,16 +184,25 @@ func WaitForJob(ns string, kubeClient kubernetes.Interface, jobName string, time
 			if job.Status.Active > 0 {
 				fmt.Println("Job is still active")
 			} else if len(job.Status.Conditions) > 0 {
+				jobComplete := false
+				jobFailed := false
 				for _, condition := range job.Status.Conditions {
 					if condition.Type == batchv1.JobComplete {
-						fmt.Println("Job Successful!")
-						return job, nil
+						jobComplete = true
 					} else if condition.Type == batchv1.JobFailed {
-						statusJson, _ := json.Marshal(job.Status)
-						fmt.Printf("Job failed?, status = %v\n", string(statusJson))
-						return job, fmt.Errorf("Job failed. Status: %s", string(statusJson))
+						jobFailed = true
 					}
 				}
+
+				if jobComplete {
+					fmt.Println("Job Successful!")
+					return job, nil
+				} else if jobFailed {
+					statusJson, _ := json.Marshal(job.Status)
+					fmt.Printf("Job failed?, status = %v\n", string(statusJson))
+					return job, fmt.Errorf("Job failed. Status: %s", string(statusJson))
+				}
+
 			} else {
 				fmt.Println("Waiting on job condition")
 			}
