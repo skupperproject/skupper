@@ -232,6 +232,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 			skip:       base.MultipleClusters(),
 			skipReason: SkipReasonIngressNone,
 			testSync:   true,
+			tokenType:  "claim",
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:         "",
 				RouterMode:          string(types.TransportModeInterior),
@@ -297,9 +298,10 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 			},
 		},
 		{
-			id:       "interiors-ingress-default",
-			doc:      "Connecting two interiors with ingress=default (route if available or loadbalancer)",
-			testSync: false,
+			id:        "interiors-ingress-default",
+			doc:       "Connecting two interiors with ingress=default (route if available or loadbalancer)",
+			testSync:  false,
+			tokenType: "claim",
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:         "",
 				RouterMode:          string(types.TransportModeInterior),
