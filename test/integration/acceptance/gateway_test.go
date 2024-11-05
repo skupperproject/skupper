@@ -156,12 +156,9 @@ func testServices(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		deletePolicy := v12.DeletePropagationBackground
-		defer cluster.VanClient.KubeClient.BatchV1().Jobs(cluster.Namespace).Delete(context.TODO(), job.Name, v12.DeleteOptions{
-			PropagationPolicy: &deletePolicy,
-		})
+		defer cluster.VanClient.KubeClient.BatchV1().Jobs(cluster.Namespace).Delete(context.TODO(), job.Name, v12.DeleteOptions{})
 
-		_, err = k8s.WaitForJob(cluster.Namespace, cluster.VanClient.KubeClient, name, 5*time.Minute)
+		_, err = k8s.WaitForJob(cluster.Namespace, cluster.VanClient.KubeClient, name, time.Minute)
 		if err != nil {
 			_, _ = cluster.KubectlExec("logs job/" + name)
 			testRunner.DumpTestInfo(name)

@@ -173,7 +173,10 @@ func WaitForJob(ns string, kubeClient kubernetes.Interface, jobName string, time
 	for {
 		select {
 		case <-timeoutCh:
-			return nil, fmt.Errorf("Timeout: Job is still active: %s", jobName)
+			///
+			debugJob, _ := jobsClient.Get(context.TODO(), jobName, metav1.GetOptions{})
+			///
+			return nil, fmt.Errorf("Timeout: Job is still active: %s, %v", jobName, debugJob)
 		case <-tick:
 			job, _ := jobsClient.Get(context.TODO(), jobName, metav1.GetOptions{})
 
