@@ -33,7 +33,7 @@ var getUid IdGetter = os.Getuid
 
 func GetDataHome() string {
 	if getUid() == 0 {
-		return "/usr/local/share/skupper"
+		return "/var/lib/skupper"
 	}
 	dataHome, ok := os.LookupEnv("XDG_DATA_HOME")
 	if !ok {

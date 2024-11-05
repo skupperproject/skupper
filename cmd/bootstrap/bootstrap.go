@@ -43,10 +43,10 @@ files are stored, like certificates, configurations, the original sources
 (original custom resources used to bootstrap the nonkube site) and
 the runtime files generated during initialization.
 
-Namespaces are stored under ${XDG_DATA_HOME}/.local/share/skupper/namespaces
+Namespaces are stored under ${XDG_DATA_HOME}/skupper/namespaces
 for regular users when XDG_DATA_HOME environment variable is set, or under
 ${HOME}/.local/share/skupper/namespaces when it is not set.
-As the root user, namespaces are stored under: /usr/local/share/skupper/namespaces.
+As the root user, namespaces are stored under: /var/lib/skupper/namespaces.
 
 In case the path (-p) flag is omitted, Skupper will try to process
 custom resources stored at the sources directory of the default namespace,
@@ -102,7 +102,7 @@ func main() {
 	// definition based on CR files, if an input path has been provided.
 	// The /output path must be mapped to the Host's XDG_DATA_HOME/skupper
 	// or $HOME/.local/share/skupper (non-root)
-	// and /usr/local/share/skupper (root).
+	// and /var/lib/skupper (root).
 	//
 	fmt.Printf("Skupper nonkube bootstrap (version: %s)\n", version.Version)
 
