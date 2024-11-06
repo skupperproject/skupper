@@ -77,10 +77,14 @@ push-multiarch-oci-%: ./oci-archives/%.tar
 		"docker://${REGISTRY}/$*:${IMAGE_TAG}"
 
 ## Load images from oci-archive into local image storage
-docker-load-oci:
-	for archive in ./oci-archives/*.tar; do ${DOCKER} load < "$archive"; done
 podman-load-oci:
 	for archive in ./oci-archives/*.tar; do ${PODMAN} load < "$$archive"; done
+## Has unfortunate podman dependency; docker image load does not load OCI archives, while podman does.
+docker-load-oci:
+	for archive in ./oci-archives/*.tar; do \
+		img=$$(${PODMAN} load -q < "$$archive" | awk -F": " '{print $$2}') \
+		&& ${PODMAN} image save "$$img" | ${DOCKER} load; \
+	done
 
 ## Print fully qualified image names by arch
 describe-multiarch-oci:
