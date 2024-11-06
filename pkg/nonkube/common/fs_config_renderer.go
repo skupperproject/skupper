@@ -125,9 +125,9 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *api.SiteState) error
 	// Saving runtime platform
 	if !c.Bundle {
 		content := fmt.Sprintf("platform: %s\n", c.Platform)
-		platformPath := path.Join(outputPath, string(api.RuntimeSiteStatePath), "platform.yaml")
+		platformPath := path.Join(outputPath, string(api.RuntimePath), "platform.yaml")
 		logger.Debug("writing platform", slog.String("platform", c.Platform), slog.String("path", platformPath))
-		err = os.WriteFile(path.Join(outputPath, string(api.RuntimePath), "platform.yaml"), []byte(content), 0644)
+		err = os.WriteFile(platformPath, []byte(content), 0644)
 		if err != nil {
 			return fmt.Errorf("failed to write runtime platform: %w", err)
 		}
