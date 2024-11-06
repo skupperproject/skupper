@@ -76,9 +76,21 @@ func (r *BasicTestRunner) Setup(ctx context.Context, createOptsPublic types.Site
 
 	const secretFile = "/tmp/public_basic_1_secret.yaml"
 	if tokenType == "claim" {
-		err = pub1Cluster.VanClient.TokenClaimCreateFile(ctx, types.DefaultVanName, []byte(createOptsPublic.Password), 15*time.Minute, 1, secretFile)
+		err = utils.RetryError(3*time.Second, 5, func() error {
+			err := pub1Cluster.VanClient.TokenClaimCreateFile(ctx, types.DefaultVanName, []byte(createOptsPublic.Password), 15*time.Minute, 1, secretFile)
+			if err == nil {
+				return nil
+			}
+			return err
+		})
 	} else {
-		err = pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
+		err = utils.RetryError(3*time.Second, 5, func() error {
+			err := pub1Cluster.VanClient.ConnectorTokenCreateFile(ctx, types.DefaultVanName, secretFile)
+			if err == nil {
+				return nil
+			}
+			return err
+		})
 	}
 	assert.Assert(t, err)
 
@@ -232,6 +244,7 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 			skip:       base.MultipleClusters(),
 			skipReason: SkipReasonIngressNone,
 			testSync:   true,
+			tokenType:  "claim",
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:         "",
 				RouterMode:          string(types.TransportModeInterior),
@@ -297,9 +310,10 @@ func (r *BasicTestRunner) Run(ctx context.Context, t *testing.T) {
 			},
 		},
 		{
-			id:       "interiors-ingress-default",
-			doc:      "Connecting two interiors with ingress=default (route if available or loadbalancer)",
-			testSync: false,
+			id:        "interiors-ingress-default",
+			doc:       "Connecting two interiors with ingress=default (route if available or loadbalancer)",
+			testSync:  false,
+			tokenType: "claim",
 			createOptsPublic: types.SiteConfigSpec{
 				SkupperName:         "",
 				RouterMode:          string(types.TransportModeInterior),

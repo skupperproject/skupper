@@ -175,19 +175,34 @@ func WaitForJob(ns string, kubeClient kubernetes.Interface, jobName string, time
 		case <-timeoutCh:
 			return nil, fmt.Errorf("Timeout: Job is still active: %s", jobName)
 		case <-tick:
-			job, _ := jobsClient.Get(context.TODO(), jobName, metav1.GetOptions{})
+			job, err := jobsClient.Get(context.TODO(), jobName, metav1.GetOptions{})
+
+			if err != nil {
+				return nil, err // Handle the error
+			}
 
 			if job.Status.Active > 0 {
 				fmt.Println("Job is still active")
 			} else if len(job.Status.Conditions) > 0 {
-				if job.Status.Conditions[0].Type == batchv1.JobComplete {
+				jobComplete := false
+				jobFailed := false
+				for _, condition := range job.Status.Conditions {
+					if condition.Type == batchv1.JobComplete {
+						jobComplete = true
+					} else if condition.Type == batchv1.JobFailed {
+						jobFailed = true
+					}
+				}
+
+				if jobComplete {
 					fmt.Println("Job Successful!")
 					return job, nil
-				} else if job.Status.Conditions[0].Type == batchv1.JobFailed {
+				} else if jobFailed {
 					statusJson, _ := json.Marshal(job.Status)
 					fmt.Printf("Job failed?, status = %v\n", string(statusJson))
 					return job, fmt.Errorf("Job failed. Status: %s", string(statusJson))
 				}
+
 			} else {
 				fmt.Println("Waiting on job condition")
 			}
