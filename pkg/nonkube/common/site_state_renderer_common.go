@@ -64,6 +64,8 @@ func copySiteStateMap[T any](m map[string]T) map[string]T {
 
 func CreateRouterAccess(siteState *api.SiteState) error {
 	if !siteState.HasRouterAccess() {
+		logger := NewLogger()
+		logger.Debug("Creating skupper-local RouterAccess")
 		name := fmt.Sprintf("skupper-local")
 		var port = 5671
 		var err error
@@ -72,6 +74,7 @@ func CreateRouterAccess(siteState *api.SiteState) error {
 			if err != nil {
 				return err
 			}
+			logger.Debug("Free TCP port discovered", "port", port)
 		}
 		siteState.CreateRouterAccess(name, port)
 	}

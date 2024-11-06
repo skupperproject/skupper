@@ -2,7 +2,9 @@ package compat
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"time"
@@ -28,6 +30,7 @@ type SiteStateRenderer struct {
 
 func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) error {
 	var err error
+	var logger = common.NewLogger()
 	var validator api.SiteStateValidator = &common.SiteStateValidator{}
 	err = validator.Validate(loadedSiteState)
 	if err != nil {
@@ -47,29 +50,43 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 		// when reload is successful, backupData must be nil
 		if backupData == nil {
 			for _, temporaryName := range s.stoppedContainers {
+				logger.Debug("Removing temporary container ", slog.String("name", temporaryName))
 				err = s.cli.ContainerRemove(temporaryName)
 				if err != nil {
-					fmt.Printf("Failed to remove temporary container %s: %v\n", temporaryName, err)
+					logger.Error("Failed to remove temporary container",
+						slog.String("name", temporaryName),
+						slog.String("error", err.Error()),
+					)
 				}
 			}
 			return
 		}
-		fmt.Println("Bootstrap failed, restoring previous state")
+		logger.Error("Bootstrap failed, restoring namespace")
 		err := common.RestoreNamespaceData(backupData)
 		if err != nil {
-			fmt.Printf("Error restoring namespace data for %q - %s\n", loadedSiteState.GetNamespace(), err)
+			logger.Error("Error restoring namespace data:",
+				slog.String("namespace", loadedSiteState.GetNamespace()),
+				slog.String("error", err.Error()),
+			)
 			return
 		}
 		for originalName, temporaryName := range s.stoppedContainers {
 			if temporaryName != originalName {
 				err = s.cli.ContainerRename(temporaryName, originalName)
 				if err != nil {
-					fmt.Printf("Error restoring container name from %q to %q - %s\n", temporaryName, originalName, err)
+					logger.Error("Error restoring container:",
+						slog.String("temporary", temporaryName),
+						slog.String("name", originalName),
+						slog.String("error", err.Error()),
+					)
 				}
 			}
 			err = s.cli.ContainerStart(originalName)
 			if err != nil {
-				fmt.Printf("Error starting container %q - %s\n", originalName, err)
+				logger.Error("Error starting container",
+					slog.String("name", originalName),
+					slog.String("error", err.Error()),
+				)
 			}
 		}
 	}()
@@ -211,12 +228,27 @@ func (s *SiteStateRenderer) prepareContainers() error {
 		//      validate whether CPU and memory thresholds can be
 		//      set to the container
 	}
+	logger := common.NewLogger()
+	if logger.Enabled(nil, slog.LevelDebug) {
+		for name, newContainer := range s.containers {
+			containerJson, _ := json.Marshal(newContainer)
+			logger.Debug("container prepared:",
+				slog.String("name", name),
+				slog.String("container", string(containerJson)),
+			)
+		}
+	}
 	return nil
 }
 
 func (s *SiteStateRenderer) pullImages(ctx context.Context) error {
 	var err error
+	var logger = common.NewLogger()
 	for component, skupperContainer := range s.containers {
+		logger.Debug("pulling:",
+			slog.String("image", skupperContainer.Image),
+			slog.String("component", component),
+		)
 		err = s.cli.ImagePull(ctx, skupperContainer.Image)
 		if err != nil {
 			return fmt.Errorf("failed to pull %s image %s: %w", component, skupperContainer.Image, err)
@@ -245,7 +277,12 @@ func (s *SiteStateRenderer) createContainers() error {
 			return fmt.Errorf("container %s already exists (component: %s)", skupperContainer.Name, component)
 		}
 	}
+	logger := common.NewLogger()
 	for component, skupperContainer := range s.containers {
+		logger.Debug("creating container",
+			slog.String("component", component),
+			slog.String("name", skupperContainer.Name),
+		)
 		err = s.cli.ContainerCreate(&skupperContainer)
 		if err != nil {
 			return fmt.Errorf("failed to create %q container (%s): %w", component, skupperContainer.Name, err)
@@ -256,8 +293,13 @@ func (s *SiteStateRenderer) createContainers() error {
 
 func (s *SiteStateRenderer) startContainers() error {
 	var err error
+	var logger = common.NewLogger()
 	defer s.cleanupContainers(err)
 	for component, skupperContainer := range s.containers {
+		logger.Debug("starting container",
+			slog.String("component", component),
+			slog.String("name", skupperContainer.Name),
+		)
 		err = s.cli.ContainerStart(skupperContainer.Name)
 		if err != nil {
 			return fmt.Errorf("failed to start %s container %q: %w", component, skupperContainer.Name, err)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"text/template"
@@ -72,12 +73,15 @@ func GetStartupScripts(args StartupScriptsArgs, pathProvider api.InternalPathPro
 func (s *startupScripts) Create() error {
 	var startBuf bytes.Buffer
 	var stopBuf bytes.Buffer
+	logger := NewLogger()
+	logger.Debug("creating startup scripts")
 
 	startTemplate := template.Must(template.New("start").Parse(s.StartScript))
 	if err := startTemplate.Execute(&startBuf, s); err != nil {
 		return fmt.Errorf("failed to create start script: %w", err)
 	}
 	startFileName := path.Join(s.path, s.GetStartFileName())
+	logger.Debug("writing start script", slog.String("path", startFileName))
 	err := os.WriteFile(startFileName, startBuf.Bytes(), 0755)
 	if err != nil {
 		return err
@@ -87,6 +91,7 @@ func (s *startupScripts) Create() error {
 		return fmt.Errorf("failed to create stop script: %w", err)
 	}
 	stopFileName := path.Join(s.path, s.GetStopFileName())
+	logger.Debug("writing stop script", slog.String("path", stopFileName))
 	err = os.WriteFile(stopFileName, stopBuf.Bytes(), 0755)
 	if err != nil {
 		return err

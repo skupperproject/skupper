@@ -2,6 +2,7 @@ package systemd
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -18,6 +19,7 @@ type SiteStateRenderer struct {
 
 func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) error {
 	var err error
+	var logger = common.NewLogger()
 	var validator api.SiteStateValidator = &common.SiteStateValidator{}
 	err = validator.Validate(loadedSiteState)
 	if err != nil {
@@ -34,15 +36,20 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 		if backupData == nil {
 			return
 		}
-		fmt.Println("Bootstrap failed, restoring previous state")
+		logger.Error("Bootstrap failed, restoring namespace")
 		err := common.RestoreNamespaceData(backupData)
 		if err != nil {
-			fmt.Printf("Error restoring namespace data for %q - %s\n", loadedSiteState.GetNamespace(), err)
+			logger.Error("Error restoring namespace data:",
+				slog.String("namespace", loadedSiteState.GetNamespace()),
+				slog.String("error", err.Error()),
+			)
 			return
 		}
 		err = s.createSystemdService()
 		if err != nil {
-			fmt.Printf("Error recovering systemd service info - %s\n", err)
+			logger.Error("Error recovering systemd service info:",
+				slog.String("error", err.Error()),
+			)
 		}
 	}()
 

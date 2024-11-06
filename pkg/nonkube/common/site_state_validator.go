@@ -79,7 +79,7 @@ func (s *SiteStateValidator) validateRouterAccesses(routerAccesses map[string]*v
 			}
 		}
 		if len(routerAccess.Spec.Roles) == 0 {
-			return fmt.Errorf("invalid router access: roles are required")
+			return fmt.Errorf("invalid router access: %s - roles are required", routerAccess.Name)
 		}
 		for _, role := range routerAccess.Spec.Roles {
 			if !utils.StringSliceContains(validLinkAccessRoles, role.Name) {
@@ -135,12 +135,12 @@ func (s *SiteStateValidator) validateListeners(listeners map[string]*v2alpha1.Li
 			return fmt.Errorf("invalid listener name: %w", err)
 		}
 		if listener.Spec.Host == "" || listener.Spec.Port == 0 {
-			return fmt.Errorf("host and port are required")
+			return fmt.Errorf("invalid listener: %s - host and port are required", listener.Name)
 		}
 		ip := net.ParseIP(listener.Spec.Host)
 		validHostname := hostnameRfc1123Regex.MatchString(listener.Spec.Host)
 		if ip == nil && !validHostname {
-			return fmt.Errorf("invalid listener host: %s - a valid IP address or hostname is expected", listener.Spec.Host)
+			return fmt.Errorf("invalid listener host: %s - a valid IP address or hostname is expected (listener: %q)", listener.Spec.Host, name)
 		}
 		if utils.IntSliceContains(hostPorts[listener.Spec.Host], listener.Spec.Port) {
 			return fmt.Errorf("port %d is already mapped for host %q (listener: %q)", listener.Spec.Port, listener.Spec.Host, name)
@@ -159,12 +159,12 @@ func (s *SiteStateValidator) validateConnectors(connectors map[string]*v2alpha1.
 			return fmt.Errorf("invalid connector name: %w", err)
 		}
 		if connector.Spec.Host == "" || connector.Spec.Port == 0 {
-			return fmt.Errorf("connector host and port are required")
+			return fmt.Errorf("connector host and port are required (connector: %q)", connector.Name)
 		}
 		ip := net.ParseIP(connector.Spec.Host)
 		validHostname := hostnameRfc1123Regex.MatchString(connector.Spec.Host)
 		if ip == nil && !validHostname {
-			return fmt.Errorf("invalid connector host: %s - a valid IP address or hostname is expected", connector.Spec.Host)
+			return fmt.Errorf("invalid connector host: %s - a valid IP address or hostname is expected (connector: %q)", connector.Spec.Host, connector.Name)
 		}
 		if connector.Spec.RoutingKey == "" {
 			return fmt.Errorf("routingKey is missing for connector: %s", connector.Name)

@@ -3,7 +3,7 @@ package common
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path"
 	"strconv"
@@ -67,6 +67,7 @@ func NewFileSystemConfigurationRenderer(outputPath string) *FileSystemConfigurat
 // Render simply renders the given site state as configuration files.
 func (c *FileSystemConfigurationRenderer) Render(siteState *api.SiteState) error {
 	var err error
+	logger := NewLogger()
 	outputPath := c.GetOutputPath(siteState)
 	if c.SslProfileBasePath == "" {
 		c.SslProfileBasePath = DefaultSslProfileBasePath
@@ -117,7 +118,9 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *api.SiteState) error
 	// Saving runtime platform
 	if !c.Bundle {
 		content := fmt.Sprintf("platform: %s\n", c.Platform)
-		err = os.WriteFile(path.Join(outputPath, string(api.RuntimeSiteStatePath), "platform.yaml"), []byte(content), 0644)
+		platformPath := path.Join(outputPath, string(api.RuntimeSiteStatePath), "platform.yaml")
+		logger.Debug("writing platform", slog.String("platform", c.Platform), slog.String("path", platformPath))
+		err = os.WriteFile(platformPath, []byte(content), 0644)
 		if err != nil {
 			return fmt.Errorf("failed to write runtime platform: %w", err)
 		}
@@ -127,6 +130,11 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *api.SiteState) error
 	for raName, ra := range siteState.RouterAccesses {
 		for _, role := range ra.Spec.Roles {
 			if role.Name != "normal" {
+				logger.Debug("site endpoint configured:",
+					slog.String("host", ra.Spec.BindHost),
+					slog.String("role", role.Name),
+					slog.Int("port", role.Port),
+				)
 				endpoints = append(endpoints, v2alpha1.Endpoint{
 					Name: fmt.Sprintf("%s-%s", raName, role.Name),
 					Host: ra.Spec.BindHost,
@@ -162,23 +170,27 @@ func (c *FileSystemConfigurationRenderer) GetInputPath(siteState *api.SiteState)
 }
 
 func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, runtimeSiteState *api.SiteState) error {
+	logger := NewLogger()
 	if loadedSiteState != nil {
 		outputPath := c.GetOutputPath(loadedSiteState)
 		sourcesPath := path.Join(outputPath, string(api.LoadedSiteStatePath))
 		inputSourcesPath := path.Join(outputPath, string(api.InputSiteStatePath))
-		existingSources, _ := new(utils.DirectoryReader).ReadDir(inputSourcesPath, nil)
+		existingLoadedSources, _ := new(utils.DirectoryReader).ReadDir(sourcesPath, nil)
+		existingInputSources, _ := new(utils.DirectoryReader).ReadDir(inputSourcesPath, nil)
 		// when sources are already defined, we back them up
-		if len(existingSources) > 0 {
+		if len(existingLoadedSources) > 0 {
 			tb := utils.NewTarball()
-			err := tb.AddFiles(inputSourcesPath)
+			err := tb.AddFiles(sourcesPath)
 			if err != nil {
 				return fmt.Errorf("unable to backup existing sources: %s", err)
 			}
-			tbFile := path.Join(outputPath, "input", "sources.backup.tar.gz")
+			tbFile := path.Join(outputPath, "sources.backup.tar.gz")
+			logger.Debug("saving loaded state sources", slog.String("path", tbFile))
 			err = tb.Save(tbFile)
 			if err != nil {
 				return fmt.Errorf("unable to backup sources.backup.tar.gz: %s", err)
 			}
+			logger.Debug("clean up previous loaded state", slog.String("path", sourcesPath))
 			err = os.RemoveAll(sourcesPath)
 			if err != nil {
 				return fmt.Errorf("unable to remove former loaded state: %s", err)
@@ -186,17 +198,21 @@ func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, run
 			if err = os.Mkdir(sourcesPath, 0755); err != nil {
 				return fmt.Errorf("unable to recreate sources directory %s: %s", sourcesPath, err)
 			}
-		} else {
+		}
+		if len(existingInputSources) == 0 {
+			logger.Debug("creating input sources", slog.String("path", inputSourcesPath))
 			if err := api.MarshalSiteState(*loadedSiteState, inputSourcesPath); err != nil {
 				return err
 			}
 		}
+		logger.Debug("saving loaded state", slog.String("path", sourcesPath))
 		if err := api.MarshalSiteState(*loadedSiteState, sourcesPath); err != nil {
 			return err
 		}
 	}
 	outputPath := c.GetOutputPath(runtimeSiteState)
 	runtimeStatePath := path.Join(outputPath, string(api.RuntimeSiteStatePath))
+	logger.Debug("saving runtime state", slog.String("path", runtimeStatePath))
 	if err := api.MarshalSiteState(*runtimeSiteState, runtimeStatePath); err != nil {
 		return err
 	}
@@ -204,9 +220,12 @@ func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, run
 }
 
 func CleanupNamespaceForReload(namespace string) error {
+	logger := NewLogger()
+	logger.Debug("cleaning up namespace for reload")
 	// Re-create internal configuration directories
 	for _, dir := range reloadDirectories {
 		outputPath := api.GetInternalOutputPath(namespace, dir)
+		logger.Debug("recreating directory:", slog.String("path", outputPath))
 		if err := os.RemoveAll(outputPath); err != nil {
 			return fmt.Errorf("failed to remove directory %s: %w", outputPath, err)
 		}
@@ -238,6 +257,7 @@ func RestoreNamespaceData(data []byte) error {
 }
 
 func (c *FileSystemConfigurationRenderer) createTokens(siteState *api.SiteState) error {
+	logger := NewLogger()
 	tokens := make([]*api.Token, 0)
 	for name, linkAccess := range siteState.RouterAccesses {
 		noInterRouterRole := linkAccess.FindRole("inter-router") == nil
@@ -270,10 +290,11 @@ func (c *FileSystemConfigurationRenderer) createTokens(siteState *api.SiteState)
 		tokenPath := path.Join(outputPath, string(api.RuntimeTokenPath), tokenFileName)
 		tokenYaml, err := token.Marshal()
 		if err != nil {
-			return fmt.Errorf("unable to marshal token: %v", err)
+			return fmt.Errorf("unable to marshal static link: %v", err)
 		}
+		logger.Debug("writing static link", slog.String("path", tokenPath))
 		if err := os.WriteFile(tokenPath, tokenYaml, 0644); err != nil {
-			return fmt.Errorf("unable to create token file %s: %v", tokenPath, err)
+			return fmt.Errorf("unable to create static link file %s: %v", tokenPath, err)
 		}
 	}
 	return nil
@@ -289,6 +310,7 @@ func (c *FileSystemConfigurationRenderer) createRouterConfig(siteState *api.Site
 	}
 	outputPath := c.GetOutputPath(siteState)
 	routerConfigFileName := path.Join(outputPath, string(api.ConfigRouterPath), "skrouterd.json")
+	NewLogger().Debug("Writing router configuration", slog.String("path", routerConfigFileName))
 	err = os.WriteFile(routerConfigFileName, []byte(routerConfigJson), 0644)
 	if err != nil {
 		return fmt.Errorf("unable to write router config file: %v", err)
@@ -298,6 +320,7 @@ func (c *FileSystemConfigurationRenderer) createRouterConfig(siteState *api.Site
 
 func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.SiteState) error {
 	var err error
+	var logger = NewLogger()
 	writeSecretFilesIgnore := func(basePath string, secret *corev1.Secret, ignoreExisting bool) error {
 		baseDir, err := os.Open(basePath)
 		if err != nil {
@@ -323,10 +346,11 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 				// ignoring existing certificate
 				_ = certFile.Close()
 				if ignoreExisting {
-					log.Printf("warning: %s will not be overwritten", certFileName)
+					logger.Warn("certificate will not be overwritten", slog.String("path", certFileName))
 					continue
 				}
 			}
+			logger.Debug("writing certificate", slog.String("path", certFileName))
 			err = os.WriteFile(certFileName, data, 0640)
 			if err != nil {
 				return fmt.Errorf("error writing %s: %v", certFileName, err)
