@@ -107,10 +107,15 @@ workflows:
           image_tag: << pipeline.git.tag >>
           context:
             - skupper-org
+      - generate-manifest:
+          <<: *run_for_numeric_tags
+          requires:
+            - publish-oci-images
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
           requires:
             - publish-oci-images
+            - generate-manifest
           context:
             - skupper-org
   build:
@@ -141,11 +146,15 @@ workflows:
           image_tag: v2-latest
           context:
             - skupper-org
+      - generate-manifest:
+          requires:
+            - publish-oci-images
       - publish-github-prerelease-artifacts:
           <<: *run_for_v2_branch
           version: v2-release
           requires:
             - publish-oci-images
+            - generate-manifest
           context:
             - skupper-org
 
@@ -178,6 +187,21 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts
           destination: test-artifacts
+
+  generate-manifest:
+    executor:
+      name: go_cimg
+    steps:
+      - checkout
+      - go/mod-download-cached
+      - setup_remote_docker
+      - run: make generate-manifest
+      - run: mkdir skupper-manifest
+      - run: cp ./manifest.json skupper-manifest
+      - persist_to_workspace:
+          root: .
+          paths:
+            - skupper-manifest
 
   build-oci-images:
     executor: local_cluster_test_executor
@@ -344,4 +368,5 @@ jobs:
               fi
             done
             cd ${BASEDIR}
+            cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease ${VERSION} "${BASEDIR}/archives"
