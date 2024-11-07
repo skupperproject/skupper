@@ -1,6 +1,5 @@
 FROM --platform=$BUILDPLATFORM golang:1.22 AS builder
 
-ARG TARGETOS
 ARG TARGETARCH
 
 WORKDIR /go/src/app
@@ -9,9 +8,13 @@ COPY go.sum .
 RUN go mod download
 COPY . .
 
-RUN make build-bootstrap GOOS=$TARGETOS GOARCH=$TARGETARCH
+ENV CGO_ENABLED=0
+RUN make build-bootstrap GOARCH=$TARGETARCH
 
 FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
+LABEL \
+  org.opencontainers.image.title="Skupper Bootstrap" \
+  org.opencontainers.image.description="Produces and manges static configurations for non-kube installations of Skupper"
 
 # Create user and group and switch to user's context
 RUN microdnf -y install shadow-utils \

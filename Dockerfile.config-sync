@@ -1,6 +1,5 @@
 FROM --platform=$BUILDPLATFORM golang:1.22 AS builder
 
-ARG TARGETOS
 ARG TARGETARCH
 
 WORKDIR /go/src/app
@@ -10,9 +9,13 @@ COPY go.sum .
 RUN go mod download
 
 COPY . .
-RUN make GOOS=$TARGETOS GOARCH=$TARGETARCH
+ENV CGO_ENABLED=0
+RUN make GOARCH=$TARGETARCH build-config-sync
 
 FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
+LABEL \
+  org.opencontainers.image.title="Skupper Router Adaptor" \
+  org.opencontainers.image.description="Kubernetes aware interface for the skupper-router"
 
 # Create user and group and switch to user's context
 RUN microdnf -y install shadow-utils \

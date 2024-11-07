@@ -14,258 +14,13 @@ executors:
       image: ubuntu-2204:2022.10.2
     resource_class: large
 
-  local_cluster_policy_test_executor:
-    machine:
-      image: ubuntu-2204:2022.10.2
-    # Policy tests run all in sequence.  So, there is no benefit in adding more
-    # CPU or memory.  Within the tests, there is paralellism, but on goroutines,
-    # so they'd not use the additional CPUs.  The only thing a running policy
-    # test competes with is the other system processes
-    # resource_class: medium (the default)
-
 commands:
-  minikube-install:
-    description: Installs the minikube executable onto the system.
+  skopeo-install:
+    description: Install Skopeo
     steps:
       - run:
-          command: >-
-            curl -Lo minikube
-            https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 &&
-            chmod +x minikube && sudo
-            mv minikube /usr/local/bin/
-          name: Install Minikube Executable
-
-  minikube-start-medium:
-    description: Starts the minikube service, with 2 CPU and 2 GiB
-    steps:
-      - run:
-          command: >-
-            minikube start --vm-driver=docker --cpus 2 --memory 2048 --insecure-registry ${LOCAL_IP}:5000
-          name: Start Minikube Cluster
-
-  # We're using only 6 GiB out of the available 15 GiB of the linux/large
-  # CircleCI executor.  This allows us some leeway to grow within this
-  # resource class when memory issues happen, so we can prepare for the
-  # next resource class with plenty of time, when required.
-  minikube-start-large:
-    description: Starts the minikube service, with 4 CPU and 6GiB
-    steps:
-      - run:
-          command: >-
-            minikube start --vm-driver=docker --cpus 4 --memory 6144  --insecure-registry ${LOCAL_IP}:5000
-          name: Start Minikube Cluster
-
-  minikube-start-load-balancer:
-    description: Starts the minikube tunnel
-    steps:
-      - run:
-          command: minikube tunnel
-          name: Start Minikube Tunnel
-          background: true
-
-  # By default, we grep for out of memory messages.  To get the full output,
-  # just set the argument 're' to '.'
-  minikube-logs:
-    description: Tail minikube logs, grepping for something (by default, OOM)
-    parameters:
-      re:
-        # This is for egrep, so you can do things like "(oom|error)"
-        default: "(out of memory|oom.?kill)"
-        type: string
-    steps:
-    - run:
-        name: Tail and grep minikube logs
-        command: minikube logs -f | egrep -i "<<parameters.re>>"
-        background: true
-
-  prepare_for_local_cluster_tests:
-    description: install right versions of go, docker, kubectl, and also build
-    steps:
-      - run:
-          name: Saving local ip
-          command: |
-            LOCAL_IP=$(ip addr show | grep inet\ | grep -vE 'lo$|docker' | awk '{print $2}' | awk -F '/' '{print $1}')
-            echo "export LOCAL_IP=${LOCAL_IP}" >> ${BASH_ENV}
-            echo "Local IP: ${LOCAL_IP}"
-            source $BASH_ENV
-      - run:
-          name: Export environment variables persistent in execution shell
-          command: |
-            echo 'export KUBECONFIG=/home/circleci/.kube/config' >> $BASH_ENV
-            echo 'export GOROOT=/usr/local/go' >> $BASH_ENV
-            echo 'export GOPATH=$HOME/go' >> $BASH_ENV
-            echo 'export PATH=$GOPATH/bin:$GOROOT/bin:$PATH' >> $BASH_ENV
-            echo "export SKUPPER_CONTROLLER_IMAGE=${LOCAL_IP}:5000/controller" >> $BASH_ENV
-            echo "export SKUPPER_CONFIG_SYNC_IMAGE=${LOCAL_IP}:5000/config-sync" >> $BASH_ENV
-            echo "export SKUPPER_NETWORK_CONSOLE_COLLECTOR_IMAGE=${LOCAL_IP}:5000/network-console-collector" >> $BASH_ENV
-            echo "export SKUPPER_BOOTSTRAP_IMAGE=${LOCAL_IP}:5000/bootstrap" >> $BASH_ENV
-            echo "export TEST_IMAGE=${LOCAL_IP}:5000/skupper-tests" >> $BASH_ENV
-            source $BASH_ENV
-      - checkout
-      - run:
-          name: cleanup previous go installation
-          command: sudo rm -rf /usr/local/go
-      - docker/install-docker
-      - go/install:
-          version: "1.22.8"
-      - kube-orb/install-kubectl
-      - run: make
-
-  local_registry_start:
-    description: prepare a local registry using pre-built images
-    steps:
-      - run:
-          name: defining insecure registry location
-          command: |
-            echo "{\"insecure-registries\": [\"0.0.0.0:5000\", \"${LOCAL_IP}:5000\"]}" | jq > /tmp/daemon.json
-            sudo cp /tmp/daemon.json /etc/docker/
-            sudo systemctl restart docker
-      - run:
-          name: create registry container
-          command: |
-            docker run --name registry -d -p 5000:5000 registry
-      - attach_workspace:
-          at: /tmp/
-      - run:
-          name: load docker images
-          command: |
-            gunzip -c /tmp/images/controller.gz | docker import - 0.0.0.0:5000/controller
-            gunzip -c /tmp/images/controller.gz | docker load
-            gunzip -c /tmp/images/config-sync.gz | docker import - 0.0.0.0:5000/config-sync
-            gunzip -c /tmp/images/config-sync.gz | docker load
-            gunzip -c /tmp/images/network-console-collector.gz | docker import - 0.0.0.0:5000/network-console-collector
-            gunzip -c /tmp/images/network-console-collector.gz | docker load
-            gunzip -c /tmp/images/bootstrap.gz | docker import - 0.0.0.0:5000/bootstrap
-            gunzip -c /tmp/images/bootstrap.gz | docker load
-      - run:
-          name: push to local registry
-          command: |
-            docker push 0.0.0.0:5000/controller
-            docker push 0.0.0.0:5000/config-sync
-            docker push 0.0.0.0:5000/network-console-collector
-            docker push 0.0.0.0:5000/bootstrap
-
-  system_monitor:
-    description: shows continuous system state
-    steps:
-    - run:
-        name: sar info
-        command: sar -h -q -r -u 60
-        background: true
-    - run:
-        name: vmstat info
-        command: vmstat -w -t 10
-        background: true
-    - run:
-        name: journalctl monitoring
-        command: journalctl -p 7 -b -f
-        background: true
-
-  system_status:
-    description: shows some point-in-time system status
-    parameters:
-      cluster_dump_re:
-        default: "(oom|error)"
-        type: string
-    steps:
-    - run:
-        name: point-in-time system status
-        command: |
-          set +e
-          cat /sys/fs/cgroup/memory/memory.max_usage_in_bytes
-          free -m
-          uptime
-          minikube kubectl cluster-info dump | grep -i "<<parameters.cluster_dump_re>>"
-          true
-        when: always
-
-  run_cluster_tests:
-    description: run all e2e tests inside the current KUBECONFIG configured cluster
-    parameters:
-      args:
-        default: ""
-        type: string
-    steps:
-      - system_status # before the tests
-      - run:
-          name: Creating artifacts directory
-          command: mkdir /tmp/artifacts
-      - run:
-          name: Creating results directory
-          command: mkdir /tmp/results
-      - run:
-          name: Run Integration Tests
-          no_output_timeout: 60m
-          command: |
-            make build-cmd && sudo install skupper /usr/local/bin
-            export PUBLIC_1_INGRESS_HOST=`minikube ip`
-            export SKUPPER_TEST_CLI_MAX_STATUS_ATTEMPTS=20
-            go test -tags=integration,podman -timeout=60m -v ./test/integration/... | tee /tmp/results/test-integration.out
-      - run:
-          name: Run client tests in real cluster
-          command: |
-            go test -v -count=1 -timeout=20m ./client -use-cluster | tee /tmp/results/test-client.out
-      - run:
-          name: Run skupper cli tests in real cluster
-          command: |
-            go test -v -count=1 ./cmd/skupper -use-cluster | tee /tmp/results/test-cmd-skupper.out
-      - run:
-          name: Run site-controller tests in real cluster
-          command: |
-            go test -v -count=1 ./cmd/site-controller -use-cluster | tee /tmp/results/test-cmd-site-controller.out
-      - system_status
-      - run:
-          name: Archiving test artifacts
-          command: |
-            find ./ -name "*.tar.gz" -o -name "*.log" -o -name "*.json" | tar -c -T - | tar -C /tmp/artifacts -xv
-          when: always
-      - run:
-          name: Generate junit reports
-          command: |
-            (cd /tmp/results && for f in *.out; do [[ -f $f ]] && cat $f | ~/go/bin/go-junit-report > ${f/.out/.xml}; done)
-          when: always
-      - store_artifacts:
-          path: /tmp/artifacts
-          destination: test-artifacts
-      - store_test_results:
-          path: /tmp/results
-
-  run_cluster_policy_tests:
-    description: run all e2e policy tests inside the current KUBECONFIG configured cluster
-    parameters:
-      args:
-        default: ""
-        type: string
-    steps:
-      - system_status
-      - run:
-          name: Creating policy artifacts directory
-          command: mkdir /tmp/policy-artifacts
-      - run:
-          name: Creating policy results directory
-          command: mkdir /tmp/policy-results
-      - run:
-          name: Run Policy Integration Tests
-          no_output_timeout: 60m
-          command: |
-            make build-cmd && sudo install skupper /usr/local/bin
-            go test -tags=policy -timeout=60m -v ./test/integration/... | tee /tmp/policy-results/test-policy.out
-      - system_status
-      - run:
-          name: Archiving policy test artifacts
-          command: |
-            find ./ -name "*.tar.gz" -o -name "*.log" -o -name "*.json" | tar -c -T - | tar -C /tmp/policy-artifacts -xv
-          when: always
-      - run:
-          name: Generate policy junit reports
-          command: |
-            (cd /tmp/policy-results && for f in *.out; do [[ -f $f ]] && cat $f | ~/go/bin/go-junit-report > ${f/.out/.xml}; done)
-          when: always
-      - store_artifacts:
-          path: /tmp/policy-artifacts
-          destination: policy-test-artifacts
-      - store_test_results:
-          path: /tmp/policy-results
+          name: Apt Install Skopeo
+          command: sudo apt-get update -y && sudo apt-get install -y skopeo
 
   compile_go_program:
     description: Compile specified platform.
@@ -296,54 +51,11 @@ commands:
             file dist/<< parameters.platform >>/skupper<< parameters.exesuffix >>;
             go version -m dist/<< parameters.platform >>/skupper<< parameters.exesuffix >>;
 
-  podman-latest:
-    description: "Install latest podman v4 or higher"
-    steps:
-      - run:
-          name: install podman
-          command: |
-            sudo mkdir -p /etc/apt/keyrings
-            curl -fsSL https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/unstable/xUbuntu_$(lsb_release -rs)/Release.key \
-              | gpg --dearmor \
-              | sudo tee /etc/apt/keyrings/devel_kubic_libcontainers_unstable.gpg > /dev/null
-            echo \
-              "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/devel_kubic_libcontainers_unstable.gpg]\
-                https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/unstable/xUbuntu_$(lsb_release -rs)/ /" \
-              | sudo tee /etc/apt/sources.list.d/devel:kubic:libcontainers:unstable.list > /dev/null
-            sudo apt-get update -qq
-            sudo apt-get -qq -y install podman
-            podman version
-            
-            # temporary fix for https://github.com/containers/podman/issues/21024
-            wget https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_22.04/amd64/conmon_2.1.2~0_amd64.deb -O /tmp/conmon_2.1.2.deb
-            sudo apt install /tmp/conmon_2.1.2.deb
-
-            # Bypassing CircleCI issue with user session (see: https://github.com/containers/podman/issues/16529)
-            mkdir -p ~/.config/containers/containers.conf.d
-            ( echo '[containers]' ; echo 'cgroups = "disabled"' ) > ~/.config/containers/containers.conf.d/podman-circleci-issue.conf
-
-            # Starting systemd user service
-            systemctl --user start podman.socket
-
-  go-junit:
-    description: "Install go-junit-reporter"
-    steps:
-      - run:
-          name: go junit reporter
-          command: |
-            go install github.com/jstemmer/go-junit-report@v1.0.0
-
 yaml-templates:
-  branch_filters: &run_for_all_branches_and_numeric_tags
+  branch_filters: &run_for_all_branches
     filters:
       tags:
-        only: /[0-9].*/
-
-  main_branch_filters: &run_for_main_branch
-    filters:
-      branches:
         ignore: /.*/
-        only: /main/
 
   v2_branch_filters: &run_for_v2_branch
     filters:
@@ -358,104 +70,91 @@ yaml-templates:
       tags:
         only: /[0-9].*/
 
-  release_requires: &release_requires
-    requires:
-      - build-all
-      - test-skupper-binary
-      - test
-      - main_tests_minikube_local_cluster
-      - policy_tests_minikube_local_cluster
-
   v2_release_requires: &v2_release_requires
     requires:
       - build-all
       - test-skupper-binary
       - test
+      - build-oci-images
 
 workflows:
   version: 2.1
-  build-workflow:
+  release:
     jobs:
       - build-all:
-          <<: *run_for_all_branches_and_numeric_tags
+         <<: *run_for_numeric_tags
       - test-skupper-binary:
-          <<: *run_for_all_branches_and_numeric_tags
+          <<: *run_for_numeric_tags
           matrix:
             parameters:
               image:
                 - quay.io/centos/centos:stream8
                 - quay.io/centos/centos:stream9
                 - quay.io/fedora/fedora:38
-                - quay.io/fedora/fedora:39
+                - quay.io/fedora/fedora:41
+                - docker.io/debian:bookworm
+                - docker.io/alpine:latest
           requires:
             - build-all
       - test:
-          <<: *run_for_all_branches_and_numeric_tags
-      - build_and_save_test_images:
-          <<: *run_for_all_branches_and_numeric_tags
-
-      # - main_tests_minikube_local_cluster:
-      #     <<: *run_for_all_branches_and_numeric_tags
-      #     pre-steps:
-      #       - prepare_for_local_cluster_tests
-      #     requires:
-      #       - test
-      #       - build_and_save_test_images
-
-      # - policy_tests_minikube_local_cluster:
-      #     <<: *run_for_all_branches_and_numeric_tags
-      #     pre-steps:
-      #       - prepare_for_local_cluster_tests
-      #     requires:
-      #       - test
-      #       - build_and_save_test_images
-
-      - publish-github-release-images:
-         <<: *run_for_numeric_tags
-         <<: *v2_release_requires
-         context:
-           - skupper-org
-
+          <<: *run_for_numeric_tags
+      - build-oci-images:
+          <<: *run_for_numeric_tags
+          image_tag: << pipeline.git.tag >>
+      - publish-oci-images:
+          <<: *run_for_numeric_tags
+          <<: *v2_release_requires
+          image_tag: << pipeline.git.tag >>
+          context:
+            - skupper-org
       - generate-manifest:
           <<: *run_for_numeric_tags
-          <<: *v2_release_requires
           requires:
-            - publish-github-release-images
-          context:
-            - skupper-org
-
+            - publish-oci-images
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
-          <<: *v2_release_requires
           requires:
+            - publish-oci-images
             - generate-manifest
-            - publish-github-release-images
           context:
             - skupper-org
-
-      # - publish-github-main-artifacts:
-      #     <<: *run_for_main_branch
-      #     requires:
-      #       - publish-github-main-images
-      #     context:
-      #       - skupper-org
-
-      # - publish-github-main-images:
-      #     <<: *run_for_main_branch
-      #     <<: *release_requires
-      #     context:
-      #       - skupper-org
-
-      - publish-github-v2-artifacts:
-          <<: *run_for_v2_branch
+  build:
+    jobs:
+      - build-all:
+          <<: *run_for_all_branches
+      - test-skupper-binary:
+          <<: *run_for_all_branches
+          matrix:
+            parameters:
+              image:
+                - quay.io/centos/centos:stream8
+                - quay.io/centos/centos:stream9
+                - quay.io/fedora/fedora:38
+                - quay.io/fedora/fedora:41
+                - docker.io/debian:bookworm
+                - docker.io/alpine:latest
           requires:
-            - publish-github-v2-latest-images
-          context:
-            - skupper-org
-
-      - publish-github-v2-latest-images:
+            - build-all
+      - test:
+          <<: *run_for_all_branches
+      - build-oci-images:
+          image_tag: v2-latest
+          <<: *run_for_all_branches
+      - publish-oci-images:
           <<: *run_for_v2_branch
           <<: *v2_release_requires
+          image_tag: v2-latest
+          context:
+            - skupper-org
+      - generate-manifest:
+          requires:
+            - publish-oci-images
+      - publish-github-prerelease-artifacts:
+          <<: *run_for_v2_branch
+          version: v2-release
+          requires:
+            - publish-oci-images
+            - generate-manifest
           context:
             - skupper-org
 
@@ -489,29 +188,73 @@ jobs:
           path: /tmp/artifacts
           destination: test-artifacts
 
-  build_and_save_test_images:
+  generate-manifest:
+    executor:
+      name: go_cimg
+    steps:
+      - checkout
+      - go/mod-download-cached
+      - setup_remote_docker
+      - run: make generate-manifest
+      - run: mkdir skupper-manifest
+      - run: cp ./manifest.json skupper-manifest
+      - persist_to_workspace:
+          root: .
+          paths:
+            - skupper-manifest
+
+  build-oci-images:
     executor: local_cluster_test_executor
+    parameters:
+      image_tag:
+        type: string
+      registry:
+        type: string
+        default: "quay.io/skupper"
     steps:
       - docker/install-docker
+      - skopeo-install
       - checkout
       - run: docker buildx create --use --name skupper-buildx
-      - run: make -e docker-build
+      - run: make multiarch-oci IMAGE_TAG=<< parameters.image_tag >> REGISTRY=<< parameters.registry >>
       - run:
-          name: persisting images to workspace
+          name: Inspect images
           command: |
-            mkdir /tmp/images
-            docker tag quay.io/skupper/controller:v2-latest 0.0.0.0:5000/controller
-            docker save 0.0.0.0:5000/controller | gzip > /tmp/images/controller.gz
-            docker tag quay.io/skupper/config-sync:v2-latest 0.0.0.0:5000/config-sync
-            docker save 0.0.0.0:5000/config-sync | gzip > /tmp/images/config-sync.gz
-            docker tag quay.io/skupper/network-console-collector:v2-latest 0.0.0.0:5000/network-console-collector
-            docker save 0.0.0.0:5000/network-console-collector | gzip > /tmp/images/network-console-collector.gz
-            docker tag quay.io/skupper/bootstrap:v2-latest 0.0.0.0:5000/bootstrap
-            docker save 0.0.0.0:5000/bootstrap | gzip > /tmp/images/bootstrap.gz
+            mkdir -p oci-digests
+            make describe-multiarch-oci \
+              IMAGE_TAG=<< parameters.image_tag >> \
+              REGISTRY=<< parameters.registry >> \
+              | tee ./oci-digests/digests.yaml
       - persist_to_workspace:
-          root: /tmp
+          root: ./
           paths:
-            - images/
+            - oci-archives/
+            - oci-digests/
+
+  publish-oci-images:
+    executor:
+      name: go_cimg
+    environment:
+      REGISTRY_AUTH_FILE: ~/.skopeoauth.json
+    parameters:
+      image_tag:
+        type: string
+      registry:
+        type: string
+        default: "quay.io/skupper"
+    steps:
+      - skopeo-install
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: skopeo login
+          command: |
+            skopeo login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
+      - run:
+          name: publish images
+          command: |
+            make describe-multiarch-oci push-multiarch-oci REGISTRY="<< parameters.registry >>" IMAGE_TAG="<< parameters.image_tag >>"
 
   build-all:
     executor:
@@ -529,17 +272,6 @@ jobs:
           platform: linux-amd64
 
       - compile_go_program:
-          goos: linux
-          goarch: "386"
-          platform: linux-i386
-
-      - compile_go_program:
-          goos: windows
-          goarch: "386"
-          platform: windows-i386
-          exesuffix: ".exe"
-
-      - compile_go_program:
           goos: windows
           goarch: amd64
           platform: windows-amd64
@@ -554,11 +286,6 @@ jobs:
           goos: darwin
           goarch: arm64
           platform: mac-arm64
-
-      - compile_go_program:
-          goos: linux
-          goarch: arm
-          platform: linux-arm32
 
       - compile_go_program:
           goos: linux
@@ -591,50 +318,6 @@ jobs:
             cd dist/linux-amd64
             ./skupper site
 
-  main_tests_minikube_local_cluster:
-    executor: local_cluster_test_executor
-    steps:
-      - run: echo "skupper_image = ${SKUPPER_CONTROLLER_IMAGE}"
-      - local_registry_start
-      - minikube-install
-      - minikube-start-large
-      - minikube-start-load-balancer
-      - podman-latest
-      - go-junit
-      - minikube-logs
-      - system_monitor
-      - run: kubectl cluster-info
-      - run_cluster_tests
-
-  policy_tests_minikube_local_cluster:
-    executor: local_cluster_policy_test_executor
-    steps:
-      - run: echo "skupper_image = ${SKUPPER_CONTROLLER_IMAGE}"
-      - local_registry_start
-      - minikube-install
-      - minikube-start-medium
-      - minikube-start-load-balancer
-      - minikube-logs
-      - go-junit
-      - system_monitor
-      - run: kubectl cluster-info
-      - run_cluster_policy_tests
-
-  generate-manifest:
-    executor:
-      name: go_cimg
-    steps:
-      - checkout
-      - go/mod-download-cached
-      - setup_remote_docker
-      - run: make generate-manifest
-      - run: mkdir skupper-manifest
-      - run: cp ./manifest.json skupper-manifest
-      - persist_to_workspace:
-          root: .
-          paths:
-            - skupper-manifest
-
   publish-github-release-artifacts:
     docker:
       - image: cibuilds/github:0.10
@@ -647,6 +330,7 @@ jobs:
             VERSION="${CIRCLE_TAG}"
             BASEDIR=`pwd`
             mkdir "${BASEDIR}/archives"
+            cp ./oci-digests/* "${BASEDIR}/archives"
             for p in `ls dist` ; do
               cd "$BASEDIR/dist/$p"
               if [[ $p == windows* ]] ; then
@@ -659,98 +343,22 @@ jobs:
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
 
-  publish-github-release-images:
-    executor:
-      name: go_cimg
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
-      - run:
-          name:
-          command: |
-            echo 'export CONTROLLER_IMAGE=quay.io/skupper/controller:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export NETWORK_CONSOLE_COLLECTOR_IMAGE=quay.io/skupper/network-console-collector:${CIRCLE_TAG}' >> $BASH_ENV
-            echo 'export BOOTSTRAP_IMAGE=quay.io/skupper/bootstrap:${CIRCLE_TAG}' >> $BASH_ENV
-            source $BASH_ENV
-            docker buildx create --use --name skupper-buildx
-            make -e docker-build
-            make -e docker-push
-
-  publish-github-main-images:
-    executor:
-      name: go_cimg
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
-      - run:
-          name: "Publishing main images"
-          command: |
-            echo 'export CONTROLLER_IMAGE=quay.io/skupper/controller:main' >> $BASH_ENV
-            echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:main' >> $BASH_ENV
-            echo 'export NETWORK_CONSOLE_COLLECTOR_IMAGE=quay.io/skupper/network-console-collector:main' >> $BASH_ENV
-            echo 'export BOOTSTRAP_IMAGE=quay.io/skupper/bootstrap:main' >> $BASH_ENV
-            source $BASH_ENV
-            docker buildx create --use --name skupper-buildx
-            make -e docker-build
-            make -e docker-push
-
-  publish-github-main-artifacts:
+  publish-github-prerelease-artifacts:
     docker:
       - image: cibuilds/github:0.10
-    steps:
-      - attach_workspace:
-          at: .
-      - run:
-          name: "Create a Pre-Release on GitHub"
-          command: |
-            VERSION="main-release"
-            BASEDIR=`pwd`
-            mkdir "${BASEDIR}/archives"
-            for p in `ls dist` ; do
-              cd "$BASEDIR/dist/$p"
-              if [[ $p == windows* ]] ; then
-                zip -q "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.zip" *
-              else
-                tar -zcf "${BASEDIR}/archives/skupper-cli-${VERSION}-$p.tgz" *
-              fi
-            done
-            cd ${BASEDIR}
-            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease ${VERSION} "${BASEDIR}/archives"
-
-  publish-github-v2-latest-images:
-    executor:
-      name: go_cimg
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
-      - run:
-          name: "Publishing v2 images"
-          command: |
-            echo 'export CONTROLLER_IMAGE=quay.io/skupper/controller:v2-latest' >> $BASH_ENV
-            echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:v2-latest' >> $BASH_ENV
-            echo 'export NETWORK_CONSOLE_COLLECTOR_IMAGE=quay.io/skupper/network-console-collector:v2-latest' >> $BASH_ENV
-            echo 'export BOOTSTRAP_IMAGE=quay.io/skupper/bootstrap:v2-latest' >> $BASH_ENV
-            source $BASH_ENV
-            docker buildx create --use --name skupper-buildx
-            make -e docker-build
-            make -e docker-push
-
-  publish-github-v2-artifacts:
-    docker:
-      - image: cibuilds/github:0.10
+    parameters:
+      version:
+        type: string
     steps:
       - attach_workspace:
           at: .
       - run:
           name: "Create a V2 Pre-Release on GitHub"
           command: |
-            VERSION="v2-release"
+            VERSION="<< parameters.version >>"
             BASEDIR=`pwd`
             mkdir "${BASEDIR}/archives"
+            cp ./oci-digests/* "${BASEDIR}/archives"
             for p in `ls dist` ; do
               cd "$BASEDIR/dist/$p"
               if [[ $p == windows* ]] ; then
@@ -760,4 +368,5 @@ jobs:
               fi
             done
             cd ${BASEDIR}
+            cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease ${VERSION} "${BASEDIR}/archives"
