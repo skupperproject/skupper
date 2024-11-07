@@ -189,3 +189,10 @@ type CommandListenerStatusFlags struct {
 type CommandListenerDeleteFlags struct {
 	Timeout time.Duration
 }
+
+type CommandVersionFlags struct {
+	Output string
+}
+
+type CommandDebugFlags struct {
+}
