@@ -7,3 +7,10 @@ var (
 	ConnectorTypes  = []string{"tcp"}
 	WorkloadTypes   = []string{"deployment", "service", "daemonset", "statefulset"}
 )
+
+const (
+	Connectors     string = "connectors"
+	Listeners      string = "listeners"
+	Sites          string = "sites"
+	RouterAccesses string = "routerAccesses"
+)

@@ -2,15 +2,19 @@ package nonkube
 
 import (
 	"fmt"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 )
 
 type CmdConnectorDelete struct {
-	CobraCmd  *cobra.Command
-	Flags     *common.CommandConnectorDeleteFlags
-	Namespace string
-	siteName  string
+	connectorHandler *fs.ConnectorHandler
+	CobraCmd         *cobra.Command
+	Flags            *common.CommandConnectorDeleteFlags
+	namespace        string
+	connectorName    string
 }
 
 func NewCmdConnectorDelete() *CmdConnectorDelete {
@@ -18,12 +22,56 @@ func NewCmdConnectorDelete() *CmdConnectorDelete {
 }
 
 func (cmd *CmdConnectorDelete) NewClient(cobraCommand *cobra.Command, args []string) {
-	//TODO
+	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace) != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String() != "" {
+		cmd.namespace = cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String()
+	}
+
+	cmd.connectorHandler = fs.NewConnectorHandler(cmd.namespace)
 }
 
-func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error { return nil }
-func (cmd *CmdConnectorDelete) InputToOptions()                     {}
-func (cmd *CmdConnectorDelete) Run() error {
-	return fmt.Errorf("command not supported by the selected platform")
+func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
+	var validationErrors []error
+	resourceStringValidator := validator.NewResourceStringValidator()
+
+	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
+		fmt.Println("Warning: --context flag is not supported on this platform")
+	}
+
+	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameKubeconfig) != nil && cmd.CobraCmd.Flag(common.FlagNameKubeconfig).Value.String() != "" {
+		fmt.Println("Warning: --kubeconfig flag is not supported on this platform")
+	}
+
+	// Validate arguments name
+	if len(args) < 1 {
+		validationErrors = append(validationErrors, fmt.Errorf("connector name must be configured"))
+	} else if len(args) > 1 {
+		validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
+	} else if args[0] == "" {
+		validationErrors = append(validationErrors, fmt.Errorf("connector name must not be empty"))
+	} else {
+		ok, err := resourceStringValidator.Evaluate(args[0])
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("connector name is not valid: %s", err))
+		} else {
+			cmd.connectorName = args[0]
+		}
+	}
+
+	return validationErrors
 }
+
+func (cmd *CmdConnectorDelete) InputToOptions() {
+	if cmd.namespace == "" {
+		cmd.namespace = "default"
+	}
+}
+
+func (cmd *CmdConnectorDelete) Run() error {
+	err := cmd.connectorHandler.Delete(cmd.connectorName)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (cmd *CmdConnectorDelete) WaitUntil() error { return nil }

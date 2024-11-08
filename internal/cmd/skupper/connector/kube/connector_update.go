@@ -99,7 +99,6 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.connectorType = connector.Spec.Type
 			cmd.newSettings.includeNotReady = connector.Spec.IncludeNotReady
 			cmd.newSettings.routingKey = connector.Spec.RoutingKey
-
 			cmd.existingHost = connector.Spec.Host
 			cmd.existingSelector = connector.Spec.Selector
 		}
