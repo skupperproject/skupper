@@ -33,7 +33,8 @@ func (s *RouterAccessHandler) Add(resource v2alpha1.RouterAccess) error {
 
 	return nil
 }
-func (s *RouterAccessHandler) Update(name string) (*v2alpha1.RouterAccess, error) { return nil, nil }
-func (s *RouterAccessHandler) Get(name string) (*v2alpha1.RouterAccess, error)    { return nil, nil }
-func (s *RouterAccessHandler) Delete(name string) error                           { return nil }
-func (s *RouterAccessHandler) List() ([]*v2alpha1.RouterAccess, error)            { return nil, nil }
+func (s *RouterAccessHandler) Get(name string, opts GetOptions) (*v2alpha1.RouterAccess, error) {
+	return nil, nil
+}
+func (s *RouterAccessHandler) Delete(name string) error                { return nil }
+func (s *RouterAccessHandler) List() ([]*v2alpha1.RouterAccess, error) { return nil, nil }

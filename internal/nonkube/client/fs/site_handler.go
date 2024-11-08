@@ -34,7 +34,6 @@ func (s *SiteHandler) Add(resource v2alpha1.Site) error {
 	return nil
 }
 
-func (s *SiteHandler) Update(name string) (*v2alpha1.Site, error) { return nil, nil }
-func (s *SiteHandler) Get(name string) (*v2alpha1.Site, error)    { return nil, nil }
-func (s *SiteHandler) Delete(name string) error                   { return nil }
-func (s *SiteHandler) List() ([]*v2alpha1.Site, error)            { return nil, nil }
+func (s *SiteHandler) Get(name string, opts GetOptions) (*v2alpha1.Site, error) { return nil, nil }
+func (s *SiteHandler) Delete(name string) error                                 { return nil }
+func (s *SiteHandler) List() ([]*v2alpha1.Site, error)                          { return nil, nil }

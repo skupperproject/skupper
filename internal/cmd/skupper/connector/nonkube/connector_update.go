@@ -44,6 +44,7 @@ func (cmd *CmdConnectorUpdate) NewClient(cobraCommand *cobra.Command, args []str
 
 func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 	var validationErrors []error
+	opts := fs.GetOptions{RuntimeFirst: false}
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
@@ -76,7 +77,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 
 	// Validate that there is already a connector with this name in the namespace
 	if cmd.connectorName != "" {
-		connector, err := cmd.connectorHandler.Update(cmd.connectorName)
+		connector, err := cmd.connectorHandler.Get(cmd.connectorName, opts)
 		if connector == nil || err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("connector %s must exist in namespace %s to be updated", cmd.connectorName, cmd.namespace))
 		} else {

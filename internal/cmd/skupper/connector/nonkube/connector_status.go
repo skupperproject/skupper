@@ -35,6 +35,7 @@ func (cmd *CmdConnectorStatus) NewClient(cobraCommand *cobra.Command, args []str
 
 func (cmd *CmdConnectorStatus) ValidateInput(args []string) []error {
 	var validationErrors []error
+	opts := fs.GetOptions{RuntimeFirst: true}
 	resourceStringValidator := validator.NewResourceStringValidator()
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
@@ -55,7 +56,7 @@ func (cmd *CmdConnectorStatus) ValidateInput(args []string) []error {
 	}
 	// Validate that there is a connector with this name in the namespace
 	if cmd.connectorName != "" {
-		connector, err := cmd.connectorHandler.Get(cmd.connectorName)
+		connector, err := cmd.connectorHandler.Get(cmd.connectorName, opts)
 		if connector == nil || err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("connector %s does not exist in namespace %s", cmd.connectorName, cmd.namespace))
 		}
@@ -74,6 +75,7 @@ func (cmd *CmdConnectorStatus) ValidateInput(args []string) []error {
 }
 
 func (cmd *CmdConnectorStatus) Run() error {
+	opts := fs.GetOptions{RuntimeFirst: true}
 	if cmd.connectorName == "" {
 		connectors, err := cmd.connectorHandler.List()
 		if connectors == nil || err != nil {
@@ -103,7 +105,7 @@ func (cmd *CmdConnectorStatus) Run() error {
 			_ = tw.Flush()
 		}
 	} else {
-		connector, err := cmd.connectorHandler.Get(cmd.connectorName)
+		connector, err := cmd.connectorHandler.Get(cmd.connectorName, opts)
 		if connector == nil || err != nil {
 			fmt.Println("No connectors found:")
 			return err
