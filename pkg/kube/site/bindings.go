@@ -114,12 +114,12 @@ func (a *BindingAdaptor) updateBridgeConfigForConnector(siteId string, connector
 				site.UpdateBridgeConfigForConnectorToPod(siteId, connector, pod, config)
 			}
 		} else {
-			bindings_logger.Error("Error: not yet tracking pods for connector with selector set",
+			bindings_logger.Error("Not yet tracking pods for connector with selector set",
 				slog.String("namespace", connector.Namespace),
 				slog.String("name", connector.Name))
 		}
 	} else {
-		bindings_logger.Error("Error: connector %s/%s has neither host nor selector set",
+		bindings_logger.Error("Connector has neither host nor selector set",
 			slog.String("namespace", connector.Namespace),
 			slog.String("name", connector.Name))
 	}
