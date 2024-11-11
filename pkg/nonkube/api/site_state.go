@@ -239,7 +239,7 @@ func (s *SiteState) linkAccessMap() site.RouterAccessMap {
 func (s *SiteState) linkMap(sslProfileBasePath string) site.LinkMap {
 	linkMap := site.LinkMap{}
 	for name, link := range s.Links {
-		siteLink := site.NewLink(name, path.Join(sslProfileBasePath, "certificates/link"))
+		siteLink := site.NewLink(name, path.Join(sslProfileBasePath, string(CertificatesLinkPath)))
 		link.SetConfigured(nil)
 		siteLink.Update(link)
 		linkMap[name] = siteLink
@@ -289,7 +289,7 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string, platform string) q
 		routerConfig.SiteConfig.Platform = "{{.Platform}}"
 	}
 	// LinkAccess
-	s.linkAccessMap().DesiredConfig(nil, path.Join(sslProfileBasePath, "certificates/server")).Apply(&routerConfig)
+	s.linkAccessMap().DesiredConfig(nil, path.Join(sslProfileBasePath, string(CertificatesServerPath))).Apply(&routerConfig)
 	// Link
 	s.linkMap(sslProfileBasePath).Apply(&routerConfig)
 	// Bindings

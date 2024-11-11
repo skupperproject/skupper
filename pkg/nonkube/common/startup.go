@@ -66,7 +66,7 @@ func GetStartupScripts(args StartupScriptsArgs, pathProvider api.InternalPathPro
 	if pathProvider == nil {
 		pathProvider = api.GetInternalOutputPath
 	}
-	scripts.path = pathProvider(args.Namespace, api.RuntimeScriptsPath)
+	scripts.path = pathProvider(args.Namespace, api.ScriptsPath)
 	return scripts, nil
 }
 

@@ -172,7 +172,7 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 }
 
 func LoadRouterConfig(namespace string) (*qdr.RouterConfig, error) {
-	routerConfigPath := api.GetInternalOutputPath(namespace, api.ConfigRouterPath)
+	routerConfigPath := api.GetInternalOutputPath(namespace, api.RouterConfigPath)
 	routerConfigFile := path.Join(routerConfigPath, "skrouterd.json")
 	routerConfigData, err := os.ReadFile(routerConfigFile)
 	if err != nil {

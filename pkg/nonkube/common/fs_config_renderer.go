@@ -21,7 +21,7 @@ import (
 
 var (
 	configurationDirectories = []api.InternalPath{
-		api.ConfigRouterPath,
+		api.RouterConfigPath,
 		api.CertificatesCaPath,
 		api.CertificatesClientPath,
 		api.CertificatesServerPath,
@@ -33,18 +33,25 @@ var (
 		api.LoadedSiteStatePath,
 		api.RuntimeSiteStatePath,
 		api.RuntimeTokenPath,
-		api.RuntimeScriptsPath,
+		api.ScriptsPath,
 	}
 	reloadDirectories = []api.InternalPath{
-		api.ConfigRouterPath,
+		api.RouterConfigPath,
 		api.CertificatesClientPath,
 		api.CertificatesServerPath,
 		api.CertificatesLinkPath,
 		api.RuntimeSiteStatePath,
 		api.RuntimeTokenPath,
-		api.RuntimeScriptsPath,
+		api.ScriptsPath,
 		api.LoadedSiteStatePath,
 	}
+)
+
+type InputPathType string
+
+const (
+	InputPathResources InputPathType = "resources"
+	InputPathCerts     InputPathType = "certs"
 )
 
 const (
@@ -118,7 +125,7 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *api.SiteState) error
 	// Saving runtime platform
 	if !c.Bundle {
 		content := fmt.Sprintf("platform: %s\n", c.Platform)
-		platformPath := path.Join(outputPath, string(api.RuntimeSiteStatePath), "platform.yaml")
+		platformPath := path.Join(outputPath, string(api.RuntimePath), "platform.yaml")
 		logger.Debug("writing platform", slog.String("platform", c.Platform), slog.String("path", platformPath))
 		err = os.WriteFile(platformPath, []byte(content), 0644)
 		if err != nil {
@@ -160,13 +167,13 @@ func (c *FileSystemConfigurationRenderer) GetOutputPath(siteState *api.SiteState
 	return defaultOutputPathProvider(siteState.Site.Namespace)
 }
 
-func (c *FileSystemConfigurationRenderer) GetInputPath(siteState *api.SiteState) string {
+func (c *FileSystemConfigurationRenderer) GetInputPath(siteState *api.SiteState, dir InputPathType) string {
 	var customSiteHomeProvider = api.GetCustomSiteHome
 	var defaultOutputPathProvider = api.GetDefaultOutputPath
 	if c.customOutputPath != "" {
-		return path.Join(customSiteHomeProvider(siteState.Site, c.customOutputPath), "input")
+		return path.Join(customSiteHomeProvider(siteState.Site, c.customOutputPath), "input", string(dir))
 	}
-	return path.Join(defaultOutputPathProvider(siteState.Site.Namespace), "input")
+	return path.Join(defaultOutputPathProvider(siteState.Site.Namespace), "input", string(dir))
 }
 
 func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, runtimeSiteState *api.SiteState) error {
@@ -309,7 +316,7 @@ func (c *FileSystemConfigurationRenderer) createRouterConfig(siteState *api.Site
 		return fmt.Errorf("unable to marshal router config: %v", err)
 	}
 	outputPath := c.GetOutputPath(siteState)
-	routerConfigFileName := path.Join(outputPath, string(api.ConfigRouterPath), "skrouterd.json")
+	routerConfigFileName := path.Join(outputPath, string(api.RouterConfigPath), "skrouterd.json")
 	NewLogger().Debug("Writing router configuration", slog.String("path", routerConfigFileName))
 	err = os.WriteFile(routerConfigFileName, []byte(routerConfigJson), 0644)
 	if err != nil {
@@ -413,7 +420,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 			secret = *userSecret
 			fmt.Printf("-> User provided %s certificate found: %s\n", purpose, name)
 		}
-		certPath := path.Join(outputPath, "certificates", purpose, name)
+		certPath := path.Join(outputPath, string(api.CertificatesBasePath), purpose, name)
 		err = writeSecretFiles(certPath, &secret)
 		if err != nil {
 			return err
@@ -426,7 +433,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 		if !ok {
 			return fmt.Errorf("secret %s not found", secretName)
 		}
-		certPath := path.Join(outputPath, "certificates", "link", secretName+"-profile")
+		certPath := path.Join(outputPath, string(api.CertificatesLinkPath), secretName+"-profile")
 		err = writeSecretFiles(certPath, secret)
 		if err != nil {
 			return err
@@ -477,12 +484,12 @@ func (c *FileSystemConfigurationRenderer) loadClientSecret(siteState *api.SiteSt
 }
 
 func (c *FileSystemConfigurationRenderer) loadCertAsSecret(siteState *api.SiteState, purpose, name string) (*corev1.Secret, error) {
-	outputPath := c.GetOutputPath(siteState)
+	outputPath := path.Join(c.GetOutputPath(siteState), string(api.CertificatesBasePath))
 	return c.loadCertAsSecretFrom(outputPath, siteState, purpose, name)
 }
 
 func (c *FileSystemConfigurationRenderer) loadUserCertAsSecret(siteState *api.SiteState, purpose, name string) (*corev1.Secret, error) {
-	userInputPath := c.GetInputPath(siteState)
+	userInputPath := path.Join(c.GetInputPath(siteState, InputPathCerts))
 	secret, err := c.loadCertAsSecretFrom(userInputPath, siteState, purpose, name)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -507,7 +514,7 @@ func (c *FileSystemConfigurationRenderer) loadUserCertAsSecret(siteState *api.Si
 }
 
 func (c *FileSystemConfigurationRenderer) loadCertAsSecretFrom(basePath string, siteState *api.SiteState, purpose, name string) (*corev1.Secret, error) {
-	certPath := path.Join(basePath, "certificates", purpose, name)
+	certPath := path.Join(basePath, purpose, name)
 	var secret *corev1.Secret
 	certDir, err := os.Open(certPath)
 	if err != nil {

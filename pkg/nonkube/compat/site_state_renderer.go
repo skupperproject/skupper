@@ -212,13 +212,13 @@ func (s *SiteStateRenderer) prepareContainers() error {
 		},
 		FileMounts: []container.FileMount{
 			{
-				Source:      path.Join(siteConfigPath, "config/router"),
+				Source:      path.Join(siteConfigPath, string(api.RouterConfigPath)),
 				Destination: "/etc/skupper-router/config",
 				Options:     []string{"z"},
 			},
 			{
-				Source:      path.Join(siteConfigPath, "certificates"),
-				Destination: "/etc/skupper-router/certificates",
+				Source:      path.Join(siteConfigPath, string(api.CertificatesBasePath)),
+				Destination: "/etc/skupper-router/runtime/certs",
 				Options:     []string{"z"},
 			},
 		},

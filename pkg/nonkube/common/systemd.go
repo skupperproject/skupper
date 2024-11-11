@@ -52,8 +52,8 @@ type systemdServiceInfo struct {
 func NewSystemdServiceInfo(siteState *api.SiteState, platform string) (SystemdService, error) {
 	site := siteState.Site
 	siteHomePath := api.GetHostSiteHome(site)
-	siteScriptPath := path.Join(siteHomePath, string(api.RuntimeScriptsPath))
-	siteConfigPath := path.Join(siteHomePath, string(api.ConfigRouterPath))
+	siteScriptPath := path.Join(siteHomePath, string(api.ScriptsPath))
+	siteConfigPath := path.Join(siteHomePath, string(api.RouterConfigPath))
 	namespace := site.Namespace
 	if namespace == "" {
 		namespace = "default"
@@ -126,7 +126,7 @@ func (s *systemdServiceInfo) Create() error {
 
 func (s *systemdServiceInfo) getServiceFile() string {
 	if api.IsRunningInContainer() {
-		return path.Join(api.GetInternalOutputPath(s.Site.Namespace, api.RuntimeScriptsPath), s.GetServiceName())
+		return path.Join(api.GetInternalOutputPath(s.Site.Namespace, api.ScriptsPath), s.GetServiceName())
 	}
 	if s.getUid() == 0 {
 		return path.Join(s.rootSystemdBasePath, s.GetServiceName())

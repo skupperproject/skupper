@@ -49,7 +49,7 @@ ${HOME}/.local/share/skupper/namespaces when it is not set.
 As the root user, namespaces are stored under: /var/lib/skupper/namespaces.
 
 In case the path (-p) flag is omitted, Skupper will try to process
-custom resources stored at the sources directory of the default namespace,
+custom resources stored at the input/resources directory of the default namespace,
 or from the namespace provided through the namespace (-n) flag.
 
 If the respective namespace already exists and you want to bootstrap it
@@ -161,20 +161,20 @@ func main() {
 		// when input path is empty, but a namespace is provided, try to reload an existing site definition
 		if inputSourcesDefined {
 			inputPath = existingPath
-			fmt.Printf("Sources will consumed from namespace %q\n", namespace)
+			fmt.Printf("Resources will consumed from namespace %q\n", namespace)
 		} else {
 			fmt.Printf("Input path has not been provided and namespace %s does not exist\n", namespace)
-			fmt.Printf("No sources found at: %s\n", path.Join(api.GetHostNamespaceHome(namespace), string(api.InputSiteStatePath)))
+			fmt.Printf("No resources found at: %s\n", path.Join(api.GetHostNamespaceHome(namespace), string(api.InputSiteStatePath)))
 			os.Exit(1)
 		}
 	} else if inputSourcesDefined {
-		fmt.Printf("Input path has been provided, but namespace %s has input sources defined at:\n", namespace)
+		fmt.Printf("Input path has been provided, but namespace %s has input resources defined at:\n", namespace)
 		fmt.Printf("%s\n", path.Join(api.GetHostNamespaceHome(namespace), string(api.InputSiteStatePath)))
 		os.Exit(1)
 	}
 
 	// if namespace already exists, fail if force is not set
-	_, err := os.Stat(api.GetInternalOutputPath(namespace, api.RuntimeSiteStatePath))
+	_, err := os.Stat(api.GetInternalOutputPath(namespace, api.RuntimePath))
 	if !isBundle && err == nil && !*force {
 		fmt.Printf("Namespace already exists: %s\n", namespace)
 		os.Exit(1)
@@ -239,7 +239,7 @@ func bootstrap(inputPath string, namespace string, bundleStrategy string) (*api.
 		nsPlatformLoader := &common.NamespacePlatformLoader{}
 		nsPlatform, err := nsPlatformLoader.Load(namespace)
 		if err != nil {
-			_, runtimeStateErr := os.Stat(api.GetInternalOutputPath(namespace, api.RuntimeSiteStatePath))
+			_, runtimeStateErr := os.Stat(api.GetInternalOutputPath(namespace, api.RuntimePath))
 			if runtimeStateErr == nil {
 				return nil, fmt.Errorf("unable to determine current platform used in namespace %q", namespace)
 			}
@@ -268,7 +268,7 @@ func bootstrap(inputPath string, namespace string, bundleStrategy string) (*api.
 	targetNamespace := utils.DefaultStr(namespace, "default")
 	if inputPath == sourcesPath {
 		if crNamespace != targetNamespace {
-			return nil, fmt.Errorf("namespace must be %q, but sources are defined using %q", targetNamespace, crNamespace)
+			return nil, fmt.Errorf("namespace must be %q, but resources are defined using %q", targetNamespace, crNamespace)
 		}
 	} else if namespace != "" {
 		siteState.SetNamespace(namespace)
