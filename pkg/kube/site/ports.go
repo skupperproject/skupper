@@ -33,6 +33,10 @@ func (p *ExposedPortSet) remove(portname string) bool {
 	return false
 }
 
+func (p *ExposedPortSet) empty() bool {
+	return len(p.Ports) == 0
+}
+
 type ExposedPorts map[string]*ExposedPortSet
 
 func (p ExposedPorts) Expose(host string, port Port) *ExposedPortSet {
@@ -57,6 +61,9 @@ func (p ExposedPorts) Expose(host string, port Port) *ExposedPortSet {
 
 func (p ExposedPorts) Unexpose(host string, portname string) *ExposedPortSet {
 	if existing, ok := p[host]; ok && existing.remove(portname) {
+		if existing.empty() {
+			delete(p, host)
+		}
 		return existing
 	}
 	//no change was required

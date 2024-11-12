@@ -1038,12 +1038,12 @@ func newSiteMocks(namespace string, k8sObjects []runtime.Object, skupperObjects 
 		linkAccess: make(map[string]*skupperv2alpha1.RouterAccess),
 		certs:      certificates.NewCertificateManager(controller),
 		access:     securedaccess.NewSecuredAccessManager(client, nil, &securedaccess.Config{DefaultAccessType: "loadbalancer"}, securedaccess.ControllerContext{}),
-		adaptor:    BindingAdaptor{},
 		routerPods: make(map[string]*corev1.Pod),
 		logger: slog.New(slog.Default().Handler()).With(
 			slog.String("component", "kube.site.site"),
 		),
 	}
+	newSite.bindings.init(NewMockBindingContext(map[string]TargetSelection{}), &qdr.RouterConfig{})
 
 	newSite.site = site
 	newSite.name = site.ObjectMeta.Name

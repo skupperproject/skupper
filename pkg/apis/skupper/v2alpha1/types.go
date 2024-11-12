@@ -395,12 +395,13 @@ type ListenerList struct {
 }
 
 type ListenerSpec struct {
-	RoutingKey     string            `json:"routingKey"`
-	Host           string            `json:"host"`
-	Port           int               `json:"port"`
-	TlsCredentials string            `json:"tlsCredentials,omitempty"`
-	Type           string            `json:"type,omitempty"`
-	Settings       map[string]string `json:"settings,omitempty"`
+	RoutingKey       string            `json:"routingKey"`
+	Host             string            `json:"host"`
+	Port             int               `json:"port"`
+	TlsCredentials   string            `json:"tlsCredentials,omitempty"`
+	Type             string            `json:"type,omitempty"`
+	ExposePodsByName bool              `json:"exposePodsByName,omitempty"`
+	Settings         map[string]string `json:"settings,omitempty"`
 }
 
 type ListenerStatus struct {
@@ -481,16 +482,17 @@ type ConnectorList struct {
 }
 
 type ConnectorSpec struct {
-	RoutingKey      string            `json:"routingKey"`
-	Host            string            `json:"host,omitempty"`
-	Selector        string            `json:"selector,omitempty"`
-	Port            int               `json:"port"`
-	TlsCredentials  string            `json:"tlsCredentials,omitempty"`
-	NoClientAuth    bool              `json:"noClientAuth,omitempty"`
-	VerifyHostname  bool              `json:"verifyHostname,omitempty"`
-	Type            string            `json:"type,omitempty"`
-	IncludeNotReady bool              `json:"includeNotReady,omitempty"`
-	Settings        map[string]string `json:"settings,omitempty"`
+	RoutingKey       string            `json:"routingKey"`
+	Host             string            `json:"host,omitempty"`
+	Selector         string            `json:"selector,omitempty"`
+	Port             int               `json:"port"`
+	TlsCredentials   string            `json:"tlsCredentials,omitempty"`
+	NoClientAuth     bool              `json:"noClientAuth,omitempty"`
+	VerifyHostname   bool              `json:"verifyHostname,omitempty"`
+	Type             string            `json:"type,omitempty"`
+	IncludeNotReady  bool              `json:"includeNotReady,omitempty"`
+	ExposePodsByName bool              `json:"exposePodsByName,omitempty"`
+	Settings         map[string]string `json:"settings,omitempty"`
 }
 
 type PodDetails struct {
@@ -1062,5 +1064,6 @@ type AttachedConnectorAnchorList struct {
 type AttachedConnectorAnchorSpec struct {
 	ConnectorNamespace string            `json:"connectorNamespace"`
 	RoutingKey         string            `json:"routingKey"`
+	ExposePodsByName   bool              `json:"exposePodsByName,omitempty"`
 	Settings           map[string]string `json:"settings,omitempty"`
 }

@@ -546,7 +546,7 @@ func getListenerHostPortOverride(host string, port int) ListenerConfiguration {
 func getPodConnectorConfiguration(pods []skupperv2alpha1.PodDetails) ConnectorConfiguration {
 	return func(siteId string, connector *skupperv2alpha1.Connector, config *qdr.BridgeConfig) {
 		for _, pod := range pods {
-			UpdateBridgeConfigForConnectorToPod(siteId, connector, pod, config)
+			UpdateBridgeConfigForConnectorToPod(siteId, connector, pod, false, config)
 		}
 	}
 }

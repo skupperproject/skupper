@@ -2,6 +2,7 @@ package site
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"log/slog"
 	"reflect"
@@ -40,7 +41,6 @@ type Site struct {
 	linkAccess  site.RouterAccessMap
 	certs       certificates.CertificateManager
 	access      SecuredAccessFactory
-	adaptor     BindingAdaptor
 	routerPods  map[string]*corev1.Pod
 	logger      *slog.Logger
 }
@@ -134,11 +134,8 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site) error {
 			routerConfig = &rc
 		}
 		s.initialised = true
-		s.adaptor.init(s, routerConfig)
+		s.bindings.init(s, routerConfig)
 		s.bindings.SetSite(s)
-		s.bindings.SetBindingEventHandler(&s.adaptor)
-		s.bindings.SetConnectorConfiguration(s.adaptor.updateBridgeConfigForConnector)
-		s.bindings.SetListenerConfiguration(s.adaptor.updateBridgeConfigForListener)
 		if createRouterConfig {
 			s.bindings.Apply(routerConfig)
 			//TODO: apply any recovered RouterAccess configuration
@@ -455,7 +452,7 @@ func (s *Site) WatchPods(context PodWatchingContext, namespace string) *PodWatch
 	return w
 }
 
-func (s *Site) Expose(exposed *ExposedPortSet) {
+func (s *Site) Expose(exposed *ExposedPortSet) error {
 	ctxt := context.TODO()
 	current, err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Get(ctxt, exposed.Host, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
@@ -488,21 +485,25 @@ func (s *Site) Expose(exposed *ExposedPortSet) {
 					slog.String("service", exposed.Host),
 					slog.String("namespace", s.namespace),
 					slog.Any("error", err))
+				return err
 			} else {
 				s.logger.Info("Created service",
 					slog.String("service", exposed.Host),
 					slog.String("namespace", s.namespace))
+				return nil
 			}
 		} else {
 			s.logger.Info("Did not create service as ports were not updated",
 				slog.String("service", exposed.Host),
 				slog.String("namespace", s.namespace))
+			return nil
 		}
 	} else if err != nil {
 		s.logger.Error("Error checking service",
 			slog.String("service", exposed.Host),
 			slog.String("namespace", s.namespace),
 			slog.Any("error", err))
+		return err
 	} else {
 		updated := false
 		if kube.UpdateSelectorFromMap(&current.Spec, kube.GetLabelsForRouter()) {
@@ -519,16 +520,18 @@ func (s *Site) Expose(exposed *ExposedPortSet) {
 					slog.String("service", exposed.Host),
 					slog.String("namespace", s.namespace),
 					slog.Any("error", err))
+				return err
 			} else {
 				s.logger.Info("Updated service",
 					slog.String("service", exposed.Host),
 					slog.String("namespace", s.namespace))
 			}
 		}
+		return nil
 	}
 }
 
-func (s *Site) Unexpose(name string) {
+func (s *Site) Unexpose(name string) error {
 	ctxt := context.TODO()
 	current, err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Get(ctxt, name, metav1.GetOptions{})
 	if err != nil {
@@ -538,6 +541,7 @@ func (s *Site) Unexpose(name string) {
 				slog.String("namespace", s.namespace),
 				slog.Any("error", err))
 		}
+		return err
 	} else if isOwned(current) {
 		err = s.controller.GetKubeClient().CoreV1().Services(s.namespace).Delete(ctxt, name, metav1.DeleteOptions{})
 		if err != nil {
@@ -545,9 +549,10 @@ func (s *Site) Unexpose(name string) {
 				slog.String("service", name),
 				slog.String("namespace", s.namespace),
 				slog.Any("error", err))
+			return err
 		}
-		//TODO: ideally error should be propagated back to controller loop
 	}
+	return nil
 }
 
 func isOwned(service *corev1.Service) bool {
@@ -695,15 +700,15 @@ func (s *Site) updateListenerStatus(listener *skupperv2alpha1.Listener, err erro
 }
 
 func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener) error {
-	update := s.bindings.UpdateListener(name, listener)
+	update, err1 := s.bindings.UpdateListener(name, listener)
 	if update == nil || s.site == nil {
 		return nil
 	}
-	err := s.updateRouterConfigForGroups(update)
+	err2 := s.updateRouterConfigForGroups(update)
 	if listener == nil {
-		return err
+		return stderrors.Join(err1, err2)
 	}
-	return s.updateListenerStatus(listener, err)
+	return s.updateListenerStatus(listener, stderrors.Join(err1, err2))
 }
 
 func (s *Site) newLink(linkconfig *skupperv2alpha1.Link) *site.Link {
@@ -787,7 +792,7 @@ func (s *Site) Deleted() {
 	s.logger.Info("Deleting site",
 		slog.String("namespace", s.namespace),
 		slog.String("name", s.name))
-	s.adaptor.cleanup()
+	s.bindings.cleanup()
 }
 
 func (s *Site) setDefaultIssuerInStatus() bool {
@@ -866,6 +871,11 @@ func (s *Site) NetworkStatusUpdated(network []skupperv2alpha1.SiteRecord) error 
 					slog.String("link", linkRecord.Name),
 					slog.Any("error", err))
 			}
+		}
+	}
+	if config := s.bindings.networkUpdated(network); config != nil {
+		if err := s.updateRouterConfigForGroups(config); err != nil {
+			return err
 		}
 	}
 

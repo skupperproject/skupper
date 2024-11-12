@@ -33,6 +33,8 @@ spec:
                   type: string
                 includeNotReady:
                   type: boolean
+                exposePodsByName:
+                  type: boolean
                 settings:
                   type: object
                   additionalProperties:
