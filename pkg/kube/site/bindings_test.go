@@ -29,13 +29,15 @@ func (m *MockBindingContext) Select(connector *skupperv2alpha1.Connector) Target
 	return nil
 }
 
-func (m *MockBindingContext) Expose(ports *ExposedPortSet) {
+func (m *MockBindingContext) Expose(ports *ExposedPortSet) error {
 	portsCopy := *ports
 	m.exposed[ports.Host] = &portsCopy
+	return nil
 }
 
-func (m *MockBindingContext) Unexpose(host string) {
+func (m *MockBindingContext) Unexpose(host string) error {
 	m.unexposedHost = host
+	return nil
 }
 
 type MockTargetSelection struct {
@@ -165,7 +167,7 @@ func TestBindingAdaptor_ConnectorUpdated(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &BindingAdaptor{
+			a := &ExtendedBindings{
 				context:   tt.fields.context,
 				mapping:   tt.fields.mapping,
 				exposed:   tt.fields.exposed,
@@ -223,7 +225,7 @@ func TestBindingAdaptor_ConnectorDeleted(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &BindingAdaptor{
+			a := &ExtendedBindings{
 				context:   tt.fields.context,
 				mapping:   tt.fields.mapping,
 				exposed:   tt.fields.exposed,
@@ -389,7 +391,7 @@ func TestBindingAdaptor_updateBridgeConfigForConnector(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &BindingAdaptor{
+			a := &ExtendedBindings{
 				context:   tt.fields.context,
 				mapping:   tt.fields.mapping,
 				exposed:   tt.fields.exposed,
@@ -464,7 +466,7 @@ func TestBindingAdaptor_ListenerUpdated(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &BindingAdaptor{
+			a := &ExtendedBindings{
 				context:   tt.fields.context,
 				mapping:   tt.fields.mapping,
 				exposed:   tt.fields.exposed,
@@ -526,12 +528,13 @@ func TestBindingAdaptor_ListenerDeleted(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &BindingAdaptor{
+			a := &ExtendedBindings{
 				context:   tt.fields.context,
 				mapping:   tt.fields.mapping,
 				exposed:   tt.fields.exposed,
 				selectors: tt.fields.selectors,
 			}
+			a.ListenerUpdated(tt.args.listener)
 			a.ListenerDeleted(tt.args.listener)
 
 			mockBindingContext, ok := a.context.(*MockBindingContext)
@@ -604,7 +607,7 @@ func TestBindingAdaptor_updateBridgeConfigForListener(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &BindingAdaptor{
+			a := &ExtendedBindings{
 				context:   tt.fields.context,
 				mapping:   tt.fields.mapping,
 				exposed:   tt.fields.exposed,

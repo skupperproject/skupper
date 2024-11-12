@@ -25,6 +25,8 @@ spec:
                   type: string
                 type:
                   type: string
+                exposePodsByName:
+                  type: boolean
                 settings:
                   type: object
                   additionalProperties:

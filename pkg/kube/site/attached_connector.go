@@ -8,131 +8,10 @@ import (
 	"strings"
 
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/site"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-type ExtendedBindings struct {
-	bindings   *site.Bindings
-	connectors map[string]*AttachedConnector
-	controller *kube.Controller
-	site       *Site
-	logger     *slog.Logger
-}
-
-func NewExtendedBindings(controller *kube.Controller, profilePath string) *ExtendedBindings {
-	return &ExtendedBindings{
-		bindings:   site.NewBindings(profilePath),
-		connectors: map[string]*AttachedConnector{},
-		controller: controller,
-		logger: slog.New(slog.Default().Handler()).With(
-			slog.String("component", "kube.site.attached_connector"),
-		),
-	}
-}
-
-func (b *ExtendedBindings) SetListenerConfiguration(configuration site.ListenerConfiguration) {
-	b.bindings.SetListenerConfiguration(configuration)
-}
-
-func (b *ExtendedBindings) SetConnectorConfiguration(configuration site.ConnectorConfiguration) {
-	b.bindings.SetConnectorConfiguration(configuration)
-}
-
-func (b *ExtendedBindings) SetBindingEventHandler(handler site.BindingEventHandler) {
-	b.bindings.SetBindingEventHandler(handler)
-}
-
-func (b *ExtendedBindings) UpdateConnector(name string, connector *skupperv2alpha1.Connector) qdr.ConfigUpdate {
-	return b.bindings.UpdateConnector(name, connector)
-}
-
-func (b *ExtendedBindings) UpdateListener(name string, listener *skupperv2alpha1.Listener) qdr.ConfigUpdate {
-	return b.bindings.UpdateListener(name, listener)
-}
-
-func (b *ExtendedBindings) GetConnector(name string) *skupperv2alpha1.Connector {
-	return b.bindings.GetConnector(name)
-}
-
-func (b *ExtendedBindings) Map(cf site.ConnectorFunction, lf site.ListenerFunction) {
-	b.bindings.Map(cf, lf)
-}
-
-type AttachedConnectorFunction func(*AttachedConnector)
-
-func (b *ExtendedBindings) MapOverAttachedConnectors(cf AttachedConnectorFunction) {
-	for _, value := range b.connectors {
-		cf(value)
-	}
-}
-
-func (b *ExtendedBindings) Apply(config *qdr.RouterConfig) bool {
-	desired := b.bindings.ToBridgeConfig()
-	for _, connector := range b.connectors {
-		connector.updateBridgeConfig(b.bindings.SiteId, &desired)
-	}
-	b.bindings.AddSslProfiles(config)
-	config.UpdateBridgeConfig(desired)
-	config.RemoveUnreferencedSslProfiles()
-	return true //TODO: can optimise by indicating if no change was required
-}
-
-func (b *ExtendedBindings) SetSite(site *Site) {
-	b.bindings.SetSiteId(site.site.GetSiteId())
-	b.site = site
-}
-
-func (b *ExtendedBindings) checkAttachedConnectorAnchor(namespace string, name string, anchor *skupperv2alpha1.AttachedConnectorAnchor) error {
-	connector, ok := b.connectors[name]
-	if !ok {
-		connector = NewAttachedConnector(name, namespace, b)
-		b.connectors[name] = connector
-	}
-	if (anchor == nil && connector.anchorDeleted()) || (anchor != nil && connector.anchorUpdated(anchor)) {
-		if b.site != nil {
-			if err := b.site.updateRouterConfigForGroups(b.site.bindings); err != nil {
-				return connector.configurationError(err)
-			} else {
-				return connector.updateStatus()
-			}
-		}
-	}
-	return nil
-}
-
-func (b *ExtendedBindings) attachedConnectorUpdated(name string, definition *skupperv2alpha1.AttachedConnector) error {
-	connector, ok := b.connectors[name]
-	if !ok {
-		connector = NewAttachedConnector(name, definition.Spec.SiteNamespace, b)
-		b.connectors[name] = connector
-	}
-	if connector.definitionUpdated(definition) {
-		if b.site != nil {
-			if err := b.site.updateRouterConfigForGroups(b.site.bindings); err != nil {
-				return connector.configurationError(err)
-			} else {
-				return connector.updateStatus()
-			}
-		}
-	}
-	return nil
-}
-
-func (b *ExtendedBindings) attachedConnectorDeleted(namespace string, name string) error {
-	if connector, ok := b.connectors[name]; ok && connector.definitionDeleted(namespace) {
-		if b.site != nil {
-			if err := b.site.updateRouterConfigForGroups(b.site.bindings); err != nil {
-				return connector.configurationError(err)
-			} else {
-				return connector.updateStatus()
-			}
-		}
-	}
-	return nil
-}
 
 type AttachedConnector struct {
 	name        string
@@ -424,6 +303,6 @@ func (a *AttachedConnector) updateBridgeConfig(siteId string, config *qdr.Bridge
 		},
 	}
 	for _, pod := range a.watcher.pods() {
-		site.UpdateBridgeConfigForConnectorToPod(siteId, connector, pod, config)
+		site.UpdateBridgeConfigForConnectorToPod(siteId, connector, pod, a.anchor.Spec.ExposePodsByName, config)
 	}
 }

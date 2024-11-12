@@ -19,6 +19,8 @@ spec:
                   type: string
                 routingKey:
                   type: string
+                exposePodsByName:
+                  type: boolean
                 settings:
                   type: object
                   additionalProperties:
