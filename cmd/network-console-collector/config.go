@@ -24,6 +24,8 @@ type Config struct {
 	RouterTLS     TLSSpec
 	FlowRecordTTL time.Duration
 
+	FlowLoggingProfile string
+
 	EnableProfile bool
 	CORSAllowAll  bool
 }

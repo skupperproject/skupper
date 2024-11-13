@@ -19,7 +19,9 @@ import (
 
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/api"
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/collector"
+	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/flowlog"
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/server"
+	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/session"
 	"github.com/skupperproject/skupper/pkg/version"
 )
@@ -44,7 +46,27 @@ func run(cfg Config) error {
 		return fmt.Errorf("failed to load router tls configuration: %s", err)
 	}
 
-	collector := collector.New(logger.With(slog.String("component", "collector")), session.NewContainerFactory(cfg.RouterURL, sessionConfig), reg, cfg.FlowRecordTTL)
+	flowLogger := func(vanflow.RecordMessage) {}
+	vanflowSLog := logger.With(slog.String("component", "vanflow"))
+	switch cfg.FlowLoggingProfile {
+	case "silent":
+	case "minimal":
+		flowLogger = flowlog.New(ctx, vanflowSLog.Info, loggingProfileMinimal)
+	case "moderate":
+		flowLogger = flowlog.New(ctx, vanflowSLog.Info, loggingProfileModerate)
+	case "all":
+		flowLogger = flowlog.New(ctx, vanflowSLog.Info, loggingProfileAll)
+	default:
+		return fmt.Errorf("unknown logging profile: %s", cfg.FlowLoggingProfile)
+	}
+
+	collector := collector.New(
+		logger.With(slog.String("component", "collector")),
+		session.NewContainerFactory(cfg.RouterURL, sessionConfig),
+		reg,
+		cfg.FlowRecordTTL,
+		flowLogger,
+	)
 
 	collectorAPI := server.New(
 		logger.With(slog.String("component", "api")),
@@ -193,6 +215,8 @@ func main() {
 	flags.DurationVar(&cfg.FlowRecordTTL, "flow-record-ttl", 15*time.Minute, "How long to retain flow records in memory")
 	flags.BoolVar(&cfg.CORSAllowAll, "cors-allow-all", false, "Development option to allow all origins")
 	flags.BoolVar(&cfg.EnableProfile, "profile", false, "Exposes the runtime profiling facilities from net/http/pprof on http://localhost:9970")
+
+	flags.StringVar(&cfg.FlowLoggingProfile, "flow-logging-profile", "silent", "Controls the amount of logs for component=vanflow. Options are silent, minimal, moderate and all")
 
 	flags.Parse(os.Args[1:])
 	if *isVersion {
