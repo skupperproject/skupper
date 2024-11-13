@@ -77,7 +77,7 @@ func run(cfg Config) error {
 		apiMux.PathPrefix("/").Handler(handleConsoleAssets(cfg.ConsoleLocation))
 	}
 
-	if !cfg.APIDisableAccessLogs {
+	if cfg.APIEnableAccessLogs {
 		mux.Use(func(next http.Handler) http.Handler {
 			return handlers.LoggingHandler(os.Stdout, next)
 		})
@@ -182,7 +182,7 @@ func main() {
 	flags.BoolVar(&cfg.RouterTLS.SkipVerify, "router-tls-insecure", false, "Set to skip verification of the router certificate and host name")
 
 	flags.StringVar(&cfg.APIListenAddress, "listen", ":8080", "The address that the API Server will listen on")
-	flags.BoolVar(&cfg.APIDisableAccessLogs, "disable-access-logs", false, "Disables access logging for the API Server")
+	flags.BoolVar(&cfg.APIEnableAccessLogs, "enable-access-logs", false, "Enable access logging for the API Server")
 	flags.StringVar(&cfg.APITLS.Cert, "tls-cert", "", "Path to the API Server certificate file")
 	flags.StringVar(&cfg.APITLS.Key, "tls-key", "", "Path to the API Server certificate key file matching tls-cert")
 
