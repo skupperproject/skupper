@@ -23,7 +23,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.Registry, flowRecordTTL time.Duration) *Collector {
+func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.Registry, flowRecordTTL time.Duration, flowLogger func(vanflow.RecordMessage)) *Collector {
 	sessionCtr := factory.Create()
 
 	collector := &Collector{
@@ -37,6 +37,7 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 		recordRouting:  make(eventsource.RecordStoreMap),
 		metrics:        register(reg),
 		metricsAdaptor: opmetrics.New(reg),
+		flowLogging:    flowLogger,
 	}
 
 	collector.Records = store.NewSyncMapStore(store.SyncMapStoreConfig{
@@ -61,6 +62,7 @@ func New(logger *slog.Logger, factory session.ContainerFactory, reg *prometheus.
 type Collector struct {
 	logger        *slog.Logger
 	flowRecordTTL time.Duration
+	flowLogging   func(vanflow.RecordMessage)
 
 	session   session.Container
 	discovery *eventsource.Discovery
@@ -375,6 +377,9 @@ func (c *Collector) discoveryHandler(ctx context.Context) func(eventsource.Info)
 			}
 		}
 
+		if c.flowLogging != nil {
+			client.OnRecord(c.flowLogging)
+		}
 		client.OnRecord(router.Route)
 
 		for _, address := range addresses {
