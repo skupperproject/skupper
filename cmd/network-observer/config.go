@@ -12,9 +12,9 @@ import (
 )
 
 type Config struct {
-	APIListenAddress     string
-	APIDisableAccessLogs bool
-	APITLS               TLSSpec
+	APIListenAddress    string
+	APIEnableAccessLogs bool
+	APITLS              TLSSpec
 
 	EnableConsole   bool
 	ConsoleLocation string
