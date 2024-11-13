@@ -23,6 +23,7 @@ func TestAddresses(t *testing.T) {
 	begin := time.Now()
 	testcases := []struct {
 		Records              []store.Entry
+		Parameters           map[string][]string
 		ExpectOK             bool
 		ExpectCount          int
 		ExpectTimeRangeCount int
@@ -62,6 +63,42 @@ func TestAddresses(t *testing.T) {
 				t.Error("expected to find address record for addr-1")
 			},
 		},
+		{
+			Records: wrapRecords(
+				collector.AddressRecord{ID: "addr-1", Name: "pizza", Protocol: "tcp", Start: begin},
+				collector.AddressRecord{ID: "addr-2", Name: "icecream", Protocol: "tcp", Start: begin},
+				collector.AddressRecord{ID: "addr-3", Name: "waffles", Protocol: "tcp", Start: begin},
+				vanflow.ConnectorRecord{BaseRecord: vanflow.NewBase("c1"), Address: ptrTo("pizza"), Protocol: ptrTo("tcp")},
+				vanflow.ListenerRecord{BaseRecord: vanflow.NewBase("l1"), Address: ptrTo("pizza"), Protocol: ptrTo("tcp")},
+			),
+			Parameters: map[string][]string{
+				"sortBy": {"isBound.asc"},
+			},
+			ExpectOK:    true,
+			ExpectCount: 3,
+			ExpectResults: func(t *testing.T, results []api.AddressRecord) {
+				assert.Equal(t, results[2].Identity, "addr-1", "Expected addr-1 to be last with sortBy isBound.asc")
+				assert.Equal(t, results[2].IsBound, true, "Expected addr-1 to be bound")
+			},
+		},
+		{
+			Records: wrapRecords(
+				collector.AddressRecord{ID: "addr-1", Name: "pizza", Protocol: "tcp", Start: begin},
+				collector.AddressRecord{ID: "addr-2", Name: "icecream", Protocol: "tcp", Start: begin},
+				collector.AddressRecord{ID: "addr-3", Name: "waffles", Protocol: "tcp", Start: begin},
+				vanflow.ConnectorRecord{BaseRecord: vanflow.NewBase("c1"), Address: ptrTo("pizza"), Protocol: ptrTo("tcp")},
+				vanflow.ListenerRecord{BaseRecord: vanflow.NewBase("l1"), Address: ptrTo("pizza"), Protocol: ptrTo("tcp")},
+			),
+			Parameters: map[string][]string{
+				"sortBy": {"isBound.desc"},
+			},
+			ExpectOK:    true,
+			ExpectCount: 3,
+			ExpectResults: func(t *testing.T, results []api.AddressRecord) {
+				assert.Equal(t, results[0].Identity, "addr-1", "Expected addr-1 to be first with sortBy isBound.asc")
+				assert.Equal(t, results[0].IsBound, true, "Expected addr-1 to be bound")
+			},
+		},
 	}
 
 	for _, tc := range testcases {
@@ -71,7 +108,7 @@ func TestAddresses(t *testing.T) {
 			for _, r := range tc.Records {
 				graph.(reset).Reindex(r.Record)
 			}
-			resp, err := c.AddressesWithResponse(context.TODO())
+			resp, err := c.AddressesWithResponse(context.TODO(), WithParameters(tc.Parameters))
 			assert.Check(t, err)
 			if tc.ExpectOK {
 				assert.Equal(t, resp.StatusCode(), 200)
