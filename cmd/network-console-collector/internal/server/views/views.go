@@ -199,6 +199,7 @@ func NewConnectorProvider(graph collector.Graph) func(vanflow.ConnectorRecord) a
 		}
 		if proc, ok := node.Target().GetRecord(); ok {
 			out.Target = proc.Name
+			out.ProcessId = proc.ID
 		}
 		return out
 	}
