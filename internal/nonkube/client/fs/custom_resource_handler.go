@@ -11,10 +11,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+type GetOptions struct {
+	RuntimeFirst bool
+}
+
 type CustomResourceHandler[T any] interface {
 	Add(T) error
-	Update(T) error
-	Get(name string) (T, error)
+	Get(name string, opts GetOptions) (T, error)
 	List() ([]T, error)
 	Delete(name string) error
 

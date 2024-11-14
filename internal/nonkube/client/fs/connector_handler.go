@@ -38,23 +38,33 @@ func (s *ConnectorHandler) Add(resource v2alpha1.Connector) error {
 	return nil
 }
 
-func (s *ConnectorHandler) Get(name string) (*v2alpha1.Connector, error) {
+func (s *ConnectorHandler) Get(name string, opt GetOptions) (*v2alpha1.Connector, error) {
 	var context v2alpha1.Connector
 	fileName := name + ".yaml"
 
-	// First read from runtime directory, where output is found after bootstrap
-	// has run.  If no runtime connectors try and display configured connectors
-	err, file := s.ReadFile(s.pathProvider.GetRuntimeNamespace(), fileName, common.Connectors)
-	if err != nil {
-		fmt.Println("Site not initialized yet")
-		err, file = s.ReadFile(s.pathProvider.GetNamespace(), fileName, common.Connectors)
+	if opt.RuntimeFirst == true {
+		// First read from runtime directory, where output is found after bootstrap
+		// has run.  If no runtime connectors try and display configured connectors
+		err, file := s.ReadFile(s.pathProvider.GetRuntimeNamespace(), fileName, common.Connectors)
+		if err != nil {
+			fmt.Println("Site not initialized yet")
+			err, file = s.ReadFile(s.pathProvider.GetNamespace(), fileName, common.Connectors)
+			if err != nil {
+				return nil, err
+			}
+			if err := s.DecodeYaml(file, &context); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		// read from input directory to get lastest config
+		err, file := s.ReadFile(s.pathProvider.GetNamespace(), fileName, common.Connectors)
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	if err = s.DecodeYaml(file, &context); err != nil {
-		return nil, err
+		if err := s.DecodeYaml(file, &context); err != nil {
+			return nil, err
+		}
 	}
 
 	return &context, nil
@@ -100,21 +110,4 @@ func (s *ConnectorHandler) List() ([]*v2alpha1.Connector, error) {
 		connectors = append(connectors, &context)
 	}
 	return connectors, nil
-}
-
-func (s *ConnectorHandler) Update(name string) (*v2alpha1.Connector, error) {
-	var context v2alpha1.Connector
-	fileName := name + ".yaml"
-
-	// read from input directory to get lastest config
-	err, file := s.ReadFile(s.pathProvider.GetNamespace(), fileName, common.Connectors)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = s.DecodeYaml(file, &context); err != nil {
-		return nil, err
-	}
-
-	return &context, nil
 }
