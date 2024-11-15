@@ -222,6 +222,8 @@ type ConnectorRecord struct {
 	Parent    string `json:"parent"`
 	ProcessId string `json:"processId"`
 	Protocol  string `json:"protocol"`
+	SiteId    string `json:"siteId"`
+	SiteName  string `json:"siteName"`
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64  `json:"startTime"`
@@ -338,6 +340,8 @@ type ListenerRecord struct {
 	Name     string `json:"name"`
 	Parent   string `json:"parent"`
 	Protocol string `json:"protocol"`
+	SiteId   string `json:"siteId"`
+	SiteName string `json:"siteName"`
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64 `json:"startTime"`

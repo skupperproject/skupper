@@ -150,6 +150,10 @@ func NewListenerProvider(graph collector.Graph) func(vanflow.ListenerRecord) api
 		if addressID := node.Address().ID(); addressID != "" {
 			out.AddressId = &addressID
 		}
+		if site, ok := node.Parent().Parent().GetRecord(); ok {
+			out.SiteId = site.ID
+			setOpt(&out.SiteName, site.Name)
+		}
 		return out
 	}
 }
@@ -163,6 +167,8 @@ func defaultListener(id string) api.ListenerRecord {
 		Address:  unknownStr,
 		DestHost: unknownStr,
 		DestPort: unknownStr,
+		SiteId:   unknownStr,
+		SiteName: unknownStr,
 	}
 }
 
@@ -201,6 +207,10 @@ func NewConnectorProvider(graph collector.Graph) func(vanflow.ConnectorRecord) a
 			out.Target = proc.Name
 			out.ProcessId = proc.ID
 		}
+		if site, ok := node.Parent().Parent().GetRecord(); ok {
+			out.SiteId = site.ID
+			setOpt(&out.SiteName, site.Name)
+		}
 		return out
 	}
 }
@@ -214,6 +224,8 @@ func defaultConnector(id string) api.ConnectorRecord {
 		Address:  unknownStr,
 		DestHost: unknownStr,
 		DestPort: unknownStr,
+		SiteId:   unknownStr,
+		SiteName: unknownStr,
 	}
 }
 

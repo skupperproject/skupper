@@ -40,15 +40,7 @@ func TestConnections(t *testing.T) {
 		t0.Add(4 * time.Minute),
 	}
 
-	testcases := []struct {
-		Records              []store.Entry
-		Flows                []store.Entry
-		Parameters           map[string][]string
-		ExpectOK             bool
-		ExpectCount          int
-		ExpectTimeRangeCount int
-		ExpectResults        func(t *testing.T, results []api.ConnectionRecord)
-	}{
+	testcases := []collectionTestCase[api.ConnectionRecord]{
 		{ExpectOK: true},
 		{
 			Records: wrapRecords(
@@ -159,7 +151,7 @@ func TestConnections(t *testing.T) {
 			for _, r := range tc.Records {
 				graph.(reset).Reindex(r.Record)
 			}
-			resp, err := c.ConnectionsWithResponse(context.TODO(), WithParameters(tc.Parameters))
+			resp, err := c.ConnectionsWithResponse(context.TODO(), withParameters(tc.Parameters))
 			assert.Check(t, err)
 			if tc.ExpectOK {
 				assert.Equal(t, resp.StatusCode(), 200)

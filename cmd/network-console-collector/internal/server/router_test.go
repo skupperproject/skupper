@@ -30,14 +30,7 @@ func TestRouters(t *testing.T) {
 		vanflow.RouterRecord{BaseRecord: vanflow.NewBase("router-b-2"), Name: ptrTo("router b.2"), Parent: ptrTo("site-b")},
 	}
 
-	testcases := []struct {
-		Records              []store.Entry
-		Parameters           map[string][]string
-		ExpectOK             bool
-		ExpectCount          int
-		ExpectTimeRangeCount int
-		ExpectResults        func(t *testing.T, results []api.RouterRecord)
-	}{
+	testcases := []collectionTestCase[api.RouterRecord]{
 		{ExpectOK: true},
 		{
 			ExpectOK:    true,
@@ -73,7 +66,7 @@ func TestRouters(t *testing.T) {
 			for _, r := range tc.Records {
 				graph.(reset).Reindex(r.Record)
 			}
-			resp, err := c.RoutersWithResponse(context.TODO(), WithParameters(tc.Parameters))
+			resp, err := c.RoutersWithResponse(context.TODO(), withParameters(tc.Parameters))
 			assert.Check(t, err)
 			if tc.ExpectOK {
 				assert.Equal(t, resp.StatusCode(), 200)

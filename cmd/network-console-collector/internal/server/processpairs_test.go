@@ -42,7 +42,7 @@ func TestProcessPairsByAddress(t *testing.T) {
 			for _, r := range tc.Records {
 				graph.(reset).Reindex(r.Record)
 			}
-			resp, err := c.ProcessPairsByAddressWithResponse(context.TODO(), tc.ID, WithParameters(tc.Parameters))
+			resp, err := c.ProcessPairsByAddressWithResponse(context.TODO(), tc.ID, withParameters(tc.Parameters))
 			assert.Check(t, err)
 			if tc.ExpectOK {
 				assert.Equal(t, resp.StatusCode(), 200)
