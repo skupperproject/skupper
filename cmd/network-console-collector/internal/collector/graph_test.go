@@ -9,38 +9,91 @@ import (
 )
 
 func TestGraphRelations(t *testing.T) {
-	stor := store.NewSyncMapStore(store.SyncMapStoreConfig{Indexers: RecordIndexers()})
+	testCases := []struct {
+		Name    string
+		Records []vanflow.Record
+		Expect  func(t *testing.T, graf Graph)
+	}{
+		{
+			Name: "Connector::processID::Process",
+			Records: []vanflow.Record{
+				vanflow.ConnectorRecord{BaseRecord: vanflow.NewBase("c1"), ProcessID: ptrTo("p1")},
+				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("p1")},
+			},
+			Expect: func(t *testing.T, graf Graph) {
+				assert.Equal(t, graf.Connector("c1").Target().ID(), "p1")
 
-	stor.Replace(wrapRecords(
-		vanflow.SiteRecord{BaseRecord: vanflow.NewBase("s1")},
-		vanflow.RouterRecord{BaseRecord: vanflow.NewBase("r1"), Parent: ptrTo("s1")},
-		vanflow.SiteRecord{BaseRecord: vanflow.NewBase("s2")},
-		vanflow.RouterRecord{BaseRecord: vanflow.NewBase("r2"), Parent: ptrTo("s2")},
-		vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("p1"), Parent: ptrTo("s1"), SourceHost: ptrTo("x.x.x.1")},
-		vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("px"), Parent: ptrTo("sx"), SourceHost: ptrTo("x.x.x.1")},
-		vanflow.ConnectorRecord{BaseRecord: vanflow.NewBase("c1"), Parent: ptrTo("r1"), DestHost: ptrTo("x.x.x.1"), Address: ptrTo("chips"), Protocol: ptrTo("snacks")},
-		vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("p2"), Parent: ptrTo("s2"), SourceHost: ptrTo("x.x.x.2")},
-		vanflow.ConnectorRecord{BaseRecord: vanflow.NewBase("c2-a"), Parent: ptrTo("r2"), DestHost: ptrTo("x.x.x.2"), Address: ptrTo("pizza"), Protocol: ptrTo("snacks")},
-		vanflow.ConnectorRecord{BaseRecord: vanflow.NewBase("c2-b"), Parent: ptrTo("r2"), ProcessID: ptrTo("p2"), Address: ptrTo("pizza"), Protocol: ptrTo("snacks")},
-		vanflow.ConnectorRecord{BaseRecord: vanflow.NewBase("c2-c"), Parent: ptrTo("r2"), ProcessID: ptrTo("doesnotexist"), DestHost: ptrTo("x.x.x.2"), Address: ptrTo("pizza"), Protocol: ptrTo("snacks")},
-		vanflow.ListenerRecord{BaseRecord: vanflow.NewBase("l2"), Parent: ptrTo("r2"), Address: ptrTo("chips"), Protocol: ptrTo("snacks")},
-		AddressRecord{Name: "chips", ID: "adr1", Protocol: "snacks"},
-		AddressRecord{Name: "pizza", ID: "adr2", Protocol: "snacks"},
-	))
-	g := NewGraph(stor).(*graph)
-	g.Reset()
-	for _, r := range stor.List() {
-		g.Reindex(r.Record)
+			},
+		}, {
+			Name: "Connector::SiteHost::Process",
+			Records: []vanflow.Record{
+				vanflow.SiteRecord{BaseRecord: vanflow.NewBase("s1")},
+				vanflow.RouterRecord{BaseRecord: vanflow.NewBase("r1"), Parent: ptrTo("s1")},
+				vanflow.ConnectorRecord{
+					BaseRecord: vanflow.NewBase("c1"),
+					DestHost:   ptrTo("10.x.x.1"),
+					Parent:     ptrTo("r1"), Protocol: ptrTo("test")},
+				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("p1"),
+					Parent: ptrTo("s1"), SourceHost: ptrTo("10.x.x.1")},
+			},
+			Expect: func(t *testing.T, graf Graph) {
+				assert.Equal(t, graf.Connector("c1").Target().ID(), "p1")
+				assert.Equal(t, graf.SiteHost(SiteHostID("s1", "10.x.x.1")).Process().ID(), "p1")
+				assert.Equal(t, len(graf.SiteHost(SiteHostID("s1", "10.x.x.1")).Connectors()), 1)
+			},
+		}, {
+			Name: "Connector::SiteHost::Process Ignores ProcessID",
+			Records: []vanflow.Record{
+				vanflow.SiteRecord{BaseRecord: vanflow.NewBase("s1")},
+				vanflow.RouterRecord{BaseRecord: vanflow.NewBase("r1"), Parent: ptrTo("s1")},
+				vanflow.ConnectorRecord{
+					BaseRecord: vanflow.NewBase("c1"),
+					ProcessID:  ptrTo("IGNORE_ME"),
+					DestHost:   ptrTo("10.x.x.1"),
+					Parent:     ptrTo("r1"), Protocol: ptrTo("test")},
+				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("p1"),
+					Parent: ptrTo("s1"), SourceHost: ptrTo("10.x.x.1")},
+			},
+			Expect: func(t *testing.T, graf Graph) {
+				assert.Equal(t, graf.Connector("c1").Target().ID(), "p1")
+				assert.Equal(t, graf.SiteHost(SiteHostID("s1", "10.x.x.1")).Process().ID(), "p1")
+				assert.Equal(t, len(graf.SiteHost(SiteHostID("s1", "10.x.x.1")).Connectors()), 1)
+			},
+		}, {
+			Name: "Listener::SiteHost::Process",
+			Records: []vanflow.Record{
+				vanflow.SiteRecord{BaseRecord: vanflow.NewBase("s1")},
+				vanflow.RouterRecord{BaseRecord: vanflow.NewBase("r1"), Parent: ptrTo("s1")},
+				vanflow.ListenerRecord{
+					BaseRecord: vanflow.NewBase("l1"),
+					Parent:     ptrTo("r1"), Protocol: ptrTo("test")},
+				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("p1"),
+					Parent: ptrTo("s1"), SourceHost: ptrTo("10.x.x.1")},
+				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("p2"),
+					Parent: ptrTo("OTHER_SITE"), SourceHost: ptrTo("10.x.x.1")},
+			},
+			Expect: func(t *testing.T, graf Graph) {
+				siteID := graf.Listener("l1").Parent().Parent().ID()
+				assert.Equal(t, siteID, "s1")
+				proc, ok := graf.SiteHost(SiteHostID(siteID, "10.x.x.1")).Process().GetRecord()
+				assert.Assert(t, ok)
+				assert.Equal(t, proc.ID, "p1")
+			},
+		},
 	}
-	assert.Equal(t, g.Connector("c1").Target().ID(), "p1")
-	assert.Equal(t, g.Connector("c2-a").Target().ID(), "p2")
-	assert.Equal(t, g.Connector("c2-b").Target().ID(), "p2")
-	assert.Equal(t, g.Connector("c2-c").Target().ID(), "p2")
-	listenerConnectors := g.Listener("l2").Address().RoutingKey().Connectors()
-	if len(listenerConnectors) != 1 {
-		t.Errorf("expected examtly one connector for listener l2: %v", listenerConnectors)
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			stor := store.NewSyncMapStore(store.SyncMapStoreConfig{Indexers: RecordIndexers()})
+			stor.Replace(wrapRecords(tc.Records...))
+			graf := NewGraph(stor).(*graph)
+			graf.Reset()
+			for _, r := range stor.List() {
+				graf.Reindex(r.Record)
+			}
+			tc.Expect(t, graf)
+		})
 	}
-	assert.Equal(t, listenerConnectors[0].ID(), "c1")
 }
 
 func wrapRecords(records ...vanflow.Record) []store.Entry {
