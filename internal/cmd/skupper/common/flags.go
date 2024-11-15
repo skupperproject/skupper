@@ -72,6 +72,13 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagNameListenerHost = "host"
 	FlagDescListenerHost = "The hostname or IP address of the local listener. Clients at this site use the listener host and port to establish connections to the remote service."
 
+	FlagNamePath     = "path"
+	FlagDescPath     = "Custom resources location on the file system"
+	FlagNameStrategy = "strategy"
+	FlagDescStrategy = "The bundle strategy to be produced. Choices: bundle, tarball"
+	FlagNameForce    = "force"
+	FlagDescForce    = "Forces to overwrite an existing namespace"
+
 	FlagNameWait       = "wait"
 	FlagDescWait       = "Wait for the given status before exiting. Choices: configured, ready, none"
 	FlagDescDeleteWait = "Wait for deletion to complete before exiting"
@@ -196,6 +203,12 @@ type CommandListenerStatusFlags struct {
 
 type CommandListenerDeleteFlags struct {
 	Timeout time.Duration
+}
+
+type CommandSystemStartFlags struct {
+	Path     string
+	Strategy string
+	Force    bool
 }
 
 type CommandVersionFlags struct {
