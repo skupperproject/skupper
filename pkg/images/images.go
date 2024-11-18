@@ -18,3 +18,9 @@ const (
 	FlowCollectorImageName     string = "flow-collector:main"
 	SiteControllerImageName    string = "site-controller:main"
 )
+
+var (
+	KubeComponents    = []string{"router", "controller", "network-observer", "bootstrap", "prometheus", "origin-oauth-proxy"}
+	NonKubeComponents = []string{"router", "network-observer", "bootstrap", "prometheus", "origin-oauth-proxy"}
+	DefaultComponents = []string{"router", "prometheus", "origin-oauth-proxy"}
+)

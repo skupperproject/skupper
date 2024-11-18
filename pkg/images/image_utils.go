@@ -10,6 +10,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+type SkupperImage struct {
+	Name   string `json:"name,omitempty"`
+	Digest string `json:"digest,omitempty"`
+}
+
 const (
 	RouterImageEnvKey                  string = "SKUPPER_ROUTER_IMAGE"
 	ControllerImageEnvKey              string = "SKUPPER_CONTROLLER_IMAGE"
@@ -227,4 +232,104 @@ func GetOauthProxyImageRegistry() string {
 		return OauthProxyImageRegistry
 	}
 	return imageRegistry
+}
+
+func GetImage(imageNames map[string]string, imageRegistry string, enableSHA bool) []SkupperImage {
+	var image SkupperImage
+	var skupperImage []SkupperImage
+
+	for key, name := range imageNames {
+		imageName := os.Getenv(key)
+		if imageName == "" {
+			imageName = strings.Join([]string{imageRegistry, name}, "/")
+		}
+		image.Name = imageName
+
+		if enableSHA {
+			image.Digest = GetSha(imageName)
+		}
+
+		skupperImage = append(skupperImage, image)
+	}
+	return skupperImage
+}
+
+func GetImages(component string, enableSHA bool) []SkupperImage {
+	//var names map[string]string
+	var registry string
+
+	names := make(map[string]string)
+	switch component {
+	case "router":
+		// skupper router has two components
+		names[RouterImageEnvKey] = RouterImageName
+		names[ConfigSyncImageEnvKey] = ConfigSyncImageName
+		registry = GetImageRegistry()
+	case "controller":
+		names[ControllerImageEnvKey] = ControllerImageName
+		registry = GetImageRegistry()
+	case "network-observer":
+		names[NetworkConsoleCollectorImageEnvKey] = NetworkConsoleCollectorImageName
+		registry = GetImageRegistry()
+	case "bootstrap":
+		names[BootstrapImageEnvKey] = BootstrapImageName
+		registry = GetImageRegistry()
+	case "prometheus":
+		names[PrometheusServerImageEnvKey] = PrometheusServerImageName
+		registry = GetPrometheusImageRegistry()
+	case "origin-oauth-proxy":
+		names[OauthProxyImageEnvKey] = OauthProxyImageName
+		registry = GetOauthProxyImageRegistry()
+	}
+
+	if names != nil && registry != "" {
+		return GetImage(names, registry, enableSHA)
+	} else {
+		return nil
+	}
+}
+
+func GetImageVersion(component string) string {
+	var image string
+
+	switch component {
+	case "router":
+		image = os.Getenv(RouterImageEnvKey)
+		if image == "" {
+			image = RouterImageName
+		}
+	case "controller":
+		image = os.Getenv(ControllerImageEnvKey)
+		if image == "" {
+			image = ControllerImageName
+		}
+	case "network-observer":
+		image = os.Getenv(ControllerImageEnvKey)
+		if image == "" {
+			image = NetworkConsoleCollectorImageName
+		}
+	case "bootstrap":
+		image = os.Getenv(BootstrapImageName)
+		if image == "" {
+			image = ControllerImageName
+		}
+	case "prometheus":
+		image = os.Getenv(PrometheusServerImageEnvKey)
+		if image == "" {
+			image = PrometheusServerImageName
+		}
+	case "origin-oauth-proxy":
+		image = os.Getenv(OauthProxyImageEnvKey)
+		if image == "" {
+			image = OauthProxyImageName
+		}
+	}
+	if image != "" {
+		parts := strings.Split(image, ":")
+		if len(parts) == 2 {
+			return parts[1]
+		}
+	}
+
+	return ""
 }
