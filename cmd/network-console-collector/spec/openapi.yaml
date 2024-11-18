@@ -976,6 +976,8 @@ components:
             - destPort
             - protocol
             - address
+            - siteId
+            - siteName
           properties:
             parent:
               type: string
@@ -991,6 +993,10 @@ components:
               type: string
             addressId:
               type: string
+            siteId:
+              type: string
+            siteName:
+              type: string
     ConnectorRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
@@ -1004,6 +1010,8 @@ components:
             - address
             - processId
             - target
+            - siteId
+            - siteName
           properties:
             parent:
               type: string
@@ -1024,6 +1032,10 @@ components:
             target:
               type: string
               nullable: true
+            siteId:
+              type: string
+            siteName:
+              type: string
     AddressRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'

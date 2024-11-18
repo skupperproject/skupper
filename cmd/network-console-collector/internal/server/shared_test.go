@@ -21,6 +21,17 @@ func requireTestClient(t *testing.T, impl api.ServerInterface) (*httptest.Server
 	return htsrv, client
 }
 
+type collectionTestCase[T api.Record] struct {
+	Records              []store.Entry
+	Flows                []store.Entry
+	Parameters           map[string][]string
+	ExpectOK             bool
+	ExpectCount          int
+	ExpectTimeRangeCount int
+	ExpectError          string
+	ExpectResults        func(t *testing.T, results []T)
+}
+
 func ptrTo[T any](c T) *T {
 	return &c
 }
@@ -38,7 +49,11 @@ type reset interface {
 	Reindex(vanflow.Record)
 }
 
-func WithParameters(params map[string][]string) func(context.Context, *http.Request) error {
+type statusCoder interface {
+	StatusCode() int
+}
+
+func withParameters(params map[string][]string) func(context.Context, *http.Request) error {
 	return func(ctx context.Context, r *http.Request) error {
 		values := r.URL.Query()
 		for k, vs := range params {

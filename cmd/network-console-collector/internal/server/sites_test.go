@@ -20,15 +20,7 @@ func TestSites(t *testing.T) {
 	srv, c := requireTestClient(t, New(tlog, stor, graph))
 	defer srv.Close()
 
-	testcases := []struct {
-		Records              []store.Entry
-		Parameters           map[string][]string
-		ExpectOK             bool
-		ExpectCount          int
-		ExpectTimeRangeCount int
-		ExpectResults        func(t *testing.T, results []api.SiteRecord)
-		ExpectError          string
-	}{
+	testcases := []collectionTestCase[api.SiteRecord]{
 		{ExpectOK: true},
 		{
 			Records: wrapRecords(
@@ -79,7 +71,7 @@ func TestSites(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			stor.Replace(tc.Records)
 			graph.(reset).Reset()
-			resp, err := c.SitesWithResponse(context.TODO(), WithParameters(tc.Parameters))
+			resp, err := c.SitesWithResponse(context.TODO(), withParameters(tc.Parameters))
 			assert.Check(t, err)
 			if tc.ExpectOK {
 				assert.Equal(t, resp.StatusCode(), 200)

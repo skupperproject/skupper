@@ -330,7 +330,7 @@ func (c *connectionManager) reconcile(state transportState) (ConnectionRecord, r
 	sourceSiteID := lRouterNode.Parent().ID()
 	sourceSiteHost := dref(record.SourceHost)
 	if sourceSiteID != "" && sourceSiteHost != "" {
-		sourceNode = c.graph.ConnectorTarget(ConnectorTargetID(sourceSiteID, sourceSiteHost)).Process()
+		sourceNode = c.graph.SiteHost(SiteHostID(sourceSiteID, sourceSiteHost)).Process()
 	}
 	sourceproc, ok := c.processAttrs(sourceNode.ID())
 	if !ok {

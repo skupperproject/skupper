@@ -19,14 +19,7 @@ func TestProcesses(t *testing.T) {
 	srv, c := requireTestClient(t, New(tlog, stor, graph))
 	defer srv.Close()
 
-	testcases := []struct {
-		Records              []store.Entry
-		Parameters           map[string][]string
-		ExpectOK             bool
-		ExpectCount          int
-		ExpectTimeRangeCount int
-		ExpectResults        func(t *testing.T, results []api.ProcessRecord)
-	}{
+	testcases := []collectionTestCase[api.ProcessRecord]{
 		{ExpectOK: true},
 		{
 			Records: wrapRecords(
@@ -110,7 +103,7 @@ func TestProcesses(t *testing.T) {
 			for _, r := range tc.Records {
 				graph.(reset).Reindex(r.Record)
 			}
-			resp, err := c.ProcessesWithResponse(context.TODO(), WithParameters(tc.Parameters))
+			resp, err := c.ProcessesWithResponse(context.TODO(), withParameters(tc.Parameters))
 			assert.Check(t, err)
 			if tc.ExpectOK {
 				assert.Equal(t, resp.StatusCode(), 200)
