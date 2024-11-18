@@ -51,28 +51,28 @@ func testFileSystemConfigurationRendererRender(t *testing.T, addInputCertificate
 	}
 	expectedFiles := []string{
 		string(api.RouterConfigPath) + "/skrouterd.json",
-		string(api.CertificatesCaPath) + "/skupper-site-ca/tls.crt",
-		string(api.CertificatesCaPath) + "/skupper-site-ca/tls.key",
-		string(api.CertificatesCaPath) + "/skupper-service-ca/tls.crt",
-		string(api.CertificatesCaPath) + "/skupper-service-ca/tls.key",
-		string(api.CertificatesClientPath) + "/client-link-access-one/tls.crt",
-		string(api.CertificatesClientPath) + "/client-link-access-one/tls.key",
-		string(api.CertificatesClientPath) + "/client-link-access-one/ca.crt",
-		string(api.CertificatesServerPath) + "/link-access-one/tls.crt",
-		string(api.CertificatesServerPath) + "/link-access-one/tls.key",
-		string(api.CertificatesServerPath) + "/link-access-one/ca.crt",
-		string(api.CertificatesServerPath) + "/listener-one-credentials/tls.crt",
-		string(api.CertificatesServerPath) + "/listener-one-credentials/tls.key",
-		string(api.CertificatesServerPath) + "/listener-one-credentials/ca.crt",
-		string(api.CertificatesServerPath) + "/listener-two-credentials/tls.crt",
-		string(api.CertificatesServerPath) + "/listener-two-credentials/tls.key",
-		string(api.CertificatesServerPath) + "/listener-two-credentials/ca.crt",
-		string(api.CertificatesServerPath) + "/connector-one-credentials/tls.key",
-		string(api.CertificatesServerPath) + "/connector-one-credentials/ca.crt",
-		string(api.CertificatesServerPath) + "/connector-one-credentials/tls.crt",
-		string(api.CertificatesLinkPath) + "/link-one-profile/ca.crt",
-		string(api.CertificatesLinkPath) + "/link-one-profile/tls.crt",
-		string(api.CertificatesLinkPath) + "/link-one-profile/tls.key",
+		string(api.IssuersPath) + "/skupper-site-ca/tls.crt",
+		string(api.IssuersPath) + "/skupper-site-ca/tls.key",
+		string(api.IssuersPath) + "/skupper-service-ca/tls.crt",
+		string(api.IssuersPath) + "/skupper-service-ca/tls.key",
+		string(api.CertificatesPath) + "/client-link-access-one/tls.crt",
+		string(api.CertificatesPath) + "/client-link-access-one/tls.key",
+		string(api.CertificatesPath) + "/client-link-access-one/ca.crt",
+		string(api.CertificatesPath) + "/link-access-one/tls.crt",
+		string(api.CertificatesPath) + "/link-access-one/tls.key",
+		string(api.CertificatesPath) + "/link-access-one/ca.crt",
+		string(api.CertificatesPath) + "/listener-one-credentials/tls.crt",
+		string(api.CertificatesPath) + "/listener-one-credentials/tls.key",
+		string(api.CertificatesPath) + "/listener-one-credentials/ca.crt",
+		string(api.CertificatesPath) + "/listener-two-credentials/tls.crt",
+		string(api.CertificatesPath) + "/listener-two-credentials/tls.key",
+		string(api.CertificatesPath) + "/listener-two-credentials/ca.crt",
+		string(api.CertificatesPath) + "/connector-one-credentials/tls.key",
+		string(api.CertificatesPath) + "/connector-one-credentials/ca.crt",
+		string(api.CertificatesPath) + "/connector-one-credentials/tls.crt",
+		string(api.CertificatesPath) + "/link-one-profile/ca.crt",
+		string(api.CertificatesPath) + "/link-one-profile/tls.crt",
+		string(api.CertificatesPath) + "/link-one-profile/tls.key",
 		string(api.RuntimePath) + "/platform.yaml",
 		string(api.RuntimeTokenPath) + "/link-link-access-one-127.0.0.1.yaml",
 	}
@@ -95,12 +95,12 @@ func testFileSystemConfigurationRendererRender(t *testing.T, addInputCertificate
 }
 
 func compareCertificates(t *testing.T, customOutputPath string) {
-	caPath := path.Join(customOutputPath, string(api.CertificatesCaPath), "skupper-site-ca")
-	serverPath := path.Join(customOutputPath, string(api.CertificatesServerPath), "link-access-one")
-	clientPath := path.Join(customOutputPath, string(api.CertificatesClientPath), "client-link-access-one")
-	inputCaPath := path.Join(customOutputPath, string(api.InputCertificatesCaPath), "skupper-site-ca")
-	inputServerPath := path.Join(customOutputPath, string(api.InputCertificatesServerPath), "link-access-one")
-	inputClientPath := path.Join(customOutputPath, string(api.InputCertificatesClientPath), "client-link-access-one")
+	caPath := path.Join(customOutputPath, string(api.IssuersPath), "skupper-site-ca")
+	serverPath := path.Join(customOutputPath, string(api.CertificatesPath), "link-access-one")
+	clientPath := path.Join(customOutputPath, string(api.CertificatesPath), "client-link-access-one")
+	inputCaPath := path.Join(customOutputPath, string(api.InputIssuersPath), "skupper-site-ca")
+	inputServerPath := path.Join(customOutputPath, string(api.InputCertificatesPath), "link-access-one")
+	inputClientPath := path.Join(customOutputPath, string(api.InputCertificatesPath), "client-link-access-one")
 	pathsToCompare := map[string]string{
 		caPath:     inputCaPath,
 		serverPath: inputServerPath,
@@ -128,9 +128,9 @@ func createInputCertificates(t *testing.T, customOutputPath string) {
 	client := certs.GenerateSecret("fake-client-cert", "fake-client-cert", "", &ca)
 
 	// paths for each provided certificate
-	caPath := path.Join(customOutputPath, "namespaces/default", string(api.InputCertificatesCaPath), "skupper-site-ca")
-	serverPath := path.Join(customOutputPath, "namespaces/default", string(api.InputCertificatesServerPath), "link-access-one")
-	clientPath := path.Join(customOutputPath, "namespaces/default", string(api.InputCertificatesClientPath), "client-link-access-one")
+	caPath := path.Join(customOutputPath, "namespaces/default", string(api.InputIssuersPath), "skupper-site-ca")
+	serverPath := path.Join(customOutputPath, "namespaces/default", string(api.InputCertificatesPath), "link-access-one")
+	clientPath := path.Join(customOutputPath, "namespaces/default", string(api.InputCertificatesPath), "client-link-access-one")
 	certsMap := map[string]corev1.Secret{
 		caPath:     ca,
 		serverPath: server,

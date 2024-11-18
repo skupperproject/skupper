@@ -313,41 +313,33 @@ list_valid_certificates() {
     done
 }
 
-handle_provided_certificates() {
-    export USER_CERTIFICATES_PATH="${NAMESPACES_PATH}/${NAMESPACE}/input/certs"
-    [ ! -d "${USER_CERTIFICATES_PATH}" ] && return
-    cas=""
-    clients=""
-    servers=""
-    if [ -d "${USER_CERTIFICATES_PATH}/ca" ]; then
-        cas=$(list_valid_certificates "${USER_CERTIFICATES_PATH}/ca")
-    fi
-    if [ -d "${USER_CERTIFICATES_PATH}/client" ]; then
-        clients=$(list_valid_certificates "${USER_CERTIFICATES_PATH}/client")
-    fi
-    if [ -d "${USER_CERTIFICATES_PATH}/server" ]; then
-        servers=$(list_valid_certificates "${USER_CERTIFICATES_PATH}/server")
-    fi
-    if [ -z "${cas}" ] && [ -z "${clients}" ] && [ -z "${servers}" ]; then
+handle_provided_issuers() {
+    export USER_ISSUERS_PATH="${NAMESPACES_PATH}/${NAMESPACE}/input/issuers"
+    [ ! -d "${USER_ISSUERS_PATH}" ] && return
+    cas=$(list_valid_certificates "${USER_ISSUERS_PATH}")
+    if [ -z "${cas}" ]; then
         return
     fi
-    echo "User provided certificates found:"
+    echo "User provided issuers found:"
     if [ -n "${cas}" ]; then
-        echo "- CA certificates:"
         for ca in ${cas}; do
             echo "  - ${ca}"
         done
     fi
-    if [ -n "${clients}" ]; then
-        echo "- Client certificates:"
-        for client in ${clients}; do
-            echo "  - ${client}"
-        done
+    cp -r "${USER_ISSUERS_PATH}"/* "./${SOURCE_NAMESPACE}/runtime/issuers"
+}
+
+handle_provided_certificates() {
+    export USER_CERTIFICATES_PATH="${NAMESPACES_PATH}/${NAMESPACE}/input/certs"
+    [ ! -d "${USER_CERTIFICATES_PATH}" ] && return
+    certs=$(list_valid_certificates "${USER_CERTIFICATES_PATH}")
+    if [ -z "${certs}" ]; then
+        return
     fi
-    if [ -n "${servers}" ]; then
-        echo "- Server certificates:"
-        for server in ${servers}; do
-            echo "  - ${server}"
+    echo "User provided certificates found:"
+    if [ -n "${certs}" ]; then
+        for cert in ${certs}; do
+            echo "  - ${cert}"
         done
     fi
     cp -r "${USER_CERTIFICATES_PATH}"/* "./${SOURCE_NAMESPACE}/runtime/certs"
@@ -364,7 +356,7 @@ update_static_links() {
         ra_name=$(grep name: "${ra}" | grep -v '\- name:' | awk '{print $NF}' | sed 's/"//g')
         tls_credential=$(grep tlsCredentials: "${ra}" | awk '{print $NF}' | sed 's/"//g')
         bind_host=$(grep bindHost: "${ra}" | awk '{print $NF}' | sed 's/"//g')
-        client_cert_path="${USER_CERTIFICATES_PATH}/client/client-${tls_credential:-${ra_name}}"
+        client_cert_path="${USER_CERTIFICATES_PATH}/client-${tls_credential:-${ra_name}}"
 
         # no client certificate provided, skip
         [ ! -d "${client_cert_path}" ] && continue
@@ -409,7 +401,7 @@ generate_static_links_for_sans() {
         bind_host=$(grep bindHost: "${ra}" | awk '{print $NF}' | sed 's/"//g')
 
         # discovering SANS
-        server_cert="${DIR}/runtime/certs/server/${tls_credential:-${ra_name}}/tls.crt"
+        server_cert="${DIR}/runtime/certs/${tls_credential:-${ra_name}}/tls.crt"
         [ ! -f "${server_cert}" ] && continue
         subjects="$(openssl x509 -noout -ext subjectAltName -in "${server_cert}" |grep -v 'Subject Alternative Name:' | \
                     sed 's/ //g;s/,/\n/g' |  awk -F: '{if ($1 == "DNS" || $1 == "IPAddress") print $2}')"
@@ -436,6 +428,7 @@ main() {
         return
     fi
 
+    handle_provided_issuers
     handle_provided_certificates
 
     if ${DUMP_TOKENS}; then
