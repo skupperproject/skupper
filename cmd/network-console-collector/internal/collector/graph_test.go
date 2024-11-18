@@ -95,11 +95,3 @@ func TestGraphRelations(t *testing.T) {
 		})
 	}
 }
-
-func wrapRecords(records ...vanflow.Record) []store.Entry {
-	entries := make([]store.Entry, len(records))
-	for i := range records {
-		entries[i].Record = records[i]
-	}
-	return entries
-}

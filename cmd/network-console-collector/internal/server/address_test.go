@@ -108,7 +108,7 @@ func TestAddresses(t *testing.T) {
 			for _, r := range tc.Records {
 				graph.(reset).Reindex(r.Record)
 			}
-			resp, err := c.AddressesWithResponse(context.TODO(), WithParameters(tc.Parameters))
+			resp, err := c.AddressesWithResponse(context.TODO(), withParameters(tc.Parameters))
 			assert.Check(t, err)
 			if tc.ExpectOK {
 				assert.Equal(t, resp.StatusCode(), 200)
