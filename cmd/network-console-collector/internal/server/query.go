@@ -181,6 +181,16 @@ func (m fieldIndex[T]) Compare(x, y T) int {
 	case reflect.Int64:
 		xx, yy := vx.Int(), vy.Int()
 		return int(xx - yy)
+	case reflect.Bool:
+		xx, yy := vx.Bool(), vy.Bool()
+		switch {
+		case xx == yy:
+			return 0
+		case xx && !yy:
+			return 1
+		default:
+			return -1
+		}
 	}
 	return 0
 }
