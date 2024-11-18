@@ -29,7 +29,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 		{
 			name:           "link yaml is not generated because there is no site in the namespace.",
 			expectedErrors: []string{"there is no skupper site in this namespace", "there is no active skupper site in this namespace"},
-			flags:          common.CommandLinkGenerateFlags{Cost: "1", TlsSecret: "secret", Timeout: time.Minute},
+			flags:          common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "secret", Timeout: time.Minute},
 		},
 		{
 			name: "arguments were specified and they are not needed",
@@ -81,7 +81,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags:          common.CommandLinkGenerateFlags{Cost: "1", TlsSecret: "secret", Timeout: time.Minute},
+			flags:          common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "secret", Timeout: time.Minute},
 			expectedErrors: []string{"arguments are not allowed in this command"},
 		},
 		{
@@ -185,7 +185,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags:          common.CommandLinkGenerateFlags{Cost: "one", TlsSecret: "secret", Timeout: time.Minute},
+			flags:          common.CommandLinkGenerateFlags{Cost: "one", TlsCredentials: "secret", Timeout: time.Minute},
 			expectedErrors: []string{"link cost is not valid: strconv.Atoi: parsing \"one\": invalid syntax"},
 		},
 		{
@@ -237,7 +237,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: common.CommandLinkGenerateFlags{Cost: "-4", TlsSecret: "secret", Timeout: time.Minute},
+			flags: common.CommandLinkGenerateFlags{Cost: "-4", TlsCredentials: "secret", Timeout: time.Minute},
 			expectedErrors: []string{
 				"link cost is not valid: value is not positive",
 			},
@@ -291,7 +291,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: common.CommandLinkGenerateFlags{Cost: "1", TlsSecret: "secret", Output: "not-valid", Timeout: time.Minute},
+			flags: common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "secret", Output: "not-valid", Timeout: time.Minute},
 			expectedErrors: []string{
 				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 			},
@@ -345,7 +345,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: common.CommandLinkGenerateFlags{Cost: "1", TlsSecret: "tls secret", Timeout: time.Minute},
+			flags: common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "tls secret", Timeout: time.Minute},
 			expectedErrors: []string{
 				"the name of the tls secret is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 			},
@@ -399,7 +399,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: common.CommandLinkGenerateFlags{Cost: "1", TlsSecret: "secret", Timeout: time.Second * 0},
+			flags: common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "secret", Timeout: time.Second * 0},
 			expectedErrors: []string{
 				"timeout is not valid: duration must not be less than 10s; got 0s",
 			},
@@ -431,7 +431,7 @@ func TestCmdLinkGenerate_InputToOptions(t *testing.T) {
 		flags                       common.CommandLinkGenerateFlags
 		activeSite                  *v2alpha1.Site
 		expectedLinkname            string
-		expectedTlsSecret           string
+		expectedTlsCredentials      string
 		expectedCost                int
 		expectedOutput              string
 		expectedGenerateCredentials bool
@@ -442,7 +442,7 @@ func TestCmdLinkGenerate_InputToOptions(t *testing.T) {
 			name:                        "check options",
 			flags:                       common.CommandLinkGenerateFlags{"secret", "1", "json", false, time.Minute},
 			expectedCost:                1,
-			expectedTlsSecret:           "secret",
+			expectedTlsCredentials:      "secret",
 			expectedOutput:              "json",
 			expectedGenerateCredentials: false,
 		},
@@ -472,7 +472,7 @@ func TestCmdLinkGenerate_InputToOptions(t *testing.T) {
 			},
 			expectedLinkname:            "link-the-site",
 			expectedCost:                1,
-			expectedTlsSecret:           "link-the-site",
+			expectedTlsCredentials:      "link-the-site",
 			expectedOutput:              "json",
 			expectedGenerateCredentials: true,
 		},
@@ -491,7 +491,7 @@ func TestCmdLinkGenerate_InputToOptions(t *testing.T) {
 
 			assert.Check(t, cmd.linkName == test.expectedLinkname)
 			assert.Check(t, cmd.output == test.expectedOutput)
-			assert.Check(t, cmd.tlsSecret == test.expectedTlsSecret)
+			assert.Check(t, cmd.tlsCredentials == test.expectedTlsCredentials)
 			assert.Check(t, cmd.cost == test.expectedCost)
 			assert.Check(t, cmd.generateCredential == test.expectedGenerateCredentials)
 		})
@@ -512,7 +512,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 			setUpMock: func(command *CmdLinkGenerate) {
 				command.linkName = "my-link"
 				command.cost = 1
-				command.tlsSecret = "secret"
+				command.tlsCredentials = "secret"
 				command.output = "yaml"
 				command.generateCredential = true
 				command.activeSite = &v2alpha1.Site{
@@ -557,7 +557,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 			setUpMock: func(command *CmdLinkGenerate) {
 				command.linkName = "my-link"
 				command.cost = 1
-				command.tlsSecret = "secret"
+				command.tlsCredentials = "secret"
 				command.output = "yaml"
 				command.generateCredential = false
 				command.activeSite = &v2alpha1.Site{
@@ -602,7 +602,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 			setUpMock: func(command *CmdLinkGenerate) {
 				command.linkName = "my-link"
 				command.cost = 1
-				command.tlsSecret = "secret"
+				command.tlsCredentials = "secret"
 				command.output = ""
 				command.generateCredential = true
 				command.activeSite = &v2alpha1.Site{
@@ -648,7 +648,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 			setUpMock: func(command *CmdLinkGenerate) {
 				command.linkName = "my-link"
 				command.cost = 1
-				command.tlsSecret = "secret"
+				command.tlsCredentials = "secret"
 				command.output = "unsupported"
 				command.generateCredential = true
 				command.activeSite = &v2alpha1.Site{
@@ -694,7 +694,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 			setUpMock: func(command *CmdLinkGenerate) {
 				command.linkName = "my-link"
 				command.cost = 1
-				command.tlsSecret = "secret"
+				command.tlsCredentials = "secret"
 				command.output = "yaml"
 				command.generateCredential = false
 				command.activeSite = &v2alpha1.Site{
@@ -726,7 +726,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 			setUpMock: func(command *CmdLinkGenerate) {
 				command.linkName = "my-link"
 				command.cost = 1
-				command.tlsSecret = "secret"
+				command.tlsCredentials = "secret"
 				command.output = "yaml"
 				command.generateCredential = false
 				command.activeSite = nil
@@ -738,7 +738,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 			setUpMock: func(command *CmdLinkGenerate) {
 				command.linkName = "my-link"
 				command.cost = 1
-				command.tlsSecret = "secret"
+				command.tlsCredentials = "secret"
 				command.output = "yaml"
 				command.generateCredential = true
 				command.activeSite = &v2alpha1.Site{
@@ -806,7 +806,7 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 		generateCredential bool
 		generatedLink      v2alpha1.Link
 		outputType         string
-		tlsSecret          string
+		tlsCredentials     string
 		timeout            time.Duration
 		k8sObjects         []runtime.Object
 		skupperObjects     []runtime.Object
@@ -819,7 +819,7 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 			name:               "secret is not returned",
 			outputType:         "yaml",
 			timeout:            time.Second,
-			tlsSecret:          "linkSecret",
+			tlsCredentials:     "linkSecret",
 			generateCredential: true,
 			expectError:        true,
 		},
@@ -842,7 +842,7 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 			generateCredential: true,
 			outputType:         "yaml",
 			timeout:            time.Second,
-			tlsSecret:          "link-test",
+			tlsCredentials:     "link-test",
 			k8sObjects: []runtime.Object{
 				&corev1.Secret{
 					TypeMeta: metav1.TypeMeta{
@@ -876,7 +876,7 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 			generateCredential: true,
 			outputType:         "yaml",
 			timeout:            time.Second,
-			tlsSecret:          "link-test",
+			tlsCredentials:     "link-test",
 			k8sObjects: []runtime.Object{
 				&corev1.Secret{
 					TypeMeta: metav1.TypeMeta{
@@ -907,7 +907,7 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 
 			command.output = test.outputType
 			command.generateCredential = test.generateCredential
-			command.tlsSecret = test.tlsSecret
+			command.tlsCredentials = test.tlsCredentials
 			command.timeout = test.timeout
 
 			err := command.WaitUntil()

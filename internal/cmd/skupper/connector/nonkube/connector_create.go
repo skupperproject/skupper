@@ -25,7 +25,7 @@ type CmdConnectorCreate struct {
 	host             string
 	routingKey       string
 	connectorType    string
-	tlsSecret        string
+	tlsCredentials   string
 }
 
 func NewCmdConnectorCreate() *CmdConnectorCreate {
@@ -111,8 +111,8 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 	} else {
 		validationErrors = append(validationErrors, fmt.Errorf("host name must be configured: an IP address or hostname is expected"))
 	}
-	if cmd.Flags.TlsSecret != "" {
-		// TBD what is valid TlsSecret
+	if cmd.Flags.TlsCredentials != "" {
+		// TBD what is valid TlsCredentials
 	}
 
 	return validationErrors
@@ -133,7 +133,7 @@ func (cmd *CmdConnectorCreate) InputToOptions() {
 	cmd.host = cmd.Flags.Host
 	cmd.connectorType = cmd.Flags.ConnectorType
 	cmd.output = cmd.Flags.Output
-	cmd.tlsSecret = cmd.Flags.TlsSecret
+	cmd.tlsCredentials = cmd.Flags.TlsCredentials
 }
 
 func (cmd *CmdConnectorCreate) Run() error {
@@ -150,7 +150,7 @@ func (cmd *CmdConnectorCreate) Run() error {
 			Host:           cmd.host,
 			Port:           cmd.port,
 			RoutingKey:     cmd.routingKey,
-			TlsCredentials: cmd.tlsSecret,
+			TlsCredentials: cmd.tlsCredentials,
 			Type:           cmd.connectorType,
 		},
 	}

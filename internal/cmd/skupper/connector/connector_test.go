@@ -24,7 +24,7 @@ func TestCmdConnectorFactory(t *testing.T) {
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameRoutingKey:      "",
 				common.FlagNameHost:            "",
-				common.FlagNameTlsSecret:       "",
+				common.FlagNameTlsCredentials:  "",
 				common.FlagNameConnectorType:   "tcp",
 				common.FlagNameIncludeNotReady: "false",
 				common.FlagNameSelector:        "",
@@ -39,7 +39,7 @@ func TestCmdConnectorFactory(t *testing.T) {
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameRoutingKey:      "",
 				common.FlagNameHost:            "",
-				common.FlagNameTlsSecret:       "",
+				common.FlagNameTlsCredentials:  "",
 				common.FlagNameConnectorType:   "tcp",
 				common.FlagNameIncludeNotReady: "false",
 				common.FlagNameSelector:        "",

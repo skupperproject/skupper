@@ -166,9 +166,9 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			name: "tls-secret does not exist",
 			args: []string{"my-connector-tls", "8080"},
 			flags: common.CommandConnectorCreateFlags{
-				TlsSecret: "not-valid",
-				Timeout:   1 * time.Minute,
-				Selector:  "backend",
+				TlsCredentials: "not-valid",
+				Timeout:        1 * time.Minute,
+				Selector:       "backend",
 			},
 			expectedErrors: []string{"tls-secret is not valid: does not exist"},
 		},
@@ -565,51 +565,51 @@ func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
 func TestCmdConnectorCreate_InputToOptions(t *testing.T) {
 
 	type test struct {
-		name                  string
-		flags                 common.CommandConnectorCreateFlags
-		Connectorname         string
-		expectedTlsSecret     string
-		expectedHost          string
-		expectedSelector      string
-		expectedRoutingKey    string
-		expectedConnectorType string
-		expectedOutput        string
-		expectedTimeout       time.Duration
+		name                   string
+		flags                  common.CommandConnectorCreateFlags
+		Connectorname          string
+		expectedTlsCredentials string
+		expectedHost           string
+		expectedSelector       string
+		expectedRoutingKey     string
+		expectedConnectorType  string
+		expectedOutput         string
+		expectedTimeout        time.Duration
 	}
 
 	testTable := []test{
 		{
-			name:                  "test1",
-			flags:                 common.CommandConnectorCreateFlags{"backend", "", "app=backend", "secret", "tcp", true, "", 20 * time.Second, "json"},
-			expectedTlsSecret:     "secret",
-			expectedHost:          "",
-			expectedRoutingKey:    "backend",
-			expectedTimeout:       20 * time.Second,
-			expectedConnectorType: "tcp",
-			expectedOutput:        "json",
-			expectedSelector:      "app=backend",
+			name:                   "test1",
+			flags:                  common.CommandConnectorCreateFlags{"backend", "", "app=backend", "secret", "tcp", true, "", 20 * time.Second, "json"},
+			expectedTlsCredentials: "secret",
+			expectedHost:           "",
+			expectedRoutingKey:     "backend",
+			expectedTimeout:        20 * time.Second,
+			expectedConnectorType:  "tcp",
+			expectedOutput:         "json",
+			expectedSelector:       "app=backend",
 		},
 		{
-			name:                  "test2",
-			flags:                 common.CommandConnectorCreateFlags{"backend", "backend", "", "secret", "tcp", true, "", 20 * time.Second, "json"},
-			expectedTlsSecret:     "secret",
-			expectedHost:          "backend",
-			expectedRoutingKey:    "backend",
-			expectedTimeout:       20 * time.Second,
-			expectedConnectorType: "tcp",
-			expectedOutput:        "json",
-			expectedSelector:      "",
+			name:                   "test2",
+			flags:                  common.CommandConnectorCreateFlags{"backend", "backend", "", "secret", "tcp", true, "", 20 * time.Second, "json"},
+			expectedTlsCredentials: "secret",
+			expectedHost:           "backend",
+			expectedRoutingKey:     "backend",
+			expectedTimeout:        20 * time.Second,
+			expectedConnectorType:  "tcp",
+			expectedOutput:         "json",
+			expectedSelector:       "",
 		},
 		{
-			name:                  "test3",
-			flags:                 common.CommandConnectorCreateFlags{"", "", "", "secret", "tcp", false, "", 30 * time.Second, "yaml"},
-			expectedTlsSecret:     "secret",
-			expectedHost:          "",
-			expectedRoutingKey:    "test3",
-			expectedTimeout:       30 * time.Second,
-			expectedConnectorType: "tcp",
-			expectedOutput:        "yaml",
-			expectedSelector:      "app=test3",
+			name:                   "test3",
+			flags:                  common.CommandConnectorCreateFlags{"", "", "", "secret", "tcp", false, "", 30 * time.Second, "yaml"},
+			expectedTlsCredentials: "secret",
+			expectedHost:           "",
+			expectedRoutingKey:     "test3",
+			expectedTimeout:        30 * time.Second,
+			expectedConnectorType:  "tcp",
+			expectedOutput:         "yaml",
+			expectedSelector:       "app=test3",
 		},
 	}
 
@@ -626,7 +626,7 @@ func TestCmdConnectorCreate_InputToOptions(t *testing.T) {
 
 			assert.Check(t, cmd.routingKey == test.expectedRoutingKey)
 			assert.Check(t, cmd.output == test.expectedOutput)
-			assert.Check(t, cmd.tlsSecret == test.expectedTlsSecret)
+			assert.Check(t, cmd.tlsCredentials == test.expectedTlsCredentials)
 			assert.Check(t, cmd.host == test.expectedHost)
 			assert.Check(t, cmd.timeout == test.expectedTimeout)
 			assert.Check(t, cmd.selector == test.expectedSelector)
@@ -655,7 +655,7 @@ func TestCmdConnectorCreate_Run(t *testing.T) {
 			flags: common.CommandConnectorCreateFlags{
 				ConnectorType:   "tcp",
 				RoutingKey:      "keyname",
-				TlsSecret:       "secretname",
+				TlsCredentials:  "secretname",
 				IncludeNotReady: true,
 				Selector:        "app=backend",
 				Timeout:         10 * time.Second,
@@ -669,7 +669,7 @@ func TestCmdConnectorCreate_Run(t *testing.T) {
 				ConnectorType:   "tcp",
 				Host:            "hostname",
 				RoutingKey:      "keyname",
-				TlsSecret:       "secretname",
+				TlsCredentials:  "secretname",
 				IncludeNotReady: true,
 				Timeout:         10 * time.Second,
 				Output:          "json",

@@ -29,7 +29,7 @@ type CmdLinkGenerate struct {
 	Flags              *common.CommandLinkGenerateFlags
 	linkName           string
 	Namespace          string
-	tlsSecret          string
+	tlsCredentials     string
 	cost               int
 	output             string
 	activeSite         *v2alpha1.Site
@@ -82,10 +82,10 @@ func (cmd *CmdLinkGenerate) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("arguments are not allowed in this command"))
 	}
 
-	if cmd.Flags.TlsSecret == "" && !cmd.Flags.GenerateCredential {
+	if cmd.Flags.TlsCredentials == "" && !cmd.Flags.GenerateCredential {
 		validationErrors = append(validationErrors, fmt.Errorf("the TLS secret name was not specified"))
-	} else if cmd.Flags.TlsSecret != "" {
-		ok, err := resourceStringValidator.Evaluate(cmd.Flags.TlsSecret)
+	} else if cmd.Flags.TlsCredentials != "" {
+		ok, err := resourceStringValidator.Evaluate(cmd.Flags.TlsCredentials)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("the name of the tls secret is not valid: %s", err))
 		}
@@ -129,10 +129,10 @@ func (cmd *CmdLinkGenerate) InputToOptions() {
 
 	cmd.linkName = generatedLinkName
 
-	if cmd.Flags.TlsSecret == "" {
-		cmd.tlsSecret = generatedLinkName
+	if cmd.Flags.TlsCredentials == "" {
+		cmd.tlsCredentials = generatedLinkName
 	} else {
-		cmd.tlsSecret = cmd.Flags.TlsSecret
+		cmd.tlsCredentials = cmd.Flags.TlsCredentials
 	}
 
 }
@@ -158,7 +158,7 @@ func (cmd *CmdLinkGenerate) Run() error {
 			Name: cmd.linkName,
 		},
 		Spec: v2alpha1.LinkSpec{
-			TlsCredentials: cmd.tlsSecret,
+			TlsCredentials: cmd.tlsCredentials,
 			Cost:           cmd.cost,
 			Endpoints:      cmd.activeSite.Status.Endpoints,
 		},
@@ -173,7 +173,7 @@ func (cmd *CmdLinkGenerate) Run() error {
 				Kind:       "Certificate",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: cmd.tlsSecret,
+				Name: cmd.tlsCredentials,
 			},
 			Spec: v2alpha1.CertificateSpec{
 				Ca:      cmd.activeSite.Status.DefaultIssuer,
@@ -207,7 +207,7 @@ func (cmd *CmdLinkGenerate) WaitUntil() error {
 
 		err := pkgutils.RetryErrorWithContext(ctxWithTimeout, time.Second, func() error {
 
-			generatedSecret, err := cmd.KubeClient.CoreV1().Secrets(cmd.Namespace).Get(context.TODO(), cmd.tlsSecret, metav1.GetOptions{})
+			generatedSecret, err := cmd.KubeClient.CoreV1().Secrets(cmd.Namespace).Get(context.TODO(), cmd.tlsCredentials, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
@@ -220,7 +220,7 @@ func (cmd *CmdLinkGenerate) WaitUntil() error {
 						Kind:       "Secret",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name: cmd.tlsSecret,
+						Name: cmd.tlsCredentials,
 					},
 					Type: "kubernetes.io/tls",
 					Data: map[string][]byte{
@@ -237,7 +237,7 @@ func (cmd *CmdLinkGenerate) WaitUntil() error {
 		})
 
 		if err != nil {
-			return fmt.Errorf("TLS secret %q not ready yet, check the status for more information\n", cmd.tlsSecret)
+			return fmt.Errorf("TLS secret %q not ready yet, check the status for more information\n", cmd.tlsCredentials)
 		}
 
 	}
@@ -246,7 +246,7 @@ func (cmd *CmdLinkGenerate) WaitUntil() error {
 	printResources(resourcesToPrint, cmd.output)
 
 	if cmd.generateCredential {
-		_, err = cmd.Client.Certificates(cmd.Namespace).Get(context.TODO(), cmd.tlsSecret, metav1.GetOptions{})
+		_, err = cmd.Client.Certificates(cmd.Namespace).Get(context.TODO(), cmd.tlsCredentials, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("there was an error trying to delete the generated certificate: %s", err)
 		}

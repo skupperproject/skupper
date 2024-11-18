@@ -20,19 +20,19 @@ import (
 )
 
 type CmdListenerCreate struct {
-	client       skupperv2alpha1.SkupperV2alpha1Interface
-	CobraCmd     *cobra.Command
-	Flags        *common.CommandListenerCreateFlags
-	namespace    string
-	name         string
-	port         int
-	host         string
-	tlsSecret    string
-	listenerType string
-	routingKey   string
-	timeout      time.Duration
-	output       string
-	KubeClient   kubernetes.Interface
+	client         skupperv2alpha1.SkupperV2alpha1Interface
+	CobraCmd       *cobra.Command
+	Flags          *common.CommandListenerCreateFlags
+	namespace      string
+	name           string
+	port           int
+	host           string
+	tlsCredentials string
+	listenerType   string
+	routingKey     string
+	timeout        time.Duration
+	output         string
+	KubeClient     kubernetes.Interface
 }
 
 func NewCmdListenerCreate() *CmdListenerCreate {
@@ -101,9 +101,9 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 		}
 	}
 
-	if cmd.Flags != nil && cmd.Flags.TlsSecret != "" {
+	if cmd.Flags != nil && cmd.Flags.TlsCredentials != "" {
 		// check that the secret exists
-		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsSecret, metav1.GetOptions{})
+		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsCredentials, metav1.GetOptions{})
 		if err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("tls-secret is not valid: does not exist"))
 		}
@@ -145,7 +145,7 @@ func (cmd *CmdListenerCreate) InputToOptions() {
 		cmd.routingKey = cmd.Flags.RoutingKey
 	}
 	cmd.timeout = cmd.Flags.Timeout
-	cmd.tlsSecret = cmd.Flags.TlsSecret
+	cmd.tlsCredentials = cmd.Flags.TlsCredentials
 	cmd.listenerType = cmd.Flags.ListenerType
 	cmd.output = cmd.Flags.Output
 }
@@ -165,7 +165,7 @@ func (cmd *CmdListenerCreate) Run() error {
 			Host:           cmd.host,
 			Port:           cmd.port,
 			RoutingKey:     cmd.routingKey,
-			TlsCredentials: cmd.tlsSecret,
+			TlsCredentials: cmd.tlsCredentials,
 			Type:           cmd.listenerType,
 		},
 	}

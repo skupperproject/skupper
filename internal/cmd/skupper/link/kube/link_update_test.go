@@ -207,7 +207,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "tls secret not available",
 			args:  []string{"my-link"},
-			flags: common.CommandLinkUpdateFlags{Cost: "1", TlsSecret: "secret", Timeout: time.Minute},
+			flags: common.CommandLinkUpdateFlags{Cost: "1", TlsCredentials: "secret", Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.SiteList{
 					Items: []v2alpha1.Site{
@@ -233,7 +233,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "Timeout value is 0",
 			args:  []string{"my-link"},
-			flags: common.CommandLinkUpdateFlags{Cost: "1", TlsSecret: "secret", Timeout: time.Second * 0},
+			flags: common.CommandLinkUpdateFlags{Cost: "1", TlsCredentials: "secret", Timeout: time.Second * 0},
 			k8sObjects: []runtime.Object{
 				&v12.Secret{
 					ObjectMeta: v1.ObjectMeta{
@@ -287,24 +287,24 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 func TestCmdLinkUpdate_InputToOptions(t *testing.T) {
 
 	type test struct {
-		name              string
-		args              []string
-		flags             common.CommandLinkUpdateFlags
-		expectedTlsSecret string
-		expectedCost      int
-		expectedOutput    string
-		expectedTimeout   time.Duration
+		name                   string
+		args                   []string
+		flags                  common.CommandLinkUpdateFlags
+		expectedTlsCredentials string
+		expectedCost           int
+		expectedOutput         string
+		expectedTimeout        time.Duration
 	}
 
 	testTable := []test{
 		{
-			name:              "check options",
-			args:              []string{"my-link"},
-			flags:             common.CommandLinkUpdateFlags{"secret", "1", "json", time.Minute},
-			expectedCost:      1,
-			expectedTlsSecret: "secret",
-			expectedOutput:    "json",
-			expectedTimeout:   time.Minute,
+			name:                   "check options",
+			args:                   []string{"my-link"},
+			flags:                  common.CommandLinkUpdateFlags{"secret", "1", "json", time.Minute},
+			expectedCost:           1,
+			expectedTlsCredentials: "secret",
+			expectedOutput:         "json",
+			expectedTimeout:        time.Minute,
 		},
 	}
 
@@ -318,7 +318,7 @@ func TestCmdLinkUpdate_InputToOptions(t *testing.T) {
 			cmd.InputToOptions()
 
 			assert.Check(t, cmd.output == test.expectedOutput)
-			assert.Check(t, cmd.tlsSecret == test.expectedTlsSecret)
+			assert.Check(t, cmd.tlsCredentials == test.expectedTlsCredentials)
 			assert.Check(t, cmd.cost == test.expectedCost)
 			assert.Check(t, cmd.timeout == test.expectedTimeout)
 		})
@@ -333,17 +333,17 @@ func TestCmdLinkUpdate_Run(t *testing.T) {
 		linkName            string
 		Cost                int
 		output              string
-		tlsSecret           string
+		tlsCredentials      string
 		errorMessage        string
 		skupperErrorMessage string
 	}
 
 	testTable := []test{
 		{
-			name:      "runs ok",
-			linkName:  "my-link",
-			Cost:      1,
-			tlsSecret: "secret",
+			name:           "runs ok",
+			linkName:       "my-link",
+			Cost:           1,
+			tlsCredentials: "secret",
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
@@ -399,7 +399,7 @@ func TestCmdLinkUpdate_Run(t *testing.T) {
 
 		cmd.linkName = test.linkName
 		cmd.output = test.output
-		cmd.tlsSecret = test.tlsSecret
+		cmd.tlsCredentials = test.tlsCredentials
 		cmd.cost = test.Cost
 
 		t.Run(test.name, func(t *testing.T) {

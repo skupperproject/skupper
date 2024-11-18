@@ -29,8 +29,8 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagNameSubjectAlternativeNames = "subject-alternative-names"
 	FlagDescSubjectAlternativeNames = "Add subject alternative names for the router access in non kubernetes environments"
 
-	FlagNameTlsSecret          = "tls-secret"
-	FlagDescTlsSecret          = "the name of a Kubernetes secret containing the generated or externally-supplied TLS credentials."
+	FlagNameTlsCredentials     = "tls-credentials"
+	FlagDescTlsCredentials     = "the name of a Kubernetes secret containing the generated or externally-supplied TLS credentials."
 	FlagNameCost               = "cost"
 	FlagDescCost               = "the configured \"expense\" of sending traffic over the link."
 	FlagNameGenerateCredential = "generate-credential"
@@ -99,17 +99,17 @@ type CommandSiteDeleteFlags struct {
 }
 
 type CommandLinkGenerateFlags struct {
-	TlsSecret          string
+	TlsCredentials     string
 	Cost               string
 	Output             string
 	GenerateCredential bool
 	Timeout            time.Duration
 }
 type CommandLinkUpdateFlags struct {
-	TlsSecret string
-	Cost      string
-	Output    string
-	Timeout   time.Duration
+	TlsCredentials string
+	Cost           string
+	Output         string
+	Timeout        time.Duration
 }
 
 type CommandLinkDeleteFlags struct {
@@ -134,7 +134,7 @@ type CommandConnectorCreateFlags struct {
 	RoutingKey      string
 	Host            string
 	Selector        string
-	TlsSecret       string
+	TlsCredentials  string
 	ConnectorType   string
 	IncludeNotReady bool
 	Workload        string
@@ -145,7 +145,7 @@ type CommandConnectorCreateFlags struct {
 type CommandConnectorUpdateFlags struct {
 	RoutingKey      string
 	Host            string
-	TlsSecret       string
+	TlsCredentials  string
 	ConnectorType   string
 	Port            int
 	Workload        string
@@ -164,22 +164,22 @@ type CommandConnectorStatusFlags struct {
 }
 
 type CommandListenerCreateFlags struct {
-	RoutingKey   string
-	Host         string
-	TlsSecret    string
-	ListenerType string
-	Timeout      time.Duration
-	Output       string
+	RoutingKey     string
+	Host           string
+	TlsCredentials string
+	ListenerType   string
+	Timeout        time.Duration
+	Output         string
 }
 
 type CommandListenerUpdateFlags struct {
-	RoutingKey   string
-	Host         string
-	TlsSecret    string
-	ListenerType string
-	Timeout      time.Duration
-	Port         int
-	Output       string
+	RoutingKey     string
+	Host           string
+	TlsCredentials string
+	ListenerType   string
+	Timeout        time.Duration
+	Port           int
+	Output         string
 }
 
 type CommandListenerStatusFlags struct {

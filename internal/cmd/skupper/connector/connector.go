@@ -46,7 +46,7 @@ skupper connector create backend 8080 --workload deployment/backend`,
 
 	cmd.Flags().StringVarP(&cmdFlags.RoutingKey, common.FlagNameRoutingKey, "r", "", common.FlagDescRoutingKey)
 	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
-	cmd.Flags().StringVar(&cmdFlags.TlsSecret, common.FlagNameTlsSecret, "", common.FlagDescTlsSecret)
+	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
 	cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReady, common.FlagNameIncludeNotReady, "i", false, common.FlagDescIncludeNotRead)
 	cmd.Flags().StringVarP(&cmdFlags.Selector, common.FlagNameSelector, "s", "", common.FlagDescSelector)
@@ -110,7 +110,7 @@ func CmdConnectorUpdateFactory(configuredPlatform types.Platform) *cobra.Command
 
 	cmd.Flags().StringVarP(&cmdFlags.RoutingKey, common.FlagNameRoutingKey, "r", "", common.FlagDescRoutingKey)
 	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
-	cmd.Flags().StringVar(&cmdFlags.TlsSecret, common.FlagNameTlsSecret, "", common.FlagDescTlsSecret)
+	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
 	cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReady, common.FlagNameIncludeNotReady, "i", false, common.FlagDescIncludeNotRead)
 	cmd.Flags().StringVarP(&cmdFlags.Selector, common.FlagNameSelector, "s", "", common.FlagDescSelector)

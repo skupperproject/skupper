@@ -133,8 +133,8 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 			name: "tls-secret does not exist",
 			args: []string{"my-listener-tls", "8080"},
 			flags: common.CommandListenerCreateFlags{
-				Timeout:   1 * time.Minute,
-				TlsSecret: "not-valid",
+				Timeout:        1 * time.Minute,
+				TlsCredentials: "not-valid",
 			},
 			expectedErrors: []string{"tls-secret is not valid: does not exist"},
 		},
@@ -158,12 +158,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 			name: "flags all valid",
 			args: []string{"my-listener-flags", "8080"},
 			flags: common.CommandListenerCreateFlags{
-				Host:         "hostname",
-				RoutingKey:   "routingkeyname",
-				TlsSecret:    "secretname",
-				ListenerType: "tcp",
-				Timeout:      1 * time.Minute,
-				Output:       "json",
+				Host:           "hostname",
+				RoutingKey:     "routingkeyname",
+				TlsCredentials: "secretname",
+				ListenerType:   "tcp",
+				Timeout:        1 * time.Minute,
+				Output:         "json",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Listener{
@@ -216,37 +216,37 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 func TestCmdListenerCreate_InputToOptions(t *testing.T) {
 
 	type test struct {
-		name                 string
-		flags                common.CommandListenerCreateFlags
-		Listenername         string
-		expectedTlsSecret    string
-		expectedHost         string
-		expectedRoutingKey   string
-		expectedListenerType string
-		expectedOutput       string
-		expectedTimeout      time.Duration
+		name                   string
+		flags                  common.CommandListenerCreateFlags
+		Listenername           string
+		expectedTlsCredentials string
+		expectedHost           string
+		expectedRoutingKey     string
+		expectedListenerType   string
+		expectedOutput         string
+		expectedTimeout        time.Duration
 	}
 
 	testTable := []test{
 		{
-			name:                 "test1",
-			flags:                common.CommandListenerCreateFlags{"backend", "backend", "secret", "tcp", 20 * time.Second, "json"},
-			expectedTlsSecret:    "secret",
-			expectedHost:         "backend",
-			expectedRoutingKey:   "backend",
-			expectedTimeout:      20 * time.Second,
-			expectedListenerType: "tcp",
-			expectedOutput:       "json",
+			name:                   "test1",
+			flags:                  common.CommandListenerCreateFlags{"backend", "backend", "secret", "tcp", 20 * time.Second, "json"},
+			expectedTlsCredentials: "secret",
+			expectedHost:           "backend",
+			expectedRoutingKey:     "backend",
+			expectedTimeout:        20 * time.Second,
+			expectedListenerType:   "tcp",
+			expectedOutput:         "json",
 		},
 		{
-			name:                 "test2",
-			flags:                common.CommandListenerCreateFlags{"", "", "secret", "tcp", 30 * time.Second, "yaml"},
-			expectedTlsSecret:    "secret",
-			expectedHost:         "test2",
-			expectedRoutingKey:   "test2",
-			expectedTimeout:      30 * time.Second,
-			expectedListenerType: "tcp",
-			expectedOutput:       "yaml",
+			name:                   "test2",
+			flags:                  common.CommandListenerCreateFlags{"", "", "secret", "tcp", 30 * time.Second, "yaml"},
+			expectedTlsCredentials: "secret",
+			expectedHost:           "test2",
+			expectedRoutingKey:     "test2",
+			expectedTimeout:        30 * time.Second,
+			expectedListenerType:   "tcp",
+			expectedOutput:         "yaml",
 		},
 	}
 
@@ -263,7 +263,7 @@ func TestCmdListenerCreate_InputToOptions(t *testing.T) {
 
 			assert.Check(t, cmd.routingKey == test.expectedRoutingKey)
 			assert.Check(t, cmd.output == test.expectedOutput)
-			assert.Check(t, cmd.tlsSecret == test.expectedTlsSecret)
+			assert.Check(t, cmd.tlsCredentials == test.expectedTlsCredentials)
 			assert.Check(t, cmd.host == test.expectedHost)
 			assert.Check(t, cmd.timeout == test.expectedTimeout)
 			assert.Check(t, cmd.output == test.expectedOutput)
@@ -290,10 +290,10 @@ func TestCmdListenerCreate_Run(t *testing.T) {
 			listenerName: "run-listener",
 			listenerPort: 8080,
 			flags: common.CommandListenerCreateFlags{
-				ListenerType: "tcp",
-				Host:         "hostname",
-				RoutingKey:   "keyname",
-				TlsSecret:    "secretname",
+				ListenerType:   "tcp",
+				Host:           "hostname",
+				RoutingKey:     "keyname",
+				TlsCredentials: "secretname",
 			},
 		},
 		{
@@ -301,11 +301,11 @@ func TestCmdListenerCreate_Run(t *testing.T) {
 			listenerName: "run-listener",
 			listenerPort: 8080,
 			flags: common.CommandListenerCreateFlags{
-				ListenerType: "tcp",
-				Host:         "hostname",
-				RoutingKey:   "keyname",
-				TlsSecret:    "secretname",
-				Output:       "yaml",
+				ListenerType:   "tcp",
+				Host:           "hostname",
+				RoutingKey:     "keyname",
+				TlsCredentials: "secretname",
+				Output:         "yaml",
 			},
 		},
 	}

@@ -115,8 +115,8 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 			name: "tls-secret is not valid",
 			args: []string{"my-listener-tls"},
 			flags: common.CommandListenerUpdateFlags{
-				TlsSecret: ":not-valid",
-				Timeout:   50 * time.Minute,
+				TlsCredentials: ":not-valid",
+				Timeout:        50 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Listener{
@@ -221,13 +221,13 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 			name: "flags all valid",
 			args: []string{"my-listener-flags"},
 			flags: common.CommandListenerUpdateFlags{
-				Host:         "hostname",
-				RoutingKey:   "routingkeyname",
-				TlsSecret:    "secretname",
-				Port:         1234,
-				ListenerType: "tcp",
-				Timeout:      10 * time.Second,
-				Output:       "json",
+				Host:           "hostname",
+				RoutingKey:     "routingkeyname",
+				TlsCredentials: "secretname",
+				Port:           1234,
+				ListenerType:   "tcp",
+				Timeout:        10 * time.Second,
+				Output:         "json",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Listener{
@@ -294,12 +294,12 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 			name:         "runs ok",
 			listenerName: "run-listener",
 			flags: common.CommandListenerUpdateFlags{
-				ListenerType: "tcp",
-				Host:         "hostname",
-				RoutingKey:   "keyname",
-				TlsSecret:    "secretname",
-				Output:       "yaml",
-				Timeout:      1 * time.Minute,
+				ListenerType:   "tcp",
+				Host:           "hostname",
+				RoutingKey:     "keyname",
+				TlsCredentials: "secretname",
+				Output:         "yaml",
+				Timeout:        1 * time.Minute,
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Listener{

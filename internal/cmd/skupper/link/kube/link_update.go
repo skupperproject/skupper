@@ -20,16 +20,16 @@ import (
 )
 
 type CmdLinkUpdate struct {
-	Client     skupperv2alpha1.SkupperV2alpha1Interface
-	KubeClient kubernetes.Interface
-	CobraCmd   *cobra.Command
-	Flags      *common.CommandLinkUpdateFlags
-	linkName   string
-	Namespace  string
-	tlsSecret  string
-	cost       int
-	output     string
-	timeout    time.Duration
+	Client         skupperv2alpha1.SkupperV2alpha1Interface
+	KubeClient     kubernetes.Interface
+	CobraCmd       *cobra.Command
+	Flags          *common.CommandLinkUpdateFlags
+	linkName       string
+	Namespace      string
+	tlsCredentials string
+	cost           int
+	output         string
+	timeout        time.Duration
 }
 
 func NewCmdLinkUpdate() *CmdLinkUpdate {
@@ -70,10 +70,10 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 		cmd.linkName = args[0]
 	}
 
-	if cmd.Flags.TlsSecret != "" {
-		secret, err := cmd.KubeClient.CoreV1().Secrets(cmd.Namespace).Get(context.TODO(), cmd.Flags.TlsSecret, metav1.GetOptions{})
+	if cmd.Flags.TlsCredentials != "" {
+		secret, err := cmd.KubeClient.CoreV1().Secrets(cmd.Namespace).Get(context.TODO(), cmd.Flags.TlsCredentials, metav1.GetOptions{})
 		if secret == nil || err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("the TLS secret %q is not available in the namespace: %s", cmd.Flags.TlsSecret, err))
+			validationErrors = append(validationErrors, fmt.Errorf("the TLS secret %q is not available in the namespace: %s", cmd.Flags.TlsCredentials, err))
 		}
 	}
 
@@ -104,7 +104,7 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 func (cmd *CmdLinkUpdate) InputToOptions() {
 
 	cmd.cost, _ = strconv.Atoi(cmd.Flags.Cost)
-	cmd.tlsSecret = cmd.Flags.TlsSecret
+	cmd.tlsCredentials = cmd.Flags.TlsCredentials
 	cmd.output = cmd.Flags.Output
 	cmd.timeout = cmd.Flags.Timeout
 
@@ -123,9 +123,9 @@ func (cmd *CmdLinkUpdate) Run() error {
 		updatedCost = cmd.cost
 	}
 
-	updatedTlsSecret := currentSite.Spec.TlsCredentials
-	if cmd.tlsSecret != "" {
-		updatedTlsSecret = cmd.tlsSecret
+	updatedTlsCredentials := currentSite.Spec.TlsCredentials
+	if cmd.tlsCredentials != "" {
+		updatedTlsCredentials = cmd.tlsCredentials
 	}
 
 	resource := v2alpha1.Link{
@@ -140,7 +140,7 @@ func (cmd *CmdLinkUpdate) Run() error {
 			ResourceVersion:   currentSite.ResourceVersion,
 		},
 		Spec: v2alpha1.LinkSpec{
-			TlsCredentials: updatedTlsSecret,
+			TlsCredentials: updatedTlsCredentials,
 			Cost:           updatedCost,
 		},
 	}
