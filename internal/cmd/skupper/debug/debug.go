@@ -5,8 +5,8 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/debug/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/debug/nonkube"
+	"github.com/skupperproject/skupper/internal/config"
 
-	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/spf13/cobra"
 )
 

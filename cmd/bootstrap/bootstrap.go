@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/internal/config"
 	internalbundle "github.com/skupperproject/skupper/internal/nonkube/bundle"
 	internalutils "github.com/skupperproject/skupper/internal/utils"
-	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/bundle"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"

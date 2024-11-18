@@ -10,7 +10,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/site/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/site/nonkube"
-	"github.com/skupperproject/skupper/pkg/config"
+	"github.com/skupperproject/skupper/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -25,9 +25,9 @@ skupper site status`,
 	}
 
 	cmd.AddCommand(CmdSiteCreateFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdSiteUpdateFactory(config.GetPlatform()))
 	cmd.AddCommand(CmdSiteStatusFactory(config.GetPlatform()))
 	cmd.AddCommand(CmdSiteDeleteFactory(config.GetPlatform()))
+	cmd.AddCommand(CmdSiteUpdateFactory(config.GetPlatform()))
 
 	return cmd
 }

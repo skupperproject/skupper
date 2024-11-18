@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/utils"
@@ -142,11 +143,25 @@ var (
 // will be returned.
 func GetPlatform() types.Platform {
 	p := &PlatformInfo{}
+	var platform types.Platform
 	_ = p.Load()
-	platform := types.Platform(utils.DefaultStr(Platform,
-		os.Getenv(types.ENV_PLATFORM),
-		string(p.Current),
-		string(types.PlatformKubernetes)))
+	for i, arg := range os.Args {
+		if arg == "--platform" && i+1 < len(os.Args) {
+			platformArg := os.Args[i+1]
+			platform = types.Platform(platformArg)
+			break
+		} else if strings.HasPrefix(arg, "--platform=") {
+			platformArg := strings.Split(arg, "=")[1]
+			platform = types.Platform(platformArg)
+			break
+		}
+	}
+	if platform == "" {
+		platform = types.Platform(utils.DefaultStr(Platform,
+			os.Getenv(types.ENV_PLATFORM),
+			string(p.Current),
+			string(types.PlatformKubernetes)))
+	}
 	switch platform {
 	case types.PlatformPodman:
 		return types.PlatformPodman

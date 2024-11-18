@@ -1,13 +1,14 @@
 package link
 
 import (
+	"time"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/link/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/link/nonkube"
-	"github.com/skupperproject/skupper/pkg/config"
+	"github.com/skupperproject/skupper/internal/config"
 	"github.com/spf13/cobra"
-	"time"
 )
 
 func NewCmdLink() *cobra.Command {

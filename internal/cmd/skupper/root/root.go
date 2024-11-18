@@ -10,7 +10,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/site"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/token"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/version"
-	"github.com/skupperproject/skupper/pkg/config"
+	"github.com/skupperproject/skupper/internal/config"
 	"github.com/spf13/cobra"
 )
 
