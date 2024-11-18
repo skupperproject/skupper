@@ -440,10 +440,10 @@ Default platform: podman
 or 
 
 ```shell
-skupper system start --path ./west  -b bundle                                        nluaces@thinkpad
+skupper system start --path ./west  -b bundle                                       
 2024/11/18 12:17:56 updating listener /backend...
 Site "west" has been created (as a distributable bundle)
-Installation bundle available at: /home/nluaces/.local/share/skupper/bundles/skupper-install-west.sh
+Installation bundle available at: {HOME}/.local/share/skupper/bundles/skupper-install-west.sh
 Default namespace: default
 Default platform: podman
 ```
