@@ -1,8 +1,7 @@
 # Bootstrapping non-kubernetes sites
 
 In this current phase of the Skupper V2 implementation, non-kubernetes sites
-can be bootstrapped using a locally built binary, that can be produced by running
-`make build-bootstrap`, using the quay.io/skupper/bootstrap:v2-latest
+can be bootstrapped using the Skupper CLI, using the quay.io/skupper/skupper-cli:v2-latest
 container image by calling `./cmd/bootstrap/bootstrap.sh` with the appropriate
 flags.
 
@@ -120,9 +119,9 @@ Now that you have all your CRs placed on a local directory, just run:
 #### Bootstrapping
 
 ```shell
-# To bootstrap your site using the binary
+# To bootstrap your site using Skupper
 export SKUPPER_PLATFORM=podman
-./bootstrap -p ./
+skupper system start --path ./
 ```
 
 You can also use `-n=<name>` to override the namespace specified in the CRs.
@@ -179,14 +178,12 @@ The bundle installation script accepts the following flags:
 
 #### Removing
 
-To remove your site, you can run a local script, that takes the namespace
-as an argument. The platform is identified by the script so you don't need
-to export it.
+To remove your site, you can run a Skupper, providing a namespace as a flag. 
 
 If the namespace is omitted, the "default" namespace is used. 
 
 ```shell
-./cmd/bootstrap/remove.sh [namespace]
+skupper system teardown -n [namespace]
 ```
 
 ## Using custom certificates
@@ -299,6 +296,11 @@ Considering all your CRs have been saved to a directory named `west`, use:
 ```shell
 ./bootstrap -p ./west -n west
 ```
+or 
+
+```shell
+skupper system start --path ./west -n west
+```
 
 The CRs are defined without a namespace, that is why we have the `-n west` flag,
 to indicate we want this site to run under the `west` namespace.
@@ -373,6 +375,12 @@ Considering all your CRs have been saved to a directory named `east`, use:
 ./bootstrap -p ./east -n east
 ```
 
+or 
+
+```shell
+skupper system start --path ./east -n east
+```
+
 ### Testing the scenario
 
 Once both sites have been initialized, open **http://127.0.0.1:7070**
@@ -389,17 +397,30 @@ To re-initialize the west site, run:
 bootstrap -n west -f
 ```
 
+or 
+
+```shell
+system start -n west -f
+```
+
+or 
+
+```shell
+system reload -n west 
+```
+
 The command above will reprocess all source CRs from the namespace path and
 restart the related components. The Certificate Authorities (CAs) are preserved,
 therefore eventual incoming links must still work.
+
 
 ### Cleanup
 
 To remove both namespaces, run:
 
 ```shell
-./cmd/bootstrap/remove.sh west
-./cmd/bootstrap/remove.sh east
+skupper system teardown -n west
+skupper system teardown -n east
 ```
 
 ### Producing site bundles
@@ -413,6 +434,16 @@ $ bootstrap -p ./west/ -b bundle
 Skupper nonkube bootstrap (version: main-release-161-g7c5100a2-modified)
 Site "west" has been created (as a distributable bundle)
 Installation bundle available at: /home/user/.local/share/skupper/bundles/skupper-install-west.sh
+Default namespace: default
+Default platform: podman
+```
+or 
+
+```shell
+skupper system start --path ./west  -b bundle                                        nluaces@thinkpad
+2024/11/18 12:17:56 updating listener /backend...
+Site "west" has been created (as a distributable bundle)
+Installation bundle available at: /home/nluaces/.local/share/skupper/bundles/skupper-install-west.sh
 Default namespace: default
 Default platform: podman
 ```

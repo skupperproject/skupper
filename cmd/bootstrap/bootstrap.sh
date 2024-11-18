@@ -2,7 +2,7 @@
 
 set -Ceu
 
-IMAGE="quay.io/skupper/bootstrap:v2-latest"
+IMAGE="quay.io/skupper/skupper-cli:v2-latest"
 export INPUT_PATH=""
 export NAMESPACE=""
 export FORCE_FLAG=""
@@ -222,7 +222,7 @@ main() {
         "${MOUNTS}" \
         "${ENV_VARS}" \
         "${IMAGE}" \
-        /app/bootstrap -p="${INPUT_PATH_ARG}" -n="${NAMESPACE}" ${BUNDLE_STRATEGY} ${FORCE_FLAG} 2>&1
+        /app/skupper system start --path="${INPUT_PATH_ARG}" -n="${NAMESPACE}" ${BUNDLE_STRATEGY} ${FORCE_FLAG} 2>&1
     create_service
 }
 

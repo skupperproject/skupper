@@ -9,7 +9,7 @@ RUN go mod download
 COPY . .
 
 ENV CGO_ENABLED=0
-RUN make build-bootstrap GOARCH=$TARGETARCH
+RUN make build-cmd GOARCH=$TARGETARCH
 
 FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
 LABEL \
@@ -23,5 +23,5 @@ RUN useradd --uid 10000 runner
 USER 10000
 
 WORKDIR /app
-COPY --from=builder /go/src/app/bootstrap .
-CMD ["/app/bootstrap"]
+COPY --from=builder /go/src/app/skupper .
+CMD ["/app/skupper"]
