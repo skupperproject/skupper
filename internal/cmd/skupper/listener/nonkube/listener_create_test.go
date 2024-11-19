@@ -79,16 +79,16 @@ func TestNonKubeCmdListenerCreate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
+			name:           "TlsCredentials key is not valid",
+			args:           []string{"my-listener-tls", "8080"},
+			flags:          &common.CommandListenerCreateFlags{TlsCredentials: "not-valid$", Host: "1.2.3.4"},
+			expectedErrors: []string{"tlsCredentials is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+		},
+		{
 			name:           "host is not valid",
 			args:           []string{"my-listener-host", "8080"},
 			flags:          &common.CommandListenerCreateFlags{Host: "not-valid$"},
 			expectedErrors: []string{"host is not valid: a valid IP address or hostname is expected"},
-		},
-		{
-			name:           "host is not configued",
-			args:           []string{"my-listener-host", "8080"},
-			flags:          &common.CommandListenerCreateFlags{},
-			expectedErrors: []string{"host name must be configured: an IP address or hostname is expected"},
 		},
 		{
 			name:           "output format is not valid",
@@ -110,11 +110,11 @@ func TestNonKubeCmdListenerCreate_ValidateInput(t *testing.T) {
 			name: "flags all valid",
 			args: []string{"my-listener-flags", "8080"},
 			flags: &common.CommandListenerCreateFlags{
-				RoutingKey:   "routingkeyname",
-				TlsSecret:    "secretname",
-				ListenerType: "tcp",
-				Output:       "json",
-				Host:         "1.2.3.4",
+				RoutingKey:     "routingkeyname",
+				TlsCredentials: "secretname",
+				ListenerType:   "tcp",
+				Output:         "json",
+				Host:           "1.2.3.4",
 			},
 			expectedErrors: []string{},
 		},
@@ -148,51 +148,51 @@ func TestNonKubeCmdListenerCreate_ValidateInput(t *testing.T) {
 func TestNonKubeCmdListenerCreate_InputToOptions(t *testing.T) {
 
 	type test struct {
-		name                 string
-		args                 []string
-		namespace            string
-		flags                common.CommandListenerCreateFlags
-		expectedNamespace    string
-		listenerName         string
-		expectedTlsSecret    string
-		expectedHost         string
-		expectedRoutingKey   string
-		expectedListenerType string
-		expectedOutput       string
+		name                   string
+		args                   []string
+		namespace              string
+		flags                  common.CommandListenerCreateFlags
+		expectedNamespace      string
+		listenerName           string
+		expectedTlsCredentials string
+		expectedHost           string
+		expectedRoutingKey     string
+		expectedListenerType   string
+		expectedOutput         string
 	}
 
 	testTable := []test{
 		{
-			name:                 "test1",
-			flags:                common.CommandListenerCreateFlags{"backend", "", "secret", "tcp", 0, "json"},
-			expectedTlsSecret:    "secret",
-			expectedHost:         "",
-			expectedRoutingKey:   "backend",
-			expectedListenerType: "tcp",
-			expectedOutput:       "json",
-			expectedNamespace:    "default",
+			name:                   "test1",
+			flags:                  common.CommandListenerCreateFlags{"backend", "", "secret", "tcp", 0, "json"},
+			expectedTlsCredentials: "secret",
+			expectedHost:           "0.0.0.0",
+			expectedRoutingKey:     "backend",
+			expectedListenerType:   "tcp",
+			expectedOutput:         "json",
+			expectedNamespace:      "default",
 		},
 		{
-			name:                 "test2",
-			namespace:            "test",
-			flags:                common.CommandListenerCreateFlags{"backend", "1.2.3.4", "secret", "tcp", 0, "json"},
-			expectedTlsSecret:    "secret",
-			expectedHost:         "1.2.3.4",
-			expectedRoutingKey:   "backend",
-			expectedListenerType: "tcp",
-			expectedOutput:       "json",
-			expectedNamespace:    "test",
+			name:                   "test2",
+			namespace:              "test",
+			flags:                  common.CommandListenerCreateFlags{"backend", "1.2.3.4", "secret", "tcp", 0, "json"},
+			expectedTlsCredentials: "secret",
+			expectedHost:           "1.2.3.4",
+			expectedRoutingKey:     "backend",
+			expectedListenerType:   "tcp",
+			expectedOutput:         "json",
+			expectedNamespace:      "test",
 		},
 		{
-			name:                 "test3",
-			namespace:            "default",
-			flags:                common.CommandListenerCreateFlags{"", "", "secret", "tcp", 0, "yaml"},
-			expectedTlsSecret:    "secret",
-			expectedHost:         "",
-			expectedRoutingKey:   "my-listener",
-			expectedListenerType: "tcp",
-			expectedOutput:       "yaml",
-			expectedNamespace:    "default",
+			name:                   "test3",
+			namespace:              "default",
+			flags:                  common.CommandListenerCreateFlags{"", "", "secret", "tcp", 0, "yaml"},
+			expectedTlsCredentials: "secret",
+			expectedHost:           "0.0.0.0",
+			expectedRoutingKey:     "my-listener",
+			expectedListenerType:   "tcp",
+			expectedOutput:         "yaml",
+			expectedNamespace:      "default",
 		},
 	}
 
@@ -207,7 +207,7 @@ func TestNonKubeCmdListenerCreate_InputToOptions(t *testing.T) {
 			cmd.InputToOptions()
 
 			assert.Check(t, cmd.routingKey == test.expectedRoutingKey)
-			assert.Check(t, cmd.tlsSecret == test.expectedTlsSecret)
+			assert.Check(t, cmd.tlsCredentials == test.expectedTlsCredentials)
 			assert.Check(t, cmd.host == test.expectedHost)
 			assert.Check(t, cmd.listenerType == test.expectedListenerType)
 			assert.Check(t, cmd.output == test.expectedOutput)
@@ -227,7 +227,7 @@ func TestNonKubeCmdListenerCreate_Run(t *testing.T) {
 		output         string
 		errorMessage   string
 		routingKey     string
-		tlsSecret      string
+		tlsCredentials string
 		listenerType   string
 		listenerPort   int
 	}
@@ -241,7 +241,7 @@ func TestNonKubeCmdListenerCreate_Run(t *testing.T) {
 			listenerPort:   8080,
 			listenerType:   "tcp",
 			routingKey:     "keyname",
-			tlsSecret:      "secretname",
+			tlsCredentials: "secretname",
 			host:           "1.2.3.4",
 		},
 		{

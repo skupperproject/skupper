@@ -1,14 +1,18 @@
 package nonkube
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
-
 	"gotest.tools/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -22,6 +26,10 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 		skupperObjects    []runtime.Object
 		expectedErrors    []string
 	}
+
+	homeDir, err := os.UserHomeDir()
+	assert.Check(t, err == nil)
+	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
 
 	testTable := []test{
 		{
@@ -49,6 +57,12 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
 		{
+			name:           "listener doesn't exist",
+			args:           []string{"no-listener"},
+			flags:          &common.CommandListenerDeleteFlags{},
+			expectedErrors: []string{"listener no-listener does not exist"},
+		},
+		{
 			name:           "kubernetes flags are not valid on this platform",
 			args:           []string{"my-listener"},
 			flags:          &common.CommandListenerDeleteFlags{},
@@ -60,11 +74,32 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 		},
 	}
 
+	// Add a temp file so listener exists for delete tests to pass
+	listenerResource := v2alpha1.Listener{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "Listener",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-listener",
+			Namespace: "test",
+		},
+	}
+
+	command := &CmdListenerDelete{Flags: &common.CommandListenerDeleteFlags{}}
+	command.CobraCmd = &cobra.Command{Use: "test"}
+	command.namespace = "test"
+	command.listenerHandler = fs.NewListenerHandler(command.namespace)
+
+	defer command.listenerHandler.Delete("my-listener")
+	content, err := command.listenerHandler.EncodeToYaml(listenerResource)
+	assert.Check(t, err == nil)
+	err = command.listenerHandler.WriteFile(path, "my-listener.yaml", content, common.Listeners)
+	assert.Check(t, err == nil)
+
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			command := &CmdListenerDelete{Flags: &common.CommandListenerDeleteFlags{}}
-			command.CobraCmd = &cobra.Command{Use: "test"}
-
+			command.listenerName = ""
 			if test.flags != nil {
 				command.Flags = test.flags
 			}
