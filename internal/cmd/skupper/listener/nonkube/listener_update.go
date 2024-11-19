@@ -14,12 +14,12 @@ import (
 )
 
 type ListenerUpdates struct {
-	routingKey   string
-	host         string
-	tlsSecret    string
-	listenerType string
-	port         int
-	output       string
+	routingKey     string
+	host           string
+	tlsCredentials string
+	listenerType   string
+	port           int
+	output         string
 }
 type CmdListenerUpdate struct {
 	listenerHandler *fs.ListenerHandler
@@ -44,7 +44,7 @@ func (cmd *CmdListenerUpdate) NewClient(cobraCommand *cobra.Command, args []stri
 
 func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 	var validationErrors []error
-	opts := fs.GetOptions{RuntimeFirst: false}
+	opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	listenerTypeValidator := validator.NewOptionValidator(common.ListenerTypes)
@@ -84,8 +84,9 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 			// save existing values
 			cmd.newSettings.host = listener.Spec.Host
 			cmd.newSettings.port = listener.Spec.Port
-			cmd.newSettings.tlsSecret = listener.Spec.TlsCredentials
+			cmd.newSettings.tlsCredentials = listener.Spec.TlsCredentials
 			cmd.newSettings.listenerType = listener.Spec.Type
+			cmd.newSettings.routingKey = listener.Spec.RoutingKey
 		}
 	}
 
@@ -107,9 +108,13 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.host = cmd.Flags.Host
 		}
 	}
-	if cmd.Flags.TlsSecret != "" {
-		// TBD what validation for secret
-		cmd.newSettings.tlsSecret = cmd.Flags.TlsSecret
+	if cmd.Flags.TlsCredentials != "" {
+		ok, err := resourceStringValidator.Evaluate(cmd.Flags.TlsCredentials)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("tlsCredentials is not valid: %s", err))
+		} else {
+			cmd.newSettings.tlsCredentials = cmd.Flags.TlsCredentials
+		}
 	}
 	if cmd.Flags.ListenerType != "" {
 		ok, err := listenerTypeValidator.Evaluate(cmd.Flags.ListenerType)
@@ -159,7 +164,7 @@ func (cmd *CmdListenerUpdate) Run() error {
 			Host:           cmd.newSettings.host,
 			Port:           cmd.newSettings.port,
 			RoutingKey:     cmd.newSettings.routingKey,
-			TlsCredentials: cmd.newSettings.tlsSecret,
+			TlsCredentials: cmd.newSettings.tlsCredentials,
 			Type:           cmd.newSettings.listenerType,
 		},
 	}

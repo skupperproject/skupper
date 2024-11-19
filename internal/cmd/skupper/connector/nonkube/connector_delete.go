@@ -31,6 +31,7 @@ func (cmd *CmdConnectorDelete) NewClient(cobraCommand *cobra.Command, args []str
 
 func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
 	var validationErrors []error
+	opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
 	resourceStringValidator := validator.NewResourceStringValidator()
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
@@ -54,6 +55,14 @@ func (cmd *CmdConnectorDelete) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("connector name is not valid: %s", err))
 		} else {
 			cmd.connectorName = args[0]
+		}
+	}
+
+	if cmd.connectorName != "" {
+		// Validate that there is already a connector with this name
+		connector, err := cmd.connectorHandler.Get(cmd.connectorName, opts)
+		if connector == nil || err != nil {
+			validationErrors = append(validationErrors, fmt.Errorf("connector %s does not exist", cmd.connectorName))
 		}
 	}
 

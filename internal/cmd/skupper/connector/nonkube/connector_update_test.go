@@ -74,6 +74,12 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
+			name:           "tlsCredentials is not valid",
+			args:           []string{"my-connector"},
+			flags:          &common.CommandConnectorUpdateFlags{TlsCredentials: "not-valid$", Host: "1.2.3.4"},
+			expectedErrors: []string{"tlsCredentials is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+		},
+		{
 			name:           "host is not valid",
 			args:           []string{"my-connector"},
 			flags:          &common.CommandConnectorUpdateFlags{Host: "not-valid$"},

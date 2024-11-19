@@ -75,10 +75,22 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
+			name:           "TlsCredentials key is not valid",
+			args:           []string{"my-listener"},
+			flags:          &common.CommandListenerUpdateFlags{TlsCredentials: "not-valid$", Host: "1.2.3.4"},
+			expectedErrors: []string{"tlsCredentials is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+		},
+		{
 			name:           "port is not valid",
 			args:           []string{"my-listener"},
 			flags:          &common.CommandListenerUpdateFlags{Port: -1},
 			expectedErrors: []string{"listener port is not valid: value is not positive"},
+		},
+		{
+			name:           "host is not valid",
+			args:           []string{"my-listener"},
+			flags:          &common.CommandListenerUpdateFlags{Host: "not-valid$"},
+			expectedErrors: []string{"host is not valid: a valid IP address or hostname is expected"},
 		},
 		{
 			name:           "output is not valid",
@@ -100,18 +112,18 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 			name: "flags all valid",
 			args: []string{"my-listener"},
 			flags: &common.CommandListenerUpdateFlags{
-				RoutingKey:   "routingkeyname",
-				TlsSecret:    "secretname",
-				Port:         1234,
-				ListenerType: "tcp",
-				Output:       "json",
-				Host:         "1.2.3.4",
+				RoutingKey:     "routingkeyname",
+				TlsCredentials: "secretname",
+				Port:           1234,
+				ListenerType:   "tcp",
+				Output:         "json",
+				Host:           "1.2.3.4",
 			},
 			expectedErrors: []string{},
 		},
 	}
 
-	//TBD add a temp file so listener exists for update tests will pass
+	// Add a temp file so listener exists for update tests to pass
 	listenerResource := v2alpha1.Listener{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v2alpha1",
@@ -170,31 +182,31 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 		host                string
 		output              string
 		routingKey          string
-		tlsSecret           string
+		tlsCredentials      string
 		listenerType        string
 		port                int
 	}
 
 	testTable := []test{
 		{
-			name:         "runs ok",
-			namespace:    "test",
-			listenerName: "my-listener",
-			port:         8080,
-			listenerType: "tcp",
-			host:         "hostname",
-			routingKey:   "keyname",
-			tlsSecret:    "secretname",
+			name:           "runs ok",
+			namespace:      "test",
+			listenerName:   "my-listener",
+			port:           8080,
+			listenerType:   "tcp",
+			host:           "hostname",
+			routingKey:     "keyname",
+			tlsCredentials: "secretname",
 		},
 		{
-			name:         "run output json",
-			listenerName: "my-listener",
-			port:         8181,
-			listenerType: "tcp",
-			host:         "hostname",
-			routingKey:   "keyname",
-			tlsSecret:    "secretname",
-			output:       "json",
+			name:           "run output json",
+			listenerName:   "my-listener",
+			port:           8181,
+			listenerType:   "tcp",
+			host:           "hostname",
+			routingKey:     "keyname",
+			tlsCredentials: "secretname",
+			output:         "json",
 		},
 	}
 
@@ -206,7 +218,7 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 		command.newSettings.port = test.port
 		command.newSettings.host = test.host
 		command.newSettings.routingKey = test.routingKey
-		command.newSettings.tlsSecret = test.tlsSecret
+		command.newSettings.tlsCredentials = test.tlsCredentials
 		command.namespace = test.namespace
 		command.listenerHandler = fs.NewListenerHandler(command.namespace)
 		defer command.listenerHandler.Delete("my-listener")
