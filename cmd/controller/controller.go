@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -91,6 +92,8 @@ func NewController(cli internalclient.Clients, grantConfig *grants.GrantConfig, 
 	controller.accessRecovery.WatchGateway(controller.controller, currentNamespace)
 
 	controller.startGrantServer = grants.Initialise(controller.controller, currentNamespace, watchNamespace, grantConfig, controller.generateLinkConfig)
+
+	controller.controller.WatchConfigMaps(skupperLogConfig(), currentNamespace, controller.logConfigUpdate)
 
 	return controller, nil
 }
@@ -347,4 +350,42 @@ func extractSiteRecords(status network.NetworkStatusInfo) []skupperv2alpha1.Site
 		records = append(records, record)
 	}
 	return records
+}
+
+func skupperLogConfig() internalinterfaces.TweakListOptionsFunc {
+	return func(options *metav1.ListOptions) {
+		options.FieldSelector = "metadata.name=skupper-log-config"
+	}
+}
+
+func convertLogLevel(logLevel string) slog.Level {
+	switch strings.ToLower(logLevel) {
+	case "debug":
+		return slog.LevelDebug
+	case "info":
+		return slog.LevelInfo
+	case "warn":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	}
+	return slog.LevelInfo
+}
+
+func (c *Controller) logConfigUpdate(key string, cm *corev1.ConfigMap) error {
+	const controllerLogLevelKey = "CONTROLLER_LOG_LEVEL"
+	var slogLevel slog.Level
+	if cm == nil {
+		// if configmap is deleted, then set log level to info
+		slogLevel = slog.LevelInfo
+	} else {
+		logLevel := cm.Data[controllerLogLevelKey]
+		slogLevel = convertLogLevel(logLevel)
+	}
+
+	if slogLevel != controllerLogLevel.Level() {
+		controllerLogLevel.Set(slogLevel)
+	}
+	slog.Info("Updating log level", slog.String("logLevel", slogLevel.String()))
+	return nil
 }
