@@ -32,6 +32,7 @@ func (cmd *CmdListenerDelete) NewClient(cobraCommand *cobra.Command, args []stri
 
 func (cmd *CmdListenerDelete) ValidateInput(args []string) []error {
 	var validationErrors []error
+	opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
 		fmt.Println("Warning: --context flag is not supported on this platform")
@@ -58,6 +59,15 @@ func (cmd *CmdListenerDelete) ValidateInput(args []string) []error {
 			cmd.listenerName = args[0]
 		}
 	}
+
+	if cmd.listenerName != "" {
+		// Validate that there is already a listener with this name
+		listener, err := cmd.listenerHandler.Get(cmd.listenerName, opts)
+		if listener == nil || err != nil {
+			validationErrors = append(validationErrors, fmt.Errorf("listener %s does not exist", cmd.listenerName))
+		}
+	}
+
 	return validationErrors
 }
 

@@ -44,7 +44,7 @@ func (cmd *CmdConnectorUpdate) NewClient(cobraCommand *cobra.Command, args []str
 
 func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 	var validationErrors []error
-	opts := fs.GetOptions{RuntimeFirst: false}
+	opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
@@ -132,7 +132,14 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			cmd.output = cmd.Flags.Output
 		}
 	}
-
+	if cmd.Flags.TlsCredentials != "" {
+		ok, err := resourceStringValidator.Evaluate(cmd.Flags.TlsCredentials)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("tlsCredentials is not valid: %s", err))
+		} else {
+			cmd.newSettings.tlsCredentials = cmd.Flags.TlsCredentials
+		}
+	}
 	return validationErrors
 }
 

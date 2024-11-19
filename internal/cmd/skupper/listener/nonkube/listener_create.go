@@ -22,7 +22,7 @@ type CmdListenerCreate struct {
 	listenerName    string
 	port            int
 	host            string
-	tlsSecret       string
+	tlsCredentials  string
 	listenerType    string
 	routingKey      string
 	output          string
@@ -105,11 +105,13 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 		if !ok || ip == nil {
 			validationErrors = append(validationErrors, fmt.Errorf("host is not valid: a valid IP address or hostname is expected"))
 		}
-	} else {
-		validationErrors = append(validationErrors, fmt.Errorf("host name must be configured: an IP address or hostname is expected"))
 	}
-	if cmd.Flags.TlsSecret != "" {
-		// TBD what is valid TlsSecret
+
+	if cmd.Flags.TlsCredentials != "" {
+		ok, err := resourceStringValidator.Evaluate(cmd.Flags.TlsCredentials)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("tlsCredentials is not valid: %s", err))
+		}
 	}
 
 	if cmd.Flags.Output != "" {
@@ -133,8 +135,13 @@ func (cmd *CmdListenerCreate) InputToOptions() {
 		cmd.namespace = "default"
 	}
 
-	cmd.host = cmd.Flags.Host
-	cmd.tlsSecret = cmd.Flags.TlsSecret
+	if cmd.Flags.Host == "" {
+		cmd.host = "0.0.0.0"
+	} else {
+		cmd.host = cmd.Flags.Host
+	}
+
+	cmd.tlsCredentials = cmd.Flags.TlsCredentials
 	cmd.listenerType = cmd.Flags.ListenerType
 	cmd.output = cmd.Flags.Output
 }
@@ -153,7 +160,7 @@ func (cmd *CmdListenerCreate) Run() error {
 			Host:           cmd.host,
 			Port:           cmd.port,
 			RoutingKey:     cmd.routingKey,
-			TlsCredentials: cmd.tlsSecret,
+			TlsCredentials: cmd.tlsCredentials,
 			Type:           cmd.listenerType,
 		},
 	}

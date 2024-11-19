@@ -47,7 +47,9 @@ func (s *ListenerHandler) Get(name string, opts GetOptions) (*v2alpha1.Listener,
 		// has run.  If no runtime listeners try and display configured listeners
 		err, file := s.ReadFile(s.pathProvider.GetRuntimeNamespace(), fileName, common.Listeners)
 		if err != nil {
-			fmt.Println("Site not initialized yet")
+			if opts.LogWarning {
+				fmt.Println("Site not initialized yet")
+			}
 			err, file = s.ReadFile(s.pathProvider.GetNamespace(), fileName, common.Listeners)
 			if err != nil {
 				return nil, err

@@ -47,7 +47,9 @@ func (s *ConnectorHandler) Get(name string, opt GetOptions) (*v2alpha1.Connector
 		// has run.  If no runtime connectors try and display configured connectors
 		err, file := s.ReadFile(s.pathProvider.GetRuntimeNamespace(), fileName, common.Connectors)
 		if err != nil {
-			fmt.Println("Site not initialized yet")
+			if opt.LogWarning {
+				fmt.Println("Site not initialized yet")
+			}
 			err, file = s.ReadFile(s.pathProvider.GetNamespace(), fileName, common.Connectors)
 			if err != nil {
 				return nil, err

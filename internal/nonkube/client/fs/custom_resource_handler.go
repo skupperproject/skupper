@@ -13,6 +13,7 @@ import (
 
 type GetOptions struct {
 	RuntimeFirst bool
+	LogWarning   bool
 }
 
 type CustomResourceHandler[T any] interface {

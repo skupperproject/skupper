@@ -35,7 +35,7 @@ func (cmd *CmdListenerStatus) NewClient(cobraCommand *cobra.Command, args []stri
 
 func (cmd *CmdListenerStatus) ValidateInput(args []string) []error {
 	var validationErrors []error
-	opts := fs.GetOptions{RuntimeFirst: true}
+	opts := fs.GetOptions{RuntimeFirst: true, LogWarning: false}
 	resourceStringValidator := validator.NewResourceStringValidator()
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
@@ -75,7 +75,7 @@ func (cmd *CmdListenerStatus) ValidateInput(args []string) []error {
 }
 
 func (cmd *CmdListenerStatus) Run() error {
-	opts := fs.GetOptions{RuntimeFirst: true}
+	opts := fs.GetOptions{RuntimeFirst: true, LogWarning: true}
 	if cmd.listenerName == "" {
 		listeners, err := cmd.listenerHandler.List()
 		if listeners == nil || err != nil {
