@@ -5,18 +5,20 @@ import (
 
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/qdr"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"gotest.tools/assert"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type MockBindingContext struct {
-	selectors map[string]TargetSelection
+	selectors     map[string]TargetSelection
+	exposed       ExposedPorts
+	unexposedHost string
 }
 
 func NewMockBindingContext(selectors map[string]TargetSelection) *MockBindingContext {
 	return &MockBindingContext{
 		selectors: selectors,
+		exposed:   map[string]*ExposedPortSet{},
 	}
 }
 
@@ -28,9 +30,12 @@ func (m *MockBindingContext) Select(connector *skupperv2alpha1.Connector) Target
 }
 
 func (m *MockBindingContext) Expose(ports *ExposedPortSet) {
+	portsCopy := *ports
+	m.exposed[ports.Host] = &portsCopy
 }
 
 func (m *MockBindingContext) Unexpose(host string) {
+	m.unexposedHost = host
 }
 
 type MockTargetSelection struct {
@@ -391,6 +396,221 @@ func TestBindingAdaptor_updateBridgeConfigForConnector(t *testing.T) {
 				selectors: tt.fields.selectors,
 			}
 			a.updateBridgeConfigForConnector(tt.args.siteId, tt.args.connector, &tt.args.config)
+
+			assert.DeepEqual(t, tt.args.config, tt.expected.config)
+		})
+	}
+}
+
+func TestBindingAdaptor_ListenerUpdated(t *testing.T) {
+	type fields struct {
+		context   BindingContext
+		mapping   *qdr.PortMapping
+		exposed   ExposedPorts
+		selectors map[string]TargetSelection
+	}
+	type args struct {
+		listener *skupperv2alpha1.Listener
+	}
+	type expected struct {
+		exposed ExposedPorts
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		expected expected
+	}{
+		{
+			name: "Successfully expose listener",
+			fields: fields{
+				context: NewMockBindingContext(nil),
+				// TMPDBG mapping: &qdr.PortMapping{},
+				mapping:   qdr.RecoverPortMapping(&qdr.RouterConfig{}),
+				exposed:   ExposedPorts{},
+				selectors: map[string]TargetSelection{},
+			},
+			args: args{
+				listener: &skupperv2alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "backend",
+						Namespace: "test",
+						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						Host:       "backend",
+						Port:       8080,
+						RoutingKey: "backend",
+					},
+				},
+			},
+			expected: expected{
+				exposed: map[string]*ExposedPortSet{
+					"backend": &ExposedPortSet{
+						Host: "backend",
+						Ports: map[string]Port{
+							"backend": Port{
+								Name:       "backend",
+								Port:       8080,
+								TargetPort: 1024,
+								Protocol:   "TCP",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &BindingAdaptor{
+				context:   tt.fields.context,
+				mapping:   tt.fields.mapping,
+				exposed:   tt.fields.exposed,
+				selectors: tt.fields.selectors,
+			}
+			a.ListenerUpdated(tt.args.listener)
+
+			assert.DeepEqual(t, a.exposed, tt.expected.exposed)
+		})
+	}
+}
+
+func TestBindingAdaptor_ListenerDeleted(t *testing.T) {
+	type fields struct {
+		context   BindingContext
+		mapping   *qdr.PortMapping
+		exposed   ExposedPorts
+		selectors map[string]TargetSelection
+	}
+	type args struct {
+		listener *skupperv2alpha1.Listener
+	}
+	type expected struct {
+		unexposedHost string
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		expected expected
+	}{
+		{
+			name: "Successfully delete listener",
+			fields: fields{
+				context:   NewMockBindingContext(nil),
+				mapping:   qdr.RecoverPortMapping(&qdr.RouterConfig{}),
+				exposed:   ExposedPorts{},
+				selectors: map[string]TargetSelection{},
+			},
+			args: args{
+				listener: &skupperv2alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "backend",
+						Namespace: "test",
+						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						Host:       "backend",
+						Port:       8080,
+						RoutingKey: "backend",
+					},
+				},
+			},
+			expected: expected{
+				unexposedHost: "backend",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &BindingAdaptor{
+				context:   tt.fields.context,
+				mapping:   tt.fields.mapping,
+				exposed:   tt.fields.exposed,
+				selectors: tt.fields.selectors,
+			}
+			a.ListenerDeleted(tt.args.listener)
+
+			mockBindingContext, ok := a.context.(*MockBindingContext)
+			assert.Equal(t, ok, true)
+			assert.Equal(t, mockBindingContext.unexposedHost, tt.expected.unexposedHost)
+		})
+	}
+}
+
+func TestBindingAdaptor_updateBridgeConfigForListener(t *testing.T) {
+	type fields struct {
+		context   BindingContext
+		mapping   *qdr.PortMapping
+		exposed   ExposedPorts
+		selectors map[string]TargetSelection
+	}
+	type args struct {
+		siteId   string
+		listener *skupperv2alpha1.Listener
+		config   qdr.BridgeConfig
+	}
+	type expected struct {
+		config qdr.BridgeConfig
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		expected expected
+	}{
+		{
+			name: "listener updated successfully",
+			fields: fields{
+				context:   NewMockBindingContext(map[string]TargetSelection{}),
+				mapping:   qdr.RecoverPortMapping(&qdr.RouterConfig{}),
+				selectors: map[string]TargetSelection{},
+			},
+			args: args{
+				siteId: "00000000-0000-0000-0000-000000000001",
+				listener: &skupperv2alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "backend",
+						Namespace: "test",
+						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						Host:       "backend",
+						Port:       8080,
+						RoutingKey: "backend",
+					},
+				},
+				config: qdr.NewBridgeConfig(),
+			},
+			expected: expected{
+				config: qdr.BridgeConfig{
+					TcpListeners: map[string]qdr.TcpEndpoint{
+						"backend": qdr.TcpEndpoint{
+
+							Name:    "backend",
+							Host:    "0.0.0.0",
+							Port:    "1024",
+							Address: "backend",
+							SiteId:  "00000000-0000-0000-0000-000000000001",
+						},
+					},
+					TcpConnectors: map[string]qdr.TcpEndpoint{},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &BindingAdaptor{
+				context:   tt.fields.context,
+				mapping:   tt.fields.mapping,
+				exposed:   tt.fields.exposed,
+				selectors: tt.fields.selectors,
+			}
+			a.updateBridgeConfigForListener(tt.args.siteId, tt.args.listener, &tt.args.config)
 
 			assert.DeepEqual(t, tt.args.config, tt.expected.config)
 		})
