@@ -33,6 +33,7 @@ func (cmd *CmdSiteDelete) NewClient(cobraCommand *cobra.Command, args []string) 
 
 func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
 	var validationErrors []error
+	opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
 	resourceStringValidator := validator.NewResourceStringValidator()
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
@@ -59,6 +60,13 @@ func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
 		}
 	}
 
+	if cmd.siteName != "" {
+		// Validate that there is already a site with this name
+		site, err := cmd.siteHandler.Get(cmd.siteName, opts)
+		if site == nil || err != nil {
+			validationErrors = append(validationErrors, fmt.Errorf("site %s does not exist", cmd.siteName))
+		}
+	}
 	return validationErrors
 }
 

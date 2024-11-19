@@ -50,7 +50,7 @@ func (cmd *CmdSiteUpdate) NewClient(cobraCommand *cobra.Command, args []string) 
 
 func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 	var validationErrors []error
-	opts := fs.GetOptions{RuntimeFirst: false}
+	opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
 	resourceStringValidator := validator.NewResourceStringValidator()
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	hostStringValidator := validator.NewHostStringValidator()
@@ -83,7 +83,7 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 	if cmd.siteName != "" {
 		site, err := cmd.siteHandler.Get(cmd.siteName, opts)
 		if site == nil || err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("site %s must exist in namespace %s to be updated", cmd.siteName, cmd.namespace))
+			validationErrors = append(validationErrors, fmt.Errorf("site %s must exist to be updated", cmd.siteName))
 		} else {
 			// save existing values
 
@@ -95,6 +95,7 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 			// save existing values
 			cmd.bindHost = routerAccess.Spec.BindHost
 			cmd.subjectAlternativeNames = routerAccess.Spec.SubjectAlternativeNames
+			cmd.linkAccessEnabled = true
 		}
 	}
 
@@ -102,7 +103,7 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 	if cmd.Flags != nil && cmd.Flags.BindHost != "" {
 		ip := net.ParseIP(cmd.Flags.BindHost)
 		ok, _ := hostStringValidator.Evaluate(cmd.Flags.BindHost)
-		if !ok || ip == nil {
+		if !ok && ip == nil {
 			validationErrors = append(validationErrors, fmt.Errorf("bindhost is not valid: a valid IP address or hostname is expected"))
 		} else {
 			cmd.newSettings.bindHost = cmd.Flags.BindHost
@@ -112,7 +113,7 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 		for _, name := range cmd.Flags.SubjectAlternativeNames {
 			ip := net.ParseIP(name)
 			ok, _ := hostStringValidator.Evaluate(name)
-			if !ok || ip == nil {
+			if !ok && ip == nil {
 				validationErrors = append(validationErrors, fmt.Errorf("SubjectAlternativeNames are not valid: a valid IP address or hostname is expected"))
 			} else {
 				cmd.newSettings.subjectAlternativeNames = append(cmd.newSettings.subjectAlternativeNames, name)
@@ -130,8 +131,17 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 }
 
 func (cmd *CmdSiteUpdate) InputToOptions() {
-	if cmd.Flags.EnableLinkAccess {
-		cmd.linkAccessEnabled = true
+	// if EnableLinkAccess flag was explicity set use value otherwise use value from
+	// previous create command
+	if cmd.CobraCmd.Flags().Changed(common.FlagNameEnableLinkAccess) {
+		if cmd.Flags.EnableLinkAccess == true {
+			cmd.linkAccessEnabled = true
+		} else {
+			cmd.linkAccessEnabled = false
+		}
+	}
+
+	if cmd.linkAccessEnabled == true {
 		if cmd.newSettings.bindHost != "" {
 			cmd.bindHost = cmd.newSettings.bindHost
 		}

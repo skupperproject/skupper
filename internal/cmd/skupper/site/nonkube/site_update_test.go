@@ -36,7 +36,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			name:           "site is not updated because get site returned error",
 			args:           []string{"no-site"},
 			flags:          &common.CommandSiteUpdateFlags{},
-			expectedErrors: []string{"site no-site must exist in namespace test to be updated"},
+			expectedErrors: []string{"site no-site must exist to be updated"},
 		},
 		{
 			name:           "site name is not specified",
@@ -180,6 +180,101 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 	}
 }
 
+func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
+
+	type test struct {
+		name                            string
+		args                            []string
+		namespace                       string
+		flags                           common.CommandSiteUpdateFlags
+		expectedSettings                map[string]string
+		expectedLinkAccess              bool
+		expectedNamespace               string
+		expectedSubjectAlternativeNames []string
+		expectedBindHost                string
+		expectedRouterAccessName        string
+	}
+
+	testTable := []test{
+		{
+			name:  "options without link access disabled",
+			args:  []string{"my-site"},
+			flags: common.CommandSiteUpdateFlags{BindHost: "test"},
+			expectedSettings: map[string]string{
+				"name": "my-site",
+			},
+			expectedLinkAccess:              false,
+			expectedNamespace:               "default",
+			expectedBindHost:                "",
+			expectedRouterAccessName:        "router-access-my-site",
+			expectedSubjectAlternativeNames: nil,
+		},
+		{
+			name:  "options with link access enabled",
+			args:  []string{"my-site"},
+			flags: common.CommandSiteUpdateFlags{EnableLinkAccess: true, BindHost: "test"},
+			expectedSettings: map[string]string{
+				"name": "my-site",
+			},
+			expectedLinkAccess:              true,
+			expectedNamespace:               "default",
+			expectedBindHost:                "test",
+			expectedRouterAccessName:        "router-access-my-site",
+			expectedSubjectAlternativeNames: nil,
+		},
+		{
+			name:      "options without enable link access and subject alternative names",
+			args:      []string{"my-site"},
+			namespace: "test",
+			flags:     common.CommandSiteUpdateFlags{EnableLinkAccess: false, BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
+			expectedSettings: map[string]string{
+				"name": "my-site",
+			},
+			expectedLinkAccess:              false,
+			expectedNamespace:               "test",
+			expectedBindHost:                "",
+			expectedSubjectAlternativeNames: nil,
+			expectedRouterAccessName:        "router-access-my-site",
+		},
+		{
+			name:      "options with enable link access and subject alternative names",
+			args:      []string{"my-site"},
+			namespace: "test",
+			flags:     common.CommandSiteUpdateFlags{EnableLinkAccess: true, BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
+			expectedSettings: map[string]string{
+				"name": "my-site",
+			},
+			expectedLinkAccess:              true,
+			expectedNamespace:               "test",
+			expectedSubjectAlternativeNames: []string{"test"},
+			expectedBindHost:                "1.2.3.4",
+			expectedRouterAccessName:        "router-access-my-site",
+		},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			cmd := &CmdSiteUpdate{Flags: &common.CommandSiteUpdateFlags{EnableLinkAccess: test.flags.EnableLinkAccess}}
+			cmd.CobraCmd = &cobra.Command{Use: "test"}
+			cmd.Flags = &test.flags
+			cmd.newSettings.bindHost = test.flags.BindHost
+			cmd.newSettings.subjectAlternativeNames = test.flags.SubjectAlternativeNames
+			cmd.siteName = "my-site"
+			cmd.namespace = test.namespace
+			cmd.linkAccessEnabled = test.flags.EnableLinkAccess
+
+			cmd.InputToOptions()
+
+			assert.DeepEqual(t, cmd.options, test.expectedSettings)
+			assert.Check(t, cmd.namespace == test.expectedNamespace)
+			assert.Check(t, cmd.bindHost == test.expectedBindHost)
+			assert.Check(t, cmd.linkAccessEnabled == test.expectedLinkAccess)
+			assert.Check(t, cmd.routerAccessName == test.expectedRouterAccessName)
+			assert.DeepEqual(t, cmd.subjectAlternativeNames, test.expectedSubjectAlternativeNames)
+		})
+	}
+}
+
 func TestCmdSiteUpdate_Run(t *testing.T) {
 	type test struct {
 		name                string
@@ -231,6 +326,7 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 
 	for _, test := range testTable {
 		command := &CmdSiteUpdate{}
+		command.CobraCmd = &cobra.Command{Use: "test"}
 		command.Flags = &test.flags
 		command.siteName = test.siteName
 		command.siteHandler = fs.NewSiteHandler(command.namespace)

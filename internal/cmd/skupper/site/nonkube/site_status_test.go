@@ -34,7 +34,7 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 		{
 			name:           "site does not exist in the namespace",
 			args:           []string{"no-site"},
-			expectedErrors: []string{"site no-site does not exist in namespace test"},
+			expectedErrors: []string{"site no-site does not exist"},
 		},
 		{
 			name:           "site name is nil",

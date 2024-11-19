@@ -47,7 +47,9 @@ func (s *SiteHandler) Get(name string, opts GetOptions) (*v2alpha1.Site, error) 
 		// has run.  If no runtime sites try and display configured sites
 		err, file := s.ReadFile(s.pathProvider.GetRuntimeNamespace(), fileName, common.Sites)
 		if err != nil {
-			fmt.Println("Site not initialized yet")
+			if opts.LogWarning {
+				fmt.Println("Site not initialized yet")
+			}
 			err, file = s.ReadFile(s.pathProvider.GetNamespace(), fileName, common.Sites)
 			if err != nil {
 				return nil, err
