@@ -35,7 +35,7 @@ func (cmd *CmdSiteStatus) NewClient(cobraCommand *cobra.Command, args []string) 
 
 func (cmd *CmdSiteStatus) ValidateInput(args []string) []error {
 	var validationErrors []error
-	opts := fs.GetOptions{RuntimeFirst: true}
+	opts := fs.GetOptions{RuntimeFirst: true, LogWarning: false}
 	resourceStringValidator := validator.NewResourceStringValidator()
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
@@ -58,7 +58,7 @@ func (cmd *CmdSiteStatus) ValidateInput(args []string) []error {
 	if cmd.siteName != "" {
 		site, err := cmd.siteHandler.Get(cmd.siteName, opts)
 		if site == nil || err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("site %s does not exist in namespace %s", cmd.siteName, cmd.namespace))
+			validationErrors = append(validationErrors, fmt.Errorf("site %s does not exist", cmd.siteName))
 		}
 	}
 

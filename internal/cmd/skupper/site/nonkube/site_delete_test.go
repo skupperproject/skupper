@@ -1,14 +1,18 @@
 package nonkube
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
-
 	"gotest.tools/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -22,6 +26,10 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 		skupperObjects    []runtime.Object
 		expectedErrors    []string
 	}
+
+	homeDir, err := os.UserHomeDir()
+	assert.Check(t, err == nil)
+	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
 
 	testTable := []test{
 		{
@@ -49,6 +57,12 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"only one argument is allowed for this command"},
 		},
 		{
+			name:           "site doesn't exist",
+			args:           []string{"no-site"},
+			flags:          &common.CommandSiteDeleteFlags{},
+			expectedErrors: []string{"site no-site does not exist"},
+		},
+		{
 			name:           "kubernetes flags are not valid on this platform",
 			args:           []string{"my-site"},
 			flags:          &common.CommandSiteDeleteFlags{},
@@ -60,14 +74,32 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 		},
 	}
 
+	// Add temp files so site exists for update tests
+	siteResource := v2alpha1.Site{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "Site",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-site",
+			Namespace: "test",
+		},
+	}
+	command := &CmdSiteDelete{Flags: &common.CommandSiteDeleteFlags{}}
+	command.CobraCmd = &cobra.Command{Use: "test"}
+	command.namespace = "test"
+	command.siteHandler = fs.NewSiteHandler(command.namespace)
+	command.routerAccessHandler = fs.NewRouterAccessHandler(command.namespace)
+
+	defer command.siteHandler.Delete("my-site")
+	content, err := command.siteHandler.EncodeToYaml(siteResource)
+	assert.Check(t, err == nil)
+	err = command.siteHandler.WriteFile(path, "my-site.yaml", content, common.Sites)
+	assert.Check(t, err == nil)
+
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			command := &CmdSiteDelete{Flags: &common.CommandSiteDeleteFlags{}}
-			command.CobraCmd = &cobra.Command{Use: "test"}
-			command.namespace = "test"
-			command.siteHandler = fs.NewSiteHandler(command.namespace)
-			command.routerAccessHandler = fs.NewRouterAccessHandler(command.namespace)
-
+			command.siteName = ""
 			if test.flags != nil {
 				command.Flags = test.flags
 			}
