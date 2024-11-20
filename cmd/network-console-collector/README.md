@@ -43,8 +43,8 @@ API at `/metrics`.
 
 ### Operational Site Metrics
 
-This set of metrics exposes coarse details pertaining to the operation of a
-site.
+This set of metrics exposes coarse site-level details pertaining to the
+operation and topology of the skupper network.
 
 * `skupper_site_info`: Metadata about the active sites in the network. Labels are `site_id`, `name` and `version`.
 * `skupper_routers_total`: Number of active routers in each site. Labels are `site_id` and `mode`.

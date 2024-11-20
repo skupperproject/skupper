@@ -49,10 +49,6 @@ type reset interface {
 	Reindex(vanflow.Record)
 }
 
-type statusCoder interface {
-	StatusCode() int
-}
-
 func withParameters(params map[string][]string) func(context.Context, *http.Request) error {
 	return func(ctx context.Context, r *http.Request) error {
 		values := r.URL.Query()

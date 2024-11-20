@@ -1,6 +1,8 @@
 package collector
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"github.com/prometheus/client_golang/prometheus"
+)
 
 type metrics struct {
 	flowOpenedCounter        *prometheus.CounterVec
@@ -48,6 +50,7 @@ func register(reg *prometheus.Registry) metrics {
 			Name:      "requests_total",
 			Help:      "Counter incremented for each request handled through the skupper network",
 		}, appFlowMetricLables),
+
 		internal: metricsInternal{
 			flowLatency: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Namespace: "skupper",
