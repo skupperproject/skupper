@@ -107,6 +107,14 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 				"timeout is not valid: duration must not be less than 10s; got 0s",
 			},
 		},
+		{
+			name:  "wait status is not valid",
+			args:  []string{"my-site"},
+			flags: &common.CommandSiteCreateFlags{Timeout: time.Minute, Wait: "created"},
+			expectedErrors: []string{
+				"status is not valid: value created not allowed. It should be one of this options: [ready pending configured]",
+			},
+		},
 	}
 
 	for _, test := range testTable {
@@ -147,6 +155,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 		expectedLinkAccess string
 		expectedOutput     string
 		expectedTimeout    time.Duration
+		expectedStatus     string
 	}
 
 	testTable := []test{
@@ -193,6 +202,12 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedOutput:     "",
 			expectedTimeout:    time.Minute,
 		},
+		{
+			name:           "options with waiting status",
+			args:           []string{"my-site"},
+			flags:          common.CommandSiteCreateFlags{Wait: "configured"},
+			expectedStatus: "configured",
+		},
 	}
 
 	for _, test := range testTable {
@@ -207,6 +222,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 			assert.Check(t, cmd.output == test.expectedOutput)
 			assert.Check(t, cmd.linkAccessType == test.expectedLinkAccess)
 			assert.Check(t, cmd.timeout == test.expectedTimeout)
+			assert.Check(t, cmd.status == test.expectedStatus)
 		})
 	}
 }
@@ -235,7 +251,7 @@ func TestCmdSiteCreate_Run(t *testing.T) {
 			skupperError:       "",
 		},
 		{
-			name:       "runs fails",
+			name:       "run fails",
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Site{
@@ -255,7 +271,7 @@ func TestCmdSiteCreate_Run(t *testing.T) {
 			errorMessage:       "sites.skupper.io \"my-site\" already exists",
 		},
 		{
-			name:               "runs ok without create site",
+			name:               "runs ok but it does not create the site",
 			k8sObjects:         nil,
 			skupperObjects:     nil,
 			siteName:           "test",
@@ -265,7 +281,7 @@ func TestCmdSiteCreate_Run(t *testing.T) {
 			skupperError:       "",
 		},
 		{
-			name:               "runs fails because the output format is not supported",
+			name:               "run fails because the output format is not supported",
 			k8sObjects:         nil,
 			skupperObjects:     nil,
 			siteName:           "test",
@@ -304,6 +320,7 @@ func TestCmdSiteCreate_Run(t *testing.T) {
 func TestCmdSiteCreate_WaitUntil(t *testing.T) {
 	type test struct {
 		name           string
+		status         string
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		skupperError   string
@@ -314,6 +331,7 @@ func TestCmdSiteCreate_WaitUntil(t *testing.T) {
 	testTable := []test{
 		{
 			name:       "site is not ready",
+			status:     "ready",
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Site{
@@ -322,7 +340,17 @@ func TestCmdSiteCreate_WaitUntil(t *testing.T) {
 						Namespace: "test",
 					},
 					Status: v2alpha1.SiteStatus{
-						Status: v2alpha1.Status{},
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Pending",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -356,6 +384,35 @@ func TestCmdSiteCreate_WaitUntil(t *testing.T) {
 		},
 		{
 			name:       "site is ready",
+			status:     "ready",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Ready",
+								},
+							},
+						},
+					},
+				},
+			},
+			skupperError: "",
+			expectError:  false,
+		},
+		{
+			name:       "site is not ready yet, but user waits for configured",
+			status:     "configured",
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Site{
@@ -395,6 +452,7 @@ func TestCmdSiteCreate_WaitUntil(t *testing.T) {
 		command.siteName = "my-site"
 		command.output = test.output
 		command.timeout = time.Second
+		command.status = test.status
 
 		t.Run(test.name, func(t *testing.T) {
 

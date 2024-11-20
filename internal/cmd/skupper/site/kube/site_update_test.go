@@ -327,6 +327,28 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 				"timeout is not valid: duration must not be less than 10s; got 0s",
 			},
 		},
+		{
+			name:       "wait status is not valid",
+			args:       []string{"my-site"},
+			flags:      &common.CommandSiteUpdateFlags{Timeout: time.Second * 30, Wait: "created"},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
+						},
+					},
+				},
+			},
+			expectedErrors: []string{
+				"status is not valid: value created not allowed. It should be one of this options: [ready pending configured]",
+			},
+		},
 	}
 
 	for _, test := range testTable {
@@ -364,6 +386,7 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 		expectedLinkAccess string
 		expectedOutput     string
 		expectedTimeout    time.Duration
+		expectedStatus     string
 	}
 
 	testTable := []test{
@@ -403,6 +426,12 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 			expectedOutput:     "yaml",
 			expectedTimeout:    time.Minute,
 		},
+		{
+			name:           "options with waiting status",
+			args:           []string{"my-site"},
+			flags:          common.CommandSiteUpdateFlags{Wait: "configured"},
+			expectedStatus: "configured",
+		},
 	}
 
 	for _, test := range testTable {
@@ -420,6 +449,7 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 			command.InputToOptions()
 
 			assert.Check(t, command.output == test.expectedOutput)
+			assert.Check(t, command.status == test.expectedStatus)
 		})
 	}
 }
@@ -520,6 +550,7 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 	type test struct {
 		name           string
+		status         string
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		siteName       string
@@ -531,6 +562,7 @@ func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 	testTable := []test{
 		{
 			name:       "site is not ready",
+			status:     "ready",
 			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Site{
@@ -545,6 +577,35 @@ func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 			errorMessage: "Site \"my-site\" not ready yet, check the status for more information\n",
 			expectError:  true,
 		},
+		{
+			name:       "site is not ready yet, but user waits for configured",
+			status:     "configured",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
+						},
+					},
+				},
+			},
+			siteName:     "my-site",
+			skupperError: "",
+			expectError:  false,
+		},
 	}
 
 	for _, test := range testTable {
@@ -557,7 +618,8 @@ func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 		assert.Assert(t, err)
 		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 		command.siteName = test.siteName
-		command.timeout = 1
+		command.timeout = time.Second
+		command.status = test.status
 
 		t.Run(test.name, func(t *testing.T) {
 

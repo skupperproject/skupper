@@ -250,6 +250,7 @@ func TestCmdSiteDelete_InputToOptions(t *testing.T) {
 		name            string
 		flags           *common.CommandSiteDeleteFlags
 		expectedTimeout time.Duration
+		expectedWait    bool
 	}
 
 	testTable := []test{
@@ -257,6 +258,11 @@ func TestCmdSiteDelete_InputToOptions(t *testing.T) {
 			name:            "options with timeout",
 			flags:           &common.CommandSiteDeleteFlags{Timeout: time.Second * 30},
 			expectedTimeout: time.Second * 30,
+		},
+		{
+			name:         "wait for site enabled",
+			flags:        &common.CommandSiteDeleteFlags{Wait: true},
+			expectedWait: true,
 		},
 	}
 
@@ -348,6 +354,7 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 func TestCmdSiteDelete_WaitUntil(t *testing.T) {
 	type test struct {
 		name           string
+		wait           bool
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		skupperError   string
@@ -358,6 +365,7 @@ func TestCmdSiteDelete_WaitUntil(t *testing.T) {
 		{
 			name:       "site is not deleted",
 			k8sObjects: nil,
+			wait:       true,
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Site{
 					ObjectMeta: v1.ObjectMeta{
@@ -385,10 +393,40 @@ func TestCmdSiteDelete_WaitUntil(t *testing.T) {
 		},
 		{
 			name:           "site is deleted",
+			wait:           true,
 			k8sObjects:     nil,
 			skupperObjects: nil,
 			skupperError:   "no site",
 			expectError:    false,
+		},
+		{
+			name:       "site is not deleted but user does not want to wait",
+			k8sObjects: nil,
+			wait:       false,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
+						},
+					},
+				},
+			},
+			skupperError: "",
+			expectError:  false,
 		},
 	}
 
@@ -403,6 +441,7 @@ func TestCmdSiteDelete_WaitUntil(t *testing.T) {
 		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 		command.siteName = "my-site"
 		command.timeout = time.Second
+		command.wait = test.wait
 
 		t.Run(test.name, func(t *testing.T) {
 
