@@ -22,7 +22,7 @@ func TestCmdLinkFactory(t *testing.T) {
 		{
 			name: "CmdLinkGenerateFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
-				common.FlagNameTlsSecret:          "",
+				common.FlagNameTlsCredentials:     "",
 				common.FlagNameCost:               "1",
 				common.FlagNameOutput:             "yaml",
 				common.FlagNameGenerateCredential: "true",
@@ -33,10 +33,10 @@ func TestCmdLinkFactory(t *testing.T) {
 		{
 			name: "CmdLinkUpdateFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
-				common.FlagNameTlsSecret: "",
-				common.FlagNameCost:      "1",
-				common.FlagNameOutput:    "",
-				common.FlagNameTimeout:   "1m0s",
+				common.FlagNameTlsCredentials: "",
+				common.FlagNameCost:           "1",
+				common.FlagNameOutput:         "",
+				common.FlagNameTimeout:        "1m0s",
 			},
 			command: CmdLinkUpdateFactory(types.PlatformKubernetes),
 		},

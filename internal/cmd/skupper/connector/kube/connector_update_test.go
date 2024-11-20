@@ -117,8 +117,8 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			name: "tls-secret is not valid",
 			args: []string{"my-connector-tls"},
 			flags: common.CommandConnectorUpdateFlags{
-				TlsSecret: "test-tls",
-				Timeout:   50 * time.Second,
+				TlsCredentials: "test-tls",
+				Timeout:        50 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Connector{
@@ -365,7 +365,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			args: []string{"my-connector-flags"},
 			flags: common.CommandConnectorUpdateFlags{
 				RoutingKey:      "routingkeyname",
-				TlsSecret:       "secretname",
+				TlsCredentials:  "secretname",
 				Port:            1234,
 				ConnectorType:   "tcp",
 				IncludeNotReady: false,
@@ -942,7 +942,7 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 				connectorType:   "tcp",
 				host:            "hostname",
 				routingKey:      "keyname",
-				tlsSecret:       "secretname",
+				tlsCredentials:  "secretname",
 				includeNotReady: true,
 				workload:        "deployment/backend",
 				selector:        "backend",
@@ -975,7 +975,7 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 				connectorType:   "tcp",
 				host:            "hostname",
 				routingKey:      "keyname",
-				tlsSecret:       "secretname",
+				tlsCredentials:  "secretname",
 				includeNotReady: true,
 				workload:        "deployment/backend",
 				selector:        "backend",

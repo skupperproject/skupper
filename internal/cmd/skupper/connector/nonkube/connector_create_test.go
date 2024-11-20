@@ -110,11 +110,11 @@ func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
 			name: "flags all valid",
 			args: []string{"my-connector-flags", "8080"},
 			flags: &common.CommandConnectorCreateFlags{
-				RoutingKey:    "routingkeyname",
-				TlsSecret:     "secretname",
-				ConnectorType: "tcp",
-				Output:        "json",
-				Host:          "1.2.3.4",
+				RoutingKey:     "routingkeyname",
+				TlsCredentials: "secretname",
+				ConnectorType:  "tcp",
+				Output:         "json",
+				Host:           "1.2.3.4",
 			},
 			expectedErrors: []string{},
 		},
@@ -148,51 +148,51 @@ func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
 func TestNonKubeCmdConnectorCreate_InputToOptions(t *testing.T) {
 
 	type test struct {
-		name                  string
-		args                  []string
-		namespace             string
-		flags                 common.CommandConnectorCreateFlags
-		expectedNamespace     string
-		Connectorname         string
-		expectedTlsSecret     string
-		expectedHost          string
-		expectedRoutingKey    string
-		expectedConnectorType string
-		expectedOutput        string
+		name                   string
+		args                   []string
+		namespace              string
+		flags                  common.CommandConnectorCreateFlags
+		expectedNamespace      string
+		Connectorname          string
+		expectedTlsCredentials string
+		expectedHost           string
+		expectedRoutingKey     string
+		expectedConnectorType  string
+		expectedOutput         string
 	}
 
 	testTable := []test{
 		{
-			name:                  "test1",
-			flags:                 common.CommandConnectorCreateFlags{"backend", "", "", "secret", "tcp", false, "", 0, "json"},
-			expectedTlsSecret:     "secret",
-			expectedHost:          "",
-			expectedRoutingKey:    "backend",
-			expectedConnectorType: "tcp",
-			expectedOutput:        "json",
-			expectedNamespace:     "default",
+			name:                   "test1",
+			flags:                  common.CommandConnectorCreateFlags{"backend", "", "", "secret", "tcp", false, "", 0, "json"},
+			expectedTlsCredentials: "secret",
+			expectedHost:           "",
+			expectedRoutingKey:     "backend",
+			expectedConnectorType:  "tcp",
+			expectedOutput:         "json",
+			expectedNamespace:      "default",
 		},
 		{
-			name:                  "test2",
-			namespace:             "test",
-			flags:                 common.CommandConnectorCreateFlags{"backend", "1.2.3.4", "", "secret", "tcp", false, "", 0, "json"},
-			expectedTlsSecret:     "secret",
-			expectedHost:          "1.2.3.4",
-			expectedRoutingKey:    "backend",
-			expectedConnectorType: "tcp",
-			expectedOutput:        "json",
-			expectedNamespace:     "test",
+			name:                   "test2",
+			namespace:              "test",
+			flags:                  common.CommandConnectorCreateFlags{"backend", "1.2.3.4", "", "secret", "tcp", false, "", 0, "json"},
+			expectedTlsCredentials: "secret",
+			expectedHost:           "1.2.3.4",
+			expectedRoutingKey:     "backend",
+			expectedConnectorType:  "tcp",
+			expectedOutput:         "json",
+			expectedNamespace:      "test",
 		},
 		{
-			name:                  "test3",
-			namespace:             "test",
-			flags:                 common.CommandConnectorCreateFlags{"", "", "", "secret", "tcp", false, "", 0, "yaml"},
-			expectedTlsSecret:     "secret",
-			expectedHost:          "",
-			expectedRoutingKey:    "my-Connector",
-			expectedConnectorType: "tcp",
-			expectedOutput:        "yaml",
-			expectedNamespace:     "test",
+			name:                   "test3",
+			namespace:              "test",
+			flags:                  common.CommandConnectorCreateFlags{"", "", "", "secret", "tcp", false, "", 0, "yaml"},
+			expectedTlsCredentials: "secret",
+			expectedHost:           "",
+			expectedRoutingKey:     "my-Connector",
+			expectedConnectorType:  "tcp",
+			expectedOutput:         "yaml",
+			expectedNamespace:      "test",
 		},
 	}
 
@@ -207,7 +207,7 @@ func TestNonKubeCmdConnectorCreate_InputToOptions(t *testing.T) {
 			cmd.InputToOptions()
 
 			assert.Check(t, cmd.routingKey == test.expectedRoutingKey)
-			assert.Check(t, cmd.tlsSecret == test.expectedTlsSecret)
+			assert.Check(t, cmd.tlsCredentials == test.expectedTlsCredentials)
 			assert.Check(t, cmd.host == test.expectedHost)
 			assert.Check(t, cmd.connectorType == test.expectedConnectorType)
 			assert.Check(t, cmd.output == test.expectedOutput)
@@ -228,7 +228,7 @@ func TestNonKubeCmdConnectorCreate_Run(t *testing.T) {
 		output         string
 		errorMessage   string
 		routingKey     string
-		tlsSecret      string
+		tlsCredentials string
 		connectorType  string
 		connectorPort  int
 	}
@@ -243,7 +243,7 @@ func TestNonKubeCmdConnectorCreate_Run(t *testing.T) {
 			connectorPort:  8080,
 			connectorType:  "tcp",
 			routingKey:     "keyname",
-			tlsSecret:      "secretname",
+			tlsCredentials: "secretname",
 			host:           "1.2.3.4",
 		},
 		{

@@ -30,7 +30,7 @@ type CmdConnectorCreate struct {
 	output          string
 	host            string
 	selector        string
-	tlsSecret       string
+	tlsCredentials  string
 	routingKey      string
 	connectorType   string
 	includeNotReady bool
@@ -103,9 +103,9 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("routing key is not valid: %s", err))
 		}
 	}
-	if cmd.Flags != nil && cmd.Flags.TlsSecret != "" {
+	if cmd.Flags != nil && cmd.Flags.TlsCredentials != "" {
 		// check that the secret exists
-		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsSecret, metav1.GetOptions{})
+		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsCredentials, metav1.GetOptions{})
 		if err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("tls-secret is not valid: does not exist"))
 		}
@@ -227,7 +227,7 @@ func (cmd *CmdConnectorCreate) InputToOptions() {
 		cmd.routingKey = cmd.Flags.RoutingKey
 	}
 	cmd.timeout = cmd.Flags.Timeout
-	cmd.tlsSecret = cmd.Flags.TlsSecret
+	cmd.tlsCredentials = cmd.Flags.TlsCredentials
 	cmd.connectorType = cmd.Flags.ConnectorType
 	cmd.output = cmd.Flags.Output
 	cmd.includeNotReady = cmd.Flags.IncludeNotReady
@@ -248,7 +248,7 @@ func (cmd *CmdConnectorCreate) Run() error {
 			Host:            cmd.host,
 			Port:            cmd.port,
 			RoutingKey:      cmd.routingKey,
-			TlsCredentials:  cmd.tlsSecret,
+			TlsCredentials:  cmd.tlsCredentials,
 			Type:            cmd.connectorType,
 			IncludeNotReady: cmd.includeNotReady,
 			Selector:        cmd.selector,

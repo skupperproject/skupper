@@ -105,12 +105,12 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			name: "flags all valid",
 			args: []string{"my-connector"},
 			flags: &common.CommandConnectorUpdateFlags{
-				RoutingKey:    "routingkeyname",
-				TlsSecret:     "secretname",
-				Port:          1234,
-				ConnectorType: "tcp",
-				Output:        "json",
-				Host:          "1.2.3.4",
+				RoutingKey:     "routingkeyname",
+				TlsCredentials: "secretname",
+				Port:           1234,
+				ConnectorType:  "tcp",
+				Output:         "json",
+				Host:           "1.2.3.4",
 			},
 			expectedErrors: []string{},
 		},
@@ -174,31 +174,31 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 		host                string
 		output              string
 		routingKey          string
-		tlsSecret           string
+		tlsCredentials      string
 		connectorType       string
 		port                int
 	}
 
 	testTable := []test{
 		{
-			name:          "runs ok",
-			namespace:     "test",
-			connectorName: "my-connector",
-			port:          8080,
-			connectorType: "tcp",
-			host:          "hostname",
-			routingKey:    "keyname",
-			tlsSecret:     "secretname",
+			name:           "runs ok",
+			namespace:      "test",
+			connectorName:  "my-connector",
+			port:           8080,
+			connectorType:  "tcp",
+			host:           "hostname",
+			routingKey:     "keyname",
+			tlsCredentials: "secretname",
 		},
 		{
-			name:          "run output json",
-			connectorName: "my-connector",
-			port:          8181,
-			connectorType: "tcp",
-			host:          "hostname",
-			routingKey:    "keyname",
-			tlsSecret:     "secretname",
-			output:        "json",
+			name:           "run output json",
+			connectorName:  "my-connector",
+			port:           8181,
+			connectorType:  "tcp",
+			host:           "hostname",
+			routingKey:     "keyname",
+			tlsCredentials: "secretname",
+			output:         "json",
 		},
 	}
 
@@ -210,7 +210,7 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 		command.newSettings.port = test.port
 		command.newSettings.host = test.host
 		command.newSettings.routingKey = test.routingKey
-		command.newSettings.tlsSecret = test.tlsSecret
+		command.newSettings.tlsCredentials = test.tlsCredentials
 		command.namespace = test.namespace
 		command.connectorHandler = fs.NewConnectorHandler(command.namespace)
 		defer command.connectorHandler.Delete("my-connector")

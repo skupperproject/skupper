@@ -22,7 +22,7 @@ import (
 type ConnectorUpdates struct {
 	routingKey      string
 	host            string
-	tlsSecret       string
+	tlsCredentials  string
 	connectorType   string
 	port            int
 	workload        string
@@ -95,7 +95,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			// save existing values
 			cmd.resourceVersion = connector.ResourceVersion
 			cmd.newSettings.port = connector.Spec.Port
-			cmd.newSettings.tlsSecret = connector.Spec.TlsCredentials
+			cmd.newSettings.tlsCredentials = connector.Spec.TlsCredentials
 			cmd.newSettings.connectorType = connector.Spec.Type
 			cmd.newSettings.includeNotReady = connector.Spec.IncludeNotReady
 			cmd.newSettings.routingKey = connector.Spec.RoutingKey
@@ -113,12 +113,12 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.routingKey = cmd.Flags.RoutingKey
 		}
 	}
-	if cmd.Flags != nil && cmd.Flags.TlsSecret != "" {
-		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsSecret, metav1.GetOptions{})
+	if cmd.Flags != nil && cmd.Flags.TlsCredentials != "" {
+		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsCredentials, metav1.GetOptions{})
 		if err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("tls-secret is not valid: does not exist"))
 		} else {
-			cmd.newSettings.tlsSecret = cmd.Flags.TlsSecret
+			cmd.newSettings.tlsCredentials = cmd.Flags.TlsCredentials
 		}
 	}
 	if cmd.Flags != nil && cmd.Flags.ConnectorType != "" {
@@ -254,7 +254,7 @@ func (cmd *CmdConnectorUpdate) Run() error {
 			Host:            cmd.newSettings.host,
 			Port:            cmd.newSettings.port,
 			RoutingKey:      cmd.newSettings.routingKey,
-			TlsCredentials:  cmd.newSettings.tlsSecret,
+			TlsCredentials:  cmd.newSettings.tlsCredentials,
 			Type:            cmd.newSettings.connectorType,
 			Selector:        cmd.newSettings.selector,
 			IncludeNotReady: cmd.newSettings.includeNotReady,

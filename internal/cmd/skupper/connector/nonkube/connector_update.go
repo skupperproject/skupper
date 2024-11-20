@@ -14,11 +14,11 @@ import (
 )
 
 type ConnectorUpdates struct {
-	routingKey    string
-	host          string
-	connectorType string
-	port          int
-	tlsSecret     string
+	routingKey     string
+	host           string
+	connectorType  string
+	port           int
+	tlsCredentials string
 }
 type CmdConnectorUpdate struct {
 	connectorHandler *fs.ConnectorHandler
@@ -85,7 +85,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.host = connector.Spec.Host
 			cmd.newSettings.port = connector.Spec.Port
 			cmd.newSettings.connectorType = connector.Spec.Type
-			cmd.newSettings.tlsSecret = connector.Spec.TlsCredentials
+			cmd.newSettings.tlsCredentials = connector.Spec.TlsCredentials
 			cmd.newSettings.routingKey = connector.Spec.RoutingKey
 		}
 	}
@@ -156,7 +156,7 @@ func (cmd *CmdConnectorUpdate) Run() error {
 			Host:           cmd.newSettings.host,
 			Port:           cmd.newSettings.port,
 			RoutingKey:     cmd.newSettings.routingKey,
-			TlsCredentials: cmd.newSettings.tlsSecret,
+			TlsCredentials: cmd.newSettings.tlsCredentials,
 			Type:           cmd.newSettings.connectorType,
 		},
 	}
