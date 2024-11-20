@@ -2,7 +2,7 @@
 
 set -Ceu
 
-IMAGE="quay.io/skupper/skupper-cli:v2-latest"
+IMAGE="quay.io/skupper/cli:v2-latest"
 export INPUT_PATH=""
 export NAMESPACE=""
 export FORCE_FLAG=""
@@ -221,8 +221,9 @@ main() {
         --network host --security-opt label=disable -u \""${RUNAS}"\" --userns=\""${USERNS}"\" \
         "${MOUNTS}" \
         "${ENV_VARS}" \
+        --entrypoint /app/skupper \
         "${IMAGE}" \
-        /app/skupper system start --path="${INPUT_PATH_ARG}" -n="${NAMESPACE}" ${BUNDLE_STRATEGY} ${FORCE_FLAG} 2>&1
+        system start --path="${INPUT_PATH_ARG}" -n="${NAMESPACE}" ${BUNDLE_STRATEGY} ${FORCE_FLAG} 2>&1
     create_service
 }
 
