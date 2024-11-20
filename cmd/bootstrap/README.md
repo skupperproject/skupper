@@ -178,12 +178,18 @@ The bundle installation script accepts the following flags:
 
 #### Removing
 
-To remove your site, you can run a Skupper, providing a namespace as a flag. 
-
+To remove your site, you can run  the `system teardown` command, providing a namespace as a flag.
 If the namespace is omitted, the "default" namespace is used. 
 
 ```shell
 skupper system teardown -n [namespace]
+```
+Or you can run a local script, that takes the namespace
+as an argument. The platform is identified by the script so you don't need
+to export it.
+
+```shell
+./cmd/bootstrap/remove.sh [namespace]
 ```
 
 ## Using custom certificates
