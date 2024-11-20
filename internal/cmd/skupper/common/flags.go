@@ -205,7 +205,7 @@ type CommandListenerDeleteFlags struct {
 	Timeout time.Duration
 }
 
-type CommandSystemStartFlags struct {
+type CommandSystemSetupFlags struct {
 	Path     string
 	Strategy string
 	Force    bool

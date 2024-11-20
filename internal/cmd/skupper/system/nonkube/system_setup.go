@@ -13,31 +13,31 @@ import (
 	"path/filepath"
 )
 
-type CmdSystemStart struct {
+type CmdSystemSetup struct {
 	PreCheck        func(config *bootstrap.Config) error
 	Bootstrap       func(config *bootstrap.Config) (*api.SiteState, error)
 	PostExec        func(config *bootstrap.Config, siteState *api.SiteState)
 	CobraCmd        *cobra.Command
-	Flags           *common.CommandSystemStartFlags
+	Flags           *common.CommandSystemSetupFlags
 	Namespace       string
 	ConfigBootstrap bootstrap.Config
 }
 
-func NewCmdSystemStart() *CmdSystemStart {
+func NewCmdSystemSetup() *CmdSystemSetup {
 
-	skupperCmd := CmdSystemStart{}
+	skupperCmd := CmdSystemSetup{}
 
 	return &skupperCmd
 }
 
-func (cmd *CmdSystemStart) NewClient(cobraCommand *cobra.Command, args []string) {
+func (cmd *CmdSystemSetup) NewClient(cobraCommand *cobra.Command, args []string) {
 	cmd.PreCheck = bootstrap.PreBootstrap
 	cmd.Bootstrap = bootstrap.Bootstrap
 	cmd.PostExec = bootstrap.PostBootstrap
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
 }
 
-func (cmd *CmdSystemStart) ValidateInput(args []string) []error {
+func (cmd *CmdSystemSetup) ValidateInput(args []string) []error {
 	var validationErrors []error
 
 	if args != nil && len(args) > 0 {
@@ -75,7 +75,7 @@ func (cmd *CmdSystemStart) ValidateInput(args []string) []error {
 	return validationErrors
 }
 
-func (cmd *CmdSystemStart) InputToOptions() {
+func (cmd *CmdSystemSetup) InputToOptions() {
 
 	var inputPath string
 	if cmd.Flags.Path != "" {
@@ -114,7 +114,7 @@ func (cmd *CmdSystemStart) InputToOptions() {
 	cmd.ConfigBootstrap = configBootStrap
 }
 
-func (cmd *CmdSystemStart) Run() error {
+func (cmd *CmdSystemSetup) Run() error {
 
 	err := cmd.PreCheck(&cmd.ConfigBootstrap)
 	if err != nil {
@@ -131,4 +131,4 @@ func (cmd *CmdSystemStart) Run() error {
 	return nil
 }
 
-func (cmd *CmdSystemStart) WaitUntil() error { return nil }
+func (cmd *CmdSystemSetup) WaitUntil() error { return nil }

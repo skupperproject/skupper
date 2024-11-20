@@ -46,7 +46,6 @@ func TestCmdSystemReload_InputToOptions(t *testing.T) {
 	type test struct {
 		name              string
 		args              []string
-		flags             common.CommandSystemStartFlags
 		platform          string
 		namespace         string
 		expectedBinary    string
@@ -56,7 +55,6 @@ func TestCmdSystemReload_InputToOptions(t *testing.T) {
 	testTable := []test{
 		{
 			name:              "options-by-default",
-			flags:             common.CommandSystemStartFlags{},
 			expectedBinary:    "podman",
 			expectedNamespace: "default",
 		},
@@ -74,7 +72,6 @@ func TestCmdSystemReload_InputToOptions(t *testing.T) {
 			os.Setenv(types.ENV_PLATFORM, test.platform)
 
 			cmd := newCmdSystemReloadWithMocks(false, false)
-			cmd.Flags = &test.flags
 			cmd.Namespace = test.namespace
 
 			cmd.InputToOptions()
@@ -131,9 +128,9 @@ func TestCmdSystemReload_Run(t *testing.T) {
 
 // --- helper methods
 
-func newCmdSystemReloadWithMocks(precheckFails bool, bootstrapFails bool) *CmdSystemStart {
+func newCmdSystemReloadWithMocks(precheckFails bool, bootstrapFails bool) *CmdSystemReload {
 
-	cmdMock := &CmdSystemStart{
+	cmdMock := &CmdSystemReload{
 		PreCheck:  mockCmdSystemReloadPreCheck,
 		Bootstrap: mockCmdSystemReloadBootStrap,
 		PostExec:  mockCmdSystemReloadPostExec,

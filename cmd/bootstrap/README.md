@@ -121,7 +121,7 @@ Now that you have all your CRs placed on a local directory, just run:
 ```shell
 # To bootstrap your site using Skupper
 export SKUPPER_PLATFORM=podman
-skupper system start --path ./
+skupper system setup --path ./
 ```
 
 You can also use `-n=<name>` to override the namespace specified in the CRs.
@@ -305,7 +305,7 @@ Considering all your CRs have been saved to a directory named `west`, use:
 or 
 
 ```shell
-skupper system start --path ./west -n west
+skupper system setup --path ./west -n west
 ```
 
 The CRs are defined without a namespace, that is why we have the `-n west` flag,
@@ -384,7 +384,7 @@ Considering all your CRs have been saved to a directory named `east`, use:
 or 
 
 ```shell
-skupper system start --path ./east -n east
+skupper system setup --path ./east -n east
 ```
 
 ### Testing the scenario
@@ -406,7 +406,7 @@ bootstrap -n west -f
 or 
 
 ```shell
-system start -n west -f
+system setup -n west -f
 ```
 
 or 
@@ -446,7 +446,7 @@ Default platform: podman
 or 
 
 ```shell
-skupper system start --path ./west  -b bundle                                       
+skupper system setup --path ./west  -b bundle                                       
 2024/11/18 12:17:56 updating listener /backend...
 Site "west" has been created (as a distributable bundle)
 Installation bundle available at: {HOME}/.local/share/skupper/bundles/skupper-install-west.sh

@@ -8,30 +8,30 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type CmdSystemStart struct {
+type CmdSystemSetup struct {
 	Client     skupperv2alpha1.SkupperV2alpha1Interface
 	KubeClient kubernetes.Interface
 	CobraCmd   *cobra.Command
-	Flags      *common.CommandSystemStartFlags
+	Flags      *common.CommandSystemSetupFlags
 	Namespace  string
 }
 
-func NewCmdSystemStart() *CmdSystemStart {
+func NewCmdSystemSetup() *CmdSystemSetup {
 
-	skupperCmd := CmdSystemStart{}
+	skupperCmd := CmdSystemSetup{}
 
 	return &skupperCmd
 }
 
-func (cmd *CmdSystemStart) NewClient(cobraCommand *cobra.Command, args []string) {}
+func (cmd *CmdSystemSetup) NewClient(cobraCommand *cobra.Command, args []string) {}
 
-func (cmd *CmdSystemStart) ValidateInput(args []string) []error { return nil }
+func (cmd *CmdSystemSetup) ValidateInput(args []string) []error { return nil }
 
-func (cmd *CmdSystemStart) InputToOptions() {}
+func (cmd *CmdSystemSetup) InputToOptions() {}
 
-func (cmd *CmdSystemStart) Run() error {
+func (cmd *CmdSystemSetup) Run() error {
 	fmt.Println("This command does not support kubernetes platforms.")
 	return nil
 }
 
-func (cmd *CmdSystemStart) WaitUntil() error { return nil }
+func (cmd *CmdSystemSetup) WaitUntil() error { return nil }

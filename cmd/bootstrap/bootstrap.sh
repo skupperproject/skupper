@@ -223,7 +223,7 @@ main() {
         "${ENV_VARS}" \
         --entrypoint /app/skupper \
         "${IMAGE}" \
-        system start --path="${INPUT_PATH_ARG}" -n="${NAMESPACE}" ${BUNDLE_STRATEGY} ${FORCE_FLAG} 2>&1
+        system setup --path="${INPUT_PATH_ARG}" -n="${NAMESPACE}" ${BUNDLE_STRATEGY} ${FORCE_FLAG} 2>&1
     create_service
 }
 

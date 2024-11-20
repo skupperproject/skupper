@@ -19,13 +19,13 @@ func TestCmdSystemFactory(t *testing.T) {
 
 	testTable := []test{
 		{
-			name: "CmdSystemStartFactory",
+			name: "CmdSystemSetupFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNamePath:     "",
 				common.FlagNameStrategy: "",
 				common.FlagNameForce:    "false",
 			},
-			command: CmdSystemStartFactory(types.PlatformKubernetes),
+			command: CmdSystemSetupFactory(types.PlatformKubernetes),
 		},
 		{
 			name:                          "CmdSystemReloadFactory",

@@ -17,7 +17,7 @@ func TestCmdSystemStart_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
-		flags          *common.CommandSystemStartFlags
+		flags          *common.CommandSystemSetupFlags
 		expectedErrors []string
 	}
 
@@ -29,7 +29,7 @@ func TestCmdSystemStart_ValidateInput(t *testing.T) {
 		},
 		{
 			name: "invalid-bundle-strategy",
-			flags: &common.CommandSystemStartFlags{
+			flags: &common.CommandSystemSetupFlags{
 				Strategy: "not-valid",
 			},
 			expectedErrors: []string{"Invalid bundle strategy: not-valid"},
@@ -39,7 +39,7 @@ func TestCmdSystemStart_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command := &CmdSystemStart{}
+			command := &CmdSystemSetup{}
 			command.CobraCmd = common.ConfigureCobraCommand(types.PlatformSystemd, common.SkupperCmdDescription{}, command, nil)
 
 			if test.flags != nil {
@@ -59,7 +59,7 @@ func TestCmdSystemStart_InputToOptions(t *testing.T) {
 	type test struct {
 		name                   string
 		args                   []string
-		flags                  common.CommandSystemStartFlags
+		flags                  common.CommandSystemSetupFlags
 		platform               string
 		namespace              string
 		expectedBinary         string
@@ -71,13 +71,13 @@ func TestCmdSystemStart_InputToOptions(t *testing.T) {
 	testTable := []test{
 		{
 			name:              "options-by-default",
-			flags:             common.CommandSystemStartFlags{},
+			flags:             common.CommandSystemSetupFlags{},
 			expectedBinary:    "podman",
 			expectedNamespace: "default",
 		},
 		{
 			name: "systemd",
-			flags: common.CommandSystemStartFlags{
+			flags: common.CommandSystemSetupFlags{
 				Path: "input-path",
 			},
 			namespace:         "east",
@@ -87,7 +87,7 @@ func TestCmdSystemStart_InputToOptions(t *testing.T) {
 		},
 		{
 			name: "docker",
-			flags: common.CommandSystemStartFlags{
+			flags: common.CommandSystemSetupFlags{
 				Path: "input-path",
 			},
 			namespace:         "east",
@@ -97,7 +97,7 @@ func TestCmdSystemStart_InputToOptions(t *testing.T) {
 		},
 		{
 			name: "bundle-default",
-			flags: common.CommandSystemStartFlags{
+			flags: common.CommandSystemSetupFlags{
 				Path:     "input-path",
 				Strategy: "bundle",
 			},
@@ -175,9 +175,9 @@ func TestCmdSystemStart_Run(t *testing.T) {
 
 // --- helper methods
 
-func newCmdSystemStartWithMocks(precheckFails bool, bootstrapFails bool) *CmdSystemStart {
+func newCmdSystemStartWithMocks(precheckFails bool, bootstrapFails bool) *CmdSystemSetup {
 
-	cmdMock := &CmdSystemStart{
+	cmdMock := &CmdSystemSetup{
 		PreCheck:  mockCmdSystemStartPreCheck,
 		Bootstrap: mockCmdSystemStartBootStrap,
 		PostExec:  mockCmdSystemStartPostExec,
