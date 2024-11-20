@@ -72,8 +72,8 @@ func CmdSystemReloadFactory(configuredPlatform types.Platform) *cobra.Command {
 
 	cmdSystemReloadDesc := common.SkupperCmdDescription{
 		Use:     "reload",
-		Short:   "Forces to overwrite an existing namespace",
-		Long:    "Forces to overwrite an existing namespace, if the namespace is not provided, the default one is going to be reloaded",
+		Short:   "Forces to overwrite an existing namespace based on input/resources",
+		Long:    "Forces to overwrite an existing namespace based on input/resources, if the namespace is not provided, the default one is going to be reloaded",
 		Example: "skupper system reload -n my-namespace",
 	}
 
@@ -111,8 +111,8 @@ func CmdSystemTeardownFactory(configuredPlatform types.Platform) *cobra.Command 
 
 	cmdSystemTeardownDesc := common.SkupperCmdDescription{
 		Use:     "teardown",
-		Short:   "Remove the Skupper components from the current namespace",
-		Long:    "Remove the Skupper components from the current namespace",
+		Short:   "Remove the Skupper components and resources from the from the current namespace",
+		Long:    "Remove the Skupper components and resources from the current namespace",
 		Example: "skupper system teardown -n my-namespace",
 	}
 

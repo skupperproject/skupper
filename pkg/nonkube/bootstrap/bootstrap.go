@@ -38,7 +38,7 @@ func PreBootstrap(config *Config) error {
 		// when input path is empty, but a namespace is provided, try to reload an existing site definition
 		if inputSourcesDefined {
 			config.InputPath = existingPath
-			fmt.Printf("Sources will consumed from namespace %q\n", config.Namespace)
+			fmt.Printf("Sources will be consumed from namespace %q\n", config.Namespace)
 		} else {
 			fmt.Printf("Input path has not been provided and namespace %s does not exist\n", config.Namespace)
 			return fmt.Errorf("No sources found at: %s\n", path.Join(api.GetHostNamespaceHome(config.Namespace), string(api.InputSiteStatePath)))
