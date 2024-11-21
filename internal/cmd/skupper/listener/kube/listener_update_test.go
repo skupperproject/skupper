@@ -189,33 +189,6 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 			expectedError: "timeout is not valid: duration must not be less than 10s; got 5s",
 		},
 		{
-			name: "output is not valid",
-			args: []string{"bad-output"},
-			flags: common.CommandListenerUpdateFlags{
-				Output:  "not-supported",
-				Timeout: 10 * time.Second,
-			},
-			skupperObjects: []runtime.Object{
-				&v2alpha1.Listener{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "bad-output",
-						Namespace: "test",
-					},
-					Status: v2alpha1.ListenerStatus{
-						Status: v2alpha1.Status{
-							Conditions: []v1.Condition{
-								{
-									Type:   "Configured",
-									Status: "True",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
-		},
-		{
 			name: "flags all valid",
 			args: []string{"my-listener-flags"},
 			flags: common.CommandListenerUpdateFlags{
@@ -225,7 +198,6 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				Port:           1234,
 				ListenerType:   "tcp",
 				Timeout:        10 * time.Second,
-				Output:         "json",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Listener{
@@ -346,35 +318,8 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 				Host:           "hostname",
 				RoutingKey:     "keyname",
 				TlsCredentials: "secretname",
-				Output:         "yaml",
 				Timeout:        1 * time.Minute,
 			},
-			skupperObjects: []runtime.Object{
-				&v2alpha1.Listener{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "run-listener",
-						Namespace: "test",
-					},
-					Status: v2alpha1.ListenerStatus{
-						Status: v2alpha1.Status{
-							Conditions: []v1.Condition{
-								{
-									Type:   "Configured",
-									Status: "True",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name:         "new output json",
-			listenerName: "run-listener",
-			flags: common.CommandListenerUpdateFlags{
-				Timeout: 1 * time.Minute,
-			},
-			newOutput: "json",
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
@@ -410,7 +355,6 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 		cmd.name = test.listenerName
 		cmd.Flags = &test.flags
 		cmd.namespace = "test"
-		cmd.newSettings.output = test.newOutput
 
 		t.Run(test.name, func(t *testing.T) {
 			err := cmd.Run()
@@ -426,7 +370,6 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
-		output              string
 		status              string
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
@@ -473,29 +416,6 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 							Conditions: []v1.Condition{
 								{
 									Type:   "Ready",
-									Status: "True",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name:   "listener is ready json output",
-			output: "json",
-			skupperObjects: []runtime.Object{
-				&v2alpha1.Listener{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-listener",
-						Namespace: "test",
-					},
-					Status: v2alpha1.ListenerStatus{
-						Status: v2alpha1.Status{
-							Conditions: []v1.Condition{
-								{
-									Type:   "Configured",
 									Status: "True",
 								},
 							},
@@ -590,10 +510,8 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 		cmd.name = "my-listener"
 		cmd.Flags = &common.CommandListenerUpdateFlags{
 			Timeout: 1 * time.Second,
-			Output:  test.output,
 		}
 		cmd.namespace = "test"
-		cmd.newSettings.output = cmd.Flags.Output
 		cmd.status = test.status
 
 		t.Run(test.name, func(t *testing.T) {

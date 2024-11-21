@@ -30,7 +30,6 @@ func TestCmdConnectorFactory(t *testing.T) {
 				common.FlagNameIncludeNotReadyPods: "false",
 				common.FlagNameSelector:            "",
 				common.FlagNameWorkload:            "",
-				common.FlagNameOutput:              "",
 				common.FlagNameTimeout:             "1m0s",
 				common.FlagNameWait:                "configured",
 			},
@@ -46,7 +45,6 @@ func TestCmdConnectorFactory(t *testing.T) {
 				common.FlagNameIncludeNotReadyPods: "false",
 				common.FlagNameSelector:            "",
 				common.FlagNameWorkload:            "",
-				common.FlagNameOutput:              "",
 				common.FlagNameTimeout:             "1m0s",
 				common.FlagNameConnectorPort:       "0",
 				common.FlagNameWait:                "configured",
@@ -67,6 +65,20 @@ func TestCmdConnectorFactory(t *testing.T) {
 				common.FlagNameWait:    "true",
 			},
 			command: CmdConnectorDeleteFactory(types.PlatformKubernetes),
+		},
+		{
+			name: "CmdConnectorGenerateFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameRoutingKey:          "",
+				common.FlagNameHost:                "",
+				common.FlagNameTlsCredentials:      "",
+				common.FlagNameConnectorType:       "tcp",
+				common.FlagNameIncludeNotReadyPods: "false",
+				common.FlagNameSelector:            "",
+				common.FlagNameWorkload:            "",
+				common.FlagNameOutput:              "yaml",
+			},
+			command: CmdConnectorGenerateFactory(types.PlatformKubernetes),
 		},
 	}
 

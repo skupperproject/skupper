@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"time"
+
+	"k8s.io/apimachinery/pkg/api/meta"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -31,7 +32,6 @@ type ConnectorUpdates struct {
 	selector            string
 	includeNotReadyPods bool
 	timeout             time.Duration
-	output              string
 }
 
 type CmdConnectorUpdate struct {
@@ -68,7 +68,6 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
-	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 	workloadStringValidator := validator.NewWorkloadStringValidator(common.WorkloadTypes)
 	selectorStringValidator := validator.NewSelectorStringValidator()
@@ -231,14 +230,6 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) error {
 			cmd.newSettings.selector = cmd.newSettings.workload
 		}
 	}
-	if cmd.Flags != nil && cmd.Flags.Output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
-		} else {
-			cmd.newSettings.output = cmd.Flags.Output
-		}
-	}
 
 	if cmd.Flags != nil && cmd.Flags.Wait != "" {
 		ok, err := statusValidator.Evaluate(cmd.Flags.Wait)
@@ -273,22 +264,11 @@ func (cmd *CmdConnectorUpdate) Run() error {
 		},
 	}
 
-	if cmd.newSettings.output != "" {
-		encodedOutput, err := utils.Encode(cmd.newSettings.output, resource)
-		fmt.Println(encodedOutput)
-		return err
-	} else {
-		_, err := cmd.client.Connectors(cmd.namespace).Update(context.TODO(), &resource, metav1.UpdateOptions{})
-		return err
-	}
+	_, err := cmd.client.Connectors(cmd.namespace).Update(context.TODO(), &resource, metav1.UpdateOptions{})
+	return err
 }
 
 func (cmd *CmdConnectorUpdate) WaitUntil() error {
-
-	// the site resource was not created
-	if cmd.newSettings.output != "" {
-		return nil
-	}
 
 	if cmd.status == "none" {
 		return nil

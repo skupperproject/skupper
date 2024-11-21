@@ -5,9 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"time"
-
-	"k8s.io/apimachinery/pkg/api/meta"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -17,15 +14,14 @@ import (
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/spf13/cobra"
-	k8serrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-type CmdListenerCreate struct {
+type CmdListenerGenerate struct {
 	client         skupperv2alpha1.SkupperV2alpha1Interface
 	CobraCmd       *cobra.Command
-	Flags          *common.CommandListenerCreateFlags
+	Flags          *common.CommandListenerGenerateFlags
 	namespace      string
 	name           string
 	port           int
@@ -33,18 +29,17 @@ type CmdListenerCreate struct {
 	tlsCredentials string
 	listenerType   string
 	routingKey     string
-	timeout        time.Duration
+	output         string
 	KubeClient     kubernetes.Interface
-	status         string
 }
 
-func NewCmdListenerCreate() *CmdListenerCreate {
+func NewCmdListenerGenerate() *CmdListenerGenerate {
 
-	return &CmdListenerCreate{}
+	return &CmdListenerGenerate{}
 
 }
 
-func (cmd *CmdListenerCreate) NewClient(cobraCommand *cobra.Command, args []string) {
+func (cmd *CmdListenerGenerate) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
 	utils.HandleError(utils.GenericError, err)
 
@@ -53,13 +48,12 @@ func (cmd *CmdListenerCreate) NewClient(cobraCommand *cobra.Command, args []stri
 	cmd.KubeClient = cli.Kube
 }
 
-func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
+func (cmd *CmdListenerGenerate) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	listenerTypeValidator := validator.NewOptionValidator(common.ListenerTypes)
-	timeoutValidator := validator.NewTimeoutInSecondsValidator()
-	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
+	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
 	// Validate arguments name and port
 	if len(args) < 2 {
@@ -88,14 +82,6 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
 		}
 	}
 
-	// Validate if there is already a listener with this name in the namespace
-	if cmd.name != "" {
-		listener, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if listener != nil && !k8serrs.IsNotFound(err) {
-			validationErrors = append(validationErrors, fmt.Errorf("there is already a listener %s created for namespace %s", cmd.name, cmd.namespace))
-		}
-	}
-
 	// Validate flags
 	if cmd.Flags != nil && cmd.Flags.RoutingKey != "" {
 		ok, err := resourceStringValidator.Evaluate(cmd.Flags.RoutingKey)
@@ -119,24 +105,16 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
 		}
 	}
 
-	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
-		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
+	if cmd.Flags != nil && cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
+			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
 	}
-
-	if cmd.Flags != nil && cmd.Flags.Wait != "" {
-		ok, err := statusValidator.Evaluate(cmd.Flags.Wait)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("status is not valid: %s", err))
-		}
-	}
-
 	return errors.Join(validationErrors...)
 }
 
-func (cmd *CmdListenerCreate) InputToOptions() {
+func (cmd *CmdListenerGenerate) InputToOptions() {
 	// default host and routingkey to name of listener
 	if cmd.Flags.Host == "" {
 		cmd.host = cmd.name
@@ -148,13 +126,13 @@ func (cmd *CmdListenerCreate) InputToOptions() {
 	} else {
 		cmd.routingKey = cmd.Flags.RoutingKey
 	}
-	cmd.timeout = cmd.Flags.Timeout
+
 	cmd.tlsCredentials = cmd.Flags.TlsCredentials
 	cmd.listenerType = cmd.Flags.ListenerType
-	cmd.status = cmd.Flags.Wait
+	cmd.output = cmd.Flags.Output
 }
 
-func (cmd *CmdListenerCreate) Run() error {
+func (cmd *CmdListenerGenerate) Run() error {
 
 	resource := v2alpha1.Listener{
 		TypeMeta: metav1.TypeMeta{
@@ -174,58 +152,9 @@ func (cmd *CmdListenerCreate) Run() error {
 		},
 	}
 
-	_, err := cmd.client.Listeners(cmd.namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
+	encodedOutput, err := utils.Encode(cmd.output, resource)
+	fmt.Println(encodedOutput)
 	return err
 }
 
-func (cmd *CmdListenerCreate) WaitUntil() error {
-
-	if cmd.status == "none" {
-		return nil
-	}
-
-	waitTime := int(cmd.timeout.Seconds())
-	var listenerCondition *metav1.Condition
-
-	err := utils.NewSpinnerWithTimeout("Waiting for create to complete...", waitTime, func() error {
-
-		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		isConditionFound := false
-		isConditionTrue := false
-
-		switch cmd.status {
-		case "ready":
-			listenerCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_READY)
-		default:
-			listenerCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_CONFIGURED)
-		}
-
-		if listenerCondition != nil {
-			isConditionFound = true
-			isConditionTrue = listenerCondition.Status == metav1.ConditionTrue
-		}
-
-		if resource != nil && isConditionFound && isConditionTrue {
-			return nil
-		}
-
-		if resource != nil && isConditionFound && !isConditionTrue {
-			return fmt.Errorf("error in the condition")
-		}
-
-		return fmt.Errorf("error getting the resource")
-	})
-
-	if err != nil && listenerCondition == nil {
-		return fmt.Errorf("Listener %q is not yet %s, check the status for more information\n", cmd.name, cmd.status)
-	} else if err != nil && listenerCondition.Status == metav1.ConditionFalse {
-		return fmt.Errorf("Listener %q is not yet %s: %s\n", cmd.name, cmd.status, listenerCondition.Message)
-	}
-
-	fmt.Printf("Listener %q is %s.\n", cmd.name, cmd.status)
-	return nil
-}
+func (cmd *CmdListenerGenerate) WaitUntil() error { return nil }

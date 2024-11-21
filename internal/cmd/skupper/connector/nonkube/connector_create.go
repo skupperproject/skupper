@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -22,7 +21,6 @@ type CmdConnectorCreate struct {
 	namespace        string
 	connectorName    string
 	port             int
-	output           string
 	host             string
 	routingKey       string
 	connectorType    string
@@ -55,7 +53,6 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
-	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	hostStringValidator := validator.NewHostStringValidator()
 
 	// Validate arguments name and port
@@ -97,12 +94,6 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) error {
 			validationErrors = append(validationErrors, fmt.Errorf("connector type is not valid: %s", err))
 		}
 	}
-	if cmd.Flags.Output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
-		}
-	}
 	if cmd.Flags.Host != "" {
 		ip := net.ParseIP(cmd.Flags.Host)
 		ok, _ := hostStringValidator.Evaluate(cmd.Flags.Host)
@@ -136,7 +127,6 @@ func (cmd *CmdConnectorCreate) InputToOptions() {
 
 	cmd.host = cmd.Flags.Host
 	cmd.connectorType = cmd.Flags.ConnectorType
-	cmd.output = cmd.Flags.Output
 	cmd.tlsCredentials = cmd.Flags.TlsCredentials
 }
 
@@ -159,15 +149,9 @@ func (cmd *CmdConnectorCreate) Run() error {
 		},
 	}
 
-	if cmd.output != "" {
-		encodedOutput, err := utils.Encode(cmd.output, connectorResource)
-		fmt.Println(encodedOutput)
+	err := cmd.connectorHandler.Add(connectorResource)
+	if err != nil {
 		return err
-	} else {
-		err := cmd.connectorHandler.Add(connectorResource)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }

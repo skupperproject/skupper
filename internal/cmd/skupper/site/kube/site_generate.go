@@ -7,9 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
-
-	"k8s.io/apimachinery/pkg/api/meta"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -22,27 +19,26 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type CmdSiteCreate struct {
+type CmdSiteGenerate struct {
 	Client             skupperv2alpha1.SkupperV2alpha1Interface
 	KubeClient         kubernetes.Interface
 	CobraCmd           *cobra.Command
-	Flags              *common.CommandSiteCreateFlags
+	Flags              *common.CommandSiteGenerateFlags
 	siteName           string
 	serviceAccountName string
 	Namespace          string
 	linkAccessType     string
-	timeout            time.Duration
-	status             string
+	output             string
 }
 
-func NewCmdSiteCreate() *CmdSiteCreate {
+func NewCmdSiteGenerate() *CmdSiteGenerate {
 
-	skupperCmd := CmdSiteCreate{}
+	skupperCmd := CmdSiteGenerate{}
 
 	return &skupperCmd
 }
 
-func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) {
+func (cmd *CmdSiteGenerate) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
 	utils.HandleError(utils.GenericError, err)
 
@@ -51,18 +47,14 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
-
+func (cmd *CmdSiteGenerate) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	linkAccessTypeValidator := validator.NewOptionValidator(common.LinkAccessTypes)
-	timeoutValidator := validator.NewTimeoutInSecondsValidator()
-	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
+	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
-	//Validate if there is already a site defined in the namespace
-	siteList, _ := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if siteList != nil && len(siteList.Items) > 0 {
-		validationErrors = append(validationErrors, fmt.Errorf("there is already a site created for this namespace"))
+	if cmd.Flags != nil && cmd.Flags.BindHost != "" {
+		fmt.Println("Warning: --bind-host flag is not supported on this platform")
 	}
 
 	if cmd.Flags != nil && cmd.Flags.SubjectAlternativeNames != nil && len(cmd.Flags.SubjectAlternativeNames) > 0 {
@@ -99,25 +91,17 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 			validationErrors = append(validationErrors, fmt.Errorf("service account name is not valid: %s", err))
 		}
 	}
-
-	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
-		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
+	if cmd.Flags != nil && cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
-		}
-	}
-
-	if cmd.Flags != nil && cmd.Flags.Wait != "" {
-		ok, err := statusValidator.Evaluate(cmd.Flags.Wait)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("status is not valid: %s", err))
+			validationErrors = append(validationErrors, fmt.Errorf("format %s", err))
 		}
 	}
 
 	return errors.Join(validationErrors...)
 }
 
-func (cmd *CmdSiteCreate) InputToOptions() {
+func (cmd *CmdSiteGenerate) InputToOptions() {
 
 	cmd.serviceAccountName = cmd.Flags.ServiceAccount
 
@@ -129,12 +113,14 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 		}
 	}
 
-	cmd.timeout = cmd.Flags.Timeout
-	cmd.status = cmd.Flags.Wait
-
+	if cmd.Flags.Output != "" {
+		cmd.output = cmd.Flags.Output
+	} else {
+		cmd.output = "yaml"
+	}
 }
 
-func (cmd *CmdSiteCreate) Run() error {
+func (cmd *CmdSiteGenerate) Run() error {
 
 	resource := v2alpha1.Site{
 		TypeMeta: metav1.TypeMeta{
@@ -151,61 +137,9 @@ func (cmd *CmdSiteCreate) Run() error {
 		},
 	}
 
-	_, err := cmd.Client.Sites(cmd.Namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
+	encodedOutput, err := utils.Encode(cmd.output, resource)
+	fmt.Println(encodedOutput)
 	return err
-
 }
 
-func (cmd *CmdSiteCreate) WaitUntil() error {
-
-	if cmd.status == "none" {
-		return nil
-	}
-
-	waitTime := int(cmd.timeout.Seconds())
-
-	var siteCondition *metav1.Condition
-
-	err := utils.NewSpinnerWithTimeout("Waiting for status...", waitTime, func() error {
-
-		resource, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		isConditionFound := false
-		isConditionTrue := false
-
-		switch cmd.status {
-		case "configured":
-			siteCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_CONFIGURED)
-		default:
-			siteCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_READY)
-		}
-
-		if siteCondition != nil {
-			isConditionFound = true
-			isConditionTrue = siteCondition.Status == metav1.ConditionTrue
-		}
-
-		if resource != nil && isConditionFound && isConditionTrue {
-			return nil
-		}
-
-		if resource != nil && isConditionFound && !isConditionTrue {
-			return fmt.Errorf("error in the condition")
-		}
-
-		return fmt.Errorf("error getting the resource")
-	})
-
-	if err != nil && siteCondition == nil {
-		return fmt.Errorf("Site %q is not yet %s, check the status for more information\n", cmd.siteName, cmd.status)
-	} else if err != nil && siteCondition.Status == metav1.ConditionFalse {
-		return fmt.Errorf("Site %q is not yet %s: %s\n", cmd.siteName, cmd.status, siteCondition.Message)
-	}
-
-	fmt.Printf("Site %q is %s.\n", cmd.siteName, cmd.status)
-
-	return nil
-}
+func (cmd *CmdSiteGenerate) WaitUntil() error { return nil }

@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"time"
+
+	"k8s.io/apimachinery/pkg/api/meta"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -27,8 +28,8 @@ type ListenerUpdates struct {
 	listenerType   string
 	port           int
 	timeout        time.Duration
-	output         string
 }
+
 type CmdListenerUpdate struct {
 	client          skupperv2alpha1.SkupperV2alpha1Interface
 	CobraCmd        *cobra.Command
@@ -60,7 +61,6 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	listenerTypeValidator := validator.NewOptionValidator(common.ListenerTypes)
-	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 
@@ -138,14 +138,6 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) error {
 			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
 		}
 	}
-	if cmd.Flags != nil && cmd.Flags.Output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
-		} else {
-			cmd.newSettings.output = cmd.Flags.Output
-		}
-	}
 
 	if cmd.Flags != nil && cmd.Flags.Wait != "" {
 		ok, err := statusValidator.Evaluate(cmd.Flags.Wait)
@@ -177,22 +169,11 @@ func (cmd *CmdListenerUpdate) Run() error {
 		},
 	}
 
-	if cmd.newSettings.output != "" {
-		encodedOutput, err := utils.Encode(cmd.newSettings.output, resource)
-		fmt.Println(encodedOutput)
-		return err
-	} else {
-		_, err := cmd.client.Listeners(cmd.namespace).Update(context.TODO(), &resource, metav1.UpdateOptions{})
-		return err
-	}
+	_, err := cmd.client.Listeners(cmd.namespace).Update(context.TODO(), &resource, metav1.UpdateOptions{})
+	return err
 }
 
 func (cmd *CmdListenerUpdate) WaitUntil() error {
-
-	// the site resource was not created
-	if cmd.newSettings.output != "" {
-		return nil
-	}
 
 	if cmd.status == "none" {
 		return nil

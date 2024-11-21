@@ -141,15 +141,6 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 			expectedError: "timeout is not valid: duration must not be less than 10s; got 0s",
 		},
 		{
-			name: "output is not valid",
-			args: []string{"bad-output", "1234"},
-			flags: common.CommandListenerCreateFlags{
-				Timeout: 30 * time.Second,
-				Output:  "not-supported",
-			},
-			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
-		},
-		{
 			name: "flags all valid",
 			args: []string{"my-listener-flags", "8080"},
 			flags: common.CommandListenerCreateFlags{
@@ -158,7 +149,6 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 				TlsCredentials: "secretname",
 				ListenerType:   "tcp",
 				Timeout:        1 * time.Minute,
-				Output:         "json",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Listener{
@@ -219,7 +209,6 @@ func TestCmdListenerCreate_InputToOptions(t *testing.T) {
 		expectedHost           string
 		expectedRoutingKey     string
 		expectedListenerType   string
-		expectedOutput         string
 		expectedTimeout        time.Duration
 		expectedStatus         string
 	}
@@ -227,25 +216,23 @@ func TestCmdListenerCreate_InputToOptions(t *testing.T) {
 	testTable := []test{
 		{
 			name:                   "test1",
-			flags:                  common.CommandListenerCreateFlags{"backend", "backend", "secret", "tcp", 20 * time.Second, "json", "configured"},
+			flags:                  common.CommandListenerCreateFlags{"backend", "backend", "secret", "tcp", 20 * time.Second, "configured"},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "backend",
 			expectedRoutingKey:     "backend",
 			expectedTimeout:        20 * time.Second,
 			expectedListenerType:   "tcp",
-			expectedOutput:         "json",
 			expectedStatus:         "configured",
 		},
 		{
 			name:                   "test2",
-			flags:                  common.CommandListenerCreateFlags{"", "", "secret", "tcp", 30 * time.Second, "yaml", "configured"},
+			flags:                  common.CommandListenerCreateFlags{"", "", "secret", "tcp", 30 * time.Second, "ready"},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "test2",
 			expectedRoutingKey:     "test2",
 			expectedTimeout:        30 * time.Second,
 			expectedListenerType:   "tcp",
-			expectedOutput:         "yaml",
-			expectedStatus:         "configured",
+			expectedStatus:         "ready",
 		},
 	}
 
@@ -261,11 +248,9 @@ func TestCmdListenerCreate_InputToOptions(t *testing.T) {
 			cmd.InputToOptions()
 
 			assert.Check(t, cmd.routingKey == test.expectedRoutingKey)
-			assert.Check(t, cmd.output == test.expectedOutput)
 			assert.Check(t, cmd.tlsCredentials == test.expectedTlsCredentials)
 			assert.Check(t, cmd.host == test.expectedHost)
 			assert.Check(t, cmd.timeout == test.expectedTimeout)
-			assert.Check(t, cmd.output == test.expectedOutput)
 			assert.Check(t, cmd.listenerType == test.expectedListenerType)
 			assert.Check(t, cmd.status == test.expectedStatus)
 		})
@@ -296,18 +281,6 @@ func TestCmdListenerCreate_Run(t *testing.T) {
 				TlsCredentials: "secretname",
 			},
 		},
-		{
-			name:         "output yaml",
-			listenerName: "run-listener",
-			listenerPort: 8080,
-			flags: common.CommandListenerCreateFlags{
-				ListenerType:   "tcp",
-				Host:           "hostname",
-				RoutingKey:     "keyname",
-				TlsCredentials: "secretname",
-				Output:         "yaml",
-			},
-		},
 	}
 
 	for _, test := range testTable {
@@ -316,7 +289,6 @@ func TestCmdListenerCreate_Run(t *testing.T) {
 		cmd.name = test.listenerName
 		cmd.port = test.listenerPort
 		cmd.Flags = &test.flags
-		cmd.output = cmd.Flags.Output
 		cmd.namespace = "test"
 
 		t.Run(test.name, func(t *testing.T) {
@@ -333,7 +305,6 @@ func TestCmdListenerCreate_Run(t *testing.T) {
 func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
-		output              string
 		status              string
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
@@ -376,29 +347,6 @@ func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 							Conditions: []v1.Condition{
 								{
 									Type:   "Ready",
-									Status: "True",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name:   "listener is configured yaml output",
-			output: "yaml",
-			skupperObjects: []runtime.Object{
-				&v2alpha1.Listener{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-listener",
-						Namespace: "test",
-					},
-					Status: v2alpha1.ListenerStatus{
-						Status: v2alpha1.Status{
-							Conditions: []v1.Condition{
-								{
-									Type:   "Configured",
 									Status: "True",
 								},
 							},
@@ -467,7 +415,6 @@ func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 
 		cmd.name = "my-listener"
 		cmd.port = 8080
-		cmd.output = test.output
 		cmd.timeout = 1 * time.Second
 		cmd.namespace = "test"
 		cmd.status = test.status

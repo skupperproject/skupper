@@ -25,6 +25,7 @@ skupper connector status my-connector`,
 	cmd.AddCommand(CmdConnectorStatusFactory(config.GetPlatform()))
 	cmd.AddCommand(CmdConnectorUpdateFactory(config.GetPlatform()))
 	cmd.AddCommand(CmdConnectorDeleteFactory(config.GetPlatform()))
+	cmd.AddCommand(CmdConnectorGenerateFactory(config.GetPlatform()))
 
 	return cmd
 }
@@ -49,7 +50,6 @@ skupper connector create backend 8080 --workload deployment/backend`,
 	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
-	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	if configuredPlatform == types.PlatformKubernetes {
 		cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReadyPods, common.FlagNameIncludeNotReadyPods, "i", false, common.FlagDescIncludeNotRead)
 		cmd.Flags().StringVarP(&cmdFlags.Selector, common.FlagNameSelector, "s", "", common.FlagDescSelector)
@@ -110,7 +110,6 @@ func CmdConnectorUpdateFactory(configuredPlatform types.Platform) *cobra.Command
 	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
-	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	cmd.Flags().IntVar(&cmdFlags.Port, common.FlagNameConnectorPort, 0, common.FlagDescConnectorPort)
 	if configuredPlatform == types.PlatformKubernetes {
 		cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReadyPods, common.FlagNameIncludeNotReadyPods, "i", false, common.FlagDescIncludeNotRead)
@@ -144,6 +143,41 @@ func CmdConnectorDeleteFactory(configuredPlatform types.Platform) *cobra.Command
 	cmdFlags := common.CommandConnectorDeleteFlags{}
 	cmd.Flags().DurationVarP(&cmdFlags.Timeout, common.FlagNameTimeout, "t", 60*time.Second, common.FlagDescTimeout)
 	cmd.Flags().BoolVar(&cmdFlags.Wait, common.FlagNameWait, true, common.FlagDescDeleteWait)
+
+	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
+	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
+
+	return cmd
+}
+
+func CmdConnectorGenerateFactory(configuredPlatform types.Platform) *cobra.Command {
+	kubeCommand := kube.NewCmdConnectorGenerate()
+	nonKubeCommand := nonkube.NewCmdConnectorGenerate()
+
+	cmdConnectorGenerateDesc := common.SkupperCmdDescription{
+		Use:   "generate <name> <port>",
+		Short: "Generate a connector",
+		Long:  "Clients at this site use the connector host and port to establish connections to the remote service.",
+		Example: `skupper connector generate database 5432
+skupper connector generate backend 8080 --workload deployment/backend`,
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdConnectorGenerateDesc, kubeCommand, nonKubeCommand)
+
+	cmdFlags := common.CommandConnectorGenerateFlags{}
+
+	cmd.Flags().StringVarP(&cmdFlags.RoutingKey, common.FlagNameRoutingKey, "r", "", common.FlagDescRoutingKey)
+	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
+	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
+	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
+	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "yaml", common.FlagDescOutput)
+	if configuredPlatform == types.PlatformKubernetes {
+		cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReadyPods, common.FlagNameIncludeNotReadyPods, "i", false, common.FlagDescIncludeNotRead)
+		cmd.Flags().StringVarP(&cmdFlags.Selector, common.FlagNameSelector, "s", "", common.FlagDescSelector)
+		cmd.Flags().StringVarP(&cmdFlags.Workload, common.FlagNameWorkload, "w", "", common.FlagDescWorkload)
+	}
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags

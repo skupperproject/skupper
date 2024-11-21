@@ -92,12 +92,6 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			expectedError: "connector port is not valid: value is not positive",
 		},
 		{
-			name:          "output is not valid",
-			args:          []string{"my-connector"},
-			flags:         &common.CommandConnectorUpdateFlags{Output: "not-supported"},
-			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
-		},
-		{
 			name:  "kubernetes flags are not valid on this platform",
 			args:  []string{"my-connector"},
 			flags: &common.CommandConnectorUpdateFlags{},
@@ -115,7 +109,6 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				TlsCredentials: "secretname",
 				Port:           1234,
 				ConnectorType:  "tcp",
-				Output:         "json",
 				Host:           "1.2.3.4",
 			},
 			expectedError: "",
@@ -173,7 +166,6 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 		errorMessage        string
 		connectorName       string
 		host                string
-		output              string
 		routingKey          string
 		tlsCredentials      string
 		connectorType       string
@@ -192,14 +184,13 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 			tlsCredentials: "secretname",
 		},
 		{
-			name:           "run output json",
+			name:           "runs default namespace",
 			connectorName:  "my-connector",
-			port:           8181,
+			port:           8080,
 			connectorType:  "tcp",
 			host:           "hostname",
 			routingKey:     "keyname",
 			tlsCredentials: "secretname",
-			output:         "json",
 		},
 	}
 
@@ -207,7 +198,6 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 		command := &CmdConnectorUpdate{}
 
 		command.connectorName = test.connectorName
-		command.output = test.output
 		command.newSettings.port = test.port
 		command.newSettings.host = test.host
 		command.newSettings.routingKey = test.routingKey

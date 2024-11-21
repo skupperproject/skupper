@@ -28,7 +28,6 @@ type CmdSiteUpdate struct {
 	serviceAccountName string
 	Namespace          string
 	linkAccessType     string
-	output             string
 	timeout            time.Duration
 	status             string
 }
@@ -53,7 +52,6 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) error {
 
 	var validationErrors []error
 	linkAccessTypeValidator := validator.NewOptionValidator(common.LinkAccessTypes)
-	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 
@@ -87,7 +85,7 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) error {
 	}
 
 	if cmd.Flags != nil && cmd.Flags.BindHost != "" {
-		validationErrors = append(validationErrors, fmt.Errorf("--host flag is not supported on this platform"))
+		validationErrors = append(validationErrors, fmt.Errorf("--bind-host flag is not supported on this platform"))
 	}
 
 	if cmd.Flags.LinkAccessType != "" {
@@ -105,13 +103,6 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) error {
 		svcAccount, err := cmd.KubeClient.CoreV1().ServiceAccounts(cmd.Namespace).Get(context.TODO(), cmd.Flags.ServiceAccount, metav1.GetOptions{})
 		if err != nil || svcAccount == nil {
 			validationErrors = append(validationErrors, fmt.Errorf("service account name is not valid: %s", err))
-		}
-	}
-
-	if cmd.Flags.Output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
 	}
 
@@ -142,7 +133,6 @@ func (cmd *CmdSiteUpdate) InputToOptions() {
 		}
 	}
 
-	cmd.output = cmd.Flags.Output
 	cmd.timeout = cmd.Flags.Timeout
 	cmd.status = cmd.Flags.Wait
 
@@ -186,24 +176,11 @@ func (cmd *CmdSiteUpdate) Run() error {
 		Status: currentSite.Status,
 	}
 
-	if cmd.output != "" {
-		encodedOutput, err := utils.Encode(cmd.output, resource)
-		fmt.Println(encodedOutput)
-
-		return err
-
-	} else {
-		_, err := cmd.Client.Sites(cmd.Namespace).Update(context.TODO(), &resource, metav1.UpdateOptions{})
-		return err
-	}
+	_, err = cmd.Client.Sites(cmd.Namespace).Update(context.TODO(), &resource, metav1.UpdateOptions{})
+	return err
 }
 
 func (cmd *CmdSiteUpdate) WaitUntil() error {
-
-	// the site resource was not updated
-	if cmd.output != "" {
-		return nil
-	}
 
 	if cmd.status == "none" {
 		return nil

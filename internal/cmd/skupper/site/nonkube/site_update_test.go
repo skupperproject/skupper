@@ -75,12 +75,6 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			expectedError: "SubjectAlternativeNames are not valid: a valid IP address or hostname is expected",
 		},
 		{
-			name:          "output is not valid",
-			args:          []string{"my-site"},
-			flags:         &common.CommandSiteUpdateFlags{Output: "not-supported"},
-			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
-		},
-		{
 			name:  "kubernetes flags are not valid on this platform",
 			args:  []string{"my-site"},
 			flags: &common.CommandSiteUpdateFlags{},
@@ -94,7 +88,6 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			name: "flags all valid",
 			args: []string{"my-site"},
 			flags: &common.CommandSiteUpdateFlags{
-				Output:                  "json",
 				BindHost:                "1.2.3.4",
 				EnableLinkAccess:        true,
 				SubjectAlternativeNames: []string{"3.3.3.3"},
@@ -308,7 +301,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 				BindHost:                "1.2.3.4",
 				EnableLinkAccess:        true,
 				SubjectAlternativeNames: []string{"2.2.2.2", "test", "5.6.7.8"},
-				Output:                  "json",
 			},
 			linkAccessEnabled: true,
 		},
@@ -317,7 +309,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 			siteName: "my-site",
 			flags: common.CommandSiteUpdateFlags{
 				EnableLinkAccess: false,
-				Output:           "yaml",
 			},
 		},
 	}

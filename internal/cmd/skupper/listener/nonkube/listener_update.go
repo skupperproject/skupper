@@ -6,7 +6,6 @@ import (
 	"net"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -20,7 +19,6 @@ type ListenerUpdates struct {
 	tlsCredentials string
 	listenerType   string
 	port           int
-	output         string
 }
 type CmdListenerUpdate struct {
 	listenerHandler *fs.ListenerHandler
@@ -49,7 +47,6 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	listenerTypeValidator := validator.NewOptionValidator(common.ListenerTypes)
-	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	hostStringValidator := validator.NewHostStringValidator()
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
@@ -133,14 +130,6 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) error {
 			cmd.newSettings.port = cmd.Flags.Port
 		}
 	}
-	if cmd.Flags.Output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
-		} else {
-			cmd.newSettings.output = cmd.Flags.Output
-		}
-	}
 
 	return errors.Join(validationErrors...)
 }
@@ -173,16 +162,12 @@ func (cmd *CmdListenerUpdate) Run() error {
 			Type:           cmd.newSettings.listenerType,
 		},
 	}
-	if cmd.newSettings.output != "" {
-		encodedOutput, err := utils.Encode(cmd.newSettings.output, listenerResource)
-		fmt.Println(encodedOutput)
+
+	err := cmd.listenerHandler.Add(listenerResource)
+	if err != nil {
 		return err
-	} else {
-		err := cmd.listenerHandler.Add(listenerResource)
-		if err != nil {
-			return err
-		}
 	}
+
 	return nil
 }
 
