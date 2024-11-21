@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"time"
-
-	"k8s.io/apimachinery/pkg/api/meta"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -18,35 +15,33 @@ import (
 	pkgUtils "github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-type CmdConnectorCreate struct {
+type CmdConnectorGenerate struct {
 	client              skupperv2alpha1.SkupperV2alpha1Interface
 	CobraCmd            *cobra.Command
-	Flags               *common.CommandConnectorCreateFlags
+	Flags               *common.CommandConnectorGenerateFlags
 	namespace           string
 	name                string
 	port                int
+	output              string
 	host                string
 	selector            string
 	tlsCredentials      string
 	routingKey          string
 	connectorType       string
 	includeNotReadyPods bool
-	timeout             time.Duration
 	KubeClient          kubernetes.Interface
-	status              string
 }
 
-func NewCmdConnectorCreate() *CmdConnectorCreate {
+func NewCmdConnectorGenerate() *CmdConnectorGenerate {
 
-	return &CmdConnectorCreate{}
+	return &CmdConnectorGenerate{}
 }
 
-func (cmd *CmdConnectorCreate) NewClient(cobraCommand *cobra.Command, args []string) {
+func (cmd *CmdConnectorGenerate) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
 	utils.HandleError(err)
 
@@ -55,15 +50,14 @@ func (cmd *CmdConnectorCreate) NewClient(cobraCommand *cobra.Command, args []str
 	cmd.KubeClient = cli.Kube
 }
 
-func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
+func (cmd *CmdConnectorGenerate) ValidateInput(args []string) []error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
-	timeoutValidator := validator.NewTimeoutInSecondsValidator()
+	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	workloadStringValidator := validator.NewWorkloadStringValidator(common.WorkloadTypes)
 	selectorStringValidator := validator.NewSelectorStringValidator()
-	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 	hostStringValidator := validator.NewHostStringValidator()
 
 	// Validate arguments name and port
@@ -93,13 +87,6 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 		}
 	}
 
-	// Validate if there is already a Connector with this name in the namespace
-	if cmd.name != "" {
-		connector, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if connector != nil && !errors.IsNotFound(err) {
-			validationErrors = append(validationErrors, fmt.Errorf("there is already a connector %s created for namespace %s", cmd.name, cmd.namespace))
-		}
-	}
 	// Validate flags
 	if cmd.Flags != nil && cmd.Flags.RoutingKey != "" {
 		ok, err := resourceStringValidator.Evaluate(cmd.Flags.RoutingKey)
@@ -111,7 +98,7 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 		// check that the secret exists
 		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsCredentials, metav1.GetOptions{})
 		if err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("tls-secret is not valid: does not exist"))
+			validationErrors = append(validationErrors, fmt.Errorf("tlsCredentials is not valid: does not exist"))
 		}
 	}
 	if cmd.Flags != nil && cmd.Flags.ConnectorType != "" {
@@ -198,24 +185,16 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 			}
 		}
 	}
-	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
-		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
+	if cmd.Flags != nil && cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
+			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
 	}
-
-	if cmd.Flags != nil && cmd.Flags.Wait != "" {
-		ok, err := statusValidator.Evaluate(cmd.Flags.Wait)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("status is not valid: %s", err))
-		}
-	}
-
 	return validationErrors
 }
 
-func (cmd *CmdConnectorCreate) InputToOptions() {
+func (cmd *CmdConnectorGenerate) InputToOptions() {
 
 	// workload, selector or host must be specified
 	if cmd.Flags.Workload == "" && cmd.Flags.Selector == "" && cmd.Flags.Host == "" {
@@ -235,14 +214,13 @@ func (cmd *CmdConnectorCreate) InputToOptions() {
 	} else {
 		cmd.routingKey = cmd.Flags.RoutingKey
 	}
-	cmd.timeout = cmd.Flags.Timeout
 	cmd.tlsCredentials = cmd.Flags.TlsCredentials
 	cmd.connectorType = cmd.Flags.ConnectorType
+	cmd.output = cmd.Flags.Output
 	cmd.includeNotReadyPods = cmd.Flags.IncludeNotReadyPods
-	cmd.status = cmd.Flags.Wait
 }
 
-func (cmd *CmdConnectorCreate) Run() error {
+func (cmd *CmdConnectorGenerate) Run() error {
 
 	resource := v2alpha1.Connector{
 		TypeMeta: metav1.TypeMeta{
@@ -264,60 +242,9 @@ func (cmd *CmdConnectorCreate) Run() error {
 		},
 	}
 
-	_, err := cmd.client.Connectors(cmd.namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
+	encodedOutput, err := utils.Encode(cmd.output, resource)
+	fmt.Println(encodedOutput)
 	return err
 }
 
-func (cmd *CmdConnectorCreate) WaitUntil() error {
-
-	if cmd.status == "none" {
-		return nil
-	}
-
-	waitTime := int(cmd.timeout.Seconds())
-
-	var connectorCondition *metav1.Condition
-
-	err := utils.NewSpinnerWithTimeout("Waiting for create to complete...", waitTime, func() error {
-
-		resource, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		isConditionFound := false
-		isConditionTrue := false
-
-		switch cmd.status {
-		case "ready":
-			connectorCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_READY)
-		default:
-			connectorCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_CONFIGURED)
-
-		}
-
-		if connectorCondition != nil {
-			isConditionFound = true
-			isConditionTrue = connectorCondition.Status == metav1.ConditionTrue
-		}
-
-		if resource != nil && isConditionFound && isConditionTrue {
-			return nil
-		}
-
-		if resource != nil && isConditionFound && !isConditionTrue {
-			return fmt.Errorf("error in the condition")
-		}
-
-		return fmt.Errorf("error getting the resource")
-	})
-
-	if err != nil && connectorCondition == nil {
-		return fmt.Errorf("Connector %q is not yet %s, check the status for more information\n", cmd.name, cmd.status)
-	} else if err != nil && connectorCondition.Status == metav1.ConditionFalse {
-		return fmt.Errorf("Connector %q is not yet %s: %s\n", cmd.name, cmd.status, connectorCondition.Message)
-	}
-
-	fmt.Printf("Connector %q is %s.\n", cmd.name, cmd.status)
-	return nil
-}
+func (cmd *CmdConnectorGenerate) WaitUntil() error { return nil }

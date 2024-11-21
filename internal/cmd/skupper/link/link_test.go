@@ -2,12 +2,13 @@ package link
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
-	"testing"
 )
 
 func TestCmdLinkFactory(t *testing.T) {
@@ -35,7 +36,6 @@ func TestCmdLinkFactory(t *testing.T) {
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameTlsCredentials: "",
 				common.FlagNameCost:           "1",
-				common.FlagNameOutput:         "",
 				common.FlagNameTimeout:        "1m0s",
 				common.FlagNameWait:           "ready",
 			},

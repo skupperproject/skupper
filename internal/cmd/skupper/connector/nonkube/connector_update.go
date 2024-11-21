@@ -5,7 +5,6 @@ import (
 	"net"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
@@ -27,7 +26,6 @@ type CmdConnectorUpdate struct {
 	namespace        string
 	connectorName    string
 	newSettings      ConnectorUpdates
-	output           string
 }
 
 func NewCmdConnectorUpdate() *CmdConnectorUpdate {
@@ -48,7 +46,6 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
-	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	hostStringValidator := validator.NewHostStringValidator()
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
@@ -124,14 +121,6 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.host = cmd.Flags.Host
 		}
 	}
-	if cmd.Flags.Output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
-		} else {
-			cmd.output = cmd.Flags.Output
-		}
-	}
 	if cmd.Flags.TlsCredentials != "" {
 		ok, err := resourceStringValidator.Evaluate(cmd.Flags.TlsCredentials)
 		if !ok {
@@ -140,6 +129,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.tlsCredentials = cmd.Flags.TlsCredentials
 		}
 	}
+
 	return validationErrors
 }
 
@@ -168,17 +158,9 @@ func (cmd *CmdConnectorUpdate) Run() error {
 		},
 	}
 
-	if cmd.output != "" {
-		encodedOutput, err := utils.Encode(cmd.output, connectorResource)
-		fmt.Println(encodedOutput)
-		return err
-	} else {
-		err := cmd.connectorHandler.Add(connectorResource)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	err := cmd.connectorHandler.Add(connectorResource)
+	return err
+
 }
 
 func (cmd *CmdConnectorUpdate) WaitUntil() error { return nil }

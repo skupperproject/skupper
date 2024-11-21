@@ -92,8 +92,6 @@ type CommandSiteCreateFlags struct {
 	EnableLinkAccess        bool
 	LinkAccessType          string
 	ServiceAccount          string
-	Output                  string
-	Host                    string
 	Timeout                 time.Duration
 	BindHost                string
 	SubjectAlternativeNames []string
@@ -104,8 +102,6 @@ type CommandSiteUpdateFlags struct {
 	EnableLinkAccess        bool
 	LinkAccessType          string
 	ServiceAccount          string
-	Output                  string
-	Host                    string
 	Timeout                 time.Duration
 	BindHost                string
 	SubjectAlternativeNames []string
@@ -122,6 +118,15 @@ type CommandSiteStatusFlags struct {
 	Output string
 }
 
+type CommandSiteGenerateFlags struct {
+	EnableLinkAccess        bool
+	LinkAccessType          string
+	ServiceAccount          string
+	BindHost                string
+	SubjectAlternativeNames []string
+	Output                  string
+}
+
 type CommandLinkGenerateFlags struct {
 	TlsCredentials     string
 	Cost               string
@@ -132,7 +137,6 @@ type CommandLinkGenerateFlags struct {
 type CommandLinkUpdateFlags struct {
 	TlsCredentials string
 	Cost           string
-	Output         string
 	Timeout        time.Duration
 	Wait           string
 }
@@ -167,7 +171,6 @@ type CommandConnectorCreateFlags struct {
 	IncludeNotReadyPods bool
 	Workload            string
 	Timeout             time.Duration
-	Output              string
 	Wait                string
 }
 
@@ -181,7 +184,6 @@ type CommandConnectorUpdateFlags struct {
 	Selector            string
 	IncludeNotReadyPods bool
 	Timeout             time.Duration
-	Output              string
 	Wait                string
 }
 
@@ -194,13 +196,23 @@ type CommandConnectorStatusFlags struct {
 	Output string
 }
 
+type CommandConnectorGenerateFlags struct {
+	RoutingKey          string
+	Host                string
+	Selector            string
+	TlsCredentials      string
+	ConnectorType       string
+	IncludeNotReadyPods bool
+	Workload            string
+	Output              string
+}
+
 type CommandListenerCreateFlags struct {
 	RoutingKey     string
 	Host           string
 	TlsCredentials string
 	ListenerType   string
 	Timeout        time.Duration
-	Output         string
 	Wait           string
 }
 
@@ -211,7 +223,6 @@ type CommandListenerUpdateFlags struct {
 	ListenerType   string
 	Timeout        time.Duration
 	Port           int
-	Output         string
 	Wait           string
 }
 
@@ -228,6 +239,14 @@ type CommandSystemSetupFlags struct {
 	Path     string
 	Strategy string
 	Force    bool
+}
+
+type CommandListenerGenerateFlags struct {
+	RoutingKey     string
+	Host           string
+	TlsCredentials string
+	ListenerType   string
+	Output         string
 }
 
 type CommandVersionFlags struct {

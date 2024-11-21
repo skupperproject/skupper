@@ -8,7 +8,6 @@ import (
 	"net"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
@@ -24,7 +23,6 @@ type CmdSiteCreate struct {
 	options                 map[string]string
 	siteName                string
 	linkAccessEnabled       bool
-	output                  string
 	namespace               string
 	bindHost                string
 	routerAccessName        string
@@ -49,7 +47,6 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 	var validationErrors []error
 	hostStringValidator := validator.NewHostStringValidator()
 	resourceStringValidator := validator.NewResourceStringValidator()
-	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
 	if cmd.Flags.ServiceAccount != "" {
 		fmt.Println("Warning: --service-account flag is not supported on this platform")
@@ -73,13 +70,6 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("site name is not valid: %s", err))
 		}
 		cmd.siteName = args[0]
-	}
-
-	if cmd.Flags != nil && cmd.Flags.Output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
-		}
 	}
 
 	if cmd.Flags != nil && cmd.Flags.BindHost != "" {
@@ -114,7 +104,6 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 	options[common.SiteConfigNameKey] = cmd.siteName
 
 	cmd.options = options
-	cmd.output = cmd.Flags.Output
 
 	if cmd.namespace == "" {
 		cmd.namespace = "default"
@@ -162,33 +151,16 @@ func (cmd *CmdSiteCreate) Run() error {
 		},
 	}
 
-	if cmd.output != "" {
-		encodedSiteOutput, err := utils.Encode(cmd.output, siteResource)
+	err := cmd.siteHandler.Add(siteResource)
+	if err != nil {
+		return err
+	}
+
+	if cmd.linkAccessEnabled == true {
+		err = cmd.routerAccessHandler.Add(routerAccessResource)
 		if err != nil {
 			return err
 		}
-		fmt.Println(encodedSiteOutput)
-		if cmd.linkAccessEnabled == true {
-			fmt.Println("---")
-			encodedRouterAccessOutput, err := utils.Encode(cmd.output, routerAccessResource)
-			if err != nil {
-				return err
-			}
-			fmt.Println(encodedRouterAccessOutput)
-		}
-	} else {
-		err := cmd.siteHandler.Add(siteResource)
-		if err != nil {
-			return err
-		}
-
-		if cmd.linkAccessEnabled == true {
-			err = cmd.routerAccessHandler.Add(routerAccessResource)
-			if err != nil {
-				return err
-			}
-		}
-
 	}
 
 	return nil

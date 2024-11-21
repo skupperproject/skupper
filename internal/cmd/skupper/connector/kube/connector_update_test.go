@@ -229,7 +229,6 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			args: []string{"selector"},
 			flags: common.CommandConnectorUpdateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Selector: "app=test",
 				Host:     "test",
 			},
@@ -260,7 +259,6 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			args: []string{"workload"},
 			flags: common.CommandConnectorUpdateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "deployment/test",
 				Host:     "test",
 			},
@@ -333,34 +331,6 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 1s"},
 		},
 		{
-			name: "output is not valid",
-			args: []string{"bad-output"},
-			flags: common.CommandConnectorUpdateFlags{
-				Output:  "not-supported",
-				Timeout: 10 * time.Minute,
-			},
-			skupperObjects: []runtime.Object{
-				&v2alpha1.Connector{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "bad-output",
-						Namespace: "test",
-					},
-					Status: v2alpha1.ConnectorStatus{
-						Status: v2alpha1.Status{
-							Conditions: []v1.Condition{
-								{
-									Type:   "Configured",
-									Status: "True",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedErrors: []string{
-				"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
-		},
-		{
 			name: "flags all valid",
 			args: []string{"my-connector-flags"},
 			flags: common.CommandConnectorUpdateFlags{
@@ -370,7 +340,6 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				ConnectorType:       "tcp",
 				IncludeNotReadyPods: false,
 				Timeout:             50 * time.Second,
-				Output:              "json",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Connector{
@@ -463,7 +432,6 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 			name: "workload-no-deployment",
 			args: []string{"workload-deployment"}, flags: common.CommandConnectorUpdateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "deployment/backend",
 			},
 			skupperObjects: []runtime.Object{
@@ -492,7 +460,6 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 			name: "workload-deployment-no-labels",
 			args: []string{"workload-deployment-no-labels"}, flags: common.CommandConnectorUpdateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "deployment/backend",
 			},
 			skupperObjects: []runtime.Object{
@@ -534,7 +501,6 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 			name: "workload-deployment",
 			args: []string{"workload-deployment"}, flags: common.CommandConnectorUpdateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "deployment/backend",
 			},
 			skupperObjects: []runtime.Object{
@@ -581,7 +547,6 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 			name: "workload-no-service",
 			args: []string{"workload-no-service"}, flags: common.CommandConnectorUpdateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "service/backend",
 			},
 			skupperObjects: []runtime.Object{
@@ -610,7 +575,6 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 			name: "workload-service-no-labels",
 			args: []string{"workload-service-no-labels"}, flags: common.CommandConnectorUpdateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "service/backend",
 			},
 			skupperObjects: []runtime.Object{
@@ -650,7 +614,6 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 			name: "workload-service",
 			args: []string{"workload-service"}, flags: common.CommandConnectorUpdateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "service/backend",
 			},
 			skupperObjects: []runtime.Object{
@@ -695,7 +658,6 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 			name: "workload-no-daemonset",
 			args: []string{"workload-no-daemonset"}, flags: common.CommandConnectorUpdateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "daemonset/backend",
 			},
 			skupperObjects: []runtime.Object{
@@ -724,7 +686,6 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 			name: "workload-daemonset-no-labels",
 			args: []string{"workload-daemonset-no-labels"}, flags: common.CommandConnectorUpdateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "daemonset/backend",
 			},
 			skupperObjects: []runtime.Object{
@@ -766,7 +727,6 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 			name: "workload-daemonset",
 			args: []string{"workload-daemonset"}, flags: common.CommandConnectorUpdateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "DaemonSet/backend",
 			},
 			skupperObjects: []runtime.Object{
@@ -813,7 +773,6 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 			name: "workload-no-statefulset",
 			args: []string{"workload-no-statefulset"}, flags: common.CommandConnectorUpdateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "StatefulSet/backend",
 			},
 			skupperObjects: []runtime.Object{
@@ -842,7 +801,6 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 			name: "workload-statefulset-no-labels",
 			args: []string{"workload-statefulset-no-labels"}, flags: common.CommandConnectorUpdateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "statefulset/backend",
 			},
 			skupperObjects: []runtime.Object{
@@ -884,7 +842,6 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 			name: "workload-statefulset",
 			args: []string{"workload-statefulset"}, flags: common.CommandConnectorUpdateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "statefulset/backend",
 			},
 			skupperObjects: []runtime.Object{
@@ -994,40 +951,6 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 				},
 			},
 		},
-		{
-			name:          "run output json",
-			connectorName: "my-connector-json",
-			flags: ConnectorUpdates{
-				port:                8181,
-				connectorType:       "tcp",
-				host:                "hostname",
-				routingKey:          "keyname",
-				tlsCredentials:      "secretname",
-				includeNotReadyPods: true,
-				workload:            "deployment/backend",
-				selector:            "backend",
-				timeout:             10 * time.Second,
-				output:              "json",
-			},
-			skupperObjects: []runtime.Object{
-				&v2alpha1.Connector{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-connector-json",
-						Namespace: "test",
-					},
-					Status: v2alpha1.ConnectorStatus{
-						Status: v2alpha1.Status{
-							Conditions: []v1.Condition{
-								{
-									Type:   "Configured",
-									Status: "True",
-								},
-							},
-						},
-					},
-				},
-			},
-		},
 	}
 
 	for _, test := range testTable {
@@ -1053,7 +976,6 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
-		output              string
 		status              string
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
@@ -1093,29 +1015,6 @@ func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 							Conditions: []v1.Condition{
 								{
 									Type:   "Ready",
-									Status: "True",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name:   "connector is ready json output",
-			output: "json",
-			skupperObjects: []runtime.Object{
-				&v2alpha1.Connector{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-connector",
-						Namespace: "test",
-					},
-					Status: v2alpha1.ConnectorStatus{
-						Status: v2alpha1.Status{
-							Conditions: []v1.Condition{
-								{
-									Type:   "Configured",
 									Status: "True",
 								},
 							},
@@ -1215,10 +1114,8 @@ func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 		cmd.name = "my-connector"
 		cmd.Flags = &common.CommandConnectorUpdateFlags{
 			Timeout: 10 * time.Second,
-			Output:  test.output,
 		}
 		cmd.namespace = "test"
-		cmd.newSettings.output = cmd.Flags.Output
 		cmd.status = test.status
 
 		t.Run(test.name, func(t *testing.T) {

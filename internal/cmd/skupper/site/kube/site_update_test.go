@@ -2,10 +2,11 @@ package kube
 
 import (
 	"fmt"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 	"time"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -111,7 +112,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"service account name is not valid: serviceaccounts \"not valid service account name\" not found"},
 		},
 		{
-			name:  "host name was specified, but this flag does not work on kube platforms",
+			name:  "bind-host name was specified, but this flag does not work on kube platforms",
 			args:  []string{"my-site"},
 			flags: &common.CommandSiteUpdateFlags{BindHost: "host", Timeout: time.Minute},
 			skupperObjects: []runtime.Object{
@@ -127,7 +128,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"--host flag is not supported on this platform"},
+			expectedErrors: []string{"--bind-host flag is not supported on this platform"},
 		},
 		{
 			name:       "link access type is not valid",
@@ -151,28 +152,6 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{
 				"link access type is not valid: value not-valid not allowed. It should be one of this options: [route loadbalancer default]",
 				"for the site to work with this type of linkAccess, the --enable-link-access option must be set to true",
-			},
-		},
-		{
-			name:       "output format is not valid",
-			args:       []string{"my-site"},
-			flags:      &common.CommandSiteUpdateFlags{Output: "not-valid", Timeout: time.Minute},
-			k8sObjects: nil,
-			skupperObjects: []runtime.Object{
-				&v2alpha1.Site{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-site",
-						Namespace: "test",
-					},
-					Status: v2alpha1.SiteStatus{
-						Status: v2alpha1.Status{
-							Message: "OK",
-						},
-					},
-				},
-			},
-			expectedErrors: []string{
-				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 			},
 		},
 		{
@@ -384,7 +363,6 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 		args               []string
 		flags              common.CommandSiteUpdateFlags
 		expectedLinkAccess string
-		expectedOutput     string
 		expectedTimeout    time.Duration
 		expectedStatus     string
 	}
@@ -394,36 +372,31 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 			name:               "options without link access enabled",
 			args:               []string{"my-site"},
 			flags:              common.CommandSiteUpdateFlags{},
-			expectedLinkAccess: "none",
-			expectedOutput:     "",
+			expectedLinkAccess: "",
 		},
 		{
 			name:               "options with link access enabled but using a type by default and link access host specified",
 			args:               []string{"my-site"},
 			flags:              common.CommandSiteUpdateFlags{EnableLinkAccess: true},
-			expectedLinkAccess: "loadbalancer",
-			expectedOutput:     "",
+			expectedLinkAccess: "default",
 		},
 		{
 			name:               "options with link access enabled using the nodeport type",
 			args:               []string{"my-site"},
 			flags:              common.CommandSiteUpdateFlags{EnableLinkAccess: true, LinkAccessType: "nodeport"},
 			expectedLinkAccess: "nodeport",
-			expectedOutput:     "",
 		},
 		{
 			name:               "options with link access options not well specified",
 			args:               []string{"my-site"},
 			flags:              common.CommandSiteUpdateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport"},
-			expectedLinkAccess: "none",
-			expectedOutput:     "",
+			expectedLinkAccess: "",
 		},
 		{
-			name:               "options with output type and timeout",
+			name:               "options with loadbalancer and timeout",
 			args:               []string{"my-site"},
-			flags:              common.CommandSiteUpdateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport", Output: "yaml", Timeout: time.Minute},
-			expectedLinkAccess: "none",
-			expectedOutput:     "yaml",
+			flags:              common.CommandSiteUpdateFlags{EnableLinkAccess: true, LinkAccessType: "loadbalancer", Timeout: time.Minute},
+			expectedLinkAccess: "loadbalancer",
 			expectedTimeout:    time.Minute,
 		},
 		{
@@ -448,8 +421,9 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 
 			command.InputToOptions()
 
-			assert.Check(t, command.output == test.expectedOutput)
 			assert.Check(t, command.status == test.expectedStatus)
+			assert.Check(t, command.linkAccessType == test.expectedLinkAccess)
+			assert.Check(t, command.timeout == test.expectedTimeout)
 		})
 	}
 }
@@ -463,7 +437,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 		siteName           string
 		serviceAccountName string
 		linkAccessType     string
-		output             string
 		errorMessage       string
 	}
 
@@ -482,7 +455,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 			siteName:           "my-site",
 			serviceAccountName: "my-service-account",
 			linkAccessType:     "default",
-			output:             "",
 			skupperError:       "",
 			errorMessage:       "",
 		},
@@ -493,7 +465,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 			siteName:           "my-site",
 			serviceAccountName: "my-service-account",
 			linkAccessType:     "default",
-			output:             "",
 			skupperError:       "error",
 			errorMessage:       "error",
 		},
@@ -504,18 +475,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 			siteName:           "my-site",
 			serviceAccountName: "my-service-account",
 			linkAccessType:     "default",
-			output:             "yaml",
-			skupperError:       "",
-			errorMessage:       "sites.skupper.io \"my-site\" not found",
-		},
-		{
-			name:               "runs fails because the output format is not supported",
-			k8sObjects:         nil,
-			skupperObjects:     nil,
-			siteName:           "my-site",
-			serviceAccountName: "my-service-account",
-			linkAccessType:     "default",
-			output:             "unsupported",
 			skupperError:       "",
 			errorMessage:       "sites.skupper.io \"my-site\" not found",
 		},
@@ -532,7 +491,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 		command.siteName = test.siteName
 		command.serviceAccountName = test.serviceAccountName
 		command.linkAccessType = test.linkAccessType
-		command.output = test.output
 
 		t.Run(test.name, func(t *testing.T) {
 
