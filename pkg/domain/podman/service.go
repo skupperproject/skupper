@@ -195,7 +195,7 @@ func (s *ServiceHandler) createService(servicePodman *Service) error {
 	var svcRouterConfig *qdr.RouterConfig
 	var svcRouterConfigStr string
 	var configVolume *container.Volume
-	svcRouterConfig, svcRouterConfigStr, err = domain.CreateRouterServiceConfig(site, routerConfig, servicePodman)
+	svcRouterConfig, svcRouterConfigStr, err = domain.CreateRouterServiceConfig(site, routerConfig, servicePodman, servicePodman.GetContainerName())
 
 	// Creating directory inside skupper-internal volume to store config for service router
 	configFile := path.Join(servicePodman.Address, types.TransportConfigFile)
