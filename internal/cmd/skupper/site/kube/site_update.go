@@ -213,8 +213,6 @@ func (cmd *CmdSiteUpdate) WaitUntil() error {
 		isStatusReached := false
 
 		switch cmd.status {
-		case "pending":
-			isStatusReached = resource.Status.StatusType == "Pending"
 		case "configured":
 			isStatusReached = resource.IsConfigured()
 		default:

@@ -112,7 +112,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 			args:  []string{"my-site"},
 			flags: &common.CommandSiteCreateFlags{Timeout: time.Minute, Wait: "created"},
 			expectedErrors: []string{
-				"status is not valid: value created not allowed. It should be one of this options: [ready pending configured]",
+				"status is not valid: value created not allowed. It should be one of this options: [ready configured]",
 			},
 		},
 	}

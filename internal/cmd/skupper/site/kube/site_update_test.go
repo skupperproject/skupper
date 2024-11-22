@@ -346,7 +346,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 				},
 			},
 			expectedErrors: []string{
-				"status is not valid: value created not allowed. It should be one of this options: [ready pending configured]",
+				"status is not valid: value created not allowed. It should be one of this options: [ready configured]",
 			},
 		},
 	}
