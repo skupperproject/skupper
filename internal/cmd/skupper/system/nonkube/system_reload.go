@@ -15,6 +15,7 @@ type CmdSystemReload struct {
 	PreCheck        func(config *bootstrap.Config) error
 	Bootstrap       func(config *bootstrap.Config) (*api.SiteState, error)
 	PostExec        func(config *bootstrap.Config, siteState *api.SiteState)
+	Platform        string
 	ConfigBootstrap bootstrap.Config
 }
 
@@ -30,6 +31,7 @@ func (cmd *CmdSystemReload) NewClient(cobraCommand *cobra.Command, args []string
 	cmd.PreCheck = bootstrap.PreBootstrap
 	cmd.PostExec = bootstrap.PostBootstrap
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
+	cmd.Platform = cobraCommand.Flag("platform").Value.String()
 }
 
 func (cmd *CmdSystemReload) ValidateInput(args []string) []error {
@@ -48,7 +50,14 @@ func (cmd *CmdSystemReload) InputToOptions() {
 		cmd.ConfigBootstrap.Namespace = cmd.Namespace
 	}
 	var binary string
-	switch config.GetPlatform() {
+
+	selectedPlatform := config.GetPlatform()
+
+	if cmd.Platform != "" {
+		selectedPlatform = types.Platform(cmd.Platform)
+	}
+
+	switch selectedPlatform {
 	case types.PlatformSystemd:
 		binary = "skrouterd"
 	case types.PlatformDocker:
@@ -57,7 +66,7 @@ func (cmd *CmdSystemReload) InputToOptions() {
 		binary = "podman"
 	}
 
-	cmd.ConfigBootstrap.Platform = config.GetPlatform()
+	cmd.ConfigBootstrap.Platform = selectedPlatform
 	cmd.ConfigBootstrap.Binary = binary
 }
 

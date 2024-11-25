@@ -20,6 +20,7 @@ type CmdSystemSetup struct {
 	CobraCmd        *cobra.Command
 	Flags           *common.CommandSystemSetupFlags
 	Namespace       string
+	Platform        string
 	ConfigBootstrap bootstrap.Config
 }
 
@@ -35,6 +36,7 @@ func (cmd *CmdSystemSetup) NewClient(cobraCommand *cobra.Command, args []string)
 	cmd.Bootstrap = bootstrap.Bootstrap
 	cmd.PostExec = bootstrap.PostBootstrap
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
+	cmd.Platform = cobraCommand.Flag("platform").Value.String()
 }
 
 func (cmd *CmdSystemSetup) ValidateInput(args []string) []error {
@@ -90,9 +92,14 @@ func (cmd *CmdSystemSetup) InputToOptions() {
 	isBundle := internalbundle.GetBundleStrategy(cmd.Flags.Strategy) != ""
 
 	var binary string
+	selectedPlatform := config.GetPlatform()
+
+	if cmd.Platform != "" {
+		selectedPlatform = types.Platform(cmd.Platform)
+	}
 
 	if !isBundle {
-		switch config.GetPlatform() {
+		switch selectedPlatform {
 		case types.PlatformSystemd:
 			binary = "skrouterd"
 		case types.PlatformDocker:
@@ -107,7 +114,7 @@ func (cmd *CmdSystemSetup) InputToOptions() {
 		Namespace:      namespace,
 		BundleStrategy: internalbundle.GetBundleStrategy(cmd.Flags.Strategy),
 		IsBundle:       internalbundle.GetBundleStrategy(cmd.Flags.Strategy) != "",
-		Platform:       config.GetPlatform(),
+		Platform:       selectedPlatform,
 		Binary:         binary,
 	}
 
