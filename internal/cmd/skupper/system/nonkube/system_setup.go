@@ -64,14 +64,13 @@ func (cmd *CmdSystemSetup) ValidateInput(args []string) []error {
 		if !internalbundle.IsValidBundle(cmd.Flags.Strategy) {
 			validationErrors = append(validationErrors, fmt.Errorf("Invalid bundle strategy: %s", cmd.Flags.Strategy))
 		}
+	}
 
-		if !cmd.Flags.Force && cmd.Namespace != "" {
-			_, err := os.Stat(api.GetInternalOutputPath(cmd.Namespace, api.RuntimeSiteStatePath))
-			if err != nil {
-				validationErrors = append(validationErrors, fmt.Errorf("Namespace already exists: %s", cmd.Namespace))
-			}
+	if !cmd.Flags.Force && cmd.Namespace != "" && cmd.Flags.Strategy == "" {
+		_, err := os.Stat(api.GetInternalOutputPath(cmd.Namespace, api.RuntimeSiteStatePath))
+		if err == nil {
+			validationErrors = append(validationErrors, fmt.Errorf("Namespace already exists: %s", cmd.Namespace))
 		}
-
 	}
 
 	return validationErrors
