@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -146,11 +147,11 @@ func GetPlatform() types.Platform {
 	var platform types.Platform
 	_ = p.Load()
 	for i, arg := range os.Args {
-		if arg == "--platform" && i+1 < len(os.Args) {
+		if slices.Contains([]string{"--platform", "-p"}, arg) && i+1 < len(os.Args) {
 			platformArg := os.Args[i+1]
 			platform = types.Platform(platformArg)
 			break
-		} else if strings.HasPrefix(arg, "--platform=") {
+		} else if strings.HasPrefix(arg, "--platform=") || strings.HasPrefix(arg, "-p=") {
 			platformArg := strings.Split(arg, "=")[1]
 			platform = types.Platform(platformArg)
 			break
