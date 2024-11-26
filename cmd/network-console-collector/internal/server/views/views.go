@@ -282,19 +282,30 @@ func NewProcessSliceProvider(stor store.Interface, graph collector.Graph) func(e
 	return func(entries []store.Entry) []api.ProcessRecord {
 		results := make([]api.ProcessRecord, 0, len(entries))
 		for _, e := range entries {
-			link, ok := e.Record.(vanflow.ProcessRecord)
+			record, ok := e.Record.(vanflow.ProcessRecord)
 			if !ok {
 				continue
 			}
-			results = append(results, provider(link))
+			if result, ok := provider(record); ok {
+				results = append(results, result)
+			}
 		}
 		return results
 	}
 }
 
-func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflow.ProcessRecord) api.ProcessRecord {
-	return func(record vanflow.ProcessRecord) api.ProcessRecord {
+func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflow.ProcessRecord) (api.ProcessRecord, bool) {
+	return func(record vanflow.ProcessRecord) (api.ProcessRecord, bool) {
 		out := defaultProcess(record.ID)
+
+		if record.Parent == nil {
+			return out, false
+		}
+		site, ok := graph.Site(*record.Parent).GetRecord()
+		if !ok {
+			return out, false
+		}
+		setOpt(&out.ParentName, site.Name)
 		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
 		out.ImageName = record.ImageName
 		out.HostName = record.Hostname
@@ -324,17 +335,25 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 		node := graph.Process(record.ID)
 
 		addresses := make(map[api.AtmarkDelimitedString]struct{})
+		hasConnectors := false
+		hasListeners := false
 		for _, cNode := range node.Connectors() {
-			if address, ok := cNode.Address().GetRecord(); ok {
+			hasConnectors = true
+			addressNode := cNode.Address()
+			if !hasListeners {
+				if len(addressNode.RoutingKey().Listeners()) > 0 {
+					hasListeners = true
+				}
+			}
+			if address, ok := addressNode.GetRecord(); ok {
 				addresses[api.NewAtmarkDelimitedString(address.Name, address.ID, address.Protocol)] = struct{}{}
 			}
 		}
-		if site, ok := node.Parent().GetRecord(); ok {
-			setOpt(&out.ParentName, site.Name)
-		}
 
 		if len(addresses) > 0 {
-			out.ProcessBinding = api.Bound
+			if hasListeners && hasConnectors {
+				out.ProcessBinding = api.Bound
+			}
 			addressList := make([]api.AtmarkDelimitedString, 0, len(addresses))
 			for addr := range addresses {
 				addressList = append(addressList, addr)
@@ -343,7 +362,7 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 			out.Addresses = &addressList
 		}
 
-		return out
+		return out, true
 	}
 }
 
@@ -539,6 +558,7 @@ func NewAddressProvider(stor store.Interface, graph collector.Graph) func(collec
 			ObservedApplicationProtocols: protocols,
 			Name:                         record.Name,
 			ListenerCount:                listenerCt,
+			HasListener:                  listenerCt > 0,
 			ConnectorCount:               connectorCt,
 			IsBound:                      listenerCt > 0 && connectorCt > 0,
 		}

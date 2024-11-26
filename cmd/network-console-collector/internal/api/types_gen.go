@@ -75,6 +75,9 @@ type AddressRecord struct {
 	// EndTime The end time in microseconds of the record in Unix timestamp format.
 	EndTime uint64 `json:"endTime"`
 
+	// HasListener true when there is at least one listener for this address
+	HasListener bool `json:"hasListener"`
+
 	// Identity The unique identifier for the record.
 	Identity string `json:"identity"`
 

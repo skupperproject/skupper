@@ -52,6 +52,7 @@ func TestAddresses(t *testing.T) {
 							Name:                         "pizza",
 							ConnectorCount:               2,
 							ListenerCount:                2,
+							HasListener:                  true,
 							IsBound:                      true,
 							Protocol:                     "tcp",
 							ObservedApplicationProtocols: []string{"yodel"},

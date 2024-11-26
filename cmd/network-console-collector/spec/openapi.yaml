@@ -1047,6 +1047,7 @@ components:
             - listenerCount
             - connectorCount
             - isBound
+            - hasListener
           properties:
             name:
               type: string
@@ -1064,6 +1065,9 @@ components:
             isBound:
               type: boolean
               description: true when there are both listeners and connectors configured
+            hasListener:
+              type: boolean
+              description: true when there is at least one listener for this address
     ProcessGroupRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
