@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestTcpPortNextFree(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
-	"gotest.tools/poll"
+	"gotest.tools/v3/poll"
 )
 
 func TestManagerClient(t *testing.T) {

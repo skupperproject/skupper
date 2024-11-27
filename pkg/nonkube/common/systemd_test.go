@@ -10,7 +10,7 @@ import (
 
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/utils"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestSystemdService(t *testing.T) {

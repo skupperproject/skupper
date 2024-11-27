@@ -5,7 +5,7 @@ import (
 
 	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestGraphRelations(t *testing.T) {

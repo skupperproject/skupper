@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/pkg/utils"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // TestNewPodmanClient if podman (binary) is available, it starts

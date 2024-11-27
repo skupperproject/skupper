@@ -15,7 +15,7 @@ import (
 	amqp "github.com/Azure/go-amqp"
 	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/session"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestClient(t *testing.T) {

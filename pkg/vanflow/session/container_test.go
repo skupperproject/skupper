@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/Azure/go-amqp"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestContainerPing(t *testing.T) {

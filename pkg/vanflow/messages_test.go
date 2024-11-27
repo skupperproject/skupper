@@ -5,7 +5,7 @@ import (
 	"time"
 
 	amqp "github.com/Azure/go-amqp"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestDecode(t *testing.T) {

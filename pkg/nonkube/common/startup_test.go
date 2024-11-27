@@ -9,7 +9,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestGetStartupScripts(t *testing.T) {

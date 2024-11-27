@@ -5,7 +5,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 	"testing"
 )
 

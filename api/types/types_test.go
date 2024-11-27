@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 var jsonDefs = fmt.Sprintf(`[%s, %s]`, jsonDef, jsonDef)

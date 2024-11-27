@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/pkg/container"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestEscapeCommand(t *testing.T) {

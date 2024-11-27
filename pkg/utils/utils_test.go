@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 	"reflect"
 	"testing"
 )

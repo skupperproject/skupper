@@ -10,7 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
-	"gotest.tools/poll"
+	"gotest.tools/v3/poll"
 )
 
 func TestPairManagerSitePairs(t *testing.T) {
