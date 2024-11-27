@@ -2,6 +2,7 @@ package nonkube
 
 import (
 	"fmt"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 )
@@ -21,8 +22,8 @@ func (cmd *CmdListenerUpdate) NewClient(cobraCommand *cobra.Command, args []stri
 	//TODO
 }
 
-func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error { return nil }
-func (cmd *CmdListenerUpdate) InputToOptions()                     {}
+func (cmd *CmdListenerUpdate) ValidateInput(args []string) error { return nil }
+func (cmd *CmdListenerUpdate) InputToOptions()                   {}
 func (cmd *CmdListenerUpdate) Run() error {
 	return fmt.Errorf("command not supported by the selected platform")
 }

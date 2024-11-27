@@ -1,7 +1,6 @@
 package kube
 
 import (
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
@@ -18,7 +17,7 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		skupperError   string
-		expectedErrors []string
+		expectedError  string
 	}
 
 	testTable := []test{
@@ -28,7 +27,7 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 			k8sObjects:     nil,
 			skupperObjects: nil,
 			skupperError:   "",
-			expectedErrors: []string{"this command does not need any arguments"},
+			expectedError:  "this command does not need any arguments",
 		},
 	}
 
@@ -42,12 +41,13 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 			assert.Assert(t, err)
 			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 
-			actualErrors := command.ValidateInput(test.args)
+			actualError := command.ValidateInput(test.args)
 
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			if test.expectedError == "" {
+				assert.NilError(t, actualError)
+			} else {
+				assert.Error(t, actualError, test.expectedError)
+			}
 		})
 	}
 }

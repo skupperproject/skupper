@@ -4,7 +4,9 @@ Copyright © 2024 Skupper Team <skupper@googlegroups.com>
 package nonkube
 
 import (
+	"errors"
 	"fmt"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
@@ -47,7 +49,7 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 
 }
 
-func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
+func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 
 	var validationErrors []error
 
@@ -102,7 +104,7 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("bind host should not be empty"))
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdSiteCreate) InputToOptions() {

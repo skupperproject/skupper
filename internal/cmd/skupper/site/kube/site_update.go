@@ -2,11 +2,13 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"k8s.io/client-go/kubernetes"
-	"time"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -38,14 +40,14 @@ func NewCmdSiteUpdate() *CmdSiteUpdate {
 
 func (cmd *CmdSiteUpdate) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils.HandleError(utils.GenericError, err)
 
 	cmd.Client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.KubeClient = cli.GetKubeClient()
 	cmd.Namespace = cli.Namespace
 }
 
-func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
+func (cmd *CmdSiteUpdate) ValidateInput(args []string) error {
 
 	var validationErrors []error
 	linkAccessTypeValidator := validator.NewOptionValidator(common.LinkAccessTypes)
@@ -117,7 +119,7 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 func (cmd *CmdSiteUpdate) InputToOptions() {
 	cmd.serviceAccountName = cmd.Flags.ServiceAccount

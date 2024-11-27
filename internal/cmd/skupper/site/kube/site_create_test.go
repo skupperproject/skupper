@@ -1,12 +1,13 @@
 package kube
 
 import (
+	"testing"
+	"time"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
-	"testing"
-	"time"
 
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/assert"
@@ -21,7 +22,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		flags          *common.CommandSiteCreateFlags
-		expectedErrors []string
+		expectedError  string
 	}
 
 	testTable := []test{
@@ -41,71 +42,65 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"there is already a site created for this namespace"},
+			expectedError: "there is already a site created for this namespace",
 		},
 		{
-			name:           "site name is not valid.",
-			args:           []string{"my new site"},
-			expectedErrors: []string{"site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "site name is not valid.",
+			args:          []string{"my new site"},
+			expectedError: "site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "site name is not specified.",
-			args:           []string{},
-			expectedErrors: []string{"site name must not be empty"},
+			name:          "site name is not specified.",
+			args:          []string{},
+			expectedError: "site name must not be empty",
 		},
 		{
-			name:           "more than one argument was specified",
-			args:           []string{"my", "site"},
-			expectedErrors: []string{"only one argument is allowed for this command."},
+			name:          "more than one argument was specified",
+			args:          []string{"my", "site"},
+			expectedError: "only one argument is allowed for this command.",
 		},
 		{
-			name:           "service account name is not valid.",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteCreateFlags{ServiceAccount: "not valid service account name", Timeout: time.Minute},
-			expectedErrors: []string{"service account name is not valid: serviceaccounts \"not valid service account name\" not found"},
+			name:          "service account name is not valid.",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteCreateFlags{ServiceAccount: "not valid service account name", Timeout: time.Minute},
+			expectedError: "service account name is not valid: serviceaccounts \"not valid service account name\" not found",
 		},
 		{
-			name:           "host name was specified, but this flag does not work on kube platforms",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteCreateFlags{Host: "host", Timeout: time.Minute},
-			expectedErrors: []string{},
+			name:          "host name was specified, but this flag does not work on kube platforms",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteCreateFlags{Host: "host", Timeout: time.Minute},
+			expectedError: "",
 		},
 		{
 			name:  "link access type is not valid",
 			args:  []string{"my-site"},
 			flags: &common.CommandSiteCreateFlags{LinkAccessType: "not-valid", Timeout: time.Minute},
-			expectedErrors: []string{
-				"link access type is not valid: value not-valid not allowed. It should be one of this options: [route loadbalancer default]",
+			expectedError: "link access type is not valid: value not-valid not allowed. It should be one of this options: [route loadbalancer default]\n" +
 				"for the site to work with this type of linkAccess, the --enable-link-access option must be set to true",
-			},
 		},
 		{
-			name:  "output format is not valid",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{Output: "not-valid", Timeout: time.Minute},
-			expectedErrors: []string{
-				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
-			},
+			name:          "output format is not valid",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteCreateFlags{Output: "not-valid", Timeout: time.Minute},
+			expectedError: "output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 		},
 		{
-			name:           "host flag is not valid for this platform",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteCreateFlags{Host: "host", Timeout: time.Minute},
-			expectedErrors: []string{},
+			name:          "host flag is not valid for this platform",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteCreateFlags{Host: "host", Timeout: time.Minute},
+			expectedError: "",
 		},
 		{
-			name:           "subject alternative names flag is not valid for this platform",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteCreateFlags{SubjectAlternativeNames: []string{"test"}, Timeout: time.Minute},
-			expectedErrors: []string{},
+			name:          "subject alternative names flag is not valid for this platform",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteCreateFlags{SubjectAlternativeNames: []string{"test"}, Timeout: time.Minute},
+			expectedError: "",
 		},
 		{
-			name:  "timeout is not valid",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{Timeout: time.Second * 0},
-			expectedErrors: []string{
-				"timeout is not valid: duration must not be less than 10s; got 0s",
-			},
+			name:          "timeout is not valid",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteCreateFlags{Timeout: time.Second * 0},
+			expectedError: "timeout is not valid: duration must not be less than 10s; got 0s",
 		},
 	}
 
@@ -128,12 +123,13 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 				command.Flags = test.flags
 			}
 
-			actualErrors := command.ValidateInput(test.args)
+			actualError := command.ValidateInput(test.args)
 
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			if test.expectedError == "" {
+				assert.NilError(t, actualError)
+			} else {
+				assert.Error(t, actualError, test.expectedError)
+			}
 		})
 	}
 }
