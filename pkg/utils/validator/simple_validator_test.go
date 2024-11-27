@@ -13,8 +13,8 @@ func TestNewStringValidator(t *testing.T) {
 
 	t.Run("Test String Validator constructor", func(t *testing.T) {
 
-		validRegexp, _ := regexp.Compile("^\\S*$")
-		expectedResult := &StringValidator{validRegexp}
+		validRegexp := regexp.MustCompile(`^\S*$`)
+		expectedResult := &stringValidator{validRegexp}
 		actualResult := NewStringValidator()
 		assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
 	})
@@ -149,8 +149,8 @@ func TestNewResourceStringValidator(t *testing.T) {
 
 	t.Run("Test New Resource String Validator constructor", func(t *testing.T) {
 
-		validRegexp, _ := regexp.Compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$")
-		expectedResult := &StringValidator{validRegexp}
+		validRegexp := regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$`)
+		expectedResult := &stringValidator{validRegexp}
 		actualResult := NewResourceStringValidator()
 		assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
 	})
@@ -188,8 +188,8 @@ func TestNewSelectorStringValidator(t *testing.T) {
 
 	t.Run("Test New Selector String Validator constructor", func(t *testing.T) {
 
-		validRegexp, _ := regexp.Compile("^[A-Za-z0-9=:./-]+$")
-		expectedResult := &StringValidator{validRegexp}
+		validRegexp := regexp.MustCompile("^[A-Za-z0-9=:./-]+$")
+		expectedResult := &stringValidator{validRegexp}
 		actualResult := NewSelectorStringValidator()
 		assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
 	})
@@ -229,8 +229,8 @@ func TestNewFilePathStringValidator(t *testing.T) {
 
 	t.Run("Test New File Path String Validator constructor", func(t *testing.T) {
 
-		validRegexp, _ := regexp.Compile("^[A-Za-z0-9./~-]+$")
-		expectedResult := &StringValidator{validRegexp}
+		validRegexp := regexp.MustCompile("^[A-Za-z0-9./~-]+$")
+		expectedResult := &stringValidator{validRegexp}
 		actualResult := NewFilePathStringValidator()
 		assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
 	})
@@ -271,7 +271,7 @@ func TestNewWorkloadStringValidator(t *testing.T) {
 
 	t.Run("Test New Workload String Validator constructor", func(t *testing.T) {
 
-		validRegexp, _ := regexp.Compile("^[A-Za-z0-9.-_]+$")
+		validRegexp := regexp.MustCompile("^[A-Za-z0-9.-_]+$")
 		expectedResult := &WorkloadValidator{validRegexp, []string{"a", "b"}}
 		actualResult := NewWorkloadStringValidator([]string{"a", "b"})
 		assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
