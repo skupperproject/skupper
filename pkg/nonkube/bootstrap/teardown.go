@@ -2,12 +2,12 @@ package bootstrap
 
 import (
 	"fmt"
+	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
-	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"
 	"os"
-	"os/exec"
+
 	"path/filepath"
 )
 
@@ -23,12 +23,12 @@ func Teardown(namespace string, platform string) error {
 		return err
 	}
 
-	if err := removeRouter(namespace); err != nil {
+	if err := removeRouter(namespace, platform); err != nil {
 		return err
 	}
 
 	if _, err := os.Stat(filepath.Join(localData.servicePath, localData.service)); err == nil {
-		if err := removeService(platform, namespace); err != nil {
+		if err := removeService(namespace, platform); err != nil {
 			return err
 		}
 	}
@@ -44,11 +44,11 @@ func Teardown(namespace string, platform string) error {
 
 func Stop(namespace string, platform string) error {
 
-	if err := removeRouter(namespace); err != nil {
+	if err := removeRouter(namespace, platform); err != nil {
 		return err
 	}
 
-	if err := removeService(platform, namespace); err != nil {
+	if err := removeService(namespace, platform); err != nil {
 		return err
 	}
 
@@ -66,20 +66,28 @@ func removeDefinition(namespace string) error {
 	return os.RemoveAll(api.GetHostNamespaceHome(namespace))
 }
 
-func removeRouter(namespace string) error {
-	skupperPlatform := config.GetPlatform()
+func removeRouter(namespace string, platform string) error {
 
-	switch skupperPlatform {
-	case "podman", "docker":
-		err := exec.Command(string(skupperPlatform), "rm", "-f", namespace+"-skupper-router").Run()
+	if platform == "podman" || platform == "docker" {
+
+		cli, err := internalclient.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create container client: %v", err)
+		}
+
+		containerName := namespace + "-skupper-router"
+		if _, err := cli.ContainerInspect(containerName); err == nil {
+			err = cli.ContainerRemove(containerName)
+			if err != nil {
+				return err
+			}
 		}
 	}
+
 	return nil
 }
 
-func removeService(platform string, namespace string) error {
+func removeService(namespace string, platform string) error {
 
 	pathProvider := fs.PathProvider{Namespace: namespace}
 
