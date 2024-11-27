@@ -122,7 +122,7 @@ func newCmdSystemTeardownWithMocks(systemTeardDownFails bool) *CmdSystemTeardown
 	return cmdMock
 }
 
-func mockCmdSystemTeardown(namespace string) error { return nil }
-func mockCmdSystemTeardownFails(namespace string) error {
+func mockCmdSystemTeardown(namespace string, platform string) error { return nil }
+func mockCmdSystemTeardownFails(namespace string, platform string) error {
 	return fmt.Errorf("fail")
 }

@@ -8,8 +8,9 @@ import (
 
 type CmdSystemTeardown struct {
 	CobraCmd  *cobra.Command
-	TearDown  func(namespace string) error
+	TearDown  func(namespace string, platform string) error
 	Namespace string
+	Platform  string
 }
 
 func NewCmdSystemTeardown() *CmdSystemTeardown {
@@ -22,6 +23,7 @@ func NewCmdSystemTeardown() *CmdSystemTeardown {
 func (cmd *CmdSystemTeardown) NewClient(cobraCommand *cobra.Command, args []string) {
 	cmd.TearDown = bootstrap.Teardown
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
+	cmd.Platform = cobraCommand.Flag("platform").Value.String()
 }
 
 func (cmd *CmdSystemTeardown) ValidateInput(args []string) []error {
@@ -42,7 +44,7 @@ func (cmd *CmdSystemTeardown) InputToOptions() {
 
 func (cmd *CmdSystemTeardown) Run() error {
 
-	err := cmd.TearDown(cmd.Namespace)
+	err := cmd.TearDown(cmd.Namespace, cmd.Platform)
 
 	if err != nil {
 		return fmt.Errorf("System teardown has failed: %s", err)

@@ -125,7 +125,7 @@ func newCmdSystemStopWithMocks(systemCtlStopFails bool) *CmdSystemStop {
 	return cmdMock
 }
 
-func mockCmdSystemStopSystemCtl(namespace string) error { return nil }
-func mockCmdSystemStopSystemCtlFails(namespace string) error {
+func mockCmdSystemStopSystemCtl(namespace string, platform string) error { return nil }
+func mockCmdSystemStopSystemCtlFails(namespace string, platform string) error {
 	return fmt.Errorf("fail")
 }

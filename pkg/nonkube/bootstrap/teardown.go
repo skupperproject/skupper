@@ -2,21 +2,21 @@ package bootstrap
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
+	"github.com/skupperproject/skupper/pkg/nonkube/common"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
 type LocalData struct {
-	namespacesPath string
-	servicePath    string
-	userSvcFlag    bool
-	service        string
+	servicePath string
+	service     string
 }
 
-func Teardown(namespace string) error {
+func Teardown(namespace string, platform string) error {
 
 	localData, err := getLocalData(namespace)
 	if err != nil {
@@ -27,14 +27,14 @@ func Teardown(namespace string) error {
 		return err
 	}
 
-	if err := removeDefinition(localData.namespacesPath, namespace); err != nil {
-		return err
-	}
-
 	if _, err := os.Stat(filepath.Join(localData.servicePath, localData.service)); err == nil {
-		if err := removeService(localData.userSvcFlag, localData.servicePath, namespace); err != nil {
+		if err := removeService(platform, namespace); err != nil {
 			return err
 		}
+	}
+
+	if err := removeDefinition(namespace); err != nil {
+		return err
 	}
 
 	fmt.Printf("Namespace \"%s\" has been removed\n", namespace)
@@ -42,18 +42,13 @@ func Teardown(namespace string) error {
 
 }
 
-func Stop(namespace string) error {
-
-	localData, err := getLocalData(namespace)
-	if err != nil {
-		return err
-	}
+func Stop(namespace string, platform string) error {
 
 	if err := removeRouter(namespace); err != nil {
 		return err
 	}
 
-	if err := removeService(localData.userSvcFlag, localData.servicePath, namespace); err != nil {
+	if err := removeService(platform, namespace); err != nil {
 		return err
 	}
 
@@ -61,9 +56,14 @@ func Stop(namespace string) error {
 
 }
 
-func removeDefinition(namespacesPath string, namespace string) error {
+func removeDefinition(namespace string) error {
 
-	return os.RemoveAll(filepath.Join(namespacesPath, namespace))
+	_, err := os.Stat(api.GetHostNamespaceHome(namespace))
+	if err != nil {
+		return err
+	}
+
+	return os.RemoveAll(api.GetHostNamespaceHome(namespace))
 }
 
 func removeRouter(namespace string) error {
@@ -79,86 +79,57 @@ func removeRouter(namespace string) error {
 	return nil
 }
 
-func removeService(userSvcFlag bool, servicepath string, namespace string) error {
+func removeService(platform string, namespace string) error {
 
-	service := "skupper-" + namespace + ".service"
+	pathProvider := fs.PathProvider{Namespace: namespace}
 
-	cmdStopArgs := []string{"stop", service}
-	cmdDisableArgs := []string{"disable", service}
-	cmdReloadArgs := []string{"daemon-reload"}
-	cmdResetArgs := []string{"reset-failed"}
+	siteStateLoader := &common.FileSystemSiteStateLoader{
+		Path: pathProvider.GetRuntimeNamespace(),
+	}
 
-	cmdStop := execCommand("systemctl", cmdStopArgs, userSvcFlag)
-	cmdDisable := execCommand("systemctl", cmdDisableArgs, userSvcFlag)
-	cmdReload := execCommand("systemctl", cmdReloadArgs, userSvcFlag)
-	cmdReset := execCommand("systemctl", cmdResetArgs, userSvcFlag)
-
-	err := cmdStop.Run()
+	siteState, err := siteStateLoader.Load()
 	if err != nil {
-		return fmt.Errorf("Failed to stop service %s: %s", service, err)
+		return err
 	}
 
-	err = cmdDisable.Run()
+	systemdService, err := common.NewSystemdServiceInfo(siteState, platform)
 	if err != nil {
-		return fmt.Errorf("Failed to disable service %s: %s", service, err)
+		return err
 	}
-	err = cmdReload.Run()
+
+	err = systemdService.Remove()
 	if err != nil {
-		return fmt.Errorf("Failed to reload systemd: %s", err)
-	}
-	err = cmdReset.Run()
-	if err != nil {
-		return fmt.Errorf("Failed to reset systemd: %s", err)
+		return err
 	}
 
-	return os.Remove(filepath.Join(servicepath, service))
-
-}
-
-func execCommand(name string, args []string, userSvcFlag bool) *exec.Cmd {
-
-	if userSvcFlag {
-		args = append(args, "--user")
-	}
-
-	return exec.Command(name, args...)
+	return nil
 }
 
 func getLocalData(namespace string) (*LocalData, error) {
 
-	uid := os.Geteuid()
 	var namespacesPath string
-	var servicePath string
-	userSvcFlag := true
 
-	if uid == 0 {
-		namespacesPath = "/usr/local/share/skupper/namespaces"
-		servicePath = "/etc/systemd/system"
-		userSvcFlag = false
+	if xdgDataHome := api.GetDataHome(); xdgDataHome != "" {
+		namespacesPath = filepath.Join(xdgDataHome, "namespaces")
 	} else {
-		if xdgDataHome := api.GetDataHome(); xdgDataHome != "" {
-			namespacesPath = filepath.Join(xdgDataHome, "namespaces")
-		} else {
-			namespacesPath = filepath.Join(os.Getenv("HOME"), ".local/share/skupper/namespaces")
-		}
-
-		if xdgConfigHome := api.GetConfigHome(); xdgConfigHome != "" {
-			servicePath = filepath.Join(xdgConfigHome, "systemd/user")
-		} else {
-			servicePath = filepath.Join(os.Getenv("HOME"), ".config/systemd/user")
-		}
+		namespacesPath = filepath.Join(os.Getenv("HOME"), ".local/share/skupper/namespaces")
 	}
 
 	if _, err := os.Stat(filepath.Join(namespacesPath, namespace)); os.IsNotExist(err) {
 		return nil, fmt.Errorf("Namespace \"%s\" does not exist\n", namespace)
 	}
 
+	var servicePath string
+	if xdgConfigHome := api.GetConfigHome(); xdgConfigHome != "" {
+		servicePath = filepath.Join(xdgConfigHome, "systemd/user")
+	} else {
+		servicePath = filepath.Join(os.Getenv("HOME"), ".config/systemd/user")
+	}
+
 	service := "skupper-" + namespace + ".service"
 
 	return &LocalData{
-		namespacesPath: namespacesPath,
-		servicePath:    servicePath,
-		userSvcFlag:    userSvcFlag,
-		service:        service,
+		servicePath: servicePath,
+		service:     service,
 	}, nil
 }

@@ -9,7 +9,8 @@ import (
 type CmdSystemStop struct {
 	CobraCmd    *cobra.Command
 	Namespace   string
-	ServiceStop func(service string) error
+	Platform    string
+	ServiceStop func(service string, platform string) error
 }
 
 func NewCmdSystemStop() *CmdSystemStop {
@@ -22,6 +23,7 @@ func NewCmdSystemStop() *CmdSystemStop {
 func (cmd *CmdSystemStop) NewClient(cobraCommand *cobra.Command, args []string) {
 	cmd.ServiceStop = bootstrap.Stop
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
+	cmd.Platform = cobraCommand.Flag("platform").Value.String()
 }
 
 func (cmd *CmdSystemStop) ValidateInput(args []string) []error {
@@ -44,7 +46,7 @@ func (cmd *CmdSystemStop) InputToOptions() {
 
 func (cmd *CmdSystemStop) Run() error {
 
-	err := cmd.ServiceStop(cmd.Namespace)
+	err := cmd.ServiceStop(cmd.Namespace, cmd.Platform)
 
 	if err != nil {
 		return fmt.Errorf("Failed to stop nonkube service: %s", err)

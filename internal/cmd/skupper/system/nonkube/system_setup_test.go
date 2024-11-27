@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-func TestCmdSystemStart_ValidateInput(t *testing.T) {
+func TestCmdSystemSetup_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
@@ -54,7 +54,7 @@ func TestCmdSystemStart_ValidateInput(t *testing.T) {
 	}
 }
 
-func TestCmdSystemStart_InputToOptions(t *testing.T) {
+func TestCmdSystemSetup_InputToOptions(t *testing.T) {
 
 	type test struct {
 		name                   string
@@ -129,7 +129,7 @@ func TestCmdSystemStart_InputToOptions(t *testing.T) {
 	}
 }
 
-func TestCmdSystemStart_Run(t *testing.T) {
+func TestCmdSystemSetup_Run(t *testing.T) {
 	type test struct {
 		name           string
 		preCheckFails  bool

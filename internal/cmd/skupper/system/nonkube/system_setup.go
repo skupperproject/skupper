@@ -66,7 +66,7 @@ func (cmd *CmdSystemSetup) ValidateInput(args []string) []error {
 		}
 	}
 
-	if !cmd.Flags.Force && cmd.Namespace != "" && cmd.Flags.Strategy == "" {
+	if cmd.Flags != nil && !cmd.Flags.Force && cmd.Namespace != "" && cmd.Flags.Strategy == "" {
 		_, err := os.Stat(api.GetInternalOutputPath(cmd.Namespace, api.RuntimeSiteStatePath))
 		if err == nil {
 			validationErrors = append(validationErrors, fmt.Errorf("Namespace already exists: %s", cmd.Namespace))
