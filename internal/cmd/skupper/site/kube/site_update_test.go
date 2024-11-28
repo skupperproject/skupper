@@ -346,7 +346,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 				},
 			},
 			expectedErrors: []string{
-				"status is not valid: value created not allowed. It should be one of this options: [ready configured]",
+				"status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
 			},
 		},
 	}
@@ -574,7 +574,7 @@ func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 			},
 			siteName:     "my-site",
 			skupperError: "",
-			errorMessage: "Site \"my-site\" not ready yet, check the status for more information\n",
+			errorMessage: "Site \"my-site\" is not ready yet, check the status for more information\n",
 			expectError:  true,
 		},
 		{
@@ -606,6 +606,64 @@ func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 			skupperError: "",
 			expectError:  false,
 		},
+		{
+			name:       "user does not wait",
+			status:     "none",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
+						},
+					},
+				},
+			},
+			skupperError: "",
+			expectError:  false,
+		},
+		{
+			name:       "user waits for configured, but site had some errors while being configured",
+			status:     "configured",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Message:            "Error",
+									ObservedGeneration: 1,
+									Reason:             "Error",
+									Status:             "False",
+									Type:               "Configured",
+								},
+							},
+						},
+					},
+				},
+			},
+			siteName:     "my-site",
+			skupperError: "",
+			expectError:  true,
+			errorMessage: "Site \"my-site\" is configured with errors, check the status for more information\n",
+		},
 	}
 
 	for _, test := range testTable {
@@ -626,7 +684,7 @@ func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 			err := command.WaitUntil()
 			if err != nil {
 				assert.Check(t, test.expectError)
-				assert.Check(t, test.errorMessage == err.Error())
+				assert.Equal(t, test.errorMessage, err.Error())
 			}
 
 		})

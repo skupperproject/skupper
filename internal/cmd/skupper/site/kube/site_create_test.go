@@ -112,7 +112,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 			args:  []string{"my-site"},
 			flags: &common.CommandSiteCreateFlags{Timeout: time.Minute, Wait: "created"},
 			expectedErrors: []string{
-				"status is not valid: value created not allowed. It should be one of this options: [ready configured]",
+				"status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
 			},
 		},
 	}
@@ -437,6 +437,62 @@ func TestCmdSiteCreate_WaitUntil(t *testing.T) {
 			},
 			skupperError: "",
 			expectError:  false,
+		},
+		{
+			name:       "user does not wait",
+			status:     "none",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
+						},
+					},
+				},
+			},
+			skupperError: "",
+			expectError:  false,
+		},
+		{
+			name:       "user waits for configured, but site had some errors while being configured",
+			status:     "configured",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Message:            "Error",
+									ObservedGeneration: 1,
+									Reason:             "Error",
+									Status:             "False",
+									Type:               "Configured",
+								},
+							},
+						},
+					},
+				},
+			},
+			skupperError: "",
+			expectError:  true,
 		},
 	}
 

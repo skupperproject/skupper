@@ -72,7 +72,7 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagDescListenerHost = "The hostname or IP address of the local listener. Clients at this site use the listener host and port to establish connections to the remote service."
 
 	FlagNameWait       = "wait"
-	FlagDescWait       = "Wait for the given status before exiting. Choices: pending, configured, ready"
+	FlagDescWait       = "Wait for the given status before exiting. Choices: configured, ready, none"
 	FlagDescDeleteWait = "Wait for deletion to complete before exiting"
 )
 
