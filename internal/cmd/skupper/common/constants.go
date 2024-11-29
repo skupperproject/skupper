@@ -6,6 +6,7 @@ var (
 	ListenerTypes   = []string{"tcp"}
 	ConnectorTypes  = []string{"tcp"}
 	WorkloadTypes   = []string{"deployment", "service", "daemonset", "statefulset"}
+	WaitStatusTypes = []string{"ready", "configured", "none"}
 )
 
 const (

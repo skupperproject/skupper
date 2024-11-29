@@ -6,6 +6,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -30,6 +31,7 @@ type CmdSiteCreate struct {
 	linkAccessType     string
 	output             string
 	timeout            time.Duration
+	status             string
 }
 
 func NewCmdSiteCreate() *CmdSiteCreate {
@@ -55,6 +57,7 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 	linkAccessTypeValidator := validator.NewOptionValidator(common.LinkAccessTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
+	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 
 	//Validate if there is already a site defined in the namespace
 	siteList, _ := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
@@ -115,6 +118,13 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		}
 	}
 
+	if cmd.Flags != nil && cmd.Flags.Wait != "" {
+		ok, err := statusValidator.Evaluate(cmd.Flags.Wait)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("status is not valid: %s", err))
+		}
+	}
+
 	return validationErrors
 }
 
@@ -132,6 +142,7 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 
 	cmd.output = cmd.Flags.Output
 	cmd.timeout = cmd.Flags.Timeout
+	cmd.status = cmd.Flags.Wait
 
 }
 
@@ -172,7 +183,14 @@ func (cmd *CmdSiteCreate) WaitUntil() error {
 		return nil
 	}
 
+	if cmd.status == "none" {
+		return nil
+	}
+
 	waitTime := int(cmd.timeout.Seconds())
+
+	var siteCondition *metav1.Condition
+
 	err := utils.NewSpinnerWithTimeout("Waiting for status...", waitTime, func() error {
 
 		resource, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
@@ -180,18 +198,39 @@ func (cmd *CmdSiteCreate) WaitUntil() error {
 			return err
 		}
 
-		if resource != nil && resource.IsConfigured() {
+		isConditionFound := false
+		isConditionTrue := false
+
+		switch cmd.status {
+		case "configured":
+			siteCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_CONFIGURED)
+		default:
+			siteCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_READY)
+		}
+
+		if siteCondition != nil {
+			isConditionFound = true
+			isConditionTrue = siteCondition.Status == metav1.ConditionTrue
+		}
+
+		if resource != nil && isConditionFound && isConditionTrue {
 			return nil
+		}
+
+		if resource != nil && isConditionFound && !isConditionTrue {
+			return fmt.Errorf("error in the condition")
 		}
 
 		return fmt.Errorf("error getting the resource")
 	})
 
-	if err != nil {
-		return fmt.Errorf("Site %q not configured yet, check the status for more information\n", cmd.siteName)
+	if err != nil && siteCondition == nil {
+		return fmt.Errorf("Site %q is not %s yet, check the status for more information\n", cmd.siteName, cmd.status)
+	} else if err != nil {
+		return fmt.Errorf("Site %q is %s with errors, check the status for more information\n", cmd.siteName, cmd.status)
 	}
 
-	fmt.Printf("Site %q is configured. Check the status to see when it is ready\n", cmd.siteName)
+	fmt.Printf("Site %q is %s.\n", cmd.siteName, cmd.status)
 
 	return nil
 }

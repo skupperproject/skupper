@@ -21,6 +21,7 @@ type CmdSiteDelete struct {
 	Namespace string
 	siteName  string
 	timeout   time.Duration
+	wait      bool
 }
 
 func NewCmdSiteDelete() *CmdSiteDelete {
@@ -92,24 +93,27 @@ func (cmd *CmdSiteDelete) Run() error {
 	return err
 }
 func (cmd *CmdSiteDelete) WaitUntil() error {
-	waitTime := int(cmd.timeout.Seconds())
-	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
-		resource, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
+	if cmd.wait {
+		waitTime := int(cmd.timeout.Seconds())
+		err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
-		if err == nil && resource != nil {
-			return fmt.Errorf("error deleting the resource")
-		} else {
-			return nil
+			resource, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
+
+			if err == nil && resource != nil {
+				return fmt.Errorf("error deleting the resource")
+			} else {
+				return nil
+			}
+
+		})
+
+		if err != nil {
+			return fmt.Errorf("Site %q not deleted yet, check the status for more information\n", cmd.siteName)
 		}
 
-	})
-
-	if err != nil {
-		return fmt.Errorf("Site %q not deleted yet, check the status for more information\n", cmd.siteName)
+		fmt.Printf("Site %q is deleted\n", cmd.siteName)
 	}
-
-	fmt.Printf("Site %q is deleted\n", cmd.siteName)
 
 	return nil
 }
