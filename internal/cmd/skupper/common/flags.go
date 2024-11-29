@@ -118,10 +118,12 @@ type CommandLinkUpdateFlags struct {
 	Cost           string
 	Output         string
 	Timeout        time.Duration
+	Wait           string
 }
 
 type CommandLinkDeleteFlags struct {
 	Timeout time.Duration
+	Wait    bool
 }
 type CommandLinkStatusFlags struct {
 	Output string

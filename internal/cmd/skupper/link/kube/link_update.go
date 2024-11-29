@@ -13,6 +13,7 @@ import (
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"strconv"
@@ -30,6 +31,7 @@ type CmdLinkUpdate struct {
 	cost           int
 	output         string
 	timeout        time.Duration
+	status         string
 }
 
 func NewCmdLinkUpdate() *CmdLinkUpdate {
@@ -51,6 +53,7 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 	numberValidator := validator.NewNumberValidator()
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
+	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 
 	//Validate if there is already a site defined in the namespace
 	siteList, _ := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
@@ -98,6 +101,13 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
 	}
 
+	if cmd.Flags != nil && cmd.Flags.Wait != "" {
+		ok, err := statusValidator.Evaluate(cmd.Flags.Wait)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("status is not valid: %s", err))
+		}
+	}
+
 	return validationErrors
 }
 
@@ -107,6 +117,7 @@ func (cmd *CmdLinkUpdate) InputToOptions() {
 	cmd.tlsCredentials = cmd.Flags.TlsCredentials
 	cmd.output = cmd.Flags.Output
 	cmd.timeout = cmd.Flags.Timeout
+	cmd.status = cmd.Flags.Wait
 
 }
 
@@ -165,7 +176,12 @@ func (cmd *CmdLinkUpdate) WaitUntil() error {
 		return nil
 	}
 
+	if cmd.status == "none" {
+		return nil
+	}
+
 	waitTime := int(cmd.timeout.Seconds())
+	var siteCondition *metav1.Condition
 	err := utils.NewSpinnerWithTimeout("Waiting for update to complete...", waitTime, func() error {
 
 		resource, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
@@ -173,15 +189,36 @@ func (cmd *CmdLinkUpdate) WaitUntil() error {
 			return err
 		}
 
-		if resource != nil && resource.IsConfigured() {
+		isConditionFound := false
+		isConditionTrue := false
+
+		switch cmd.status {
+		case "configured":
+			siteCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_CONFIGURED)
+		default:
+			siteCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_READY)
+		}
+
+		if siteCondition != nil {
+			isConditionFound = true
+			isConditionTrue = siteCondition.Status == metav1.ConditionTrue
+		}
+
+		if resource != nil && isConditionFound && isConditionTrue {
 			return nil
+		}
+
+		if resource != nil && isConditionFound && !isConditionTrue {
+			return fmt.Errorf("error in the condition")
 		}
 
 		return fmt.Errorf("error getting the resource")
 	})
 
-	if err != nil {
-		return fmt.Errorf("Link %q not updated yet, check the status for more information\n", cmd.linkName)
+	if err != nil && siteCondition == nil {
+		return fmt.Errorf("Link %q is not %s yet, check the status for more information\n", cmd.linkName, cmd.status)
+	} else if err != nil {
+		return fmt.Errorf("Link %q is %s with errors, check the status for more information\n", cmd.linkName, cmd.status)
 	}
 
 	fmt.Printf("Link %q is updated\n", cmd.linkName)
