@@ -13,67 +13,42 @@ type Validator interface {
 
 //
 
-type StringValidator struct {
+type stringValidator struct {
 	Expression *regexp.Regexp
 }
 
-func NewStringValidator() *StringValidator {
-	re, err := regexp.Compile("^\\S*$")
-	if err != nil {
-		fmt.Printf("Error compiling regex: %v", err)
-		return nil
-	}
-	return &StringValidator{
-		Expression: re,
+func NewStringValidator() *stringValidator {
+	return &stringValidator{
+		Expression: regexp.MustCompile(`^\S*$`),
 	}
 }
 
-func NewHostStringValidator() *StringValidator {
-	re, err := regexp.Compile(`^[a-z0-9]+([-.]{1}[a-z0-9]+)*$`)
-	if err != nil {
-		fmt.Printf("Error compiling regex: %v", err)
-		return nil
-	}
-	return &StringValidator{
-		Expression: re,
+func NewHostStringValidator() *stringValidator {
+	return &stringValidator{
+		Expression: regexp.MustCompile(`^[a-z0-9]+([-.]{1}[a-z0-9]+)*$`),
 	}
 }
 
-func NewResourceStringValidator() *StringValidator {
-	re, err := regexp.Compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$")
-	if err != nil {
-		fmt.Printf("Error compiling regex: %v", err)
-		return nil
-	}
-	return &StringValidator{
-		Expression: re,
+func NewResourceStringValidator() *stringValidator {
+	return &stringValidator{
+		Expression: regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$`),
 	}
 }
 
 // TBD what are valid characters for selector field
-func NewSelectorStringValidator() *StringValidator {
-	re, err := regexp.Compile("^[A-Za-z0-9=:./-]+$")
-	if err != nil {
-		fmt.Printf("Error compiling regex: %v", err)
-		return nil
-	}
-	return &StringValidator{
-		Expression: re,
+func NewSelectorStringValidator() *stringValidator {
+	return &stringValidator{
+		Expression: regexp.MustCompile(`^[A-Za-z0-9=:./-]+$`),
 	}
 }
 
-func NewFilePathStringValidator() *StringValidator {
-	re, err := regexp.Compile("^[A-Za-z0-9./~-]+$")
-	if err != nil {
-		fmt.Printf("Error compiling regex: %v", err)
-		return nil
-	}
-	return &StringValidator{
-		Expression: re,
+func NewFilePathStringValidator() *stringValidator {
+	return &stringValidator{
+		Expression: regexp.MustCompile(`^[A-Za-z0-9./~-]+$`),
 	}
 }
 
-func (s StringValidator) Evaluate(value interface{}) (bool, error) {
+func (s stringValidator) Evaluate(value interface{}) (bool, error) {
 	v, ok := value.(string)
 
 	if !ok {
