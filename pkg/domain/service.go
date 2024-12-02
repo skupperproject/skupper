@@ -199,7 +199,7 @@ func ValidateService(service Service) error {
 	}
 }
 
-func CreateRouterServiceConfig(site Site, parentRouterConfig *qdr.RouterConfig, service Service) (*qdr.RouterConfig, string, error) {
+func CreateRouterServiceConfig(site Site, parentRouterConfig *qdr.RouterConfig, service Service, serviceHostname string) (*qdr.RouterConfig, string, error) {
 
 	// Create router config
 	siteName := fmt.Sprintf("%s-%s", site.GetName(), service.GetAddress())
@@ -241,6 +241,7 @@ func CreateRouterServiceConfig(site Site, parentRouterConfig *qdr.RouterConfig, 
 		case "tcp":
 			svcRouterConfig.AddTcpListener(qdr.TcpEndpoint{
 				Name:       listenerName,
+				Host:       serviceHostname,
 				Port:       listenerPort,
 				Address:    listenerAddr,
 				SiteId:     siteId,
@@ -249,6 +250,7 @@ func CreateRouterServiceConfig(site Site, parentRouterConfig *qdr.RouterConfig, 
 		case "http":
 			svcRouterConfig.AddHttpListener(qdr.HttpEndpoint{
 				Name:         listenerName,
+				Host:         serviceHostname,
 				Port:         listenerPort,
 				Address:      listenerAddr,
 				SiteId:       siteId,
@@ -258,6 +260,7 @@ func CreateRouterServiceConfig(site Site, parentRouterConfig *qdr.RouterConfig, 
 		case "http2":
 			svcRouterConfig.AddHttpListener(qdr.HttpEndpoint{
 				Name:            listenerName,
+				Host:            serviceHostname,
 				Port:            listenerPort,
 				Address:         listenerAddr,
 				SiteId:          siteId,

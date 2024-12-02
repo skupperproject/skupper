@@ -4,11 +4,14 @@
 package podman
 
 import (
+	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client/container"
 	"github.com/skupperproject/skupper/pkg/domain"
+	"github.com/skupperproject/skupper/pkg/qdr"
 	"gotest.tools/assert"
 )
 
@@ -160,4 +163,192 @@ func TestPodmanServiceHandler(t *testing.T) {
 			assert.Equal(t, newLength, len(svcList))
 		}
 	})
+}
+
+func TestCreateRouterServiceConfig(t *testing.T) {
+
+	fakeService := func(address string, ports []int, containerName string) *Service {
+		svc := &Service{
+			ServiceCommon: &domain.ServiceCommon{
+				Address:  address,
+				Ports:    ports,
+				Protocol: "tcp",
+			},
+			ContainerName: containerName,
+		}
+		return svc
+	}
+	site := &Site{
+		SiteCommon: &domain.SiteCommon{
+			Name: "my-site-name",
+			Id:   "my-site-id",
+		},
+	}
+	parentConfig := &qdr.RouterConfig{
+		LogConfig: map[string]qdr.LogConfig{
+			"DEFAULT": qdr.LogConfig{
+				Module: "DEFAULT",
+				Enable: "info+",
+			},
+		},
+	}
+	egressResolvers := func(service *Service) {
+		service.AddEgressResolver(&domain.EgressResolverHost{
+			Host:  "10.0.0.1",
+			Ports: map[int]int{8080: 8080},
+		})
+		service.AddEgressResolver(&domain.EgressResolverHost{
+			Host:  "10.0.0.2",
+			Ports: map[int]int{8080: 8081},
+		})
+	}
+	scenarios := []struct {
+		name     string
+		service  *Service
+		modifier func(*Service)
+		expError bool
+	}{
+		{
+			name:    "basic-service-tcp",
+			service: fakeService("address", []int{8080}, ""),
+		},
+		{
+			name:    "basic-service-tcp-custom-container",
+			service: fakeService("address", []int{8080}, "custom-address"),
+		},
+		{
+			name:    "basic-service-tcp-multiple-ports",
+			service: fakeService("address", []int{8080, 8081, 8082}, ""),
+		},
+		{
+			name:    "basic-service-http",
+			service: fakeService("address", []int{8080}, ""),
+			modifier: func(service *Service) {
+				service.Protocol = "http"
+			},
+		},
+		{
+			name:    "basic-service-http2",
+			service: fakeService("address", []int{8080}, ""),
+			modifier: func(service *Service) {
+				service.Protocol = "http2"
+			},
+		},
+		{
+			name:    "basic-service-tls",
+			service: fakeService("address", []int{8080}, ""),
+			modifier: func(service *Service) {
+				service.TlsCredentials = "my-credentials"
+			},
+		},
+		{
+			name:     "basic-service-tcp-with-targets",
+			service:  fakeService("address", []int{8080}, ""),
+			modifier: egressResolvers,
+		},
+		{
+			name:    "basic-service-http-with-targets",
+			service: fakeService("address", []int{8080}, ""),
+			modifier: func(service *Service) {
+				service.Protocol = "http"
+				egressResolvers(service)
+			},
+		},
+		{
+			name:    "basic-service-http2-with-targets",
+			service: fakeService("address", []int{8080}, ""),
+			modifier: func(service *Service) {
+				service.Protocol = "http2"
+				egressResolvers(service)
+			},
+		},
+	}
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			if scenario.modifier != nil {
+				scenario.modifier(scenario.service)
+			}
+			routerConfig, routerConfigStr, err := domain.CreateRouterServiceConfig(site, parentConfig, scenario.service, scenario.service.GetContainerName())
+			if scenario.expError {
+				assert.Assert(t, err != nil)
+				return
+			}
+			assert.Assert(t, err == nil)
+			assert.Assert(t, routerConfig != nil)
+			assert.Assert(t, routerConfigStr != "")
+
+			var expectedTcpListeners int
+			var expectedHttpListeners int
+			var expectedPorts = len(scenario.service.Ports)
+			switch scenario.service.Protocol {
+			case "tcp":
+				expectedTcpListeners = expectedPorts
+			case "http":
+				expectedHttpListeners = expectedPorts
+			case "http2":
+				expectedHttpListeners = expectedPorts
+			}
+			assert.Equal(t, len(routerConfig.Bridges.TcpListeners), expectedTcpListeners)
+			assert.Equal(t, len(routerConfig.Bridges.HttpListeners), expectedHttpListeners)
+
+			var sslProfilesExpected = 1
+			if scenario.service.IsTls() {
+				sslProfilesExpected++
+			}
+			assert.Equal(t, sslProfilesExpected, len(routerConfig.SslProfiles))
+
+			for _, port := range scenario.service.Ports {
+				addressIndex := fmt.Sprintf("%s:%d", scenario.service.Address, port)
+				if expectedTcpListeners > 0 {
+					tcpListener := routerConfig.Bridges.TcpListeners[addressIndex]
+					if scenario.service.ContainerName == "" {
+						assert.Equal(t, tcpListener.Host, scenario.service.Address)
+					} else {
+						assert.Equal(t, tcpListener.Host, scenario.service.ContainerName)
+					}
+					assert.Equal(t, tcpListener.Address, addressIndex)
+					assert.Equal(t, tcpListener.Port, strconv.Itoa(port))
+
+					assert.Equal(t, len(scenario.service.GetEgressResolvers()), len(routerConfig.Bridges.TcpConnectors))
+					for _, egressResolver := range scenario.service.GetEgressResolvers() {
+						egresses, err := egressResolver.Resolve()
+						assert.Assert(t, err)
+						for _, egress := range egresses {
+							targetHost := egress.GetHost()
+							for _, targetPort := range egress.GetPorts() {
+								connectorName := fmt.Sprintf("%s@%s:%d:%d", scenario.service.Address, targetHost, port, targetPort)
+								connector, ok := routerConfig.Bridges.TcpConnectors[connectorName]
+								assert.Assert(t, ok)
+								assert.Equal(t, strconv.Itoa(targetPort), connector.Port)
+							}
+						}
+					}
+				} else {
+					httpListener := routerConfig.Bridges.HttpListeners[addressIndex]
+					if scenario.service.ContainerName == "" {
+						assert.Equal(t, httpListener.Host, scenario.service.Address)
+					} else {
+						assert.Equal(t, httpListener.Host, scenario.service.ContainerName)
+					}
+					assert.Equal(t, httpListener.Address, addressIndex)
+					assert.Equal(t, httpListener.Port, strconv.Itoa(port))
+
+					assert.Equal(t, len(scenario.service.GetEgressResolvers()), len(routerConfig.Bridges.HttpConnectors))
+					for _, egressResolver := range scenario.service.GetEgressResolvers() {
+						egresses, err := egressResolver.Resolve()
+						assert.Assert(t, err)
+						for _, egress := range egresses {
+							targetHost := egress.GetHost()
+							for _, targetPort := range egress.GetPorts() {
+								connectorName := fmt.Sprintf("%s@%s:%d:%d", scenario.service.Address, targetHost, port, targetPort)
+								connector, ok := routerConfig.Bridges.HttpConnectors[connectorName]
+								assert.Assert(t, ok)
+								assert.Equal(t, strconv.Itoa(targetPort), connector.Port)
+							}
+						}
+					}
+				}
+			}
+		})
+	}
 }
