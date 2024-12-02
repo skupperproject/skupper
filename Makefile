@@ -10,7 +10,7 @@ GOARCH ?= amd64
 REGISTRY := quay.io/skupper
 IMAGE_TAG := v2-latest
 PLATFORMS ?= linux/amd64,linux/arm64
-CONTAINERFILES := Dockerfile.bootstrap Dockerfile.config-sync Dockerfile.controller Dockerfile.network-console-collector
+CONTAINERFILES := Dockerfile.bootstrap Dockerfile.config-sync Dockerfile.controller Dockerfile.network-observer
 SHARED_IMAGE_LABELS = \
     --label "org.opencontainers.image.created=$(shell TZ=GMT date --iso-8601=seconds)" \
 	--label "org.opencontainers.image.url=https://skupper.io/" \
@@ -25,7 +25,7 @@ DOCKER := docker
 SKOPEO := skopeo
 PODMAN := podman
 
-all: build-cmd build-config-sync build-controller build-bootstrap build-manifest build-network-console-collector update-helm-crd
+all: build-cmd build-config-sync build-controller build-bootstrap build-manifest build-network-observer update-helm-crd
 
 build-cmd:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o skupper ./cmd/skupper
@@ -39,8 +39,8 @@ build-controller:
 build-config-sync:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o config-sync ./cmd/config-sync
 
-build-network-console-collector:
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o network-console-collector ./cmd/network-console-collector
+build-network-observer:
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o network-observer ./cmd/network-observer
 
 build-manifest:
 	go build -ldflags="${LDFLAGS}"  -o manifest ./cmd/manifest
@@ -127,5 +127,5 @@ update-helm-crd:
 
 clean:
 	rm -rf skupper controller config-sync manifest \
-		bootstrap network-console-collector generate-doc \
+		bootstrap network-observer generate-doc \
 		cover.out oci-archives

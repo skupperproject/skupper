@@ -26,7 +26,7 @@ func asProcessRecord(pod *corev1.Pod) vanflow.ProcessRecord {
 	process.Hostname = &pod.Spec.NodeName
 	if labelName, ok := pod.ObjectMeta.Labels["app.kubernetes.io/part-of"]; ok {
 		process.Group = &labelName
-		if labelName == "skupper" || labelName == "skupper-network-console" {
+		if labelName == "skupper" || labelName == "skupper-network-observer" {
 			process.Mode = &modeInternal
 		}
 	} else if labelComponent, ok := pod.ObjectMeta.Labels["app.kubernetes.io/name"]; ok {
