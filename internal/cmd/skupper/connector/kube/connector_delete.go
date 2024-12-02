@@ -20,6 +20,7 @@ type CmdConnectorDelete struct {
 	Flags     *common.CommandConnectorDeleteFlags
 	namespace string
 	name      string
+	wait      bool
 }
 
 func NewCmdConnectorDelete() *CmdConnectorDelete {
@@ -79,23 +80,29 @@ func (cmd *CmdConnectorDelete) Run() error {
 }
 
 func (cmd *CmdConnectorDelete) WaitUntil() error {
-	waitTime := int(cmd.Flags.Timeout.Seconds())
-	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
-		resource, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if err == nil && resource != nil {
-			return fmt.Errorf("error deleting the resource")
-		} else {
-			return nil
+	if cmd.wait {
+		waitTime := int(cmd.Flags.Timeout.Seconds())
+		err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
+
+			resource, err := cmd.client.Connectors(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
+			if err == nil && resource != nil {
+				return fmt.Errorf("error deleting the resource")
+			} else {
+				return nil
+			}
+		})
+
+		if err != nil {
+			return fmt.Errorf("Connector %q not deleted yet, check the status for more information %s\n", cmd.name, err)
 		}
-	})
 
-	if err != nil {
-		return fmt.Errorf("Connector %q not deleted yet, check the status for more information %s\n", cmd.name, err)
+		fmt.Printf("Connector %q deleted\n", cmd.name)
+
 	}
-
-	fmt.Printf("Connector %q deleted\n", cmd.name)
 	return nil
 }
 
-func (cmd *CmdConnectorDelete) InputToOptions() {}
+func (cmd *CmdConnectorDelete) InputToOptions() {
+	cmd.wait = cmd.Flags.Wait
+}

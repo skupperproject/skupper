@@ -150,6 +150,7 @@ type CommandConnectorCreateFlags struct {
 	Workload            string
 	Timeout             time.Duration
 	Output              string
+	Wait            string
 }
 
 type CommandConnectorUpdateFlags struct {
@@ -163,10 +164,12 @@ type CommandConnectorUpdateFlags struct {
 	IncludeNotReadyPods bool
 	Timeout             time.Duration
 	Output              string
+	Wait            string
 }
 
 type CommandConnectorDeleteFlags struct {
 	Timeout time.Duration
+	Wait    bool
 }
 
 type CommandConnectorStatusFlags struct {

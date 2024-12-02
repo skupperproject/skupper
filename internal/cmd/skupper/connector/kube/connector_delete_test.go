@@ -140,6 +140,7 @@ func TestCmdConnectorDelete_Run(t *testing.T) {
 func TestCmdConnectorDelete_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
+		wait                bool
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
@@ -149,6 +150,7 @@ func TestCmdConnectorDelete_WaitUntil(t *testing.T) {
 	testTable := []test{
 		{
 			name: "error deleting connector",
+			wait: true,
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
@@ -171,6 +173,30 @@ func TestCmdConnectorDelete_WaitUntil(t *testing.T) {
 		},
 		{
 			name:        "connector is deleted",
+			wait:        true,
+			expectError: false,
+		},
+		{
+			name: "connector is not deleted but user does not want to wait",
+			wait: false,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector",
+						Namespace: "test",
+					},
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
+					},
+				},
+			},
 			expectError: false,
 		},
 	}
@@ -182,6 +208,7 @@ func TestCmdConnectorDelete_WaitUntil(t *testing.T) {
 		cmd.name = "my-connector"
 		cmd.Flags = &common.CommandConnectorDeleteFlags{Timeout: 1 * time.Second}
 		cmd.namespace = "test"
+		cmd.wait = test.wait
 
 		t.Run(test.name, func(t *testing.T) {
 
@@ -191,6 +218,33 @@ func TestCmdConnectorDelete_WaitUntil(t *testing.T) {
 			} else {
 				assert.Assert(t, err)
 			}
+		})
+	}
+}
+
+func TestCmdConnectorDelete_InputToOptions(t *testing.T) {
+
+	type test struct {
+		name         string
+		flags        *common.CommandConnectorDeleteFlags
+		expectedWait bool
+	}
+
+	testTable := []test{
+		{
+			name:         "wait for connector to be deleted",
+			flags:        &common.CommandConnectorDeleteFlags{Wait: true},
+			expectedWait: true,
+		},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			command := &CmdConnectorDelete{}
+			command.Flags = test.flags
+			command.InputToOptions()
+
+			assert.Check(t, command.wait == test.expectedWait)
 		})
 	}
 }

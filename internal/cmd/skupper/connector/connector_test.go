@@ -32,6 +32,7 @@ func TestCmdConnectorFactory(t *testing.T) {
 				common.FlagNameWorkload:            "",
 				common.FlagNameOutput:              "",
 				common.FlagNameTimeout:             "1m0s",
+				common.FlagNameWait:            "configured",
 			},
 			command: CmdConnectorCreateFactory(types.PlatformKubernetes),
 		},
@@ -48,6 +49,7 @@ func TestCmdConnectorFactory(t *testing.T) {
 				common.FlagNameOutput:              "",
 				common.FlagNameTimeout:             "1m0s",
 				common.FlagNameConnectorPort:       "0",
+				common.FlagNameWait:            "configured",
 			},
 			command: CmdConnectorUpdateFactory(types.PlatformKubernetes),
 		},
@@ -62,6 +64,7 @@ func TestCmdConnectorFactory(t *testing.T) {
 			name: "CmdConnectorDeleteFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameTimeout: "1m0s",
+				common.FlagNameWait:    "true",
 			},
 			command: CmdConnectorDeleteFactory(types.PlatformKubernetes),
 		},
