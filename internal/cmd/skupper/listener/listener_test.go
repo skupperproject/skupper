@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestCmdLinkFactory(t *testing.T) {
+func TestCmdListenerFactory(t *testing.T) {
 
 	type test struct {
 		name                          string
@@ -28,6 +28,7 @@ func TestCmdLinkFactory(t *testing.T) {
 				common.FlagNameListenerType:   "tcp",
 				common.FlagNameOutput:         "",
 				common.FlagNameTimeout:        "1m0s",
+				common.FlagNameWait:           "configured",
 			},
 			command: CmdListenerCreateFactory(types.PlatformKubernetes),
 		},
@@ -41,6 +42,7 @@ func TestCmdLinkFactory(t *testing.T) {
 				common.FlagNameOutput:         "",
 				common.FlagNameTimeout:        "1m0s",
 				common.FlagNameListenerPort:   "0",
+				common.FlagNameWait:           "configured",
 			},
 			command: CmdListenerUpdateFactory(types.PlatformKubernetes),
 		},
@@ -55,6 +57,7 @@ func TestCmdLinkFactory(t *testing.T) {
 			name: "CmdListenerDeleteFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameTimeout: "1m0s",
+				common.FlagNameWait:    "true",
 			},
 			command: CmdListenerDeleteFactory(types.PlatformKubernetes),
 		},

@@ -20,6 +20,7 @@ type CmdListenerDelete struct {
 	Flags     *common.CommandListenerDeleteFlags
 	namespace string
 	name      string
+	wait      bool
 }
 
 func NewCmdListenerDelete() *CmdListenerDelete {
@@ -80,23 +81,28 @@ func (cmd *CmdListenerDelete) Run() error {
 }
 
 func (cmd *CmdListenerDelete) WaitUntil() error {
-	waitTime := int(cmd.Flags.Timeout.Seconds())
-	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
-		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if err == nil && resource != nil {
-			return fmt.Errorf("error deleting the resource")
-		} else {
-			return nil
+	if cmd.wait {
+		waitTime := int(cmd.Flags.Timeout.Seconds())
+		err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
+
+			resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
+			if err == nil && resource != nil {
+				return fmt.Errorf("error deleting the resource")
+			} else {
+				return nil
+			}
+		})
+
+		if err != nil {
+			return fmt.Errorf("Listener %q not deleted yet, check the status for more information %s\n", cmd.name, err)
 		}
-	})
 
-	if err != nil {
-		return fmt.Errorf("Listener %q not deleted yet, check the status for more information %s\n", cmd.name, err)
+		fmt.Printf("Listener %q deleted\n", cmd.name)
 	}
-
-	fmt.Printf("Listener %q deleted\n", cmd.name)
 	return nil
 }
 
-func (cmd *CmdListenerDelete) InputToOptions() {}
+func (cmd *CmdListenerDelete) InputToOptions() {
+	cmd.wait = cmd.Flags.Wait
+}
