@@ -152,6 +152,7 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site) error {
 				return err
 			}
 		}
+		s.setBindingsConfiguredStatus(nil)
 		s.checkSecuredAccess()
 	} else {
 		if err := s.updateRouterConfigForGroups(s); err != nil {
@@ -678,7 +679,10 @@ func (s *Site) updateConnectorConfiguredStatusWithSelectedPods(connector *skuppe
 
 func (s *Site) CheckConnector(name string, connector *skupperv2alpha1.Connector) error {
 	update := s.bindings.UpdateConnector(name, connector)
-	if update == nil || s.site == nil {
+	if s.site == nil {
+		return s.updateConnectorConfiguredStatus(connector, stderrors.New("No active site in namespace"))
+	}
+	if update == nil {
 		return nil
 	}
 	err := s.updateRouterConfigForGroups(update)
@@ -696,12 +700,15 @@ func (s *Site) updateListenerStatus(listener *skupperv2alpha1.Listener, err erro
 		}
 		s.bindings.UpdateListener(updated.Name, updated)
 	}
-	return err
+	return nil
 }
 
 func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener) error {
 	update, err1 := s.bindings.UpdateListener(name, listener)
-	if update == nil || s.site == nil {
+	if s.site == nil {
+		return s.updateListenerStatus(listener, stderrors.New("No active site in namespace"))
+	}
+	if update == nil {
 		return nil
 	}
 	err2 := s.updateRouterConfigForGroups(update)
@@ -709,6 +716,38 @@ func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener) er
 		return stderrors.Join(err1, err2)
 	}
 	return s.updateListenerStatus(listener, stderrors.Join(err1, err2))
+}
+
+func (s *Site) setBindingsConfiguredStatus(err error) {
+	lf := func(listener *skupperv2alpha1.Listener) *skupperv2alpha1.Listener {
+		if listener.SetConfigured(nil) {
+			updated, err := s.controller.GetSkupperClient().SkupperV2alpha1().Listeners(listener.ObjectMeta.Namespace).UpdateStatus(context.TODO(), listener, metav1.UpdateOptions{})
+			if err == nil {
+				return updated
+			} else {
+				s.logger.Error("Could not update listener status",
+					slog.String("namespace", listener.ObjectMeta.Namespace),
+					slog.String("listener", listener.ObjectMeta.Name),
+					slog.Any("error", err))
+			}
+		}
+		return nil
+	}
+	cf := func(connector *skupperv2alpha1.Connector) *skupperv2alpha1.Connector {
+		if connector.SetConfigured(nil) {
+			updated, err := s.controller.GetSkupperClient().SkupperV2alpha1().Connectors(connector.ObjectMeta.Namespace).UpdateStatus(context.TODO(), connector, metav1.UpdateOptions{})
+			if err == nil {
+				return updated
+			} else {
+				s.logger.Error("Could not update connector status",
+					slog.String("namespace", connector.ObjectMeta.Namespace),
+					slog.String("connector", connector.ObjectMeta.Name),
+					slog.Any("error", err))
+			}
+		}
+		return nil
+	}
+	s.bindings.Map(cf, lf)
 }
 
 func (s *Site) newLink(linkconfig *skupperv2alpha1.Link) *site.Link {
@@ -752,6 +791,7 @@ func (s *Site) link(linkconfig *skupperv2alpha1.Link) error {
 		s.logger.Info("Site is not yet initialised, cannot configure router for link",
 			slog.String("namespace", linkconfig.ObjectMeta.Namespace),
 			slog.String("token", linkconfig.ObjectMeta.Name))
+		return s.updateLinkConfiguredCondition(linkconfig, stderrors.New("No active site in namespace"))
 	}
 	return nil
 }
@@ -793,6 +833,7 @@ func (s *Site) Deleted() {
 		slog.String("namespace", s.namespace),
 		slog.String("name", s.name))
 	s.bindings.cleanup()
+	s.setBindingsConfiguredStatus(stderrors.New("No active site"))
 }
 
 func (s *Site) setDefaultIssuerInStatus() bool {

@@ -539,6 +539,14 @@ func TestSite_CheckLink(t *testing.T) {
 			},
 			wantErr:   false,
 			wantLinks: 1,
+			skupperObjects: []runtime.Object{
+				&skupperv2alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "link1",
+						Namespace: "test",
+					},
+				},
+			},
 		},
 		{
 			name: "link - not found",
