@@ -25,7 +25,7 @@ DOCKER := docker
 SKOPEO := skopeo
 PODMAN := podman
 
-all: build-cmd build-config-sync build-controller build-bootstrap build-manifest build-network-observer update-helm-crd
+all: build-cmd build-config-sync build-controller build-bootstrap build-network-observer update-helm-crd
 
 build-cmd:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o skupper ./cmd/skupper
@@ -41,9 +41,6 @@ build-config-sync:
 
 build-network-observer:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o network-observer ./cmd/network-observer
-
-build-manifest:
-	go build -ldflags="${LDFLAGS}"  -o manifest ./cmd/manifest
 
 build-doc-generator:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o generate-doc ./internal/cmd/generate-doc
@@ -116,8 +113,8 @@ cover:
 		-coverprofile cover.out \
 		./...
 
-generate-manifest: build-manifest
-	./manifest
+generate-manifest: build-cmd
+	./skupper version -o json > manifest.json
 
 generate-doc: build-doc-generator
 	./generate-doc ./doc/cli
@@ -126,6 +123,6 @@ update-helm-crd:
 	./scripts/update-helm-crds.sh
 
 clean:
-	rm -rf skupper controller config-sync manifest \
+	rm -rf skupper controller config-sync \
 		bootstrap network-observer generate-doc \
 		cover.out oci-archives
