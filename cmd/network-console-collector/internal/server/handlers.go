@@ -198,7 +198,7 @@ func (s *server) Processes(w http.ResponseWriter, r *http.Request) {
 
 // (GET /api/v1alpha1/processes/{id}/)
 func (s *server) ProcessById(w http.ResponseWriter, r *http.Request, id string) {
-	getRecord := fetchAndMap(s.records, views.NewProcessProvider(s.records, s.graph), id)
+	getRecord := fetchAndConditionalMap(s.records, views.NewProcessProvider(s.records, s.graph), id)
 	if err := handleSingle(w, r, &api.ProcessResponse{}, getRecord); err != nil {
 		s.logWriteError(r, err)
 	}

@@ -22,16 +22,28 @@ func TestProcesses(t *testing.T) {
 	testcases := []collectionTestCase[api.ProcessRecord]{
 		{ExpectOK: true},
 		{
-			Records: wrapRecords(
-				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("1")},
-				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("2")},
+			Records: wrapRecords( // filters processes with no sites
+				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("1"), Parent: ptrTo("s1")},
+				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("2"), Parent: ptrTo("s2")},
 				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("3")},
+			),
+			ExpectOK:    true,
+			ExpectCount: 0,
+		}, {
+			Records: wrapRecords(
+				vanflow.SiteRecord{BaseRecord: vanflow.NewBase("s1")},
+				vanflow.SiteRecord{BaseRecord: vanflow.NewBase("s2")},
+				vanflow.SiteRecord{BaseRecord: vanflow.NewBase("s3")},
+				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("1"), Parent: ptrTo("s1")},
+				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("2"), Parent: ptrTo("s2")},
+				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("3"), Parent: ptrTo("s3")},
 			),
 			ExpectOK:    true,
 			ExpectCount: 3,
 		}, {
 			Records: wrapRecords(
-				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("1")},
+				vanflow.SiteRecord{BaseRecord: vanflow.NewBase("s1")},
+				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("1"), Parent: ptrTo("s1")},
 			),
 			ExpectOK:    true,
 			ExpectCount: 1,
@@ -39,7 +51,7 @@ func TestProcesses(t *testing.T) {
 				r := results[0]
 				assert.DeepEqual(t, r, api.ProcessRecord{
 					Identity:       "1",
-					Parent:         "unknown",
+					Parent:         "s1",
 					ParentName:     "unknown",
 					GroupName:      "unknown",
 					GroupIdentity:  "unknown",
@@ -62,6 +74,31 @@ func TestProcesses(t *testing.T) {
 					Addresses:      ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp"), api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp")}),
 					GroupName:      "group-one",
 					GroupIdentity:  "group-1-id",
+					ProcessBinding: api.Unbound,
+					Name:           "processone",
+					ProcessRole:    api.Internal,
+					SourceHost:     "10.99.99.2",
+				})
+			},
+		}, {
+			Records: append(exProcessWithAddresses(), wrapRecords(
+				vanflow.ListenerRecord{
+					BaseRecord: vanflow.NewBase("l1"),
+					Address:    ptrTo("pizza"),
+					Protocol:   ptrTo("tcp"),
+				},
+			)...),
+			ExpectOK:    true,
+			ExpectCount: 1,
+			ExpectResults: func(t *testing.T, results []api.ProcessRecord) {
+				r := results[0]
+				assert.DeepEqual(t, r, api.ProcessRecord{
+					Identity:       "1",
+					Parent:         "site-1",
+					ParentName:     "site one",
+					Addresses:      ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp"), api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp")}),
+					GroupName:      "group-one",
+					GroupIdentity:  "group-1-id",
 					ProcessBinding: api.Bound,
 					Name:           "processone",
 					ProcessRole:    api.Internal,
@@ -69,7 +106,14 @@ func TestProcesses(t *testing.T) {
 				})
 			},
 		}, {
-			Records:     append(exProcessWithAddresses(), wrapRecords(vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("0")})...),
+			Records: append(exProcessWithAddresses(), wrapRecords(
+				vanflow.ProcessRecord{BaseRecord: vanflow.NewBase("0"), Parent: ptrTo("site-1")},
+				vanflow.ListenerRecord{
+					BaseRecord: vanflow.NewBase("l1"),
+					Address:    ptrTo("pizza"),
+					Protocol:   ptrTo("tcp"),
+				},
+			)...),
 			ExpectOK:    true,
 			ExpectCount: 2,
 			Parameters: map[string][]string{
