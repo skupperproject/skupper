@@ -180,6 +180,7 @@ type CommandListenerCreateFlags struct {
 	ListenerType   string
 	Timeout        time.Duration
 	Output         string
+	Wait           string
 }
 
 type CommandListenerUpdateFlags struct {
@@ -190,6 +191,7 @@ type CommandListenerUpdateFlags struct {
 	Timeout        time.Duration
 	Port           int
 	Output         string
+	Wait           string
 }
 
 type CommandListenerStatusFlags struct {
@@ -198,6 +200,7 @@ type CommandListenerStatusFlags struct {
 
 type CommandListenerDeleteFlags struct {
 	Timeout time.Duration
+	Wait    bool
 }
 
 type CommandVersionFlags struct {

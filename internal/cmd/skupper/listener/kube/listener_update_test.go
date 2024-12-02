@@ -257,6 +257,33 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 			},
 			expectedErrors: []string{},
 		},
+		{
+			name:       "wait status is not valid",
+			args:       []string{"backend-listener"},
+			flags:      common.CommandListenerUpdateFlags{Timeout: time.Second * 30, Wait: "created"},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "backend-listener",
+						Namespace: "test",
+					},
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedErrors: []string{
+				"status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
+			},
+		},
 	}
 
 	for _, test := range testTable {
@@ -273,6 +300,36 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 
 			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
 
+		})
+	}
+}
+
+func TestCmdListenerUpdate_InputToOptions(t *testing.T) {
+
+	type test struct {
+		name           string
+		args           []string
+		flags          common.CommandListenerUpdateFlags
+		expectedStatus string
+	}
+
+	testTable := []test{
+		{
+			name:           "options with waiting status",
+			args:           []string{"backend-listener"},
+			flags:          common.CommandListenerUpdateFlags{Wait: "configured"},
+			expectedStatus: "configured",
+		},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			command := &CmdListenerUpdate{}
+			command.Flags = &test.flags
+
+			command.InputToOptions()
+
+			assert.Check(t, command.status == test.expectedStatus)
 		})
 	}
 }
@@ -379,15 +436,18 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
 		output              string
+		status              string
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
 		expectError         bool
+		errorMessage        string
 	}
 
 	testTable := []test{
 		{
-			name: "listener is not ready",
+			name:   "listener is not ready",
+			status: "ready",
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
@@ -399,11 +459,14 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 					},
 				},
 			},
-			expectError: true,
+			expectError:  true,
+			errorMessage: "Listener \"my-listener\" is not ready yet, check the status for more information\n",
 		},
 		{
-			name:        "listener is not returned",
-			expectError: true,
+			name:         "listener is not returned",
+			status:       "ready",
+			expectError:  true,
+			errorMessage: "Listener \"my-listener\" is not ready yet, check the status for more information\n",
 		},
 		{
 			name: "listener is ready",
@@ -417,7 +480,7 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
-									Type:   "Configured",
+									Type:   "Ready",
 									Status: "True",
 								},
 							},
@@ -450,6 +513,82 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name:       "listener is not ready yet, but user waits for configured",
+			status:     "configured",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-listener",
+						Namespace: "test",
+					},
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name:       "user does not wait",
+			status:     "none",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-listener",
+						Namespace: "test",
+					},
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Ready",
+									Status: "True",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name:       "user waits for configured, but site had some errors while being configured",
+			status:     "configured",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-listener",
+						Namespace: "test",
+					},
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Message:            "Error",
+									ObservedGeneration: 1,
+									Reason:             "Error",
+									Status:             "False",
+									Type:               "Configured",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError:  true,
+			errorMessage: "Listener \"my-listener\" is configured with errors, check the status for more information\n",
+		},
 	}
 
 	for _, test := range testTable {
@@ -463,11 +602,13 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 		}
 		cmd.namespace = "test"
 		cmd.newSettings.output = cmd.Flags.Output
+		cmd.status = test.status
 
 		t.Run(test.name, func(t *testing.T) {
 			err := cmd.WaitUntil()
 			if test.expectError {
 				assert.Check(t, err != nil)
+				assert.Equal(t, test.errorMessage, err.Error())
 			} else {
 				assert.Assert(t, err)
 			}

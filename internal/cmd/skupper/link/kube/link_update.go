@@ -181,7 +181,7 @@ func (cmd *CmdLinkUpdate) WaitUntil() error {
 	}
 
 	waitTime := int(cmd.timeout.Seconds())
-	var siteCondition *metav1.Condition
+	var linkCondition *metav1.Condition
 	err := utils.NewSpinnerWithTimeout("Waiting for update to complete...", waitTime, func() error {
 
 		resource, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
@@ -194,14 +194,14 @@ func (cmd *CmdLinkUpdate) WaitUntil() error {
 
 		switch cmd.status {
 		case "configured":
-			siteCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_CONFIGURED)
+			linkCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_CONFIGURED)
 		default:
-			siteCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_READY)
+			linkCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_READY)
 		}
 
-		if siteCondition != nil {
+		if linkCondition != nil {
 			isConditionFound = true
-			isConditionTrue = siteCondition.Status == metav1.ConditionTrue
+			isConditionTrue = linkCondition.Status == metav1.ConditionTrue
 		}
 
 		if resource != nil && isConditionFound && isConditionTrue {
@@ -215,7 +215,7 @@ func (cmd *CmdLinkUpdate) WaitUntil() error {
 		return fmt.Errorf("error getting the resource")
 	})
 
-	if err != nil && siteCondition == nil {
+	if err != nil && linkCondition == nil {
 		return fmt.Errorf("Link %q is not %s yet, check the status for more information\n", cmd.linkName, cmd.status)
 	} else if err != nil {
 		return fmt.Errorf("Link %q is %s with errors, check the status for more information\n", cmd.linkName, cmd.status)

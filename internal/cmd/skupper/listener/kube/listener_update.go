@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -36,6 +37,7 @@ type CmdListenerUpdate struct {
 	resourceVersion string
 	newSettings     ListenerUpdates
 	KubeClient      kubernetes.Interface
+	status          string
 }
 
 func NewCmdListenerUpdate() *CmdListenerUpdate {
@@ -59,6 +61,7 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 	listenerTypeValidator := validator.NewOptionValidator(common.ListenerTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
+	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 
 	// Validate arguments name
 	if len(args) < 1 {
@@ -143,6 +146,13 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 		}
 	}
 
+	if cmd.Flags != nil && cmd.Flags.Wait != "" {
+		ok, err := statusValidator.Evaluate(cmd.Flags.Wait)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("status is not valid: %s", err))
+		}
+	}
+
 	return validationErrors
 }
 
@@ -183,27 +193,54 @@ func (cmd *CmdListenerUpdate) WaitUntil() error {
 		return nil
 	}
 
+	if cmd.status == "none" {
+		return nil
+	}
+
 	waitTime := int(cmd.Flags.Timeout.Seconds())
+	var listenerCondition *metav1.Condition
 	err := utils.NewSpinnerWithTimeout("Waiting for update to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
+		isConditionFound := false
+		isConditionTrue := false
 
-		if resource != nil && resource.IsConfigured() {
+		switch cmd.status {
+		case "configured":
+			listenerCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_CONFIGURED)
+		default:
+			listenerCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_READY)
+		}
+
+		if listenerCondition != nil {
+			isConditionFound = true
+			isConditionTrue = listenerCondition.Status == metav1.ConditionTrue
+		}
+
+		if resource != nil && isConditionFound && isConditionTrue {
 			return nil
+		}
+
+		if resource != nil && isConditionFound && !isConditionTrue {
+			return fmt.Errorf("error in the condition")
 		}
 
 		return fmt.Errorf("error getting the resource")
 	})
 
-	if err != nil {
-		return fmt.Errorf("Listener %q not ready yet, check the status for more information\n", cmd.name)
+	if err != nil && listenerCondition == nil {
+		return fmt.Errorf("Listener %q is not %s yet, check the status for more information\n", cmd.name, cmd.status)
+	} else if err != nil {
+		return fmt.Errorf("Listener %q is %s with errors, check the status for more information\n", cmd.name, cmd.status)
 	}
 
-	fmt.Printf("Listener %q is ready\n", cmd.name)
+	fmt.Printf("Listener %q is updated\n", cmd.name)
 	return nil
 }
 
-func (cmd *CmdListenerUpdate) InputToOptions() {}
+func (cmd *CmdListenerUpdate) InputToOptions() {
+	cmd.status = cmd.Flags.Wait
+}
