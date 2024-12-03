@@ -375,7 +375,8 @@ func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "listener is ready",
+			name:   "listener is ready",
+			status: "ready",
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
