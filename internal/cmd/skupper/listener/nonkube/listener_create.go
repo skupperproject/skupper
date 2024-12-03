@@ -102,7 +102,7 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 	if cmd.Flags.Host != "" {
 		ip := net.ParseIP(cmd.Flags.Host)
 		ok, _ := hostStringValidator.Evaluate(cmd.Flags.Host)
-		if !ok || ip == nil {
+		if !ok && ip == nil {
 			validationErrors = append(validationErrors, fmt.Errorf("host is not valid: a valid IP address or hostname is expected"))
 		}
 	}

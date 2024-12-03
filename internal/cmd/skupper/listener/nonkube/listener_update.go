@@ -102,7 +102,7 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 	if cmd.Flags.Host != "" {
 		ip := net.ParseIP(cmd.Flags.Host)
 		ok, _ := hostStringValidator.Evaluate(cmd.Flags.Host)
-		if !ok || ip == nil {
+		if !ok && ip == nil {
 			validationErrors = append(validationErrors, fmt.Errorf("host is not valid: a valid IP address or hostname is expected"))
 		} else {
 			cmd.newSettings.host = cmd.Flags.Host
@@ -147,6 +147,10 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 func (cmd *CmdListenerUpdate) InputToOptions() {
 	if cmd.namespace == "" {
 		cmd.namespace = "default"
+	}
+	// user wants to clear TlsCredentials
+	if cmd.CobraCmd.Flags().Changed(common.FlagNameTlsCredentials) && cmd.Flags.TlsCredentials == "" {
+		cmd.newSettings.tlsCredentials = ""
 	}
 }
 
