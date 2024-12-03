@@ -22,6 +22,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/kube"
 	pkgutils "github.com/skupperproject/skupper/pkg/utils"
 	"github.com/skupperproject/skupper/test/utils"
+	"github.com/skupperproject/skupper/test/utils/arch"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	v1 "k8s.io/api/core/v1"
@@ -36,6 +37,13 @@ var (
 	throughputFormat       = "%-16s %-48s %-12d %-12d %22.2f %8s %19.4f %3s %14.4f %3s %14.4f %3s"
 	debug                  bool
 )
+
+// Tests do not have access to common.testRunner, so they can call this
+// function to check on cluster architectures, and skip accordingly.
+func CheckArch(t *testing.T) error {
+	err := arch.Skip(t, testRunner.ClusterContexts...)
+	return err
+}
 
 func DebugMode() bool {
 	return debug
