@@ -238,8 +238,8 @@ spec:
           command: ["/app/controller"]
           args: ["-enable-grants", "-grant-server-autoconfigure"]
           env:
-            - name: SKUPPER_CONFIG_SYNC_IMAGE
-              value: {{ .Values.images.configSync}}
+            - name: SKUPPER_KUBE_ADAPTOR_IMAGE
+              value: {{ .Values.images.adaptor}}
             {{ if eq .Values.scope "namespace"}}
             - name: WATCH_NAMESPACE
               valueFrom:
