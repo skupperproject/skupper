@@ -49,17 +49,17 @@ func postTokenRequest(token *skupperv2alpha1.AccessToken, site *skupperv2alpha1.
 	}
 	request, err := http.NewRequest(http.MethodPost, token.Spec.Url, bytes.NewReader([]byte(token.Spec.Code)))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Controller got error: %s", err)
 	}
 	request.Header.Add("name", token.Name)
 	request.Header.Add("subject", string(site.ObjectMeta.UID))
 	response, err := client.Do(request)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Controller got error: %s", err)
 	}
 	if response.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(response.Body)
-		return nil, fmt.Errorf("%d (%s) %s", response.StatusCode, http.StatusText(response.StatusCode), strings.TrimSpace(string(body)))
+		return nil, fmt.Errorf("Controller got failed response: %d (%s) %s", response.StatusCode, http.StatusText(response.StatusCode), strings.TrimSpace(string(body)))
 	}
 	return response.Body, nil
 }
@@ -68,7 +68,7 @@ func handleTokenResponse(body io.Reader, token *skupperv2alpha1.AccessToken, sit
 	decoder := newLinkDecoder(body)
 	if err := decoder.decodeAll(); err != nil {
 		log.Printf("Could not decode response for AccessToken %s/%s: %s", token.Namespace, token.Name, err)
-		return updateAccessTokenStatus(token, errors.New("Could not decode response"), clients)
+		return updateAccessTokenStatus(token, errors.New("Controller could not decode response"), clients)
 	}
 	refs := []metav1.OwnerReference{
 		{
@@ -80,12 +80,12 @@ func handleTokenResponse(body io.Reader, token *skupperv2alpha1.AccessToken, sit
 	}
 	decoder.secret.ObjectMeta.OwnerReferences = refs
 	if _, err := clients.GetKubeClient().CoreV1().Secrets(token.ObjectMeta.Namespace).Create(context.TODO(), &decoder.secret, metav1.CreateOptions{}); err != nil {
-		return updateAccessTokenStatus(token, fmt.Errorf("Could not create received secret: %s", err), clients)
+		return updateAccessTokenStatus(token, fmt.Errorf("Controller could not create received secret: %s", err), clients)
 	}
 	for _, link := range decoder.links {
 		link.ObjectMeta.OwnerReferences = refs
 		if _, err := clients.GetSkupperClient().SkupperV2alpha1().Links(token.ObjectMeta.Namespace).Create(context.TODO(), &link, metav1.CreateOptions{}); err != nil {
-			return updateAccessTokenStatus(token, fmt.Errorf("Could not create received link: %s", err), clients)
+			return updateAccessTokenStatus(token, fmt.Errorf("Controller could not create received link: %s", err), clients)
 		}
 	}
 
