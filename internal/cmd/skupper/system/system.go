@@ -5,7 +5,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/system/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/system/nonkube"
-	"github.com/skupperproject/skupper/pkg/config"
+	"github.com/skupperproject/skupper/internal/config"
 
 	"github.com/spf13/cobra"
 )
@@ -55,6 +55,7 @@ approach, which is based on the new set of Custom Resource Definitions (CRDs).`,
 
 	cmd.AddCommand(CmdSystemSetupFactory(config.GetPlatform()))
 	cmd.AddCommand(CmdSystemReloadFactory(config.GetPlatform()))
+	cmd.AddCommand(CmdSystemStartFactory(config.GetPlatform()))
 	cmd.AddCommand(CmdSystemStopFactory(config.GetPlatform()))
 	cmd.AddCommand(CmdSystemTeardownFactory(config.GetPlatform()))
 
@@ -106,6 +107,24 @@ func CmdSystemReloadFactory(configuredPlatform types.Platform) *cobra.Command {
 
 	kubeCommand.CobraCmd = cmd
 	nonKubeCommand.CobraCmd = cmd
+
+	return cmd
+}
+
+func CmdSystemStartFactory(configuredPlatform types.Platform) *cobra.Command {
+
+	//This implementation will warn the user that the command is not available for Kubernetes environments.
+	kubeCommand := kube.NewCmdCmdSystemStart()
+	nonKubeCommand := nonkube.NewCmdCmdSystemStart()
+
+	cmdSystemStartDesc := common.SkupperCmdDescription{
+		Use:     "start",
+		Short:   "Start the Skupper components for the current site",
+		Long:    "Start down the Skupper components for the current site",
+		Example: "skupper system start -n my-namespace",
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSystemStartDesc, kubeCommand, nonKubeCommand)
 
 	return cmd
 }
