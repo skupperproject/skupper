@@ -302,10 +302,11 @@ func (cmd *CmdConnectorCreate) WaitUntil() error {
 		isConditionTrue := false
 
 		switch cmd.status {
-		case "configured":
-			connectorCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_CONFIGURED)
-		default:
+		case "ready":
 			connectorCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_READY)
+		default:
+			connectorCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_CONFIGURED)
+
 		}
 
 		if connectorCondition != nil {
@@ -326,7 +327,7 @@ func (cmd *CmdConnectorCreate) WaitUntil() error {
 
 	if err != nil && connectorCondition == nil {
 		return fmt.Errorf("Connector %q is not %s yet, check the status for more information\n", cmd.name, cmd.status)
-	} else if err != nil {
+	} else if err != nil && connectorCondition.Status == metav1.ConditionFalse {
 		return fmt.Errorf("Connector %q is %s with errors, check the status for more information\n", cmd.name, cmd.status)
 	}
 

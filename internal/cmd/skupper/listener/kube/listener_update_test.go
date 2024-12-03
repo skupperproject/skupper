@@ -469,7 +469,8 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 			errorMessage: "Listener \"my-listener\" is not ready yet, check the status for more information\n",
 		},
 		{
-			name: "listener is ready",
+			name:   "listener is ready",
+			status: "ready",
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{

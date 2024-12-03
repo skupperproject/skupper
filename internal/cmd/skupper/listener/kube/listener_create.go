@@ -216,10 +216,10 @@ func (cmd *CmdListenerCreate) WaitUntil() error {
 		isConditionTrue := false
 
 		switch cmd.status {
-		case "configured":
-			listenerCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_CONFIGURED)
-		default:
+		case "ready":
 			listenerCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_READY)
+		default:
+			listenerCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_CONFIGURED)
 		}
 
 		if listenerCondition != nil {
@@ -240,7 +240,7 @@ func (cmd *CmdListenerCreate) WaitUntil() error {
 
 	if err != nil && listenerCondition == nil {
 		return fmt.Errorf("Listener %q is not %s yet, check the status for more information\n", cmd.name, cmd.status)
-	} else if err != nil {
+	} else if err != nil && listenerCondition.Status == metav1.ConditionFalse {
 		return fmt.Errorf("Listener %q is %s with errors, check the status for more information\n", cmd.name, cmd.status)
 	}
 

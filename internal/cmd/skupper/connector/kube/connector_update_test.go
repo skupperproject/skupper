@@ -1080,7 +1080,8 @@ func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "connector is ready",
+			name:   "connector is ready",
+			status: "ready",
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
