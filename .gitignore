@@ -10,7 +10,7 @@
 /generate-doc
 /bootstrap
 /controller
-/network-console-collector
+/network-observer
 
 # Test binary, built with `go test -c`
 *.test
