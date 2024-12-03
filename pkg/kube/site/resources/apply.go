@@ -63,7 +63,11 @@ func configDigest(config *skupperv2alpha1.SiteSpec) string {
 	if config != nil {
 		// add any values from spec which require a router restart if changed:
 		h := sha256.New()
-		h.Write([]byte(config.RouterMode))
+		if config.Edge {
+			h.Write([]byte("edge"))
+		} else {
+			h.Write([]byte("interior"))
+		}
 		if dcc := config.GetRouterDataConnectionCount(); dcc != "" {
 			h.Write([]byte(dcc))
 		}

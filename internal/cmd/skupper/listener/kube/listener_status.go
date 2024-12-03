@@ -97,11 +97,11 @@ func (cmd *CmdListenerStatus) Run() error {
 		} else {
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
 			_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s",
-				"NAME", "STATUS", "ROUTING-KEY", "HOST", "PORT", "MATCHING-CONNECTORS", "MESSAGE"))
+				"NAME", "STATUS", "ROUTING-KEY", "HOST", "PORT", "MATCHING-CONNECTOR", "MESSAGE"))
 			for _, resource := range resources.Items {
-				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%d\t%d\t%s",
+				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%d\t%t\t%s",
 					resource.Name, resource.Status.StatusType, resource.Spec.RoutingKey, resource.Spec.Host,
-					resource.Spec.Port, resource.Status.MatchingConnectorCount, resource.Status.Message))
+					resource.Spec.Port, resource.Status.HasMatchingConnector, resource.Status.Message))
 			}
 			_ = tw.Flush()
 		}
@@ -119,9 +119,9 @@ func (cmd *CmdListenerStatus) Run() error {
 			fmt.Println(encodedOutput)
 		} else {
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
-			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nHost:\t%s\nPort:\t%d\nConnectors:\t%d\nMessage:\t%s\n",
+			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nHost:\t%s\nPort:\t%d\nHas Matching Connector:\t%t\nMessage:\t%s\n",
 				resource.Name, resource.Status.StatusType, resource.Spec.RoutingKey, resource.Spec.Host,
-				resource.Spec.Port, resource.Status.MatchingConnectorCount, resource.Status.Message))
+				resource.Spec.Port, resource.Status.HasMatchingConnector, resource.Status.Message))
 			_ = tw.Flush()
 		}
 	}

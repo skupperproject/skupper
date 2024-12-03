@@ -20,8 +20,8 @@ package v2alpha1
 
 import (
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type RouterAccessLister interface {
 
 // routerAccessLister implements the RouterAccessLister interface.
 type routerAccessLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v2alpha1.RouterAccess]
 }
 
 // NewRouterAccessLister returns a new RouterAccessLister.
 func NewRouterAccessLister(indexer cache.Indexer) RouterAccessLister {
-	return &routerAccessLister{indexer: indexer}
-}
-
-// List lists all RouterAccesses in the indexer.
-func (s *routerAccessLister) List(selector labels.Selector) (ret []*v2alpha1.RouterAccess, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.RouterAccess))
-	})
-	return ret, err
+	return &routerAccessLister{listers.New[*v2alpha1.RouterAccess](indexer, v2alpha1.Resource("routeraccess"))}
 }
 
 // RouterAccesses returns an object that can list and get RouterAccesses.
 func (s *routerAccessLister) RouterAccesses(namespace string) RouterAccessNamespaceLister {
-	return routerAccessNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return routerAccessNamespaceLister{listers.NewNamespaced[*v2alpha1.RouterAccess](s.ResourceIndexer, namespace)}
 }
 
 // RouterAccessNamespaceLister helps list and get RouterAccesses.
@@ -74,26 +66,5 @@ type RouterAccessNamespaceLister interface {
 // routerAccessNamespaceLister implements the RouterAccessNamespaceLister
 // interface.
 type routerAccessNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all RouterAccesses in the indexer for a given namespace.
-func (s routerAccessNamespaceLister) List(selector labels.Selector) (ret []*v2alpha1.RouterAccess, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.RouterAccess))
-	})
-	return ret, err
-}
-
-// Get retrieves the RouterAccess from the indexer for a given namespace and name.
-func (s routerAccessNamespaceLister) Get(name string) (*v2alpha1.RouterAccess, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v2alpha1.Resource("routeraccess"), name)
-	}
-	return obj.(*v2alpha1.RouterAccess), nil
+	listers.ResourceIndexer[*v2alpha1.RouterAccess]
 }

@@ -20,14 +20,13 @@ package v2alpha1
 
 import (
 	"context"
-	"time"
 
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	scheme "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
+	gentype "k8s.io/client-go/gentype"
 )
 
 // AccessTokensGetter has a method to return a AccessTokenInterface.
@@ -40,6 +39,7 @@ type AccessTokensGetter interface {
 type AccessTokenInterface interface {
 	Create(ctx context.Context, accessToken *v2alpha1.AccessToken, opts v1.CreateOptions) (*v2alpha1.AccessToken, error)
 	Update(ctx context.Context, accessToken *v2alpha1.AccessToken, opts v1.UpdateOptions) (*v2alpha1.AccessToken, error)
+	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 	UpdateStatus(ctx context.Context, accessToken *v2alpha1.AccessToken, opts v1.UpdateOptions) (*v2alpha1.AccessToken, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
@@ -52,144 +52,18 @@ type AccessTokenInterface interface {
 
 // accessTokens implements AccessTokenInterface
 type accessTokens struct {
-	client rest.Interface
-	ns     string
+	*gentype.ClientWithList[*v2alpha1.AccessToken, *v2alpha1.AccessTokenList]
 }
 
 // newAccessTokens returns a AccessTokens
 func newAccessTokens(c *SkupperV2alpha1Client, namespace string) *accessTokens {
 	return &accessTokens{
-		client: c.RESTClient(),
-		ns:     namespace,
+		gentype.NewClientWithList[*v2alpha1.AccessToken, *v2alpha1.AccessTokenList](
+			"accesstokens",
+			c.RESTClient(),
+			scheme.ParameterCodec,
+			namespace,
+			func() *v2alpha1.AccessToken { return &v2alpha1.AccessToken{} },
+			func() *v2alpha1.AccessTokenList { return &v2alpha1.AccessTokenList{} }),
 	}
-}
-
-// Get takes name of the accessToken, and returns the corresponding accessToken object, and an error if there is any.
-func (c *accessTokens) Get(ctx context.Context, name string, options v1.GetOptions) (result *v2alpha1.AccessToken, err error) {
-	result = &v2alpha1.AccessToken{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("accesstokens").
-		Name(name).
-		VersionedParams(&options, scheme.ParameterCodec).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// List takes label and field selectors, and returns the list of AccessTokens that match those selectors.
-func (c *accessTokens) List(ctx context.Context, opts v1.ListOptions) (result *v2alpha1.AccessTokenList, err error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	result = &v2alpha1.AccessTokenList{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("accesstokens").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Watch returns a watch.Interface that watches the requested accessTokens.
-func (c *accessTokens) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	opts.Watch = true
-	return c.client.Get().
-		Namespace(c.ns).
-		Resource("accesstokens").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Watch(ctx)
-}
-
-// Create takes the representation of a accessToken and creates it.  Returns the server's representation of the accessToken, and an error, if there is any.
-func (c *accessTokens) Create(ctx context.Context, accessToken *v2alpha1.AccessToken, opts v1.CreateOptions) (result *v2alpha1.AccessToken, err error) {
-	result = &v2alpha1.AccessToken{}
-	err = c.client.Post().
-		Namespace(c.ns).
-		Resource("accesstokens").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(accessToken).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Update takes the representation of a accessToken and updates it. Returns the server's representation of the accessToken, and an error, if there is any.
-func (c *accessTokens) Update(ctx context.Context, accessToken *v2alpha1.AccessToken, opts v1.UpdateOptions) (result *v2alpha1.AccessToken, err error) {
-	result = &v2alpha1.AccessToken{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("accesstokens").
-		Name(accessToken.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(accessToken).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *accessTokens) UpdateStatus(ctx context.Context, accessToken *v2alpha1.AccessToken, opts v1.UpdateOptions) (result *v2alpha1.AccessToken, err error) {
-	result = &v2alpha1.AccessToken{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("accesstokens").
-		Name(accessToken.Name).
-		SubResource("status").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(accessToken).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Delete takes name of the accessToken and deletes it. Returns an error if one occurs.
-func (c *accessTokens) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("accesstokens").
-		Name(name).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *accessTokens) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	var timeout time.Duration
-	if listOpts.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
-	}
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("accesstokens").
-		VersionedParams(&listOpts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// Patch applies the patch and returns the patched accessToken.
-func (c *accessTokens) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.AccessToken, err error) {
-	result = &v2alpha1.AccessToken{}
-	err = c.client.Patch(pt).
-		Namespace(c.ns).
-		Resource("accesstokens").
-		Name(name).
-		SubResource(subresources...).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(data).
-		Do(ctx).
-		Into(result)
-	return
 }

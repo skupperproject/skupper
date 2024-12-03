@@ -39,7 +39,7 @@ func getSslProfileName(connector *skupperv2alpha1.Connector) string {
 	if connector.Spec.TlsCredentials == "" {
 		return ""
 	}
-	if connector.Spec.NoClientAuth {
+	if !connector.Spec.UseClientCert {
 		return connector.Spec.TlsCredentials + "-profile"
 	}
 	return connector.Spec.TlsCredentials

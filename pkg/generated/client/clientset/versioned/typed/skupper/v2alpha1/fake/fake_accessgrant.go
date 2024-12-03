@@ -24,7 +24,6 @@ import (
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,28 +35,30 @@ type FakeAccessGrants struct {
 	ns   string
 }
 
-var accessgrantsResource = schema.GroupVersionResource{Group: "skupper.io", Version: "v2alpha1", Resource: "accessgrants"}
+var accessgrantsResource = v2alpha1.SchemeGroupVersion.WithResource("accessgrants")
 
-var accessgrantsKind = schema.GroupVersionKind{Group: "skupper.io", Version: "v2alpha1", Kind: "AccessGrant"}
+var accessgrantsKind = v2alpha1.SchemeGroupVersion.WithKind("AccessGrant")
 
 // Get takes name of the accessGrant, and returns the corresponding accessGrant object, and an error if there is any.
 func (c *FakeAccessGrants) Get(ctx context.Context, name string, options v1.GetOptions) (result *v2alpha1.AccessGrant, err error) {
+	emptyResult := &v2alpha1.AccessGrant{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(accessgrantsResource, c.ns, name), &v2alpha1.AccessGrant{})
+		Invokes(testing.NewGetActionWithOptions(accessgrantsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.AccessGrant), err
 }
 
 // List takes label and field selectors, and returns the list of AccessGrants that match those selectors.
 func (c *FakeAccessGrants) List(ctx context.Context, opts v1.ListOptions) (result *v2alpha1.AccessGrantList, err error) {
+	emptyResult := &v2alpha1.AccessGrantList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(accessgrantsResource, accessgrantsKind, c.ns, opts), &v2alpha1.AccessGrantList{})
+		Invokes(testing.NewListActionWithOptions(accessgrantsResource, accessgrantsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -76,40 +77,43 @@ func (c *FakeAccessGrants) List(ctx context.Context, opts v1.ListOptions) (resul
 // Watch returns a watch.Interface that watches the requested accessGrants.
 func (c *FakeAccessGrants) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(accessgrantsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(accessgrantsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a accessGrant and creates it.  Returns the server's representation of the accessGrant, and an error, if there is any.
 func (c *FakeAccessGrants) Create(ctx context.Context, accessGrant *v2alpha1.AccessGrant, opts v1.CreateOptions) (result *v2alpha1.AccessGrant, err error) {
+	emptyResult := &v2alpha1.AccessGrant{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(accessgrantsResource, c.ns, accessGrant), &v2alpha1.AccessGrant{})
+		Invokes(testing.NewCreateActionWithOptions(accessgrantsResource, c.ns, accessGrant, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.AccessGrant), err
 }
 
 // Update takes the representation of a accessGrant and updates it. Returns the server's representation of the accessGrant, and an error, if there is any.
 func (c *FakeAccessGrants) Update(ctx context.Context, accessGrant *v2alpha1.AccessGrant, opts v1.UpdateOptions) (result *v2alpha1.AccessGrant, err error) {
+	emptyResult := &v2alpha1.AccessGrant{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(accessgrantsResource, c.ns, accessGrant), &v2alpha1.AccessGrant{})
+		Invokes(testing.NewUpdateActionWithOptions(accessgrantsResource, c.ns, accessGrant, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.AccessGrant), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeAccessGrants) UpdateStatus(ctx context.Context, accessGrant *v2alpha1.AccessGrant, opts v1.UpdateOptions) (*v2alpha1.AccessGrant, error) {
+func (c *FakeAccessGrants) UpdateStatus(ctx context.Context, accessGrant *v2alpha1.AccessGrant, opts v1.UpdateOptions) (result *v2alpha1.AccessGrant, err error) {
+	emptyResult := &v2alpha1.AccessGrant{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(accessgrantsResource, "status", c.ns, accessGrant), &v2alpha1.AccessGrant{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(accessgrantsResource, "status", c.ns, accessGrant, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.AccessGrant), err
 }
@@ -117,14 +121,14 @@ func (c *FakeAccessGrants) UpdateStatus(ctx context.Context, accessGrant *v2alph
 // Delete takes name of the accessGrant and deletes it. Returns an error if one occurs.
 func (c *FakeAccessGrants) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(accessgrantsResource, c.ns, name), &v2alpha1.AccessGrant{})
+		Invokes(testing.NewDeleteActionWithOptions(accessgrantsResource, c.ns, name, opts), &v2alpha1.AccessGrant{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeAccessGrants) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(accessgrantsResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(accessgrantsResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v2alpha1.AccessGrantList{})
 	return err
@@ -132,11 +136,12 @@ func (c *FakeAccessGrants) DeleteCollection(ctx context.Context, opts v1.DeleteO
 
 // Patch applies the patch and returns the patched accessGrant.
 func (c *FakeAccessGrants) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.AccessGrant, err error) {
+	emptyResult := &v2alpha1.AccessGrant{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(accessgrantsResource, c.ns, name, pt, data, subresources...), &v2alpha1.AccessGrant{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(accessgrantsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.AccessGrant), err
 }

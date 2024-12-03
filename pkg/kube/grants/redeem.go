@@ -84,6 +84,9 @@ func handleTokenResponse(body io.Reader, token *skupperv2alpha1.AccessToken, sit
 	}
 	for _, link := range decoder.links {
 		link.ObjectMeta.OwnerReferences = refs
+		if token.Spec.LinkCost > 0 {
+			link.Spec.Cost = token.Spec.LinkCost
+		}
 		if _, err := clients.GetSkupperClient().SkupperV2alpha1().Links(token.ObjectMeta.Namespace).Create(context.TODO(), &link, metav1.CreateOptions{}); err != nil {
 			return updateAccessTokenStatus(token, fmt.Errorf("Could not create received link: %s", err), clients)
 		}

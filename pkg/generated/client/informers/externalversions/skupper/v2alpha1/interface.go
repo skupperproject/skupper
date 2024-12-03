@@ -30,8 +30,8 @@ type Interface interface {
 	AccessTokens() AccessTokenInformer
 	// AttachedConnectors returns a AttachedConnectorInformer.
 	AttachedConnectors() AttachedConnectorInformer
-	// AttachedConnectorAnchors returns a AttachedConnectorAnchorInformer.
-	AttachedConnectorAnchors() AttachedConnectorAnchorInformer
+	// AttachedConnectorBindings returns a AttachedConnectorBindingInformer.
+	AttachedConnectorBindings() AttachedConnectorBindingInformer
 	// Certificates returns a CertificateInformer.
 	Certificates() CertificateInformer
 	// Connectors returns a ConnectorInformer.
@@ -74,9 +74,9 @@ func (v *version) AttachedConnectors() AttachedConnectorInformer {
 	return &attachedConnectorInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// AttachedConnectorAnchors returns a AttachedConnectorAnchorInformer.
-func (v *version) AttachedConnectorAnchors() AttachedConnectorAnchorInformer {
-	return &attachedConnectorAnchorInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// AttachedConnectorBindings returns a AttachedConnectorBindingInformer.
+func (v *version) AttachedConnectorBindings() AttachedConnectorBindingInformer {
+	return &attachedConnectorBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Certificates returns a CertificateInformer.

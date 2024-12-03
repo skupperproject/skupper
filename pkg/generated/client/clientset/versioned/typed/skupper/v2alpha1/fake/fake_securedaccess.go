@@ -24,7 +24,6 @@ import (
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,28 +35,30 @@ type FakeSecuredAccesses struct {
 	ns   string
 }
 
-var securedaccessesResource = schema.GroupVersionResource{Group: "skupper.io", Version: "v2alpha1", Resource: "securedaccesses"}
+var securedaccessesResource = v2alpha1.SchemeGroupVersion.WithResource("securedaccesses")
 
-var securedaccessesKind = schema.GroupVersionKind{Group: "skupper.io", Version: "v2alpha1", Kind: "SecuredAccess"}
+var securedaccessesKind = v2alpha1.SchemeGroupVersion.WithKind("SecuredAccess")
 
 // Get takes name of the securedAccess, and returns the corresponding securedAccess object, and an error if there is any.
 func (c *FakeSecuredAccesses) Get(ctx context.Context, name string, options v1.GetOptions) (result *v2alpha1.SecuredAccess, err error) {
+	emptyResult := &v2alpha1.SecuredAccess{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(securedaccessesResource, c.ns, name), &v2alpha1.SecuredAccess{})
+		Invokes(testing.NewGetActionWithOptions(securedaccessesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.SecuredAccess), err
 }
 
 // List takes label and field selectors, and returns the list of SecuredAccesses that match those selectors.
 func (c *FakeSecuredAccesses) List(ctx context.Context, opts v1.ListOptions) (result *v2alpha1.SecuredAccessList, err error) {
+	emptyResult := &v2alpha1.SecuredAccessList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(securedaccessesResource, securedaccessesKind, c.ns, opts), &v2alpha1.SecuredAccessList{})
+		Invokes(testing.NewListActionWithOptions(securedaccessesResource, securedaccessesKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -76,40 +77,43 @@ func (c *FakeSecuredAccesses) List(ctx context.Context, opts v1.ListOptions) (re
 // Watch returns a watch.Interface that watches the requested securedAccesses.
 func (c *FakeSecuredAccesses) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(securedaccessesResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(securedaccessesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a securedAccess and creates it.  Returns the server's representation of the securedAccess, and an error, if there is any.
 func (c *FakeSecuredAccesses) Create(ctx context.Context, securedAccess *v2alpha1.SecuredAccess, opts v1.CreateOptions) (result *v2alpha1.SecuredAccess, err error) {
+	emptyResult := &v2alpha1.SecuredAccess{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(securedaccessesResource, c.ns, securedAccess), &v2alpha1.SecuredAccess{})
+		Invokes(testing.NewCreateActionWithOptions(securedaccessesResource, c.ns, securedAccess, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.SecuredAccess), err
 }
 
 // Update takes the representation of a securedAccess and updates it. Returns the server's representation of the securedAccess, and an error, if there is any.
 func (c *FakeSecuredAccesses) Update(ctx context.Context, securedAccess *v2alpha1.SecuredAccess, opts v1.UpdateOptions) (result *v2alpha1.SecuredAccess, err error) {
+	emptyResult := &v2alpha1.SecuredAccess{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(securedaccessesResource, c.ns, securedAccess), &v2alpha1.SecuredAccess{})
+		Invokes(testing.NewUpdateActionWithOptions(securedaccessesResource, c.ns, securedAccess, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.SecuredAccess), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeSecuredAccesses) UpdateStatus(ctx context.Context, securedAccess *v2alpha1.SecuredAccess, opts v1.UpdateOptions) (*v2alpha1.SecuredAccess, error) {
+func (c *FakeSecuredAccesses) UpdateStatus(ctx context.Context, securedAccess *v2alpha1.SecuredAccess, opts v1.UpdateOptions) (result *v2alpha1.SecuredAccess, err error) {
+	emptyResult := &v2alpha1.SecuredAccess{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(securedaccessesResource, "status", c.ns, securedAccess), &v2alpha1.SecuredAccess{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(securedaccessesResource, "status", c.ns, securedAccess, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.SecuredAccess), err
 }
@@ -117,14 +121,14 @@ func (c *FakeSecuredAccesses) UpdateStatus(ctx context.Context, securedAccess *v
 // Delete takes name of the securedAccess and deletes it. Returns an error if one occurs.
 func (c *FakeSecuredAccesses) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(securedaccessesResource, c.ns, name), &v2alpha1.SecuredAccess{})
+		Invokes(testing.NewDeleteActionWithOptions(securedaccessesResource, c.ns, name, opts), &v2alpha1.SecuredAccess{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeSecuredAccesses) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(securedaccessesResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(securedaccessesResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v2alpha1.SecuredAccessList{})
 	return err
@@ -132,11 +136,12 @@ func (c *FakeSecuredAccesses) DeleteCollection(ctx context.Context, opts v1.Dele
 
 // Patch applies the patch and returns the patched securedAccess.
 func (c *FakeSecuredAccesses) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.SecuredAccess, err error) {
+	emptyResult := &v2alpha1.SecuredAccess{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(securedaccessesResource, c.ns, name, pt, data, subresources...), &v2alpha1.SecuredAccess{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(securedaccessesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.SecuredAccess), err
 }

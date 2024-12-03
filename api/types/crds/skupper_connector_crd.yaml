@@ -25,13 +25,13 @@ spec:
                   type: string
                 tlsCredentials:
                   type: string
-                noClientAuth:
+                useClientCert:
                   type: boolean
                 verifyHostname:
                   type: boolean
                 type:
                   type: string
-                includeNotReady:
+                includeNotReadyPods:
                   type: boolean
                 exposePodsByName:
                   type: boolean
@@ -99,8 +99,8 @@ spec:
                         type: string
                       ip:
                         type: string
-                matchingListenerCount:
-                  type: integer
+                hasMatchingListener:
+                  type: boolean
       subresources:
         status: {}
       additionalPrinterColumns:
@@ -124,10 +124,10 @@ spec:
         type: string
         description: The status of the connector
         jsonPath: .status.status
-      - name: Matching Listener Count
-        type: integer
-        description: The number of listeners in the network with a matching routing key.
-        jsonPath: .status.matchingListenerCount
+      - name: Has Matching Listener
+        type: boolean
+        description: Whether there is at least one listener in the network with a matching routing key.
+        jsonPath: .status.hasMatchingListener
       - name: Message
         type: string
         description: Any human readable message relevant to the connector

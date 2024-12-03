@@ -145,8 +145,8 @@ rules:
   - connectors/status
   - attachedconnectors
   - attachedconnectors/status
-  - attachedconnectoranchors
-  - attachedconnectoranchors/status
+  - attachedconnectorbindings
+  - attachedconnectorbindings/status
   - routeraccesses
   - routeraccesses/status
   - securedaccesses

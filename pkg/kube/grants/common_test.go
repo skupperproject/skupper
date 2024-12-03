@@ -202,6 +202,16 @@ func (*factory) token(name string, namespace string, url string, code string, ca
 	}
 }
 
+func (*factory) addLinkCost(token *v2alpha1.AccessToken, linkCost int) *v2alpha1.AccessToken {
+	token.Spec.LinkCost = linkCost
+	return token
+}
+
+func (*factory) addCost(link *v2alpha1.Link, cost int) *v2alpha1.Link {
+	link.Spec.Cost = cost
+	return link
+}
+
 type factory struct{}
 
 var tf = &factory{}

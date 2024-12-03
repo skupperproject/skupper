@@ -15,8 +15,6 @@ spec:
             spec:
               type: object
               properties:
-                routerMode:
-                  type: string
                 serviceAccount:
                   type: string
                 linkAccess:
@@ -24,6 +22,8 @@ spec:
                 defaultIssuer:
                   type: string
                 ha:
+                  type: boolean
+                edge:
                   type: boolean
                 settings:
                   type: object

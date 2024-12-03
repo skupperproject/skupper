@@ -110,6 +110,7 @@ func Test_handleTokenResponse(t *testing.T) {
 		expectStatusContains string
 		expectedError        string
 		expectedLinks        []string
+		expectedCosts        []int
 		expectedSecret       string
 		extraK8sObjects      []runtime.Object
 		extraSkupperObjects  []runtime.Object
@@ -193,6 +194,26 @@ func Test_handleTokenResponse(t *testing.T) {
 			expectedStatus:      "Could not create received link: links.skupper.io \"my-token\" already exists",
 			extraSkupperObjects: []runtime.Object{tf.link("my-token", "test", nil, "")},
 		},
+		{
+			name:  "link cost",
+			token: tf.addLinkCost(tf.token("my-token", "test", "http://foo/xyz", "mycode", ""), 10),
+			site:  tf.site("my-site", "test"),
+			body: &CertToken{
+				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
+				links: []*v2alpha1.Link{
+					tf.link("my-token", "", []v2alpha1.Endpoint{
+						{
+							Host: "foo",
+							Port: "1234",
+						},
+					}, "my-token"),
+				},
+			},
+			expectedStatus: "OK",
+			expectedLinks:  []string{"my-token"},
+			expectedCosts:  []int{10},
+			expectedSecret: "my-token",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -231,12 +252,15 @@ func Test_handleTokenResponse(t *testing.T) {
 						}
 						assert.Assert(t, secret.Data["tls.crt"] != nil)
 					}
-					for _, name := range tt.expectedLinks {
+					for i, name := range tt.expectedLinks {
 						link, err := client.GetSkupperClient().SkupperV2alpha1().Links("test").Get(context.TODO(), name, metav1.GetOptions{})
 						if err != nil {
 							t.Error(err)
 						} else {
 							assert.Assert(t, len(link.Spec.Endpoints) > 0)
+							if len(tt.expectedCosts) > i {
+								assert.Equal(t, link.Spec.Cost, tt.expectedCosts[i])
+							}
 						}
 					}
 				}

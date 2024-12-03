@@ -97,11 +97,11 @@ func (cmd *CmdConnectorStatus) Run() error {
 		} else {
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
 			_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
-				"NAME", "STATUS", "ROUTING-KEY", "SELECTOR", "HOST", "PORT", "LISTENERS", "MESSAGE"))
+				"NAME", "STATUS", "ROUTING-KEY", "SELECTOR", "HOST", "PORT", "HAS MATCHING LISTENER", "MESSAGE"))
 			for _, resource := range resources.Items {
-				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%d\t%d\t%s",
+				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%d\t%t\t%s",
 					resource.Name, resource.Status.StatusType, resource.Spec.RoutingKey,
-					resource.Spec.Selector, resource.Spec.Host, resource.Spec.Port, resource.Status.MatchingListenerCount, resource.Status.Message))
+					resource.Spec.Selector, resource.Spec.Host, resource.Spec.Port, resource.Status.HasMatchingListener, resource.Status.Message))
 			}
 			_ = tw.Flush()
 		}
@@ -119,9 +119,9 @@ func (cmd *CmdConnectorStatus) Run() error {
 			fmt.Println(encodedOutput)
 		} else {
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
-			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nSelector:\t%s\nHost:\t%s\nPort:\t%d\nListeners:%d\nMessage:\t%s\n",
+			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nSelector:\t%s\nHost:\t%s\nPort:\t%d\nHas Matching Listener:%t\nMessage:\t%s\n",
 				resource.Name, resource.Status.StatusType, resource.Spec.RoutingKey, resource.Spec.Selector,
-				resource.Spec.Host, resource.Spec.Port, resource.Status.MatchingListenerCount, resource.Status.Message))
+				resource.Spec.Host, resource.Spec.Port, resource.Status.HasMatchingListener, resource.Status.Message))
 			_ = tw.Flush()
 		}
 	}

@@ -20,16 +20,16 @@ import (
 )
 
 type ConnectorUpdates struct {
-	routingKey      string
-	host            string
-	tlsCredentials  string
-	connectorType   string
-	port            int
-	workload        string
-	selector        string
-	includeNotReady bool
-	timeout         time.Duration
-	output          string
+	routingKey          string
+	host                string
+	tlsCredentials      string
+	connectorType       string
+	port                int
+	workload            string
+	selector            string
+	includeNotReadyPods bool
+	timeout             time.Duration
+	output              string
 }
 
 type CmdConnectorUpdate struct {
@@ -97,7 +97,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) []error {
 			cmd.newSettings.port = connector.Spec.Port
 			cmd.newSettings.tlsCredentials = connector.Spec.TlsCredentials
 			cmd.newSettings.connectorType = connector.Spec.Type
-			cmd.newSettings.includeNotReady = connector.Spec.IncludeNotReady
+			cmd.newSettings.includeNotReadyPods = connector.Spec.IncludeNotReadyPods
 			cmd.newSettings.routingKey = connector.Spec.RoutingKey
 			cmd.existingHost = connector.Spec.Host
 			cmd.existingSelector = connector.Spec.Selector
@@ -251,13 +251,13 @@ func (cmd *CmdConnectorUpdate) Run() error {
 			ResourceVersion: cmd.resourceVersion,
 		},
 		Spec: v2alpha1.ConnectorSpec{
-			Host:            cmd.newSettings.host,
-			Port:            cmd.newSettings.port,
-			RoutingKey:      cmd.newSettings.routingKey,
-			TlsCredentials:  cmd.newSettings.tlsCredentials,
-			Type:            cmd.newSettings.connectorType,
-			Selector:        cmd.newSettings.selector,
-			IncludeNotReady: cmd.newSettings.includeNotReady,
+			Host:                cmd.newSettings.host,
+			Port:                cmd.newSettings.port,
+			RoutingKey:          cmd.newSettings.routingKey,
+			TlsCredentials:      cmd.newSettings.tlsCredentials,
+			Type:                cmd.newSettings.connectorType,
+			Selector:            cmd.newSettings.selector,
+			IncludeNotReadyPods: cmd.newSettings.includeNotReadyPods,
 		},
 	}
 

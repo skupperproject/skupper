@@ -21,21 +21,21 @@ import (
 )
 
 type CmdConnectorCreate struct {
-	client          skupperv2alpha1.SkupperV2alpha1Interface
-	CobraCmd        *cobra.Command
-	Flags           *common.CommandConnectorCreateFlags
-	namespace       string
-	name            string
-	port            int
-	output          string
-	host            string
-	selector        string
-	tlsCredentials  string
-	routingKey      string
-	connectorType   string
-	includeNotReady bool
-	timeout         time.Duration
-	KubeClient      kubernetes.Interface
+	client              skupperv2alpha1.SkupperV2alpha1Interface
+	CobraCmd            *cobra.Command
+	Flags               *common.CommandConnectorCreateFlags
+	namespace           string
+	name                string
+	port                int
+	output              string
+	host                string
+	selector            string
+	tlsCredentials      string
+	routingKey          string
+	connectorType       string
+	includeNotReadyPods bool
+	timeout             time.Duration
+	KubeClient          kubernetes.Interface
 }
 
 func NewCmdConnectorCreate() *CmdConnectorCreate {
@@ -230,7 +230,7 @@ func (cmd *CmdConnectorCreate) InputToOptions() {
 	cmd.tlsCredentials = cmd.Flags.TlsCredentials
 	cmd.connectorType = cmd.Flags.ConnectorType
 	cmd.output = cmd.Flags.Output
-	cmd.includeNotReady = cmd.Flags.IncludeNotReady
+	cmd.includeNotReadyPods = cmd.Flags.IncludeNotReadyPods
 }
 
 func (cmd *CmdConnectorCreate) Run() error {
@@ -245,13 +245,13 @@ func (cmd *CmdConnectorCreate) Run() error {
 			Namespace: cmd.namespace,
 		},
 		Spec: v2alpha1.ConnectorSpec{
-			Host:            cmd.host,
-			Port:            cmd.port,
-			RoutingKey:      cmd.routingKey,
-			TlsCredentials:  cmd.tlsCredentials,
-			Type:            cmd.connectorType,
-			IncludeNotReady: cmd.includeNotReady,
-			Selector:        cmd.selector,
+			Host:                cmd.host,
+			Port:                cmd.port,
+			RoutingKey:          cmd.routingKey,
+			TlsCredentials:      cmd.tlsCredentials,
+			Type:                cmd.connectorType,
+			IncludeNotReadyPods: cmd.includeNotReadyPods,
+			Selector:            cmd.selector,
 		},
 	}
 

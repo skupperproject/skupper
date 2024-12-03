@@ -31,12 +31,12 @@ type TargetSelection interface {
 }
 
 type TargetSelectionImpl struct {
-	watcher         *PodWatcher
-	site            *Site
-	selector        string
-	name            string
-	namespace       string
-	includeNotReady bool
+	watcher             *PodWatcher
+	site                *Site
+	selector            string
+	name                string
+	namespace           string
+	includeNotReadyPods bool
 }
 
 func (w *TargetSelectionImpl) Selector() string {
@@ -47,8 +47,8 @@ func (w *TargetSelectionImpl) Close() {
 	w.watcher.Close()
 }
 
-func (w *TargetSelectionImpl) IncludeNotReady() bool {
-	return w.includeNotReady
+func (w *TargetSelectionImpl) IncludeNotReadyPods() bool {
+	return w.includeNotReadyPods
 }
 
 func (w *TargetSelectionImpl) Attr() slog.Attr {
@@ -79,7 +79,7 @@ func (w *TargetSelectionImpl) Updated(pods []skupperv2alpha1.PodDetails) error {
 
 type PodWatchingContext interface {
 	Selector() string
-	IncludeNotReady() bool
+	IncludeNotReadyPods() bool
 	Attr() slog.Attr
 	Updated(pods []skupperv2alpha1.PodDetails) error
 }
@@ -93,7 +93,7 @@ type PodWatcher struct {
 func (w *PodWatcher) pods() []skupperv2alpha1.PodDetails {
 	var targets []skupperv2alpha1.PodDetails
 	for _, pod := range w.watcher.List() {
-		if kube.IsPodReady(pod) || w.context.IncludeNotReady() {
+		if kube.IsPodReady(pod) || w.context.IncludeNotReadyPods() {
 			if kube.IsPodRunning(pod) && pod.DeletionTimestamp == nil {
 				bindings_logger.Debug("Pod selected for connector",
 					slog.String("pod", pod.ObjectMeta.Name),

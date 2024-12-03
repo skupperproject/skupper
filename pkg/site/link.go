@@ -43,7 +43,7 @@ func (l *Link) Apply(current *qdr.RouterConfig) bool {
 		Port:       endpoint.Port,
 	}
 	current.AddConnector(connector)
-	current.AddSslProfile(qdr.ConfigureSslProfile(profileName, l.profilePath, !l.definition.Spec.NoClientAuth))
+	current.AddSslProfile(qdr.ConfigureSslProfile(profileName, l.profilePath, true))
 	return true //TODO: optimise by indicating if no change was actually needed
 }
 

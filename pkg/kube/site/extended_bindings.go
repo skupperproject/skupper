@@ -238,13 +238,13 @@ func (b *ExtendedBindings) SetSite(site *Site) {
 	b.site = site
 }
 
-func (b *ExtendedBindings) checkAttachedConnectorAnchor(namespace string, name string, anchor *skupperv2alpha1.AttachedConnectorAnchor) error {
+func (b *ExtendedBindings) checkAttachedConnectorBinding(namespace string, name string, binding *skupperv2alpha1.AttachedConnectorBinding) error {
 	connector, ok := b.connectors[name]
 	if !ok {
 		connector = NewAttachedConnector(name, namespace, b)
 		b.connectors[name] = connector
 	}
-	if (anchor == nil && connector.anchorDeleted()) || (anchor != nil && connector.anchorUpdated(anchor)) {
+	if (binding == nil && connector.bindingDeleted()) || (binding != nil && connector.bindingUpdated(binding)) {
 		if b.site != nil {
 			if err := b.site.updateRouterConfigForGroups(b.site.bindings); err != nil {
 				return connector.configurationError(err)

@@ -71,7 +71,7 @@ func (s *Site) isEdge() bool {
 }
 
 func (s *Site) routerMode() qdr.Mode {
-	if s.site != nil && s.site.Spec.RouterMode == string(qdr.ModeEdge) {
+	if s.site != nil && s.site.Spec.Edge {
 		return qdr.ModeEdge
 	} else {
 		return qdr.ModeInterior
@@ -427,16 +427,16 @@ func (s *Site) IsInitialised() bool {
 func (s *Site) Select(connector *skupperv2alpha1.Connector) TargetSelection {
 	name := connector.Name
 	selector := connector.Spec.Selector
-	includeNotReady := connector.Spec.IncludeNotReady
+	includeNotReadyPods := connector.Spec.IncludeNotReadyPods
 	if selector == "" {
 		return nil
 	}
 	handler := &TargetSelectionImpl{
-		site:            s,
-		name:            name,
-		selector:        selector,
-		namespace:       s.namespace,
-		includeNotReady: includeNotReady,
+		site:                s,
+		name:                name,
+		selector:            selector,
+		namespace:           s.namespace,
+		includeNotReadyPods: includeNotReadyPods,
 	}
 	handler.watcher = s.WatchPods(handler, s.namespace)
 	return handler
@@ -1036,8 +1036,8 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv2alpha1.RouterAccess) 
 	return s.updateResolved()
 }
 
-func (s *Site) CheckAttachedConnectorAnchor(namespace string, name string, anchor *skupperv2alpha1.AttachedConnectorAnchor) error {
-	return s.bindings.checkAttachedConnectorAnchor(namespace, name, anchor)
+func (s *Site) CheckAttachedConnectorBinding(namespace string, name string, binding *skupperv2alpha1.AttachedConnectorBinding) error {
+	return s.bindings.checkAttachedConnectorBinding(namespace, name, binding)
 }
 
 func (s *Site) AttachedConnectorUpdated(connector *skupperv2alpha1.AttachedConnector) error {

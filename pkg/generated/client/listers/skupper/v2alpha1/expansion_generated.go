@@ -42,13 +42,13 @@ type AttachedConnectorListerExpansion interface{}
 // AttachedConnectorNamespaceLister.
 type AttachedConnectorNamespaceListerExpansion interface{}
 
-// AttachedConnectorAnchorListerExpansion allows custom methods to be added to
-// AttachedConnectorAnchorLister.
-type AttachedConnectorAnchorListerExpansion interface{}
+// AttachedConnectorBindingListerExpansion allows custom methods to be added to
+// AttachedConnectorBindingLister.
+type AttachedConnectorBindingListerExpansion interface{}
 
-// AttachedConnectorAnchorNamespaceListerExpansion allows custom methods to be added to
-// AttachedConnectorAnchorNamespaceLister.
-type AttachedConnectorAnchorNamespaceListerExpansion interface{}
+// AttachedConnectorBindingNamespaceListerExpansion allows custom methods to be added to
+// AttachedConnectorBindingNamespaceLister.
+type AttachedConnectorBindingNamespaceListerExpansion interface{}
 
 // CertificateListerExpansion allows custom methods to be added to
 // CertificateLister.

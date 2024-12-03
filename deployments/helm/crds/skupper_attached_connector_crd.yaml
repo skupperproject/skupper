@@ -25,7 +25,7 @@ spec:
                   type: string
                 type:
                   type: string
-                includeNotReady:
+                includeNotReadyPods:
                   type: boolean
                 settings:
                   type: object
@@ -85,8 +85,6 @@ spec:
                         type: string
                       ip:
                         type: string
-                matchingListenerCount:
-                  type: integer
       subresources:
         status: {}
       additionalPrinterColumns:

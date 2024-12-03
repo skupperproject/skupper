@@ -78,8 +78,8 @@ spec:
                     - reason
                     - status
                     - type
-                matchingConnectorCount:
-                  type: integer
+                hasMatchingConnector:
+                  type: boolean
       subresources:
         status: {}
       additionalPrinterColumns:
@@ -99,10 +99,10 @@ spec:
         type: string
         description: The status of the listener
         jsonPath: .status.status
-      - name: Matching Connector Count
-        type: integer
-        description: The number of connectors in the network with a matching routing key.
-        jsonPath: .status.matchingConnectorCount
+      - name: Has Matching Connector
+        type: boolean
+        description: Whether there is at least one connector in the network with a matching routing key.
+        jsonPath: .status.hasMtchingConnector
       - name: Message
         type: string
         description: Any human readable message relevant to the listener

@@ -45,18 +45,18 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagNameToken              = "name"
 	FlagDescToken              = "The name of token issued"
 
-	FlagNameRoutingKey      = "routing-key"
-	FlagDescRoutingKey      = "The identifier used to route traffic from listeners to connectors"
-	FlagNameHost            = "host"
-	FlagDescHost            = "The hostname or IP address of the local connector"
-	FlagNameConnectorType   = "type"
-	FlagDescConnectorType   = "The connector type. Choices: [tcp]."
-	FlagNameIncludeNotReady = "include-not-ready"
-	FlagDescIncludeNotRead  = "If true, include server pods that are not in the ready state."
-	FlagNameSelector        = "selector"
-	FlagDescSelector        = "A Kubernetes label selector for specifying target server pods."
-	FlagNameWorkload        = "workload"
-	FlagDescWorkload        = "A Kubernetes resource name that identifies a workload expressed like resource-type/resource-name. Expected resource types: services, daemonsets, deployments, and statefulsets."
+	FlagNameRoutingKey          = "routing-key"
+	FlagDescRoutingKey          = "The identifier used to route traffic from listeners to connectors"
+	FlagNameHost                = "host"
+	FlagDescHost                = "The hostname or IP address of the local connector"
+	FlagNameConnectorType       = "type"
+	FlagDescConnectorType       = "The connector type. Choices: [tcp]."
+	FlagNameIncludeNotReadyPods = "include-not-ready"
+	FlagDescIncludeNotRead      = "If true, include server pods that are not in the ready state."
+	FlagNameSelector            = "selector"
+	FlagDescSelector            = "A Kubernetes label selector for specifying target server pods."
+	FlagNameWorkload            = "workload"
+	FlagDescWorkload            = "A Kubernetes resource name that identifies a workload expressed like resource-type/resource-name. Expected resource types: services, daemonsets, deployments, and statefulsets."
 
 	FlagNameConnectorPort = "port"
 	FlagDescConnectorPort = "The port of the local connector"
@@ -138,28 +138,28 @@ type CommandTokenRedeemFlags struct {
 }
 
 type CommandConnectorCreateFlags struct {
-	RoutingKey      string
-	Host            string
-	Selector        string
-	TlsCredentials  string
-	ConnectorType   string
-	IncludeNotReady bool
-	Workload        string
-	Timeout         time.Duration
-	Output          string
+	RoutingKey          string
+	Host                string
+	Selector            string
+	TlsCredentials      string
+	ConnectorType       string
+	IncludeNotReadyPods bool
+	Workload            string
+	Timeout             time.Duration
+	Output              string
 }
 
 type CommandConnectorUpdateFlags struct {
-	RoutingKey      string
-	Host            string
-	TlsCredentials  string
-	ConnectorType   string
-	Port            int
-	Workload        string
-	Selector        string
-	IncludeNotReady bool
-	Timeout         time.Duration
-	Output          string
+	RoutingKey          string
+	Host                string
+	TlsCredentials      string
+	ConnectorType       string
+	Port                int
+	Workload            string
+	Selector            string
+	IncludeNotReadyPods bool
+	Timeout             time.Duration
+	Output              string
 }
 
 type CommandConnectorDeleteFlags struct {

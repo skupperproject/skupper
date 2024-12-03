@@ -193,20 +193,20 @@ func (g *Grants) checkGrant(key string, grant *skupperv2alpha1.AccessGrant) erro
 		}
 	}
 
-	if grant.Status.Expiration == "" {
+	if grant.Status.ExpirationTime == "" {
 		if grant.Spec.ExpirationWindow != "" {
 			d, e := time.ParseDuration(grant.Spec.ExpirationWindow)
 			if e != nil {
 				status = append(status, fmt.Sprintf("Invalid duration %q: %s", grant.Spec.ExpirationWindow, e))
 			} else {
 				expiration := time.Now().Add(d).Format(time.RFC3339)
-				if grant.Status.Expiration != expiration {
-					grant.Status.Expiration = expiration
+				if grant.Status.ExpirationTime != expiration {
+					grant.Status.ExpirationTime = expiration
 					changed = true
 				}
 			}
 		} else {
-			grant.Status.Expiration = time.Now().Add(time.Minute * 10).Format(time.RFC3339)
+			grant.Status.ExpirationTime = time.Now().Add(time.Minute * 10).Format(time.RFC3339)
 			changed = true
 		}
 	}
@@ -244,7 +244,7 @@ func (g *Grants) checkAndUpdateAccessToken(key string, data []byte) (*skupperv2a
 		return nil, httpError("No such claim", http.StatusNotFound)
 	}
 
-	expiration, err := time.Parse(time.RFC3339, grant.Status.Expiration)
+	expiration, err := time.Parse(time.RFC3339, grant.Status.ExpirationTime)
 	if err != nil {
 		log.Printf("Cannot determine expiration for %s/%s: %s", grant.Namespace, grant.Name, err)
 		return nil, httpError("Corrupted claim", http.StatusInternalServerError)
@@ -253,14 +253,14 @@ func (g *Grants) checkAndUpdateAccessToken(key string, data []byte) (*skupperv2a
 		log.Printf("AccessGrant %s/%s expired", grant.Namespace, grant.Name)
 		return nil, httpError("No such claim", http.StatusNotFound)
 	}
-	if grant.Spec.RedemptionsAllowed <= grant.Status.Redeemed {
+	if grant.Spec.RedemptionsAllowed <= grant.Status.Redemptions {
 		log.Printf("AccessGrant %s/%s already redeemed", grant.Namespace, grant.Name)
 		return nil, httpError("No such access granted", http.StatusNotFound)
 	}
 	if grant.Status.Code != string(data) {
 		return nil, httpError("Redemption of access token refused", http.StatusForbidden)
 	}
-	grant.Status.Redeemed += 1
+	grant.Status.Redemptions += 1
 	err = g.updateGrantStatus(grant)
 	if err != nil {
 		log.Printf("Error updating access grant %s/%s: %s", grant.Namespace, grant.Name, err)

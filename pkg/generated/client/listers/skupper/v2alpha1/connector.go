@@ -20,8 +20,8 @@ package v2alpha1
 
 import (
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type ConnectorLister interface {
 
 // connectorLister implements the ConnectorLister interface.
 type connectorLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v2alpha1.Connector]
 }
 
 // NewConnectorLister returns a new ConnectorLister.
 func NewConnectorLister(indexer cache.Indexer) ConnectorLister {
-	return &connectorLister{indexer: indexer}
-}
-
-// List lists all Connectors in the indexer.
-func (s *connectorLister) List(selector labels.Selector) (ret []*v2alpha1.Connector, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.Connector))
-	})
-	return ret, err
+	return &connectorLister{listers.New[*v2alpha1.Connector](indexer, v2alpha1.Resource("connector"))}
 }
 
 // Connectors returns an object that can list and get Connectors.
 func (s *connectorLister) Connectors(namespace string) ConnectorNamespaceLister {
-	return connectorNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return connectorNamespaceLister{listers.NewNamespaced[*v2alpha1.Connector](s.ResourceIndexer, namespace)}
 }
 
 // ConnectorNamespaceLister helps list and get Connectors.
@@ -74,26 +66,5 @@ type ConnectorNamespaceLister interface {
 // connectorNamespaceLister implements the ConnectorNamespaceLister
 // interface.
 type connectorNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all Connectors in the indexer for a given namespace.
-func (s connectorNamespaceLister) List(selector labels.Selector) (ret []*v2alpha1.Connector, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.Connector))
-	})
-	return ret, err
-}
-
-// Get retrieves the Connector from the indexer for a given namespace and name.
-func (s connectorNamespaceLister) Get(name string) (*v2alpha1.Connector, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v2alpha1.Resource("connector"), name)
-	}
-	return obj.(*v2alpha1.Connector), nil
+	listers.ResourceIndexer[*v2alpha1.Connector]
 }

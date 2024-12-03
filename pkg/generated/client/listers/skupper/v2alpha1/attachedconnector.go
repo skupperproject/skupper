@@ -20,8 +20,8 @@ package v2alpha1
 
 import (
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type AttachedConnectorLister interface {
 
 // attachedConnectorLister implements the AttachedConnectorLister interface.
 type attachedConnectorLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v2alpha1.AttachedConnector]
 }
 
 // NewAttachedConnectorLister returns a new AttachedConnectorLister.
 func NewAttachedConnectorLister(indexer cache.Indexer) AttachedConnectorLister {
-	return &attachedConnectorLister{indexer: indexer}
-}
-
-// List lists all AttachedConnectors in the indexer.
-func (s *attachedConnectorLister) List(selector labels.Selector) (ret []*v2alpha1.AttachedConnector, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.AttachedConnector))
-	})
-	return ret, err
+	return &attachedConnectorLister{listers.New[*v2alpha1.AttachedConnector](indexer, v2alpha1.Resource("attachedconnector"))}
 }
 
 // AttachedConnectors returns an object that can list and get AttachedConnectors.
 func (s *attachedConnectorLister) AttachedConnectors(namespace string) AttachedConnectorNamespaceLister {
-	return attachedConnectorNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return attachedConnectorNamespaceLister{listers.NewNamespaced[*v2alpha1.AttachedConnector](s.ResourceIndexer, namespace)}
 }
 
 // AttachedConnectorNamespaceLister helps list and get AttachedConnectors.
@@ -74,26 +66,5 @@ type AttachedConnectorNamespaceLister interface {
 // attachedConnectorNamespaceLister implements the AttachedConnectorNamespaceLister
 // interface.
 type attachedConnectorNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all AttachedConnectors in the indexer for a given namespace.
-func (s attachedConnectorNamespaceLister) List(selector labels.Selector) (ret []*v2alpha1.AttachedConnector, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.AttachedConnector))
-	})
-	return ret, err
-}
-
-// Get retrieves the AttachedConnector from the indexer for a given namespace and name.
-func (s attachedConnectorNamespaceLister) Get(name string) (*v2alpha1.AttachedConnector, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v2alpha1.Resource("attachedconnector"), name)
-	}
-	return obj.(*v2alpha1.AttachedConnector), nil
+	listers.ResourceIndexer[*v2alpha1.AttachedConnector]
 }

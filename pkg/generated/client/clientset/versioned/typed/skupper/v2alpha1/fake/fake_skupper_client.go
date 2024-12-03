@@ -40,8 +40,8 @@ func (c *FakeSkupperV2alpha1) AttachedConnectors(namespace string) v2alpha1.Atta
 	return &FakeAttachedConnectors{c, namespace}
 }
 
-func (c *FakeSkupperV2alpha1) AttachedConnectorAnchors(namespace string) v2alpha1.AttachedConnectorAnchorInterface {
-	return &FakeAttachedConnectorAnchors{c, namespace}
+func (c *FakeSkupperV2alpha1) AttachedConnectorBindings(namespace string) v2alpha1.AttachedConnectorBindingInterface {
+	return &FakeAttachedConnectorBindings{c, namespace}
 }
 
 func (c *FakeSkupperV2alpha1) Certificates(namespace string) v2alpha1.CertificateInterface {
