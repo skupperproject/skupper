@@ -177,13 +177,17 @@ func runTests(t *testing.T, r base.ClusterTestRunner, svc types.ServiceInterface
 	endTime = time.Now().Add(constants.ImagePullingAndResourceCreationTimeout)
 
 	job, err := k8s.WaitForJob(pub1Cluster.Namespace, pub1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
+	if err != nil {
+		pub1Cluster.KubectlExec("logs job/" + jobName)
+	}
 	assert.Assert(t, err)
-	pub1Cluster.KubectlExec("logs job/" + jobName)
 	k8s.AssertJob(t, job)
 
 	job, err = k8s.WaitForJob(prv1Cluster.Namespace, prv1Cluster.VanClient.KubeClient, jobName, endTime.Sub(time.Now()))
+	if err != nil {
+		prv1Cluster.KubectlExec("logs job/" + jobName)
+	}
 	assert.Assert(t, err)
-	prv1Cluster.KubectlExec("logs job/" + jobName)
 	k8s.AssertJob(t, job)
 
 	netcatJobName := fmt.Sprintf("netcat-%s", svc.Address)
