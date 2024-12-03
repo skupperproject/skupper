@@ -595,13 +595,14 @@ type LinkStatus struct {
 type AccessToken struct {
 	v1.TypeMeta   `json:",inline"`
 	v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec          AccessTokenSpec `json:"spec,omitempty"`
-	Status        Status          `json:"status,omitempty"`
+	Spec          AccessTokenSpec   `json:"spec,omitempty"`
+	Status        AccessTokenStatus `json:"status,omitempty"`
 }
 
 func (t *AccessToken) SetRedeemed(err error) bool {
 	state := ErrorOrReadyCondition(err)
 	if t.Status.SetCondition(CONDITION_TYPE_REDEEMED, ErrorOrReadyCondition(err), t.ObjectMeta.Generation) {
+		t.Status.Redeemed = t.IsRedeemed()
 		t.Status.StatusType = state.Reason
 		t.Status.Message = state.Message
 		return true
