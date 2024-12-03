@@ -18,13 +18,13 @@ type SkupperImage struct {
 const (
 	RouterImageEnvKey             string = "SKUPPER_ROUTER_IMAGE"
 	ControllerImageEnvKey         string = "SKUPPER_CONTROLLER_IMAGE"
-	ConfigSyncImageEnvKey         string = "SKUPPER_CONFIG_SYNC_IMAGE"
+	AdaptorImageEnvKey            string = "SKUPPER_ADAPTOR_IMAGE"
 	NetworkObserverImageEnvKey    string = "SKUPPER_NETWORK_OBSERVER_IMAGE"
 	CliImageEnvKey                string = "SKUPPER_CLI_IMAGE"
 	PrometheusServerImageEnvKey   string = "PROMETHEUS_SERVER_IMAGE"
 	OauthProxyImageEnvKey         string = "OAUTH_PROXY_IMAGE"
 	RouterPullPolicyEnvKey        string = "SKUPPER_ROUTER_IMAGE_PULL_POLICY"
-	ConfigSyncPullPolicyEnvKey    string = "SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY"
+	AdaptorPullPolicyEnvKey       string = "SKUPPER_ADAPTOR_IMAGE_PULL_POLICY"
 	OauthProxyPullPolicyEnvKey    string = "OAUTH_PROXY_IMAGE_PULL_POLICY"
 	SkupperImageRegistryEnvKey    string = "SKUPPER_IMAGE_REGISTRY"
 	PrometheusImageRegistryEnvKey string = "PROMETHEUS_IMAGE_REGISTRY"
@@ -104,25 +104,25 @@ func GetCliImageName() string {
 	}
 }
 
-func GetConfigSyncImageDetails() types.ImageDetails {
+func GetAdaptorImageDetails() types.ImageDetails {
 	return types.ImageDetails{
-		Name:       GetConfigSyncImageName(),
-		PullPolicy: GetConfigSyncImagePullPolicy(),
+		Name:       GetAdaptorImageName(),
+		PullPolicy: GetAdaptorImagePullPolicy(),
 	}
 }
 
-func GetConfigSyncImageName() string {
-	image := os.Getenv(ConfigSyncImageEnvKey)
+func GetAdaptorImageName() string {
+	image := os.Getenv(AdaptorImageEnvKey)
 	if image == "" {
 		imageRegistry := GetImageRegistry()
-		return strings.Join([]string{imageRegistry, ConfigSyncImageName}, "/")
+		return strings.Join([]string{imageRegistry, AdaptorImageName}, "/")
 	} else {
 		return image
 	}
 }
 
-func GetConfigSyncImagePullPolicy() string {
-	return getPullPolicy(ConfigSyncPullPolicyEnvKey)
+func GetAdaptorImagePullPolicy() string {
+	return getPullPolicy(AdaptorPullPolicyEnvKey)
 }
 
 func GetPrometheusServerImageName() string {
@@ -234,7 +234,7 @@ func GetImages(component string, enableSHA bool) []SkupperImage {
 	case "router":
 		// skupper router has two components
 		names[RouterImageEnvKey] = RouterImageName
-		names[ConfigSyncImageEnvKey] = ConfigSyncImageName
+		names[AdaptorImageEnvKey] = AdaptorImageName
 		registry = GetImageRegistry()
 	case "controller":
 		names[ControllerImageEnvKey] = ControllerImageName

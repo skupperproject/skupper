@@ -25,7 +25,7 @@ func TestManifestManager(t *testing.T) {
 			title: "configured manifest has different images that the default manifest",
 			envVariablesWithValue: []string{
 				images.SkupperImageRegistryEnvKey,
-				images.ConfigSyncImageEnvKey,
+				images.AdaptorImageEnvKey,
 				images.RouterImageEnvKey,
 				images.ControllerImageEnvKey,
 			},
@@ -37,7 +37,7 @@ func TestManifestManager(t *testing.T) {
 							Version:   "main",
 							Images: []images.SkupperImage{
 								{
-									Name: "SKUPPER_CONFIG_SYNC_IMAGE_TESTING",
+									Name: "SKUPPER_ADAPTOR_IMAGE_TESTING",
 								},
 								{
 									Name: "SKUPPER_ROUTER_IMAGE_TESTING",
@@ -64,7 +64,7 @@ func TestManifestManager(t *testing.T) {
 							Version:   "",
 							Images: []images.SkupperImage{
 								{
-									Name: strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
+									Name: strings.Join([]string{images.DefaultImageRegistry, images.AdaptorImageName}, "/"),
 								},
 								{
 									Name: strings.Join([]string{images.DefaultImageRegistry, images.RouterImageName}, "/"),
@@ -75,7 +75,7 @@ func TestManifestManager(t *testing.T) {
 				},
 				Variables: &map[string]string{
 					images.SkupperImageRegistryEnvKey: "SKUPPER_IMAGE_REGISTRY_TESTING",
-					images.ConfigSyncImageEnvKey:      "SKUPPER_CONFIG_SYNC_IMAGE_TESTING",
+					images.AdaptorImageEnvKey:         "SKUPPER_ADAPTOR_IMAGE_TESTING",
 					images.RouterImageEnvKey:          "SKUPPER_ROUTER_IMAGE_TESTING",
 					images.ControllerImageEnvKey:      "SKUPPER_CONTROLLER_IMAGE_TESTING",
 				},
@@ -92,7 +92,7 @@ func TestManifestManager(t *testing.T) {
 							Version:   "main",
 							Images: []images.SkupperImage{
 								{
-									Name: strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
+									Name: strings.Join([]string{images.DefaultImageRegistry, images.AdaptorImageName}, "/"),
 								},
 								{
 									Name: strings.Join([]string{images.DefaultImageRegistry, images.RouterImageName}, "/"),
@@ -110,7 +110,7 @@ func TestManifestManager(t *testing.T) {
 							Version:   "main",
 							Images: []images.SkupperImage{
 								{
-									Name: strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
+									Name: strings.Join([]string{images.DefaultImageRegistry, images.AdaptorImageName}, "/"),
 								},
 								{
 									Name: strings.Join([]string{images.DefaultImageRegistry, images.RouterImageName}, "/"),
