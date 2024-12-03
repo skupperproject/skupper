@@ -2,8 +2,8 @@ package fs
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
+	"os"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -48,7 +48,7 @@ func (s *ListenerHandler) Get(name string, opts GetOptions) (*v2alpha1.Listener,
 		err, file := s.ReadFile(s.pathProvider.GetRuntimeNamespace(), fileName, common.Listeners)
 		if err != nil {
 			if opts.LogWarning {
-				fmt.Println("Site not initialized yet")
+				os.Stderr.WriteString("Site not initialized yet")
 			}
 			err, file = s.ReadFile(s.pathProvider.GetNamespace(), fileName, common.Listeners)
 			if err != nil {
@@ -93,7 +93,7 @@ func (s *ListenerHandler) List() ([]*v2alpha1.Listener, error) {
 	path := s.pathProvider.GetRuntimeNamespace()
 	err, files := s.ReadDir(path, common.Listeners)
 	if err != nil {
-		fmt.Println("Site not initialized yet")
+		os.Stderr.WriteString("Site not initialized yet")
 		path = s.pathProvider.GetNamespace()
 		err, files = s.ReadDir(path, common.Listeners)
 		if err != nil {
