@@ -78,10 +78,6 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		}
 	}
 
-	if cmd.Flags != nil && cmd.Flags.BindHost == "" && cmd.Flags.EnableLinkAccess {
-		validationErrors = append(validationErrors, fmt.Errorf("bindhost should not be empty"))
-	}
-
 	if cmd.Flags != nil && cmd.Flags.BindHost != "" {
 		ip := net.ParseIP(cmd.Flags.BindHost)
 		ok, _ := hostStringValidator.Evaluate(cmd.Flags.BindHost)
