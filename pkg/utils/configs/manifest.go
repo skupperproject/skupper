@@ -99,9 +99,9 @@ func getEnvironmentVariableMap() *map[string]string {
 		envVariables[images.ControllerImageEnvKey] = controllerImage
 	}
 
-	configSyncImage := os.Getenv(images.ConfigSyncImageEnvKey)
-	if configSyncImage != "" {
-		envVariables[images.ConfigSyncImageEnvKey] = configSyncImage
+	adaptorImage := os.Getenv(images.AdaptorImageEnvKey)
+	if adaptorImage != "" {
+		envVariables[images.AdaptorImageEnvKey] = adaptorImage
 	}
 
 	networkObserverImage := os.Getenv(images.NetworkObserverImageEnvKey)
