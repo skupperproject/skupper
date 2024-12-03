@@ -111,24 +111,31 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	//recover existing sites & bindings
 	for _, site := range c.siteWatcher.List() {
 		log.Printf("Recovering site %s/%s", site.ObjectMeta.Namespace, site.ObjectMeta.Name)
-		err := c.getSite(site.ObjectMeta.Namespace).Recover(site)
+		err := c.getSite(site.ObjectMeta.Namespace).StartRecovery(site)
 		if err != nil {
 			log.Printf("Error recovering site for %s/%s: %s", site.ObjectMeta.Namespace, site.ObjectMeta.Name, err)
 		}
 	}
 	for _, connector := range c.connectorWatcher.List() {
 		site := c.getSite(connector.ObjectMeta.Namespace)
-		log.Printf("checking connector %s in %s", connector.ObjectMeta.Name, connector.ObjectMeta.Namespace)
+		log.Printf("Recovering connector %s in %s", connector.ObjectMeta.Name, connector.ObjectMeta.Namespace)
 		site.CheckConnector(connector.ObjectMeta.Name, connector)
 	}
 	for _, listener := range c.listenerWatcher.List() {
 		site := c.getSite(listener.ObjectMeta.Namespace)
-		log.Printf("checking listener %s in %s", listener.ObjectMeta.Name, listener.ObjectMeta.Namespace)
+		log.Printf("Recovering listener %s in %s", listener.ObjectMeta.Name, listener.ObjectMeta.Namespace)
 		site.CheckListener(listener.ObjectMeta.Name, listener)
 	}
 	for _, la := range c.linkAccessWatcher.List() {
 		site := c.getSite(la.ObjectMeta.Namespace)
 		site.CheckRouterAccess(la.ObjectMeta.Name, la)
+	}
+	for _, site := range c.siteWatcher.List() {
+		err := c.getSite(site.ObjectMeta.Namespace).Reconcile(site)
+		if err != nil {
+			log.Printf("Error recovering site for %s/%s: %s", site.ObjectMeta.Namespace, site.ObjectMeta.Name, err)
+		}
+		log.Printf("Recovered site %s/%s", site.ObjectMeta.Namespace, site.ObjectMeta.Name)
 	}
 	c.certMgr.Recover()
 	c.accessRecovery.Recover()

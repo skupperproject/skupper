@@ -83,7 +83,7 @@ func TestSite_Recover(t *testing.T) {
 			s, err := newSiteMocks("test", tt.k8sObjects, tt.skupperObjects, tt.skupperErrorMessage, false)
 			assert.Assert(t, err)
 
-			if err := s.Recover(tt.args.site); (err != nil) != tt.wantErr {
+			if err := s.StartRecovery(tt.args.site); (err != nil) != tt.wantErr {
 				t.Errorf("Site.Reconcile() error = %v", err)
 			}
 		})

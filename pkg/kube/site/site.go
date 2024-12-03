@@ -61,9 +61,9 @@ func NewSite(namespace string, controller *kube.Controller, certs certificates.C
 	}
 }
 
-func (s *Site) Recover(site *skupperv2alpha1.Site) error {
+func (s *Site) StartRecovery(site *skupperv2alpha1.Site) error {
 	//TODO: check version and perform any necessary update tasks
-	return s.Reconcile(site)
+	return s.reconcile(site, true)
 }
 
 func (s *Site) isEdge() bool {
@@ -81,11 +81,11 @@ func (s *Site) routerMode() qdr.Mode {
 const SSL_PROFILE_PATH = "/etc/skupper-router-certs"
 
 func (s *Site) Reconcile(siteDef *skupperv2alpha1.Site) error {
-	err := s.reconcile(siteDef)
+	err := s.reconcile(siteDef, false)
 	return s.updateConfigured(err)
 }
 
-func (s *Site) reconcile(siteDef *skupperv2alpha1.Site) error {
+func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 	if s.site != nil && s.site.Name != siteDef.Name {
 		s.logger.Error("Rejecting sitedef as active site already exists in the namespace",
 			slog.String("sitedef_namespace", siteDef.Namespace),
@@ -146,7 +146,7 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site) error {
 			s.logger.Info("Router config created for site",
 				slog.String("namespace", siteDef.Namespace),
 				slog.String("name", siteDef.Name))
-		} else {
+		} else if !inRecovery {
 			//TODO: include any RouterAccess configuration
 			if err := s.updateRouterConfigForGroups(ConfigUpdateList{s.bindings, s}); err != nil {
 				return err
