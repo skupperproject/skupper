@@ -324,7 +324,7 @@ func getHttpJobs(settings *httpSettings, serviceName string) []common.JobInfo {
 	for _, clients := range settings.clients {
 		// wrk job
 		jobWrkName := fmt.Sprintf("%s-wrk-clients-%d", jobPrefix, clients)
-		labelsWrk := map[string]string{"job": jobWrkName}
+		labelsWrk := map[string]string{"job": jobWrkName, "type": "wrk"}
 		job := &batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{Name: jobWrkName, Labels: labelsWrk},
 			Spec: batchv1.JobSpec{
@@ -355,7 +355,7 @@ func getHttpJobs(settings *httpSettings, serviceName string) []common.JobInfo {
 			log.Printf("rate is required for wrk2 - setting to (default) %d", wrk2Rate)
 		}
 		jobWrk2Name := fmt.Sprintf("%s-wrk2-rate-%d-clients-%d", jobPrefix, wrk2Rate, clients)
-		labelsWrk2 := map[string]string{"job": jobWrk2Name}
+		labelsWrk2 := map[string]string{"job": jobWrk2Name, "type": "wrk2"}
 		job = &batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{Name: jobWrk2Name, Labels: labelsWrk2},
 			Spec: batchv1.JobSpec{
@@ -374,6 +374,7 @@ func getHttpJobs(settings *httpSettings, serviceName string) []common.JobInfo {
 				},
 			},
 		}
+
 		jobs = append(jobs, common.JobInfo{
 			Name:    jobWrk2Name,
 			Clients: clients,
@@ -382,7 +383,7 @@ func getHttpJobs(settings *httpSettings, serviceName string) []common.JobInfo {
 
 		// hey job
 		jobHeyName := fmt.Sprintf("%s-hey-clients-%d", jobPrefix, clients)
-		labelsHey := map[string]string{"job": jobHeyName}
+		labelsHey := map[string]string{"job": jobHeyName, "type": "hey"}
 		heyArgs := []string{"-z", strconv.Itoa(settings.duration) + "s", "-c", strconv.Itoa(clients)}
 		if settings.rate > 0 {
 			heyArgs = append(heyArgs, "-q", strconv.Itoa(settings.rate))
