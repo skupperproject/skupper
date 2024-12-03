@@ -6,7 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	prom_testutil "github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/skupperproject/skupper/pkg/vanflow"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestSiteInfoMetrics(t *testing.T) {

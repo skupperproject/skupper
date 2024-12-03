@@ -15,7 +15,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/vanflow/session"
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
 	"golang.org/x/time/rate"
-	"gotest.tools/poll"
+	"gotest.tools/v3/poll"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"

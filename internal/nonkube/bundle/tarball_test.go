@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/utils"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestTarballBundle_InstallFile(t *testing.T) {

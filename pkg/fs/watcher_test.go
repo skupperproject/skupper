@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/pkg/utils"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestFileWatcher(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 

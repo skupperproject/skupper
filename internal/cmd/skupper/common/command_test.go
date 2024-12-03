@@ -1,10 +1,11 @@
 package common
 
 import (
+	"testing"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/spf13/cobra"
-	"gotest.tools/assert"
-	"testing"
+	"gotest.tools/v3/assert"
 )
 
 type MockSkupperCommand struct {

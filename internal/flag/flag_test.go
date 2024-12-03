@@ -4,7 +4,7 @@ import (
 	"flag"
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func Test_StringVar(t *testing.T) {

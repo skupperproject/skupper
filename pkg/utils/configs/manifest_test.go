@@ -3,7 +3,7 @@ package configs
 import (
 	"fmt"
 	"github.com/skupperproject/skupper/pkg/images"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 	"os"
 	"strings"
 	"testing"

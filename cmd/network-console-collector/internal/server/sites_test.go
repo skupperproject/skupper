@@ -10,7 +10,7 @@ import (
 	"github.com/skupperproject/skupper/cmd/network-console-collector/internal/collector"
 	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestSites(t *testing.T) {

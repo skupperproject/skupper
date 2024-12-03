@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper-libpod/v4/client/volumes_compat"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestToAPIError(t *testing.T) {

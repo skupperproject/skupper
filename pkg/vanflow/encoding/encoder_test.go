@@ -7,7 +7,7 @@ import (
 
 	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/encoding"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 type tRecordAttributeEncodeDecode struct {

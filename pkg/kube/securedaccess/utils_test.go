@@ -3,7 +3,7 @@ package securedaccess
 import (
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func Test_possibleKeyPortNamePairs(t *testing.T) {

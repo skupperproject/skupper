@@ -2,12 +2,13 @@ package connector
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"gotest.tools/assert"
-	"testing"
+	"gotest.tools/v3/assert"
 )
 
 func TestCmdConnectorFactory(t *testing.T) {

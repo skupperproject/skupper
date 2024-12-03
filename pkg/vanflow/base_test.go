@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/pkg/vanflow/encoding"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestTimeEncoding(t *testing.T) {

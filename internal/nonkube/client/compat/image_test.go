@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/pkg/container"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestImageMock(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestCopySiteState(t *testing.T) {

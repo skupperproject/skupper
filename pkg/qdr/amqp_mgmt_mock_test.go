@@ -7,7 +7,7 @@ import (
 
 	"encoding/json"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 var clusterRun = flag.Bool("use-cluster", false, "run tests against a configured cluster")
