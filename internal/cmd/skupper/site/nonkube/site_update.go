@@ -173,8 +173,7 @@ func (cmd *CmdSiteUpdate) Run() error {
 			Namespace: cmd.namespace,
 		},
 		Spec: v2alpha1.SiteSpec{
-			Settings:   cmd.options,
-			LinkAccess: "default",
+			Settings: cmd.options,
 		},
 	}
 

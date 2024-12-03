@@ -50,10 +50,10 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 			},
 		},
 		{
-			name:           "bindHost was not specified",
+			name:           "bindHost was not specified ok",
 			args:           []string{"my-site"},
 			flags:          &common.CommandSiteCreateFlags{EnableLinkAccess: true},
-			expectedErrors: []string{"bindhost should not be empty"},
+			expectedErrors: []string{},
 		},
 		{
 			name:           "bindHost was not valid",

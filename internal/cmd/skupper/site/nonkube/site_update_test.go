@@ -11,7 +11,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -285,6 +285,7 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 		errorMessage        string
 		siteName            string
 		flags               common.CommandSiteUpdateFlags
+		linkAccessEnabled   bool
 	}
 
 	testTable := []test{
@@ -297,6 +298,7 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 				EnableLinkAccess:        true,
 				SubjectAlternativeNames: []string{"2.2.2.2", "test"},
 			},
+			linkAccessEnabled: true,
 		},
 		{
 			name:      "runs ok",
@@ -313,6 +315,7 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 				SubjectAlternativeNames: []string{"2.2.2.2", "test", "5.6.7.8"},
 				Output:                  "json",
 			},
+			linkAccessEnabled: true,
 		},
 		{
 			name:     "run ok output yaml",
@@ -333,6 +336,7 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 		command.routerAccessHandler = fs.NewRouterAccessHandler(command.namespace)
 		command.newSettings.bindHost = test.flags.BindHost
 		command.newSettings.subjectAlternativeNames = test.flags.SubjectAlternativeNames
+		command.linkAccessEnabled = test.linkAccessEnabled
 		defer command.siteHandler.Delete("my-site")
 		defer command.routerAccessHandler.Delete("my-site")
 		t.Run(test.name, func(t *testing.T) {
