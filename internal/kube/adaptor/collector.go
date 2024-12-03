@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/internal/config"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	"github.com/skupperproject/skupper/pkg/config"
 	"github.com/skupperproject/skupper/pkg/kube"
 	kubeflow "github.com/skupperproject/skupper/pkg/kube/flow"
 	"github.com/skupperproject/skupper/pkg/vanflow"

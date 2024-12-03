@@ -12,7 +12,7 @@ import (
 
 	amqp "github.com/interconnectedcloud/go-amqp"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/config"
+	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 

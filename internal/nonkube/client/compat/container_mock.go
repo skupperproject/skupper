@@ -19,7 +19,7 @@ import (
 	"github.com/skupperproject/skupper-libpod/v4/client/volumes_compat"
 	"github.com/skupperproject/skupper-libpod/v4/models"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/config"
+	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/pkg/container"
 )
 
