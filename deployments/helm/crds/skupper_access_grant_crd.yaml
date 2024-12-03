@@ -37,9 +37,9 @@ spec:
                   type: string
                 ca:
                   type: string
-                redeemed:
+                redemptions:
                   type: integer
-                expiration:
+                expirationTime:
                   type: string
                   format: date-time
                 status:

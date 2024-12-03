@@ -32,59 +32,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// AttachedConnectorAnchorInformer provides access to a shared informer and lister for
-// AttachedConnectorAnchors.
-type AttachedConnectorAnchorInformer interface {
+// AttachedConnectorBindingInformer provides access to a shared informer and lister for
+// AttachedConnectorBindings.
+type AttachedConnectorBindingInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v2alpha1.AttachedConnectorAnchorLister
+	Lister() v2alpha1.AttachedConnectorBindingLister
 }
 
-type attachedConnectorAnchorInformer struct {
+type attachedConnectorBindingInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewAttachedConnectorAnchorInformer constructs a new informer for AttachedConnectorAnchor type.
+// NewAttachedConnectorBindingInformer constructs a new informer for AttachedConnectorBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewAttachedConnectorAnchorInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredAttachedConnectorAnchorInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewAttachedConnectorBindingInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredAttachedConnectorBindingInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredAttachedConnectorAnchorInformer constructs a new informer for AttachedConnectorAnchor type.
+// NewFilteredAttachedConnectorBindingInformer constructs a new informer for AttachedConnectorBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredAttachedConnectorAnchorInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredAttachedConnectorBindingInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV2alpha1().AttachedConnectorAnchors(namespace).List(context.TODO(), options)
+				return client.SkupperV2alpha1().AttachedConnectorBindings(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV2alpha1().AttachedConnectorAnchors(namespace).Watch(context.TODO(), options)
+				return client.SkupperV2alpha1().AttachedConnectorBindings(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&skupperv2alpha1.AttachedConnectorAnchor{},
+		&skupperv2alpha1.AttachedConnectorBinding{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *attachedConnectorAnchorInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredAttachedConnectorAnchorInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *attachedConnectorBindingInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredAttachedConnectorBindingInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *attachedConnectorAnchorInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&skupperv2alpha1.AttachedConnectorAnchor{}, f.defaultInformer)
+func (f *attachedConnectorBindingInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&skupperv2alpha1.AttachedConnectorBinding{}, f.defaultInformer)
 }
 
-func (f *attachedConnectorAnchorInformer) Lister() v2alpha1.AttachedConnectorAnchorLister {
-	return v2alpha1.NewAttachedConnectorAnchorLister(f.Informer().GetIndexer())
+func (f *attachedConnectorBindingInformer) Lister() v2alpha1.AttachedConnectorBindingLister {
+	return v2alpha1.NewAttachedConnectorBindingLister(f.Informer().GetIndexer())
 }

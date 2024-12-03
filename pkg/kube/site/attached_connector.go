@@ -17,7 +17,7 @@ type AttachedConnector struct {
 	name        string
 	namespace   string
 	definitions map[string]*skupperv2alpha1.AttachedConnector
-	anchor      *skupperv2alpha1.AttachedConnectorAnchor
+	binding     *skupperv2alpha1.AttachedConnectorBinding
 	watcher     *PodWatcher
 	parent      *ExtendedBindings
 }
@@ -32,10 +32,10 @@ func NewAttachedConnector(name string, namespace string, parent *ExtendedBinding
 }
 
 func (a *AttachedConnector) activeDefinition() *skupperv2alpha1.AttachedConnector {
-	if a.anchor == nil {
+	if a.binding == nil {
 		return nil
 	}
-	if definition, ok := a.definitions[a.anchor.Spec.ConnectorNamespace]; ok {
+	if definition, ok := a.definitions[a.binding.Spec.ConnectorNamespace]; ok {
 		return definition
 	}
 	return nil
@@ -48,9 +48,9 @@ func (a *AttachedConnector) Selector() string {
 	return ""
 }
 
-func (a *AttachedConnector) IncludeNotReady() bool {
+func (a *AttachedConnector) IncludeNotReadyPods() bool {
 	if definition := a.activeDefinition(); definition != nil {
-		return definition.Spec.IncludeNotReady
+		return definition.Spec.IncludeNotReadyPods
 	}
 	return false
 }
@@ -76,8 +76,8 @@ func error_(errors []string) error {
 }
 
 func (a *AttachedConnector) updateStatus() error {
-	if a.anchor == nil {
-		return a.updateStatusNoAnchor()
+	if a.binding == nil {
+		return a.updateStatusNoBinding()
 	}
 	if active := a.activeDefinition(); active != nil {
 		if a.watcher == nil {
@@ -92,10 +92,10 @@ func (a *AttachedConnector) updateStatus() error {
 	}
 }
 
-func (a *AttachedConnector) updateStatusNoAnchor() error {
+func (a *AttachedConnector) updateStatusNoBinding() error {
 	var errors []string
 	for _, definition := range a.definitions {
-		if definition.SetConfigured(fmt.Errorf("No matching AttachedConnectorAnchor in site namespace")) {
+		if definition.SetConfigured(fmt.Errorf("No matching AttachedConnectorBinding in site namespace")) {
 			if err := a.updateDefinitionStatus(definition); err != nil {
 				errors = append(errors, err.Error())
 			}
@@ -106,8 +106,8 @@ func (a *AttachedConnector) updateStatusNoAnchor() error {
 
 func (a *AttachedConnector) updateStatusTo(err error, activeDefinition *skupperv2alpha1.AttachedConnector) error {
 	var errors []string
-	if a.anchor.SetConfigured(err) {
-		if err := a.updateAnchorStatus(); err != nil {
+	if a.binding.SetConfigured(err) {
+		if err := a.updateBindingStatus(); err != nil {
 			errors = append(errors, err.Error())
 		}
 	}
@@ -117,10 +117,10 @@ func (a *AttachedConnector) updateStatusTo(err error, activeDefinition *skupperv
 		}
 	}
 	for _, definition := range a.definitions {
-		if definition.Namespace == a.anchor.Spec.ConnectorNamespace {
+		if definition.Namespace == a.binding.Spec.ConnectorNamespace {
 			continue
 		}
-		if definition.SetConfigured(fmt.Errorf("AttachedConnectorAnchor %s/%s does not allow AttachedConnector in %s (only %s)", a.anchor.Namespace, a.anchor.Name, definition.Namespace, a.anchor.Spec.ConnectorNamespace)) {
+		if definition.SetConfigured(fmt.Errorf("AttachedConnectorBinding %s/%s does not allow AttachedConnector in %s (only %s)", a.binding.Namespace, a.binding.Name, definition.Namespace, a.binding.Spec.ConnectorNamespace)) {
 			if err := a.updateDefinitionStatus(definition); err != nil {
 				errors = append(errors, err.Error())
 			}
@@ -130,19 +130,19 @@ func (a *AttachedConnector) updateStatusTo(err error, activeDefinition *skupperv
 }
 
 func (a *AttachedConnector) setMatchingListenerCount(count int) {
-	if a.anchor.SetMatchingListenerCount(count) {
-		if err := a.updateAnchorStatus(); err != nil {
-			a.parent.logger.Error("Failed to update AttachedConnectorAnchor",
-				slog.String("namespace", a.anchor.Namespace),
-				slog.String("name", a.anchor.Name),
+	if a.binding.SetHasMatchingListener(count > 0) {
+		if err := a.updateBindingStatus(); err != nil {
+			a.parent.logger.Error("Failed to update AttachedConnectorBinding",
+				slog.String("namespace", a.binding.Namespace),
+				slog.String("name", a.binding.Name),
 				slog.Any("error", err))
 		}
 	}
 }
 
 func (a *AttachedConnector) Updated(pods []skupperv2alpha1.PodDetails) error {
-	if a.anchor == nil {
-		return a.updateStatusNoAnchor()
+	if a.binding == nil {
+		return a.updateStatusNoBinding()
 	}
 	definition := a.activeDefinition()
 	if definition == nil {
@@ -165,7 +165,7 @@ func (a *AttachedConnector) Updated(pods []skupperv2alpha1.PodDetails) error {
 }
 
 func (a *AttachedConnector) configurationError(err error) error {
-	if a.activeDefinition() == nil || a.anchor == nil {
+	if a.activeDefinition() == nil || a.binding == nil {
 		return nil
 	}
 	return err
@@ -184,19 +184,19 @@ func (a *AttachedConnector) updateDefinitionStatus(definition *skupperv2alpha1.A
 	return nil
 }
 
-func (a *AttachedConnector) updateAnchorStatus() error {
-	if a.anchor == nil {
+func (a *AttachedConnector) updateBindingStatus() error {
+	if a.binding == nil {
 		return nil
 	}
-	updated, err := a.parent.controller.GetSkupperClient().SkupperV2alpha1().AttachedConnectorAnchors(a.anchor.ObjectMeta.Namespace).UpdateStatus(context.TODO(), a.anchor, metav1.UpdateOptions{})
+	updated, err := a.parent.controller.GetSkupperClient().SkupperV2alpha1().AttachedConnectorBindings(a.binding.ObjectMeta.Namespace).UpdateStatus(context.TODO(), a.binding, metav1.UpdateOptions{})
 	if err != nil {
-		a.parent.logger.Error("Failed to update status for AttachedConnectorAnchor",
-			slog.String("namespace", a.anchor.Namespace),
-			slog.String("name", a.anchor.Name),
+		a.parent.logger.Error("Failed to update status for AttachedConnectorBinding",
+			slog.String("namespace", a.binding.Namespace),
+			slog.String("name", a.binding.Name),
 			slog.Any("error", err))
 		return err
 	}
-	a.anchor = updated
+	a.binding = updated
 	return nil
 }
 
@@ -229,7 +229,7 @@ func (a *AttachedConnector) definitionUpdated(definition *skupperv2alpha1.Attach
 		}
 	}
 	a.definitions[definition.Namespace] = definition
-	if a.anchor != nil && a.anchor.Spec.ConnectorNamespace == definition.Namespace {
+	if a.binding != nil && a.binding.Spec.ConnectorNamespace == definition.Namespace {
 		if selectorChanged || a.watcher == nil {
 			a.parent.logger.Info("Watching pods for AttachedConnector",
 				slog.String("namespace", definition.Namespace),
@@ -238,8 +238,8 @@ func (a *AttachedConnector) definitionUpdated(definition *skupperv2alpha1.Attach
 			return false // not ready to configure until selector returns pods
 		}
 		return specChanged && a.watcher != nil
-	} else if a.anchor == nil {
-		if definition.SetConfigured(fmt.Errorf("No matching AttachedConnectorAnchor in site namespace")) {
+	} else if a.binding == nil {
+		if definition.SetConfigured(fmt.Errorf("No matching AttachedConnectorBinding in site namespace")) {
 			if err := a.updateDefinitionStatus(definition); err != nil {
 				a.parent.logger.Error("Error updating status for AttachedConnector",
 					slog.String("namespace", definition.Namespace),
@@ -249,7 +249,7 @@ func (a *AttachedConnector) definitionUpdated(definition *skupperv2alpha1.Attach
 		}
 		return false
 	} else {
-		if definition.SetConfigured(fmt.Errorf("AttachedConnectorAnchor %s/%s does not allow AttachedConnector in %s (only %s)", a.anchor.Namespace, a.anchor.Name, definition.Namespace, a.anchor.Spec.ConnectorNamespace)) {
+		if definition.SetConfigured(fmt.Errorf("AttachedConnectorBinding %s/%s does not allow AttachedConnector in %s (only %s)", a.binding.Namespace, a.binding.Name, definition.Namespace, a.binding.Spec.ConnectorNamespace)) {
 			if err := a.updateDefinitionStatus(definition); err != nil {
 				a.parent.logger.Error("Error updating status for AttachedConnector",
 					slog.String("namespace", definition.Namespace),
@@ -261,9 +261,9 @@ func (a *AttachedConnector) definitionUpdated(definition *skupperv2alpha1.Attach
 	}
 }
 
-func (a *AttachedConnector) anchorUpdated(anchor *skupperv2alpha1.AttachedConnectorAnchor) bool {
-	changed := a.anchor == nil || !reflect.DeepEqual(a.anchor.Spec, anchor.Spec)
-	a.anchor = anchor
+func (a *AttachedConnector) bindingUpdated(binding *skupperv2alpha1.AttachedConnectorBinding) bool {
+	changed := a.binding == nil || !reflect.DeepEqual(a.binding.Spec, binding.Spec)
+	a.binding = binding
 	return changed
 }
 
@@ -278,11 +278,11 @@ func (a *AttachedConnector) definitionDeleted(namespace string) bool {
 	return false
 }
 
-func (a *AttachedConnector) anchorDeleted() bool {
-	if a.anchor == nil {
+func (a *AttachedConnector) bindingDeleted() bool {
+	if a.binding == nil {
 		return false
 	}
-	a.anchor = nil
+	a.binding = nil
 	return true
 }
 
@@ -296,13 +296,13 @@ func (a *AttachedConnector) updateBridgeConfig(siteId string, config *qdr.Bridge
 			Name: definition.Name,
 		},
 		Spec: skupperv2alpha1.ConnectorSpec{
-			RoutingKey:     a.anchor.Spec.RoutingKey,
+			RoutingKey:     a.binding.Spec.RoutingKey,
 			Type:           definition.Spec.Type,
 			Port:           definition.Spec.Port,
 			TlsCredentials: definition.Spec.TlsCredentials,
 		},
 	}
 	for _, pod := range a.watcher.pods() {
-		site.UpdateBridgeConfigForConnectorToPod(siteId, connector, pod, a.anchor.Spec.ExposePodsByName, config)
+		site.UpdateBridgeConfigForConnectorToPod(siteId, connector, pod, a.binding.Spec.ExposePodsByName, config)
 	}
 }

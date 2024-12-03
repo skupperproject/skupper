@@ -21,6 +21,8 @@ spec:
                   type: string
                 ca:
                   type: string
+                linkCost:
+                  type: integer
                 settings:
                   type: object
                   additionalProperties:

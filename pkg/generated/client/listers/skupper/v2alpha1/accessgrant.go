@@ -20,8 +20,8 @@ package v2alpha1
 
 import (
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type AccessGrantLister interface {
 
 // accessGrantLister implements the AccessGrantLister interface.
 type accessGrantLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v2alpha1.AccessGrant]
 }
 
 // NewAccessGrantLister returns a new AccessGrantLister.
 func NewAccessGrantLister(indexer cache.Indexer) AccessGrantLister {
-	return &accessGrantLister{indexer: indexer}
-}
-
-// List lists all AccessGrants in the indexer.
-func (s *accessGrantLister) List(selector labels.Selector) (ret []*v2alpha1.AccessGrant, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.AccessGrant))
-	})
-	return ret, err
+	return &accessGrantLister{listers.New[*v2alpha1.AccessGrant](indexer, v2alpha1.Resource("accessgrant"))}
 }
 
 // AccessGrants returns an object that can list and get AccessGrants.
 func (s *accessGrantLister) AccessGrants(namespace string) AccessGrantNamespaceLister {
-	return accessGrantNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return accessGrantNamespaceLister{listers.NewNamespaced[*v2alpha1.AccessGrant](s.ResourceIndexer, namespace)}
 }
 
 // AccessGrantNamespaceLister helps list and get AccessGrants.
@@ -74,26 +66,5 @@ type AccessGrantNamespaceLister interface {
 // accessGrantNamespaceLister implements the AccessGrantNamespaceLister
 // interface.
 type accessGrantNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all AccessGrants in the indexer for a given namespace.
-func (s accessGrantNamespaceLister) List(selector labels.Selector) (ret []*v2alpha1.AccessGrant, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.AccessGrant))
-	})
-	return ret, err
-}
-
-// Get retrieves the AccessGrant from the indexer for a given namespace and name.
-func (s accessGrantNamespaceLister) Get(name string) (*v2alpha1.AccessGrant, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v2alpha1.Resource("accessgrant"), name)
-	}
-	return obj.(*v2alpha1.AccessGrant), nil
+	listers.ResourceIndexer[*v2alpha1.AccessGrant]
 }

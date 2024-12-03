@@ -49,7 +49,7 @@ skupper connector create backend 8080 --workload deployment/backend`,
 	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
-	cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReady, common.FlagNameIncludeNotReady, "i", false, common.FlagDescIncludeNotRead)
+	cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReadyPods, common.FlagNameIncludeNotReadyPods, "i", false, common.FlagDescIncludeNotRead)
 	cmd.Flags().StringVarP(&cmdFlags.Selector, common.FlagNameSelector, "s", "", common.FlagDescSelector)
 	cmd.Flags().StringVarP(&cmdFlags.Workload, common.FlagNameWorkload, "w", "", common.FlagDescWorkload)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
@@ -61,7 +61,7 @@ skupper connector create backend 8080 --workload deployment/backend`,
 	nonKubeCommand.Flags = &cmdFlags
 
 	if configuredPlatform != types.PlatformKubernetes {
-		cmd.Flags().MarkHidden(common.FlagNameIncludeNotReady)
+		cmd.Flags().MarkHidden(common.FlagNameIncludeNotReadyPods)
 		cmd.Flags().MarkHidden(common.FlagNameSelector)
 		cmd.Flags().MarkHidden(common.FlagNameWorkload)
 	}
@@ -113,7 +113,7 @@ func CmdConnectorUpdateFactory(configuredPlatform types.Platform) *cobra.Command
 	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
-	cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReady, common.FlagNameIncludeNotReady, "i", false, common.FlagDescIncludeNotRead)
+	cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReadyPods, common.FlagNameIncludeNotReadyPods, "i", false, common.FlagDescIncludeNotRead)
 	cmd.Flags().StringVarP(&cmdFlags.Selector, common.FlagNameSelector, "s", "", common.FlagDescSelector)
 	cmd.Flags().StringVarP(&cmdFlags.Workload, common.FlagNameWorkload, "w", "", common.FlagDescWorkload)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
@@ -126,7 +126,7 @@ func CmdConnectorUpdateFactory(configuredPlatform types.Platform) *cobra.Command
 	nonKubeCommand.Flags = &cmdFlags
 
 	if configuredPlatform != types.PlatformKubernetes {
-		cmd.Flags().MarkHidden(common.FlagNameIncludeNotReady)
+		cmd.Flags().MarkHidden(common.FlagNameIncludeNotReadyPods)
 		cmd.Flags().MarkHidden(common.FlagNameSelector)
 		cmd.Flags().MarkHidden(common.FlagNameWorkload)
 	}

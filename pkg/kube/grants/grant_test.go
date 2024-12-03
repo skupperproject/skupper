@@ -80,8 +80,8 @@ func TestGrantRegistryGeneral(t *testing.T) {
 			assert.Assert(t, latest.Status.Code != "")
 			assert.Assert(t, len(latest.Status.Code) == 24)
 		}
-		assert.Assert(t, latest.Status.Expiration != "")
-		_, err = time.Parse(time.RFC3339, grant.Status.Expiration)
+		assert.Assert(t, latest.Status.ExpirationTime != "")
+		_, err = time.Parse(time.RFC3339, grant.Status.ExpirationTime)
 		if err != nil {
 			t.Error(err)
 		}
@@ -124,7 +124,7 @@ func TestGrantRegistryGeneral(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		assert.Equal(t, latest.Status.Redeemed, 1)
+		assert.Equal(t, latest.Status.Redemptions, 1)
 	}
 	//TODO: test bad input values in spec
 }
@@ -140,8 +140,8 @@ func Test_ServeHttp(t *testing.T) {
 			RedemptionsAllowed: 4,
 		},
 		Status: v2alpha1.AccessGrantStatus{
-			Code:       "supersecret",
-			Expiration: time.Date(2124, time.January, 0, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
+			Code:           "supersecret",
+			ExpirationTime: time.Date(2124, time.January, 0, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
 		},
 	}
 	expired := &v2alpha1.AccessGrant{
@@ -154,8 +154,8 @@ func Test_ServeHttp(t *testing.T) {
 			RedemptionsAllowed: 1,
 		},
 		Status: v2alpha1.AccessGrantStatus{
-			Code:       "supersecret",
-			Expiration: time.Date(2024, time.January, 0, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
+			Code:           "supersecret",
+			ExpirationTime: time.Date(2024, time.January, 0, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
 		},
 	}
 	used := &v2alpha1.AccessGrant{
@@ -168,9 +168,9 @@ func Test_ServeHttp(t *testing.T) {
 			RedemptionsAllowed: 1,
 		},
 		Status: v2alpha1.AccessGrantStatus{
-			Code:       "supersecret",
-			Redeemed:   1,
-			Expiration: time.Date(2124, time.January, 0, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
+			Code:           "supersecret",
+			Redemptions:    1,
+			ExpirationTime: time.Date(2124, time.January, 0, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
 		},
 	}
 	badExpiration := &v2alpha1.AccessGrant{
@@ -183,9 +183,9 @@ func Test_ServeHttp(t *testing.T) {
 			RedemptionsAllowed: 1,
 		},
 		Status: v2alpha1.AccessGrantStatus{
-			Code:       "supersecret",
-			Redeemed:   1,
-			Expiration: "iamnotadate",
+			Code:           "supersecret",
+			Redemptions:    1,
+			ExpirationTime: "iamnotadate",
 		},
 	}
 	deleted := &v2alpha1.AccessGrant{
@@ -198,8 +198,8 @@ func Test_ServeHttp(t *testing.T) {
 			RedemptionsAllowed: 1,
 		},
 		Status: v2alpha1.AccessGrantStatus{
-			Code:       "supersecret",
-			Expiration: time.Date(2124, time.January, 0, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
+			Code:           "supersecret",
+			ExpirationTime: time.Date(2124, time.January, 0, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
 		},
 	}
 

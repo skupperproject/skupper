@@ -24,7 +24,7 @@ type AccessTokenExpansion interface{}
 
 type AttachedConnectorExpansion interface{}
 
-type AttachedConnectorAnchorExpansion interface{}
+type AttachedConnectorBindingExpansion interface{}
 
 type CertificateExpansion interface{}
 

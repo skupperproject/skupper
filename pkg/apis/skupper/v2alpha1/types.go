@@ -197,7 +197,7 @@ type SiteSpec struct {
 	ServiceAccount string            `json:"serviceAccount,omitempty"`
 	LinkAccess     string            `json:"linkAccess,omitempty"`
 	DefaultIssuer  string            `json:"defaultIssuer,omitempty"`
-	RouterMode     string            `json:"routerMode,omitempty"`
+	Edge           bool              `json:"edge,omitempty"`
 	HA             bool              `json:"ha,omitempty"`
 	Settings       map[string]string `json:"settings,omitempty"`
 }
@@ -347,7 +347,7 @@ func (l *Listener) SetConfigured(err error) bool {
 }
 
 func (l *Listener) matched() ConditionState {
-	if l.Status.MatchingConnectorCount > 0 {
+	if l.Status.HasMatchingConnector {
 		return ReadyCondition()
 	} else {
 		return PendingCondition("No matching connectors")
@@ -362,10 +362,10 @@ func (l *Listener) setMatched() bool {
 	return false
 }
 
-func (l *Listener) SetMatchingConnectorCount(count int) bool {
+func (l *Listener) SetHasMatchingConnector(value bool) bool {
 	changed := false
-	if l.Status.MatchingConnectorCount != count {
-		l.Status.MatchingConnectorCount = count
+	if l.Status.HasMatchingConnector != value {
+		l.Status.HasMatchingConnector = value
 		changed = true
 	}
 	if l.setMatched() {
@@ -405,8 +405,8 @@ type ListenerSpec struct {
 }
 
 type ListenerStatus struct {
-	Status                 `json:",inline"`
-	MatchingConnectorCount int `json:"matchingConnectorCount,omitempty"`
+	Status               `json:",inline"`
+	HasMatchingConnector bool `json:"hasMatchingConnector,omitempty"`
 }
 
 type ServicePort struct {
@@ -433,7 +433,7 @@ func (c *Connector) SetConfigured(err error) bool {
 }
 
 func (c *Connector) matched() ConditionState {
-	if c.Status.MatchingListenerCount > 0 {
+	if c.Status.HasMatchingListener {
 		return ReadyCondition()
 	} else {
 		return PendingCondition("No matching listeners")
@@ -448,10 +448,10 @@ func (c *Connector) setMatched() bool {
 	return false
 }
 
-func (c *Connector) SetMatchingListenerCount(count int) bool {
+func (c *Connector) SetHasMatchingListener(value bool) bool {
 	changed := false
-	if c.Status.MatchingListenerCount != count {
-		c.Status.MatchingListenerCount = count
+	if c.Status.HasMatchingListener != value {
+		c.Status.HasMatchingListener = value
 		changed = true
 	}
 	if c.setMatched() {
@@ -482,17 +482,17 @@ type ConnectorList struct {
 }
 
 type ConnectorSpec struct {
-	RoutingKey       string            `json:"routingKey"`
-	Host             string            `json:"host,omitempty"`
-	Selector         string            `json:"selector,omitempty"`
-	Port             int               `json:"port"`
-	TlsCredentials   string            `json:"tlsCredentials,omitempty"`
-	NoClientAuth     bool              `json:"noClientAuth,omitempty"`
-	VerifyHostname   bool              `json:"verifyHostname,omitempty"`
-	Type             string            `json:"type,omitempty"`
-	IncludeNotReady  bool              `json:"includeNotReady,omitempty"`
-	ExposePodsByName bool              `json:"exposePodsByName,omitempty"`
-	Settings         map[string]string `json:"settings,omitempty"`
+	RoutingKey          string            `json:"routingKey"`
+	Host                string            `json:"host,omitempty"`
+	Selector            string            `json:"selector,omitempty"`
+	Port                int               `json:"port"`
+	TlsCredentials      string            `json:"tlsCredentials,omitempty"`
+	UseClientCert       bool              `json:"useClientCert,omitempty"`
+	VerifyHostname      bool              `json:"verifyHostname,omitempty"`
+	Type                string            `json:"type,omitempty"`
+	ExposePodsByName    bool              `json:"exposePodsByName,omitempty"`
+	IncludeNotReadyPods bool              `json:"includeNotReadyPods,omitempty"`
+	Settings            map[string]string `json:"settings,omitempty"`
 }
 
 type PodDetails struct {
@@ -502,9 +502,9 @@ type PodDetails struct {
 }
 
 type ConnectorStatus struct {
-	Status                `json:",inline"`
-	SelectedPods          []PodDetails `json:"selectedPods,omitempty"`
-	MatchingListenerCount int          `json:"matchingListenerCount,omitempty"`
+	Status              `json:",inline"`
+	SelectedPods        []PodDetails `json:"selectedPods,omitempty"`
+	HasMatchingListener bool         `json:"hasMatchingListener,omitempty"`
 }
 
 // +genclient
@@ -572,7 +572,6 @@ type LinkSpec struct {
 	Endpoints      []Endpoint        `json:"endpoints,omitempty"`
 	TlsCredentials string            `json:"tlsCredentials,omitempty"`
 	Cost           int               `json:"cost,omitempty"`
-	NoClientAuth   bool              `json:"noClientAuth,omitempty"`
 	Settings       map[string]string `json:"settings,omitempty"`
 }
 
@@ -628,6 +627,7 @@ type AccessTokenSpec struct {
 	Url      string            `json:"url"`
 	Code     string            `json:"code"`
 	Ca       string            `json:"ca"`
+	LinkCost int               `json:"linkCost,omitempty"`
 	Settings map[string]string `json:"settings,omitempty"`
 }
 
@@ -692,12 +692,12 @@ type AccessGrantSpec struct {
 }
 
 type AccessGrantStatus struct {
-	Status     `json:",inline"`
-	Url        string `json:"url"`
-	Code       string `json:"code"`
-	Ca         string `json:"ca"`
-	Redeemed   int    `json:"redeemed,omitempty"`
-	Expiration string `json:"expiration,omitempty"`
+	Status         `json:",inline"`
+	Url            string `json:"url"`
+	Code           string `json:"code"`
+	Ca             string `json:"ca"`
+	Redemptions    int    `json:"redemptions,omitempty"`
+	ExpirationTime string `json:"expirationTime,omitempty"`
 }
 
 // +genclient
@@ -1003,31 +1003,32 @@ type AttachedConnectorList struct {
 }
 
 type AttachedConnectorSpec struct {
-	SiteNamespace   string            `json:"siteNamespace"`
-	Selector        string            `json:"selector,omitempty"`
-	Port            int               `json:"port"`
-	TlsCredentials  string            `json:"tlsCredentials,omitempty"`
-	Type            string            `json:"type,omitempty"`
-	IncludeNotReady bool              `json:"includeNotReady,omitempty"`
-	Settings        map[string]string `json:"settings,omitempty"`
+	SiteNamespace       string            `json:"siteNamespace"`
+	Selector            string            `json:"selector,omitempty"`
+	Port                int               `json:"port"`
+	TlsCredentials      string            `json:"tlsCredentials,omitempty"`
+	UseClientCert       bool              `json:"useClientCert,omitempty"`
+	Type                string            `json:"type,omitempty"`
+	IncludeNotReadyPods bool              `json:"includeNotReadyPods,omitempty"`
+	Settings            map[string]string `json:"settings,omitempty"`
 }
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type AttachedConnectorAnchor struct {
+type AttachedConnectorBinding struct {
 	v1.TypeMeta   `json:",inline"`
 	v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec          AttachedConnectorAnchorSpec   `json:"spec,omitempty"`
-	Status        AttachedConnectorAnchorStatus `json:"status,omitempty"`
+	Spec          AttachedConnectorBindingSpec   `json:"spec,omitempty"`
+	Status        AttachedConnectorBindingStatus `json:"status,omitempty"`
 }
 
-type AttachedConnectorAnchorStatus struct {
-	Status                `json:",inline"`
-	MatchingListenerCount int `json:"matchingListenerCount,omitempty"`
+type AttachedConnectorBindingStatus struct {
+	Status              `json:",inline"`
+	HasMatchingListener bool `json:"hasMatchingListener,omitempty"`
 }
 
-func (c *AttachedConnectorAnchor) SetConfigured(err error) bool {
+func (c *AttachedConnectorBinding) SetConfigured(err error) bool {
 	if c.Status.SetCondition(CONDITION_TYPE_CONFIGURED, ErrorOrReadyCondition(err), c.ObjectMeta.Generation) {
 		c.Status.setReady([]string{CONDITION_TYPE_CONFIGURED, CONDITION_TYPE_MATCHED}, c.ObjectMeta.Generation)
 		return true
@@ -1035,17 +1036,17 @@ func (c *AttachedConnectorAnchor) SetConfigured(err error) bool {
 	return false
 }
 
-func (c *AttachedConnectorAnchor) setMatched() bool {
-	if c.Status.SetCondition(CONDITION_TYPE_MATCHED, ReadyOrPendingCondition(c.Status.MatchingListenerCount > 0), c.ObjectMeta.Generation) {
+func (c *AttachedConnectorBinding) setMatched() bool {
+	if c.Status.SetCondition(CONDITION_TYPE_MATCHED, ReadyOrPendingCondition(c.Status.HasMatchingListener), c.ObjectMeta.Generation) {
 		c.Status.setReady([]string{CONDITION_TYPE_CONFIGURED, CONDITION_TYPE_MATCHED}, c.ObjectMeta.Generation)
 		return true
 	}
 	return false
 }
 
-func (c *AttachedConnectorAnchor) SetMatchingListenerCount(count int) bool {
-	if c.Status.MatchingListenerCount != count || c.Status.MatchingListenerCount == 0 {
-		c.Status.MatchingListenerCount = count
+func (c *AttachedConnectorBinding) SetHasMatchingListener(value bool) bool {
+	if c.Status.HasMatchingListener != value {
+		c.Status.HasMatchingListener = value
 		c.setMatched()
 		return true
 	}
@@ -1054,14 +1055,14 @@ func (c *AttachedConnectorAnchor) SetMatchingListenerCount(count int) bool {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// AttachedConnectorAnchorList contains a List of AttachedConnectorAnchor instances
-type AttachedConnectorAnchorList struct {
+// AttachedConnectorBindingList contains a List of AttachedConnectorBinding instances
+type AttachedConnectorBindingList struct {
 	v1.TypeMeta `json:",inline"`
 	v1.ListMeta `json:"metadata,omitempty"`
-	Items       []AttachedConnectorAnchor `json:"items"`
+	Items       []AttachedConnectorBinding `json:"items"`
 }
 
-type AttachedConnectorAnchorSpec struct {
+type AttachedConnectorBindingSpec struct {
 	ConnectorNamespace string            `json:"connectorNamespace"`
 	RoutingKey         string            `json:"routingKey"`
 	ExposePodsByName   bool              `json:"exposePodsByName,omitempty"`

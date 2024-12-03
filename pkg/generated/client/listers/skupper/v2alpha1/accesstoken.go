@@ -20,8 +20,8 @@ package v2alpha1
 
 import (
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type AccessTokenLister interface {
 
 // accessTokenLister implements the AccessTokenLister interface.
 type accessTokenLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v2alpha1.AccessToken]
 }
 
 // NewAccessTokenLister returns a new AccessTokenLister.
 func NewAccessTokenLister(indexer cache.Indexer) AccessTokenLister {
-	return &accessTokenLister{indexer: indexer}
-}
-
-// List lists all AccessTokens in the indexer.
-func (s *accessTokenLister) List(selector labels.Selector) (ret []*v2alpha1.AccessToken, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.AccessToken))
-	})
-	return ret, err
+	return &accessTokenLister{listers.New[*v2alpha1.AccessToken](indexer, v2alpha1.Resource("accesstoken"))}
 }
 
 // AccessTokens returns an object that can list and get AccessTokens.
 func (s *accessTokenLister) AccessTokens(namespace string) AccessTokenNamespaceLister {
-	return accessTokenNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return accessTokenNamespaceLister{listers.NewNamespaced[*v2alpha1.AccessToken](s.ResourceIndexer, namespace)}
 }
 
 // AccessTokenNamespaceLister helps list and get AccessTokens.
@@ -74,26 +66,5 @@ type AccessTokenNamespaceLister interface {
 // accessTokenNamespaceLister implements the AccessTokenNamespaceLister
 // interface.
 type accessTokenNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all AccessTokens in the indexer for a given namespace.
-func (s accessTokenNamespaceLister) List(selector labels.Selector) (ret []*v2alpha1.AccessToken, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.AccessToken))
-	})
-	return ret, err
-}
-
-// Get retrieves the AccessToken from the indexer for a given namespace and name.
-func (s accessTokenNamespaceLister) Get(name string) (*v2alpha1.AccessToken, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v2alpha1.Resource("accesstoken"), name)
-	}
-	return obj.(*v2alpha1.AccessToken), nil
+	listers.ResourceIndexer[*v2alpha1.AccessToken]
 }

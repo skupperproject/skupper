@@ -49,7 +49,7 @@ func (s *BindingStatus) populate(network []skupperv2alpha1.SiteRecord) {
 }
 
 func (s *BindingStatus) updateMatchingListenerCount(connector *skupperv2alpha1.Connector) *skupperv2alpha1.Connector {
-	if connector.SetMatchingListenerCount(len(s.listeners[connector.Spec.RoutingKey])) {
+	if connector.SetHasMatchingListener(len(s.listeners[connector.Spec.RoutingKey]) > 0) {
 		updated, err := updateConnectorStatus(s.client, connector)
 		if err != nil {
 			s.logger.Error("Failed to update status for connector",
@@ -64,7 +64,7 @@ func (s *BindingStatus) updateMatchingListenerCount(connector *skupperv2alpha1.C
 }
 
 func (s *BindingStatus) updateMatchingConnectorCount(listener *skupperv2alpha1.Listener) *skupperv2alpha1.Listener {
-	if listener.SetMatchingConnectorCount(len(s.connectors[listener.Spec.RoutingKey])) {
+	if listener.SetHasMatchingConnector(len(s.connectors[listener.Spec.RoutingKey]) > 0) {
 		updated, err := updateListenerStatus(s.client, listener)
 		if err != nil {
 			s.logger.Error("Failed to update status for listener",
@@ -79,8 +79,8 @@ func (s *BindingStatus) updateMatchingConnectorCount(listener *skupperv2alpha1.L
 }
 
 func (s *BindingStatus) updateMatchingListenerCountForAttachedConnector(connector *AttachedConnector) {
-	if connector.anchor != nil {
-		connector.setMatchingListenerCount(len(s.listeners[connector.anchor.Spec.RoutingKey]))
+	if connector.binding != nil {
+		connector.setMatchingListenerCount(len(s.listeners[connector.binding.Spec.RoutingKey]))
 	}
 }
 

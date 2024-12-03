@@ -32,8 +32,6 @@ spec:
                   type: string
                 cost:
                   type: integer
-                noClientAuth:
-                  type: boolean
                 settings:
                   type: object
                   additionalProperties:

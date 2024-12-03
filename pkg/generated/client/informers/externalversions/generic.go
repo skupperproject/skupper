@@ -59,8 +59,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().AccessTokens().Informer()}, nil
 	case v2alpha1.SchemeGroupVersion.WithResource("attachedconnectors"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().AttachedConnectors().Informer()}, nil
-	case v2alpha1.SchemeGroupVersion.WithResource("attachedconnectoranchors"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().AttachedConnectorAnchors().Informer()}, nil
+	case v2alpha1.SchemeGroupVersion.WithResource("attachedconnectorbindings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().AttachedConnectorBindings().Informer()}, nil
 	case v2alpha1.SchemeGroupVersion.WithResource("certificates"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Skupper().V2alpha1().Certificates().Informer()}, nil
 	case v2alpha1.SchemeGroupVersion.WithResource("connectors"):

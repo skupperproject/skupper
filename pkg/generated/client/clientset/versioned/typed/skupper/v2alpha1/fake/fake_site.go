@@ -24,7 +24,6 @@ import (
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,28 +35,30 @@ type FakeSites struct {
 	ns   string
 }
 
-var sitesResource = schema.GroupVersionResource{Group: "skupper.io", Version: "v2alpha1", Resource: "sites"}
+var sitesResource = v2alpha1.SchemeGroupVersion.WithResource("sites")
 
-var sitesKind = schema.GroupVersionKind{Group: "skupper.io", Version: "v2alpha1", Kind: "Site"}
+var sitesKind = v2alpha1.SchemeGroupVersion.WithKind("Site")
 
 // Get takes name of the site, and returns the corresponding site object, and an error if there is any.
 func (c *FakeSites) Get(ctx context.Context, name string, options v1.GetOptions) (result *v2alpha1.Site, err error) {
+	emptyResult := &v2alpha1.Site{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(sitesResource, c.ns, name), &v2alpha1.Site{})
+		Invokes(testing.NewGetActionWithOptions(sitesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.Site), err
 }
 
 // List takes label and field selectors, and returns the list of Sites that match those selectors.
 func (c *FakeSites) List(ctx context.Context, opts v1.ListOptions) (result *v2alpha1.SiteList, err error) {
+	emptyResult := &v2alpha1.SiteList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(sitesResource, sitesKind, c.ns, opts), &v2alpha1.SiteList{})
+		Invokes(testing.NewListActionWithOptions(sitesResource, sitesKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
@@ -76,40 +77,43 @@ func (c *FakeSites) List(ctx context.Context, opts v1.ListOptions) (result *v2al
 // Watch returns a watch.Interface that watches the requested sites.
 func (c *FakeSites) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(sitesResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(sitesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a site and creates it.  Returns the server's representation of the site, and an error, if there is any.
 func (c *FakeSites) Create(ctx context.Context, site *v2alpha1.Site, opts v1.CreateOptions) (result *v2alpha1.Site, err error) {
+	emptyResult := &v2alpha1.Site{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(sitesResource, c.ns, site), &v2alpha1.Site{})
+		Invokes(testing.NewCreateActionWithOptions(sitesResource, c.ns, site, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.Site), err
 }
 
 // Update takes the representation of a site and updates it. Returns the server's representation of the site, and an error, if there is any.
 func (c *FakeSites) Update(ctx context.Context, site *v2alpha1.Site, opts v1.UpdateOptions) (result *v2alpha1.Site, err error) {
+	emptyResult := &v2alpha1.Site{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(sitesResource, c.ns, site), &v2alpha1.Site{})
+		Invokes(testing.NewUpdateActionWithOptions(sitesResource, c.ns, site, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.Site), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeSites) UpdateStatus(ctx context.Context, site *v2alpha1.Site, opts v1.UpdateOptions) (*v2alpha1.Site, error) {
+func (c *FakeSites) UpdateStatus(ctx context.Context, site *v2alpha1.Site, opts v1.UpdateOptions) (result *v2alpha1.Site, err error) {
+	emptyResult := &v2alpha1.Site{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceAction(sitesResource, "status", c.ns, site), &v2alpha1.Site{})
+		Invokes(testing.NewUpdateSubresourceActionWithOptions(sitesResource, "status", c.ns, site, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.Site), err
 }
@@ -117,14 +121,14 @@ func (c *FakeSites) UpdateStatus(ctx context.Context, site *v2alpha1.Site, opts 
 // Delete takes name of the site and deletes it. Returns an error if one occurs.
 func (c *FakeSites) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(sitesResource, c.ns, name), &v2alpha1.Site{})
+		Invokes(testing.NewDeleteActionWithOptions(sitesResource, c.ns, name, opts), &v2alpha1.Site{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
 func (c *FakeSites) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(sitesResource, c.ns, listOpts)
+	action := testing.NewDeleteCollectionActionWithOptions(sitesResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v2alpha1.SiteList{})
 	return err
@@ -132,11 +136,12 @@ func (c *FakeSites) DeleteCollection(ctx context.Context, opts v1.DeleteOptions,
 
 // Patch applies the patch and returns the patched site.
 func (c *FakeSites) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.Site, err error) {
+	emptyResult := &v2alpha1.Site{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(sitesResource, c.ns, name, pt, data, subresources...), &v2alpha1.Site{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(sitesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 	return obj.(*v2alpha1.Site), err
 }

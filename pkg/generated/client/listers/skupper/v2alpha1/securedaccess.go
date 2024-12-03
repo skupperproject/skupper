@@ -20,8 +20,8 @@ package v2alpha1
 
 import (
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type SecuredAccessLister interface {
 
 // securedAccessLister implements the SecuredAccessLister interface.
 type securedAccessLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v2alpha1.SecuredAccess]
 }
 
 // NewSecuredAccessLister returns a new SecuredAccessLister.
 func NewSecuredAccessLister(indexer cache.Indexer) SecuredAccessLister {
-	return &securedAccessLister{indexer: indexer}
-}
-
-// List lists all SecuredAccesses in the indexer.
-func (s *securedAccessLister) List(selector labels.Selector) (ret []*v2alpha1.SecuredAccess, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.SecuredAccess))
-	})
-	return ret, err
+	return &securedAccessLister{listers.New[*v2alpha1.SecuredAccess](indexer, v2alpha1.Resource("securedaccess"))}
 }
 
 // SecuredAccesses returns an object that can list and get SecuredAccesses.
 func (s *securedAccessLister) SecuredAccesses(namespace string) SecuredAccessNamespaceLister {
-	return securedAccessNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return securedAccessNamespaceLister{listers.NewNamespaced[*v2alpha1.SecuredAccess](s.ResourceIndexer, namespace)}
 }
 
 // SecuredAccessNamespaceLister helps list and get SecuredAccesses.
@@ -74,26 +66,5 @@ type SecuredAccessNamespaceLister interface {
 // securedAccessNamespaceLister implements the SecuredAccessNamespaceLister
 // interface.
 type securedAccessNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all SecuredAccesses in the indexer for a given namespace.
-func (s securedAccessNamespaceLister) List(selector labels.Selector) (ret []*v2alpha1.SecuredAccess, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.SecuredAccess))
-	})
-	return ret, err
-}
-
-// Get retrieves the SecuredAccess from the indexer for a given namespace and name.
-func (s securedAccessNamespaceLister) Get(name string) (*v2alpha1.SecuredAccess, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v2alpha1.Resource("securedaccess"), name)
-	}
-	return obj.(*v2alpha1.SecuredAccess), nil
+	listers.ResourceIndexer[*v2alpha1.SecuredAccess]
 }

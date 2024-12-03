@@ -1,7 +1,7 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: attachedconnectoranchors.skupper.io
+  name: attachedconnectorbindings.skupper.io
 spec:
   group: skupper.io
   versions:
@@ -69,8 +69,8 @@ spec:
                     - reason
                     - status
                     - type
-                matchingListenerCount:
-                  type: integer
+                hasMatchingListener:
+                  type: boolean
       subresources:
         status: {}
       additionalPrinterColumns:
@@ -86,12 +86,12 @@ spec:
         type: string
         description: The status of the connector
         jsonPath: .status.status
-      - name: Matching Listener Count
+      - name: Has Matching Listener
         type: integer
-        description: The number of listeners in the network with a matching routing key.
-        jsonPath: .status.matchingListenerCount
+        description: Whether there is at least one listener in the network with a matching routing key.
+        jsonPath: .status.hasMatchingListener
   scope: Namespaced
   names:
-    plural: attachedconnectoranchors
-    singular: attachedconnectoranchor
-    kind: AttachedConnectorAnchor
+    plural: attachedconnectorbindings
+    singular: attachedconnectorbinding
+    kind: AttachedConnectorBinding

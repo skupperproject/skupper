@@ -20,8 +20,8 @@ package v2alpha1
 
 import (
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type SiteLister interface {
 
 // siteLister implements the SiteLister interface.
 type siteLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v2alpha1.Site]
 }
 
 // NewSiteLister returns a new SiteLister.
 func NewSiteLister(indexer cache.Indexer) SiteLister {
-	return &siteLister{indexer: indexer}
-}
-
-// List lists all Sites in the indexer.
-func (s *siteLister) List(selector labels.Selector) (ret []*v2alpha1.Site, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.Site))
-	})
-	return ret, err
+	return &siteLister{listers.New[*v2alpha1.Site](indexer, v2alpha1.Resource("site"))}
 }
 
 // Sites returns an object that can list and get Sites.
 func (s *siteLister) Sites(namespace string) SiteNamespaceLister {
-	return siteNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return siteNamespaceLister{listers.NewNamespaced[*v2alpha1.Site](s.ResourceIndexer, namespace)}
 }
 
 // SiteNamespaceLister helps list and get Sites.
@@ -74,26 +66,5 @@ type SiteNamespaceLister interface {
 // siteNamespaceLister implements the SiteNamespaceLister
 // interface.
 type siteNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all Sites in the indexer for a given namespace.
-func (s siteNamespaceLister) List(selector labels.Selector) (ret []*v2alpha1.Site, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.Site))
-	})
-	return ret, err
-}
-
-// Get retrieves the Site from the indexer for a given namespace and name.
-func (s siteNamespaceLister) Get(name string) (*v2alpha1.Site, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v2alpha1.Resource("site"), name)
-	}
-	return obj.(*v2alpha1.Site), nil
+	listers.ResourceIndexer[*v2alpha1.Site]
 }

@@ -180,7 +180,7 @@ func (b *Bindings) AddSslProfiles(config *qdr.RouterConfig) bool {
 	profiles := map[string]qdr.SslProfile{}
 	for _, c := range b.connectors {
 		if c.Spec.TlsCredentials != "" {
-			if c.Spec.NoClientAuth {
+			if !c.Spec.UseClientCert {
 				//if only ca is used, need to qualify the profile to ensure that it does not collide with
 				// use of the same secret where client auth *is* required
 				name := getSslProfileName(c)

@@ -76,7 +76,7 @@ func NewController(cli internalclient.Clients, grantConfig *grants.GrantConfig, 
 	controller.connectorWatcher = controller.controller.WatchConnectors(watchNamespace, controller.checkConnector)
 	controller.linkAccessWatcher = controller.controller.WatchRouterAccesses(watchNamespace, controller.checkRouterAccess)
 	controller.controller.WatchAttachedConnectors(watchNamespace, controller.checkAttachedConnector)
-	controller.controller.WatchAttachedConnectorAnchors(watchNamespace, controller.checkAttachedConnectorAnchor)
+	controller.controller.WatchAttachedConnectorBindings(watchNamespace, controller.checkAttachedConnectorBinding)
 	controller.controller.WatchLinks(watchNamespace, controller.checkLink)
 	controller.controller.WatchConfigMaps(skupperNetworkStatus(), watchNamespace, controller.networkStatusUpdate)
 	controller.controller.WatchAccessTokens(watchNamespace, controller.checkAccessToken)
@@ -241,12 +241,12 @@ func (c *Controller) checkRouterAccess(key string, ra *skupperv2alpha1.RouterAcc
 	return c.getSite(namespace).CheckRouterAccess(name, ra)
 }
 
-func (c *Controller) checkAttachedConnectorAnchor(key string, anchor *skupperv2alpha1.AttachedConnectorAnchor) error {
+func (c *Controller) checkAttachedConnectorBinding(key string, binding *skupperv2alpha1.AttachedConnectorBinding) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
 	}
-	return c.getSite(namespace).CheckAttachedConnectorAnchor(namespace, name, anchor)
+	return c.getSite(namespace).CheckAttachedConnectorBinding(namespace, name, binding)
 }
 
 func (c *Controller) checkAttachedConnector(key string, connector *skupperv2alpha1.AttachedConnector) error {

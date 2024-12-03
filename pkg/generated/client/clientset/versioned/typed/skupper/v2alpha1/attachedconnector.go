@@ -20,14 +20,13 @@ package v2alpha1
 
 import (
 	"context"
-	"time"
 
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	scheme "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	rest "k8s.io/client-go/rest"
+	gentype "k8s.io/client-go/gentype"
 )
 
 // AttachedConnectorsGetter has a method to return a AttachedConnectorInterface.
@@ -40,6 +39,7 @@ type AttachedConnectorsGetter interface {
 type AttachedConnectorInterface interface {
 	Create(ctx context.Context, attachedConnector *v2alpha1.AttachedConnector, opts v1.CreateOptions) (*v2alpha1.AttachedConnector, error)
 	Update(ctx context.Context, attachedConnector *v2alpha1.AttachedConnector, opts v1.UpdateOptions) (*v2alpha1.AttachedConnector, error)
+	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
 	UpdateStatus(ctx context.Context, attachedConnector *v2alpha1.AttachedConnector, opts v1.UpdateOptions) (*v2alpha1.AttachedConnector, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
@@ -52,144 +52,18 @@ type AttachedConnectorInterface interface {
 
 // attachedConnectors implements AttachedConnectorInterface
 type attachedConnectors struct {
-	client rest.Interface
-	ns     string
+	*gentype.ClientWithList[*v2alpha1.AttachedConnector, *v2alpha1.AttachedConnectorList]
 }
 
 // newAttachedConnectors returns a AttachedConnectors
 func newAttachedConnectors(c *SkupperV2alpha1Client, namespace string) *attachedConnectors {
 	return &attachedConnectors{
-		client: c.RESTClient(),
-		ns:     namespace,
+		gentype.NewClientWithList[*v2alpha1.AttachedConnector, *v2alpha1.AttachedConnectorList](
+			"attachedconnectors",
+			c.RESTClient(),
+			scheme.ParameterCodec,
+			namespace,
+			func() *v2alpha1.AttachedConnector { return &v2alpha1.AttachedConnector{} },
+			func() *v2alpha1.AttachedConnectorList { return &v2alpha1.AttachedConnectorList{} }),
 	}
-}
-
-// Get takes name of the attachedConnector, and returns the corresponding attachedConnector object, and an error if there is any.
-func (c *attachedConnectors) Get(ctx context.Context, name string, options v1.GetOptions) (result *v2alpha1.AttachedConnector, err error) {
-	result = &v2alpha1.AttachedConnector{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("attachedconnectors").
-		Name(name).
-		VersionedParams(&options, scheme.ParameterCodec).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// List takes label and field selectors, and returns the list of AttachedConnectors that match those selectors.
-func (c *attachedConnectors) List(ctx context.Context, opts v1.ListOptions) (result *v2alpha1.AttachedConnectorList, err error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	result = &v2alpha1.AttachedConnectorList{}
-	err = c.client.Get().
-		Namespace(c.ns).
-		Resource("attachedconnectors").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Watch returns a watch.Interface that watches the requested attachedConnectors.
-func (c *attachedConnectors) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	var timeout time.Duration
-	if opts.TimeoutSeconds != nil {
-		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
-	}
-	opts.Watch = true
-	return c.client.Get().
-		Namespace(c.ns).
-		Resource("attachedconnectors").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Watch(ctx)
-}
-
-// Create takes the representation of a attachedConnector and creates it.  Returns the server's representation of the attachedConnector, and an error, if there is any.
-func (c *attachedConnectors) Create(ctx context.Context, attachedConnector *v2alpha1.AttachedConnector, opts v1.CreateOptions) (result *v2alpha1.AttachedConnector, err error) {
-	result = &v2alpha1.AttachedConnector{}
-	err = c.client.Post().
-		Namespace(c.ns).
-		Resource("attachedconnectors").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(attachedConnector).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Update takes the representation of a attachedConnector and updates it. Returns the server's representation of the attachedConnector, and an error, if there is any.
-func (c *attachedConnectors) Update(ctx context.Context, attachedConnector *v2alpha1.AttachedConnector, opts v1.UpdateOptions) (result *v2alpha1.AttachedConnector, err error) {
-	result = &v2alpha1.AttachedConnector{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("attachedconnectors").
-		Name(attachedConnector.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(attachedConnector).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *attachedConnectors) UpdateStatus(ctx context.Context, attachedConnector *v2alpha1.AttachedConnector, opts v1.UpdateOptions) (result *v2alpha1.AttachedConnector, err error) {
-	result = &v2alpha1.AttachedConnector{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("attachedconnectors").
-		Name(attachedConnector.Name).
-		SubResource("status").
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(attachedConnector).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// Delete takes name of the attachedConnector and deletes it. Returns an error if one occurs.
-func (c *attachedConnectors) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("attachedconnectors").
-		Name(name).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *attachedConnectors) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	var timeout time.Duration
-	if listOpts.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
-	}
-	return c.client.Delete().
-		Namespace(c.ns).
-		Resource("attachedconnectors").
-		VersionedParams(&listOpts, scheme.ParameterCodec).
-		Timeout(timeout).
-		Body(&opts).
-		Do(ctx).
-		Error()
-}
-
-// Patch applies the patch and returns the patched attachedConnector.
-func (c *attachedConnectors) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.AttachedConnector, err error) {
-	result = &v2alpha1.AttachedConnector{}
-	err = c.client.Patch(pt).
-		Namespace(c.ns).
-		Resource("attachedconnectors").
-		Name(name).
-		SubResource(subresources...).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(data).
-		Do(ctx).
-		Into(result)
-	return
 }

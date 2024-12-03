@@ -1644,10 +1644,10 @@ func SkupperResourceByName(name string) skupperv2alpha1interfaces.TweakListOptio
 	}
 }
 
-func (c *Controller) WatchAttachedConnectorAnchors(namespace string, handler AttachedConnectorAnchorHandler) *AttachedConnectorAnchorWatcher {
-	watcher := &AttachedConnectorAnchorWatcher{
+func (c *Controller) WatchAttachedConnectorBindings(namespace string, handler AttachedConnectorBindingHandler) *AttachedConnectorBindingWatcher {
+	watcher := &AttachedConnectorBindingWatcher{
 		handler: handler,
-		informer: skupperv2alpha1informer.NewAttachedConnectorAnchorInformer(
+		informer: skupperv2alpha1informer.NewAttachedConnectorBindingInformer(
 			c.skupperClient,
 			namespace,
 			time.Second*30,
@@ -1659,15 +1659,15 @@ func (c *Controller) WatchAttachedConnectorAnchors(namespace string, handler Att
 	return watcher
 }
 
-type AttachedConnectorAnchorHandler func(string, *skupperv2alpha1.AttachedConnectorAnchor) error
+type AttachedConnectorBindingHandler func(string, *skupperv2alpha1.AttachedConnectorBinding) error
 
-type AttachedConnectorAnchorWatcher struct {
-	handler   AttachedConnectorAnchorHandler
+type AttachedConnectorBindingWatcher struct {
+	handler   AttachedConnectorBindingHandler
 	informer  cache.SharedIndexInformer
 	namespace string
 }
 
-func (w *AttachedConnectorAnchorWatcher) Handle(event ResourceChange) error {
+func (w *AttachedConnectorBindingWatcher) Handle(event ResourceChange) error {
 	obj, err := w.Get(event.Key)
 	if err != nil {
 		return err
@@ -1675,23 +1675,23 @@ func (w *AttachedConnectorAnchorWatcher) Handle(event ResourceChange) error {
 	return w.handler(event.Key, obj)
 }
 
-func (w *AttachedConnectorAnchorWatcher) HasSynced() func() bool {
+func (w *AttachedConnectorBindingWatcher) HasSynced() func() bool {
 	return w.informer.HasSynced
 }
 
-func (w *AttachedConnectorAnchorWatcher) Describe(event ResourceChange) string {
-	return fmt.Sprintf("AttachedConnectorAnchor %s", event.Key)
+func (w *AttachedConnectorBindingWatcher) Describe(event ResourceChange) string {
+	return fmt.Sprintf("AttachedConnectorBinding %s", event.Key)
 }
 
-func (w *AttachedConnectorAnchorWatcher) Start(stopCh <-chan struct{}) {
+func (w *AttachedConnectorBindingWatcher) Start(stopCh <-chan struct{}) {
 	go w.informer.Run(stopCh)
 }
 
-func (w *AttachedConnectorAnchorWatcher) Sync(stopCh <-chan struct{}) bool {
+func (w *AttachedConnectorBindingWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
-func (w *AttachedConnectorAnchorWatcher) Get(key string) (*skupperv2alpha1.AttachedConnectorAnchor, error) {
+func (w *AttachedConnectorBindingWatcher) Get(key string) (*skupperv2alpha1.AttachedConnectorBinding, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
 		return nil, err
@@ -1699,14 +1699,14 @@ func (w *AttachedConnectorAnchorWatcher) Get(key string) (*skupperv2alpha1.Attac
 	if !exists {
 		return nil, nil
 	}
-	return entity.(*skupperv2alpha1.AttachedConnectorAnchor), nil
+	return entity.(*skupperv2alpha1.AttachedConnectorBinding), nil
 }
 
-func (w *AttachedConnectorAnchorWatcher) List() []*skupperv2alpha1.AttachedConnectorAnchor {
+func (w *AttachedConnectorBindingWatcher) List() []*skupperv2alpha1.AttachedConnectorBinding {
 	list := w.informer.GetStore().List()
-	results := []*skupperv2alpha1.AttachedConnectorAnchor{}
+	results := []*skupperv2alpha1.AttachedConnectorBinding{}
 	for _, o := range list {
-		results = append(results, o.(*skupperv2alpha1.AttachedConnectorAnchor))
+		results = append(results, o.(*skupperv2alpha1.AttachedConnectorBinding))
 	}
 	return results
 }

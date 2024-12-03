@@ -20,8 +20,8 @@ package v2alpha1
 
 import (
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type ListenerLister interface {
 
 // listenerLister implements the ListenerLister interface.
 type listenerLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v2alpha1.Listener]
 }
 
 // NewListenerLister returns a new ListenerLister.
 func NewListenerLister(indexer cache.Indexer) ListenerLister {
-	return &listenerLister{indexer: indexer}
-}
-
-// List lists all Listeners in the indexer.
-func (s *listenerLister) List(selector labels.Selector) (ret []*v2alpha1.Listener, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.Listener))
-	})
-	return ret, err
+	return &listenerLister{listers.New[*v2alpha1.Listener](indexer, v2alpha1.Resource("listener"))}
 }
 
 // Listeners returns an object that can list and get Listeners.
 func (s *listenerLister) Listeners(namespace string) ListenerNamespaceLister {
-	return listenerNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return listenerNamespaceLister{listers.NewNamespaced[*v2alpha1.Listener](s.ResourceIndexer, namespace)}
 }
 
 // ListenerNamespaceLister helps list and get Listeners.
@@ -74,26 +66,5 @@ type ListenerNamespaceLister interface {
 // listenerNamespaceLister implements the ListenerNamespaceLister
 // interface.
 type listenerNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all Listeners in the indexer for a given namespace.
-func (s listenerNamespaceLister) List(selector labels.Selector) (ret []*v2alpha1.Listener, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v2alpha1.Listener))
-	})
-	return ret, err
-}
-
-// Get retrieves the Listener from the indexer for a given namespace and name.
-func (s listenerNamespaceLister) Get(name string) (*v2alpha1.Listener, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v2alpha1.Resource("listener"), name)
-	}
-	return obj.(*v2alpha1.Listener), nil
+	listers.ResourceIndexer[*v2alpha1.Listener]
 }
