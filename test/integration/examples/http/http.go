@@ -643,7 +643,7 @@ var h1HeyBaseJob = &batchv1.Job{
 					{
 						Name:            "h1heybase",
 						Image:           "quay.io/skupper/hey",
-						Command:         []string{"hey_linux_amd64"},
+						Command:         []string{"/app/hey"},
 						ImagePullPolicy: apiv1.PullAlways,
 					},
 				},
@@ -809,7 +809,7 @@ func runHeyTestTable(t *testing.T, jobCluster *base.ClusterContext) {
 	}
 }
 
-func runTests(t *testing.T, r base.ClusterTestRunner) {
+func runTests(t *testing.T, r *base.ClusterTestRunnerBase) {
 	pubCluster1, err := r.GetPublicContext(1)
 	assert.Assert(t, err)
 
@@ -891,7 +891,7 @@ func runTests(t *testing.T, r base.ClusterTestRunner) {
 	runHeyTestTable(t, pubCluster1)
 }
 
-func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
+func setup(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) {
 	prv1Cluster, err := r.GetPrivateContext(1)
 	assert.Assert(t, err)
 
@@ -1003,13 +1003,18 @@ func setup(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
 
 }
 
-func Run(ctx context.Context, t *testing.T, r base.ClusterTestRunner) {
+func Run(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) {
 	defer tearDown(ctx, r)
+	defer func() {
+		if t.Failed() {
+			r.DumpTestInfo("TestHttp")
+		}
+	}()
 	setup(ctx, t, r)
 	runTests(t, r)
 }
 
-func tearDown(ctx context.Context, r base.ClusterTestRunner) {
+func tearDown(ctx context.Context, r *base.ClusterTestRunnerBase) {
 	prv1Cluster, _ := r.GetPrivateContext(1)
 
 	// Deleting Skupper services

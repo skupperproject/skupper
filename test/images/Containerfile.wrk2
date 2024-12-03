@@ -1,0 +1,13 @@
+ARG TARGETPLATFORM
+
+FROM --platform=$TARGETPLATFORM alpine:latest as builder
+
+RUN apk add --update alpine-sdk openssl-dev zlib-dev && apk add --no-cache git && git clone https://github.com/giltene/wrk2.git && cd wrk2 && make && mv wrk /bin/
+
+
+FROM alpine:latest
+
+RUN apk add --update libgcc openssl zlib
+COPY --from=builder /bin/wrk /bin/
+
+CMD ["/bin/sh"]
