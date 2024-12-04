@@ -148,6 +148,12 @@ func NewTimeoutInSecondsValidator() *DurationValidator {
 	}
 }
 
+func NewExpirationInSecondsValidator() *DurationValidator {
+	return &DurationValidator{
+		MinDuration: time.Minute * 1,
+	}
+}
+
 func (i DurationValidator) Evaluate(value time.Duration) (bool, error) {
 
 	if value < i.MinDuration {
