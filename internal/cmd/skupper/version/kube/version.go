@@ -73,7 +73,7 @@ func (cmd *CmdVersion) Run() error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(encodedOutput))
+		fmt.Println(encodedOutput)
 	} else {
 		tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
 		_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s", "COMPONENT", "VERSION"))

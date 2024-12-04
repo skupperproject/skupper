@@ -1,8 +1,6 @@
 package configs
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
 
 	"github.com/skupperproject/skupper/pkg/images"
@@ -31,7 +29,6 @@ type ManifestManager struct {
 type ManifestGenerator interface {
 	GetConfiguredManifest() SkupperManifest
 	GetDefaultManifestWithEnv() Manifest
-	CreateFile(m SkupperManifest) error
 }
 
 func (manager *ManifestManager) GetConfiguredManifest() SkupperManifest {
@@ -43,32 +40,6 @@ func (manager *ManifestManager) GetDefaultManifestWithEnv() Manifest {
 		Images:    getSkupperDefaultImages(),
 		Variables: getEnvironmentVariableMap(),
 	}
-}
-
-func (manager *ManifestManager) CreateFile(m SkupperManifest) error {
-	filename := "manifest.json"
-
-	// Encode the manifest image list as JSON.
-	manifestListJSON, err := json.MarshalIndent(m, "", "   ")
-	if err != nil {
-		return fmt.Errorf("Error encoding manifest image list: %v\n", err)
-
-	}
-
-	// Create a new file.
-	file, err := os.Create(filename)
-	if err != nil {
-		return fmt.Errorf("Error creating file: %v\n", err)
-	}
-
-	// Write the JSON data to the file.
-	_, err = file.Write(manifestListJSON)
-	if err != nil {
-		return fmt.Errorf("Error writing to file: %v\n", err)
-	}
-
-	fmt.Printf("%s file successfully generated in the current directory.\n", filename)
-	return nil
 }
 
 func getSkupperConfiguredImages(components []string, enableSHA bool) SkupperManifest {
@@ -133,9 +104,9 @@ func getEnvironmentVariableMap() *map[string]string {
 		envVariables[images.ConfigSyncImageEnvKey] = configSyncImage
 	}
 
-	flowNetworkConsoleCollectorImage := os.Getenv(images.NetworkConsoleCollectorImageEnvKey)
-	if flowNetworkConsoleCollectorImage != "" {
-		envVariables[images.NetworkConsoleCollectorImageEnvKey] = flowNetworkConsoleCollectorImage
+	networkObserverImage := os.Getenv(images.NetworkObserverImageEnvKey)
+	if networkObserverImage != "" {
+		envVariables[images.NetworkObserverImageEnvKey] = networkObserverImage
 	}
 
 	bootstrapImage := os.Getenv(images.BootstrapImageEnvKey)
@@ -154,11 +125,4 @@ func getEnvironmentVariableMap() *map[string]string {
 	}
 
 	return &envVariables
-}
-
-func getSHAIfEnabled(enableSHA bool, imageName string) string {
-	if !enableSHA {
-		return ""
-	}
-	return images.GetSha(imageName)
 }

@@ -16,22 +16,19 @@ type SkupperImage struct {
 }
 
 const (
-	RouterImageEnvKey                  string = "SKUPPER_ROUTER_IMAGE"
-	ControllerImageEnvKey              string = "SKUPPER_CONTROLLER_IMAGE"
-	ConfigSyncImageEnvKey              string = "SKUPPER_CONFIG_SYNC_IMAGE"
-	NetworkConsoleCollectorImageEnvKey string = "SKUPPER_FLOW_COLLECTOR_IMAGE"
-	BootstrapImageEnvKey               string = "BOOTSTRAP_IMAGE"
-	PrometheusServerImageEnvKey        string = "PROMETHEUS_SERVER_IMAGE"
-	OauthProxyImageEnvKey              string = "OAUTH_PROXY_IMAGE"
-	RouterPullPolicyEnvKey             string = "SKUPPER_ROUTER_IMAGE_PULL_POLICY"
-	ConfigSyncPullPolicyEnvKey         string = "SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY"
-	OauthProxyPullPolicyEnvKey         string = "OAUTH_PROXY_IMAGE_PULL_POLICY"
-	SkupperImageRegistryEnvKey         string = "SKUPPER_IMAGE_REGISTRY"
-	PrometheusImageRegistryEnvKey      string = "PROMETHEUS_IMAGE_REGISTRY"
-	OauthProxyRegistryEnvKey           string = "OAUTH_PROXY_IMAGE_REGISTRY"
-
-	// These constants will be soon deprecated.
-	ServiceControllerImageEnvKey string = "SKUPPER_SERVICE_CONTROLLER_IMAGE"
+	RouterImageEnvKey             string = "SKUPPER_ROUTER_IMAGE"
+	ControllerImageEnvKey         string = "SKUPPER_CONTROLLER_IMAGE"
+	ConfigSyncImageEnvKey         string = "SKUPPER_CONFIG_SYNC_IMAGE"
+	NetworkObserverImageEnvKey    string = "SKUPPER_NETWORK_OBSERVER_IMAGE"
+	BootstrapImageEnvKey          string = "BOOTSTRAP_IMAGE"
+	PrometheusServerImageEnvKey   string = "PROMETHEUS_SERVER_IMAGE"
+	OauthProxyImageEnvKey         string = "OAUTH_PROXY_IMAGE"
+	RouterPullPolicyEnvKey        string = "SKUPPER_ROUTER_IMAGE_PULL_POLICY"
+	ConfigSyncPullPolicyEnvKey    string = "SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY"
+	OauthProxyPullPolicyEnvKey    string = "OAUTH_PROXY_IMAGE_PULL_POLICY"
+	SkupperImageRegistryEnvKey    string = "SKUPPER_IMAGE_REGISTRY"
+	PrometheusImageRegistryEnvKey string = "PROMETHEUS_IMAGE_REGISTRY"
+	OauthProxyRegistryEnvKey      string = "OAUTH_PROXY_IMAGE_REGISTRY"
 )
 
 func getPullPolicy(key string) string {
@@ -87,11 +84,11 @@ func GetControllerImageName() string {
 	}
 }
 
-func GetNetworkConsoleCollectorImageName() string {
-	image := os.Getenv(NetworkConsoleCollectorImageEnvKey)
+func GetNetworkObserverImageName() string {
+	image := os.Getenv(NetworkObserverImageEnvKey)
 	if image == "" {
 		imageRegistry := GetImageRegistry()
-		return strings.Join([]string{imageRegistry, NetworkConsoleCollectorImageName}, "/")
+		return strings.Join([]string{imageRegistry, NetworkObserverImageName}, "/")
 	} else {
 		return image
 	}
@@ -243,7 +240,7 @@ func GetImages(component string, enableSHA bool) []SkupperImage {
 		names[ControllerImageEnvKey] = ControllerImageName
 		registry = GetImageRegistry()
 	case "network-observer":
-		names[NetworkConsoleCollectorImageEnvKey] = NetworkConsoleCollectorImageName
+		names[NetworkObserverImageEnvKey] = NetworkObserverImageName
 		registry = GetImageRegistry()
 	case "bootstrap":
 		names[BootstrapImageEnvKey] = BootstrapImageName
@@ -280,7 +277,7 @@ func GetImageVersion(component string) string {
 	case "network-observer":
 		image = os.Getenv(ControllerImageEnvKey)
 		if image == "" {
-			image = NetworkConsoleCollectorImageName
+			image = NetworkObserverImageName
 		}
 	case "bootstrap":
 		image = os.Getenv(BootstrapImageName)
