@@ -72,11 +72,16 @@ func CmdLinkUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 	cmd.Flags().StringVar(&cmdFlags.Cost, common.FlagNameCost, "1", common.FlagDescCost)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
+	cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "ready", common.FlagDescWait)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
+
+	if configuredPlatform != types.PlatformKubernetes {
+		cmd.Flags().MarkHidden(common.FlagNameWait)
+	}
 
 	return cmd
 }
@@ -118,11 +123,16 @@ func CmdLinkDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdLinkDeleteDesc, kubeCommand, nonKubeCommand)
 	cmdFlags := common.CommandLinkDeleteFlags{}
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
+	cmd.Flags().BoolVar(&cmdFlags.Wait, common.FlagNameWait, true, common.FlagDescDeleteWait)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
+
+	if configuredPlatform != types.PlatformKubernetes {
+		cmd.Flags().MarkHidden(common.FlagNameWait)
+	}
 
 	return cmd
 }

@@ -37,6 +37,7 @@ func TestCmdLinkFactory(t *testing.T) {
 				common.FlagNameCost:           "1",
 				common.FlagNameOutput:         "",
 				common.FlagNameTimeout:        "1m0s",
+				common.FlagNameWait:           "ready",
 			},
 			command: CmdLinkUpdateFactory(types.PlatformKubernetes),
 		},
@@ -51,6 +52,7 @@ func TestCmdLinkFactory(t *testing.T) {
 			name: "CmdLinkDeleteFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameTimeout: "1m0s",
+				common.FlagNameWait:    "true",
 			},
 			command: CmdLinkDeleteFactory(types.PlatformKubernetes),
 		},

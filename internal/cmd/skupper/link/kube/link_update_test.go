@@ -264,6 +264,33 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 				"timeout is not valid: duration must not be less than 10s; got 0s",
 			},
 		},
+		{
+			name:       "wait status is not valid",
+			args:       []string{"east-link"},
+			flags:      common.CommandLinkUpdateFlags{Cost: "1", Timeout: time.Minute, Wait: "created"},
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "the-site",
+								Namespace: "test",
+							},
+						},
+					},
+				},
+				&v2alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "east-link",
+						Namespace: "test",
+					},
+				},
+			},
+			expectedErrors: []string{
+				"status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
+			},
+		},
 	}
 
 	for _, test := range testTable {
@@ -294,17 +321,19 @@ func TestCmdLinkUpdate_InputToOptions(t *testing.T) {
 		expectedCost           int
 		expectedOutput         string
 		expectedTimeout        time.Duration
+		expectedStatus         string
 	}
 
 	testTable := []test{
 		{
 			name:                   "check options",
 			args:                   []string{"my-link"},
-			flags:                  common.CommandLinkUpdateFlags{"secret", "1", "json", time.Minute},
+			flags:                  common.CommandLinkUpdateFlags{TlsCredentials: "secret", Cost: "1", Output: "json", Timeout: time.Minute, Wait: "ready"},
 			expectedCost:           1,
 			expectedTlsCredentials: "secret",
 			expectedOutput:         "json",
 			expectedTimeout:        time.Minute,
+			expectedStatus:         "ready",
 		},
 	}
 
@@ -321,6 +350,7 @@ func TestCmdLinkUpdate_InputToOptions(t *testing.T) {
 			assert.Check(t, cmd.tlsCredentials == test.expectedTlsCredentials)
 			assert.Check(t, cmd.cost == test.expectedCost)
 			assert.Check(t, cmd.timeout == test.expectedTimeout)
+			assert.Check(t, cmd.status == test.expectedStatus)
 		})
 	}
 }
@@ -417,6 +447,7 @@ func TestCmdLinkUpdate_Run(t *testing.T) {
 func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
+		status              string
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
@@ -428,7 +459,8 @@ func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 
 	testTable := []test{
 		{
-			name: "link is not configured",
+			name:   "link is not configured",
+			status: "configured",
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
@@ -456,7 +488,39 @@ func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "link is configured",
+			name:   "link is ready",
+			status: "ready",
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-link",
+						Namespace: "test",
+					},
+					Status: v2alpha1.LinkStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Ready",
+								},
+							},
+						},
+					},
+				},
+			},
+			linkName:    "my-link",
+			timeout:     time.Second,
+			expectError: false,
+		},
+		{
+			name:       "link is not ready yet, but user waits for configured",
+			status:     "configured",
+			timeout:    time.Second,
+			k8sObjects: nil,
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Link{
 					ObjectMeta: v1.ObjectMeta{
@@ -480,8 +544,67 @@ func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 				},
 			},
 			linkName:    "my-link",
-			timeout:     time.Second,
 			expectError: false,
+		},
+		{
+			name:       "user does not wait",
+			status:     "none",
+			timeout:    time.Second,
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-link",
+						Namespace: "test",
+					},
+					Status: v2alpha1.LinkStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
+						},
+					},
+				},
+			},
+			linkName:    "my-link",
+			expectError: false,
+		},
+		{
+			name:       "user waits for configured, but link had some errors while being configured",
+			status:     "configured",
+			timeout:    time.Second,
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-link",
+						Namespace: "test",
+					},
+					Status: v2alpha1.LinkStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "Error",
+									ObservedGeneration: 1,
+									Reason:             "Error",
+									Status:             "False",
+									Type:               "Configured",
+								},
+							},
+						},
+					},
+				},
+			},
+			linkName:    "my-link",
+			expectError: true,
 		},
 	}
 
@@ -491,6 +614,7 @@ func TestCmdLinkUpdate_WaitUntil(t *testing.T) {
 		cmd.linkName = test.linkName
 		cmd.output = test.output
 		cmd.timeout = test.timeout
+		cmd.status = test.status
 
 		t.Run(test.name, func(t *testing.T) {
 

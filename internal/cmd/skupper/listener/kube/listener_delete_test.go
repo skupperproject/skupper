@@ -100,6 +100,33 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 	}
 }
 
+func TestCmdListenerDelete_InputToOptions(t *testing.T) {
+
+	type test struct {
+		name         string
+		flags        *common.CommandListenerDeleteFlags
+		expectedWait bool
+	}
+
+	testTable := []test{
+		{
+			name:         "wait for site enabled",
+			flags:        &common.CommandListenerDeleteFlags{Wait: true},
+			expectedWait: true,
+		},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			command := &CmdListenerDelete{}
+			command.Flags = test.flags
+			command.InputToOptions()
+
+			assert.Check(t, command.wait == test.expectedWait)
+		})
+	}
+}
+
 func TestCmdListenerDelete_Run(t *testing.T) {
 	type test struct {
 		name                string
@@ -163,6 +190,7 @@ func TestCmdListenerDelete_Run(t *testing.T) {
 func TestCmdListenerDelete_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
+		wait                bool
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
@@ -172,6 +200,7 @@ func TestCmdListenerDelete_WaitUntil(t *testing.T) {
 	testTable := []test{
 		{
 			name: "error deleting listener",
+			wait: true,
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
@@ -194,6 +223,31 @@ func TestCmdListenerDelete_WaitUntil(t *testing.T) {
 		},
 		{
 			name:        "listener is deleted",
+			wait:        true,
+			expectError: false,
+		},
+		{
+			name:       "listener is not deleted but user does not want to wait",
+			k8sObjects: nil,
+			wait:       false,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-listener",
+						Namespace: "test",
+					},
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
+					},
+				},
+			},
 			expectError: false,
 		},
 	}
@@ -205,6 +259,7 @@ func TestCmdListenerDelete_WaitUntil(t *testing.T) {
 		cmd.name = "my-listener"
 		cmd.Flags = &common.CommandListenerDeleteFlags{Timeout: 1 * time.Second}
 		cmd.namespace = "test"
+		cmd.wait = test.wait
 
 		t.Run(test.name, func(t *testing.T) {
 
