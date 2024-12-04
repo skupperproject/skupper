@@ -85,6 +85,11 @@ func NewSecuredAccessManager(clients internalclient.Clients, certMgr certificate
 	return mgr
 }
 
+func (m *SecuredAccessManager) IsValidAccessType(accessType string) bool {
+	_, ok := m.enabledAccessTypes[accessType]
+	return ok
+}
+
 func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skupperv2alpha1.SecuredAccessSpec, annotations map[string]string, refs []metav1.OwnerReference) error {
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
