@@ -2,16 +2,15 @@ package nonkube
 
 import (
 	"fmt"
-	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
+	"github.com/skupperproject/skupper/pkg/nonkube/bootstrap"
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/kubernetes"
 )
 
 type CmdSystemStart struct {
-	Client     skupperv2alpha1.SkupperV2alpha1Interface
-	KubeClient kubernetes.Interface
-	CobraCmd   *cobra.Command
-	Namespace  string
+	CobraCmd    *cobra.Command
+	Namespace   string
+	Platform    string
+	SystemStart func(service string) error
 }
 
 func NewCmdCmdSystemStart() *CmdSystemStart {
@@ -21,14 +20,38 @@ func NewCmdCmdSystemStart() *CmdSystemStart {
 	return &skupperCmd
 }
 
-func (cmd *CmdSystemStart) NewClient(cobraCommand *cobra.Command, args []string) {}
+func (cmd *CmdSystemStart) NewClient(cobraCommand *cobra.Command, args []string) {
+	cmd.SystemStart = bootstrap.Start
+	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
+	cmd.Platform = cobraCommand.Flag("platform").Value.String()
+}
 
-func (cmd *CmdSystemStart) ValidateInput(args []string) []error { return nil }
+func (cmd *CmdSystemStart) ValidateInput(args []string) []error {
+	var validationErrors []error
 
-func (cmd *CmdSystemStart) InputToOptions() {}
+	if args != nil && len(args) > 0 {
+		validationErrors = append(validationErrors, fmt.Errorf("this command does not accept arguments"))
+	}
+
+	return validationErrors
+}
+
+func (cmd *CmdSystemStart) InputToOptions() {
+
+	if cmd.Namespace == "" {
+		cmd.Namespace = "default"
+	}
+}
 
 func (cmd *CmdSystemStart) Run() error {
-	fmt.Println("This command does not support kubernetes platforms.")
+	err := cmd.SystemStart(cmd.Namespace)
+
+	if err != nil {
+		return fmt.Errorf("failed to start router: %s", err)
+	}
+
+	fmt.Printf("%s-skupper-router is now started\n", cmd.Namespace)
+
 	return nil
 }
 

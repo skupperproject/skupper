@@ -5,7 +5,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 	"testing"
 )
 

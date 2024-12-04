@@ -7,10 +7,10 @@ import (
 )
 
 type CmdSystemStop struct {
-	CobraCmd    *cobra.Command
-	Namespace   string
-	Platform    string
-	ServiceStop func(service string, platform string) error
+	CobraCmd   *cobra.Command
+	Namespace  string
+	Platform   string
+	SystemStop func(service string) error
 }
 
 func NewCmdSystemStop() *CmdSystemStop {
@@ -21,7 +21,7 @@ func NewCmdSystemStop() *CmdSystemStop {
 }
 
 func (cmd *CmdSystemStop) NewClient(cobraCommand *cobra.Command, args []string) {
-	cmd.ServiceStop = bootstrap.Stop
+	cmd.SystemStop = bootstrap.Stop
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
 	cmd.Platform = cobraCommand.Flag("platform").Value.String()
 }
@@ -46,13 +46,13 @@ func (cmd *CmdSystemStop) InputToOptions() {
 
 func (cmd *CmdSystemStop) Run() error {
 
-	err := cmd.ServiceStop(cmd.Namespace, cmd.Platform)
+	err := cmd.SystemStop(cmd.Namespace)
 
 	if err != nil {
-		return fmt.Errorf("Failed to stop nonkube service: %s", err)
+		return fmt.Errorf("failed to stop router: %s", err)
 	}
 
-	fmt.Printf("skupper-%s.service is now stopped \n", cmd.Namespace)
+	fmt.Printf("%s-skupper-router is now stopped \n", cmd.Namespace)
 
 	return nil
 }

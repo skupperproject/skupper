@@ -50,26 +50,31 @@ func (cmd *CmdSystemSetup) ValidateInput(args []string) []error {
 
 		inputPath, err := filepath.Abs(cmd.Flags.Path)
 		if err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("Unable to determine absolute path of %s: %v", inputPath, err))
+			validationErrors = append(validationErrors, fmt.Errorf("unable to determine absolute path of %s: %v", inputPath, err))
 
 		}
 
 		if api.IsRunningInContainer() {
 			if inputPath != "/input" {
-				validationErrors = append(validationErrors, fmt.Errorf("The input path must be set to /input when using a container to bootstrap"))
+				validationErrors = append(validationErrors, fmt.Errorf("the input path must be set to /input when using a container to bootstrap"))
 			}
 		}
 	}
 	if cmd.Flags != nil && cmd.Flags.Strategy != "" {
 		if !internalbundle.IsValidBundle(cmd.Flags.Strategy) {
-			validationErrors = append(validationErrors, fmt.Errorf("Invalid bundle strategy: %s", cmd.Flags.Strategy))
+			validationErrors = append(validationErrors, fmt.Errorf("invalid bundle strategy: %s", cmd.Flags.Strategy))
 		}
 	}
 
-	if cmd.Flags != nil && !cmd.Flags.Force && cmd.Namespace != "" && cmd.Flags.Strategy == "" {
-		_, err := os.Stat(api.GetInternalOutputPath(cmd.Namespace, api.RuntimeSiteStatePath))
+	if cmd.Flags != nil && !cmd.Flags.Force && cmd.Flags.Strategy == "" {
+		selectedNamespace := "default"
+		if cmd.Namespace != "" {
+			selectedNamespace = cmd.Namespace
+		}
+
+		_, err := os.Stat(api.GetInternalOutputPath(selectedNamespace, api.RuntimeSiteStatePath))
 		if err == nil {
-			validationErrors = append(validationErrors, fmt.Errorf("Namespace already exists: %s", cmd.Namespace))
+			validationErrors = append(validationErrors, fmt.Errorf("namespace already exists: %s", selectedNamespace))
 		}
 	}
 

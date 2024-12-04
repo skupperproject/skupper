@@ -7,7 +7,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/bootstrap"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 	"os"
 	"testing"
 )

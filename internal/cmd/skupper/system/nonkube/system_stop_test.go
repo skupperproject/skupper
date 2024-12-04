@@ -5,7 +5,7 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 
 	"testing"
 )
@@ -90,9 +90,9 @@ func TestCmdSystemStop_Run(t *testing.T) {
 			errorMessage:   "",
 		},
 		{
-			name:           "systemctl fails",
+			name:           "stop router fails",
 			systemCtlFails: true,
-			errorMessage:   "Failed to stop nonkube service: fail",
+			errorMessage:   "failed to stop router: fail",
 		},
 	}
 
@@ -103,7 +103,7 @@ func TestCmdSystemStop_Run(t *testing.T) {
 
 			err := command.Run()
 			if err != nil {
-				assert.Check(t, test.errorMessage == err.Error())
+				assert.Check(t, test.errorMessage == err.Error(), err.Error())
 			} else {
 				assert.Check(t, err == nil)
 			}
@@ -116,16 +116,16 @@ func TestCmdSystemStop_Run(t *testing.T) {
 func newCmdSystemStopWithMocks(systemCtlStopFails bool) *CmdSystemStop {
 
 	cmdMock := &CmdSystemStop{
-		ServiceStop: mockCmdSystemStopSystemCtl,
+		SystemStop: mockCmdSystemStopSystemCtl,
 	}
 	if systemCtlStopFails {
-		cmdMock.ServiceStop = mockCmdSystemStopSystemCtlFails
+		cmdMock.SystemStop = mockCmdSystemStopSystemCtlFails
 	}
 
 	return cmdMock
 }
 
-func mockCmdSystemStopSystemCtl(namespace string, platform string) error { return nil }
-func mockCmdSystemStopSystemCtlFails(namespace string, platform string) error {
+func mockCmdSystemStopSystemCtl(namespace string) error { return nil }
+func mockCmdSystemStopSystemCtlFails(namespace string) error {
 	return fmt.Errorf("fail")
 }

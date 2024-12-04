@@ -7,8 +7,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"
 	"os"
-
-	"path/filepath"
 )
 
 type LocalData struct {
@@ -18,33 +16,7 @@ type LocalData struct {
 
 func Teardown(namespace string, platform string) error {
 
-	localData, err := getLocalData(namespace)
-	if err != nil {
-		return err
-	}
-
-	if err := removeRouter(namespace, platform); err != nil {
-		return err
-	}
-
-	if _, err := os.Stat(filepath.Join(localData.servicePath, localData.service)); err == nil {
-		if err := removeService(namespace, platform); err != nil {
-			return err
-		}
-	}
-
-	if err := removeDefinition(namespace); err != nil {
-		return err
-	}
-
-	fmt.Printf("Namespace \"%s\" has been removed\n", namespace)
-	return nil
-
-}
-
-func Stop(namespace string, platform string) error {
-
-	if err := removeRouter(namespace, platform); err != nil {
+	if err := removeRouter(namespace); err != nil {
 		return err
 	}
 
@@ -52,6 +24,11 @@ func Stop(namespace string, platform string) error {
 		return err
 	}
 
+	if err := removeDefinition(namespace); err != nil {
+		return err
+	}
+
+	fmt.Printf("Namespace \"%s\" has been removed\n", namespace)
 	return nil
 
 }
@@ -66,21 +43,18 @@ func removeDefinition(namespace string) error {
 	return os.RemoveAll(api.GetHostNamespaceHome(namespace))
 }
 
-func removeRouter(namespace string, platform string) error {
+func removeRouter(namespace string) error {
 
-	if platform == "podman" || platform == "docker" {
+	cli, err := internalclient.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
+	if err != nil {
+		return fmt.Errorf("failed to create container client: %v", err)
+	}
 
-		cli, err := internalclient.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
+	containerName := namespace + "-skupper-router"
+	if _, err := cli.ContainerInspect(containerName); err == nil {
+		err = cli.ContainerRemove(containerName)
 		if err != nil {
-			return fmt.Errorf("failed to create container client: %v", err)
-		}
-
-		containerName := namespace + "-skupper-router"
-		if _, err := cli.ContainerInspect(containerName); err == nil {
-			err = cli.ContainerRemove(containerName)
-			if err != nil {
-				return err
-			}
+			return err
 		}
 	}
 
@@ -105,39 +79,12 @@ func removeService(namespace string, platform string) error {
 		return err
 	}
 
-	err = systemdService.Remove()
-	if err != nil {
-		return err
+	if systemdService.GetServiceFile() != "" {
+		err = systemdService.Remove()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
-}
-
-func getLocalData(namespace string) (*LocalData, error) {
-
-	var namespacesPath string
-
-	if xdgDataHome := api.GetDataHome(); xdgDataHome != "" {
-		namespacesPath = filepath.Join(xdgDataHome, "namespaces")
-	} else {
-		namespacesPath = filepath.Join(os.Getenv("HOME"), ".local/share/skupper/namespaces")
-	}
-
-	if _, err := os.Stat(filepath.Join(namespacesPath, namespace)); os.IsNotExist(err) {
-		return nil, fmt.Errorf("Namespace \"%s\" does not exist\n", namespace)
-	}
-
-	var servicePath string
-	if xdgConfigHome := api.GetConfigHome(); xdgConfigHome != "" {
-		servicePath = filepath.Join(xdgConfigHome, "systemd/user")
-	} else {
-		servicePath = filepath.Join(os.Getenv("HOME"), ".config/systemd/user")
-	}
-
-	service := "skupper-" + namespace + ".service"
-
-	return &LocalData{
-		servicePath: servicePath,
-		service:     service,
-	}, nil
 }

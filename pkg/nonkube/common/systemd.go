@@ -31,6 +31,7 @@ type SystemdService interface {
 	GetServiceName() string
 	Create() error
 	Remove() error
+	GetServiceFile() string
 }
 
 type CommandExecutor func(name string, arg ...string) *exec.Cmd
@@ -100,7 +101,7 @@ func (s *systemdServiceInfo) Create() error {
 	}
 
 	// Creating the base dir
-	baseDir := filepath.Dir(s.getServiceFile())
+	baseDir := filepath.Dir(s.GetServiceFile())
 	if _, err := os.Stat(baseDir); err != nil {
 		if err = os.MkdirAll(baseDir, 0755); err != nil {
 			return fmt.Errorf("unable to create base directory %s - %q", baseDir, err)
@@ -109,10 +110,10 @@ func (s *systemdServiceInfo) Create() error {
 
 	// Saving systemd user service
 	serviceName := s.GetServiceName()
-	logger.Debug("writing service file", slog.String("path", s.getServiceFile()))
-	err = os.WriteFile(s.getServiceFile(), buf.Bytes(), 0644)
+	logger.Debug("writing service file", slog.String("path", s.GetServiceFile()))
+	err = os.WriteFile(s.GetServiceFile(), buf.Bytes(), 0644)
 	if err != nil {
-		return fmt.Errorf("unable to write unit file (%s): %w", s.getServiceFile(), err)
+		return fmt.Errorf("unable to write unit file (%s): %w", s.GetServiceFile(), err)
 	}
 
 	// Only enable when running locally
@@ -124,7 +125,7 @@ func (s *systemdServiceInfo) Create() error {
 	return nil
 }
 
-func (s *systemdServiceInfo) getServiceFile() string {
+func (s *systemdServiceInfo) GetServiceFile() string {
 	if api.IsRunningInContainer() {
 		return path.Join(api.GetInternalOutputPath(s.Site.Namespace, api.ScriptsPath), s.GetServiceName())
 	}
@@ -154,8 +155,8 @@ func (s *systemdServiceInfo) Remove() error {
 	}
 
 	// Removing the .service file
-	logger.Debug("removing service", slog.String("path", s.getServiceFile()))
-	_ = os.Remove(s.getServiceFile())
+	logger.Debug("removing service", slog.String("path", s.GetServiceFile()))
+	_ = os.Remove(s.GetServiceFile())
 
 	// Reloading systemd user daemon
 	if !api.IsRunningInContainer() {
@@ -177,7 +178,7 @@ func (s *systemdServiceInfo) enableService(serviceName string) error {
 	cmd := s.getCmdEnableSystemdService(serviceName)
 	err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("unable to enable service (%s): %w", s.getServiceFile(), err)
+		return fmt.Errorf("unable to enable service (%s): %w", s.GetServiceFile(), err)
 	}
 
 	// Reloading systemd user daemon

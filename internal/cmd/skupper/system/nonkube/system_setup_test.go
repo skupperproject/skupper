@@ -7,7 +7,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/bootstrap"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 	"os"
 	"strings"
 	"testing"
@@ -32,7 +32,7 @@ func TestCmdSystemSetup_ValidateInput(t *testing.T) {
 			flags: &common.CommandSystemSetupFlags{
 				Strategy: "not-valid",
 			},
-			expectedErrors: []string{"Invalid bundle strategy: not-valid"},
+			expectedErrors: []string{"invalid bundle strategy: not-valid"},
 		},
 	}
 
@@ -114,7 +114,7 @@ func TestCmdSystemSetup_InputToOptions(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			os.Setenv(types.ENV_PLATFORM, test.platform)
 
-			cmd := newCmdSystemStartWithMocks(false, false)
+			cmd := newCmdSystemSetupWithMocks(false, false)
 			cmd.Flags = &test.flags
 			cmd.Namespace = test.namespace
 
@@ -159,7 +159,7 @@ func TestCmdSystemSetup_Run(t *testing.T) {
 	}
 
 	for _, test := range testTable {
-		command := newCmdSystemStartWithMocks(test.preCheckFails, test.bootstrapFails)
+		command := newCmdSystemSetupWithMocks(test.preCheckFails, test.bootstrapFails)
 
 		t.Run(test.name, func(t *testing.T) {
 
@@ -175,32 +175,32 @@ func TestCmdSystemSetup_Run(t *testing.T) {
 
 // --- helper methods
 
-func newCmdSystemStartWithMocks(precheckFails bool, bootstrapFails bool) *CmdSystemSetup {
+func newCmdSystemSetupWithMocks(precheckFails bool, bootstrapFails bool) *CmdSystemSetup {
 
 	cmdMock := &CmdSystemSetup{
-		PreCheck:  mockCmdSystemStartPreCheck,
-		Bootstrap: mockCmdSystemStartBootStrap,
-		PostExec:  mockCmdSystemStartPostExec,
+		PreCheck:  mockCmdSystemSetupPreCheck,
+		Bootstrap: mockCmdSystemSetupBootStrap,
+		PostExec:  mockCmdSystemSetupPostExec,
 	}
 	if precheckFails {
-		cmdMock.PreCheck = mockCmdSystemStartPreCheckFails
+		cmdMock.PreCheck = mockCmdSystemSetupPreCheckFails
 	}
 
 	if bootstrapFails {
-		cmdMock.Bootstrap = mockCmdSystemStartBootStrapFails
+		cmdMock.Bootstrap = mockCmdSystemSetupBootStrapFails
 	}
 
 	return cmdMock
 }
 
-func mockCmdSystemStartPreCheck(config *bootstrap.Config) error { return nil }
-func mockCmdSystemStartPreCheckFails(config *bootstrap.Config) error {
+func mockCmdSystemSetupPreCheck(config *bootstrap.Config) error { return nil }
+func mockCmdSystemSetupPreCheckFails(config *bootstrap.Config) error {
 	return fmt.Errorf("precheck fails")
 }
-func mockCmdSystemStartBootStrap(config *bootstrap.Config) (*api.SiteState, error) {
+func mockCmdSystemSetupBootStrap(config *bootstrap.Config) (*api.SiteState, error) {
 	return &api.SiteState{}, nil
 }
-func mockCmdSystemStartBootStrapFails(config *bootstrap.Config) (*api.SiteState, error) {
+func mockCmdSystemSetupBootStrapFails(config *bootstrap.Config) (*api.SiteState, error) {
 	return nil, fmt.Errorf("bootstrap fails")
 }
-func mockCmdSystemStartPostExec(config *bootstrap.Config, siteState *api.SiteState) {}
+func mockCmdSystemSetupPostExec(config *bootstrap.Config, siteState *api.SiteState) {}
