@@ -331,6 +331,6 @@ func (cmd *CmdConnectorCreate) WaitUntil() error {
 		return fmt.Errorf("Connector %q is %s with errors, check the status for more information\n", cmd.name, cmd.status)
 	}
 
-	fmt.Printf("Site %q is %s.\n", cmd.name, cmd.status)
+	fmt.Printf("Connector %q is %s.\n", cmd.name, cmd.status)
 	return nil
 }
