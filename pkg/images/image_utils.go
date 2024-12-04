@@ -32,7 +32,6 @@ const (
 
 	// These constants will be soon deprecated.
 	ServiceControllerImageEnvKey string = "SKUPPER_SERVICE_CONTROLLER_IMAGE"
-	FlowCollectorImageEnvKey     string = "SKUPPER_FLOW_COLLECTOR_IMAGE"
 )
 
 func getPullPolicy(key string) string {
@@ -108,16 +107,6 @@ func GetBootstrapImageName() string {
 	}
 }
 
-func GetServiceControllerImageName() string {
-	image := os.Getenv(ServiceControllerImageEnvKey)
-	if image == "" {
-		imageRegistry := GetImageRegistry()
-		return strings.Join([]string{imageRegistry, ServiceControllerImageName}, "/")
-	} else {
-		return image
-	}
-}
-
 func GetConfigSyncImageDetails() types.ImageDetails {
 	return types.ImageDetails{
 		Name:       GetConfigSyncImageName(),
@@ -137,16 +126,6 @@ func GetConfigSyncImageName() string {
 
 func GetConfigSyncImagePullPolicy() string {
 	return getPullPolicy(ConfigSyncPullPolicyEnvKey)
-}
-
-func GetFlowCollectorImageName() string {
-	image := os.Getenv(FlowCollectorImageEnvKey)
-	if image == "" {
-		imageRegistry := GetImageRegistry()
-		return strings.Join([]string{imageRegistry, FlowCollectorImageName}, "/")
-	} else {
-		return image
-	}
 }
 
 func GetPrometheusServerImageName() string {
@@ -173,11 +152,6 @@ func GetPrometheusImageRegistry() string {
 		return PrometheusImageRegistry
 	}
 	return imageRegistry
-}
-
-func GetSiteControllerImageName() string {
-	imageRegistry := GetImageRegistry()
-	return strings.Join([]string{imageRegistry, SiteControllerImageName}, "/")
 }
 
 func GetSha(imageName string) string {

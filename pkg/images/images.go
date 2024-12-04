@@ -12,11 +12,6 @@ const (
 	PrometheusServerImageName string = "prometheus:v2.42.0"
 	OauthProxyImageRegistry   string = "quay.io/openshift"
 	OauthProxyImageName       string = "origin-oauth-proxy:4.14.0"
-
-	// These constants will be soon deprecated.
-	ServiceControllerImageName string = "service-controller:main"
-	FlowCollectorImageName     string = "flow-collector:main"
-	SiteControllerImageName    string = "site-controller:main"
 )
 
 var (
