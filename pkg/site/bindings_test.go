@@ -101,8 +101,8 @@ func TestBindings_Apply(t *testing.T) {
 			expected: expected{
 				tcpListeners: qdr.TcpEndpointMap{},
 				tcpConnectors: qdr.TcpEndpointMap{
-					"connector1-10.10.10.1": {
-						Name:    "connector1-10.10.10.1",
+					"connector1@10.10.10.1": {
+						Name:    "connector1@10.10.10.1",
 						Host:    "10.10.10.1",
 						Port:    "9090",
 						Address: "echo:9090",
@@ -243,8 +243,8 @@ func TestBindings_Apply(t *testing.T) {
 			expected: expected{
 				tcpListeners: qdr.TcpEndpointMap{},
 				tcpConnectors: qdr.TcpEndpointMap{
-					"connector1-10.10.10.1": {
-						Name:           "connector1-10.10.10.1",
+					"connector1@10.10.10.1": {
+						Name:           "connector1@10.10.10.1",
 						Host:           "10.10.10.1",
 						Port:           "9090",
 						Address:        "echo:9090",
@@ -294,8 +294,8 @@ func TestBindings_Apply(t *testing.T) {
 			expected: expected{
 				tcpListeners: qdr.TcpEndpointMap{},
 				tcpConnectors: qdr.TcpEndpointMap{
-					"connector1-10.10.10.1": {
-						Name:           "connector1-10.10.10.1",
+					"connector1@10.10.10.1": {
+						Name:           "connector1@10.10.10.1",
 						Host:           "10.10.10.1",
 						Port:           "9090",
 						Address:        "echo:9090",
@@ -350,16 +350,16 @@ func TestBindings_Apply(t *testing.T) {
 			expected: expected{
 				tcpListeners: qdr.TcpEndpointMap{},
 				tcpConnectors: qdr.TcpEndpointMap{
-					"connector1-11.5.6.21": {
-						Name:      "connector1-11.5.6.21",
+					"connector1@11.5.6.21": {
+						Name:      "connector1@11.5.6.21",
 						Host:      "11.5.6.21",
 						Port:      "9090",
 						Address:   "echo:9090",
 						SiteId:    "site-1",
 						ProcessID: "pod1",
 					},
-					"connector1-11.5.6.22": {
-						Name:      "connector1-11.5.6.22",
+					"connector1@11.5.6.22": {
+						Name:      "connector1@11.5.6.22",
 						Host:      "11.5.6.22",
 						Port:      "9090",
 						Address:   "echo:9090",
@@ -482,8 +482,8 @@ func TestBindings_Apply(t *testing.T) {
 			expected: expected{
 				tcpListeners: qdr.TcpEndpointMap{},
 				tcpConnectors: qdr.TcpEndpointMap{
-					"connector1-10.10.10.1": {
-						Name:    "connector1-10.10.10.1",
+					"connector1@10.10.10.1": {
+						Name:    "connector1@10.10.10.1",
 						Host:    "10.10.10.1",
 						Port:    "9090",
 						Address: "foo",
