@@ -9,14 +9,14 @@ import (
 
 func UpdateBridgeConfigForConnector(siteId string, connector *skupperv2alpha1.Connector, config *qdr.BridgeConfig) {
 	if connector.Spec.Host != "" {
-		updateBridgeConfigForConnector(connector.Name+"-"+connector.Spec.Host, siteId, connector, connector.Spec.Host, "", connector.Spec.RoutingKey, config)
+		updateBridgeConfigForConnector(connector.Name+"@"+connector.Spec.Host, siteId, connector, connector.Spec.Host, "", connector.Spec.RoutingKey, config)
 	}
 }
 
 func UpdateBridgeConfigForConnectorToPod(siteId string, connector *skupperv2alpha1.Connector, pod skupperv2alpha1.PodDetails, addQualifiedAddress bool, config *qdr.BridgeConfig) {
-	updateBridgeConfigForConnector(connector.Name+"-"+pod.IP, siteId, connector, pod.IP, pod.UID, connector.Spec.RoutingKey, config)
+	updateBridgeConfigForConnector(connector.Name+"@"+pod.IP, siteId, connector, pod.IP, pod.UID, connector.Spec.RoutingKey, config)
 	if addQualifiedAddress {
-		updateBridgeConfigForConnector(connector.Name+"-"+pod.Name, siteId, connector, pod.IP, pod.UID, connector.Spec.RoutingKey+"."+pod.Name, config)
+		updateBridgeConfigForConnector(connector.Name+"@"+pod.Name, siteId, connector, pod.IP, pod.UID, connector.Spec.RoutingKey+"."+pod.Name, config)
 	}
 }
 

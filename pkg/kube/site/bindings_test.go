@@ -284,8 +284,8 @@ func TestBindingAdaptor_updateBridgeConfigForConnector(t *testing.T) {
 				config: qdr.BridgeConfig{
 					TcpListeners: map[string]qdr.TcpEndpoint{},
 					TcpConnectors: map[string]qdr.TcpEndpoint{
-						"backend-192.168.1.1": qdr.TcpEndpoint{
-							Name:   "backend-192.168.1.1",
+						"backend@192.168.1.1": qdr.TcpEndpoint{
+							Name:   "backend@192.168.1.1",
 							Host:   "192.168.1.1",
 							Port:   "8080",
 							SiteId: "00000000-0000-0000-0000-000000000001",
@@ -325,8 +325,8 @@ func TestBindingAdaptor_updateBridgeConfigForConnector(t *testing.T) {
 				config: qdr.BridgeConfig{
 					TcpListeners: map[string]qdr.TcpEndpoint{},
 					TcpConnectors: map[string]qdr.TcpEndpoint{
-						"backend-10.244.0.9": qdr.TcpEndpoint{
-							Name:      "backend-10.244.0.9",
+						"backend@10.244.0.9": qdr.TcpEndpoint{
+							Name:      "backend@10.244.0.9",
 							Host:      "10.244.0.9",
 							Port:      "0",
 							SiteId:    "00000000-0000-0000-0000-000000000001",
