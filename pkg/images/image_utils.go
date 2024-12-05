@@ -20,7 +20,7 @@ const (
 	ControllerImageEnvKey         string = "SKUPPER_CONTROLLER_IMAGE"
 	ConfigSyncImageEnvKey         string = "SKUPPER_CONFIG_SYNC_IMAGE"
 	NetworkObserverImageEnvKey    string = "SKUPPER_NETWORK_OBSERVER_IMAGE"
-	BootstrapImageEnvKey          string = "BOOTSTRAP_IMAGE"
+	CliImageEnvKey                string = "SKUPPER_CLI_IMAGE"
 	PrometheusServerImageEnvKey   string = "PROMETHEUS_SERVER_IMAGE"
 	OauthProxyImageEnvKey         string = "OAUTH_PROXY_IMAGE"
 	RouterPullPolicyEnvKey        string = "SKUPPER_ROUTER_IMAGE_PULL_POLICY"
@@ -94,11 +94,11 @@ func GetNetworkObserverImageName() string {
 	}
 }
 
-func GetBootstrapImageName() string {
-	image := os.Getenv(BootstrapImageEnvKey)
+func GetCliImageName() string {
+	image := os.Getenv(CliImageEnvKey)
 	if image == "" {
 		imageRegistry := GetImageRegistry()
-		return strings.Join([]string{imageRegistry, BootstrapImageName}, "/")
+		return strings.Join([]string{imageRegistry, CliImageName}, "/")
 	} else {
 		return image
 	}
@@ -242,8 +242,8 @@ func GetImages(component string, enableSHA bool) []SkupperImage {
 	case "network-observer":
 		names[NetworkObserverImageEnvKey] = NetworkObserverImageName
 		registry = GetImageRegistry()
-	case "bootstrap":
-		names[BootstrapImageEnvKey] = BootstrapImageName
+	case "cli":
+		names[CliImageEnvKey] = CliImageName
 		registry = GetImageRegistry()
 	case "prometheus":
 		names[PrometheusServerImageEnvKey] = PrometheusServerImageName
@@ -279,8 +279,8 @@ func GetImageVersion(component string) string {
 		if image == "" {
 			image = NetworkObserverImageName
 		}
-	case "bootstrap":
-		image = os.Getenv(BootstrapImageName)
+	case "cli":
+		image = os.Getenv(CliImageName)
 		if image == "" {
 			image = ControllerImageName
 		}

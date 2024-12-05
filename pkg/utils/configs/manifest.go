@@ -109,9 +109,9 @@ func getEnvironmentVariableMap() *map[string]string {
 		envVariables[images.NetworkObserverImageEnvKey] = networkObserverImage
 	}
 
-	bootstrapImage := os.Getenv(images.BootstrapImageEnvKey)
-	if bootstrapImage != "" {
-		envVariables[images.BootstrapImageEnvKey] = bootstrapImage
+	cliImage := os.Getenv(images.CliImageEnvKey)
+	if cliImage != "" {
+		envVariables[images.CliImageEnvKey] = cliImage
 	}
 
 	prometheusImage := os.Getenv(images.PrometheusServerImageEnvKey)
