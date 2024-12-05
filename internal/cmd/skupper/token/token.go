@@ -49,6 +49,7 @@ func CmdTokenIssueFactory(configuredPlatform types.Platform) *cobra.Command {
 	cmd.Flags().DurationVarP(&cmdFlags.ExpirationWindow, common.FlagNameExpirationWindow, "e", 15*time.Minute, common.FlagDescExpirationWindow)
 	cmd.Flags().DurationVarP(&cmdFlags.Timeout, common.FlagNameTimeout, "t", 60*time.Second, common.FlagDescTimeout)
 	cmd.Flags().StringVar(&cmdFlags.Name, common.FlagNameToken, "", common.FlagDescToken)
+	cmd.Flags().StringVar(&cmdFlags.Cost, common.FlagNameCost, "1", common.FlagDescCost)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
