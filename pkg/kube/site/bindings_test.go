@@ -594,7 +594,6 @@ func TestBindingAdaptor_updateBridgeConfigForListener(t *testing.T) {
 						"backend": qdr.TcpEndpoint{
 
 							Name:    "backend",
-							Host:    "0.0.0.0",
 							Port:    "1024",
 							Address: "backend",
 							SiteId:  "00000000-0000-0000-0000-000000000001",
