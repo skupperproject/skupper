@@ -1,38 +1,38 @@
 package configs
 
 import (
-	"encoding/json"
-	"fmt"
-	"github.com/skupperproject/skupper/pkg/images"
 	"os"
-	"strings"
+
+	"github.com/skupperproject/skupper/pkg/images"
 )
 
-type SkupperImage struct {
-	Name       string `json:"name"`
-	SHA        string `json:"sha,omitempty"`
-	Repository string `json:"repository,omitempty"`
+type SkupperManifest struct {
+	Components []SkupperComponent `json:"components"`
+}
+
+type SkupperComponent struct {
+	Component string                `json:"component"`
+	Version   string                `json:"version"`
+	Images    []images.SkupperImage `json:"images"`
 }
 
 type Manifest struct {
-	Images    []SkupperImage     `json:"images"`
+	Images    SkupperManifest
 	Variables *map[string]string `json:"variables,omitempty"`
 }
 
 type ManifestManager struct {
-	EnableSHA bool
+	EnableSHA  bool
+	Components []string
 }
 
 type ManifestGenerator interface {
-	GetConfiguredManifest() Manifest
+	GetConfiguredManifest() SkupperManifest
 	GetDefaultManifestWithEnv() Manifest
-	CreateFile(m Manifest) error
 }
 
-func (manager *ManifestManager) GetConfiguredManifest() Manifest {
-	return Manifest{
-		Images: getSkupperConfiguredImages(manager.EnableSHA),
-	}
+func (manager *ManifestManager) GetConfiguredManifest() SkupperManifest {
+	return getSkupperConfiguredImages(manager.Components, manager.EnableSHA)
 }
 
 func (manager *ManifestManager) GetDefaultManifestWithEnv() Manifest {
@@ -42,87 +42,32 @@ func (manager *ManifestManager) GetDefaultManifestWithEnv() Manifest {
 	}
 }
 
-func (manager *ManifestManager) CreateFile(m Manifest) error {
-	filename := "manifest.json"
+func getSkupperConfiguredImages(components []string, enableSHA bool) SkupperManifest {
+	var manifest SkupperManifest
 
-	// Encode the manifest image list as JSON.
-	manifestListJSON, err := json.MarshalIndent(m, "", "   ")
-	if err != nil {
-		return fmt.Errorf("Error encoding manifest image list: %v\n", err)
-
+	for _, component := range components {
+		var image SkupperComponent
+		image.Component = component
+		image.Version = images.GetImageVersion(component)
+		image.Images = images.GetImages(component, enableSHA)
+		manifest.Components = append(manifest.Components, image)
 	}
 
-	// Create a new file.
-	file, err := os.Create(filename)
-	if err != nil {
-		return fmt.Errorf("Error creating file: %v\n", err)
-	}
-
-	// Write the JSON data to the file.
-	_, err = file.Write(manifestListJSON)
-	if err != nil {
-		return fmt.Errorf("Error writing to file: %v\n", err)
-	}
-
-	fmt.Printf("%s file successfully generated in the current directory.\n", filename)
-	return nil
+	return manifest
 }
 
-func getSkupperConfiguredImages(enableSHA bool) []SkupperImage {
-	return []SkupperImage{
-		{
-			Name:       images.GetRouterImageName(),
-			SHA:        getSHAIfEnabled(enableSHA, images.GetRouterImageName()),
-			Repository: "https://github.com/skupperproject/skupper-router",
-		},
-		{
-			Name:       images.GetControllerImageName(),
-			SHA:        getSHAIfEnabled(enableSHA, images.GetControllerImageName()),
-			Repository: "https://github.com/skupperproject/skupper",
-		},
-		{
-			Name:       images.GetConfigSyncImageName(),
-			SHA:        getSHAIfEnabled(enableSHA, images.GetConfigSyncImageName()),
-			Repository: "https://github.com/skupperproject/skupper",
-		},
-		{
-			Name:       images.GetNetworkConsoleCollectorImageName(),
-			SHA:        getSHAIfEnabled(enableSHA, images.GetNetworkConsoleCollectorImageName()),
-			Repository: "https://github.com/skupperproject/skupper",
-		},
-		{
-			Name:       images.GetBootstrapImageName(),
-			SHA:        getSHAIfEnabled(enableSHA, images.GetBootstrapImageName()),
-			Repository: "https://github.com/skupperproject/skupper",
-		},
-		{
-			Name: images.GetPrometheusServerImageName(),
-			SHA:  getSHAIfEnabled(enableSHA, images.GetPrometheusServerImageName()),
-		},
-		{
-			Name: images.GetOauthProxyImageName(),
-			SHA:  getSHAIfEnabled(enableSHA, images.GetOauthProxyImageName()),
-		},
-	}
-}
+func getSkupperDefaultImages() SkupperManifest {
+	var manifest SkupperManifest
 
-func getSkupperDefaultImages() []SkupperImage {
-	return []SkupperImage{
-		{
-			Name:       strings.Join([]string{images.DefaultImageRegistry, images.RouterImageName}, "/"),
-			Repository: "https://github.com/skupperproject/skupper-router",
-		},
-		{
-			Name:       strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
-			Repository: "https://github.com/skupperproject/skupper",
-		},
-		{
-			Name: strings.Join([]string{images.PrometheusImageRegistry, images.PrometheusServerImageName}, "/"),
-		},
-		{
-			Name: strings.Join([]string{images.OauthProxyImageRegistry, images.OauthProxyImageName}, "/"),
-		},
+	for _, component := range images.DefaultComponents {
+		var image SkupperComponent
+		image.Component = component
+		image.Version = images.GetImageVersion(component)
+		image.Images = images.GetImages(component, false)
+		manifest.Components = append(manifest.Components, image)
 	}
+
+	return manifest
 }
 
 func getEnvironmentVariableMap() *map[string]string {
@@ -159,9 +104,9 @@ func getEnvironmentVariableMap() *map[string]string {
 		envVariables[images.ConfigSyncImageEnvKey] = configSyncImage
 	}
 
-	flowNetworkConsoleCollectorImage := os.Getenv(images.NetworkConsoleCollectorImageEnvKey)
-	if flowNetworkConsoleCollectorImage != "" {
-		envVariables[images.NetworkConsoleCollectorImageEnvKey] = flowNetworkConsoleCollectorImage
+	networkObserverImage := os.Getenv(images.NetworkObserverImageEnvKey)
+	if networkObserverImage != "" {
+		envVariables[images.NetworkObserverImageEnvKey] = networkObserverImage
 	}
 
 	bootstrapImage := os.Getenv(images.BootstrapImageEnvKey)
@@ -180,11 +125,4 @@ func getEnvironmentVariableMap() *map[string]string {
 	}
 
 	return &envVariables
-}
-
-func getSHAIfEnabled(enableSHA bool, imageName string) string {
-	if !enableSHA {
-		return ""
-	}
-	return images.GetSha(imageName)
 }

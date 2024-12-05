@@ -2,11 +2,16 @@ package configs
 
 import (
 	"fmt"
-	"github.com/skupperproject/skupper/pkg/images"
-	"gotest.tools/v3/assert"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/skupperproject/skupper/pkg/images"
+	"gotest.tools/v3/assert"
+)
+
+var (
+	manifestComponents = []string{"router", "controller"}
 )
 
 func TestManifestManager(t *testing.T) {
@@ -21,29 +26,58 @@ func TestManifestManager(t *testing.T) {
 			envVariablesWithValue: []string{
 				images.SkupperImageRegistryEnvKey,
 				images.ConfigSyncImageEnvKey,
-				images.RouterImageEnvKey},
+				images.RouterImageEnvKey,
+				images.ControllerImageEnvKey,
+			},
 			expectedConfiguredManifest: Manifest{
-				Images: []SkupperImage{
-					{
-						Name: "SKUPPER_CONFIG_SYNC_IMAGE_TESTING",
+				Images: SkupperManifest{
+					Components: []SkupperComponent{
+						{
+							Component: "router",
+							Version:   "main",
+							Images: []images.SkupperImage{
+								{
+									Name: "SKUPPER_CONFIG_SYNC_IMAGE_TESTING",
+								},
+								{
+									Name: "SKUPPER_ROUTER_IMAGE_TESTING",
+								},
+							},
+						},
+						{
+							Component: "controller",
+							Version:   strings.Split(images.ControllerImageName, ":")[1],
+							Images: []images.SkupperImage{
+								{
+									Name: "SKUPPER_CONTROLLER_IMAGE_TESTING",
+								},
+							},
+						},
 					},
-					{
-						Name: "SKUPPER_ROUTER_IMAGE_TESTING"},
 				},
 			},
 			expectedDefaultManifestWithEnv: Manifest{
-				Images: []SkupperImage{
-					{
-						Name: strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
-					},
-					{
-						Name: strings.Join([]string{images.DefaultImageRegistry, images.RouterImageName}, "/"),
+				Images: SkupperManifest{
+					Components: []SkupperComponent{
+						{
+							Component: "router",
+							Version:   "",
+							Images: []images.SkupperImage{
+								{
+									Name: strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
+								},
+								{
+									Name: strings.Join([]string{images.DefaultImageRegistry, images.RouterImageName}, "/"),
+								},
+							},
+						},
 					},
 				},
 				Variables: &map[string]string{
 					images.SkupperImageRegistryEnvKey: "SKUPPER_IMAGE_REGISTRY_TESTING",
 					images.ConfigSyncImageEnvKey:      "SKUPPER_CONFIG_SYNC_IMAGE_TESTING",
 					images.RouterImageEnvKey:          "SKUPPER_ROUTER_IMAGE_TESTING",
+					images.ControllerImageEnvKey:      "SKUPPER_CONTROLLER_IMAGE_TESTING",
 				},
 			},
 		},
@@ -51,22 +85,38 @@ func TestManifestManager(t *testing.T) {
 			title:                 "configured manifest the same images that the default manifest",
 			envVariablesWithValue: []string{},
 			expectedConfiguredManifest: Manifest{
-				Images: []SkupperImage{
-					{
-						Name: strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
-					},
-					{
-						Name: strings.Join([]string{images.DefaultImageRegistry, images.RouterImageName}, "/"),
+				Images: SkupperManifest{
+					Components: []SkupperComponent{
+						{
+							Component: "router",
+							Version:   "main",
+							Images: []images.SkupperImage{
+								{
+									Name: strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
+								},
+								{
+									Name: strings.Join([]string{images.DefaultImageRegistry, images.RouterImageName}, "/"),
+								},
+							},
+						},
 					},
 				},
 			},
 			expectedDefaultManifestWithEnv: Manifest{
-				Images: []SkupperImage{
-					{
-						Name: strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
-					},
-					{
-						Name: strings.Join([]string{images.DefaultImageRegistry, images.RouterImageName}, "/"),
+				Images: SkupperManifest{
+					Components: []SkupperComponent{
+						{
+							Component: "router",
+							Version:   "main",
+							Images: []images.SkupperImage{
+								{
+									Name: strings.Join([]string{images.DefaultImageRegistry, images.ConfigSyncImageName}, "/"),
+								},
+								{
+									Name: strings.Join([]string{images.DefaultImageRegistry, images.RouterImageName}, "/"),
+								},
+							},
+						},
 					},
 				},
 				Variables: &map[string]string{},
@@ -78,22 +128,24 @@ func TestManifestManager(t *testing.T) {
 
 		setUpEnvVariables(c.envVariablesWithValue)
 
-		manifestManager := ManifestManager{EnableSHA: false}
+		manifestManager := ManifestManager{Components: manifestComponents, EnableSHA: false}
 		configuredManifest := manifestManager.GetConfiguredManifest()
 		defaultManifest := manifestManager.GetDefaultManifestWithEnv()
 
-		for _, expectedImage := range c.expectedConfiguredManifest.Images {
+		for _, expectedImage := range c.expectedConfiguredManifest.Images.Components {
 
-			configuredImage := getSkupperImageFromManifest(&configuredManifest, expectedImage.Name)
+			configuredImage := getSkupperImageFromManifest(&configuredManifest, expectedImage.Component)
 
 			assert.Check(t, configuredImage != nil)
 		}
 
-		assert.Check(t, configuredManifest.Variables == nil)
+		if c.expectedDefaultManifestWithEnv.Variables == nil {
+			assert.Check(t, defaultManifest.Variables == nil)
+		}
 
-		for _, expectedImage := range c.expectedDefaultManifestWithEnv.Images {
+		for _, expectedImage := range c.expectedDefaultManifestWithEnv.Images.Components {
 
-			defaultImage := getSkupperImageFromManifest(&defaultManifest, expectedImage.Name)
+			defaultImage := getSkupperImageFromManifest(&defaultManifest.Images, expectedImage.Component)
 
 			assert.Check(t, defaultImage != nil)
 		}
@@ -124,11 +176,11 @@ func clearEnvVariables(variables []string) {
 	}
 }
 
-func getSkupperImageFromManifest(m *Manifest, name string) *SkupperImage {
+func getSkupperImageFromManifest(m *SkupperManifest, name string) *SkupperComponent {
 
-	for _, skImage := range m.Images {
+	for _, skImage := range m.Components {
 
-		if skImage.Name == name {
+		if skImage.Component == name {
 			return &skImage
 		}
 	}

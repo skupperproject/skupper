@@ -22,6 +22,7 @@ Choices: [route|loadbalancer]. Default: On OpenShift, route is the default;
 for other Kubernetes flavors, loadbalancer is the default.`
 	FlagNameOutput                  = "output"
 	FlagDescOutput                  = "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml"
+	FlagVerboseOutput               = "print verbose output to the console. Choices: json, yaml"
 	FlagNameServiceAccount          = "service-account"
 	FlagDescServiceAccount          = "the Kubernetes service account under which to run the Skupper controller"
 	FlagNameBindHost                = "bind-host"

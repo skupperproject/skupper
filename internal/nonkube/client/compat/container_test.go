@@ -39,7 +39,7 @@ func TestContainer(t *testing.T) {
 
 	name := RandomName("skupper-test")
 
-	image := images.GetServiceControllerImageName()
+	image := images.GetRouterImageName()
 	env := map[string]string{
 		"VAR1": "VAL1",
 		"VAR2": "VAL2",
@@ -116,7 +116,7 @@ func TestContainer(t *testing.T) {
 	// Pulling image
 	t.Run("image-pull", func(t *testing.T) {
 		assert.Assert(t, cli.ImagePull(ctx, image))
-		invalidImage := strings.Replace(images.GetSiteControllerImageName(), ":main", ":invalid", 1)
+		invalidImage := strings.Replace(images.GetRouterImageName(), ":main", ":invalid", 1)
 		invalidImageErr := cli.ImagePull(ctx, invalidImage)
 		assert.Assert(t, invalidImageErr != nil)
 		assert.Assert(t, strings.Contains(invalidImageErr.Error(), "Recommendation:"))
@@ -314,7 +314,7 @@ func TestContainerCreateMock(t *testing.T) {
 }
 
 func TestContainerUpdateMock(t *testing.T) {
-	image := images.GetServiceControllerImageName()
+	image := images.GetRouterImageName()
 	cli := NewCompatClientMock(mockContainers(image))
 
 	// starting the container
@@ -345,7 +345,7 @@ func TestContainerUpdateMock(t *testing.T) {
 }
 
 func TestContainerUpdateErrorMock(t *testing.T) {
-	image := images.GetServiceControllerImageName()
+	image := images.GetRouterImageName()
 	newImage := strings.Replace(image, ":main", ":updated", -1)
 	cli := NewCompatClientMock(mockContainers(image))
 	mock := cli.RestClient.(*RestClientMock)

@@ -10,24 +10,25 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-const (
-	RouterImageEnvKey                  string = "SKUPPER_ROUTER_IMAGE"
-	ControllerImageEnvKey              string = "SKUPPER_CONTROLLER_IMAGE"
-	ConfigSyncImageEnvKey              string = "SKUPPER_CONFIG_SYNC_IMAGE"
-	NetworkConsoleCollectorImageEnvKey string = "SKUPPER_FLOW_COLLECTOR_IMAGE"
-	BootstrapImageEnvKey               string = "BOOTSTRAP_IMAGE"
-	PrometheusServerImageEnvKey        string = "PROMETHEUS_SERVER_IMAGE"
-	OauthProxyImageEnvKey              string = "OAUTH_PROXY_IMAGE"
-	RouterPullPolicyEnvKey             string = "SKUPPER_ROUTER_IMAGE_PULL_POLICY"
-	ConfigSyncPullPolicyEnvKey         string = "SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY"
-	OauthProxyPullPolicyEnvKey         string = "OAUTH_PROXY_IMAGE_PULL_POLICY"
-	SkupperImageRegistryEnvKey         string = "SKUPPER_IMAGE_REGISTRY"
-	PrometheusImageRegistryEnvKey      string = "PROMETHEUS_IMAGE_REGISTRY"
-	OauthProxyRegistryEnvKey           string = "OAUTH_PROXY_IMAGE_REGISTRY"
+type SkupperImage struct {
+	Name   string `json:"name,omitempty"`
+	Digest string `json:"digest,omitempty"`
+}
 
-	// These constants will be soon deprecated.
-	ServiceControllerImageEnvKey string = "SKUPPER_SERVICE_CONTROLLER_IMAGE"
-	FlowCollectorImageEnvKey     string = "SKUPPER_FLOW_COLLECTOR_IMAGE"
+const (
+	RouterImageEnvKey             string = "SKUPPER_ROUTER_IMAGE"
+	ControllerImageEnvKey         string = "SKUPPER_CONTROLLER_IMAGE"
+	ConfigSyncImageEnvKey         string = "SKUPPER_CONFIG_SYNC_IMAGE"
+	NetworkObserverImageEnvKey    string = "SKUPPER_NETWORK_OBSERVER_IMAGE"
+	BootstrapImageEnvKey          string = "BOOTSTRAP_IMAGE"
+	PrometheusServerImageEnvKey   string = "PROMETHEUS_SERVER_IMAGE"
+	OauthProxyImageEnvKey         string = "OAUTH_PROXY_IMAGE"
+	RouterPullPolicyEnvKey        string = "SKUPPER_ROUTER_IMAGE_PULL_POLICY"
+	ConfigSyncPullPolicyEnvKey    string = "SKUPPER_CONFIG_SYNC_IMAGE_PULL_POLICY"
+	OauthProxyPullPolicyEnvKey    string = "OAUTH_PROXY_IMAGE_PULL_POLICY"
+	SkupperImageRegistryEnvKey    string = "SKUPPER_IMAGE_REGISTRY"
+	PrometheusImageRegistryEnvKey string = "PROMETHEUS_IMAGE_REGISTRY"
+	OauthProxyRegistryEnvKey      string = "OAUTH_PROXY_IMAGE_REGISTRY"
 )
 
 func getPullPolicy(key string) string {
@@ -83,11 +84,11 @@ func GetControllerImageName() string {
 	}
 }
 
-func GetNetworkConsoleCollectorImageName() string {
-	image := os.Getenv(NetworkConsoleCollectorImageEnvKey)
+func GetNetworkObserverImageName() string {
+	image := os.Getenv(NetworkObserverImageEnvKey)
 	if image == "" {
 		imageRegistry := GetImageRegistry()
-		return strings.Join([]string{imageRegistry, NetworkConsoleCollectorImageName}, "/")
+		return strings.Join([]string{imageRegistry, NetworkObserverImageName}, "/")
 	} else {
 		return image
 	}
@@ -98,16 +99,6 @@ func GetBootstrapImageName() string {
 	if image == "" {
 		imageRegistry := GetImageRegistry()
 		return strings.Join([]string{imageRegistry, BootstrapImageName}, "/")
-	} else {
-		return image
-	}
-}
-
-func GetServiceControllerImageName() string {
-	image := os.Getenv(ServiceControllerImageEnvKey)
-	if image == "" {
-		imageRegistry := GetImageRegistry()
-		return strings.Join([]string{imageRegistry, ServiceControllerImageName}, "/")
 	} else {
 		return image
 	}
@@ -134,16 +125,6 @@ func GetConfigSyncImagePullPolicy() string {
 	return getPullPolicy(ConfigSyncPullPolicyEnvKey)
 }
 
-func GetFlowCollectorImageName() string {
-	image := os.Getenv(FlowCollectorImageEnvKey)
-	if image == "" {
-		imageRegistry := GetImageRegistry()
-		return strings.Join([]string{imageRegistry, FlowCollectorImageName}, "/")
-	} else {
-		return image
-	}
-}
-
 func GetPrometheusServerImageName() string {
 	image := os.Getenv(PrometheusServerImageEnvKey)
 	if image == "" {
@@ -168,11 +149,6 @@ func GetPrometheusImageRegistry() string {
 		return PrometheusImageRegistry
 	}
 	return imageRegistry
-}
-
-func GetSiteControllerImageName() string {
-	imageRegistry := GetImageRegistry()
-	return strings.Join([]string{imageRegistry, SiteControllerImageName}, "/")
 }
 
 func GetSha(imageName string) string {
@@ -227,4 +203,104 @@ func GetOauthProxyImageRegistry() string {
 		return OauthProxyImageRegistry
 	}
 	return imageRegistry
+}
+
+func GetImage(imageNames map[string]string, imageRegistry string, enableSHA bool) []SkupperImage {
+	var image SkupperImage
+	var skupperImage []SkupperImage
+
+	for key, name := range imageNames {
+		imageName := os.Getenv(key)
+		if imageName == "" {
+			imageName = strings.Join([]string{imageRegistry, name}, "/")
+		}
+		image.Name = imageName
+
+		if enableSHA {
+			image.Digest = GetSha(imageName)
+		}
+
+		skupperImage = append(skupperImage, image)
+	}
+	return skupperImage
+}
+
+func GetImages(component string, enableSHA bool) []SkupperImage {
+	//var names map[string]string
+	var registry string
+
+	names := make(map[string]string)
+	switch component {
+	case "router":
+		// skupper router has two components
+		names[RouterImageEnvKey] = RouterImageName
+		names[ConfigSyncImageEnvKey] = ConfigSyncImageName
+		registry = GetImageRegistry()
+	case "controller":
+		names[ControllerImageEnvKey] = ControllerImageName
+		registry = GetImageRegistry()
+	case "network-observer":
+		names[NetworkObserverImageEnvKey] = NetworkObserverImageName
+		registry = GetImageRegistry()
+	case "bootstrap":
+		names[BootstrapImageEnvKey] = BootstrapImageName
+		registry = GetImageRegistry()
+	case "prometheus":
+		names[PrometheusServerImageEnvKey] = PrometheusServerImageName
+		registry = GetPrometheusImageRegistry()
+	case "origin-oauth-proxy":
+		names[OauthProxyImageEnvKey] = OauthProxyImageName
+		registry = GetOauthProxyImageRegistry()
+	}
+
+	if names != nil && registry != "" {
+		return GetImage(names, registry, enableSHA)
+	} else {
+		return nil
+	}
+}
+
+func GetImageVersion(component string) string {
+	var image string
+
+	switch component {
+	case "router":
+		image = os.Getenv(RouterImageEnvKey)
+		if image == "" {
+			image = RouterImageName
+		}
+	case "controller":
+		image = os.Getenv(ControllerImageEnvKey)
+		if image == "" {
+			image = ControllerImageName
+		}
+	case "network-observer":
+		image = os.Getenv(ControllerImageEnvKey)
+		if image == "" {
+			image = NetworkObserverImageName
+		}
+	case "bootstrap":
+		image = os.Getenv(BootstrapImageName)
+		if image == "" {
+			image = ControllerImageName
+		}
+	case "prometheus":
+		image = os.Getenv(PrometheusServerImageEnvKey)
+		if image == "" {
+			image = PrometheusServerImageName
+		}
+	case "origin-oauth-proxy":
+		image = os.Getenv(OauthProxyImageEnvKey)
+		if image == "" {
+			image = OauthProxyImageName
+		}
+	}
+	if image != "" {
+		parts := strings.Split(image, ":")
+		if len(parts) == 2 {
+			return parts[1]
+		}
+	}
+
+	return ""
 }
