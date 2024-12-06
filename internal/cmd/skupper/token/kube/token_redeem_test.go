@@ -321,11 +321,13 @@ func TestCmdTokenRedeem_Run(t *testing.T) {
 						Name:      "my-token",
 						Namespace: "test",
 					},
-					Status: v2alpha1.Status{
-						Conditions: []v1.Condition{
-							{
-								Type:   "Redeemed",
-								Status: "True",
+					Status: v2alpha1.AccessTokenStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Redeemed",
+									Status: "True",
+								},
 							},
 						},
 					},
@@ -377,7 +379,7 @@ func TestCmdTokenRedeem_WaitUntil(t *testing.T) {
 						Name:      "my-grant",
 						Namespace: "test",
 					},
-					Status: v2alpha1.Status{},
+					Status: v2alpha1.AccessTokenStatus{},
 				},
 			},
 			expectError: true,
@@ -395,11 +397,13 @@ func TestCmdTokenRedeem_WaitUntil(t *testing.T) {
 						Name:      "my-grant",
 						Namespace: "test",
 					},
-					Status: v2alpha1.Status{
-						Conditions: []v1.Condition{
-							{
-								Type:   "Redeemed",
-								Status: "True",
+					Status: v2alpha1.AccessTokenStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Redeemed",
+									Status: "True",
+								},
 							},
 						},
 					},

@@ -138,7 +138,7 @@ func Test_handleTokenResponse(t *testing.T) {
 			name:           "no data",
 			token:          tf.token("my-token", "test", "http://foo/xyz", "mycode", ""),
 			site:           tf.site("my-site", "test"),
-			expectedStatus: "Could not decode response",
+			expectedStatus: "Controller could not decode response",
 		},
 		{
 			name:  "failed read",
@@ -156,7 +156,7 @@ func Test_handleTokenResponse(t *testing.T) {
 				},
 			},
 			failReadAt:     1025,
-			expectedStatus: "Could not decode response",
+			expectedStatus: "Controller could not decode response",
 		},
 		{
 			name:  "secret collision",
@@ -173,7 +173,7 @@ func Test_handleTokenResponse(t *testing.T) {
 					}, "my-token"),
 				},
 			},
-			expectedStatus:  "Could not create received secret: secrets \"my-token\" already exists",
+			expectedStatus:  "Controller could not create received secret: secrets \"my-token\" already exists",
 			extraK8sObjects: []runtime.Object{tf.secret("my-token", "test", "Another Subject", nil)},
 		},
 		{
@@ -191,7 +191,7 @@ func Test_handleTokenResponse(t *testing.T) {
 					}, "my-token"),
 				},
 			},
-			expectedStatus:      "Could not create received link: links.skupper.io \"my-token\" already exists",
+			expectedStatus:      "Controller could not create received link: links.skupper.io \"my-token\" already exists",
 			extraSkupperObjects: []runtime.Object{tf.link("my-token", "test", nil, "")},
 		},
 		{
@@ -365,21 +365,21 @@ func Test_RedeemAccessToken(t *testing.T) {
 			scheme:         "https",
 			tokenName:      "my-token",
 			grantUID:       "a40fbe84-f276-4755-bf22-5ba980ab1661",
-			expectedStatus: "404 (Not Found) No such claim",
+			expectedStatus: "Controller got failed response: 404 (Not Found) No such claim",
 			expectRedeemed: false,
 		},
 		{
 			name:           "no resolved endpoints",
 			scheme:         "https",
 			tokenName:      "my-token",
-			expectedStatus: "500 (Internal Server Error) Could not resolve any endpoints for requested link",
+			expectedStatus: "Controller got failed response: 500 (Internal Server Error) Could not resolve any endpoints for requested link",
 		},
 		{
 			name:           "bad default issuer",
 			scheme:         "https",
 			tokenName:      "my-token",
 			defaultIssuer:  "i-dont-exist",
-			expectedStatus: "500 (Internal Server Error) Could not get issuer for requested certficate",
+			expectedStatus: "Controller got failed response: 500 (Internal Server Error) Could not get issuer for requested certficate",
 		},
 	}
 	for _, tt := range tests {
