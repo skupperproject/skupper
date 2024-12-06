@@ -286,7 +286,7 @@ func (g *Grants) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	grant := g.get(key)
 	if grant == nil {
 		log.Printf("No such claim: %s", key)
-		http.Error(w, fmt.Sprintf("No such claim: %s", key), http.StatusBadRequest)
+		httpError("No such claim", http.StatusNotFound).write(w)
 		return
 	}
 	name := r.Header.Get("name")
