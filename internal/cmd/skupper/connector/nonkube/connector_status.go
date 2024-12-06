@@ -35,7 +35,7 @@ func (cmd *CmdConnectorStatus) NewClient(cobraCommand *cobra.Command, args []str
 
 func (cmd *CmdConnectorStatus) ValidateInput(args []string) []error {
 	var validationErrors []error
-	opts := fs.GetOptions{RuntimeFirst: true}
+	opts := fs.GetOptions{RuntimeFirst: true, LogWarning: false}
 	resourceStringValidator := validator.NewResourceStringValidator()
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
@@ -75,7 +75,7 @@ func (cmd *CmdConnectorStatus) ValidateInput(args []string) []error {
 }
 
 func (cmd *CmdConnectorStatus) Run() error {
-	opts := fs.GetOptions{RuntimeFirst: true}
+	opts := fs.GetOptions{RuntimeFirst: true, LogWarning: true}
 	if cmd.connectorName == "" {
 		connectors, err := cmd.connectorHandler.List()
 		if connectors == nil || err != nil {
