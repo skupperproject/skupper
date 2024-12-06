@@ -324,6 +324,8 @@ type LogEventRecord struct {
 type metricKey struct {
 	sourceSite    string
 	sourceProcess string
+	sourceHost    string
+	destHost      string
 	destSite      string
 	destProcess   string
 }
