@@ -27,6 +27,7 @@ func TestCmdTokenFactory(t *testing.T) {
 				common.FlagNameExpirationWindow:   "15m0s",
 				common.FlagNameRedemptionsAllowed: "1",
 				common.FlagNameToken:              "",
+				common.FlagNameCost:               "1",
 			},
 			command: CmdTokenIssueFactory(types.PlatformKubernetes),
 		},

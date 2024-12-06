@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -25,6 +26,7 @@ type CmdTokenIssue struct {
 	namespace string
 	grantName string
 	fileName  string
+	cost      int
 }
 
 func NewCmdTokenIssue() *CmdTokenIssue {
@@ -46,6 +48,7 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	tokenStringValidator := validator.NewFilePathStringValidator()
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
+	numberValidator := validator.NewNumberValidator()
 
 	// Validate token file name
 	if len(args) < 1 {
@@ -95,7 +98,6 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 	}
 
 	// Validate flags
-	//TBD is there a limit to number of redemptions
 	if cmd.Flags != nil && cmd.Flags.RedemptionsAllowed < 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("number of redemptions is not valid"))
 	}
@@ -112,6 +114,17 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
 		}
+	}
+
+	selectedCost, err := strconv.Atoi(cmd.Flags.Cost)
+	if err != nil {
+		validationErrors = append(validationErrors, fmt.Errorf("link cost is not valid: %s", err))
+	}
+	ok, err := numberValidator.Evaluate(selectedCost)
+	if !ok {
+		validationErrors = append(validationErrors, fmt.Errorf("link cost is not valid: %s", err))
+	} else {
+		cmd.cost = selectedCost
 	}
 
 	return validationErrors
@@ -157,9 +170,10 @@ func (cmd *CmdTokenIssue) WaitUntil() error {
 					Name: accessGrant.Name,
 				},
 				Spec: v2alpha1.AccessTokenSpec{
-					Url:  accessGrant.Status.Url,
-					Code: accessGrant.Status.Code,
-					Ca:   accessGrant.Status.Ca,
+					Url:      accessGrant.Status.Url,
+					Code:     accessGrant.Status.Code,
+					Ca:       accessGrant.Status.Ca,
+					LinkCost: cmd.cost,
 				},
 			}
 

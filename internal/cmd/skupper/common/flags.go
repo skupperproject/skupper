@@ -132,6 +132,7 @@ type CommandTokenIssueFlags struct {
 	Timeout            time.Duration
 	ExpirationWindow   time.Duration
 	RedemptionsAllowed int
+	Cost               string
 }
 
 type CommandTokenRedeemFlags struct {
