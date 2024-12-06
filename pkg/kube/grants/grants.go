@@ -1,6 +1,7 @@
 package grants
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -282,13 +283,12 @@ func (g *Grants) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Request body not valid", http.StatusBadRequest)
 		return
 	}
-
-	grant, e := g.checkAndUpdateAccessToken(key, body)
-	if e != nil {
-		e.write(w)
+	grant := g.get(key)
+	if grant == nil {
+		log.Printf("No such claim: %s", key)
+		http.Error(w, fmt.Sprintf("No such claim: %s", key), http.StatusBadRequest)
 		return
 	}
-
 	name := r.Header.Get("name")
 	if name == "" {
 		log.Printf("No name specified when redeeming access token for %s/%s, using access grant name", grant.Namespace, grant.Name)
@@ -298,10 +298,20 @@ func (g *Grants) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if subject == "" {
 		subject = name
 	}
-	if err := g.generator(grant.Namespace, name, subject, w); err != nil {
+	buf := bytes.NewBufferString("")
+	if err := g.generator(grant.Namespace, name, subject, buf); err != nil {
 		log.Printf("Failed to create token for %s/%s: %s", grant.Namespace, grant.Name, err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	grant, e := g.checkAndUpdateAccessToken(key, body)
+	if e != nil {
+		e.write(w)
+		return
+	}
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		log.Printf("Failed to write access token for %s/%s: %s", grant.Namespace, grant.Name, err.Error())
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	log.Printf("Redemption of access token %s/%s succeeded", grant.Namespace, grant.Name)
 }
