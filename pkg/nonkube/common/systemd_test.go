@@ -49,7 +49,7 @@ func TestSystemdService(t *testing.T) {
 			systemdServiceImpl.rootSystemdBasePath = outputPath
 			t.Run(fmt.Sprintf("create-systemd-%s-as-uid-%d", platform, uid), func(t *testing.T) {
 				assert.Assert(t, systemdService.Create())
-				serviceFile, err := os.ReadFile(systemdServiceImpl.getServiceFile())
+				serviceFile, err := os.ReadFile(systemdServiceImpl.GetServiceFile())
 				assert.Assert(t, err)
 				var startCmd string
 				var stopCmd string
@@ -66,7 +66,7 @@ func TestSystemdService(t *testing.T) {
 				assert.Assert(t, strings.Contains(string(serviceFile), stopCmd))
 			})
 			assert.Assert(t, systemdService.Remove())
-			_, err = os.ReadFile(systemdServiceImpl.getServiceFile())
+			_, err = os.ReadFile(systemdServiceImpl.GetServiceFile())
 			assert.Assert(t, err != nil)
 		}
 	}

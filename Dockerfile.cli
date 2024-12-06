@@ -9,12 +9,12 @@ RUN go mod download
 COPY . .
 
 ENV CGO_ENABLED=0
-RUN make build-bootstrap GOARCH=$TARGETARCH
+RUN make build-cli GOARCH=$TARGETARCH
 
 FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
 LABEL \
-  org.opencontainers.image.title="Skupper Bootstrap" \
-  org.opencontainers.image.description="Produces and manges static configurations for non-kube installations of Skupper"
+  org.opencontainers.image.title="Skupper CLI" \
+  org.opencontainers.image.description="Provide users with the ability to operate their Skupper resources."
 
 # Create user and group and switch to user's context
 RUN microdnf -y install shadow-utils \
@@ -23,5 +23,5 @@ RUN useradd --uid 10000 runner
 USER 10000
 
 WORKDIR /app
-COPY --from=builder /go/src/app/bootstrap .
-CMD ["/app/bootstrap"]
+COPY --from=builder /go/src/app/skupper .
+ENTRYPOINT ["/app/skupper"]
