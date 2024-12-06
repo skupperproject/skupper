@@ -10,7 +10,7 @@ GOARCH ?= amd64
 REGISTRY := quay.io/skupper
 IMAGE_TAG := v2-latest
 PLATFORMS ?= linux/amd64,linux/arm64
-CONTAINERFILES := Dockerfile.bootstrap Dockerfile.config-sync Dockerfile.controller Dockerfile.network-observer
+CONTAINERFILES := Dockerfile.bootstrap Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer
 SHARED_IMAGE_LABELS = \
     --label "org.opencontainers.image.created=$(shell TZ=GMT date --iso-8601=seconds)" \
 	--label "org.opencontainers.image.url=https://skupper.io/" \
@@ -25,7 +25,7 @@ DOCKER := docker
 SKOPEO := skopeo
 PODMAN := podman
 
-all: build-cmd build-config-sync build-controller build-bootstrap build-network-observer update-helm-crd
+all: build-cmd build-kube-adaptor build-controller build-bootstrap build-network-observer update-helm-crd
 
 build-cmd:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o skupper ./cmd/skupper
@@ -36,8 +36,8 @@ build-bootstrap:
 build-controller:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o controller ./cmd/controller
 
-build-config-sync:
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o config-sync ./cmd/config-sync
+build-kube-adaptor:
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o kube-adaptor ./cmd/kube-adaptor
 
 build-network-observer:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o network-observer ./cmd/network-observer
@@ -123,6 +123,6 @@ update-helm-crd:
 	./scripts/update-helm-crds.sh
 
 clean:
-	rm -rf skupper controller config-sync \
+	rm -rf skupper controller kube-adaptor \
 		bootstrap network-observer generate-doc \
 		cover.out oci-archives
