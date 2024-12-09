@@ -1,0 +1,19 @@
+{{- if .Values.route.enabled -}}
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    {{- include "network-observer.labels" . | nindent 4 }}
+  name: {{ include "network-observer.fullname" . }}
+spec:
+  tls:
+    termination: "reencrypt"
+    insecureEdgeTerminationPolicy: Redirect
+  port:
+    targetPort: https
+  to:
+    kind: Service
+    name: {{ include "network-observer.fullname" . }}
+    weight: 100
+{{- end }}

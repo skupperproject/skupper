@@ -129,6 +129,20 @@ generate-skupper-deployment-namespace-scoped:
 generate-bundle:
 	./scripts/generate-bundle.sh
 
+generate-network-observer-generic:
+	helm template skupper-network-observer ./charts/network-observer/ \
+		--set skipManagementLabels=true > skupper-network-observer-generic.yaml
+
+generate-network-observer-openshift:
+	helm template skupper-network-observer \
+		./charts/network-observer/ \
+		--set skipManagementLabels=true \
+		--set tls.skupperIssued=false \
+		--set tls.openshiftIssued=true \
+		--set route.enabled=true \
+		--set prometheus.securityContext=null \
+		> skupper-network-observer-openshift.yaml
+
 clean:
 	rm -rf skupper controller kube-adaptor \
 		network-observer generate-doc \
