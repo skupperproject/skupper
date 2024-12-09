@@ -54,6 +54,7 @@ skupper connector create backend 8080 --workload deployment/backend`,
 	cmd.Flags().StringVarP(&cmdFlags.Workload, common.FlagNameWorkload, "w", "", common.FlagDescWorkload)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
+	cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "configured", common.FlagDescWait)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
@@ -64,6 +65,8 @@ skupper connector create backend 8080 --workload deployment/backend`,
 		cmd.Flags().MarkHidden(common.FlagNameIncludeNotReadyPods)
 		cmd.Flags().MarkHidden(common.FlagNameSelector)
 		cmd.Flags().MarkHidden(common.FlagNameWorkload)
+		cmd.Flags().MarkHidden(common.FlagNameTimeout)
+		cmd.Flags().MarkHidden(common.FlagNameWait)
 	}
 
 	return cmd
@@ -119,6 +122,7 @@ func CmdConnectorUpdateFactory(configuredPlatform types.Platform) *cobra.Command
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	cmd.Flags().IntVar(&cmdFlags.Port, common.FlagNameConnectorPort, 0, common.FlagDescConnectorPort)
+	cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "configured", common.FlagDescWait)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
@@ -129,6 +133,8 @@ func CmdConnectorUpdateFactory(configuredPlatform types.Platform) *cobra.Command
 		cmd.Flags().MarkHidden(common.FlagNameIncludeNotReadyPods)
 		cmd.Flags().MarkHidden(common.FlagNameSelector)
 		cmd.Flags().MarkHidden(common.FlagNameWorkload)
+		cmd.Flags().MarkHidden(common.FlagNameTimeout)
+		cmd.Flags().MarkHidden(common.FlagNameWait)
 	}
 
 	return cmd
@@ -149,6 +155,7 @@ func CmdConnectorDeleteFactory(configuredPlatform types.Platform) *cobra.Command
 
 	cmdFlags := common.CommandConnectorDeleteFlags{}
 	cmd.Flags().DurationVarP(&cmdFlags.Timeout, common.FlagNameTimeout, "t", 60*time.Second, common.FlagDescTimeout)
+	cmd.Flags().BoolVar(&cmdFlags.Wait, common.FlagNameWait, true, common.FlagDescDeleteWait)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
