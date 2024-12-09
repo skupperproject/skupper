@@ -37,7 +37,7 @@ type CmdConnectorCreate struct {
 	includeNotReadyPods bool
 	timeout             time.Duration
 	KubeClient          kubernetes.Interface
-	status          string
+	status              string
 }
 
 func NewCmdConnectorCreate() *CmdConnectorCreate {
