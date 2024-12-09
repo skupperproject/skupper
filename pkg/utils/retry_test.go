@@ -346,7 +346,7 @@ func TestRetryErrorWithContext(t *testing.T) {
 			expectSuccess: true,
 		}, {
 			doc:           "The execution should time out after one retry due the context",
-			timeout:       time.Millisecond * 100,
+			timeout:       time.Millisecond * 110,
 			workOnTry:     5,
 			expectedTries: 1,
 			expectSuccess: false,
@@ -381,8 +381,17 @@ func TestRetryErrorWithContext(t *testing.T) {
 
 			elapsed := time.Since(start)
 
-			if item.expectSuccess && elapsed > item.timeout {
-				t.Errorf("The execution should have timed out, but it has not.")
+			if item.expectSuccess {
+				// Expecting success: check that the function completed successfully
+				if resp != nil {
+					t.Errorf("Expected success, but got error: %v", resp)
+				}
+				if elapsed > item.timeout {
+					t.Errorf("Expected to complete before timeout, but took %v", elapsed)
+				}
+			}
+			if !item.expectSuccess && (elapsed <= item.timeout || elapsed > item.timeout+20*time.Millisecond) {
+				t.Errorf("The execution should have timed out, but it did not or took too long.")
 			}
 
 			if item.expectSuccess != (resp == nil) {
