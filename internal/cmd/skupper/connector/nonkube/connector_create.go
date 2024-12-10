@@ -112,7 +112,10 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("host name must be configured: an IP address or hostname is expected"))
 	}
 	if cmd.Flags.TlsCredentials != "" {
-		// TBD what is valid TlsCredentials
+		ok, err := resourceStringValidator.Evaluate(cmd.Flags.TlsCredentials)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("tlsCredentials value is not valid: %s", err))
+		}
 	}
 
 	return validationErrors
