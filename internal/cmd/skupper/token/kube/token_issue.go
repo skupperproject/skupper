@@ -46,6 +46,7 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	tokenStringValidator := validator.NewFilePathStringValidator()
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
+	expirationValidator := validator.NewExpirationInSecondsValidator()
 
 	// Validate token file name
 	if len(args) < 1 {
@@ -95,13 +96,12 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 	}
 
 	// Validate flags
-	//TBD is there a limit to number of redemptions
 	if cmd.Flags != nil && cmd.Flags.RedemptionsAllowed < 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("number of redemptions is not valid"))
 	}
 
 	if cmd.Flags != nil && cmd.Flags.ExpirationWindow.String() != "" {
-		ok, err := timeoutValidator.Evaluate(cmd.Flags.ExpirationWindow)
+		ok, err := expirationValidator.Evaluate(cmd.Flags.ExpirationWindow)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("expiration time is not valid: %s", err))
 		}

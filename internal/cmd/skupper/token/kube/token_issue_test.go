@@ -392,9 +392,9 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 			name: "expiration is not valid",
 			args: []string{"~/token.yaml"},
 			flags: common.CommandTokenIssueFlags{
-				ExpirationWindow:   0 * time.Minute,
+				ExpirationWindow:   10 * time.Second,
 				RedemptionsAllowed: 1,
-				Timeout:            60 * time.Second,
+				Timeout:            10 * time.Second,
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.SiteList{
@@ -426,7 +426,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"expiration time is not valid: duration must not be less than 10s; got 0s"},
+			expectedErrors: []string{"expiration time is not valid: duration must not be less than 1m0s; got 10s"},
 		},
 		{
 			name: "timeout is not valid",
