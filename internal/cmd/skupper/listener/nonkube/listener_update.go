@@ -111,7 +111,7 @@ func (cmd *CmdListenerUpdate) ValidateInput(args []string) []error {
 	if cmd.Flags.TlsCredentials != "" {
 		ok, err := resourceStringValidator.Evaluate(cmd.Flags.TlsCredentials)
 		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("tlsCredentials is not valid: %s", err))
+			validationErrors = append(validationErrors, fmt.Errorf("tlsCredentials value is not valid: %s", err))
 		} else {
 			cmd.newSettings.tlsCredentials = cmd.Flags.TlsCredentials
 		}

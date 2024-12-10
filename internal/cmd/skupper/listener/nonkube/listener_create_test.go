@@ -82,7 +82,7 @@ func TestNonKubeCmdListenerCreate_ValidateInput(t *testing.T) {
 			name:           "TlsCredentials key is not valid",
 			args:           []string{"my-listener-tls", "8080"},
 			flags:          &common.CommandListenerCreateFlags{TlsCredentials: "not-valid$", Host: "1.2.3.4"},
-			expectedErrors: []string{"tlsCredentials is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			expectedErrors: []string{"tlsCredentials value is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
 			name:           "host is not valid",
@@ -164,7 +164,7 @@ func TestNonKubeCmdListenerCreate_InputToOptions(t *testing.T) {
 	testTable := []test{
 		{
 			name:                   "test1",
-			flags:                  common.CommandListenerCreateFlags{"backend", "", "secret", "tcp", 0, "json"},
+			flags:                  common.CommandListenerCreateFlags{"backend", "", "secret", "tcp", 0, "json", "none"},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "0.0.0.0",
 			expectedRoutingKey:     "backend",
@@ -175,7 +175,7 @@ func TestNonKubeCmdListenerCreate_InputToOptions(t *testing.T) {
 		{
 			name:                   "test2",
 			namespace:              "test",
-			flags:                  common.CommandListenerCreateFlags{"backend", "1.2.3.4", "secret", "tcp", 0, "json"},
+			flags:                  common.CommandListenerCreateFlags{"backend", "1.2.3.4", "secret", "tcp", 0, "json", "configured"},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "1.2.3.4",
 			expectedRoutingKey:     "backend",
@@ -186,7 +186,7 @@ func TestNonKubeCmdListenerCreate_InputToOptions(t *testing.T) {
 		{
 			name:                   "test3",
 			namespace:              "default",
-			flags:                  common.CommandListenerCreateFlags{"", "", "secret", "tcp", 0, "yaml"},
+			flags:                  common.CommandListenerCreateFlags{"", "", "secret", "tcp", 0, "yaml", "ready"},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "0.0.0.0",
 			expectedRoutingKey:     "my-listener",
