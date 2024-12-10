@@ -78,7 +78,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 			name:           "TlsCredentials key is not valid",
 			args:           []string{"my-listener"},
 			flags:          &common.CommandListenerUpdateFlags{TlsCredentials: "not-valid$", Host: "1.2.3.4"},
-			expectedErrors: []string{"tlsCredentials is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			expectedErrors: []string{"tlsCredentials value is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
 			name:           "port is not valid",
