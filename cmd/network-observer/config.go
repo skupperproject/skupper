@@ -12,9 +12,9 @@ import (
 )
 
 type Config struct {
-	APIListenAddress     string
-	APIDisableAccessLogs bool
-	APITLS               TLSSpec
+	APIListenAddress    string
+	APIEnableAccessLogs bool
+	APITLS              TLSSpec
 
 	EnableConsole   bool
 	ConsoleLocation string
@@ -23,6 +23,8 @@ type Config struct {
 	RouterURL     string
 	RouterTLS     TLSSpec
 	FlowRecordTTL time.Duration
+
+	VanflowLoggingProfile string
 
 	EnableProfile bool
 	CORSAllowAll  bool
