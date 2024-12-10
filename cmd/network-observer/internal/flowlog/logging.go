@@ -229,11 +229,13 @@ func (h *handler) handle(msg vanflow.RecordMessage) {
 		raw, _ := json.Marshal(record)
 		var out map[string]any
 		json.Unmarshal(raw, &out)
+		recordValues := make([]any, 0, len(out))
 		for k, v := range out {
 			if v == nil {
-				delete(out, k)
+				continue
 			}
+			recordValues = append(recordValues, slog.Any(k, v))
 		}
-		h.logFn(record.GetTypeMeta().String(), slog.Any("record", out), slog.String("record_id", record.Identity()), attrs)
+		h.logFn(record.GetTypeMeta().String(), slog.Group("record", recordValues...), attrs)
 	}
 }
