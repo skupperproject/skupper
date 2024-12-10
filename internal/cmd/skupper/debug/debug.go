@@ -12,26 +12,33 @@ import (
 
 func NewCmdDebug() *cobra.Command {
 
-	cmd := CmdDebugFactory(config.GetPlatform())
+	cmd := &cobra.Command{
+		Use:   "debug",
+		Short: "Create a tarball containing various files with the site details",
+		Long: `Create a tarball including site resources and status; component versions, config files, 
+	and logs; and info about the environment where Skupper is running`,
+		Example: "skupper debug dump <filename>",
+	}
+
+	cmd.AddCommand(CmdDebugDumpFactory(config.GetPlatform()))
 
 	return cmd
 }
 
-func CmdDebugFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdDebugDumpFactory(configuredPlatform types.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdDebug()
 	nonKubeCommand := nonkube.NewCmdDebug()
 
 	cmdDebugDesc := common.SkupperCmdDescription{
-		Use:   "debug",
-		Short: "",
-		Long:  "",
+		Use:     "dump <fileName>",
+		Short:   "Create a tarball",
+		Long:    "Create a tarball including site resources and status",
+		Example: "skupper debug dump <filename>",
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdDebugDesc, kubeCommand, nonKubeCommand)
 
 	cmdFlags := common.CommandDebugFlags{}
-
-	//Add flags if necessary
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
