@@ -61,7 +61,7 @@ func main() {
 	}
 
 	// Startup message
-	log.Printf("CONFIG_SYNC: Version: %s", version.Version)
+	log.Printf("Version: %s", version.Version)
 
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
@@ -78,13 +78,13 @@ func main() {
 		os.Exit(0)
 	}
 
-	log.Println("CONFIG_SYNC: Waiting for Skupper router to be ready")
+	log.Println("Waiting for Skupper router to be ready")
 	_, err = kube.WaitForPodsSelectorStatus(cli.GetNamespace(), cli.Kube, "skupper.io/component=router", corev1.PodRunning, time.Second*180, time.Second*5)
 	if err != nil {
 		log.Fatal("Error waiting for router pods to be ready ", err.Error())
 	}
 
-	log.Println("CONFIG_SYNC: Starting collector...")
+	log.Println("Starting collector...")
 	go adaptor.StartCollector(cli)
 
 	//start health check
@@ -95,10 +95,10 @@ func main() {
 	go http.ListenAndServe(":9191", nil)
 
 	configSync := adaptor.NewConfigSync(cli, cli.GetNamespace(), configDir, configMapName)
-	log.Println("CONFIG_SYNC: Starting controller loop...")
+	log.Println("Starting controller loop...")
 	configSync.Start(stopCh)
 
 	<-stopCh
-	log.Println("CONFIG_SYNC: Shutting down...")
+	log.Println("Shutting down...")
 	configSync.Stop()
 }
