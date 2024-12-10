@@ -54,7 +54,7 @@ There can be only one site definition per namespace.`,
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	cmd.Flags().StringVar(&cmdFlags.ServiceAccount, common.FlagNameServiceAccount, "", common.FlagDescServiceAccount)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 30*time.Second, common.FlagDescTimeout)
-	cmd.Flags().StringVar(&cmdFlags.BindHost, common.FlagNameBindHost, "", common.FlagDescBindHost)
+	cmd.Flags().StringVar(&cmdFlags.BindHost, common.FlagNameBindHost, "0.0.0.0", common.FlagDescBindHost)
 	cmd.Flags().StringSliceVar(&cmdFlags.SubjectAlternativeNames, common.FlagNameSubjectAlternativeNames, []string{}, common.FlagDescSubjectAlternativeNames)
 	cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "ready", common.FlagDescWait)
 
@@ -126,8 +126,13 @@ func CmdSiteStatusFactory(configuredPlatform types.Platform) *cobra.Command {
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSiteStatusDesc, kubeCommand, nonKubeCommand)
 
+	cmdFlags := common.CommandSiteStatusFlags{}
+	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescConnectorStatusOutput)
+
 	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
 
 	return cmd
 

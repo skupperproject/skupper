@@ -113,6 +113,10 @@ type CommandSiteDeleteFlags struct {
 	Wait    bool
 }
 
+type CommandSiteStatusFlags struct {
+	Output string
+}
+
 type CommandLinkGenerateFlags struct {
 	TlsCredentials     string
 	Cost               string
@@ -132,6 +136,7 @@ type CommandLinkDeleteFlags struct {
 	Timeout time.Duration
 	Wait    bool
 }
+
 type CommandLinkStatusFlags struct {
 	Output string
 }
