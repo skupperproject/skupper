@@ -110,7 +110,7 @@ cover:
 		-coverprofile cover.out \
 		./...
 
-generate-manifest: build-cmd
+generate-manifest: build-cli
 	./skupper version -o json > manifest.json
 
 generate-doc: build-doc-generator
