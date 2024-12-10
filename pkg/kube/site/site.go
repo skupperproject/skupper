@@ -679,7 +679,7 @@ func (s *Site) updateConnectorConfiguredStatusWithSelectedPods(connector *skuppe
 
 func (s *Site) CheckConnector(name string, connector *skupperv2alpha1.Connector) error {
 	update := s.bindings.UpdateConnector(name, connector)
-	if s.site == nil {
+	if s.site == nil && connector != nil {
 		return s.updateConnectorConfiguredStatus(connector, stderrors.New("No active site in namespace"))
 	}
 	if update == nil {
@@ -705,7 +705,7 @@ func (s *Site) updateListenerStatus(listener *skupperv2alpha1.Listener, err erro
 
 func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener) error {
 	update, err1 := s.bindings.UpdateListener(name, listener)
-	if s.site == nil {
+	if s.site == nil && listener != nil {
 		return s.updateListenerStatus(listener, stderrors.New("No active site in namespace"))
 	}
 	if update == nil {
