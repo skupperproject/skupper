@@ -193,6 +193,14 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 			},
 			expectedErrors: []string{},
 		},
+		{
+			name:  "wait status is not valid",
+			args:  []string{"my-listener-tls", "8080"},
+			flags: common.CommandListenerCreateFlags{Timeout: time.Minute, Wait: "created"},
+			expectedErrors: []string{
+				"status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
+			},
+		},
 	}
 
 	for _, test := range testTable {
@@ -225,28 +233,31 @@ func TestCmdListenerCreate_InputToOptions(t *testing.T) {
 		expectedListenerType   string
 		expectedOutput         string
 		expectedTimeout        time.Duration
+		expectedStatus         string
 	}
 
 	testTable := []test{
 		{
 			name:                   "test1",
-			flags:                  common.CommandListenerCreateFlags{"backend", "backend", "secret", "tcp", 20 * time.Second, "json"},
+			flags:                  common.CommandListenerCreateFlags{"backend", "backend", "secret", "tcp", 20 * time.Second, "json", "configured"},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "backend",
 			expectedRoutingKey:     "backend",
 			expectedTimeout:        20 * time.Second,
 			expectedListenerType:   "tcp",
 			expectedOutput:         "json",
+			expectedStatus:         "configured",
 		},
 		{
 			name:                   "test2",
-			flags:                  common.CommandListenerCreateFlags{"", "", "secret", "tcp", 30 * time.Second, "yaml"},
+			flags:                  common.CommandListenerCreateFlags{"", "", "secret", "tcp", 30 * time.Second, "yaml", "configured"},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "test2",
 			expectedRoutingKey:     "test2",
 			expectedTimeout:        30 * time.Second,
 			expectedListenerType:   "tcp",
 			expectedOutput:         "yaml",
+			expectedStatus:         "configured",
 		},
 	}
 
@@ -268,6 +279,7 @@ func TestCmdListenerCreate_InputToOptions(t *testing.T) {
 			assert.Check(t, cmd.timeout == test.expectedTimeout)
 			assert.Check(t, cmd.output == test.expectedOutput)
 			assert.Check(t, cmd.listenerType == test.expectedListenerType)
+			assert.Check(t, cmd.status == test.expectedStatus)
 		})
 	}
 }
@@ -334,10 +346,12 @@ func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
 		output              string
+		status              string
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
 		expectError         bool
+		expectedStatus      string
 	}
 
 	testTable := []test{
@@ -361,7 +375,8 @@ func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "listener is ready",
+			name:   "listener is ready",
+			status: "ready",
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Listener{
 					ObjectMeta: v1.ObjectMeta{
@@ -372,7 +387,7 @@ func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
-									Type:   "Configured",
+									Type:   "Ready",
 									Status: "True",
 								},
 							},
@@ -383,7 +398,7 @@ func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:   "listener is ready yaml output",
+			name:   "listener is configured yaml output",
 			output: "yaml",
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Listener{
@@ -405,6 +420,57 @@ func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name:       "user does not wait",
+			status:     "none",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-listener",
+						Namespace: "test",
+					},
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name:       "user waits for configured, but listener had some errors while being configured",
+			status:     "configured",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-listener",
+						Namespace: "test",
+					},
+					Status: v2alpha1.ListenerStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Message:            "Error",
+									ObservedGeneration: 1,
+									Reason:             "Error",
+									Status:             "False",
+									Type:               "Configured",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: true,
+		},
 	}
 
 	for _, test := range testTable {
@@ -416,6 +482,7 @@ func TestCmdListenerCreate_WaitUntil(t *testing.T) {
 		cmd.output = test.output
 		cmd.timeout = 1 * time.Second
 		cmd.namespace = "test"
+		cmd.status = test.status
 
 		t.Run(test.name, func(t *testing.T) {
 

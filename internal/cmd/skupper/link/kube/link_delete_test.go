@@ -156,13 +156,15 @@ func TestCmdLinkDelete_InputToOptions(t *testing.T) {
 		name            string
 		flags           common.CommandLinkDeleteFlags
 		expectedTimeout time.Duration
+		expectedWait    bool
 	}
 
 	testTable := []test{
 		{
 			name:            "check options",
-			flags:           common.CommandLinkDeleteFlags{time.Minute},
+			flags:           common.CommandLinkDeleteFlags{Timeout: time.Minute, Wait: false},
 			expectedTimeout: time.Minute,
+			expectedWait:    false,
 		},
 	}
 
@@ -176,6 +178,7 @@ func TestCmdLinkDelete_InputToOptions(t *testing.T) {
 			cmd.InputToOptions()
 
 			assert.Check(t, cmd.timeout == test.expectedTimeout)
+			assert.Check(t, cmd.wait == test.expectedWait)
 		})
 	}
 }
@@ -230,6 +233,7 @@ func TestCmdLinkDelete_WaitUntil(t *testing.T) {
 	type test struct {
 		name           string
 		timeout        time.Duration
+		wait           bool
 		skupperObjects []runtime.Object
 		expectError    bool
 	}
@@ -267,6 +271,34 @@ func TestCmdLinkDelete_WaitUntil(t *testing.T) {
 			timeout:     time.Second,
 			expectError: false,
 		},
+		{
+			name: "link is not deleted but user does not want to wait",
+			wait: false,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-link",
+						Namespace: "test",
+					},
+					Status: v2alpha1.LinkStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
+						},
+					},
+				},
+			},
+			timeout:     time.Second,
+			expectError: false,
+		},
 	}
 
 	for _, test := range testTable {
@@ -274,6 +306,7 @@ func TestCmdLinkDelete_WaitUntil(t *testing.T) {
 		assert.Assert(t, err)
 		cmd.linkName = "my-link"
 		cmd.timeout = test.timeout
+		cmd.wait = test.wait
 		t.Run(test.name, func(t *testing.T) {
 
 			err := cmd.WaitUntil()

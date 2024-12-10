@@ -3,6 +3,7 @@ package kube
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"strconv"
 	"time"
 
@@ -33,6 +34,7 @@ type CmdListenerCreate struct {
 	timeout        time.Duration
 	output         string
 	KubeClient     kubernetes.Interface
+	status         string
 }
 
 func NewCmdListenerCreate() *CmdListenerCreate {
@@ -57,6 +59,7 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 	listenerTypeValidator := validator.NewOptionValidator(common.ListenerTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
+	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 
 	// Validate arguments name and port
 	if len(args) < 2 {
@@ -129,6 +132,14 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
 	}
+
+	if cmd.Flags != nil && cmd.Flags.Wait != "" {
+		ok, err := statusValidator.Evaluate(cmd.Flags.Wait)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("status is not valid: %s", err))
+		}
+	}
+
 	return validationErrors
 }
 
@@ -148,6 +159,7 @@ func (cmd *CmdListenerCreate) InputToOptions() {
 	cmd.tlsCredentials = cmd.Flags.TlsCredentials
 	cmd.listenerType = cmd.Flags.ListenerType
 	cmd.output = cmd.Flags.Output
+	cmd.status = cmd.Flags.Wait
 }
 
 func (cmd *CmdListenerCreate) Run() error {
@@ -186,7 +198,13 @@ func (cmd *CmdListenerCreate) WaitUntil() error {
 		return nil
 	}
 
+	if cmd.status == "none" {
+		return nil
+	}
+
 	waitTime := int(cmd.timeout.Seconds())
+	var listenerCondition *metav1.Condition
+
 	err := utils.NewSpinnerWithTimeout("Waiting for create to complete...", waitTime, func() error {
 
 		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
@@ -194,17 +212,38 @@ func (cmd *CmdListenerCreate) WaitUntil() error {
 			return err
 		}
 
-		if resource != nil && resource.IsConfigured() {
+		isConditionFound := false
+		isConditionTrue := false
+
+		switch cmd.status {
+		case "ready":
+			listenerCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_READY)
+		default:
+			listenerCondition = meta.FindStatusCondition(resource.Status.Conditions, v2alpha1.CONDITION_TYPE_CONFIGURED)
+		}
+
+		if listenerCondition != nil {
+			isConditionFound = true
+			isConditionTrue = listenerCondition.Status == metav1.ConditionTrue
+		}
+
+		if resource != nil && isConditionFound && isConditionTrue {
 			return nil
+		}
+
+		if resource != nil && isConditionFound && !isConditionTrue {
+			return fmt.Errorf("error in the condition")
 		}
 
 		return fmt.Errorf("error getting the resource")
 	})
 
-	if err != nil {
-		return fmt.Errorf("Listener %q not ready yet, check the status for more information\n", cmd.name)
+	if err != nil && listenerCondition == nil {
+		return fmt.Errorf("Listener %q is not %s yet, check the status for more information\n", cmd.name, cmd.status)
+	} else if err != nil && listenerCondition.Status == metav1.ConditionFalse {
+		return fmt.Errorf("Listener %q is %s with errors, check the status for more information\n", cmd.name, cmd.status)
 	}
 
-	fmt.Printf("Listener %q is ready\n", cmd.name)
+	fmt.Printf("Listener %q is %s.\n", cmd.name, cmd.status)
 	return nil
 }

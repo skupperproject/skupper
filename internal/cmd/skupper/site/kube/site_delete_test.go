@@ -275,6 +275,7 @@ func TestCmdSiteDelete_InputToOptions(t *testing.T) {
 			command.InputToOptions()
 
 			assert.Check(t, command.timeout == test.expectedTimeout)
+			assert.Check(t, command.wait == test.expectedWait)
 		})
 	}
 }

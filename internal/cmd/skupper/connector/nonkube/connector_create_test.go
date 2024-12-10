@@ -164,7 +164,7 @@ func TestNonKubeCmdConnectorCreate_InputToOptions(t *testing.T) {
 	testTable := []test{
 		{
 			name:                   "test1",
-			flags:                  common.CommandConnectorCreateFlags{"backend", "", "", "secret", "tcp", false, "", 0, "json"},
+			flags:                  common.CommandConnectorCreateFlags{"backend", "", "", "secret", "tcp", false, "", 0, "json", "none"},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "",
 			expectedRoutingKey:     "backend",
@@ -175,7 +175,7 @@ func TestNonKubeCmdConnectorCreate_InputToOptions(t *testing.T) {
 		{
 			name:                   "test2",
 			namespace:              "test",
-			flags:                  common.CommandConnectorCreateFlags{"backend", "1.2.3.4", "", "secret", "tcp", false, "", 0, "json"},
+			flags:                  common.CommandConnectorCreateFlags{"backend", "1.2.3.4", "", "secret", "tcp", false, "", 0, "json", "configured"},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "1.2.3.4",
 			expectedRoutingKey:     "backend",
@@ -186,7 +186,7 @@ func TestNonKubeCmdConnectorCreate_InputToOptions(t *testing.T) {
 		{
 			name:                   "test3",
 			namespace:              "test",
-			flags:                  common.CommandConnectorCreateFlags{"", "", "", "secret", "tcp", false, "", 0, "yaml"},
+			flags:                  common.CommandConnectorCreateFlags{"", "", "", "secret", "tcp", false, "", 0, "yaml", "ready"},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "",
 			expectedRoutingKey:     "my-Connector",

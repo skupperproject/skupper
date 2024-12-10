@@ -20,6 +20,7 @@ type CmdLinkDelete struct {
 	Flags     *common.CommandLinkDeleteFlags
 	linkName  string
 	timeout   time.Duration
+	wait      bool
 }
 
 func NewCmdLinkDelete() *CmdLinkDelete {
@@ -66,6 +67,7 @@ func (cmd *CmdLinkDelete) ValidateInput(args []string) []error {
 }
 func (cmd *CmdLinkDelete) InputToOptions() {
 	cmd.timeout = cmd.Flags.Timeout
+	cmd.wait = cmd.Flags.Wait
 }
 
 func (cmd *CmdLinkDelete) Run() error {
@@ -73,24 +75,27 @@ func (cmd *CmdLinkDelete) Run() error {
 	return err
 }
 func (cmd *CmdLinkDelete) WaitUntil() error {
-	waitTime := int(cmd.timeout.Seconds())
-	err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
-		resource, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
+	if cmd.wait {
+		waitTime := int(cmd.timeout.Seconds())
+		err := utils.NewSpinnerWithTimeout("Waiting for deletion to complete...", waitTime, func() error {
 
-		if err == nil && resource != nil {
-			return fmt.Errorf("error deleting the resource")
-		} else {
-			return nil
+			resource, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
+
+			if err == nil && resource != nil {
+				return fmt.Errorf("error deleting the resource")
+			} else {
+				return nil
+			}
+
+		})
+
+		if err != nil {
+			return fmt.Errorf("Link %q not deleted yet, check the status for more information\n", cmd.linkName)
 		}
 
-	})
-
-	if err != nil {
-		return fmt.Errorf("Link %q not deleted yet, check the status for more information\n", cmd.linkName)
+		fmt.Printf("Link %q is deleted\n", cmd.linkName)
 	}
-
-	fmt.Printf("Link %q is deleted\n", cmd.linkName)
 
 	return nil
 }

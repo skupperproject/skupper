@@ -400,6 +400,32 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			},
 			expectedErrors: []string{},
 		},
+		{
+			name:  "wait status is not valid",
+			args:  []string{"backend-connector"},
+			flags: common.CommandConnectorUpdateFlags{Timeout: time.Minute, Wait: "created"},
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "backend-connector",
+						Namespace: "test",
+					},
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Type:   "Configured",
+									Status: "True",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedErrors: []string{
+				"status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
+			},
+		},
 	}
 
 	for _, test := range testTable {
@@ -429,6 +455,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 		skupperObjects   []runtime.Object
 		expectedErrors   []string
 		expectedSelector string
+		expectedStatus   string
 	}
 
 	testTable := []test{
@@ -1027,6 +1054,7 @@ func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
 		output              string
+		status              string
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
@@ -1052,7 +1080,8 @@ func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name: "connector is ready",
+			name:   "connector is ready",
+			status: "ready",
 			skupperObjects: []runtime.Object{
 				&v2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
@@ -1063,7 +1092,7 @@ func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 						Status: v2alpha1.Status{
 							Conditions: []v1.Condition{
 								{
-									Type:   "Configured",
+									Type:   "Ready",
 									Status: "True",
 								},
 							},
@@ -1096,6 +1125,87 @@ func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name:       "connector is not ready yet, but user waits for configured",
+			status:     "configured",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector",
+						Namespace: "test",
+					},
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name:       "user does not wait",
+			status:     "none",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector",
+						Namespace: "test",
+					},
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Connector",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name:       "user waits for configured, but site had some errors while being configured",
+			status:     "configured",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector",
+						Namespace: "test",
+					},
+					Status: v2alpha1.ConnectorStatus{
+						Status: v2alpha1.Status{
+							Conditions: []v1.Condition{
+								{
+									Message:            "Error",
+									ObservedGeneration: 1,
+									Reason:             "Error",
+									Status:             "False",
+									Type:               "Configured",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectError: true,
+		},
 	}
 
 	for _, test := range testTable {
@@ -1109,6 +1219,7 @@ func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 		}
 		cmd.namespace = "test"
 		cmd.newSettings.output = cmd.Flags.Output
+		cmd.status = test.status
 
 		t.Run(test.name, func(t *testing.T) {
 
@@ -1118,6 +1229,36 @@ func TestCmdConnectorUpdate_WaitUntil(t *testing.T) {
 			} else {
 				assert.Assert(t, err)
 			}
+		})
+	}
+}
+
+func TestCmdConnectorUpdate_InputToOptions(t *testing.T) {
+
+	type test struct {
+		name           string
+		args           []string
+		flags          common.CommandConnectorUpdateFlags
+		expectedStatus string
+	}
+
+	testTable := []test{
+		{
+			name:           "options with waiting status",
+			args:           []string{"backend-listener"},
+			flags:          common.CommandConnectorUpdateFlags{Wait: "configured"},
+			expectedStatus: "configured",
+		},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+			command := &CmdConnectorUpdate{}
+			command.Flags = &test.flags
+
+			command.InputToOptions()
+
+			assert.Check(t, command.status == test.expectedStatus)
 		})
 	}
 }

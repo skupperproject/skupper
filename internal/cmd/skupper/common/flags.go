@@ -118,10 +118,12 @@ type CommandLinkUpdateFlags struct {
 	Cost           string
 	Output         string
 	Timeout        time.Duration
+	Wait           string
 }
 
 type CommandLinkDeleteFlags struct {
 	Timeout time.Duration
+	Wait    bool
 }
 type CommandLinkStatusFlags struct {
 	Output string
@@ -148,6 +150,7 @@ type CommandConnectorCreateFlags struct {
 	Workload            string
 	Timeout             time.Duration
 	Output              string
+	Wait                string
 }
 
 type CommandConnectorUpdateFlags struct {
@@ -161,10 +164,12 @@ type CommandConnectorUpdateFlags struct {
 	IncludeNotReadyPods bool
 	Timeout             time.Duration
 	Output              string
+	Wait                string
 }
 
 type CommandConnectorDeleteFlags struct {
 	Timeout time.Duration
+	Wait    bool
 }
 
 type CommandConnectorStatusFlags struct {
@@ -178,6 +183,7 @@ type CommandListenerCreateFlags struct {
 	ListenerType   string
 	Timeout        time.Duration
 	Output         string
+	Wait           string
 }
 
 type CommandListenerUpdateFlags struct {
@@ -188,6 +194,7 @@ type CommandListenerUpdateFlags struct {
 	Timeout        time.Duration
 	Port           int
 	Output         string
+	Wait           string
 }
 
 type CommandListenerStatusFlags struct {
@@ -196,6 +203,7 @@ type CommandListenerStatusFlags struct {
 
 type CommandListenerDeleteFlags struct {
 	Timeout time.Duration
+	Wait    bool
 }
 
 type CommandVersionFlags struct {

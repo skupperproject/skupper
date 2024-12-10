@@ -86,6 +86,7 @@ func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
 }
 func (cmd *CmdSiteDelete) InputToOptions() {
 	cmd.timeout = cmd.Flags.Timeout
+	cmd.wait = cmd.Flags.Wait
 }
 
 func (cmd *CmdSiteDelete) Run() error {
