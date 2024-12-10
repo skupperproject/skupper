@@ -27,6 +27,7 @@ import (
 
 type SecuredAccessFactory interface {
 	Ensure(namespace string, name string, spec skupperv2alpha1.SecuredAccessSpec, annotations map[string]string, refs []metav1.OwnerReference) error
+	IsValidAccessType(accessType string) bool
 }
 
 type Site struct {
@@ -59,6 +60,13 @@ func NewSite(namespace string, controller *kube.Controller, certs certificates.C
 			slog.String("component", "kube.site.site"),
 		),
 	}
+}
+
+func (s *Site) verifySiteSpec(site *skupperv2alpha1.Site) error {
+	if site.Spec.LinkAccess != "" && site.Spec.LinkAccess != "none" && site.Spec.LinkAccess != "default" && !s.access.IsValidAccessType(site.Spec.LinkAccess) {
+		return fmt.Errorf("Unsupported value for LinkAccess: %s", site.Spec.LinkAccess)
+	}
+	return nil
 }
 
 func (s *Site) StartRecovery(site *skupperv2alpha1.Site) error {
@@ -99,6 +107,9 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 		slog.String("namespace", siteDef.Namespace),
 		slog.String("name", siteDef.Name),
 		slog.String("id", s.site.GetSiteId()))
+	if err := s.verifySiteSpec(siteDef); err != nil {
+		return err
+	}
 	// ensure necessary resources:
 	// 1. skupper-internal configmap
 	if !s.initialised {
@@ -851,6 +862,13 @@ func (s *Site) updateConfigured(err error) error {
 	}
 	if s.site.SetConfigured(err) {
 		changed = true
+		if err != nil {
+			s.logger.Error("Error configuring site",
+				slog.String("namespace", s.site.Namespace),
+				slog.String("name", s.site.Name),
+				slog.String("id", s.site.GetSiteId()),
+				slog.Any("error", err))
+		}
 	}
 	if changed {
 		return s.updateSiteStatus()
