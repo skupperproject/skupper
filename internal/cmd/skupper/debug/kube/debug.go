@@ -81,15 +81,15 @@ func (cmd *CmdDebug) ValidateInput(args []string) []error {
 
 	// Validate dump file name
 	if len(args) < 1 {
-		validationErrors = append(validationErrors, fmt.Errorf("file name must be configured"))
+		cmd.fileName = "skupper-dump"
 	} else if len(args) > 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
 	} else if args[0] == "" {
-		validationErrors = append(validationErrors, fmt.Errorf("file name must not be empty"))
+		validationErrors = append(validationErrors, fmt.Errorf("filename must not be empty"))
 	} else {
 		ok, err := fileStringValidator.Evaluate(args[0])
 		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("file name is not valid: %s", err))
+			validationErrors = append(validationErrors, fmt.Errorf("filename is not valid: %s", err))
 		} else {
 			cmd.fileName = args[0]
 		}
@@ -100,6 +100,11 @@ func (cmd *CmdDebug) ValidateInput(args []string) []error {
 	}
 
 	return validationErrors
+}
+
+func (cmd *CmdDebug) InputToOptions() {
+	datetime := time.Now().Format("20060102150405")
+	cmd.fileName = fmt.Sprintf("%s-%s-%s", cmd.fileName, cmd.Namespace, datetime)
 }
 
 func (cmd *CmdDebug) Run() error {
@@ -130,7 +135,12 @@ func (cmd *CmdDebug) Run() error {
 
 	kv, err := runCommand("kubectl", "version", "-o", "yaml")
 	if err == nil {
-		writeTar("/skupper-info/k8s-versions.yaml", kv, time.Now(), tw)
+		writeTar("/versions/kubernetes.yaml", kv, time.Now(), tw)
+	}
+
+	manifest, err := runCommand("skupper", "version", "-o", "yaml")
+	if err == nil {
+		writeTar("/versions/skupper.yaml", manifest, time.Now(), tw)
 	}
 
 	events, err := runCommand("kubectl", "events")
@@ -143,18 +153,13 @@ func (cmd *CmdDebug) Run() error {
 		writeTar("/skupper-info/endpoints.yaml", endpoints, time.Now(), tw)
 	}
 
-	manifest, err := runCommand("skupper", "version", "-o", "json")
-	if err == nil {
-		writeTar("/skupper-info/manifest.json", manifest, time.Now(), tw)
-	}
-
 	// get deployments router and/or controller
-	err = getDeployments(cmd, routerDeployments, "skupper.io/component", qdstatFlags, tw)
+	err = getDeployments(cmd, routerDeployments, qdstatFlags, tw)
 	if err != nil {
 		return err
 	}
 
-	err = getDeployments(cmd, controllerDeployments, "application", nil, tw)
+	err = getDeployments(cmd, controllerDeployments, nil, tw)
 	if err != nil {
 		return err
 	}
@@ -297,6 +302,32 @@ func (cmd *CmdDebug) Run() error {
 		}
 	}
 
+	routerAccessList, err := cmd.Client.RouterAccesses(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, site := range routerAccessList.Items {
+		s := site.DeepCopy()
+		err := writeObject(s, "/skupper-resource/routerAccess/"+s.Name, ".yaml", tw)
+		if err != nil {
+			return err
+		}
+	}
+
+	securedAccessList, err := cmd.Client.SecuredAccesses(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, site := range securedAccessList.Items {
+		s := site.DeepCopy()
+		err := writeObject(s, "/skupper-resource/securedAccess/"+s.Name, ".yaml", tw)
+		if err != nil {
+			return err
+		}
+	}
+
 	fmt.Println("Skupper dump details written to compressed archive: ", dumpFile)
 	return nil
 }
@@ -351,7 +382,7 @@ func hasRestartedContainer(pod v1.Pod) bool {
 	return false
 }
 
-func getDeployments(cmd *CmdDebug, deployments []string, componentLabel string, flags []string, tw *tar.Writer) error {
+func getDeployments(cmd *CmdDebug, deployments []string, flags []string, tw *tar.Writer) error {
 
 	for i := range deployments {
 		deployment, err := cmd.KubeClient.AppsV1().Deployments(cmd.Namespace).Get(context.TODO(), deployments[i], metav1.GetOptions{})
@@ -364,12 +395,7 @@ func getDeployments(cmd *CmdDebug, deployments []string, componentLabel string, 
 			return err
 		}
 
-		component, ok := deployment.Spec.Template.Labels[componentLabel]
-		if !ok {
-			continue
-		}
-
-		podList, err := cmd.KubeClient.CoreV1().Pods(cmd.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: componentLabel + "=" + component})
+		podList, err := cmd.KubeClient.CoreV1().Pods(cmd.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app.kubernetes.io/part-of in (skupper, skupper-network-observer)"})
 		if err != nil {
 			continue
 		}
@@ -420,5 +446,4 @@ func getDeployments(cmd *CmdDebug, deployments []string, componentLabel string, 
 	return nil
 }
 
-func (cmd *CmdDebug) InputToOptions()  {}
 func (cmd *CmdDebug) WaitUntil() error { return nil }
