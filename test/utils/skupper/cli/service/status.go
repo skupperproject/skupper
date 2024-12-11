@@ -111,7 +111,7 @@ func (s *StatusTester) run(platform types.Platform, cluster *base.ClusterContext
 	for _, svc := range s.ServiceInterfaces {
 		serviceEntry := fmt.Sprintf(`.*%s:%d \(%s\)`, svc.Address, svc.Ports[0], svc.Protocol)
 		if hostPortBinding, ok := s.Podman.GetHostPortBinding(svc.Address); ok {
-			hostIp := utils.DefaultStr(hostPortBinding.HostIp, `\*`)
+			hostIp := utils.DefaultStr(hostPortBinding.HostIp, `(\*|0\.0\.0\.0)`)
 			var portMapping string
 			var portMappingPrefix string
 			for svcPort, hostPort := range hostPortBinding.HostPorts {
