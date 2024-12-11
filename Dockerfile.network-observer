@@ -13,7 +13,7 @@ COPY . .
 ENV CGO_ENABLED=0
 RUN make GOARCH=$TARGETARCH build-network-observer
 
-FROM --platform=$BUILDPLATFORM node:20.0.0 AS console-builder
+FROM --platform=$BUILDPLATFORM node:20.9.0 AS console-builder
 
 WORKDIR /skupper-console/
 ADD https://github.com/skupperproject/skupper-console/archive/v2.tar.gz .
