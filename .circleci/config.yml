@@ -3,6 +3,7 @@ orbs:
     docker: circleci/docker@1.0.1
     kube-orb: circleci/kubernetes@0.11.0
     go: circleci/go@1.7.1
+    helm: circleci/helm@3.1.0
 
 executors:
   go_cimg:
@@ -203,6 +204,22 @@ jobs:
           paths:
             - skupper-manifest
 
+  generate-skupper-setup:
+    executor:
+      name: go_cimg
+    steps:
+      - checkout
+      - go/mod-download-cached
+      - helm/install
+      - run: make generate-skupper-deployment-cluster-scoped
+      - run: make generate-skupper-deployment-namespace-scoped
+      - run: mkdir skupper-setup
+      - run: cp ./skupper-setup-*-scope.yaml skupper-setup
+      - persist_to_workspace:
+          root: .
+          paths:
+            - skupper-setup
+
   build-oci-images:
     executor: local_cluster_test_executor
     parameters:
@@ -341,6 +358,7 @@ jobs:
             done
             cd ${BASEDIR}
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
+            cp "${BASEDIR}/skupper-setup/*.yaml" "${BASEDIR}/archives"
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
 
   publish-github-prerelease-artifacts:

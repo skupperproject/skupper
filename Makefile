@@ -119,6 +119,12 @@ generate-doc: build-doc-generator
 update-helm-crd:
 	./scripts/update-helm-crds.sh
 
+generate-skupper-deployment-cluster-scoped:
+	helm template ./charts/skupper-setup  --include-crds --set scope=cluster > skupper-setup-cluster-scope.yaml
+
+generate-skupper-deployment-namespace-scoped:
+	helm template ./charts/skupper-setup  --include-crds --set scope=namespace > skupper-setup-namespace-scope.yaml
+
 clean:
 	rm -rf skupper controller kube-adaptor \
 		network-observer generate-doc \
