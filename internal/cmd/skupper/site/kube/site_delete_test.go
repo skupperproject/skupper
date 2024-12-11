@@ -1,10 +1,11 @@
 package kube
 
 import (
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 	"time"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 
@@ -251,6 +252,7 @@ func TestCmdSiteDelete_InputToOptions(t *testing.T) {
 		flags           *common.CommandSiteDeleteFlags
 		expectedTimeout time.Duration
 		expectedWait    bool
+		expectedAll     bool
 	}
 
 	testTable := []test{
@@ -264,6 +266,11 @@ func TestCmdSiteDelete_InputToOptions(t *testing.T) {
 			flags:        &common.CommandSiteDeleteFlags{Wait: true},
 			expectedWait: true,
 		},
+		{
+			name:        "all site resources",
+			flags:       &common.CommandSiteDeleteFlags{All: true},
+			expectedAll: true,
+		},
 	}
 
 	for _, test := range testTable {
@@ -276,6 +283,7 @@ func TestCmdSiteDelete_InputToOptions(t *testing.T) {
 
 			assert.Check(t, command.timeout == test.expectedTimeout)
 			assert.Check(t, command.wait == test.expectedWait)
+			assert.Check(t, command.all == test.expectedAll)
 		})
 	}
 }
@@ -288,6 +296,7 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 		skupperError   string
 		siteName       string
 		errorMessage   string
+		all            bool
 	}
 
 	testTable := []test{
@@ -327,6 +336,101 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 			siteName:       "my-site",
 			errorMessage:   "sites.skupper.io \"my-site\" not found",
 		},
+		{
+			name:       "deletes all",
+			all:        true,
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-site",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
+						},
+					},
+				},
+				&v2alpha1.AccessGrant{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-token",
+						Namespace: "test",
+					},
+				},
+				&v2alpha1.AccessToken{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-token",
+						Namespace: "test",
+					},
+				},
+				&v2alpha1.Connector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-connector",
+						Namespace: "test",
+					},
+				},
+				&v2alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-listener",
+						Namespace: "test",
+					},
+				},
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "the-site",
+						Namespace: "test",
+					},
+				},
+				&v2alpha1.Certificate{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "link-test",
+						Namespace: "test",
+					},
+				},
+				&v2alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-link",
+						Namespace: "test",
+					},
+				},
+				&v2alpha1.AttachedConnectorBinding{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-attachedConnectorBinding",
+						Namespace: "test",
+					},
+				},
+				&v2alpha1.AttachedConnector{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-attachedConnector",
+						Namespace: "test",
+					},
+				},
+				&v2alpha1.RouterAccess{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-routerAccess",
+						Namespace: "test",
+					},
+				},
+				&v2alpha1.SecuredAccess{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "my-securedAccess",
+						Namespace: "test",
+					},
+				},
+			},
+			skupperError: "",
+			siteName:     "my-site",
+		},
 	}
 
 	for _, test := range testTable {
@@ -337,7 +441,7 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 		assert.Assert(t, err)
 		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
-
+		command.all = test.all
 		command.siteName = test.siteName
 
 		t.Run(test.name, func(t *testing.T) {

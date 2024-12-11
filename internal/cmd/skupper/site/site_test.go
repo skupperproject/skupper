@@ -1,12 +1,13 @@
 package site
 
 import (
+	"testing"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
-	"testing"
 )
 
 func TestCmdSiteFactory(t *testing.T) {
@@ -51,6 +52,7 @@ func TestCmdSiteFactory(t *testing.T) {
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameTimeout: "1m0s",
 				common.FlagNameWait:    "true",
+				common.FlagNameAll:     "false",
 			},
 			command: CmdSiteDeleteFactory(types.PlatformKubernetes),
 		},
