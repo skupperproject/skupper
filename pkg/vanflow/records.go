@@ -292,11 +292,13 @@ func (r TransportBiflowRecord) GetTypeMeta() TypeMeta {
 
 type AppBiflowRecord struct {
 	BaseRecord
-	Parent   *string `vflow:"2"`
-	Protocol *string `vflow:"16"`
-	Latency  *uint64 `vflow:"24"`
-	Method   *string `vflow:"27"`
-	Result   *string `vflow:"28"`
+	Parent        *string `vflow:"2"`
+	Protocol      *string `vflow:"16"`
+	Latency       *uint64 `vflow:"24"`
+	Method        *string `vflow:"27"`
+	Result        *string `vflow:"28"`
+	Octets        *uint64 `vflow:"23"`
+	OctetsReverse *uint64 `vflow:"58"`
 }
 
 func (r AppBiflowRecord) GetTypeMeta() TypeMeta {

@@ -1378,6 +1378,8 @@ components:
             - status
             - traceRouters
             - traceSites
+            - octets
+            - octetsReverse
           properties:
             connectionId:
               type: string
@@ -1412,6 +1414,12 @@ components:
             status:
               type: string
               example: 200
+            octets:
+              type: integer
+              format: uint64
+            octetsReverse:
+              type: integer
+              format: uint64
             traceRouters:
               type: array
               description: Ordered array of the names of routers involved in proxying the connection

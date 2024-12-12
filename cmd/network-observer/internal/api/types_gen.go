@@ -114,6 +114,8 @@ type ApplicationFlowRecord struct {
 	// Identity The unique identifier for the record.
 	Identity          string `json:"identity"`
 	Method            string `json:"method"`
+	Octets            uint64 `json:"octets"`
+	OctetsReverse     uint64 `json:"octetsReverse"`
 	Protocol          string `json:"protocol"`
 	RoutingKey        string `json:"routingKey"`
 	SourceProcessId   string `json:"sourceProcessId"`
