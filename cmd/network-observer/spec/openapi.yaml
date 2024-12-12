@@ -13,7 +13,7 @@ info:
   version: 0.0.1
 
 paths:
-  /api/v1alpha1/sites/:
+  /api/v1alpha1/sites:
     get:
       tags: [site]
       operationId: sites
@@ -22,7 +22,7 @@ paths:
           $ref: '#/components/responses/getSites'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/sites/{id}/:
+  /api/v1alpha1/sites/{id}:
     get:
       tags: [site]
       operationId: siteById
@@ -33,7 +33,7 @@ paths:
           $ref: '#/components/responses/getSiteByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/processes/:
+  /api/v1alpha1/processes:
     get:
       tags: [process]
       operationId: processes
@@ -42,7 +42,7 @@ paths:
           $ref: '#/components/responses/getProcesses'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/processes/{id}/:
+  /api/v1alpha1/processes/{id}:
     get:
       tags: [process]
       operationId: processById
@@ -53,7 +53,7 @@ paths:
           $ref: '#/components/responses/getProcessByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/routers/:
+  /api/v1alpha1/routers:
     get:
       tags: [router]
       operationId: routers
@@ -62,7 +62,7 @@ paths:
           $ref: '#/components/responses/getRouters'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/routers/{id}/:
+  /api/v1alpha1/routers/{id}:
     get:
       tags: [router]
       operationId: routerByID
@@ -73,7 +73,7 @@ paths:
           $ref: '#/components/responses/getRouterByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/listeners/:
+  /api/v1alpha1/listeners:
     get:
       tags: [listener]
       operationId: listeners
@@ -82,7 +82,7 @@ paths:
           $ref: '#/components/responses/getListeners'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/listeners/{id}/:
+  /api/v1alpha1/listeners/{id}:
     get:
       tags: [listener]
       operationId: listenerByID
@@ -93,7 +93,7 @@ paths:
           $ref: '#/components/responses/getListenerByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/connectors/:
+  /api/v1alpha1/connectors:
     get:
       tags: [connector]
       operationId: connectors
@@ -102,7 +102,7 @@ paths:
           $ref: '#/components/responses/getConnectors'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/connectors/{id}/:
+  /api/v1alpha1/connectors/{id}:
     get:
       tags: [connector]
       operationId: connectorByID
@@ -113,7 +113,7 @@ paths:
           $ref: '#/components/responses/getConnectorByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/addresses/:
+  /api/v1alpha1/addresses:
     get:
       tags: [address]
       operationId: addresses
@@ -122,7 +122,7 @@ paths:
           $ref: '#/components/responses/getAddresses'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/addresses/{id}/:
+  /api/v1alpha1/addresses/{id}:
     get:
       tags: [address]
       operationId: addressByID
@@ -133,7 +133,7 @@ paths:
           $ref: '#/components/responses/getAddressByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/processgroups/:
+  /api/v1alpha1/processgroups:
     get:
       tags: ["process group"]
       operationId: processgroups
@@ -142,7 +142,7 @@ paths:
           $ref: '#/components/responses/getProcessGroups'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/processgroups/{id}/:
+  /api/v1alpha1/processgroups/{id}:
     get:
       tags: ["process group"]
       operationId: processgroupByID
@@ -153,7 +153,7 @@ paths:
           $ref: '#/components/responses/getProcessGroupByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/sitepairs/:
+  /api/v1alpha1/sitepairs:
     get:
       tags: ["flow aggregate"]
       operationId: sitepairs
@@ -162,7 +162,7 @@ paths:
           $ref: '#/components/responses/getFlowAggregates'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/sitepairs/{id}/:
+  /api/v1alpha1/sitepairs/{id}:
     get:
       tags: ["flow aggregate"]
       operationId: sitepairByID
@@ -173,7 +173,7 @@ paths:
           $ref: '#/components/responses/getFlowAggregateByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/processgrouppairs/:
+  /api/v1alpha1/processgrouppairs:
     get:
       tags: ["flow aggregate"]
       operationId: processgrouppairs
@@ -182,7 +182,7 @@ paths:
           $ref: '#/components/responses/getFlowAggregates'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/processgrouppairs/{id}/:
+  /api/v1alpha1/processgrouppairs/{id}:
     get:
       tags: ["flow aggregate"]
       operationId: processgrouppairByID
@@ -193,7 +193,7 @@ paths:
           $ref: '#/components/responses/getFlowAggregateByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/processpairs/:
+  /api/v1alpha1/processpairs:
     get:
       tags: ["flow aggregate"]
       operationId: processpairs
@@ -202,7 +202,7 @@ paths:
           $ref: '#/components/responses/getFlowAggregates'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/processpairs/{id}/:
+  /api/v1alpha1/processpairs/{id}:
     get:
       tags: ["flow aggregate"]
       operationId: processpairByID
@@ -213,7 +213,7 @@ paths:
           $ref: '#/components/responses/getFlowAggregateByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/routerlinks/:
+  /api/v1alpha1/routerlinks:
     get:
       tags: [link]
       operationId: routerlinks
@@ -222,7 +222,7 @@ paths:
           $ref: '#/components/responses/getRouterLinks'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/routerlinks/{id}/:
+  /api/v1alpha1/routerlinks/{id}:
     get:
       tags: [link]
       operationId: routerlinkByID
@@ -233,7 +233,7 @@ paths:
           $ref: '#/components/responses/getRouterLinkByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/routeraccess/:
+  /api/v1alpha1/routeraccess:
     get:
       tags: [link]
       operationId: routeraccess
@@ -242,7 +242,7 @@ paths:
           $ref: '#/components/responses/getRouterAccess'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/routeraccess/{id}/:
+  /api/v1alpha1/routeraccess/{id}:
     get:
       tags: [link]
       operationId: routeraccessByID
@@ -253,7 +253,7 @@ paths:
           $ref: '#/components/responses/getRouterAccessByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/links/:
+  /api/v1alpha1/links:
     get:
       tags: [link]
       deprecated: true
@@ -263,7 +263,7 @@ paths:
           $ref: '#/components/responses/getLinks'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/links/{id}/:
+  /api/v1alpha1/links/{id}:
     get:
       tags: [link]
       deprecated: true
@@ -275,7 +275,7 @@ paths:
           $ref: '#/components/responses/getLinkByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/hosts/:
+  /api/v1alpha1/hosts:
     get:
       tags: [deprecated]
       deprecated: true
@@ -283,7 +283,7 @@ paths:
       responses:
         '410':
           $ref: '#/components/responses/notSupported'
-  /api/v1alpha1/hosts/{id}/:
+  /api/v1alpha1/hosts/{id}:
     get:
       tags: [deprecated]
       deprecated: true
@@ -295,14 +295,14 @@ paths:
           $ref: '#/components/responses/notSupported'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/connections/:
+  /api/v1alpha1/connections:
     get:
       tags: [flows]
       operationId: connections
       responses:
         '200':
           $ref: '#/components/responses/getConnections'
-  /api/v1alpha1/applicationflows/:
+  /api/v1alpha1/applicationflows:
     get:
       tags: [flows]
       operationId: applicationflows
@@ -310,7 +310,7 @@ paths:
         '200':
           $ref: '#/components/responses/getApplicationFlows'
 
-  /api/v1alpha1/sites/{id}/processes/:
+  /api/v1alpha1/sites/{id}/processes:
     get:
       tags: [site, process]
       operationId: processesBySite
@@ -321,7 +321,7 @@ paths:
           $ref: '#/components/responses/getProcesses'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/sites/{id}/routers/:
+  /api/v1alpha1/sites/{id}/routers:
     get:
       tags: [site, router]
       operationId: routersBySite
@@ -332,7 +332,7 @@ paths:
           $ref: '#/components/responses/getRouters'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/sites/{id}/hosts/:
+  /api/v1alpha1/sites/{id}/hosts:
     get:
       tags: [site]
       operationId: hostsBySite
@@ -342,7 +342,7 @@ paths:
       responses:
         '410':
           $ref: '#/components/responses/notSupported'
-  /api/v1alpha1/sites/{id}/links/:
+  /api/v1alpha1/sites/{id}/links:
     get:
       tags: [site]
       operationId: linksBySite
@@ -352,7 +352,7 @@ paths:
       responses:
         '410':
           $ref: '#/components/responses/notSupported'
-  /api/v1alpha1/routers/{id}/links/:
+  /api/v1alpha1/routers/{id}/links:
     get:
       tags: [router]
       operationId: linksByRouter
@@ -362,7 +362,7 @@ paths:
       responses:
         '410':
           $ref: '#/components/responses/notSupported'
-  /api/v1alpha1/addresses/{id}/processes/:
+  /api/v1alpha1/addresses/{id}/processes:
     get:
       tags: [address, process]
       operationId: processesByAddress
@@ -373,7 +373,7 @@ paths:
           $ref: '#/components/responses/getProcesses'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v1alpha1/addresses/{id}/processpairs/:
+  /api/v1alpha1/addresses/{id}/processpairs:
     get:
       tags: [address, "flow aggregate"]
       operationId: processPairsByAddress
@@ -384,7 +384,7 @@ paths:
           $ref: '#/components/responses/getFlowAggregates'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v1alpha1/addresses/{id}/connections/:
+  /api/v1alpha1/addresses/{id}/connections:
     get:
       tags: [address, flows]
       operationId: connectionsByAddress
