@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
+	"regexp"
 
 	"github.com/skupperproject/skupper/pkg/flow"
 )
@@ -225,4 +229,71 @@ func (c *Controller) promqueryrangeHandler(w http.ResponseWriter, r *http.Reques
 	if _, err := io.Copy(w, proxyResp.Body); err != nil {
 		log.Printf("COLLECTOR: rangequery proxy response write error: %s", err.Error())
 	}
+}
+
+func noAuth(h http.HandlerFunc) http.HandlerFunc {
+	return h
+}
+
+// basicAuthHandler handles basic auth for multiple users.
+type basicAuthHandler map[string]string
+
+func newBasicAuthHandler(root string) (basicAuthHandler, error) {
+	basicUsers := make(basicAuthHandler)
+
+	// Restrict usernames to files begining with an alphanumeric character
+	// Omits hidden files
+	fileRexp := regexp.MustCompile(`^[a-zA-Z0-9].*$`)
+
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return basicUsers, err
+	}
+	var buf bytes.Buffer
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		username := entry.Name()
+
+		if !fileRexp.MatchString(username) {
+			continue
+		}
+		path := filepath.Join(root, username)
+		f, err := os.Open(path)
+		if err != nil {
+			log.Printf("COLLECTOR: basic auth file open %q error: %s", path, err.Error())
+			continue
+		}
+		defer f.Close()
+
+		buf.Reset()
+		if _, err := io.Copy(&buf, f); err != nil {
+			log.Printf("COLLECTOR: basic auth file read %q error: %s", path, err.Error())
+			continue
+		}
+
+		basicUsers[username] = buf.String()
+	}
+	return basicUsers, nil
+}
+
+func (h basicAuthHandler) HandlerFunc(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, password, ok := r.BasicAuth()
+
+		if ok && h.check(user, password) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		w.Header().Set("WWW-Authenticate", "Basic realm=skupper")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	})
+}
+
+func (h basicAuthHandler) check(user, given string) bool {
+	if required, ok := h[user]; ok {
+		return given == required
+	}
+	return false
 }
