@@ -92,15 +92,15 @@ func (cmd *CmdListenerStatus) Run() error {
 			}
 		} else {
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
-			_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s",
-				"NAME", "STATUS", "ROUTING-KEY", "HOST", "PORT", "TLS-CREDENTIALS"))
+			_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s",
+				"NAME", "STATUS", "ROUTING-KEY", "HOST", "PORT"))
 			for _, listener := range listeners {
 				status := "Not Ready"
 				if listener.IsConfigured() {
 					status = "Ok"
 				}
-				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%d\t%s",
-					listener.Name, status, listener.Spec.RoutingKey, listener.Spec.Host, listener.Spec.Port, listener.Spec.TlsCredentials))
+				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%d",
+					listener.Name, status, listener.Spec.RoutingKey, listener.Spec.Host, listener.Spec.Port))
 			}
 			_ = tw.Flush()
 		}

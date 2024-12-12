@@ -122,8 +122,8 @@ func (cmd *CmdConnectorStatus) Run() error {
 				status = "Ok"
 			}
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
-			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nHost:\t%s\nPort:\t%d\n",
-				connector.Name, status, connector.Spec.RoutingKey, connector.Spec.Host, connector.Spec.Port))
+			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nHost:\t%s\nPort:\t%d\nTlsCredentials:\t%s",
+				connector.Name, status, connector.Spec.RoutingKey, connector.Spec.Host, connector.Spec.Port, connector.Spec.TlsCredentials))
 			_ = tw.Flush()
 		}
 	}

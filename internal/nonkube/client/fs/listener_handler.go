@@ -48,7 +48,7 @@ func (s *ListenerHandler) Get(name string, opts GetOptions) (*v2alpha1.Listener,
 		err, file := s.ReadFile(s.pathProvider.GetRuntimeNamespace(), fileName, common.Listeners)
 		if err != nil {
 			if opts.LogWarning {
-				os.Stderr.WriteString("Site not initialized yet")
+				os.Stderr.WriteString("Site not initialized yet\n")
 			}
 			err, file = s.ReadFile(s.pathProvider.GetNamespace(), fileName, common.Listeners)
 			if err != nil {
@@ -93,7 +93,7 @@ func (s *ListenerHandler) List() ([]*v2alpha1.Listener, error) {
 	path := s.pathProvider.GetRuntimeNamespace()
 	err, files := s.ReadDir(path, common.Listeners)
 	if err != nil {
-		os.Stderr.WriteString("Site not initialized yet")
+		os.Stderr.WriteString("Site not initialized yet\n")
 		path = s.pathProvider.GetNamespace()
 		err, files = s.ReadDir(path, common.Listeners)
 		if err != nil {
