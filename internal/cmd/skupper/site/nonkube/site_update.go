@@ -55,6 +55,10 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) []error {
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	hostStringValidator := validator.NewHostStringValidator()
 
+	if cmd.Flags.ServiceAccount != "" {
+		fmt.Println("Warning: --service-account flag is not supported on this platform")
+	}
+
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
 		fmt.Println("Warning: --context flag is not supported on this platform")
 	}
