@@ -4,16 +4,13 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"path"
 	"strconv"
 	"syscall"
 	"time"
@@ -55,8 +52,13 @@ type UserResponse struct {
 	AuthMode string `json:"authType"`
 }
 
-var onlyOneSignalHandler = make(chan struct{})
-var shutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
+var (
+	// authenticated made variable to be swapped out at startup
+	authenticated func(next http.HandlerFunc) http.HandlerFunc = noAuth
+
+	onlyOneSignalHandler = make(chan struct{})
+	shutdownSignals      = []os.Signal{os.Interrupt, syscall.SIGTERM}
+)
 
 func getConnectInfo(file string) (connectJson, error) {
 	cj := connectJson{}
@@ -100,46 +102,6 @@ func cors(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,DELETE")
 		next.ServeHTTP(w, r)
 	})
-}
-
-func authenticate(dir string, user string, password string) bool {
-	filename := path.Join(dir, user)
-	file, err := os.Open(filename)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			log.Printf("COLLECTOR: Failed to authenticate %s, no such user exists", user)
-		} else {
-			log.Printf("COLLECTOR: Failed to authenticate %s: %s", user, err)
-		}
-		return false
-	}
-	defer file.Close()
-
-	bytes, err := io.ReadAll(file)
-	if err != nil {
-		log.Printf("COLLECTOR: Failed to authenticate %s: %s", user, err)
-		return false
-	}
-	return string(bytes) == password
-}
-
-func authenticated(h http.HandlerFunc) http.HandlerFunc {
-	dir := os.Getenv("FLOW_USERS")
-
-	if dir != "" {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user, password, ok := r.BasicAuth()
-
-			if ok && authenticate(dir, user, password) {
-				h.ServeHTTP(w, r)
-			} else {
-				w.Header().Set("WWW-Authenticate", "Basic realm=skupper")
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			}
-		})
-	} else {
-		return h
-	}
 }
 
 func getOpenshiftUser(r *http.Request) UserResponse {
@@ -208,6 +170,20 @@ func internalLogout(w http.ResponseWriter, r *http.Request, validNonces map[stri
 	http.Error(w, "Unauthorized", http.StatusUnauthorized)
 }
 
+func configureAuth() error {
+	root := os.Getenv("FLOW_USERS")
+	if root == "" {
+		return nil
+	}
+	log.Printf("COLLECTOR: Configuring basic auth handler from %q \n", root)
+	basic, err := newBasicAuthHandler(root)
+	if err != nil {
+		return err
+	}
+	authenticated = basic.HandlerFunc
+	return nil
+}
+
 func main() {
 	flags := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	// if -version used, report and exit
@@ -219,7 +195,6 @@ func main() {
 		fmt.Println(version.Version)
 		os.Exit(0)
 	}
-
 	// Startup message
 	log.Printf("COLLECTOR: Starting Skupper Flow collector controller version %s \n", version.Version)
 
@@ -295,6 +270,10 @@ func main() {
 		if flowUsers != "" {
 			authMode = types.ConsoleAuthModeInternal
 		}
+	}
+
+	if err := configureAuth(); err != nil {
+		log.Fatalf("unrecoverable error setting up authentication: %s", err)
 	}
 
 	tlsConfig := certs.GetTlsConfigRetriever(true, types.ControllerConfigPath+"tls.crt", types.ControllerConfigPath+"tls.key", types.ControllerConfigPath+"ca.crt")
