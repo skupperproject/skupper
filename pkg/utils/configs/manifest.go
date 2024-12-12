@@ -22,8 +22,9 @@ type Manifest struct {
 }
 
 type ManifestManager struct {
-	EnableSHA  bool
-	Components []string
+	EnableSHA   bool
+	Components  []string
+	RunningPods map[string]string
 }
 
 type ManifestGenerator interface {
@@ -32,7 +33,7 @@ type ManifestGenerator interface {
 }
 
 func (manager *ManifestManager) GetConfiguredManifest() SkupperManifest {
-	return getSkupperConfiguredImages(manager.Components, manager.EnableSHA)
+	return getSkupperConfiguredImages(manager.Components, manager.EnableSHA, manager.RunningPods)
 }
 
 func (manager *ManifestManager) GetDefaultManifestWithEnv() Manifest {
@@ -42,14 +43,14 @@ func (manager *ManifestManager) GetDefaultManifestWithEnv() Manifest {
 	}
 }
 
-func getSkupperConfiguredImages(components []string, enableSHA bool) SkupperManifest {
+func getSkupperConfiguredImages(components []string, enableSHA bool, runningPods map[string]string) SkupperManifest {
 	var manifest SkupperManifest
 
 	for _, component := range components {
 		var image SkupperComponent
 		image.Component = component
-		image.Version = images.GetImageVersion(component)
-		image.Images = images.GetImages(component, enableSHA)
+		image.Version = images.GetImageVersion(component, runningPods)
+		image.Images = images.GetImages(component, enableSHA, runningPods)
 		manifest.Components = append(manifest.Components, image)
 	}
 
@@ -62,8 +63,8 @@ func getSkupperDefaultImages() SkupperManifest {
 	for _, component := range images.DefaultComponents {
 		var image SkupperComponent
 		image.Component = component
-		image.Version = images.GetImageVersion(component)
-		image.Images = images.GetImages(component, false)
+		image.Version = images.GetImageVersion(component, map[string]string{})
+		image.Images = images.GetImages(component, false, map[string]string{})
 		manifest.Components = append(manifest.Components, image)
 	}
 

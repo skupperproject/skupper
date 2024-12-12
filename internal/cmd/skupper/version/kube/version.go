@@ -1,7 +1,9 @@
 package kube
 
 import (
+	"context"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"text/tabwriter"
 
@@ -38,6 +40,7 @@ func (cmd *CmdVersion) NewClient(cobraCommand *cobra.Command, args []string) {
 
 	if err == nil {
 		cmd.namespace = cli.Namespace
+		cmd.KubeClient = cli.GetKubeClient()
 	}
 }
 
@@ -58,10 +61,27 @@ func (cmd *CmdVersion) ValidateInput(args []string) []error {
 }
 
 func (cmd *CmdVersion) InputToOptions() {
+
+	mapRunningPods := make(map[string]string)
+
+	if cmd.KubeClient != nil {
+		// search for running pods in all namespaces
+		runningPodList, err := cmd.KubeClient.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{LabelSelector: "app.kubernetes.io/part-of=skupper"})
+		if err != nil {
+			return
+		}
+
+		for _, runningPod := range runningPodList.Items {
+			for _, container := range runningPod.Status.ContainerStatuses {
+				mapRunningPods[container.Name] = container.Image
+			}
+		}
+	}
+
 	if cmd.output != "" {
-		cmd.manifest = configs.ManifestManager{Components: images.KubeComponents, EnableSHA: true}
+		cmd.manifest = configs.ManifestManager{Components: images.KubeComponents, EnableSHA: true, RunningPods: mapRunningPods}
 	} else {
-		cmd.manifest = configs.ManifestManager{Components: images.KubeComponents, EnableSHA: false}
+		cmd.manifest = configs.ManifestManager{Components: images.KubeComponents, EnableSHA: false, RunningPods: mapRunningPods}
 	}
 
 }
