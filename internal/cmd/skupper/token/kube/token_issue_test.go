@@ -34,6 +34,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				RedemptionsAllowed: 1,
 				Timeout:            60 * time.Second,
 				Name:               "my-token",
+				Cost:               "1",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.SiteList{
@@ -94,6 +95,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				ExpirationWindow:   15 * time.Minute,
 				RedemptionsAllowed: 1,
 				Timeout:            60 * time.Second,
+				Cost:               "1",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.AccessGrant{
@@ -122,6 +124,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				ExpirationWindow:   15 * time.Minute,
 				RedemptionsAllowed: 1,
 				Timeout:            60 * time.Second,
+				Cost:               "1",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.SiteList{
@@ -153,6 +156,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				ExpirationWindow:   15 * time.Minute,
 				RedemptionsAllowed: 1,
 				Timeout:            60 * time.Second,
+				Cost:               "1",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.SiteList{
@@ -193,6 +197,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				ExpirationWindow:   15 * time.Minute,
 				RedemptionsAllowed: 1,
 				Timeout:            60 * time.Second,
+				Cost:               "1",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.SiteList{
@@ -233,6 +238,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				ExpirationWindow:   15 * time.Minute,
 				RedemptionsAllowed: 1,
 				Timeout:            60 * time.Second,
+				Cost:               "1",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.SiteList{
@@ -274,6 +280,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				RedemptionsAllowed: 1,
 				Timeout:            60 * time.Second,
 				Name:               "my new token",
+				Cost:               "1",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.SiteList{
@@ -314,6 +321,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				ExpirationWindow:   15 * time.Minute,
 				RedemptionsAllowed: 1,
 				Timeout:            60 * time.Second,
+				Cost:               "1",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.SiteList{
@@ -354,6 +362,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				ExpirationWindow:   15 * time.Minute,
 				RedemptionsAllowed: 0,
 				Timeout:            60 * time.Second,
+				Cost:               "1",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.SiteList{
@@ -395,6 +404,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				ExpirationWindow:   10 * time.Second,
 				RedemptionsAllowed: 1,
 				Timeout:            10 * time.Second,
+				Cost:               "1",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.SiteList{
@@ -435,6 +445,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				ExpirationWindow:   15 * time.Minute,
 				RedemptionsAllowed: 1,
 				Timeout:            0 * time.Second,
+				Cost:               "1",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.SiteList{
@@ -469,12 +480,55 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 0s"},
 		},
 		{
+			name: "cost is not valid",
+			args: []string{"~/token.yaml"},
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
+				Cost:               "Not-valid",
+			},
+			skupperObjects: []runtime.Object{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "site1",
+								Namespace: "test",
+							},
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
+											Status: "True",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedErrors: []string{
+				`link cost is not valid: strconv.Atoi: parsing "Not-valid": invalid syntax`},
+		},
+		{
 			name: "flags all valid",
 			args: []string{"~/token.yaml"},
 			flags: common.CommandTokenIssueFlags{
 				ExpirationWindow:   15 * time.Minute,
 				RedemptionsAllowed: 1,
 				Timeout:            60 * time.Second,
+				Cost:               "5",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.SiteList{
@@ -569,6 +623,7 @@ func TestCmdTokenIssue_Run(t *testing.T) {
 				ExpirationWindow:   20 * time.Minute,
 				RedemptionsAllowed: 2,
 				Timeout:            60 * time.Second,
+				Cost:               "5",
 			},
 			skupperObjects: []runtime.Object{
 				&v2alpha1.AccessGrant{
