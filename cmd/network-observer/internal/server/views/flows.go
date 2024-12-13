@@ -26,6 +26,7 @@ func NewConnectionsSliceProvider(stor store.Interface) func([]store.Entry) []api
 		return results
 	}
 }
+
 func NewConnectionsProvider(stor store.Interface) func(collector.ConnectionRecord) (api.ConnectionRecord, bool) {
 	traceProvider := newTraceProvider(stor)
 	return func(conn collector.ConnectionRecord) (api.ConnectionRecord, bool) {
@@ -199,6 +200,8 @@ func NewRequestProvider(stor store.Interface) func(collector.RequestRecord) (api
 		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
 		setOpt(&out.Method, record.Method)
 		setOpt(&out.Status, record.Result)
+		setOpt(&out.Octets, record.Octets)
+		setOpt(&out.OctetsReverse, record.OctetsReverse)
 
 		if record.EndTime != nil && record.StartTime != nil && record.EndTime.After(record.StartTime.Time) {
 			if record.EndTime != nil && record.StartTime != nil {
