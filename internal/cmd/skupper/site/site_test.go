@@ -27,7 +27,7 @@ func TestCmdSiteFactory(t *testing.T) {
 				common.FlagNameServiceAccount:          "",
 				common.FlagNameOutput:                  "",
 				common.FlagNameTimeout:                 "30s",
-				common.FlagNameBindHost:                "",
+				common.FlagNameBindHost:                "0.0.0.0",
 				common.FlagNameSubjectAlternativeNames: "[]",
 				common.FlagNameWait:                    "ready",
 			},
@@ -57,9 +57,11 @@ func TestCmdSiteFactory(t *testing.T) {
 			command: CmdSiteDeleteFactory(types.PlatformKubernetes),
 		},
 		{
-			name:                          "CmdSiteStatusFactory",
-			expectedFlagsWithDefaultValue: map[string]interface{}{},
-			command:                       CmdSiteStatusFactory(types.PlatformKubernetes),
+			name: "CmdSiteStatusFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameOutput: "",
+			},
+			command: CmdSiteStatusFactory(types.PlatformKubernetes),
 		},
 	}
 

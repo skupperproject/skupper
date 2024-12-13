@@ -2,12 +2,23 @@ package nonkube
 
 import (
 	"fmt"
+	"os"
+	"text/tabwriter"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 )
 
 type CmdSiteStatus struct {
-	CobraCmd  *cobra.Command
-	Namespace string
+	siteHandler *fs.SiteHandler
+	CobraCmd    *cobra.Command
+	Flags       *common.CommandSiteStatusFlags
+	namespace   string
+	siteName    string
+	output      string
 }
 
 func NewCmdSiteStatus() *CmdSiteStatus {
@@ -15,12 +26,89 @@ func NewCmdSiteStatus() *CmdSiteStatus {
 }
 
 func (cmd *CmdSiteStatus) NewClient(cobraCommand *cobra.Command, args []string) {
-	//TODO
+	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace) != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String() != "" {
+		cmd.namespace = cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String()
+	}
+
+	cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
 }
 
-func (cmd *CmdSiteStatus) ValidateInput(args []string) []error { return nil }
-func (cmd *CmdSiteStatus) InputToOptions()                     {}
-func (cmd *CmdSiteStatus) Run() error {
-	return fmt.Errorf("command not supported by the selected platform")
+func (cmd *CmdSiteStatus) ValidateInput(args []string) []error {
+	var validationErrors []error
+	opts := fs.GetOptions{RuntimeFirst: true, LogWarning: false}
+	resourceStringValidator := validator.NewResourceStringValidator()
+	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
+
+	// Validate arguments name if specified
+	if len(args) > 1 {
+		validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
+	} else if len(args) == 1 {
+		if args[0] == "" {
+			validationErrors = append(validationErrors, fmt.Errorf("site name must not be empty"))
+		} else {
+			ok, err := resourceStringValidator.Evaluate(args[0])
+			if !ok {
+				validationErrors = append(validationErrors, fmt.Errorf("site name is not valid: %s", err))
+			} else {
+				cmd.siteName = args[0]
+			}
+		}
+	}
+	// Validate that there is a site with this name in the namespace
+	if cmd.siteName != "" {
+		site, err := cmd.siteHandler.Get(cmd.siteName, opts)
+		if site == nil || err != nil {
+			validationErrors = append(validationErrors, fmt.Errorf("site %s does not exist", cmd.siteName))
+		}
+	}
+
+	if cmd.Flags != nil && cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
+		} else {
+			cmd.output = cmd.Flags.Output
+		}
+	}
+
+	return validationErrors
 }
+
+func (cmd *CmdSiteStatus) Run() error {
+	sites, err := cmd.siteHandler.List()
+	if sites == nil || err != nil {
+		fmt.Println("no site found:")
+		return err
+	}
+
+	if cmd.output != "" {
+		for _, site := range sites {
+			encodedOutput, err := utils.Encode(cmd.output, site)
+			if err != nil {
+				return err
+			}
+			fmt.Println(encodedOutput)
+		}
+	} else {
+		writer := tabwriter.NewWriter(os.Stdout, 0, 8, 1, '\t', tabwriter.AlignRight)
+		fmt.Fprintln(writer, "NAME\tSTATUS\tMESSAGE")
+
+		for _, site := range sites {
+			status := "Not Ready"
+			if site.IsReady() {
+				status = "Ready"
+			} else if site.IsConfigured() {
+				status = "configured"
+			}
+
+			fmt.Fprintf(writer, "%s\t%s\t%s", site.Name, status, site.Status.Message)
+			fmt.Fprintln(writer)
+		}
+		writer.Flush()
+	}
+
+	return nil
+}
+
+func (cmd *CmdSiteStatus) InputToOptions()  {}
 func (cmd *CmdSiteStatus) WaitUntil() error { return nil }
