@@ -332,7 +332,7 @@ func (cmd *CmdConnectorUpdate) WaitUntil() error {
 	if err != nil && connectorCondition == nil {
 		return fmt.Errorf("Connector %q is not %s yet, check the status for more information\n", cmd.name, cmd.status)
 	} else if err != nil && connectorCondition.Status == metav1.ConditionFalse {
-		return fmt.Errorf("Connector %q is %s with errors, check the status for more information\n", cmd.name, cmd.status)
+		return fmt.Errorf("Connector %q has reached the status %s but its condition is not true yet, check the status for more information\n", cmd.name, cmd.status)
 	}
 
 	fmt.Printf("Connector %q is %s.\n", cmd.name, cmd.status)

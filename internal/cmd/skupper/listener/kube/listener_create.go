@@ -241,7 +241,7 @@ func (cmd *CmdListenerCreate) WaitUntil() error {
 	if err != nil && listenerCondition == nil {
 		return fmt.Errorf("Listener %q is not %s yet, check the status for more information\n", cmd.name, cmd.status)
 	} else if err != nil && listenerCondition.Status == metav1.ConditionFalse {
-		return fmt.Errorf("Listener %q is %s with errors, check the status for more information\n", cmd.name, cmd.status)
+		return fmt.Errorf("Listener %q has reached the status %s but its condition is not true yet, check the status for more information\n", cmd.name, cmd.status)
 	}
 
 	fmt.Printf("Listener %q is %s.\n", cmd.name, cmd.status)
