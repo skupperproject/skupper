@@ -65,7 +65,7 @@ func (cmd *CmdVersion) InputToOptions() {
 	mapRunningPods := make(map[string]string)
 
 	if cmd.KubeClient != nil {
-		// search for running pods in all namespaces
+		// search for running pods in the current namespace
 		runningPodList, err := cmd.KubeClient.CoreV1().Pods(cmd.namespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app.kubernetes.io/part-of in (skupper, skupper-network-observer)"})
 		if err != nil {
 			return
