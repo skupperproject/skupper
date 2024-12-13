@@ -460,13 +460,13 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 				},
 			},
 			expectError:  true,
-			errorMessage: "Listener \"my-listener\" is not ready yet, check the status for more information\n",
+			errorMessage: "Listener \"my-listener\" is not yet ready, check the status for more information\n",
 		},
 		{
 			name:         "listener is not returned",
 			status:       "ready",
 			expectError:  true,
-			errorMessage: "Listener \"my-listener\" is not ready yet, check the status for more information\n",
+			errorMessage: "Listener \"my-listener\" is not yet ready, check the status for more information\n",
 		},
 		{
 			name:   "listener is ready",
@@ -588,7 +588,7 @@ func TestCmdListenerUpdate_WaitUntil(t *testing.T) {
 				},
 			},
 			expectError:  true,
-			errorMessage: "Listener \"my-listener\" is configured with errors, check the status for more information\n",
+			errorMessage: "Listener \"my-listener\" is not yet configured: Error\n",
 		},
 	}
 

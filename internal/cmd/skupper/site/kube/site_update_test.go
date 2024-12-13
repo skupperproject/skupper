@@ -574,7 +574,7 @@ func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 			},
 			siteName:     "my-site",
 			skupperError: "",
-			errorMessage: "Site \"my-site\" is not ready yet, check the status for more information\n",
+			errorMessage: "Site \"my-site\" is not yet ready, check the status for more information\n",
 			expectError:  true,
 		},
 		{
@@ -662,7 +662,7 @@ func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
 			siteName:     "my-site",
 			skupperError: "",
 			expectError:  true,
-			errorMessage: "Site \"my-site\" is configured with errors, check the status for more information\n",
+			errorMessage: "Site \"my-site\" is not yet configured: Error\n",
 		},
 	}
 

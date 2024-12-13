@@ -244,9 +244,9 @@ func (cmd *CmdSiteUpdate) WaitUntil() error {
 	})
 
 	if err != nil && siteCondition == nil {
-		return fmt.Errorf("Site %q is not %s yet, check the status for more information\n", cmd.siteName, cmd.status)
+		return fmt.Errorf("Site %q is not yet %s, check the status for more information\n", cmd.siteName, cmd.status)
 	} else if err != nil && siteCondition.Status == metav1.ConditionFalse {
-		return fmt.Errorf("Site %q is %s with errors, check the status for more information\n", cmd.siteName, cmd.status)
+		return fmt.Errorf("Site %q is not yet %s: %s\n", cmd.siteName, cmd.status, siteCondition.Message)
 	}
 
 	fmt.Printf("Site %q is updated\n", cmd.siteName)
