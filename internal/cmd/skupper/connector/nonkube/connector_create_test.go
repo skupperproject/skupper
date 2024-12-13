@@ -79,6 +79,12 @@ func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
 			expectedErrors: []string{"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
 		},
 		{
+			name:           "TlsCredentials is not valid",
+			args:           []string{"my-connector-tls", "8080"},
+			flags:          &common.CommandConnectorCreateFlags{TlsCredentials: "not-valid$", Host: "1.2.3.4"},
+			expectedErrors: []string{"tlsCredentials value is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+		},
+		{
 			name:           "host is not valid",
 			args:           []string{"my-connector-host", "8080"},
 			flags:          &common.CommandConnectorCreateFlags{Host: "not-valid$"},
