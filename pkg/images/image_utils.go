@@ -225,7 +225,7 @@ func GetImage(imageNames map[string]string, imageRegistry string, enableSHA bool
 	return skupperImage
 }
 
-func GetImages(component string, enableSHA bool, runningPods map[string]string) []SkupperImage {
+func GetImages(component string, enableSHA bool) []SkupperImage {
 	//var names map[string]string
 	var registry string
 
@@ -233,37 +233,26 @@ func GetImages(component string, enableSHA bool, runningPods map[string]string) 
 	switch component {
 	case "router":
 		// skupper router has two components
-		runningImage := runningPods["router"]
 		envImage := os.Getenv(RouterImageEnvKey)
 
-		if runningImage != "" {
-			names[RouterImageEnvKey] = runningImage
-		} else if envImage != "" {
+		if envImage != "" {
 			names[RouterImageEnvKey] = envImage
 		} else {
 			names[RouterImageEnvKey] = RouterImageName
 			registry = GetImageRegistry()
 		}
 
-		// skupper router has two components
-		runningImage = runningPods["kube-adaptor"]
 		envImage = os.Getenv(AdaptorImageEnvKey)
-
-		if runningImage != "" {
-			names[AdaptorImageEnvKey] = runningImage
-		} else if envImage != "" {
+		if envImage != "" {
 			names[AdaptorImageEnvKey] = envImage
 		} else {
 			names[AdaptorImageEnvKey] = AdaptorImageName
 			registry = GetImageRegistry()
 		}
 	case "controller":
-		runningImage := runningPods["controller"]
 		envImage := os.Getenv(ControllerImageEnvKey)
 
-		if runningImage != "" {
-			names[ControllerImageEnvKey] = runningImage
-		} else if envImage != "" {
+		if envImage != "" {
 			names[ControllerImageEnvKey] = envImage
 		} else {
 			names[ControllerImageEnvKey] = ControllerImageName
@@ -272,12 +261,9 @@ func GetImages(component string, enableSHA bool, runningPods map[string]string) 
 
 	case "network-observer":
 
-		runningImage := runningPods["network-observer"]
 		envImage := os.Getenv(NetworkObserverImageEnvKey)
 
-		if runningImage != "" {
-			names[NetworkObserverImageEnvKey] = runningImage
-		} else if envImage != "" {
+		if envImage != "" {
 			names[NetworkObserverImageEnvKey] = envImage
 		} else {
 			names[NetworkObserverImageEnvKey] = NetworkObserverImageName
@@ -302,41 +288,34 @@ func GetImages(component string, enableSHA bool, runningPods map[string]string) 
 	}
 }
 
-func GetImageVersion(component string, runningPods map[string]string) string {
+func GetImageVersion(component string) string {
 	var image string
 
 	switch component {
 	case "router":
-		runningImage := runningPods["router"]
 		envImage := os.Getenv(RouterImageEnvKey)
 
-		if runningImage != "" {
-			image = runningImage
-		} else if envImage != "" {
+		if envImage != "" {
 			image = envImage
 		} else {
 			image = RouterImageName
 		}
 
 	case "controller":
-		runningImage := runningPods["controller"]
+
 		envImage := os.Getenv(ControllerImageEnvKey)
 
-		if runningImage != "" {
-			image = runningImage
-		} else if envImage != "" {
+		if envImage != "" {
 			image = envImage
 		} else {
 			image = ControllerImageName
 		}
 
 	case "network-observer":
-		runningImage := runningPods["network-observer"]
+
 		envImage := os.Getenv(NetworkObserverImageEnvKey)
 
-		if runningImage != "" {
-			image = runningImage
-		} else if envImage != "" {
+		if envImage != "" {
 			image = envImage
 		} else {
 			image = NetworkObserverImageName
@@ -358,10 +337,15 @@ func GetImageVersion(component string, runningPods map[string]string) string {
 		}
 	}
 	if image != "" {
-		parts := strings.Split(image, ":")
-		if len(parts) == 2 {
-			return parts[1]
-		}
+		return GetVersionFromTag(image)
+	}
+	return ""
+}
+
+func GetVersionFromTag(image string) string {
+	parts := strings.Split(image, ":")
+	if len(parts) == 2 {
+		return parts[1]
 	}
 
 	return ""

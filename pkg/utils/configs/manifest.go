@@ -33,7 +33,7 @@ type ManifestGenerator interface {
 }
 
 func (manager *ManifestManager) GetConfiguredManifest() SkupperManifest {
-	return getSkupperConfiguredImages(manager.Components, manager.EnableSHA, manager.RunningPods)
+	return getSkupperImages(manager.Components, manager.EnableSHA, manager.RunningPods)
 }
 
 func (manager *ManifestManager) GetDefaultManifestWithEnv() Manifest {
@@ -43,14 +43,19 @@ func (manager *ManifestManager) GetDefaultManifestWithEnv() Manifest {
 	}
 }
 
-func getSkupperConfiguredImages(components []string, enableSHA bool, runningPods map[string]string) SkupperManifest {
+func getSkupperImages(components []string, enableSHA bool, runningPods map[string]string) SkupperManifest {
 	var manifest SkupperManifest
 
 	for _, component := range components {
 		var image SkupperComponent
 		image.Component = component
-		image.Version = images.GetImageVersion(component, runningPods)
-		image.Images = images.GetImages(component, enableSHA, runningPods)
+		image.Version = images.GetImageVersion(component)
+		image.Images = images.GetImages(component, enableSHA)
+		if runningPods[component] != "" {
+			image.Version = images.GetVersionFromTag(runningPods[component])
+			image.Images = GetRunningImages(component, enableSHA, runningPods)
+		}
+
 		manifest.Components = append(manifest.Components, image)
 	}
 
@@ -63,8 +68,8 @@ func getSkupperDefaultImages() SkupperManifest {
 	for _, component := range images.DefaultComponents {
 		var image SkupperComponent
 		image.Component = component
-		image.Version = images.GetImageVersion(component, map[string]string{})
-		image.Images = images.GetImages(component, false, map[string]string{})
+		image.Version = images.GetImageVersion(component)
+		image.Images = images.GetImages(component, false)
 		manifest.Components = append(manifest.Components, image)
 	}
 
@@ -126,4 +131,29 @@ func getEnvironmentVariableMap() *map[string]string {
 	}
 
 	return &envVariables
+}
+
+func GetRunningImages(component string, enableSHA bool, runningPods map[string]string) []images.SkupperImage {
+
+	names := make(map[string]string)
+
+	switch component {
+	case "router":
+		// skupper router has two components
+		names[images.RouterImageEnvKey] = runningPods["router"]
+		names[images.AdaptorImageEnvKey] = runningPods["kube-adaptor"]
+
+	case "controller":
+		names[images.ControllerImageEnvKey] = runningPods["controller"]
+
+	case "network-observer":
+
+		names[images.NetworkObserverImageEnvKey] = runningPods["network-observer"]
+	}
+
+	if names != nil {
+		return images.GetImage(names, "", enableSHA)
+	}
+
+	return nil
 }
