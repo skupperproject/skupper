@@ -216,9 +216,9 @@ func (cmd *CmdLinkUpdate) WaitUntil() error {
 	})
 
 	if err != nil && linkCondition == nil {
-		return fmt.Errorf("Link %q is not %s yet, check the status for more information\n", cmd.linkName, cmd.status)
+		return fmt.Errorf("Link %q is not yet %s, check the status for more information\n", cmd.linkName, cmd.status)
 	} else if err != nil && linkCondition.Status == metav1.ConditionFalse {
-		return fmt.Errorf("Link %q has reached the status %s but its condition is not true yet, check the status for more information\n", cmd.linkName, cmd.status)
+		return fmt.Errorf("Link %q is not yet %s: %s\n", cmd.linkName, cmd.status, linkCondition.Message)
 	}
 
 	fmt.Printf("Link %q is updated\n", cmd.linkName)
