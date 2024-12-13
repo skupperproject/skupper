@@ -30,3 +30,5 @@ vendor/
 # Generated files
 manifest.json
 oci-archives/
+skupper-setup-cluster-scope.yaml
+skupper-setup-namespace-scope.yaml
