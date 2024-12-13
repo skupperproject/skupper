@@ -3,10 +3,11 @@ package kube
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/pkg/utils/validator"
-	"time"
 
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
@@ -22,6 +23,7 @@ type CmdSiteDelete struct {
 	siteName  string
 	timeout   time.Duration
 	wait      bool
+	all       bool
 }
 
 func NewCmdSiteDelete() *CmdSiteDelete {
@@ -87,11 +89,120 @@ func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
 func (cmd *CmdSiteDelete) InputToOptions() {
 	cmd.timeout = cmd.Flags.Timeout
 	cmd.wait = cmd.Flags.Wait
+	cmd.all = cmd.Flags.All
 }
 
 func (cmd *CmdSiteDelete) Run() error {
+
 	err := cmd.Client.Sites(cmd.Namespace).Delete(context.TODO(), cmd.siteName, metav1.DeleteOptions{})
-	return err
+	if err != nil {
+		return err
+	}
+
+	// if delete all, also remove all the other resources
+	if cmd.all {
+		connectors, err := cmd.Client.Connectors(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err == nil && connectors != nil && len(connectors.Items) != 0 {
+			for _, connector := range connectors.Items {
+				err = cmd.Client.Connectors(cmd.Namespace).Delete(context.TODO(), connector.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		listeners, err := cmd.Client.Listeners(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err == nil && listeners != nil && len(listeners.Items) != 0 {
+			for _, listener := range listeners.Items {
+				err = cmd.Client.Listeners(cmd.Namespace).Delete(context.TODO(), listener.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		links, err := cmd.Client.Links(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err == nil && links != nil && len(links.Items) != 0 {
+			for _, link := range links.Items {
+				err = cmd.Client.Links(cmd.Namespace).Delete(context.TODO(), link.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		accessTokens, err := cmd.Client.AccessTokens(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err == nil && accessTokens != nil && len(accessTokens.Items) != 0 {
+			for _, accessToken := range accessTokens.Items {
+				err = cmd.Client.AccessTokens(cmd.Namespace).Delete(context.TODO(), accessToken.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		accessGrants, err := cmd.Client.AccessGrants(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err == nil && accessGrants != nil && len(accessGrants.Items) != 0 {
+			for _, accessGrant := range accessGrants.Items {
+				err = cmd.Client.AccessGrants(cmd.Namespace).Delete(context.TODO(), accessGrant.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		routerAccesses, err := cmd.Client.RouterAccesses(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err == nil && routerAccesses != nil && len(routerAccesses.Items) != 0 {
+			for _, routerAccess := range routerAccesses.Items {
+				err = cmd.Client.RouterAccesses(cmd.Namespace).Delete(context.TODO(), routerAccess.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		securedAccesses, err := cmd.Client.SecuredAccesses(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err == nil && securedAccesses != nil && len(securedAccesses.Items) != 0 {
+			for _, securedAccess := range securedAccesses.Items {
+				err = cmd.Client.SecuredAccesses(cmd.Namespace).Delete(context.TODO(), securedAccess.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		certificates, err := cmd.Client.Certificates(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err == nil && certificates != nil && len(certificates.Items) != 0 {
+			for _, certificate := range certificates.Items {
+				err = cmd.Client.Certificates(cmd.Namespace).Delete(context.TODO(), certificate.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		attachedConnectors, err := cmd.Client.AttachedConnectors(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err == nil && attachedConnectors != nil && len(attachedConnectors.Items) != 0 {
+			for _, attachedConnector := range attachedConnectors.Items {
+				err = cmd.Client.AttachedConnectors(cmd.Namespace).Delete(context.TODO(), attachedConnector.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		attachedConnectorBindings, err := cmd.Client.AttachedConnectorBindings(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if err == nil && attachedConnectorBindings != nil && len(attachedConnectorBindings.Items) != 0 {
+			for _, attachedConnectorBinding := range attachedConnectorBindings.Items {
+				err = cmd.Client.AttachedConnectorBindings(cmd.Namespace).Delete(context.TODO(), attachedConnectorBinding.Name, metav1.DeleteOptions{})
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
 }
 func (cmd *CmdSiteDelete) WaitUntil() error {
 

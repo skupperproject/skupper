@@ -82,6 +82,10 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagNameWait       = "wait"
 	FlagDescWait       = "Wait for the given status before exiting. Choices: configured, ready, none"
 	FlagDescDeleteWait = "Wait for deletion to complete before exiting"
+
+	FlagNameAll       = "all"
+	FlagDescAll       = "delete all skupper resources in current namespace"
+	FlagDescDeleteAll = "delete all skupper resources associated with site in current namespace"
 )
 
 type CommandSiteCreateFlags struct {
@@ -109,6 +113,7 @@ type CommandSiteUpdateFlags struct {
 }
 
 type CommandSiteDeleteFlags struct {
+	All     bool
 	Timeout time.Duration
 	Wait    bool
 }
