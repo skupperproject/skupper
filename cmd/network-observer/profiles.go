@@ -15,8 +15,8 @@ var (
 			Match: flowlog.NewRecordTypeSet(
 				vanflow.SiteRecord{}, vanflow.RouterRecord{},
 				vanflow.ProcessRecord{}, vanflow.ConnectorRecord{},
-				vanflow.LinkRecord{}, vanflow.ListenerRecord{},
-				vanflow.RouterAccessRecord{}, vanflow.LogRecord{},
+				vanflow.ListenerRecord{}, vanflow.RouterAccessRecord{},
+				vanflow.LogRecord{},
 			),
 			Strategy: flowlog.RateLimited(1.0, 32),
 		}, {
