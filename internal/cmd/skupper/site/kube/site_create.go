@@ -65,10 +65,6 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("there is already a site created for this namespace"))
 	}
 
-	if cmd.Flags != nil && cmd.Flags.BindHost != "" {
-		fmt.Println("Warning: --bind-host flag is not supported on this platform")
-	}
-
 	if cmd.Flags != nil && cmd.Flags.SubjectAlternativeNames != nil && len(cmd.Flags.SubjectAlternativeNames) > 0 {
 		fmt.Println("Warning: --subject-alternative-names flag is not supported on this platform")
 	}

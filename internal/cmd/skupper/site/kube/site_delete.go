@@ -121,15 +121,7 @@ func (cmd *CmdSiteDelete) Run() error {
 			}
 		}
 
-		links, err := cmd.Client.Links(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
-		if err == nil && links != nil && len(links.Items) != 0 {
-			for _, link := range links.Items {
-				err = cmd.Client.Links(cmd.Namespace).Delete(context.TODO(), link.Name, metav1.DeleteOptions{})
-				if err != nil {
-					return err
-				}
-			}
-		}
+		//Links are removed after the removal of the site by the controller
 
 		accessTokens, err := cmd.Client.AccessTokens(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
 		if err == nil && accessTokens != nil && len(accessTokens.Items) != 0 {
