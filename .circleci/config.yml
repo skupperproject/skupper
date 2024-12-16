@@ -370,9 +370,7 @@ jobs:
             done
             cd ${BASEDIR}
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
-            echo "Checking contents of skupper-setup:"
-            ls -l "${BASEDIR}/skupper-setup"
-            cp "${BASEDIR}/skupper-setup/*.yaml" "${BASEDIR}/archives"
+            cp skupper-setup/*.yaml archives
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
 
   publish-github-prerelease-artifacts:
