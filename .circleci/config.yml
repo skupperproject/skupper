@@ -215,7 +215,9 @@ jobs:
     steps:
       - checkout
       - go/mod-download-cached
-      - helm/install
+      - run:
+          name: Install Helm CLI
+          command: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
       - run: make generate-skupper-deployment-cluster-scoped
       - run: make generate-skupper-deployment-namespace-scoped
       - run: mkdir skupper-setup
