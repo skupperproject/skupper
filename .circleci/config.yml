@@ -221,7 +221,12 @@ jobs:
       - run: make generate-skupper-deployment-cluster-scoped
       - run: make generate-skupper-deployment-namespace-scoped
       - run: mkdir skupper-setup
-      - run: cp ./skupper-setup-*-scope.yaml skupper-setup
+      - run: cp ./*.yaml skupper-setup
+      - run:
+          name: Verify skupper-setup Directory Contents
+          command: |
+            echo "Checking contents of skupper-setup directory:"
+            ls -l skupper-setup || echo "Directory skupper-setup does not exist or is empty!"
       - persist_to_workspace:
           root: .
           paths:
@@ -365,6 +370,8 @@ jobs:
             done
             cd ${BASEDIR}
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
+            echo "Checking contents of skupper-setup:"
+            ls -l "${BASEDIR}/skupper-setup"
             cp "${BASEDIR}/skupper-setup/*.yaml" "${BASEDIR}/archives"
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
 
