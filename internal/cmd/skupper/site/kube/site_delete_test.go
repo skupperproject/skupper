@@ -397,12 +397,6 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 						Namespace: "test",
 					},
 				},
-				&v2alpha1.Link{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-link",
-						Namespace: "test",
-					},
-				},
 				&v2alpha1.AttachedConnectorBinding{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "my-attachedConnectorBinding",
