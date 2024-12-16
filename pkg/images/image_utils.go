@@ -209,9 +209,9 @@ func GetImage(imageNames map[string]string, imageRegistry string, enableSHA bool
 	var image SkupperImage
 	var skupperImage []SkupperImage
 
-	for key, name := range imageNames {
-		imageName := os.Getenv(key)
-		if imageName == "" {
+	for _, name := range imageNames {
+		imageName := name
+		if imageRegistry != "" {
 			imageName = strings.Join([]string{imageRegistry, name}, "/")
 		}
 		image.Name = imageName
@@ -233,15 +233,43 @@ func GetImages(component string, enableSHA bool) []SkupperImage {
 	switch component {
 	case "router":
 		// skupper router has two components
-		names[RouterImageEnvKey] = RouterImageName
-		names[AdaptorImageEnvKey] = AdaptorImageName
-		registry = GetImageRegistry()
+		envImage := os.Getenv(RouterImageEnvKey)
+
+		if envImage != "" {
+			names[RouterImageEnvKey] = envImage
+		} else {
+			names[RouterImageEnvKey] = RouterImageName
+			registry = GetImageRegistry()
+		}
+
+		envImage = os.Getenv(AdaptorImageEnvKey)
+		if envImage != "" {
+			names[AdaptorImageEnvKey] = envImage
+		} else {
+			names[AdaptorImageEnvKey] = AdaptorImageName
+			registry = GetImageRegistry()
+		}
 	case "controller":
-		names[ControllerImageEnvKey] = ControllerImageName
-		registry = GetImageRegistry()
+		envImage := os.Getenv(ControllerImageEnvKey)
+
+		if envImage != "" {
+			names[ControllerImageEnvKey] = envImage
+		} else {
+			names[ControllerImageEnvKey] = ControllerImageName
+			registry = GetImageRegistry()
+		}
+
 	case "network-observer":
-		names[NetworkObserverImageEnvKey] = NetworkObserverImageName
-		registry = GetImageRegistry()
+
+		envImage := os.Getenv(NetworkObserverImageEnvKey)
+
+		if envImage != "" {
+			names[NetworkObserverImageEnvKey] = envImage
+		} else {
+			names[NetworkObserverImageEnvKey] = NetworkObserverImageName
+			registry = GetImageRegistry()
+		}
+
 	case "cli":
 		names[CliImageEnvKey] = CliImageName
 		registry = GetImageRegistry()
@@ -253,7 +281,7 @@ func GetImages(component string, enableSHA bool) []SkupperImage {
 		registry = GetOauthProxyImageRegistry()
 	}
 
-	if names != nil && registry != "" {
+	if names != nil {
 		return GetImage(names, registry, enableSHA)
 	} else {
 		return nil
@@ -265,18 +293,31 @@ func GetImageVersion(component string) string {
 
 	switch component {
 	case "router":
-		image = os.Getenv(RouterImageEnvKey)
-		if image == "" {
+		envImage := os.Getenv(RouterImageEnvKey)
+
+		if envImage != "" {
+			image = envImage
+		} else {
 			image = RouterImageName
 		}
+
 	case "controller":
-		image = os.Getenv(ControllerImageEnvKey)
-		if image == "" {
+
+		envImage := os.Getenv(ControllerImageEnvKey)
+
+		if envImage != "" {
+			image = envImage
+		} else {
 			image = ControllerImageName
 		}
+
 	case "network-observer":
-		image = os.Getenv(ControllerImageEnvKey)
-		if image == "" {
+
+		envImage := os.Getenv(NetworkObserverImageEnvKey)
+
+		if envImage != "" {
+			image = envImage
+		} else {
 			image = NetworkObserverImageName
 		}
 	case "cli":
@@ -296,10 +337,15 @@ func GetImageVersion(component string) string {
 		}
 	}
 	if image != "" {
-		parts := strings.Split(image, ":")
-		if len(parts) == 2 {
-			return parts[1]
-		}
+		return GetVersionFromTag(image)
+	}
+	return ""
+}
+
+func GetVersionFromTag(image string) string {
+	parts := strings.Split(image, ":")
+	if len(parts) == 2 {
+		return parts[1]
 	}
 
 	return ""
