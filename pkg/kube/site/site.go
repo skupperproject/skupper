@@ -717,6 +717,9 @@ func (s *Site) updateListenerStatus(listener *skupperv2alpha1.Listener, err erro
 func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener) error {
 	update, err1 := s.bindings.UpdateListener(name, listener)
 	if s.site == nil {
+		if listener == nil {
+			return nil
+		}
 		return s.updateListenerStatus(listener, stderrors.New("No active site in namespace"))
 	}
 	if update == nil {
