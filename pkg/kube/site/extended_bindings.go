@@ -33,9 +33,6 @@ func NewExtendedBindings(controller *kube.Controller, profilePath string) *Exten
 			slog.String("component", "kube.site.attached_connector"),
 		),
 	}
-	eb.bindings.SetBindingEventHandler(eb)
-	eb.bindings.SetConnectorConfiguration(eb.updateBridgeConfigForConnector)
-	eb.bindings.SetListenerConfiguration(eb.updateBridgeConfigForListener)
 
 	return eb
 }
@@ -47,6 +44,9 @@ func (a *ExtendedBindings) init(context BindingContext, config *qdr.RouterConfig
 	}
 	a.exposed = ExposedPorts{}
 	a.selectors = map[string]TargetSelection{}
+	a.bindings.SetBindingEventHandler(a)
+	a.bindings.SetConnectorConfiguration(a.updateBridgeConfigForConnector)
+	a.bindings.SetListenerConfiguration(a.updateBridgeConfigForListener)
 }
 
 func (a *ExtendedBindings) cleanup() {
