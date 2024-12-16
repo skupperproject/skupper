@@ -112,11 +112,16 @@ workflows:
           <<: *run_for_numeric_tags
           requires:
             - publish-oci-images
+      - generate-skupper-setup:
+          <<: *run_for_numeric_tags
+          requires:
+             - generate-manifest
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
           requires:
             - publish-oci-images
             - generate-manifest
+            - generate-skupper-setup
           context:
             - skupper-org
   build:
