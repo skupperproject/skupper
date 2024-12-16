@@ -123,6 +123,9 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	}
 	for _, listener := range c.listenerWatcher.List() {
 		site := c.getSite(listener.ObjectMeta.Namespace)
+		if site.GetSite() == nil {
+			continue
+		}
 		log.Printf("Recovering listener %s in %s", listener.ObjectMeta.Name, listener.ObjectMeta.Namespace)
 		site.CheckListener(listener.ObjectMeta.Name, listener)
 	}
@@ -191,6 +194,9 @@ func (c *Controller) checkListener(key string, listener *skupperv2alpha1.Listene
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
+	}
+	if c.getSite(namespace).GetSite() == nil {
+		return nil
 	}
 	return c.getSite(namespace).CheckListener(name, listener)
 }
