@@ -1,6 +1,6 @@
 images:
-  controller: "quay.io/skupper/controller:v2-latest"
-  adaptor: "quay.io/skupper/kube-adaptor:v2-latest"
+  controller: "quay.io/skupper/controller:2.0.0-preview-2"
+  adaptor: "quay.io/skupper/kube-adaptor:2.0.0-preview-2"
 
 # available options: cluster, namespace
 scope: cluster

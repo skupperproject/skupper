@@ -2,11 +2,11 @@ package images
 
 const (
 	DefaultImageRegistry     string = "quay.io/skupper"
-	RouterImageName          string = "skupper-router:main"
-	ControllerImageName      string = "controller:v2-latest"
-	AdaptorImageName         string = "kube-adaptor:v2-latest"
-	NetworkObserverImageName string = "network-observer:v2-latest"
-	CliImageName             string = "cli:v2-latest"
+	RouterImageName          string = "skupper-router:3.1.0"
+	ControllerImageName      string = "controller:2.0.0-preview-2"
+	AdaptorImageName         string = "kube-adaptor:2.0.0-preview-2"
+	NetworkObserverImageName string = "network-observer:2.0.0-preview-2"
+	CliImageName             string = "cli:2.0.0-preview-2"
 
 	PrometheusImageRegistry   string = "quay.io/prometheus"
 	PrometheusServerImageName string = "prometheus:v2.42.0"

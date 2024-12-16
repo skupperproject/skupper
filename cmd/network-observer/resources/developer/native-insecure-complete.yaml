@@ -214,7 +214,7 @@ spec:
         app.kubernetes.io/component: server
     spec:
       containers:
-      - image: quay.io/skupper/network-observer:v2-latest
+      - image: quay.io/skupper/network-observer:2.0.0-preview-2
         imagePullPolicy: Always
         name: network-observer
         args:
