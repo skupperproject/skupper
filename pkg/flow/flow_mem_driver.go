@@ -429,7 +429,7 @@ func (fc *FlowCollector) linkFlowPair(flow *FlowRecord) (*FlowPairRecord, bool) 
 	revLabels["sourceProcess"] = *destFlow.ProcessName
 	revLabels["destProcess"] = *sourceFlow.ProcessName
 	revLabels["sourceHost"] = *destFlow.SourceHost
-	fwdLabels["destHost"] = *sourceFlow.SourceHost
+	revLabels["destHost"] = *sourceFlow.SourceHost
 	delete(revLabels, "process")
 
 	fp := &FlowPairRecord{
