@@ -6,6 +6,9 @@ package kube
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"time"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
@@ -16,8 +19,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"strconv"
-	"time"
 )
 
 type CmdLinkUpdate struct {
@@ -29,7 +30,6 @@ type CmdLinkUpdate struct {
 	Namespace      string
 	tlsCredentials string
 	cost           int
-	output         string
 	timeout        time.Duration
 	status         string
 }
@@ -52,7 +52,6 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 	var validationErrors []error
 	numberValidator := validator.NewNumberValidator()
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
-	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 
 	//Validate if there is already a site defined in the namespace
@@ -89,13 +88,6 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) []error {
 		validationErrors = append(validationErrors, fmt.Errorf("link cost is not valid: %s", err))
 	}
 
-	if cmd.Flags.Output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
-		}
-	}
-
 	ok, err = timeoutValidator.Evaluate(cmd.Flags.Timeout)
 	if !ok {
 		validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
@@ -115,7 +107,6 @@ func (cmd *CmdLinkUpdate) InputToOptions() {
 
 	cmd.cost, _ = strconv.Atoi(cmd.Flags.Cost)
 	cmd.tlsCredentials = cmd.Flags.TlsCredentials
-	cmd.output = cmd.Flags.Output
 	cmd.timeout = cmd.Flags.Timeout
 	cmd.status = cmd.Flags.Wait
 
@@ -156,25 +147,12 @@ func (cmd *CmdLinkUpdate) Run() error {
 		},
 	}
 
-	if cmd.output != "" {
-		encodedOutput, err := utils.Encode(cmd.output, resource)
-		fmt.Println(encodedOutput)
-
-		return err
-
-	} else {
-		_, err := cmd.Client.Links(cmd.Namespace).Update(context.TODO(), &resource, metav1.UpdateOptions{})
-		return err
-	}
+	_, err = cmd.Client.Links(cmd.Namespace).Update(context.TODO(), &resource, metav1.UpdateOptions{})
+	return err
 
 }
 
 func (cmd *CmdLinkUpdate) WaitUntil() error {
-
-	// the site resource was not created
-	if cmd.output != "" {
-		return nil
-	}
 
 	if cmd.status == "none" {
 		return nil
