@@ -2,7 +2,7 @@
 
 set -Ceu
 
-IMAGE="quay.io/skupper/cli:2.0.0-preview-2"
+IMAGE="quay.io/skupper/cli:v2-latest"
 export INPUT_PATH=""
 export NAMESPACE=""
 export FORCE_FLAG=""

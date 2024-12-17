@@ -43,7 +43,7 @@ spec:
       serviceAccountName: network-observer
       containers:
       - name: network-observer
-        image: quay.io/skupper/network-observer:2.0.0-preview-2
+        image: quay.io/skupper/network-observer:v2-latest
         imagePullPolicy: Always
         args:
           - -listen=127.0.0.1:8080
