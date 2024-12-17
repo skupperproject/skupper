@@ -75,37 +75,37 @@ func (fc *FlowCollector) NewMetrics(reg prometheus.Registerer) *collectorMetrics
 				Name: "flows_total",
 				Help: "Total Flows",
 			},
-			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess"}),
+			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess", "sourceHost", "destHost"}),
 		octets: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "octets_total",
 				Help: "Total Octets",
 			},
-			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess"}),
+			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess", "sourceHost", "destHost"}),
 		httpReqsMethod: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "http_requests_method_total",
 				Help: "How many HTTP requests processed, partitioned by method",
 			},
-			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess", "method"}),
+			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess", "method", "sourceHost", "destHost"}),
 		httpReqsResult: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "http_requests_result_total",
 				Help: "How many HTTP requests processed, partitioned by result code",
 			},
-			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess", "code"}),
+			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess", "code", "sourceHost", "destHost"}),
 		activeFlows: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: "active_flows",
 				Help: "Number of flows that are currently active, partitioned by source and destination",
 			},
-			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess"}),
+			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess", "sourceHost", "destHost"}),
 		lastAccessed: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: "address_last_time_seconds",
 				Help: "The last time the address was served",
 			},
-			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess"}),
+			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess", "sourceHost", "destHost"}),
 		flowLatency: prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
 				Name: "flow_latency_microseconds",
@@ -113,7 +113,7 @@ func (fc *FlowCollector) NewMetrics(reg prometheus.Registerer) *collectorMetrics
 				//                 1ms,  2 ms, 5ms,  10ms,  100ms,  1s,      10s
 				Buckets: []float64{1000, 2000, 5000, 10000, 100000, 1000000, 10000000},
 			},
-			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess"}),
+			[]string{"sourceSite", "destSite", "address", "protocol", "direction", "sourceProcess", "destProcess", "sourceHost", "destHost"}),
 		activeReconcile: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: "active_reconciles",
