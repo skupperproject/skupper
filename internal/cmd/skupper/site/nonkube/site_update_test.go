@@ -77,7 +77,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		{
 			name:  "kubernetes flags are not valid on this platform",
 			args:  []string{"my-site"},
-			flags: &common.CommandSiteUpdateFlags{},
+			flags: &common.CommandSiteUpdateFlags{ServiceAccount: "not-supported"},
 			cobraGenericFlags: map[string]string{
 				common.FlagNameContext:    "test",
 				common.FlagNameKubeconfig: "test",

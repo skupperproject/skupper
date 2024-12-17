@@ -13,10 +13,13 @@ import (
 type CmdSiteDelete struct {
 	siteHandler         *fs.SiteHandler
 	routerAccessHandler *fs.RouterAccessHandler
+	listenerHandler     *fs.ListenerHandler
+	connectorHandler    *fs.ConnectorHandler
 	CobraCmd            *cobra.Command
 	namespace           string
 	siteName            string
 	Flags               *common.CommandSiteDeleteFlags
+	all                 bool
 }
 
 func NewCmdSiteDelete() *CmdSiteDelete {
@@ -30,6 +33,8 @@ func (cmd *CmdSiteDelete) NewClient(cobraCommand *cobra.Command, args []string) 
 
 	cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
 	cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.namespace)
+	cmd.listenerHandler = fs.NewListenerHandler(cmd.namespace)
+	cmd.connectorHandler = fs.NewConnectorHandler(cmd.namespace)
 }
 
 func (cmd *CmdSiteDelete) ValidateInput(args []string) error {
@@ -75,6 +80,7 @@ func (cmd *CmdSiteDelete) InputToOptions() {
 	if cmd.namespace == "" {
 		cmd.namespace = "default"
 	}
+	cmd.all = cmd.Flags.All
 }
 
 func (cmd *CmdSiteDelete) Run() error {
@@ -85,6 +91,28 @@ func (cmd *CmdSiteDelete) Run() error {
 	err = cmd.routerAccessHandler.Delete("router-access-" + cmd.siteName)
 	if err != nil {
 		return err
+	}
+	// if delete all, also remove all the other resources
+	if cmd.all {
+		listeners, err := cmd.listenerHandler.List()
+		if listeners != nil && err == nil {
+			for _, listener := range listeners {
+				fmt.Println("delete listener", listener.Name)
+				err = cmd.listenerHandler.Delete(listener.Name)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		connectors, err := cmd.connectorHandler.List()
+		if connectors != nil && err == nil {
+			for _, connector := range connectors {
+				err = cmd.connectorHandler.Delete(connector.Name)
+				if err != nil {
+					return err
+				}
+			}
+		}
 	}
 	return nil
 }
