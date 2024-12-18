@@ -19,17 +19,6 @@ prometheus:
   repository: "docker.io/prom/prometheus"
   pullPolicy: IfNotPresent
   tag: "v3.0.1"
-  # securityContext for prom container.
-  # With openshift SCC MUST be overwritten to null
-  # With native k8s, MUST be set
-  securityContext:
-    runAsUser: 65534
-    runAsGroup: 65534
-    runAsNonRoot: true
-    allowPrivilegeEscalation: false
-    capabilities:
-      drop:
-      - ALL
 
 # nginx configuration for reverse proxy (excluding openshift auth)
 nginx:
@@ -89,20 +78,6 @@ auth:
 podAnnotations: {}
 # This is for setting Kubernetes Labels to a Pod.
 podLabels: {}
-
-# The network-observer pod securityContext
-podSecurityContext:
-  runAsNonRoot: true
-  seccompProfile:
-    type: RuntimeDefault
-
-# The network-observer container securityContext
-securityContext:
-  capabilities:
-    drop:
-    - ALL
-  runAsNonRoot: true
-  allowPrivilegeEscalation: false
 
 # This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
 service:

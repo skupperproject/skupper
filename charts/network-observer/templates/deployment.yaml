@@ -28,12 +28,8 @@ spec:
       {{- if $serviceAccountName }}
       serviceAccountName: {{ $serviceAccountName }}
       {{- end }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: network-observer
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
@@ -64,8 +60,6 @@ spec:
         - name: prometheus
           image: "{{ .Values.prometheus.repository }}:{{ .Values.prometheus.tag }}"
           imagePullPolicy: {{ .Values.prometheus.pullPolicy }}
-          securityContext:
-            {{- toYaml .Values.prometheus.securityContext | nindent 12 }}
           args:
             - --config.file=/etc/prometheus/prometheus.yml
             - --storage.tsdb.path=/prometheus/

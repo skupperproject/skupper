@@ -14,8 +14,6 @@
 {{- end -}}
 
 {{- define "network-observer.nginxProxySpec" -}}
-securityContext:
-  {{- toYaml .Values.securityContext | nindent 4 }}
 image: "{{ .Values.nginx.repository }}:{{ .Values.nginx.tag }}"
 imagePullPolicy: {{ .Values.nginx.pullPolicy }}
 ports:
@@ -36,8 +34,6 @@ volumeMounts:
 {{- end -}}
 
 {{- define "network-observer.openshiftOauthProxySpec" -}}
-securityContext:
-  {{- toYaml .Values.securityContext | nindent 4 }}
 image: "{{ .Values.openshiftOauthProxy.repository }}:{{ .Values.openshiftOauthProxy.tag }}"
 imagePullPolicy: {{ .Values.openshiftOauthProxy.pullPolicy }}
 args:
