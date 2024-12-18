@@ -15,3 +15,28 @@ package manager.
 - A kubernetes cluster or namespace with the skupper controller installed
 - A skupper Site
 
+## Configuration
+
+By default, deploys the network-observer with skupper-issued TLS certificates,
+HTTP Basic authentication (username and password are `skupper`) and no ingress.
+
+### Ingress
+
+Supports chosen service types (LoadBalancer, NodePort), Kubernetes Ingresses,
+and Openshift Routes. Defaults to a ClusterIP Service.
+
+### TLS
+
+TLS is mandatory for this deployment. It can be configured as user provided, provided
+by openshift or by the skupper controller.
+
+### Authorization
+
+The network observer pod contains a reverse proxy that handles authorization
+and TLS termination for the read only application that binds only to localhost.
+When authorization strategy is "basic", nginx is configured as the proxy, and
+can be configured with user-provided htpasswd file contents or a secret name.
+When authorization strategy is "openshift" an oauth2 proxy is used instead, and
+is configured to use the cluster identity provider for authorization. Openshift
+auth only works with ingress type Route.
+
