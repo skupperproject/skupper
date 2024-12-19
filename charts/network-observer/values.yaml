@@ -10,27 +10,42 @@ fullnameOverride: ""
 image:
   repository: quay.io/skupper/network-observer
   # This sets the pull policy for images.
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
-# prometheus configures the promehteus container image
+# prometheus configures the prometheus container image
 prometheus:
-  repository: "docker.io/prom/prometheus"
+  repository: "quay.io/prometheus/prometheus"
   pullPolicy: IfNotPresent
   tag: "v3.0.1"
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
 
 # nginx configuration for reverse proxy (excluding openshift auth)
 nginx:
-  repository: "docker.io/nginxinc/nginx-unprivileged"
+  repository: "mirror.gcr.io/nginxinc/nginx-unprivileged"
   tag: "1.27.3-alpine"
   pullPolicy: IfNotPresent
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
 
 # openshift oauth proxy configuration when auth strategy is openshift
 openshiftOauthProxy:
   repository: "quay.io/openshift/origin-oauth-proxy"
   tag: "4.14.0"
   pullPolicy: IfNotPresent
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
 
 # extraArgs to pass to the network-observer container
 extraArgs:
@@ -116,10 +131,16 @@ resources: {}
   #   cpu: 100m
   #   memory: 128Mi
 
-nodeSelector: {}
+# pod level securityContext
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
 
-tolerations: []
-
-affinity: {}
+# network-observer container securityContext
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
 
 skipManagementLabels: false

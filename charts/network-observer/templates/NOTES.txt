@@ -1,0 +1,48 @@
+You have installed the skupper network observer!
+
+Accessing the console:
+{{- if .Values.ingress.enabled }}
+  The {{ include "network-observer.fullname" . }} service is exposed through an
+  Ingress and should be availalble external to the cluster at the following
+  locations.
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+{{- end }}
+{{- else if .Values.route.enabled }}
+  The service is exposed through the {{ include "network-observer.fullname" . }} Route.
+  export ROUTE_HOST=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.host}" route {{ include "network-observer.fullname" . }})
+  echo "https://$ROUTE_HOST"
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "network-observer.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.service.type }}
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch its status by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "network-observer.fullname" . }}'
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "network-observer.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:{{ .Values.service.port }}
+{{- else if contains "ClusterIP" .Values.service.type }}
+  The network-observer application is exposed as a service inside of your
+  cluster. To access the application externally you must either enable an
+  ingress of some sort or use port forwarding to access the service
+  temporarily.
+  Expose the application at https://127.0.0.1:8443 with the command:
+  kubectl --namespace {{ .Release.Namespace }} port-forward service/{{ include "network-observer.fullname" . }} 8443:{{ .Values.service.port }}
+{{- end }}
+
+{{- if eq "basic" .Values.auth.strategy }}
+
+  Basic Authentication is enabled.
+
+  Users are configured in the {{ include "network-observer.basicAuthSecretName" . }} secret.
+  By default this chart includes placeholder credentials username="skupper" password="skupper".
+  This secret should be replaced to include user-provided credentials.
+
+{{- else if eq "openshift" .Values.auth.strategy }}
+
+  Openshift Authentication is enabled.
+  Users should be able to authenticate with the openshift cluster to access the console application.
+
+{{- end }}
