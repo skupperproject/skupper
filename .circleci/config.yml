@@ -220,8 +220,8 @@ jobs:
           command: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
       - run: make generate-skupper-deployment-cluster-scoped
       - run: make generate-skupper-deployment-namespace-scoped
-      - run: make generate-network-observer-minimal
-      - run: make generate-network-observer-openshift-tls
+      - run: make generate-network-observer-generic
+      - run: make generate-network-observer-openshift
       - run: mkdir skupper-setup
       - run: cp ./*.yaml skupper-setup
       - run:
