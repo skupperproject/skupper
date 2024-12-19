@@ -179,6 +179,12 @@ parse_opts() {
                 ;;
         esac
     done
+
+    # Build the namespace argument only if NAMESPACE is not empty
+    NAMESPACE_ARG=""
+    if [ -n "${NAMESPACE:-}" ]; then
+      NAMESPACE_ARG="-n=${NAMESPACE}"
+    fi
 }
 
 main() {
@@ -223,7 +229,7 @@ main() {
         "${ENV_VARS}" \
         --entrypoint /app/skupper \
         "${IMAGE}" \
-        system setup --path="${INPUT_PATH_ARG}" -n="${NAMESPACE}" ${BUNDLE_STRATEGY} ${FORCE_FLAG} 2>&1
+        system setup --path="${INPUT_PATH_ARG}" "${NAMESPACE_ARG}" ${BUNDLE_STRATEGY} ${FORCE_FLAG} 2>&1
     create_service
 }
 
