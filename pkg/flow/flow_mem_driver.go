@@ -2768,10 +2768,7 @@ func (fc *FlowCollector) purgeEventSource(eventSource EventSourceRecord) error {
 	return nil
 }
 
-func (fc *FlowCollector) createSiteProcess(name string, site SiteRecord) ProcessRecord {
-	parts := strings.Split(site.Identity, "-")
-	processName := name + "-" + parts[0]
-	processGroupName := name
+func (fc *FlowCollector) createSiteProcess(processGroupName string, processName string, site SiteRecord) ProcessRecord {
 	process := ProcessRecord{}
 	process.RecType = recordNames[Process]
 	process.Identity = uuid.New().String()
@@ -2795,6 +2792,9 @@ func (fc *FlowCollector) needForSiteProcess(flow *FlowRecord, siteId string, sta
 		name = "site-clients"
 	}
 	processName := name + "-" + parts[0]
+	if client && flow.SourceHost != nil {
+		processName = processName + "-" + *flow.SourceHost
+	}
 	diffTime := startTime
 	wait := 120 * oneSecond
 	if fc.startTime > startTime {
@@ -2815,7 +2815,7 @@ func (fc *FlowCollector) needForSiteProcess(flow *FlowRecord, siteId string, sta
 		}
 		if !found {
 			if site, ok := fc.Sites[siteId]; ok {
-				process := fc.createSiteProcess(name, *site)
+				process := fc.createSiteProcess(name, processName, *site)
 				flow.Process = &process.Identity
 				flow.ProcessName = &processName
 				found = true
