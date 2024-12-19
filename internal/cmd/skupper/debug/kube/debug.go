@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"sigs.k8s.io/yaml"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
@@ -18,6 +20,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
+	crdClient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -37,6 +40,7 @@ type CmdDebug struct {
 	Namespace  string
 	fileName   string
 	Rest       *restclient.Config
+	crdClient  *crdClient.Clientset
 }
 
 func NewCmdDebug() *CmdDebug {
@@ -72,6 +76,11 @@ func (cmd *CmdDebug) NewClient(cobraCommand *cobra.Command, args []string) {
 		restconfig.APIPath = "/api"
 		restconfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: scheme.Codecs}
 		cmd.Rest = restconfig
+
+		cmd.crdClient, err = crdClient.NewForConfig(cmd.Rest)
+		if err != nil {
+			return
+		}
 	}
 }
 
@@ -146,12 +155,36 @@ func (cmd *CmdDebug) Run() error {
 	if site != nil && err == nil {
 		path := "/site-namespace/"
 
+		events, err := runCommand("kubectl", "events")
+		if err == nil {
+			writeTar(path+"events.txt", events, time.Now(), tw)
+		}
+
+		endpoints, err := runCommand("kubectl", "get", "endpoints", "-o", "yaml")
+		if err == nil {
+			writeTar(path+"endpoints.yaml", endpoints, time.Now(), tw)
+		}
+
+		path = path + "resources/"
 		err = getDeployments(cmd, path, "skupper-router", tw)
 		if err != nil {
 			return err
 		}
 
-		path = path + "resources/"
+		// List all the existing installed CRs in the cluster
+		crdList, err := cmd.crdClient.ApiextensionsV1().CustomResourceDefinitions().List(context.TODO(), metav1.ListOptions{})
+		if err == nil {
+			var encodedOutput []byte
+			var crds []string
+			for _, crd := range crdList.Items {
+				crds = append(crds, crd.Name)
+			}
+			encodedOutput, err = yaml.Marshal(crds)
+			if err == nil {
+				writeTar(path+"crds.yaml", encodedOutput, time.Now(), tw)
+			}
+		}
+
 		for i := range configMaps {
 			cm, err := cmd.KubeClient.CoreV1().ConfigMaps(cmd.Namespace).Get(context.TODO(), configMaps[i], metav1.GetOptions{})
 			if err == nil {
@@ -299,12 +332,26 @@ func (cmd *CmdDebug) Run() error {
 	if controller != nil && err == nil {
 		path := "/controller-namespace/"
 
+		events, err := runCommand("kubectl", "events")
+		if err == nil {
+			writeTar(path+"events.txt", events, time.Now(), tw)
+		}
+
+		endpoints, err := runCommand("kubectl", "get", "endpoints", "-o", "yaml")
+		if err == nil {
+			writeTar(path+"endpoints.yaml", endpoints, time.Now(), tw)
+		}
+		endpoints, err = runCommand("kubectl", "get", "endpoints")
+		if err == nil {
+			writeTar(path+"endpoints.txt", endpoints, time.Now(), tw)
+		}
+
+		path = path + "resources/"
 		err = getDeployments(cmd, path, "skupper-controller", tw)
 		if err != nil {
 			return err
 		}
 
-		path = path + "resources/"
 		for i := range controllerServices {
 			service, err := cmd.KubeClient.CoreV1().Services(cmd.Namespace).Get(context.TODO(), controllerServices[i], metav1.GetOptions{})
 			if err == nil {
@@ -312,6 +359,10 @@ func (cmd *CmdDebug) Run() error {
 				if err != nil {
 					return err
 				}
+				var file []byte
+				service.Unmarshal(file)
+				fmt.Println("file:", file)
+				err = writeTar(path+"Services-"+service.Name+".txt", file, time.Now(), tw)
 			}
 		}
 	}
@@ -380,17 +431,7 @@ func getDeployments(cmd *CmdDebug, path string, deploymentType string, tw *tar.W
 		deployments = controllerDeployments
 		labelSelector = "application="
 	}
-	events, err := runCommand("kubectl", "events")
-	if err == nil {
-		writeTar(path+"events.txt", events, time.Now(), tw)
-	}
 
-	endpoints, err := runCommand("kubectl", "get", "endpoints", "-o", "yaml")
-	if err == nil {
-		writeTar(path+"endpoints.yaml", endpoints, time.Now(), tw)
-	}
-
-	path = path + "resources/"
 	for i := range deployments {
 		deployment, err := cmd.KubeClient.AppsV1().Deployments(cmd.Namespace).Get(context.TODO(), deployments[i], metav1.GetOptions{})
 		if err != nil {
