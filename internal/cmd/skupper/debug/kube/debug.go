@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"sigs.k8s.io/yaml"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
@@ -18,6 +20,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
+	crdClient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -37,6 +40,7 @@ type CmdDebug struct {
 	Namespace  string
 	fileName   string
 	Rest       *restclient.Config
+	crdClient  *crdClient.Clientset
 }
 
 func NewCmdDebug() *CmdDebug {
@@ -72,6 +76,11 @@ func (cmd *CmdDebug) NewClient(cobraCommand *cobra.Command, args []string) {
 		restconfig.APIPath = "/api"
 		restconfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: scheme.Codecs}
 		cmd.Rest = restconfig
+
+		cmd.crdClient, err = crdClient.NewForConfig(cmd.Rest)
+		if err != nil {
+			return
+		}
 	}
 }
 
@@ -139,6 +148,20 @@ func (cmd *CmdDebug) Run() error {
 	manifest, err := runCommand("skupper", "version", "-o", "yaml")
 	if err == nil {
 		writeTar("/versions/skupper.yaml", manifest, time.Now(), tw)
+	}
+
+	// List all the existing installed CRs in the cluster
+	crdList, err := cmd.crdClient.ApiextensionsV1().CustomResourceDefinitions().List(context.TODO(), metav1.ListOptions{})
+	if err == nil {
+		var encodedOutput []byte
+		var crds []string
+		for _, crd := range crdList.Items {
+			crds = append(crds, crd.Name)
+		}
+		encodedOutput, err = yaml.Marshal(crds)
+		if err == nil {
+			writeTar("/crds/crds.yaml", encodedOutput, time.Now(), tw)
+		}
 	}
 
 	// get resources for skupper-router
