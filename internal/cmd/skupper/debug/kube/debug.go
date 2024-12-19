@@ -109,11 +109,9 @@ func (cmd *CmdDebug) InputToOptions() {
 
 func (cmd *CmdDebug) Run() error {
 	configMaps := []string{"skupper-router", "skupper-network-status", "prometheus-server-config"}
-	routerDeployments := []string{"skupper-router", "network-observer", "network-observer-prometheus"} //"skupper-service-controller", "skupper-prometheus"}
-	controllerDeployments := []string{"skupper-controller"}
-	services := []string{"skupper", "skupper-router", "skupper-router-local", "network-observer", "network-observer-prometheus", "skupper-grant-server"} //, "skupper-prometheus"}
+	routerServices := []string{"skupper", "skupper-router", "skupper-router-local", "network-observer", "network-observer-prometheus", "skupper-grant-server"} //, "skupper-prometheus"}
+	controllerServices := []string{"skupper-grant-server"}
 	//routes := []string{"claims", "skupper", "skupper-edge", "skupper-inter-router"}
-	qdstatFlags := []string{"-g", "-c", "-l", "-n", "-e", "-a", "-m", "-p"}
 
 	dumpFile := cmd.fileName
 
@@ -143,191 +141,180 @@ func (cmd *CmdDebug) Run() error {
 		writeTar("/versions/skupper.yaml", manifest, time.Now(), tw)
 	}
 
-	events, err := runCommand("kubectl", "events")
-	if err == nil {
-		writeTar("/skupper-info/events.txt", events, time.Now(), tw)
-	}
+	// get resources for skupper-router
+	site, err := cmd.KubeClient.AppsV1().Deployments(cmd.Namespace).Get(context.TODO(), "skupper-router", metav1.GetOptions{})
+	if site != nil && err == nil {
+		path := "/site-namespace/"
 
-	endpoints, err := runCommand("kubectl", "get", "endpoints", "-o", "yaml")
-	if err == nil {
-		writeTar("/skupper-info/endpoints.yaml", endpoints, time.Now(), tw)
-	}
+		err = getDeployments(cmd, path, "skupper-router", tw)
+		if err != nil {
+			return err
+		}
 
-	// get deployments router and/or controller
-	err = getDeployments(cmd, routerDeployments, qdstatFlags, tw)
-	if err != nil {
-		return err
-	}
+		path = path + "resources/"
+		for i := range configMaps {
+			cm, err := cmd.KubeClient.CoreV1().ConfigMaps(cmd.Namespace).Get(context.TODO(), configMaps[i], metav1.GetOptions{})
+			if err == nil {
+				err := writeObject(cm, path+"Configmap-"+cm.Name, ".yaml", tw)
+				if err != nil {
+					return err
+				}
+			}
+		}
 
-	err = getDeployments(cmd, controllerDeployments, nil, tw)
-	if err != nil {
-		return err
-	}
+		for _, service := range routerServices {
+			service, err := cmd.KubeClient.CoreV1().Services(cmd.Namespace).Get(context.TODO(), service, metav1.GetOptions{})
+			if err == nil {
+				err := writeObject(service, path+"Services-"+service.Name, ".yaml", tw)
+				if err != nil {
+					return err
+				}
+			}
+		}
 
-	for i := range configMaps {
-		cm, err := cmd.KubeClient.CoreV1().ConfigMaps(cmd.Namespace).Get(context.TODO(), configMaps[i], metav1.GetOptions{})
-		if err == nil {
-			err := writeObject(cm, "/configmaps/"+cm.Name, ".yaml", tw)
-			if err != nil {
-				return err
+		accessGrantList, err := cmd.Client.AccessGrants(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if accessGrantList != nil && err == nil {
+			for _, grant := range accessGrantList.Items {
+				g := grant.DeepCopy()
+				err := writeObject(g, path+"Accessgrant-"+g.Name, ".yaml", tw)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		accessTokenList, err := cmd.Client.AccessTokens(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if accessTokenList != nil && err == nil {
+			for _, token := range accessTokenList.Items {
+				t := token.DeepCopy()
+				err := writeObject(t, path+"AccessTokens-"+t.Name, ".yaml", tw)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		attachedConnectorBindingList, err := cmd.Client.AttachedConnectorBindings(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if attachedConnectorBindingList != nil && err == nil {
+			for _, binding := range attachedConnectorBindingList.Items {
+				b := binding.DeepCopy()
+				err := writeObject(b, path+"AttachedConnectorBinding-"+b.Name, ".yaml", tw)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		attachedConnectorList, err := cmd.Client.AttachedConnectors(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if attachedConnectorList != nil && err == nil {
+			for _, attachedConnector := range attachedConnectorList.Items {
+				a := attachedConnector.DeepCopy()
+				err := writeObject(a, path+"AttachedConnector-"+a.Name, ".yaml", tw)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		certificateList, err := cmd.Client.Certificates(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if certificateList != nil && err == nil {
+			for _, certificate := range certificateList.Items {
+				c := certificate.DeepCopy()
+				err := writeObject(c, path+"Certificate-"+c.Name, ".yaml", tw)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		connectorList, err := cmd.Client.Connectors(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if connectorList != nil && err == nil {
+			for _, connector := range connectorList.Items {
+				c := connector.DeepCopy()
+				err := writeObject(c, path+"Connector-"+c.Name, ".yaml", tw)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		linkList, err := cmd.Client.Links(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if linkList != nil && err == nil {
+			for _, link := range linkList.Items {
+				l := link.DeepCopy()
+				err := writeObject(l, path+"Link-"+l.Name, ".yaml", tw)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		listenerList, err := cmd.Client.Listeners(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if listenerList != nil && err == nil {
+			for _, listener := range listenerList.Items {
+				l := listener.DeepCopy()
+				err := writeObject(l, path+"Listener-"+l.Name, ".yaml", tw)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		siteList, err := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if siteList != nil && err == nil {
+			for _, site := range siteList.Items {
+				s := site.DeepCopy()
+				err := writeObject(s, path+"Site-"+s.Name, ".yaml", tw)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		routerAccessList, err := cmd.Client.RouterAccesses(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if routerAccessList != nil && err == nil {
+			for _, site := range routerAccessList.Items {
+				s := site.DeepCopy()
+				err := writeObject(s, path+"RouterAccess-"+s.Name, ".yaml", tw)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		securedAccessList, err := cmd.Client.SecuredAccesses(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+		if securedAccessList != nil && err == nil {
+			for _, site := range securedAccessList.Items {
+				s := site.DeepCopy()
+				err := writeObject(s, path+"SecuredAccess-"+s.Name, ".yaml", tw)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
 
-	for i := range services {
-		service, err := cmd.KubeClient.CoreV1().Services(cmd.Namespace).Get(context.TODO(), services[i], metav1.GetOptions{})
-		if err == nil {
-			err := writeObject(service, "/services/"+service.Name, ".yaml", tw)
-			if err != nil {
-				return err
+	// get resources for skupper-controller
+	controller, err := cmd.KubeClient.AppsV1().Deployments(cmd.Namespace).Get(context.TODO(), "skupper-controller", metav1.GetOptions{})
+	if controller != nil && err == nil {
+		path := "/controller-namespace/"
+
+		err = getDeployments(cmd, path, "skupper-controller", tw)
+		if err != nil {
+			return err
+		}
+
+		path = path + "resources/"
+		for i := range controllerServices {
+			service, err := cmd.KubeClient.CoreV1().Services(cmd.Namespace).Get(context.TODO(), controllerServices[i], metav1.GetOptions{})
+			if err == nil {
+				err := writeObject(service, path+"Services-"+service.Name, ".yaml", tw)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
-
-	// get resources
-	accessGrantList, err := cmd.Client.AccessGrants(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, grant := range accessGrantList.Items {
-		g := grant.DeepCopy()
-		err := writeObject(g, "/skupper-resource/accessgrants/"+g.Name, ".yaml", tw)
-		if err != nil {
-			return err
-		}
-	}
-
-	accessTokenList, err := cmd.Client.AccessTokens(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, token := range accessTokenList.Items {
-		t := token.DeepCopy()
-		err := writeObject(t, "/skupper-resource/accessTokens/"+t.Name, ".yaml", tw)
-		if err != nil {
-			return err
-		}
-	}
-
-	attachedConnectorBindingList, err := cmd.Client.AttachedConnectorBindings(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, binding := range attachedConnectorBindingList.Items {
-		b := binding.DeepCopy()
-		err := writeObject(b, "/skupper-resource/attachedConnectorBinding/"+b.Name, ".yaml", tw)
-		if err != nil {
-			return err
-		}
-	}
-
-	attachedConnectorList, err := cmd.Client.AttachedConnectors(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, attachedConnector := range attachedConnectorList.Items {
-		a := attachedConnector.DeepCopy()
-		err := writeObject(a, "/skupper-resource/attachedConnector/"+a.Name, ".yaml", tw)
-		if err != nil {
-			return err
-		}
-	}
-
-	certificateList, err := cmd.Client.Certificates(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, certificate := range certificateList.Items {
-		c := certificate.DeepCopy()
-		err := writeObject(c, "/skupper-resource/certificate/"+c.Name, ".yaml", tw)
-		if err != nil {
-			return err
-		}
-	}
-
-	connectorList, err := cmd.Client.Connectors(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, connector := range connectorList.Items {
-		c := connector.DeepCopy()
-		err := writeObject(c, "/skupper-resource/connector/"+c.Name, ".yaml", tw)
-		if err != nil {
-			return err
-		}
-	}
-
-	linkList, err := cmd.Client.Links(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, link := range linkList.Items {
-		l := link.DeepCopy()
-		err := writeObject(l, "/skupper-resource/link/"+l.Name, ".yaml", tw)
-		if err != nil {
-			return err
-		}
-	}
-
-	listenerList, err := cmd.Client.Listeners(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, listener := range listenerList.Items {
-		l := listener.DeepCopy()
-		err := writeObject(l, "/skupper-resource/listener/"+l.Name, ".yaml", tw)
-		if err != nil {
-			return err
-		}
-	}
-
-	siteList, err := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, site := range siteList.Items {
-		s := site.DeepCopy()
-		err := writeObject(s, "/skupper-resource/site/"+s.Name, ".yaml", tw)
-		if err != nil {
-			return err
-		}
-	}
-
-	routerAccessList, err := cmd.Client.RouterAccesses(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, site := range routerAccessList.Items {
-		s := site.DeepCopy()
-		err := writeObject(s, "/skupper-resource/routerAccess/"+s.Name, ".yaml", tw)
-		if err != nil {
-			return err
-		}
-	}
-
-	securedAccessList, err := cmd.Client.SecuredAccesses(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	for _, site := range securedAccessList.Items {
-		s := site.DeepCopy()
-		err := writeObject(s, "/skupper-resource/securedAccess/"+s.Name, ".yaml", tw)
-		if err != nil {
-			return err
-		}
-	}
-
 	fmt.Println("Skupper dump details written to compressed archive: ", dumpFile)
 	return nil
 }
@@ -382,20 +369,40 @@ func hasRestartedContainer(pod v1.Pod) bool {
 	return false
 }
 
-func getDeployments(cmd *CmdDebug, deployments []string, flags []string, tw *tar.Writer) error {
+func getDeployments(cmd *CmdDebug, path string, deploymentType string, tw *tar.Writer) error {
+	routerDeployments := []string{"skupper-router", "network-observer", "network-observer-prometheus"}
+	controllerDeployments := []string{"skupper-controller"}
+	flags := []string{"-g", "-c", "-l", "-n", "-e", "-a", "-m", "-p"}
 
+	deployments := routerDeployments
+	labelSelector := "app.kubernetes.io/name="
+	if deploymentType == "skupper-controller" {
+		deployments = controllerDeployments
+		labelSelector = "application="
+	}
+	events, err := runCommand("kubectl", "events")
+	if err == nil {
+		writeTar(path+"events.txt", events, time.Now(), tw)
+	}
+
+	endpoints, err := runCommand("kubectl", "get", "endpoints", "-o", "yaml")
+	if err == nil {
+		writeTar(path+"endpoints.yaml", endpoints, time.Now(), tw)
+	}
+
+	path = path + "resources/"
 	for i := range deployments {
 		deployment, err := cmd.KubeClient.AppsV1().Deployments(cmd.Namespace).Get(context.TODO(), deployments[i], metav1.GetOptions{})
 		if err != nil {
 			continue
 		}
 
-		err = writeObject(deployment, "/deployments/"+deployment.Name, ".yaml", tw)
+		err = writeObject(deployment, path+"Deployment-"+deployment.Name, ".yaml", tw)
 		if err != nil {
 			return err
 		}
 
-		podList, err := cmd.KubeClient.CoreV1().Pods(cmd.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app.kubernetes.io/part-of in (skupper, skupper-network-observer)"})
+		podList, err := cmd.KubeClient.CoreV1().Pods(cmd.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: labelSelector + deployments[i]})
 		if err != nil {
 			continue
 		}
@@ -405,24 +412,23 @@ func getDeployments(cmd *CmdDebug, deployments []string, flags []string, tw *tar
 			if err != nil {
 				continue
 			} else {
-				err := writeObject(pod, "/pods/"+pod.Name+"/pod", ".yaml", tw)
+				err := writeObject(pod, path+"Pod-"+pod.Name, ".yaml", tw)
 				if err != nil {
 					return err
 				}
 			}
 			top, err := runCommand("kubectl", "top", "pod", pod.Name)
 			if err == nil {
-				writeTar("/pods/"+pod.Name+"/top-pod.txt", top, time.Now(), tw)
+				writeTar(path+pod.Name+"/top-pod.txt", top, time.Now(), tw)
 			}
 
 			for container := range pod.Spec.Containers {
-
 				if pod.Spec.Containers[container].Name == "router" {
 					// while we are here collect qdstats, logs will show these operations
 					for x := range flags {
 						qdr, err := client.ExecCommandInContainer([]string{"skstat", flags[x]}, pod.Name, "router", cmd.Namespace, cmd.KubeClient, cmd.Rest)
 						if err == nil {
-							writeTar("/pods/"+pod.Name+"/skstat/skstat"+flags[x]+".txt", qdr.Bytes(), time.Now(), tw)
+							writeTar(path+"skstat/"+pod.Name+"-skstat"+flags[x]+".txt", qdr.Bytes(), time.Now(), tw)
 						} else {
 							continue
 						}
@@ -431,13 +437,13 @@ func getDeployments(cmd *CmdDebug, deployments []string, flags []string, tw *tar
 
 				log, err := kube.GetPodContainerLogs(pod.Name, pod.Spec.Containers[container].Name, cmd.Namespace, cmd.KubeClient)
 				if err == nil {
-					writeTar("/pods/"+pod.Name+"/logs/"+pod.Spec.Containers[container].Name+"-logs.txt", []byte(log), time.Now(), tw)
+					writeTar(path+"logs/"+pod.Name+pod.Spec.Containers[container].Name+"-logs.txt", []byte(log), time.Now(), tw)
 				}
 
 				if hasRestartedContainer(*pod) {
 					prevLog, err := kube.GetPodContainerLogsWithOpts(pod.Name, pod.Spec.Containers[container].Name, cmd.Namespace, cmd.KubeClient, v1.PodLogOptions{Previous: true})
 					if err == nil {
-						writeTar("/pods/"+pod.Name+"/logs/"+pod.Spec.Containers[container].Name+"-logs-previous.txt", []byte(prevLog), time.Now(), tw)
+						writeTar(path+"logs/"+pod.Name+pod.Spec.Containers[container].Name+"-logs-previous.txt", []byte(prevLog), time.Now(), tw)
 					}
 				}
 			}
