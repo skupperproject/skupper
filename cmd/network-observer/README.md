@@ -8,9 +8,8 @@ Console](https://github.com/skupperproject/skupper-console) web application.
 
 ## Deployment
 
-Deployment examples can be found in the [./resources](./resources/README.md)
-directory. These is still under development and should not be considered
-stable.
+The Network Observer can be deployed with the
+[network-observer](../../charts/network-observer/README.md) Helm Chart.
 
 ## API
 

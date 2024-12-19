@@ -1,0 +1,15 @@
+{{- if .Values.router.certificate.create -}}
+---
+apiVersion: skupper.io/v2alpha1
+kind: Certificate
+metadata:
+  name: {{ include "network-observer.clientCertificateName" . }}
+  labels:
+    {{- include "network-observer.labels" . | nindent 4 }}
+spec:
+  ca: skupper-local-ca
+  hosts:
+  - skupper-router-local
+  client: true
+  subject: skupper-router-local
+{{- end }}
