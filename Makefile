@@ -143,6 +143,12 @@ generate-network-observer-openshift:
 		--set prometheus.securityContext=null \
 		> skupper-network-observer-openshift.yaml
 
+generate-network-observer-devel:
+	helm template skupper-network-observer ./charts/network-observer/ \
+		--set auth.strategy=none \
+		--set extraArgs={"-cors-allow-all"} \
+		--set skipManagementLabels=true > skupper-network-observer-devel.yaml
+
 clean:
 	rm -rf skupper controller kube-adaptor \
 		network-observer generate-doc \

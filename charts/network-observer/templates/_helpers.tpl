@@ -75,12 +75,14 @@ Create the TLS Secret Name
 {{- define "network-observer.tlsSecretName" -}}
 {{- .Values.tls.secretName | default (printf "%s-tls" (include "network-observer.fullname" .)) }}
 {{- end }}
+
 {{/*
 Create the nginx configmap name
 */}}
 {{- define "network-observer.nginxConfigMapName" -}}
 {{- (printf "%s-nginx" (include "network-observer.fullname" .)) }}
 {{- end }}
+
 {{- define "network-observer.basicAuthSecretName" -}}
 {{- .Values.auth.basic.secretName | default (printf "%s-auth" (include "network-observer.fullname" .)) }}
 {{- end }}

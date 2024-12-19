@@ -1,4 +1,9 @@
+
 {{- define "network-observer.proxyVolumeMounts" -}}
+{{- $authStrategies := list "basic" "openshift" "none" }}
+{{- if not (has .Values.auth.strategy $authStrategies) }}
+  {{- fail (printf "auth.strategy must be one of %s" $authStrategies) }}
+{{- end }}
 {{- if not (eq .Values.auth.strategy "openshift") }}
 - name: nginx-config
   configMap:
@@ -16,6 +21,10 @@
 {{- define "network-observer.nginxProxySpec" -}}
 image: "{{ .Values.nginx.repository }}:{{ .Values.nginx.tag }}"
 imagePullPolicy: {{ .Values.nginx.pullPolicy }}
+{{- with .Values.nginx.securityContext }}
+securityContext:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
 ports:
   - name: https
     containerPort: 8443
@@ -36,6 +45,10 @@ volumeMounts:
 {{- define "network-observer.openshiftOauthProxySpec" -}}
 image: "{{ .Values.openshiftOauthProxy.repository }}:{{ .Values.openshiftOauthProxy.tag }}"
 imagePullPolicy: {{ .Values.openshiftOauthProxy.pullPolicy }}
+{{- with .Values.openshiftOauthProxy.securityContext }}
+securityContext:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
 args:
   - --https-address=:8443
   - --provider=openshift
