@@ -1,4 +1,9 @@
+
 {{- define "network-observer.proxyVolumeMounts" -}}
+{{- $authStrategies := list "basic" "openshift" "none" }}
+{{- if not (has .Values.auth.strategy $authStrategies) }}
+	{{- fail (printf "auth.strategy must be one of %s" $authStrategies) }}
+{{- end }}
 {{- if not (eq .Values.auth.strategy "openshift") }}
 - name: nginx-config
   configMap:
