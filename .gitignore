@@ -32,3 +32,4 @@ manifest.json
 oci-archives/
 skupper-setup-cluster-scope.yaml
 skupper-setup-namespace-scope.yaml
+skupper-network-observer-*.yaml
