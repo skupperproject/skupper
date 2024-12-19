@@ -70,7 +70,7 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:           "kubernetes flags are not valid on this platform",
 			args:           []string{"my-site"},
-			flags:          &common.CommandSiteCreateFlags{BindHost: "bindhost"},
+			flags:          &common.CommandSiteCreateFlags{ServiceAccount: "not-supported"},
 			expectedErrors: []string{},
 			cobraGenericFlags: map[string]string{
 				common.FlagNameContext:    "test",
