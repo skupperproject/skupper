@@ -1,0 +1,14 @@
+{{- if and (not .Values.tls.secretName) .Values.tls.skupperIssued -}}
+apiVersion: skupper.io/v2alpha1
+kind: Certificate
+metadata:
+  name: {{ (include "network-observer.tlsSecretName" .) }}
+  labels:
+    {{- include "network-observer.labels" . | nindent 4 }}
+spec:
+  ca: skupper-local-ca
+  hosts:
+  - {{ include "network-observer.fullname" . }}
+  server: true
+  subject: {{ include "network-observer.fullname" . }}
+{{- end }}
