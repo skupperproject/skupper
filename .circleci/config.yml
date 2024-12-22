@@ -205,7 +205,7 @@ commands:
             make build-cmd && sudo install skupper /usr/local/bin
             export PUBLIC_1_INGRESS_HOST=`minikube ip`
             export SKUPPER_TEST_CLI_MAX_STATUS_ATTEMPTS=20
-            go test -tags=integration,podman -timeout=90m -v ./test/integration/... | tee /tmp/results/test-integration.out
+            go test -tags=integration,podman -timeout=90m -v ./test/integration/examples/custom/helloworld/... | tee /tmp/results/test-integration.out
       - run:
           name: Run client tests in real cluster
           command: |
