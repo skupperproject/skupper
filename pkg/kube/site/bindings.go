@@ -62,7 +62,7 @@ func (w *TargetSelectionImpl) List() []skupperv2alpha1.PodDetails {
 }
 
 func (w *TargetSelectionImpl) Updated(pods []skupperv2alpha1.PodDetails) error {
-	err := w.site.updateRouterConfigForGroups(w.site.bindings)
+	err := w.site.updateRouterConfig(w.site.bindings)
 	connector := w.site.bindings.GetConnector(w.name)
 	if connector == nil {
 		return fmt.Errorf("Error looking up connector for %s/%s", w.namespace, w.name)

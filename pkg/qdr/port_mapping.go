@@ -52,13 +52,14 @@ func RecoverPortMapping(config *RouterConfig) *PortMapping {
 		mappings: map[string]int{},
 		pool:     ports.NewFreePorts(),
 	}
-	for _, listener := range config.Listeners {
-		mapping.pool.InUse(int(listener.Port))
-	}
+	if config != nil {
+		for _, listener := range config.Listeners {
+			mapping.pool.InUse(int(listener.Port))
+		}
 
-	for key, listener := range config.Bridges.TcpListeners {
-		mapping.recovered(key, listener.Port)
+		for key, listener := range config.Bridges.TcpListeners {
+			mapping.recovered(key, listener.Port)
+		}
 	}
-
 	return mapping
 }
