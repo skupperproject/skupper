@@ -27,23 +27,25 @@ import (
 
 type SecuredAccessFactory interface {
 	Ensure(namespace string, name string, spec skupperv2alpha1.SecuredAccessSpec, annotations map[string]string, refs []metav1.OwnerReference) error
+	Delete(namespace string, name string) error
 	IsValidAccessType(accessType string) bool
 }
 
 type Site struct {
-	initialised bool
-	site        *skupperv2alpha1.Site
-	name        string
-	namespace   string
-	controller  *kube.Controller
-	bindings    *ExtendedBindings
-	links       map[string]*site.Link
-	errors      map[string]string
-	linkAccess  site.RouterAccessMap
-	certs       certificates.CertificateManager
-	access      SecuredAccessFactory
-	routerPods  map[string]*corev1.Pod
-	logger      *slog.Logger
+	initialised   bool
+	site          *skupperv2alpha1.Site
+	name          string
+	namespace     string
+	controller    *kube.Controller
+	bindings      *ExtendedBindings
+	links         map[string]*site.Link
+	errors        map[string]string
+	linkAccess    site.RouterAccessMap
+	certs         certificates.CertificateManager
+	access        SecuredAccessFactory
+	routerPods    map[string]*corev1.Pod
+	logger        *slog.Logger
+	currentGroups []string
 }
 
 func NewSite(namespace string, controller *kube.Controller, certs certificates.CertificateManager, access SecuredAccessFactory) *Site {
@@ -116,57 +118,31 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 		s.logger.Info("Initialising site",
 			slog.String("namespace", siteDef.Namespace),
 			slog.String("name", siteDef.Name))
-		routerConfig, err := s.getRouterConfig()
+		routerConfigs, err := s.recoverRouterConfig(!inRecovery)
 		if err != nil {
 			return err
 		}
-		createRouterConfig := false
-		if routerConfig == nil {
-			createRouterConfig = true
-			rc := qdr.InitialConfig(s.name+"-${HOSTNAME}", s.site.GetSiteId(), version.Version, s.isEdge(), 3)
-			rc.AddAddress(qdr.Address{
-				Prefix:       "mc",
-				Distribution: "multicast",
-			})
-			rc.AddHealthAndMetricsListener(9090)
-			rc.AddListener(qdr.Listener{
-				Name: "amqp",
-				Host: "localhost",
-				Port: 5672,
-			})
-			rc.AddSslProfile(qdr.ConfigureSslProfile("skupper-local-server", SSL_PROFILE_PATH, true))
-			rc.AddListener(qdr.Listener{
-				Name:             "amqps",
-				Port:             5671,
-				SslProfile:       "skupper-local-server",
-				SaslMechanisms:   "EXTERNAL",
-				AuthenticatePeer: true,
-			})
-			routerConfig = &rc
+
+		var routerConfig *qdr.RouterConfig
+		if len(routerConfigs) > 0 {
+			routerConfig = routerConfigs[0]
 		}
 		s.initialised = true
+		s.currentGroups = s.groups()
 		s.bindings.init(s, routerConfig)
 		s.bindings.SetSite(s)
-		if createRouterConfig {
-			s.bindings.Apply(routerConfig)
-			//TODO: apply any recovered RouterAccess configuration
-			err = s.createRouterConfig(routerConfig)
-			if err != nil {
-				return err
-			}
-			s.logger.Info("Router config created for site",
-				slog.String("namespace", siteDef.Namespace),
-				slog.String("name", siteDef.Name))
-		} else if !inRecovery {
-			//TODO: include any RouterAccess configuration
-			if err := s.updateRouterConfigForGroups(ConfigUpdateList{s.bindings, s}); err != nil {
-				return err
-			}
-		}
 		s.setBindingsConfiguredStatus(nil)
 		s.checkSecuredAccess()
+	} else if len(s.currentGroups) != len(s.groups()) {
+		s.currentGroups = s.groups()
+		if _, err := s.recoverRouterConfig(true); err != nil {
+			return err
+		}
+		if err := s.checkSecuredAccess(); err != nil {
+			return err
+		}
 	} else {
-		if err := s.updateRouterConfigForGroups(s); err != nil {
+		if err := s.updateRouterConfig(s); err != nil {
 			return err
 		}
 	}
@@ -208,9 +184,32 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 	return nil
 }
 
+func (s *Site) initialRouterConfig() *qdr.RouterConfig {
+	rc := qdr.InitialConfig(s.name+"-${HOSTNAME}", s.site.GetSiteId(), version.Version, s.isEdge(), 3)
+	rc.AddAddress(qdr.Address{
+		Prefix:       "mc",
+		Distribution: "multicast",
+	})
+	rc.AddHealthAndMetricsListener(9090)
+	rc.AddListener(qdr.Listener{
+		Name: "amqp",
+		Host: "localhost",
+		Port: 5672,
+	})
+	rc.AddSslProfile(qdr.ConfigureSslProfile("skupper-local-server", SSL_PROFILE_PATH, true))
+	rc.AddListener(qdr.Listener{
+		Name:             "amqps",
+		Port:             5671,
+		SslProfile:       "skupper-local-server",
+		SaslMechanisms:   "EXTERNAL",
+		AuthenticatePeer: true,
+	})
+	return &rc
+}
+
 func (s *Site) groups() []string {
 	if s.site.Spec.HA {
-		return []string{"skupper-router-1", "skupper-router-2"}
+		return []string{"skupper-router", "skupper-router-2"}
 	} else {
 		return []string{"skupper-router"}
 	}
@@ -589,52 +588,131 @@ func (s *Site) ownerReferences() []metav1.OwnerReference {
 	}
 }
 
-func (s *Site) getRouterConfig() (*qdr.RouterConfig, error) {
-	current, err := s.controller.GetKubeClient().CoreV1().ConfigMaps(s.namespace).Get(context.TODO(), s.groups()[0], metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		return nil, nil
-	} else if err != nil {
+func (s *Site) recoverRouterConfig(update bool) ([]*qdr.RouterConfig, error) {
+	list, err := s.controller.GetKubeClient().CoreV1().ConfigMaps(s.namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: "internal.skupper.io/router-config",
+	})
+	if err != nil {
 		return nil, err
 	}
-	return qdr.GetRouterConfigFromConfigMap(current)
+	byName := map[string]*qdr.RouterConfig{}
+	for _, cm := range list.Items {
+		config, err := qdr.GetRouterConfigFromConfigMap(&cm)
+		if err != nil {
+			s.logger.Error("Error parsing router config from config map",
+				slog.String("namespace", s.namespace),
+				slog.String("name", cm.Name),
+				slog.Any("error", err))
+		} else {
+			byName[cm.Name] = config
+		}
+	}
+	//need to ensure that the list of configs is in the right order, i.e. matching s.groups()
+	var configs []*qdr.RouterConfig
+	for _, group := range s.groups() {
+		if config, ok := byName[group]; ok {
+			if update {
+				if err := kubeqdr.UpdateRouterConfig(s.controller.GetKubeClient(), group, s.namespace, context.TODO(), ConfigUpdateList{s.bindings, s}); err != nil {
+					s.logger.Error("Failed to update router config map",
+						slog.String("namespace", s.namespace),
+						slog.String("name", group),
+						slog.Any("error", err))
+				}
+			}
+			configs = append(configs, config)
+			delete(byName, group)
+		} else {
+			routerConfig := s.initialRouterConfig()
+			s.bindings.Apply(routerConfig)
+			if err := s.createRouterConfigForGroup(group, routerConfig); err != nil {
+				s.logger.Error("Failed to create router config map",
+					slog.String("namespace", s.namespace),
+					slog.String("name", group),
+					slog.Any("error", err))
+			} else {
+				s.logger.Info("Router config created for site",
+					slog.String("namespace", s.namespace),
+					slog.String("name", group))
+			}
+		}
+	}
+	for name, _ := range byName {
+		// no longer needed, delete it (and other associated router resources?)
+		s.deleteRouterResources(name)
+	}
+	return configs, nil
+}
+
+func (s *Site) deleteRouterResources(group string) error {
+	var errs []error
+	if err := s.controller.GetKubeClient().CoreV1().ConfigMaps(s.namespace).Delete(context.TODO(), group, metav1.DeleteOptions{}); err != nil {
+		s.logger.Error("Failed to delete router config map",
+			slog.String("namespace", s.namespace),
+			slog.String("name", group),
+			slog.Any("error", err))
+		errs = append(errs, err)
+	}
+	if err := s.controller.GetKubeClient().AppsV1().Deployments(s.namespace).Delete(context.TODO(), group, metav1.DeleteOptions{}); err != nil {
+		s.logger.Error("Failed to delete router deployment",
+			slog.String("namespace", s.namespace),
+			slog.String("name", group),
+			slog.Any("error", err))
+		errs = append(errs, err)
+	}
+	if err := s.access.Delete(s.namespace, group); err != nil {
+		s.logger.Error("Failed to delete securedaccess for router",
+			slog.String("namespace", s.namespace),
+			slog.String("name", group),
+			slog.Any("error", err))
+		errs = append(errs, err)
+	}
+	return stderrors.Join(errs...)
 }
 
 func (s *Site) createRouterConfig(config *qdr.RouterConfig) error {
 	for _, group := range s.groups() {
-		data, err := config.AsConfigMapData()
-		if err != nil {
+		if err := s.createRouterConfigForGroup(group, config); err != nil {
 			return err
-		}
-		cm := &corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "ConfigMap",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            group,
-				OwnerReferences: s.ownerReferences(),
-				//TODO: Labels & Annotations?
-			},
-			Data: data,
-		}
-		if _, err = s.controller.GetKubeClient().CoreV1().ConfigMaps(s.namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
-			s.logger.Error("Failed to create config map",
-				slog.String("namespace", s.namespace),
-				slog.String("group", group),
-				slog.Any("error", err))
-			return err
-		} else {
-			s.logger.Info("Config map created successfully",
-				slog.String("namespace", s.namespace),
-				slog.String("group", group))
 		}
 	}
 	return nil
 }
+func (s *Site) createRouterConfigForGroup(group string, config *qdr.RouterConfig) error {
+	data, err := config.AsConfigMapData()
+	if err != nil {
+		return err
+	}
+	cm := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            group,
+			OwnerReferences: s.ownerReferences(),
+			//TODO: Labels & Annotations?
+			Labels: map[string]string{
+				"internal.skupper.io/router-config": "",
+			},
+		},
+		Data: data,
+	}
+	if _, err = s.controller.GetKubeClient().CoreV1().ConfigMaps(s.namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
+		s.logger.Error("Failed to create config map",
+			slog.String("namespace", s.namespace),
+			slog.String("name", group),
+			slog.Any("error", err))
+		return err
+	}
+	s.logger.Info("Config map created successfully",
+		slog.String("namespace", s.namespace),
+		slog.String("name", group))
+	return nil
+}
 
-func (s *Site) updateRouterConfigForGroups(update qdr.ConfigUpdate) error {
+func (s *Site) updateRouterConfig(update qdr.ConfigUpdate) error {
 	for _, group := range s.groups() {
-		if err := s.updateRouterConfig(update, group); err != nil {
+		if err := s.updateRouterConfigForGroup(update, group); err != nil {
 			return err
 		}
 	}
@@ -644,10 +722,8 @@ func (s *Site) updateRouterConfigForGroups(update qdr.ConfigUpdate) error {
 	return nil
 }
 
-func (s *Site) updateRouterConfig(update qdr.ConfigUpdate, group string) error {
+func (s *Site) updateRouterConfigForGroup(update qdr.ConfigUpdate, group string) error {
 	if !s.initialised {
-		s.logger.Error("Cannot update router config for site",
-			slog.String("namespace", s.namespace))
 		return nil
 	}
 	if err := kubeqdr.UpdateRouterConfig(s.controller.GetKubeClient(), group, s.namespace, context.TODO(), update); err != nil {
@@ -696,7 +772,7 @@ func (s *Site) CheckConnector(name string, connector *skupperv2alpha1.Connector)
 	if update == nil {
 		return nil
 	}
-	err := s.updateRouterConfigForGroups(update)
+	err := s.updateRouterConfig(update)
 	if connector == nil {
 		return err
 	}
@@ -725,7 +801,7 @@ func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener) er
 	if update == nil {
 		return nil
 	}
-	err2 := s.updateRouterConfigForGroups(update)
+	err2 := s.updateRouterConfig(update)
 	if listener == nil {
 		return stderrors.Join(err1, err2)
 	}
@@ -794,7 +870,7 @@ func (s *Site) link(linkconfig *skupperv2alpha1.Link) error {
 			s.logger.Info("Connecting site using token",
 				slog.String("namespace", s.namespace),
 				slog.String("token", linkconfig.ObjectMeta.Name))
-			err := s.updateRouterConfigForGroups(config)
+			err := s.updateRouterConfig(config)
 			return s.updateLinkConfiguredCondition(linkconfig, err)
 		} else {
 			s.logger.Debug("No update to router config required for link",
@@ -817,7 +893,7 @@ func (s *Site) unlink(name string) error {
 			slog.String("namespace", s.namespace))
 		delete(s.links, name)
 		if s.initialised {
-			return s.updateRouterConfigForGroups(site.NewRemoveConnector(name))
+			return s.updateRouterConfig(site.NewRemoveConnector(name))
 		}
 	}
 	return nil
@@ -936,7 +1012,7 @@ func (s *Site) NetworkStatusUpdated(network []skupperv2alpha1.SiteRecord) error 
 		}
 	}
 	if config := s.bindings.networkUpdated(network); config != nil {
-		if err := s.updateRouterConfigForGroups(config); err != nil {
+		if err := s.updateRouterConfig(config); err != nil {
 			return err
 		}
 	}
@@ -1026,7 +1102,7 @@ func (s *Site) checkSecuredAccess() error {
 	for i, group := range groups {
 		for _, la := range s.linkAccess {
 			name := la.Name
-			if len(groups) > 0 {
+			if i > 0 {
 				name = fmt.Sprintf("%s-%d", la.Name, (i + 1))
 			}
 			annotations := map[string]string{
@@ -1063,7 +1139,7 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv2alpha1.RouterAccess) 
 		groups := s.groups()
 		var errors []string
 		for i, group := range groups {
-			if err := s.updateRouterConfig(s.linkAccess.DesiredConfig(previousGroups, SSL_PROFILE_PATH), group); err != nil {
+			if err := s.updateRouterConfigForGroup(s.linkAccess.DesiredConfig(previousGroups, SSL_PROFILE_PATH), group); err != nil {
 				s.logger.Error("Error updating router config",
 					slog.String("namespace", s.namespace),
 					slog.Any("error", err))
@@ -1071,7 +1147,7 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv2alpha1.RouterAccess) 
 			}
 			if la != nil {
 				name := la.Name
-				if len(groups) > 0 {
+				if i > 0 {
 					name = fmt.Sprintf("%s-%d", la.Name, (i + 1))
 				}
 				annotations := map[string]string{

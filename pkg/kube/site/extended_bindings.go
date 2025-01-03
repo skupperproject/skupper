@@ -246,7 +246,7 @@ func (b *ExtendedBindings) checkAttachedConnectorBinding(namespace string, name 
 	}
 	if (binding == nil && connector.bindingDeleted()) || (binding != nil && connector.bindingUpdated(binding)) {
 		if b.site != nil {
-			if err := b.site.updateRouterConfigForGroups(b.site.bindings); err != nil {
+			if err := b.site.updateRouterConfig(b.site.bindings); err != nil {
 				return connector.configurationError(err)
 			} else {
 				return connector.updateStatus()
@@ -264,7 +264,7 @@ func (b *ExtendedBindings) attachedConnectorUpdated(name string, definition *sku
 	}
 	if connector.definitionUpdated(definition) {
 		if b.site != nil {
-			if err := b.site.updateRouterConfigForGroups(b.site.bindings); err != nil {
+			if err := b.site.updateRouterConfig(b.site.bindings); err != nil {
 				return connector.configurationError(err)
 			} else {
 				return connector.updateStatus()
@@ -277,7 +277,7 @@ func (b *ExtendedBindings) attachedConnectorUpdated(name string, definition *sku
 func (b *ExtendedBindings) attachedConnectorDeleted(namespace string, name string) error {
 	if connector, ok := b.connectors[name]; ok && connector.definitionDeleted(namespace) {
 		if b.site != nil {
-			if err := b.site.updateRouterConfigForGroups(b.site.bindings); err != nil {
+			if err := b.site.updateRouterConfig(b.site.bindings); err != nil {
 				return connector.configurationError(err)
 			} else {
 				return connector.updateStatus()

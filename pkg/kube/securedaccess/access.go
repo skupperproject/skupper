@@ -127,6 +127,17 @@ func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skuppe
 
 }
 
+func (m *SecuredAccessManager) Delete(namespace string, name string) error {
+	key := fmt.Sprintf("%s/%s", namespace, name)
+	if _, ok := m.definitions[key]; ok {
+		if err := m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Delete(context.Background(), name, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+		delete(m.definitions, key)
+	}
+	return nil
+}
+
 func (m *SecuredAccessManager) SecuredAccessChanged(key string, current *skupperv2alpha1.SecuredAccess) error {
 	m.definitions[key] = current
 	return m.reconcile(current)

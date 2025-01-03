@@ -148,7 +148,7 @@ func (a *AttachedConnector) Updated(pods []skupperv2alpha1.PodDetails) error {
 	if definition == nil {
 		return a.updateStatusTo(fmt.Errorf("No matching AttachedConnector"), nil)
 	}
-	err := a.parent.site.updateRouterConfigForGroups(a.parent.site.bindings)
+	err := a.parent.site.updateRouterConfig(a.parent.site.bindings)
 	if err != nil {
 		return a.updateStatusTo(err, definition)
 	}
