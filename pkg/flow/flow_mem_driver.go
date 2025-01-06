@@ -2804,7 +2804,6 @@ func (fc *FlowCollector) needForSiteProcess(flow *FlowRecord, siteId string, sta
 	diff := uint64(time.Now().UnixNano())/uint64(time.Microsecond) - diffTime
 	found := false
 	if diff > wait && flow.Process == nil {
-		log.Printf("COLLECTOR: Associating flow %s to external process %s\n", flow.Identity, processName)
 		for _, process := range fc.Processes {
 			if process.Name != nil && *process.Name == processName {
 				flow.Process = &process.Identity
