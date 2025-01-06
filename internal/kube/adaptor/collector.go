@@ -11,13 +11,15 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/config"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	"github.com/skupperproject/skupper/pkg/kube"
 	kubeflow "github.com/skupperproject/skupper/pkg/kube/flow"
 	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/session"
 	"github.com/skupperproject/skupper/pkg/version"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1informer "k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -55,7 +57,7 @@ func siteCollector(ctx context.Context, cli *internalclient.KubeClient) {
 		UID:        current.ObjectMeta.UID,
 	}
 
-	existing, err := kube.NewConfigMap(types.NetworkStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.Kube)
+	existing, err := newConfigMap(types.NetworkStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.Kube)
 	if err != nil && existing == nil {
 		log.Fatal("Failed to create site status config map ", err.Error())
 	}
@@ -168,4 +170,49 @@ func deploymentName() string {
 	}
 	return deployment
 
+}
+
+func newConfigMap(name string, data *map[string]string, labels *map[string]string, annotations *map[string]string, owner *metav1.OwnerReference, namespace string, kubeclient kubernetes.Interface) (*corev1.ConfigMap, error) {
+	configMaps := kubeclient.CoreV1().ConfigMaps(namespace)
+	existing, err := configMaps.Get(context.TODO(), name, metav1.GetOptions{})
+	if err == nil {
+		//TODO:  already exists
+		return existing, nil
+	} else if errors.IsNotFound(err) {
+		cm := &corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+		}
+
+		if data != nil {
+			cm.Data = *data
+		}
+		if labels != nil {
+			cm.ObjectMeta.Labels = *labels
+		}
+		if annotations != nil {
+			cm.ObjectMeta.Annotations = *annotations
+		}
+		if owner != nil {
+			cm.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+				*owner,
+			}
+		}
+
+		created, err := configMaps.Create(context.TODO(), cm, metav1.CreateOptions{})
+
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create config map: %w", err)
+		} else {
+			return created, nil
+		}
+	} else {
+		cm := &corev1.ConfigMap{}
+		return cm, fmt.Errorf("Failed to check existing config maps: %w", err)
+	}
 }

@@ -14,12 +14,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/internal/kube/certificates"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	kubeqdr "github.com/skupperproject/skupper/internal/kube/qdr"
+	"github.com/skupperproject/skupper/internal/kube/site/resources"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/kube"
-	"github.com/skupperproject/skupper/pkg/kube/certificates"
-	kubeqdr "github.com/skupperproject/skupper/pkg/kube/qdr"
-	"github.com/skupperproject/skupper/pkg/kube/site/resources"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/version"
@@ -36,7 +35,7 @@ type Site struct {
 	site          *skupperv2alpha1.Site
 	name          string
 	namespace     string
-	controller    *kube.Controller
+	controller    *internalclient.Controller
 	bindings      *ExtendedBindings
 	links         map[string]*site.Link
 	errors        map[string]string
@@ -48,7 +47,7 @@ type Site struct {
 	currentGroups []string
 }
 
-func NewSite(namespace string, controller *kube.Controller, certs certificates.CertificateManager, access SecuredAccessFactory) *Site {
+func NewSite(namespace string, controller *internalclient.Controller, certs certificates.CertificateManager, access SecuredAccessFactory) *Site {
 	return &Site{
 		bindings:   NewExtendedBindings(controller, SSL_PROFILE_PATH),
 		namespace:  namespace,
@@ -479,7 +478,7 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 				},
 			},
 			Spec: corev1.ServiceSpec{
-				Selector: kube.GetLabelsForRouter(), //TODO: handle external bridges
+				Selector: getLabelsForRouter(), //TODO: handle external bridges
 			},
 		}
 		//TODO: add user specified labels and annotations
@@ -517,7 +516,7 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 		return err
 	} else {
 		updated := false
-		if kube.UpdateSelectorFromMap(&current.Spec, kube.GetLabelsForRouter()) {
+		if updateSelectorFromMap(&current.Spec, getLabelsForRouter()) {
 			updated = true
 		}
 		if updatePorts(&current.Spec, exposed.Ports) {
@@ -1208,7 +1207,7 @@ func (s *Site) RouterPodEvent(key string, pod *corev1.Pod) error {
 func (s *Site) isRouterPodRunning() skupperv2alpha1.ConditionState {
 	state := skupperv2alpha1.PendingCondition("No router pod is ready")
 	for _, pod := range s.routerPods {
-		if kube.IsPodRunning(pod) && kube.IsPodReady(pod) {
+		if internalclient.IsPodRunning(pod) && internalclient.IsPodReady(pod) {
 			return skupperv2alpha1.ReadyCondition()
 		} else {
 			state = podState(pod)
@@ -1244,4 +1243,36 @@ func updateConnectorStatus(client internalclient.Clients, connector *skupperv2al
 
 func updateListenerStatus(client internalclient.Clients, listener *skupperv2alpha1.Listener) (*skupperv2alpha1.Listener, error) {
 	return client.GetSkupperClient().SkupperV2alpha1().Listeners(listener.ObjectMeta.Namespace).UpdateStatus(context.TODO(), listener, metav1.UpdateOptions{})
+}
+
+func getLabelsForRouter() map[string]string {
+	return map[string]string{
+		"application":          types.TransportDeploymentName,
+		"skupper.io/component": "router",
+	}
+}
+
+func equivalentSelectors(a map[string]string, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if v2, ok := b[k]; !ok || v != v2 {
+			return false
+		}
+	}
+	for k, v := range b {
+		if v2, ok := a[k]; !ok || v != v2 {
+			return false
+		}
+	}
+	return true
+}
+
+func updateSelectorFromMap(spec *corev1.ServiceSpec, desired map[string]string) bool {
+	if !equivalentSelectors(spec.Selector, desired) {
+		spec.Selector = desired
+		return true
+	}
+	return false
 }

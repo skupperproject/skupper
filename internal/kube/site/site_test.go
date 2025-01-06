@@ -4,12 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/skupperproject/skupper/internal/kube/certificates"
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
+	"github.com/skupperproject/skupper/internal/kube/securedaccess"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/kube"
-	"github.com/skupperproject/skupper/pkg/kube/certificates"
-	"github.com/skupperproject/skupper/pkg/kube/securedaccess"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	site1 "github.com/skupperproject/skupper/pkg/site"
 	"github.com/skupperproject/skupper/pkg/version"
@@ -1037,7 +1037,7 @@ func newSiteMocks(namespace string, k8sObjects []runtime.Object, skupperObjects 
 		return nil, err
 	}
 
-	controller := kube.NewController("test", client)
+	controller := internalclient.NewController("test", client)
 	newSite := &Site{
 		controller: controller,
 		bindings:   NewExtendedBindings(controller, ""),

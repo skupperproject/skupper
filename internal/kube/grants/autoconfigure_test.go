@@ -14,7 +14,6 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	fakev2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1/fake"
-	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 func Test_configure(t *testing.T) {
@@ -202,7 +201,7 @@ func Test_newAutoconfigure(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			controller := kube.NewController("Controller", client)
+			controller := internalclient.NewController("Controller", client)
 
 			config := &GrantConfig{
 				Port:     9090,

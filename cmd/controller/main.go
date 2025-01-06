@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,17 +12,11 @@ import (
 
 	iflag "github.com/skupperproject/skupper/internal/flag"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	"github.com/skupperproject/skupper/pkg/kube/grants"
-	"github.com/skupperproject/skupper/pkg/kube/securedaccess"
+	"github.com/skupperproject/skupper/internal/kube/controller"
+	"github.com/skupperproject/skupper/internal/kube/grants"
+	"github.com/skupperproject/skupper/internal/kube/securedaccess"
 	"github.com/skupperproject/skupper/pkg/version"
 )
-
-var controllerLogLevel = new(slog.LevelVar) // defaults to Info
-
-func init() {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: controllerLogLevel}))
-	slog.SetDefault(logger)
-}
 
 func describe(i interface{}) {
 	fmt.Printf("(%v, %T)\n", i, i)
@@ -95,7 +88,7 @@ func main() {
 		log.Fatal("Error getting van client ", err.Error())
 	}
 
-	controller, err := NewController(cli, grantConfig, securedAccessConfig, watchNamespace, cli.Namespace)
+	controller, err := controller.NewController(cli, grantConfig, securedAccessConfig, watchNamespace, cli.Namespace)
 	if err != nil {
 		log.Fatal("Error getting new site controller ", err.Error())
 	}

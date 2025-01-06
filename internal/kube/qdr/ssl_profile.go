@@ -4,15 +4,16 @@ import (
 	"context"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
+
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 func AddSslProfile(sslProfile qdr.SslProfile, namespace string, cli kubernetes.Interface) error {
 
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, namespace, cli)
+	configmap, err := getConfigMap(types.TransportConfigMapName, namespace, cli)
 	if err != nil {
 		return err
 	}
@@ -44,7 +45,7 @@ func AddSslProfile(sslProfile qdr.SslProfile, namespace string, cli kubernetes.I
 }
 
 func RemoveSslProfile(secretName string, namespace string, cli kubernetes.Interface) error {
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, namespace, cli)
+	configmap, err := getConfigMap(types.TransportConfigMapName, namespace, cli)
 	if err != nil {
 		return err
 	}
@@ -73,7 +74,7 @@ func RemoveSslProfile(secretName string, namespace string, cli kubernetes.Interf
 
 func ExistsSslProfile(secretName string, namespace string, cli kubernetes.Interface) (bool, error) {
 
-	configmap, err := kube.GetConfigMap(types.TransportConfigMapName, namespace, cli)
+	configmap, err := getConfigMap(types.TransportConfigMapName, namespace, cli)
 	if err != nil {
 		return false, err
 	}
@@ -90,4 +91,13 @@ func ExistsSslProfile(secretName string, namespace string, cli kubernetes.Interf
 
 	return false, nil
 
+}
+
+func getConfigMap(name string, namespace string, cli kubernetes.Interface) (*corev1.ConfigMap, error) {
+	current, err := cli.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	} else {
+		return current, err
+	}
 }

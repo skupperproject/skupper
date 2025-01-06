@@ -10,7 +10,6 @@ import (
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 type AutoConfigure struct {
@@ -139,7 +138,7 @@ func (s *AutoConfigure) configure(clients internalclient.Clients, namespace stri
 	return nil
 }
 
-func newAutoConfigure(handler kube.SecuredAccessHandler, controller *kube.Controller, currentNamespace string, config *GrantConfig) (*AutoConfigure, error) {
+func newAutoConfigure(handler internalclient.SecuredAccessHandler, controller *internalclient.Controller, currentNamespace string, config *GrantConfig) (*AutoConfigure, error) {
 	ac := &AutoConfigure{
 		port:                 config.Port,
 		tlsCredentialsSecret: config.TlsCredentialsSecret,
@@ -152,6 +151,6 @@ func newAutoConfigure(handler kube.SecuredAccessHandler, controller *kube.Contro
 	if err := ac.configure(controller, currentNamespace); err != nil {
 		return nil, fmt.Errorf("Error creating resources for grant server: %s", err)
 	}
-	controller.WatchSecuredAccessesWithOptions(kube.SkupperResourceByName("skupper-grant-server"), currentNamespace, handler)
+	controller.WatchSecuredAccessesWithOptions(internalclient.SkupperResourceByName("skupper-grant-server"), currentNamespace, handler)
 	return ac, nil
 }
