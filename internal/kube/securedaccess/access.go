@@ -15,10 +15,10 @@ import (
 
 	routev1 "github.com/openshift/api/route/v1"
 
+	"github.com/skupperproject/skupper/internal/kube/certificates"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/resource"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/kube/certificates"
 )
 
 type AccessType interface {

@@ -8,7 +8,6 @@ import (
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 type GrantsDisabled struct {
@@ -25,7 +24,7 @@ func (s *GrantsDisabled) markGrantNotEnabled(key string, grant *skupperv2alpha1.
 	return nil
 }
 
-func disabled(controller *kube.Controller, watchNamespace string) *GrantsDisabled {
+func disabled(controller *internalclient.Controller, watchNamespace string) *GrantsDisabled {
 	mgr := &GrantsDisabled{
 		clients: controller,
 	}

@@ -7,18 +7,18 @@ import (
 
 	routev1interfaces "github.com/openshift/client-go/route/informers/externalversions/internalinterfaces"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 type SecuredAccessResourceWatcher struct {
 	accessMgr            *SecuredAccessManager
-	serviceWatcher       *kube.ServiceWatcher
-	routeWatcher         *kube.RouteWatcher
-	ingressWatcher       *kube.IngressWatcher
-	httpProxyWatcher     *kube.DynamicWatcher
-	tlsRouteWatcher      *kube.DynamicWatcher
-	securedAccessWatcher *kube.SecuredAccessWatcher
+	serviceWatcher       *internalclient.ServiceWatcher
+	routeWatcher         *internalclient.RouteWatcher
+	ingressWatcher       *internalclient.IngressWatcher
+	httpProxyWatcher     *internalclient.DynamicWatcher
+	tlsRouteWatcher      *internalclient.DynamicWatcher
+	securedAccessWatcher *internalclient.SecuredAccessWatcher
 }
 
 func NewSecuredAccessResourceWatcher(accessMgr *SecuredAccessManager) *SecuredAccessResourceWatcher {
@@ -27,7 +27,7 @@ func NewSecuredAccessResourceWatcher(accessMgr *SecuredAccessManager) *SecuredAc
 	}
 }
 
-func (m *SecuredAccessResourceWatcher) WatchResources(controller *kube.Controller, namespace string) {
+func (m *SecuredAccessResourceWatcher) WatchResources(controller *internalclient.Controller, namespace string) {
 	m.serviceWatcher = controller.WatchServices(coreSecuredAccess(), namespace, m.accessMgr.CheckService)
 	m.ingressWatcher = controller.WatchIngresses(coreSecuredAccess(), namespace, m.accessMgr.CheckIngress)
 	m.routeWatcher = controller.WatchRoutes(routeSecuredAccess(), namespace, m.accessMgr.CheckRoute)
@@ -35,11 +35,11 @@ func (m *SecuredAccessResourceWatcher) WatchResources(controller *kube.Controlle
 	m.tlsRouteWatcher = controller.WatchTlsRoutes(dynamicSecuredAccess(), namespace, m.accessMgr.CheckTlsRoute)
 }
 
-func (m *SecuredAccessResourceWatcher) WatchGateway(controller *kube.Controller, namespace string) {
+func (m *SecuredAccessResourceWatcher) WatchGateway(controller *internalclient.Controller, namespace string) {
 	controller.WatchGateways(dynamicByName("skupper"), namespace, m.accessMgr.CheckGateway)
 }
 
-func (m *SecuredAccessResourceWatcher) WatchSecuredAccesses(controller *kube.Controller, namespace string, handler kube.SecuredAccessHandler) {
+func (m *SecuredAccessResourceWatcher) WatchSecuredAccesses(controller *internalclient.Controller, namespace string, handler internalclient.SecuredAccessHandler) {
 	f := func(key string, sa *skupperv2alpha1.SecuredAccess) error {
 		if sa == nil {
 			return m.accessMgr.SecuredAccessDeleted(key)

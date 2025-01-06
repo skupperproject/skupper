@@ -4,8 +4,8 @@ import (
 	"errors"
 	"log/slog"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 	"github.com/skupperproject/skupper/pkg/site"
 )
@@ -18,12 +18,12 @@ type ExtendedBindings struct {
 	bindings           *site.Bindings
 	connectors         map[string]*AttachedConnector
 	perTargetListeners map[string]*PerTargetListener
-	controller         *kube.Controller
+	controller         *internalclient.Controller
 	site               *Site
 	logger             *slog.Logger
 }
 
-func NewExtendedBindings(controller *kube.Controller, profilePath string) *ExtendedBindings {
+func NewExtendedBindings(controller *internalclient.Controller, profilePath string) *ExtendedBindings {
 	eb := &ExtendedBindings{
 		bindings:           site.NewBindings(profilePath),
 		connectors:         map[string]*AttachedConnector{},

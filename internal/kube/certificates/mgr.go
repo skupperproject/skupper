@@ -13,9 +13,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/certs"
-	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 type CertificateManager interface {
@@ -26,12 +26,12 @@ type CertificateManager interface {
 type CertificateManagerImpl struct {
 	definitions        map[string]*skupperv2alpha1.Certificate
 	secrets            map[string]*corev1.Secret
-	certificateWatcher *kube.CertificateWatcher
-	secretWatcher      *kube.SecretWatcher
-	controller         *kube.Controller
+	certificateWatcher *internalclient.CertificateWatcher
+	secretWatcher      *internalclient.SecretWatcher
+	controller         *internalclient.Controller
 }
 
-func NewCertificateManager(controller *kube.Controller) *CertificateManagerImpl {
+func NewCertificateManager(controller *internalclient.Controller) *CertificateManagerImpl {
 	return &CertificateManagerImpl{
 		definitions: map[string]*skupperv2alpha1.Certificate{},
 		secrets:     map[string]*corev1.Secret{},

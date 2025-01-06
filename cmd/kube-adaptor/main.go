@@ -15,7 +15,6 @@ import (
 	iflag "github.com/skupperproject/skupper/internal/flag"
 	"github.com/skupperproject/skupper/internal/kube/adaptor"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/version"
 )
 
@@ -79,7 +78,7 @@ func main() {
 	}
 
 	log.Println("Waiting for Skupper router to be ready")
-	_, err = kube.WaitForPodsSelectorStatus(cli.GetNamespace(), cli.Kube, "skupper.io/component=router", corev1.PodRunning, time.Second*180, time.Second*5)
+	_, err = internalclient.WaitForPodsSelectorStatus(cli.GetNamespace(), cli.Kube, "skupper.io/component=router", corev1.PodRunning, time.Second*180, time.Second*5)
 	if err != nil {
 		log.Fatal("Error waiting for router pods to be ready ", err.Error())
 	}

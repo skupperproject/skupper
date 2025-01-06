@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
@@ -16,11 +15,11 @@ import (
 // secrets for services with TLS enabled, and secrets and connectors for links)
 type ConfigSync struct {
 	agentPool       *qdr.AgentPool
-	controller      *kube.Controller
+	controller      *internalclient.Controller
 	namespace       string
 	profileSyncer   *SslProfileSyncer
-	config          *kube.ConfigMapWatcher
-	secrets         *kube.SecretWatcher
+	config          *internalclient.ConfigMapWatcher
+	secrets         *internalclient.SecretWatcher
 	path            string
 	routerConfigMap string
 }
@@ -28,7 +27,7 @@ type ConfigSync struct {
 func NewConfigSync(cli internalclient.Clients, namespace string, path string, routerConfigMap string) *ConfigSync {
 	configSync := &ConfigSync{
 		agentPool:       qdr.NewAgentPool("amqp://localhost:5672", nil),
-		controller:      kube.NewController("config-sync", cli),
+		controller:      internalclient.NewController("config-sync", cli),
 		namespace:       namespace,
 		profileSyncer:   newSslProfileSyncer(path),
 		path:            path,
@@ -41,7 +40,7 @@ func (c *ConfigSync) Start(stopCh <-chan struct{}) error {
 	if err := mkdir(c.path); err != nil {
 		return err
 	}
-	c.config = c.controller.WatchConfigMaps(kube.ByName(c.routerConfigMap), c.namespace, c.configEvent)
+	c.config = c.controller.WatchConfigMaps(internalclient.ByName(c.routerConfigMap), c.namespace, c.configEvent)
 	c.secrets = c.controller.WatchAllSecrets(c.namespace, c.secretEvent)
 	c.controller.StartWatchers(stopCh)
 	log.Printf("CONFIG_SYNC: Waiting for informers to sync...")

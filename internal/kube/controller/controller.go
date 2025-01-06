@@ -1,11 +1,10 @@
-package main
+package controller
 
 import (
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"log/slog"
 	"os"
 	"strings"
 
@@ -14,24 +13,23 @@ import (
 	"k8s.io/client-go/informers/internalinterfaces"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/skupperproject/skupper/internal/kube/certificates"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/kube/grants"
+	"github.com/skupperproject/skupper/internal/kube/securedaccess"
+	"github.com/skupperproject/skupper/internal/kube/site"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/kube"
-	"github.com/skupperproject/skupper/pkg/kube/certificates"
-	"github.com/skupperproject/skupper/pkg/kube/grants"
-	"github.com/skupperproject/skupper/pkg/kube/securedaccess"
-	"github.com/skupperproject/skupper/pkg/kube/site"
 	"github.com/skupperproject/skupper/pkg/network"
 )
 
 type Controller struct {
-	controller           *kube.Controller
+	controller           *internalclient.Controller
 	stopCh               <-chan struct{}
-	siteWatcher          *kube.SiteWatcher
-	listenerWatcher      *kube.ListenerWatcher
-	connectorWatcher     *kube.ConnectorWatcher
-	linkAccessWatcher    *kube.RouterAccessWatcher
-	grantWatcher         *kube.AccessGrantWatcher
+	siteWatcher          *internalclient.SiteWatcher
+	listenerWatcher      *internalclient.ListenerWatcher
+	connectorWatcher     *internalclient.ConnectorWatcher
+	linkAccessWatcher    *internalclient.RouterAccessWatcher
+	grantWatcher         *internalclient.AccessGrantWatcher
 	sites                map[string]*site.Site
 	startGrantServer     func()
 	accessMgr            *securedaccess.SecuredAccessManager
@@ -54,7 +52,7 @@ func skupperNetworkStatus() internalinterfaces.TweakListOptionsFunc {
 
 func NewController(cli internalclient.Clients, grantConfig *grants.GrantConfig, securedAccessConfig *securedaccess.Config, watchNamespace string, currentNamespace string) (*Controller, error) {
 	controller := &Controller{
-		controller:           kube.NewController("Controller", cli),
+		controller:           internalclient.NewController("Controller", cli),
 		sites:                map[string]*site.Site{},
 		attachableConnectors: map[string]*skupperv2alpha1.AttachedConnector{},
 	}
@@ -357,42 +355,4 @@ func extractSiteRecords(status network.NetworkStatusInfo) []skupperv2alpha1.Site
 		records = append(records, record)
 	}
 	return records
-}
-
-func skupperLogConfig() internalinterfaces.TweakListOptionsFunc {
-	return func(options *metav1.ListOptions) {
-		options.FieldSelector = "metadata.name=skupper-log-config"
-	}
-}
-
-func convertLogLevel(logLevel string) slog.Level {
-	switch strings.ToLower(logLevel) {
-	case "debug":
-		return slog.LevelDebug
-	case "info":
-		return slog.LevelInfo
-	case "warn":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	}
-	return slog.LevelInfo
-}
-
-func (c *Controller) logConfigUpdate(key string, cm *corev1.ConfigMap) error {
-	const controllerLogLevelKey = "CONTROLLER_LOG_LEVEL"
-	var slogLevel slog.Level
-	if cm == nil {
-		// if configmap is deleted, then set log level to info
-		slogLevel = slog.LevelInfo
-	} else {
-		logLevel := cm.Data[controllerLogLevelKey]
-		slogLevel = convertLogLevel(logLevel)
-	}
-
-	if slogLevel != controllerLogLevel.Level() {
-		controllerLogLevel.Set(slogLevel)
-	}
-	slog.Info("Updating log level", slog.String("logLevel", slogLevel.String()))
-	return nil
 }

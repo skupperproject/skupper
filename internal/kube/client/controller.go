@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kube
+package client
 
 import (
 	"context"
@@ -45,7 +45,6 @@ import (
 	routev1interfaces "github.com/openshift/client-go/route/informers/externalversions/internalinterfaces"
 	routev1informer "github.com/openshift/client-go/route/informers/externalversions/route/v1"
 
-	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/resource"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
@@ -94,7 +93,7 @@ type Controller struct {
 	watchers        []Watcher
 }
 
-func NewController(name string, clients internalclient.Clients) *Controller {
+func NewController(name string, clients Clients) *Controller {
 	return &Controller{
 		eventKey:        name + "Event",
 		errorKey:        name + "Error",
@@ -158,15 +157,6 @@ func (c *Controller) GetDeploymentForPod(podName string, namespace string) (*app
 	}
 	deploymentName := matches[1]
 	return c.GetKubeClient().AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-}
-
-func (c *Controller) NewWatchers(client kubernetes.Interface) Watchers {
-	return &Controller{
-		eventKey: c.eventKey,
-		errorKey: c.errorKey,
-		client:   client,
-		queue:    c.queue,
-	}
 }
 
 func (c *Controller) AddEvent(o interface{}) {
@@ -282,11 +272,6 @@ func (c *Controller) HaveWatchersSynced() []cache.InformerSynced {
 		combined = append(combined, watcher.HasSynced())
 	}
 	return combined
-}
-
-type Watchers interface {
-	WatchConfigMaps(options internalinterfaces.TweakListOptionsFunc, namespace string, handler ConfigMapHandler) *ConfigMapWatcher
-	WatchSecrets(options internalinterfaces.TweakListOptionsFunc, namespace string, handler SecretHandler) *SecretWatcher
 }
 
 func (c *Controller) WatchConfigMaps(options internalinterfaces.TweakListOptionsFunc, namespace string, handler ConfigMapHandler) *ConfigMapWatcher {

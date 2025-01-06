@@ -8,9 +8,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/kube"
 )
 
 func Test_markGrantNotEnabled(t *testing.T) {
@@ -78,7 +78,7 @@ func Test_disabled(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	controller := kube.NewController("Controller", client)
+	controller := internalclient.NewController("Controller", client)
 	disabled(controller, "test")
 	stopCh := make(chan struct{})
 	defer close(stopCh)

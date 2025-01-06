@@ -12,7 +12,6 @@ import (
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	fakev2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1/fake"
-	"github.com/skupperproject/skupper/pkg/kube"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -697,7 +696,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			certs := newMockCertificateManager()
 			m := NewSecuredAccessManager(client, certs, &tt.config, ControllerContext{Namespace: "test"})
 			w := NewSecuredAccessResourceWatcher(m)
-			controller := kube.NewController("Controller", client)
+			controller := internalclient.NewController("Controller", client)
 			w.WatchResources(controller, metav1.NamespaceAll)
 			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv2alpha1.SecuredAccess) error { return nil })
 			stopCh := make(chan struct{})
@@ -1200,7 +1199,7 @@ func TestGateway(t *testing.T) {
 			certs := newMockCertificateManager()
 			m := NewSecuredAccessManager(client, certs, &tt.config, ControllerContext{Namespace: tt.namespace})
 			w := NewSecuredAccessResourceWatcher(m)
-			controller := kube.NewController("Controller", client)
+			controller := internalclient.NewController("Controller", client)
 			w.WatchResources(controller, metav1.NamespaceAll)
 			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv2alpha1.SecuredAccess) error { return nil })
 			w.WatchGateway(controller, tt.namespace)
