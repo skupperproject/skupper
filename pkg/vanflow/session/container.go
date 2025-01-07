@@ -22,7 +22,7 @@ type ReceiverOptions struct {
 
 func (o ReceiverOptions) get() amqp.ReceiverOptions {
 	var result amqp.ReceiverOptions
-	if o.Credit <= 0 {
+	if o.Credit > 0 {
 		result.Credit = int32(o.Credit)
 	}
 	return result
