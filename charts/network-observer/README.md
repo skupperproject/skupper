@@ -16,6 +16,21 @@ package manager.
 observer is to be installed in.
 - The Skupper Controller running and managing the Site.
 
+## Usage
+
+To deploy the Skupper Network Observer to a namsapce using Helm
+
+```
+helm install skupper-network-observer .
+```
+
+Without Helm, the Skupper Network Observer can be installed using one of the manifests generated from the chart published alongside a Skupper release.
+
+```
+make generate-network-observer-generic # runs helm template
+kubectl apply -f ./skupper-network-observer-generic.yaml
+```
+
 ## Configuration
 
 By default, deploys the network-observer with skupper-issued TLS certificates,
