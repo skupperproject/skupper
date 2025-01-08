@@ -12,8 +12,9 @@ package manager.
 
 ## Prerequisites
 
-- A kubernetes cluster or namespace with the skupper controller installed
-- A skupper Site
+- A Skupper Version 2 Site running in the same Kuberentes Namesapce the network
+observer is to be installed in.
+- The Skupper Controller running and managing the Site.
 
 ## Configuration
 
