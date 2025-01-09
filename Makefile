@@ -107,6 +107,7 @@ test:
 cover:
 	go test ${TESTFLAGS} \
 		-cover \
+		-coverpkg=./... \
 		-coverprofile cover.out \
 		./...
 

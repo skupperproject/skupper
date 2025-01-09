@@ -10,11 +10,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	iflag "github.com/skupperproject/skupper/internal/flag"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/controller"
-	"github.com/skupperproject/skupper/internal/kube/grants"
-	"github.com/skupperproject/skupper/internal/kube/securedaccess"
 	"github.com/skupperproject/skupper/pkg/version"
 )
 
@@ -44,28 +41,12 @@ func SetupSignalHandler() (stopCh <-chan struct{}) {
 
 func main() {
 	flags := flag.NewFlagSet("", flag.ExitOnError)
-	grantConfig, err := grants.BoundGrantConfig(flags)
+	config, err := controller.BoundConfig(flags)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	securedAccessConfig, err := securedaccess.BoundConfig(flags)
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
-	if err := securedAccessConfig.Verify(); err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	}
 
-	var namespace string
-	var kubeconfig string
-	iflag.StringVar(flags, &namespace, "namespace", "NAMESPACE", "", "The Kubernetes namespace scope for the controller")
-	iflag.StringVar(flags, &kubeconfig, "kubeconfig", "KUBECONFIG", "", "A path to the kubeconfig file to use")
-
-	var watchNamespace string
-	iflag.StringVar(flags, &watchNamespace, "watch-namespace", "WATCH_NAMESPACE", metav1.NamespaceAll, "The Kubernetes namespace the controller should monitor for controlled resources (will monitor all if not specified)")
 	// if -version used, report and exit
 	isVersion := flags.Bool("version", false, "Report the version of the Skupper Controller")
 	flags.Parse(os.Args[1:])
@@ -74,21 +55,21 @@ func main() {
 		os.Exit(0)
 	}
 	log.Printf("Version: %s", version.Version)
-	if watchNamespace == metav1.NamespaceAll {
+	if config.WatchNamespace == metav1.NamespaceAll {
 		log.Println("Skupper controller watching all namespaces")
 	} else {
-		log.Println("Skupper controller watching namespace", watchNamespace)
+		log.Println("Skupper controller watching namespace", config.WatchNamespace)
 	}
 
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
 
-	cli, err := internalclient.NewClient(namespace, "", kubeconfig)
+	cli, err := internalclient.NewClient(config.Namespace, "", config.Kubeconfig)
 	if err != nil {
 		log.Fatal("Error getting van client ", err.Error())
 	}
 
-	controller, err := controller.NewController(cli, grantConfig, securedAccessConfig, watchNamespace, cli.Namespace)
+	controller, err := controller.NewController(cli, config)
 	if err != nil {
 		log.Fatal("Error getting new site controller ", err.Error())
 	}

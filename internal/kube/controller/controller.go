@@ -38,19 +38,13 @@ type Controller struct {
 	attachableConnectors map[string]*skupperv2alpha1.AttachedConnector
 }
 
-func skupperRouterService() internalinterfaces.TweakListOptionsFunc {
-	return func(options *metav1.ListOptions) {
-		options.FieldSelector = "metadata.name=skupper-router"
-	}
-}
-
 func skupperNetworkStatus() internalinterfaces.TweakListOptionsFunc {
 	return func(options *metav1.ListOptions) {
 		options.FieldSelector = "metadata.name=skupper-network-status"
 	}
 }
 
-func NewController(cli internalclient.Clients, grantConfig *grants.GrantConfig, securedAccessConfig *securedaccess.Config, watchNamespace string, currentNamespace string) (*Controller, error) {
+func NewController(cli internalclient.Clients, config *Config) (*Controller, error) {
 	controller := &Controller{
 		controller:           internalclient.NewController("Controller", cli),
 		sites:                map[string]*site.Site{},
@@ -58,9 +52,9 @@ func NewController(cli internalclient.Clients, grantConfig *grants.GrantConfig, 
 	}
 
 	podname := os.Getenv("HOSTNAME")
-	owner, err := controller.controller.GetDeploymentForPod(podname, currentNamespace)
+	owner, err := controller.controller.GetDeploymentForPod(podname, config.Namespace)
 	controllerContext := securedaccess.ControllerContext{
-		Namespace: currentNamespace,
+		Namespace: config.Namespace,
 	}
 	if err != nil {
 		log.Printf("Could not deduce owning deployment, some resources may need to be manually deleted when controller is deleted: %s", err)
@@ -69,34 +63,41 @@ func NewController(cli internalclient.Clients, grantConfig *grants.GrantConfig, 
 		controllerContext.UID = string(owner.UID)
 	}
 
-	controller.siteWatcher = controller.controller.WatchSites(watchNamespace, controller.checkSite)
-	controller.listenerWatcher = controller.controller.WatchListeners(watchNamespace, controller.checkListener)
-	controller.connectorWatcher = controller.controller.WatchConnectors(watchNamespace, controller.checkConnector)
-	controller.linkAccessWatcher = controller.controller.WatchRouterAccesses(watchNamespace, controller.checkRouterAccess)
-	controller.controller.WatchAttachedConnectors(watchNamespace, controller.checkAttachedConnector)
-	controller.controller.WatchAttachedConnectorBindings(watchNamespace, controller.checkAttachedConnectorBinding)
-	controller.controller.WatchLinks(watchNamespace, controller.checkLink)
-	controller.controller.WatchConfigMaps(skupperNetworkStatus(), watchNamespace, controller.networkStatusUpdate)
-	controller.controller.WatchAccessTokens(watchNamespace, controller.checkAccessToken)
-	controller.controller.WatchPods("skupper.io/component=router,skupper.io/type=site", watchNamespace, controller.routerPodEvent)
+	controller.siteWatcher = controller.controller.WatchSites(config.WatchNamespace, controller.checkSite)
+	controller.listenerWatcher = controller.controller.WatchListeners(config.WatchNamespace, controller.checkListener)
+	controller.connectorWatcher = controller.controller.WatchConnectors(config.WatchNamespace, controller.checkConnector)
+	controller.linkAccessWatcher = controller.controller.WatchRouterAccesses(config.WatchNamespace, controller.checkRouterAccess)
+	controller.controller.WatchAttachedConnectors(config.WatchNamespace, controller.checkAttachedConnector)
+	controller.controller.WatchAttachedConnectorBindings(config.WatchNamespace, controller.checkAttachedConnectorBinding)
+	controller.controller.WatchLinks(config.WatchNamespace, controller.checkLink)
+	controller.controller.WatchConfigMaps(skupperNetworkStatus(), config.WatchNamespace, controller.networkStatusUpdate)
+	controller.controller.WatchAccessTokens(config.WatchNamespace, controller.checkAccessToken)
+	controller.controller.WatchPods("skupper.io/component=router,skupper.io/type=site", config.WatchNamespace, controller.routerPodEvent)
 
 	controller.certMgr = certificates.NewCertificateManager(controller.controller)
-	controller.certMgr.Watch(watchNamespace)
+	controller.certMgr.Watch(config.WatchNamespace)
 
-	controller.accessMgr = securedaccess.NewSecuredAccessManager(controller.controller, controller.certMgr, securedAccessConfig, controllerContext)
+	controller.accessMgr = securedaccess.NewSecuredAccessManager(controller.controller, controller.certMgr, config.SecuredAccessConfig, controllerContext)
 	controller.accessRecovery = securedaccess.NewSecuredAccessResourceWatcher(controller.accessMgr)
-	controller.accessRecovery.WatchResources(controller.controller, watchNamespace)
-	controller.accessRecovery.WatchSecuredAccesses(controller.controller, watchNamespace, controller.checkSecuredAccess)
-	controller.accessRecovery.WatchGateway(controller.controller, currentNamespace)
+	controller.accessRecovery.WatchResources(controller.controller, config.WatchNamespace)
+	controller.accessRecovery.WatchSecuredAccesses(controller.controller, config.WatchNamespace, controller.checkSecuredAccess)
+	controller.accessRecovery.WatchGateway(controller.controller, config.Namespace)
 
-	controller.startGrantServer = grants.Initialise(controller.controller, currentNamespace, watchNamespace, grantConfig, controller.generateLinkConfig)
+	controller.startGrantServer = grants.Initialise(controller.controller, config.Namespace, config.WatchNamespace, config.GrantConfig, controller.generateLinkConfig)
 
-	controller.controller.WatchConfigMaps(skupperLogConfig(), currentNamespace, controller.logConfigUpdate)
+	controller.controller.WatchConfigMaps(skupperLogConfig(), config.Namespace, controller.logConfigUpdate)
 
 	return controller, nil
 }
 
 func (c *Controller) Run(stopCh <-chan struct{}) error {
+	if err := c.init(stopCh); err != nil {
+		return err
+	}
+	return c.start(stopCh)
+}
+
+func (c *Controller) init(stopCh <-chan struct{}) error {
 	log.Println("Starting informers")
 	c.controller.StartWatchers(stopCh)
 	c.stopCh = stopCh
@@ -140,7 +141,10 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	if c.startGrantServer != nil {
 		c.startGrantServer()
 	}
+	return nil
+}
 
+func (c *Controller) start(stopCh <-chan struct{}) error {
 	log.Println("Starting event loop")
 	c.controller.Start(stopCh)
 	<-stopCh
