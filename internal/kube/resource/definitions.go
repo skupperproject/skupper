@@ -29,6 +29,14 @@ func TlsRouteResource() schema.GroupVersionResource {
 	}
 }
 
+func DeploymentResource() schema.GroupVersionResource {
+	return schema.GroupVersionResource{
+		Group:    "apps",
+		Version:  "v1",
+		Resource: "deployments",
+	}
+}
+
 func IsResourceAvailable(client discovery.DiscoveryInterface, resource schema.GroupVersionResource) bool {
 	resources, err := client.ServerResourcesForGroupVersion(resource.GroupVersion().String())
 	if err != nil {

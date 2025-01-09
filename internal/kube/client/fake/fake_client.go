@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	routev1 "github.com/openshift/api/route/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,7 +40,7 @@ func NewFakeClient(namespace string, k8sObjects []runtime.Object, skupperObjects
 	}
 
 	c.Namespace = namespace
-	c.Kube = k8sfake.NewSimpleClientset(standard...)
+	c.Kube = k8sfake.NewClientset(standard...)
 	c.Skupper = skupperclientfake.NewSimpleClientset(skupperObjects...)
 	// Note: brute force error return for any client access, we could make it more granular if needed
 	if fakeSkupperError != "" {
@@ -47,10 +48,13 @@ func NewFakeClient(namespace string, k8sObjects []runtime.Object, skupperObjects
 			return true, nil, fmt.Errorf(fakeSkupperError)
 		})
 	}
-	c.Dynamic = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), map[schema.GroupVersionResource]string{
+	scheme := runtime.NewScheme()
+	appsv1.AddToScheme(scheme)
+	c.Dynamic = dynamicfake.NewSimpleDynamicClientWithCustomListKinds(scheme, map[schema.GroupVersionResource]string{
 		resource.ContourHttpProxyResource(): "HTTPProxyList",
 		resource.GatewayResource():          "GatewayList",
 		resource.TlsRouteResource():         "TLSRouteList",
+		resource.DeploymentResource():       "DeploymentList",
 	}, dynamic...)
 	// prepopulated objects not working for some reason with dynamic client, so create them manually here for now:
 	for _, d := range dynamic {
