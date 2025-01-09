@@ -271,7 +271,7 @@ func TestNewWorkloadStringValidator(t *testing.T) {
 
 	t.Run("Test New Workload String Validator constructor", func(t *testing.T) {
 
-		validRegexp := regexp.MustCompile("^[A-Za-z0-9.-_]+$")
+		validRegexp := regexp.MustCompile("^[A-Za-z0-9._-]+$")
 		expectedResult := &WorkloadValidator{validRegexp, []string{"a", "b"}}
 		actualResult := NewWorkloadStringValidator([]string{"a", "b"})
 		assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
@@ -295,6 +295,7 @@ func TestWorkloadStringValidator_Evaluate(t *testing.T) {
 		{name: "string without type", value: "/name", result: false},
 		{name: "string non matching type", value: "c/name", result: false},
 		{name: "bad value", value: "a/name@#", result: false},
+		{name: "string with dashes", value: "a/workload-with-dashes", result: true},
 	}
 
 	for _, test := range testTable {

@@ -169,7 +169,7 @@ type WorkloadValidator struct {
 }
 
 func NewWorkloadStringValidator(validOptions []string) *WorkloadValidator {
-	re, err := regexp.Compile("^[A-Za-z0-9.-_]+$")
+	re, err := regexp.Compile("^[A-Za-z0-9._-]+$")
 	if err != nil {
 		fmt.Printf("Error compiling regex: %v", err)
 		return nil
