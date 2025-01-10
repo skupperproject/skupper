@@ -2,13 +2,14 @@ package nonkube
 
 import (
 	"fmt"
+
 	"github.com/skupperproject/skupper/pkg/nonkube/bootstrap"
 	"github.com/spf13/cobra"
 )
 
 type CmdSystemTeardown struct {
 	CobraCmd  *cobra.Command
-	TearDown  func(namespace string, platform string) error
+	TearDown  func(namespace string) error
 	Namespace string
 	Platform  string
 }
@@ -44,7 +45,7 @@ func (cmd *CmdSystemTeardown) InputToOptions() {
 
 func (cmd *CmdSystemTeardown) Run() error {
 
-	err := cmd.TearDown(cmd.Namespace, cmd.Platform)
+	err := cmd.TearDown(cmd.Namespace)
 
 	if err != nil {
 		return fmt.Errorf("System teardown has failed: %s", err)
