@@ -4,7 +4,7 @@
 SOURCE_DIR="./api/types/crds"
 
 # Destination directory
-DEST_DIR="./deployments/helm/crds"
+DEST_DIR="./charts/skupper-setup/crds"
 
 # Check if source directory exists
 if [ ! -d "$SOURCE_DIR" ]; then
