@@ -18,13 +18,13 @@ type SkupperImage struct {
 const (
 	RouterImageEnvKey             string = "SKUPPER_ROUTER_IMAGE"
 	ControllerImageEnvKey         string = "SKUPPER_CONTROLLER_IMAGE"
-	AdaptorImageEnvKey            string = "SKUPPER_ADAPTOR_IMAGE"
+	KubeAdaptorImageEnvKey        string = "SKUPPER_KUBE_ADAPTOR_IMAGE"
 	NetworkObserverImageEnvKey    string = "SKUPPER_NETWORK_OBSERVER_IMAGE"
 	CliImageEnvKey                string = "SKUPPER_CLI_IMAGE"
 	PrometheusServerImageEnvKey   string = "PROMETHEUS_SERVER_IMAGE"
 	OauthProxyImageEnvKey         string = "OAUTH_PROXY_IMAGE"
 	RouterPullPolicyEnvKey        string = "SKUPPER_ROUTER_IMAGE_PULL_POLICY"
-	AdaptorPullPolicyEnvKey       string = "SKUPPER_ADAPTOR_IMAGE_PULL_POLICY"
+	KubeAdaptorPullPolicyEnvKey   string = "SKUPPER_KUBE_ADAPTOR_IMAGE_PULL_POLICY"
 	OauthProxyPullPolicyEnvKey    string = "OAUTH_PROXY_IMAGE_PULL_POLICY"
 	SkupperImageRegistryEnvKey    string = "SKUPPER_IMAGE_REGISTRY"
 	PrometheusImageRegistryEnvKey string = "PROMETHEUS_IMAGE_REGISTRY"
@@ -104,25 +104,25 @@ func GetCliImageName() string {
 	}
 }
 
-func GetAdaptorImageDetails() types.ImageDetails {
+func GetKubeAdaptorImageDetails() types.ImageDetails {
 	return types.ImageDetails{
-		Name:       GetAdaptorImageName(),
-		PullPolicy: GetAdaptorImagePullPolicy(),
+		Name:       GetKubeAdaptorImageName(),
+		PullPolicy: GetKubeAdaptorImagePullPolicy(),
 	}
 }
 
-func GetAdaptorImageName() string {
-	image := os.Getenv(AdaptorImageEnvKey)
+func GetKubeAdaptorImageName() string {
+	image := os.Getenv(KubeAdaptorImageEnvKey)
 	if image == "" {
 		imageRegistry := GetImageRegistry()
-		return strings.Join([]string{imageRegistry, AdaptorImageName}, "/")
+		return strings.Join([]string{imageRegistry, KubeAdaptorImageName}, "/")
 	} else {
 		return image
 	}
 }
 
-func GetAdaptorImagePullPolicy() string {
-	return getPullPolicy(AdaptorPullPolicyEnvKey)
+func GetKubeAdaptorImagePullPolicy() string {
+	return getPullPolicy(KubeAdaptorPullPolicyEnvKey)
 }
 
 func GetPrometheusServerImageName() string {
@@ -242,11 +242,11 @@ func GetImages(component string, enableSHA bool) []SkupperImage {
 			registry = GetImageRegistry()
 		}
 
-		envImage = os.Getenv(AdaptorImageEnvKey)
+		envImage = os.Getenv(KubeAdaptorImageEnvKey)
 		if envImage != "" {
-			names[AdaptorImageEnvKey] = envImage
+			names[KubeAdaptorImageEnvKey] = envImage
 		} else {
-			names[AdaptorImageEnvKey] = AdaptorImageName
+			names[KubeAdaptorImageEnvKey] = KubeAdaptorImageName
 			registry = GetImageRegistry()
 		}
 	case "controller":
