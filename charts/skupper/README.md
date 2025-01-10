@@ -11,7 +11,7 @@ To deploy Skupper using this Helm chart, simply run the following command, speci
 namespace:
 
 ```
-helm install skupper-setup . --set scope=namespace --namespace <your-namespace>
+helm install skupper . --set scope=namespace --namespace <your-namespace>
 ```
 
 If the namespace is not specified it will be deployed in the current namespace.
@@ -20,10 +20,19 @@ If the namespace is not specified it will be deployed in the current namespace.
 To deploy Skupper using this Helm chart, simply run the following command:
 
 ```
-helm install skupper-setup . --set scope=cluster 
+helm install skupper . --set scope=cluster 
+```
+
+Skupper will be installed by default in a namespace called `skupper`, if you want to specify a different name, 
+just set the value `controllerNamespace` and the chart will create that namespace deploying skupper there.
+
+```
+helm install skupper . --set scope=cluster controllerNamespace=my-namespace  
 ```
 
 ### How to uninstall the helm chart
 ```
-helm uninstall skupper-setup
+helm uninstall skupper
 ``` 
+
+The CRDs have to be removed manually, given that Helm does not delete them by design.

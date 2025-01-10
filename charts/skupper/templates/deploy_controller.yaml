@@ -3,7 +3,10 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: skupper
+  name: {{.Values.controllerNamespace}}
+  annotations:
+    "helm.sh/hook": pre-install,post-delete
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-failed
 {{ end }}
 ---
 apiVersion: v1
@@ -11,7 +14,7 @@ kind: ServiceAccount
 metadata:
   name: skupper-controller
   {{ if eq .Values.scope "cluster" }}
-  namespace: skupper
+  namespace: {{.Values.controllerNamespace}}
   {{ end }}
   labels:
     application: skupper-controller
@@ -189,7 +192,7 @@ subjects:
   - kind: ServiceAccount
     name: skupper-controller
     {{ if eq .Values.scope "cluster" }}
-    namespace: skupper
+    namespace: {{.Values.controllerNamespace}}
     {{ end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -205,7 +208,7 @@ kind: Deployment
 metadata:
   name: skupper-controller
   {{ if eq .Values.scope "cluster" }}
-  namespace: skupper
+  namespace: {{.Values.controllerNamespace}}
   {{ end }}
 spec:
   replicas: 1
