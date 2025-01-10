@@ -4,3 +4,6 @@ images:
 
 # available options: cluster, namespace
 scope: cluster
+
+# namespace in which the controller will be deployed for the cluster option
+controllerNamespace: skupper

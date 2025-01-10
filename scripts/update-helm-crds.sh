@@ -4,7 +4,7 @@
 SOURCE_DIR="./config/crd/bases"
 
 # Destination directory
-DEST_DIR="./charts/skupper-setup/crds"
+DEST_DIR="./charts/skupper/crds"
 
 # Check if source directory exists
 if [ ! -d "$SOURCE_DIR" ]; then
