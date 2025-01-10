@@ -88,7 +88,7 @@ func getCoreParams(site *skupperv2alpha1.Site, group string) CoreParams {
 		ServiceAccount: site.Spec.GetServiceAccount(),
 		ConfigDigest:   configDigest(&site.Spec),
 		RouterImage:    images.GetRouterImageDetails(),
-		AdaptorImage:   images.GetAdaptorImageDetails(),
+		AdaptorImage:   images.GetKubeAdaptorImageDetails(),
 	}
 }
 

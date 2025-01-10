@@ -105,9 +105,9 @@ func getEnvironmentVariableMap() *map[string]string {
 		envVariables[images.ControllerImageEnvKey] = controllerImage
 	}
 
-	adaptorImage := os.Getenv(images.AdaptorImageEnvKey)
+	adaptorImage := os.Getenv(images.KubeAdaptorImageEnvKey)
 	if adaptorImage != "" {
-		envVariables[images.AdaptorImageEnvKey] = adaptorImage
+		envVariables[images.KubeAdaptorImageEnvKey] = adaptorImage
 	}
 
 	networkObserverImage := os.Getenv(images.NetworkObserverImageEnvKey)
@@ -141,7 +141,7 @@ func GetRunningImages(component string, enableSHA bool, runningPods map[string]s
 	case "router":
 		// skupper router has two components
 		names[images.RouterImageEnvKey] = runningPods["router"]
-		names[images.AdaptorImageEnvKey] = runningPods["kube-adaptor"]
+		names[images.KubeAdaptorImageEnvKey] = runningPods["kube-adaptor"]
 
 	case "controller":
 		names[images.ControllerImageEnvKey] = runningPods["controller"]
