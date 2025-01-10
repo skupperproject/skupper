@@ -202,10 +202,11 @@ main() {
         file_container_endpoint=$(echo "${CONTAINER_ENDPOINT}" | sed -e "s#unix://##g")
         MOUNTS="${MOUNTS} -v '${file_container_endpoint}:/${CONTAINER_ENGINE}.sock:z'"
     fi
-    INPUT_PATH_ARG=""
+    INPUT_PATH_ARG="/input"
     if [ -n "${INPUT_PATH}" ]; then
         MOUNTS="${MOUNTS} -v '${INPUT_PATH}:/input:z'"
-        INPUT_PATH_ARG="/input"
+    else
+        MOUNTS="${MOUNTS} -v '${SKUPPER_OUTPUT_PATH}/namespaces/${NAMESPACE:-default}/input/resources:/input:z'"
     fi
     MOUNTS="${MOUNTS} -v '${SKUPPER_OUTPUT_PATH}:/output:z'"
     MOUNTS="${MOUNTS} -v '${BOOTSTRAP_OUT}:/bootstrap.out:z'"
