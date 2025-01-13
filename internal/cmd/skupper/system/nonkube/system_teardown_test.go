@@ -2,11 +2,12 @@ package nonkube
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"gotest.tools/v3/assert"
-	"testing"
 )
 
 func TestCmdSystemTearDown_ValidateInput(t *testing.T) {
@@ -122,7 +123,7 @@ func newCmdSystemTeardownWithMocks(systemTeardDownFails bool) *CmdSystemTeardown
 	return cmdMock
 }
 
-func mockCmdSystemTeardown(namespace string, platform string) error { return nil }
-func mockCmdSystemTeardownFails(namespace string, platform string) error {
+func mockCmdSystemTeardown(namespace string) error { return nil }
+func mockCmdSystemTeardownFails(namespace string) error {
 	return fmt.Errorf("fail")
 }

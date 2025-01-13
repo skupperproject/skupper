@@ -2,6 +2,10 @@ package bootstrap
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"path"
+
 	"github.com/skupperproject/skupper/api/types"
 	internalbundle "github.com/skupperproject/skupper/internal/nonkube/bundle"
 	internalutils "github.com/skupperproject/skupper/internal/utils"
@@ -11,9 +15,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/nonkube/compat"
 	"github.com/skupperproject/skupper/pkg/nonkube/systemd"
 	"github.com/skupperproject/skupper/pkg/utils"
-	"os"
-	"os/exec"
-	"path"
 )
 
 type Config struct {
@@ -43,7 +44,7 @@ func PreBootstrap(config *Config) error {
 			fmt.Printf("Input path has not been provided and namespace %s does not exist\n", config.Namespace)
 			return fmt.Errorf("No sources found at: %s\n", path.Join(api.GetHostNamespaceHome(config.Namespace), string(api.InputSiteStatePath)))
 		}
-	} else if inputSourcesDefined {
+	} else if inputSourcesDefined && !api.IsRunningInContainer() {
 		return fmt.Errorf("Input path has been provided, but namespace %s has input sources defined at:\n %s\n", config.Namespace, path.Join(api.GetHostNamespaceHome(config.Namespace), string(api.InputSiteStatePath)))
 	}
 

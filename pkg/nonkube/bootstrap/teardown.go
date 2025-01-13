@@ -2,11 +2,12 @@ package bootstrap
 
 import (
 	"fmt"
+	"os"
+
 	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"
-	"os"
 )
 
 type LocalData struct {
@@ -14,9 +15,14 @@ type LocalData struct {
 	service     string
 }
 
-func Teardown(namespace string, platform string) error {
+func Teardown(namespace string) error {
 
-	if err := removeRouter(namespace); err != nil {
+	platformLoader := &common.NamespacePlatformLoader{}
+	platform, err := platformLoader.Load(namespace)
+	if err != nil {
+		return err
+	}
+	if err := removeRouter(namespace, platform); err != nil {
 		return err
 	}
 
@@ -43,9 +49,17 @@ func removeDefinition(namespace string) error {
 	return os.RemoveAll(api.GetHostNamespaceHome(namespace))
 }
 
-func removeRouter(namespace string) error {
+func removeRouter(namespace string, platform string) error {
 
-	cli, err := internalclient.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
+	endpoint := os.Getenv("CONTAINER_ENDPOINT")
+	if endpoint == "" {
+		endpoint = fmt.Sprintf("unix://%s/podman/podman.sock", api.GetRuntimeDir())
+		if platform == "docker" {
+			endpoint = "unix:///run/docker.sock"
+		}
+	}
+
+	cli, err := internalclient.NewCompatClient(endpoint, "")
 	if err != nil {
 		return fmt.Errorf("failed to create container client: %v", err)
 	}

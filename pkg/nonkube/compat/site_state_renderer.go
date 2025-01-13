@@ -37,7 +37,14 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 		return err
 	}
 	s.loadedSiteState = loadedSiteState
-	s.cli, err = internalclient.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
+	endpoint := os.Getenv("CONTAINER_ENDPOINT")
+	if endpoint == "" {
+		endpoint = fmt.Sprintf("unix://%s/podman/podman.sock", api.GetRuntimeDir())
+		if s.Platform == "docker" {
+			endpoint = "unix:///run/docker.sock"
+		}
+	}
+	s.cli, err = internalclient.NewCompatClient(endpoint, "")
 	if err != nil {
 		return fmt.Errorf("failed to create container client: %v", err)
 	}
