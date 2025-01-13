@@ -150,6 +150,7 @@ func TestGetPlatform(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config.Platform = tt.cliVar
 			t.Setenv(types.ENV_PLATFORM, tt.envVar)
+			config.ClearPlatform()
 			got := config.GetPlatform()
 			if got != tt.want {
 				t.Errorf("GetPlatform() = %v, want %v", got, tt.want)
