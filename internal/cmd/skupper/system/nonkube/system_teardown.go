@@ -3,6 +3,7 @@ package nonkube
 import (
 	"fmt"
 
+	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/pkg/nonkube/bootstrap"
 	"github.com/spf13/cobra"
 )
@@ -24,7 +25,7 @@ func NewCmdSystemTeardown() *CmdSystemTeardown {
 func (cmd *CmdSystemTeardown) NewClient(cobraCommand *cobra.Command, args []string) {
 	cmd.TearDown = bootstrap.Teardown
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
-	cmd.Platform = cobraCommand.Flag("platform").Value.String()
+	cmd.Platform = string(config.GetPlatform())
 }
 
 func (cmd *CmdSystemTeardown) ValidateInput(args []string) []error {

@@ -2,6 +2,9 @@ package nonkube
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/config"
@@ -9,8 +12,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/bootstrap"
 	"github.com/spf13/cobra"
-	"os"
-	"path/filepath"
 )
 
 type CmdSystemSetup struct {
@@ -20,7 +21,6 @@ type CmdSystemSetup struct {
 	CobraCmd        *cobra.Command
 	Flags           *common.CommandSystemSetupFlags
 	Namespace       string
-	Platform        string
 	ConfigBootstrap bootstrap.Config
 }
 
@@ -36,7 +36,6 @@ func (cmd *CmdSystemSetup) NewClient(cobraCommand *cobra.Command, args []string)
 	cmd.Bootstrap = bootstrap.Bootstrap
 	cmd.PostExec = bootstrap.PostBootstrap
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
-	cmd.Platform = cobraCommand.Flag("platform").Value.String()
 }
 
 func (cmd *CmdSystemSetup) ValidateInput(args []string) []error {
@@ -97,10 +96,6 @@ func (cmd *CmdSystemSetup) InputToOptions() {
 
 	var binary string
 	selectedPlatform := config.GetPlatform()
-
-	if cmd.Platform != "" {
-		selectedPlatform = types.Platform(cmd.Platform)
-	}
 
 	if !isBundle {
 		switch selectedPlatform {
