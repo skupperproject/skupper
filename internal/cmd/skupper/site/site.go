@@ -155,16 +155,14 @@ skupper site delete --wait=false`,
 
 	cmd.Flags().BoolVar(&cmdFlags.All, common.FlagNameAll, false, common.FlagDescDeleteAll)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
-	cmd.Flags().BoolVar(&cmdFlags.Wait, common.FlagNameWait, true, common.FlagDescDeleteWait)
+	if configuredPlatform == types.PlatformKubernetes {
+		cmd.Flags().BoolVar(&cmdFlags.Wait, common.FlagNameWait, true, common.FlagDescDeleteWait)
+	}
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
-
-	if configuredPlatform != types.PlatformKubernetes {
-		cmd.Flags().MarkHidden(common.FlagNameWait)
-	}
 
 	return cmd
 }

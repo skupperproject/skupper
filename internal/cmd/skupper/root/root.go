@@ -43,11 +43,8 @@ func NewSkupperRootCommand() *cobra.Command {
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&config.Platform, common.FlagNamePlatform, "p", "", common.FlagDescPlatform)
 	rootCmd.PersistentFlags().StringVarP(&SelectedNamespace, common.FlagNameNamespace, "n", "", common.FlagDescNamespace)
-	rootCmd.PersistentFlags().StringVarP(&SelectedContext, common.FlagNameContext, "c", "", common.FlagDescContext)
-	rootCmd.PersistentFlags().StringVarP(&KubeConfigPath, common.FlagNameKubeconfig, "", "", common.FlagDescKubeconfig)
-
-	if config.GetPlatform() != types.PlatformKubernetes {
-		rootCmd.PersistentFlags().MarkHidden(common.FlagNameContext)
-		rootCmd.PersistentFlags().MarkHidden(common.FlagNameKubeconfig)
+	if config.GetPlatform() == types.PlatformKubernetes {
+		rootCmd.PersistentFlags().StringVarP(&SelectedContext, common.FlagNameContext, "c", "", common.FlagDescContext)
+		rootCmd.PersistentFlags().StringVarP(&KubeConfigPath, common.FlagNameKubeconfig, "", "", common.FlagDescKubeconfig)
 	}
 }

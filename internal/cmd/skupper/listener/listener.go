@@ -48,19 +48,16 @@ func CmdListenerCreateFactory(configuredPlatform types.Platform) *cobra.Command 
 	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameListenerHost, "", common.FlagDescListenerHost)
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ListenerType, common.FlagNameListenerType, "tcp", common.FlagDescListenerType)
-	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
-	cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "configured", common.FlagDescWait)
+	if configuredPlatform == types.PlatformKubernetes {
+		cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
+		cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "configured", common.FlagDescWait)
+	}
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
-
-	if configuredPlatform != types.PlatformKubernetes {
-		cmd.Flags().MarkHidden(common.FlagNameTimeout)
-		cmd.Flags().MarkHidden(common.FlagNameWait)
-	}
 
 	return cmd
 }
@@ -85,20 +82,17 @@ func CmdListenerUpdateFactory(configuredPlatform types.Platform) *cobra.Command 
 	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameListenerHost, "", common.FlagDescListenerHost)
 	cmd.Flags().StringVarP(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "t", "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ListenerType, common.FlagNameListenerType, "tcp", common.FlagDescListenerType)
-	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 	cmd.Flags().IntVar(&cmdFlags.Port, common.FlagNameListenerPort, 0, common.FlagDescListenerPort)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
-	cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "configured", common.FlagDescWait)
+	if configuredPlatform == types.PlatformKubernetes {
+		cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
+		cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "configured", common.FlagDescWait)
+	}
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
-
-	if configuredPlatform != types.PlatformKubernetes {
-		cmd.Flags().MarkHidden(common.FlagNameTimeout)
-		cmd.Flags().MarkHidden(common.FlagNameWait)
-	}
 
 	return cmd
 }
@@ -143,18 +137,15 @@ func CmdListenerDeleteFactory(configuredPlatform types.Platform) *cobra.Command 
 
 	cmdFlags := common.CommandListenerDeleteFlags{}
 
-	cmd.Flags().DurationVarP(&cmdFlags.Timeout, common.FlagNameTimeout, "t", 60*time.Second, common.FlagDescTimeout)
-	cmd.Flags().BoolVar(&cmdFlags.Wait, common.FlagNameWait, true, common.FlagDescDeleteWait)
+	if configuredPlatform == types.PlatformKubernetes {
+		cmd.Flags().DurationVarP(&cmdFlags.Timeout, common.FlagNameTimeout, "t", 60*time.Second, common.FlagDescTimeout)
+		cmd.Flags().BoolVar(&cmdFlags.Wait, common.FlagNameWait, true, common.FlagDescDeleteWait)
+	}
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
-
-	if configuredPlatform != types.PlatformKubernetes {
-		cmd.Flags().MarkHidden(common.FlagNameTimeout)
-		cmd.Flags().MarkHidden(common.FlagNameWait)
-	}
 
 	return cmd
 }
