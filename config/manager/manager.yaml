@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skupper-controller
+  namespace: skupper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      application: skupper-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: skupper
+        application: skupper-controller
+    spec:
+      serviceAccountName: skupper-controller
+      # Prevent kubernetes from injecting env vars for grant service
+      # as these then collide with those that actually configure the
+      # controller:
+      enableServiceLinks: false
+      # Please ensure that you can use SeccompProfile and do not use
+      # if your project must work on old Kubernetes
+      # versions < 1.19 or on vendors versions which
+      # do NOT support this field by default
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: controller
+          image: quay.io/skupper/controller:v2-latest
+          imagePullPolicy: Always
+          command: ["/app/controller"]
+          args: ["-enable-grants", "-grant-server-autoconfigure"]
+          env:
+            - name: RELATED_IMAGE_kube_adaptor
+              value: quay.io/skupper/kube-adaptor:v2-latest
+            - name: RELATED_IMAGE_skupper-router
+              value: quay.io/skupper/skupper-router:3.1.0
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: tls-credentials
+              mountPath: /etc/controller
+      volumes:
+        - name: tls-credentials
+          emptyDir: {}

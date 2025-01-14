@@ -1,0 +1,14 @@
+## Append samples you want in your CSV to this file as resources ##
+resources:
+- skupper_v2alpha1_access_grant.yaml
+- skupper_v2alpha1_access_token.yaml
+- skupper_v2alpha1_attached_connector_binding.yaml
+- skupper_v2alpha1_attached_connector.yaml
+- skupper_v2alpha1_certificate.yaml
+- skupper_v2alpha1_connector.yaml
+- skupper_v2alpha1_link.yaml
+- skupper_v2alpha1_listener.yaml
+- skupper_v2alpha1_router_access.yaml
+- skupper_v2alpha1_secured_access.yaml
+- skupper_v2alpha1_site.yaml
+

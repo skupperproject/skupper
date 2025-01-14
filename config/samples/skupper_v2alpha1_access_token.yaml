@@ -1,0 +1,12 @@
+apiVersion: skupper.io/v2alpha1
+kind: AccessToken
+metadata:
+  name: my-token
+spec:
+  ca: |
+    -----BEGIN CERTIFICATE-----
+    MIIDNzCCAh+ … Q=
+    -----END CERTIFICATE-----
+  code: L1qCl2mZ7D81gbXp3ax4YT0K
+  url: https://10.107.241.191:9090/86b80f6b-2b02-47ac-bab4-d285bb4f7b9d
+

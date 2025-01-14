@@ -1,0 +1,6 @@
+apiVersion: skupper.io/v2alpha1
+kind: Certificate
+metadata:
+  name: west-certificate
+spec:
+  client: true
