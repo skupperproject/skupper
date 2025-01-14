@@ -63,6 +63,10 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) []error {
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("token file name is not valid: %s", err))
 		} else {
+			// check we can use as a filename
+			if _, err := os.ReadDir(args[0]); err == nil {
+				validationErrors = append(validationErrors, fmt.Errorf("token file name is a directory"))
+			}
 			cmd.fileName = args[0]
 		}
 	}
