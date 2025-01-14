@@ -26,8 +26,8 @@ func (s *NamespacePlatformLoader) Load(namespace string) (string, error) {
 		namespace = "default"
 	}
 	pathProvider := s.GetPathProvider()
-	runtimePath := pathProvider(namespace, api.RuntimePath)
-	platformFile, err := os.ReadFile(path.Join(runtimePath, "platform.yaml"))
+	internalPath := pathProvider(namespace, api.InternalBasePath)
+	platformFile, err := os.ReadFile(path.Join(internalPath, "platform.yaml"))
 	if err != nil {
 		return "", fmt.Errorf("failed to read platform config file for namespace %s: %w", namespace, err)
 	}

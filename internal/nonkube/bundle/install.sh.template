@@ -38,7 +38,7 @@ if [ "${UID}" -eq 0 ]; then
     export USERNS="''"
 fi
 export NAMESPACES_PATH="${SKUPPER_OUTPUT_PATH}/namespaces"
-export PLATFORM_FILE="${NAMESPACES_PATH}/${NAMESPACE}/runtime/platform.yaml"
+export PLATFORM_FILE="${NAMESPACES_PATH}/${NAMESPACE}/internal/platform.yaml"
 export USER="${USER:-$(id -un)}"
 SITE_ID="$(hostname -s)-${USER}-$(date +%s)"
 export SITE_ID
@@ -79,7 +79,7 @@ parse_opts() {
                 if [ -n "${OPTARG}" ]; then
                     export NAMESPACE="${OPTARG}"
                 fi
-                export PLATFORM_FILE="${NAMESPACES_PATH}/${NAMESPACE}/runtime/platform.yaml"
+                export PLATFORM_FILE="${NAMESPACES_PATH}/${NAMESPACE}/internal/platform.yaml"
                 ;;
             d)
                 export DUMP_TOKENS=true

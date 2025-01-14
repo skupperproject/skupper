@@ -73,7 +73,7 @@ func testFileSystemConfigurationRendererRender(t *testing.T, addInputCertificate
 		string(api.CertificatesPath) + "/link-one-profile/ca.crt",
 		string(api.CertificatesPath) + "/link-one-profile/tls.crt",
 		string(api.CertificatesPath) + "/link-one-profile/tls.key",
-		string(api.RuntimePath) + "/platform.yaml",
+		string(api.InternalBasePath) + "/platform.yaml",
 		string(api.RuntimeTokenPath) + "/link-link-access-one-127.0.0.1.yaml",
 	}
 	if !addInputCertificates {
