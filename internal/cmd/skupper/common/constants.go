@@ -12,7 +12,7 @@ var (
 const (
 	Connectors     string = "connectors"
 	Listeners      string = "listeners"
-	Sites          string = "sites"
+	Sites          string = "site"
 	RouterAccesses string = "routerAccesses"
 )
 

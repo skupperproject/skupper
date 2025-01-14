@@ -132,7 +132,7 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 		{
 			name:         "run fails site doesn't exist",
 			siteName:     "no-site",
-			errorMessage: "failed to read file: open " + path + "/sites/no-site.yaml: no such file or directory",
+			errorMessage: "failed to read file: open " + path + "/site/no-site.yaml: no such file or directory",
 		},
 		{
 			name:     "runs ok, returns 1 site",
@@ -214,7 +214,7 @@ func TestCmdSiteStatus_RunNoDirectory(t *testing.T) {
 
 	homeDir, err := os.UserHomeDir()
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test1/", string(api.InputSiteStatePath), "/sites")
+	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test1/", string(api.InputSiteStatePath), "/site")
 
 	testTable := []test{
 		{
