@@ -28,7 +28,7 @@ func TestCmdSystemStart_ValidateInput(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			command := &CmdSystemStart{}
-			command.CobraCmd = common.ConfigureCobraCommand(types.PlatformSystemd, common.SkupperCmdDescription{}, command, nil)
+			command.CobraCmd = common.ConfigureCobraCommand(types.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
 
 			actualErrors := command.ValidateInput(test.args)
 			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)

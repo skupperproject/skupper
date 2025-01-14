@@ -29,7 +29,7 @@ func TestSystemdService(t *testing.T) {
 	t.Setenv("SKUPPER_OUTPUT_PATH", outputPath)
 	t.Setenv("XDG_CONFIG_HOME", outputPath)
 
-	for _, platform := range []string{"systemd", "podman", "docker"} {
+	for _, platform := range []string{"linux", "podman", "docker"} {
 		for _, uid := range []int{0, 1000} {
 			//assert.Assert(t, t.Setenv("SKUPPER_PLATFORM", platform))
 			systemdService, err := NewSystemdServiceInfo(siteState, platform)
@@ -54,7 +54,7 @@ func TestSystemdService(t *testing.T) {
 				var startCmd string
 				var stopCmd string
 				switch platform {
-				case "systemd":
+				case "linux":
 					startCmd = fmt.Sprintf("ExecStart=skrouterd -c %s/skrouterd.json", systemdServiceImpl.SiteConfigPath)
 					stopCmd = ""
 					assert.Assert(t, strings.Contains(string(serviceFile), `Environment="SKUPPER_SITE_ID=site-id"`), string(serviceFile))

@@ -49,8 +49,8 @@ exit_error() {
 }
 
 usage() {
-    echo "Usage: $0 [-p <podman|docker|systemd>] [-x] [-d <output-dir>]" >&2
-    echo "    -p    the platform to use: podman, docker, systemd (default: ${SOURCE_PLATFORM})" >&2
+    echo "Usage: $0 [-p <podman|docker|linux>] [-x] [-d <output-dir>]" >&2
+    echo "    -p    the platform to use: podman, docker, linux (default: ${SOURCE_PLATFORM})" >&2
     echo "    -n    target namespace (default: ${SOURCE_NAMESPACE})" >&2
     echo "    -x    remove existing site definition" >&2
     echo "    -d    dump static links from bundle into the provide output directory" >&2
@@ -61,7 +61,7 @@ parse_opts() {
     while getopts "xhd:p:n:" opt; do
         case "${opt}" in
             p)
-                valid_platforms="podman docker systemd"
+                valid_platforms="podman docker linux"
                 export SKUPPER_PLATFORM="${OPTARG}"
                 is_platform_valid=false
                 for valid_platform in ${valid_platforms}; do
@@ -70,7 +70,7 @@ parse_opts() {
                         break
                     fi
                 done
-                if [ ! "${is_platform_valid}" ]; then
+                if [ "${is_platform_valid}" = "false" ]; then
                     echo "Invalid platform: ${SKUPPER_PLATFORM}"
                     usage
                 fi
@@ -113,7 +113,7 @@ parse_opts() {
         fi
         docker_gid=$(getent group docker | cut -d: -f3)
         export RUNAS="${UID}:${docker_gid}"
-    elif [ "${SKUPPER_PLATFORM}" = "systemd" ]; then
+    elif [ "${SKUPPER_PLATFORM}" = "linux" ]; then
         export PLATFORM_COMMAND="skrouterd"
     fi
 
@@ -124,7 +124,7 @@ create_service() {
     ${SYSTEMCTL} list-units > /dev/null 2>&1 || return
     service_name="skupper-${NAMESPACE}.service"
     service_file_suffix="container"
-    [ "${SKUPPER_PLATFORM}" = "systemd" ] && service_file_suffix="systemd"
+    [ "${SKUPPER_PLATFORM}" = "linux" ] && service_file_suffix="linux"
     service_file="${SKUPPER_OUTPUT_PATH}/namespaces/${NAMESPACE}/internal/scripts/skupper.service.${service_file_suffix}"
 
     if [ ! -f "${service_file}" ]; then
@@ -172,7 +172,7 @@ remove_site() {
 
     echo "Removing Skupper site definition for ${SITE_NAME} from namespace ${NAMESPACE}"
     SKUPPER_PLATFORM=$(grep '^platform: ' "${PLATFORM_FILE}" | sed -e 's/.*: //g')
-    if [ "${SKUPPER_PLATFORM}" != "systemd" ]; then
+    if [ "${SKUPPER_PLATFORM}" != "linux" ]; then
         # removing router container
         ${SKUPPER_PLATFORM} rm -f "${NAMESPACE}-skupper-router"
     fi
@@ -199,9 +199,9 @@ set_router_access_port() {
 
 create_sed_script() {
     ssl_profile_base_path="\${SSL_PROFILE_BASE_PATH}"
-    [ "${SKUPPER_PLATFORM}" = "systemd" ] && ssl_profile_base_path="${NAMESPACES_PATH}/${NAMESPACE}"
+    [ "${SKUPPER_PLATFORM}" = "linux" ] && ssl_profile_base_path="${NAMESPACES_PATH}/${NAMESPACE}"
     container_engine="podman"
-    [ "${SKUPPER_PLATFORM}" != "systemd" ] && container_engine="${SKUPPER_PLATFORM}"
+    [ "${SKUPPER_PLATFORM}" != "linux" ] && container_engine="${SKUPPER_PLATFORM}"
     # populating sed script
     # note that this is processed a golang template prior to
     # being inserted into the bundle
@@ -237,7 +237,7 @@ show_token_info() {
 }
 
 create_containers() {
-    [ "${SKUPPER_PLATFORM}" = "systemd" ] && return
+    [ "${SKUPPER_PLATFORM}" = "linux" ] && return
     "${NAMESPACES_PATH:?}/${NAMESPACE:?}/internal/scripts/containers_create.sh"
 }
 

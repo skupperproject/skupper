@@ -31,7 +31,7 @@ allowed values:
 
 * podman
 * docker
-* systemd
+* linux
 
 ### Container engine platforms
 
@@ -39,9 +39,9 @@ When `podman` or `docker` platform is used, then the bootstrap procedure will
 require that the respective container engine endpoint is available. The default
 unix socket will be used based on the current user and platform selected.
 
-### Systemd
+### Linux
 
-The `systemd` platform actually requires that you have a local installation of
+The `linux` platform actually requires that you have a local installation of
 the `skupper-router` (`skrouterd` binary must be available in your PATH).
 
 ## Bootstrap usage
@@ -170,7 +170,7 @@ The bundle installation script accepts the following flags:
 
 ```
 -h               help
--p <platform>    podman, docker, systemd
+-p <platform>    podman, docker, linux
 -n <namespace>   if not provided, the namespace defined in the bundle is used (if none, default is used)
 -x               remove site and namespace
 -d <directory>   dump static links into the provided directory 

@@ -6,7 +6,7 @@ import (
 
 const (
 	FlagNamePlatform   = "platform"
-	FlagDescPlatform   = "Set the platform type to use [kubernetes, podman, docker, systemd]"
+	FlagDescPlatform   = "Set the platform type to use [kubernetes, podman, docker, linux]"
 	FlagNameNamespace  = "namespace"
 	FlagDescNamespace  = "Set the namespace"
 	FlagNameContext    = "context"

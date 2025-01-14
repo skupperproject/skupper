@@ -13,7 +13,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/nonkube/bundle"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"
 	"github.com/skupperproject/skupper/pkg/nonkube/compat"
-	"github.com/skupperproject/skupper/pkg/nonkube/systemd"
+	"github.com/skupperproject/skupper/pkg/nonkube/linux"
 	"github.com/skupperproject/skupper/pkg/utils"
 )
 
@@ -126,8 +126,8 @@ func Bootstrap(config *Config) (*api.SiteState, error) {
 			Strategy: internalbundle.BundleStrategy(config.BundleStrategy),
 			Platform: config.Platform,
 		}
-	} else if config.Platform == types.PlatformSystemd {
-		siteStateRenderer = &systemd.SiteStateRenderer{}
+	} else if config.Platform == types.PlatformLinux {
+		siteStateRenderer = &linux.SiteStateRenderer{}
 	} else {
 		siteStateRenderer = &compat.SiteStateRenderer{
 			Platform: config.Platform,

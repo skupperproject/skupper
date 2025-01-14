@@ -90,7 +90,7 @@ func (s *systemdServiceInfo) Create() error {
 	var buf = new(bytes.Buffer)
 	var service *template.Template
 	logger.Debug("using service template for:", slog.String("platform", s.platform))
-	if s.platform == string(types.PlatformSystemd) {
+	if s.platform == string(types.PlatformLinux) {
 		service = template.Must(template.New(s.GetServiceName()).Parse(SystemdServiceTemplate))
 	} else {
 		service = template.Must(template.New(s.GetServiceName()).Parse(SystemdContainerServiceTemplate))

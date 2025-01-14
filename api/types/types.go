@@ -322,7 +322,7 @@ const (
 	PlatformKubernetes Platform = "kubernetes"
 	PlatformPodman     Platform = "podman"
 	PlatformDocker     Platform = "docker"
-	PlatformSystemd    Platform = "systemd"
+	PlatformLinux      Platform = "linux"
 )
 
 func (p Platform) IsKubernetes() bool {

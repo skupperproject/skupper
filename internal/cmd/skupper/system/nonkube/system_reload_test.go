@@ -31,7 +31,7 @@ func TestCmdSystemReload_ValidateInput(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			command := &CmdSystemReload{}
-			command.CobraCmd = common.ConfigureCobraCommand(types.PlatformSystemd, common.SkupperCmdDescription{}, command, nil)
+			command.CobraCmd = common.ConfigureCobraCommand(types.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
 
 			actualErrors := command.ValidateInput(test.args)
 			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
@@ -59,9 +59,9 @@ func TestCmdSystemReload_InputToOptions(t *testing.T) {
 			expectedNamespace: "default",
 		},
 		{
-			name:              "systemd",
+			name:              "linux",
 			namespace:         "east",
-			platform:          "systemd",
+			platform:          "linux",
 			expectedBinary:    "skrouterd",
 			expectedNamespace: "east",
 		},
