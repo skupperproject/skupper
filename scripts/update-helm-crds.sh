@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Source directory
-SOURCE_DIR="./config/crds/bases"
+SOURCE_DIR="./config/crd/bases"
 
 # Destination directory
 DEST_DIR="./deployments/helm/crds"
