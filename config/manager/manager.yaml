@@ -13,6 +13,8 @@ spec:
       labels:
         app.kubernetes.io/part-of: skupper
         application: skupper-controller
+        app.kubernetes.io/name: skupper-controller
+        skupper.io/component: controller
     spec:
       serviceAccountName: skupper-controller
       # Prevent kubernetes from injecting env vars for grant service
