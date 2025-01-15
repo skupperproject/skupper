@@ -208,7 +208,7 @@ func TestContainer(t *testing.T) {
 	})
 
 	// Updating container image
-	image = strings.ReplaceAll(image, ":main", ":latest")
+	image = strings.ReplaceAll(image, ":v2-latest", ":latest")
 	t.Run("container-update-image", func(t *testing.T) {
 		c, err := cli.ContainerUpdateImage(ctx, name, image)
 		assert.Assert(t, err)
@@ -328,7 +328,7 @@ func TestContainerUpdateMock(t *testing.T) {
 	assert.Assert(t, err)
 	assert.Equal(t, len(cl), 1)
 
-	newImage := strings.Replace(image, ":main", ":updated", -1)
+	newImage := strings.Replace(image, ":v2-latest", ":updated", -1)
 	_, err = cli.ContainerUpdateImage(context.Background(), "my-container", newImage)
 	assert.Assert(t, err)
 
@@ -346,7 +346,7 @@ func TestContainerUpdateMock(t *testing.T) {
 
 func TestContainerUpdateErrorMock(t *testing.T) {
 	image := images.GetRouterImageName()
-	newImage := strings.Replace(image, ":main", ":updated", -1)
+	newImage := strings.Replace(image, ":v2-latest", ":updated", -1)
 	cli := NewCompatClientMock(mockContainers(image))
 	mock := cli.RestClient.(*RestClientMock)
 

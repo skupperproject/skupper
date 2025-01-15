@@ -1,7 +1,7 @@
 # Bootstrapping non-kubernetes sites
 
 In this current phase of the Skupper V2 implementation, non-kubernetes sites
-can be bootstrapped using the Skupper CLI, using the quay.io/skupper/skupper-cli:v2-latest
+can be bootstrapped using the Skupper CLI, using the quay.io/skupper/skupper-cli:v2-dev
 container image by calling `./cmd/bootstrap/bootstrap.sh` with the appropriate
 flags.
 

@@ -16,9 +16,9 @@ RUN make GOARCH=$TARGETARCH build-network-observer
 FROM --platform=$BUILDPLATFORM node:20.9.0 AS console-builder
 
 WORKDIR /skupper-console/
-ADD https://github.com/skupperproject/skupper-console/archive/v2.tar.gz .
-RUN tar -zxf v2.tar.gz
-WORKDIR ./skupper-console-2
+ADD https://github.com/skupperproject/skupper-console/archive/main.tar.gz .
+RUN tar -zxf main.tar.gz
+WORKDIR ./skupper-console-main
 RUN yarn install && yarn build
 
 FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
@@ -34,5 +34,5 @@ USER 10000
 
 WORKDIR /app
 COPY --from=builder /go/src/app/network-observer .
-COPY --from=console-builder /skupper-console/skupper-console-2/build/ console
+COPY --from=console-builder /skupper-console/skupper-console-main/build/ console
 ENTRYPOINT ["/app/network-observer"]

@@ -62,7 +62,7 @@ yaml-templates:
     filters:
       branches:
         ignore: /.*/
-        only: /v2/
+        only: /main/
 
   release_filters: &run_for_numeric_tags
     filters:
@@ -144,12 +144,12 @@ workflows:
       - test:
           <<: *run_for_all_branches
       - build-oci-images:
-          image_tag: v2-latest
+          image_tag: v2-dev
           <<: *run_for_all_branches
       - publish-oci-images:
           <<: *run_for_v2_branch
           <<: *v2_release_requires
-          image_tag: v2-latest
+          image_tag: v2-dev
           context:
             - skupper-org
       - generate-manifest:
@@ -157,7 +157,7 @@ workflows:
             - publish-oci-images
       - publish-github-prerelease-artifacts:
           <<: *run_for_v2_branch
-          version: v2-release
+          version: v2-dev-release
           requires:
             - publish-oci-images
             - generate-manifest
