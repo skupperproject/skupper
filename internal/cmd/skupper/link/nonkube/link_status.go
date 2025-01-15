@@ -1,21 +1,21 @@
 package nonkube
 
 import (
+	"errors"
 	"fmt"
-<<<<<<< HEAD
-=======
 	"os"
 	"text/tabwriter"
->>>>>>> 5122e05 (add nonkube link status support)
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
-	"github.com/skupperproject/skupper/pkg/utils/validator"
+	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/spf13/cobra"
 )
 
 type CmdLinkStatus struct {
 	linkHandler *fs.LinkHandler
+	siteHandler *fs.SiteHandler
 	CobraCmd    *cobra.Command
 	Flags       *common.CommandLinkStatusFlags
 	namespace   string
@@ -32,11 +32,11 @@ func (cmd *CmdLinkStatus) NewClient(cobraCommand *cobra.Command, args []string) 
 	}
 
 	cmd.linkHandler = fs.NewLinkHandler(cmd.namespace)
+	cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
 }
 
-func (cmd *CmdLinkStatus) ValidateInput(args []string) []error {
+func (cmd *CmdLinkStatus) ValidateInput(args []string) error {
 	var validationErrors []error
-	opts := fs.GetOptions{LogWarning: false}
 	resourceStringValidator := validator.NewResourceStringValidator()
 
 	// Validate arguments name if specified
@@ -54,25 +54,17 @@ func (cmd *CmdLinkStatus) ValidateInput(args []string) []error {
 			}
 		}
 	}
-	// Validate that there is a link with this name in the namespace
-	if cmd.linkName != "" {
-		link, err := cmd.linkHandler.Get(cmd.linkName, opts)
-		if link == nil || err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("link %s does not exist in namespace %s", cmd.linkName, cmd.namespace))
-		}
-	}
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdLinkStatus) Run() error {
-	opts := fs.GetOptions{LogWarning: true}
+	opts := fs.GetOptions{LogWarning: false}
+	links, err := cmd.linkHandler.List(opts)
+	if links == nil || err != nil {
+		fmt.Println("no links found")
+		return nil
+	}
 	if cmd.linkName == "" {
-		links, err := cmd.linkHandler.List()
-		if links == nil || err != nil {
-			fmt.Println("no links found:")
-			return err
-		}
-
 		tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
 		_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s",
 			"NAME", "STATUS"))
@@ -86,19 +78,34 @@ func (cmd *CmdLinkStatus) Run() error {
 		}
 		_ = tw.Flush()
 	} else {
-		link, err := cmd.linkHandler.Get(cmd.linkName, opts)
-		if link == nil || err != nil {
-			fmt.Println("No links found:")
-			return err
+		for _, link := range links {
+			if link.Name == cmd.linkName {
+				status := "Not Ready"
+				if link.IsConfigured() {
+					status = "Ok"
+				}
+
+				// get the site and determine role of router, default to interRouter
+				endpointName := ""
+				endPointType := types.InterRouterRole
+				sites, err := cmd.siteHandler.List(opts)
+				if sites != nil && err == nil {
+					if sites[0].Spec.Edge {
+						endPointType = types.EdgeRole
+					}
+				}
+				for index, endpoint := range link.Spec.Endpoints {
+					if endpoint.Name == endPointType {
+						endpointName = link.Spec.Endpoints[index].Host + ":" + link.Spec.Endpoints[index].Port
+					}
+				}
+
+				tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
+				fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nCost:\t%d\nTlsCredentials:\t%s\nEndpoint:\t%s\n",
+					link.Name, status, link.Spec.Cost, link.Spec.TlsCredentials, endpointName))
+				_ = tw.Flush()
+			}
 		}
-		status := "Not Ready"
-		if link.IsConfigured() {
-			status = "Ok"
-		}
-		tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
-		fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nCost:\t%d\nTlsCredentials:\t%s\n",
-			link.Name, status, link.Spec.Cost, link.Spec.TlsCredentials))
-		_ = tw.Flush()
 	}
 	return nil
 }

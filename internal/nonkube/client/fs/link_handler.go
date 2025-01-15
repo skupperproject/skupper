@@ -66,14 +66,16 @@ func (s *LinkHandler) Delete(name string) error {
 	return nil
 }
 
-func (s *LinkHandler) List() ([]*v2alpha1.Link, error) {
+func (s *LinkHandler) List(opts GetOptions) ([]*v2alpha1.Link, error) {
 	var links []*v2alpha1.Link
 
 	// Read from runtime directory
 	path := s.pathProvider.GetRuntimeNamespace()
 	err, files := s.ReadDir(path, common.Links)
 	if err != nil {
-		os.Stderr.WriteString("Site not initialized yet\n")
+		if opts.LogWarning {
+			os.Stderr.WriteString("Site not initialized yet\n")
+		}
 		return nil, err
 	}
 

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
@@ -23,7 +23,7 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 		cobraGenericFlags map[string]string
 		k8sObjects        []runtime.Object
 		skupperObjects    []runtime.Object
-		expectedErrors    []string
+		expectedError     string
 		linkName          string
 	}
 
@@ -33,33 +33,31 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:           "link is not shown because link does not exist in the namespace",
-			args:           []string{"no-link"},
-			flags:          &common.CommandLinkStatusFlags{},
-			expectedErrors: []string{"link no-link does not exist in namespace test"},
+			name:  "link is not shown because link does not exist in the namespace",
+			args:  []string{"no-link"},
+			flags: &common.CommandLinkStatusFlags{},
 		},
 		{
-			name:           "link name is nil",
-			args:           []string{""},
-			flags:          &common.CommandLinkStatusFlags{},
-			expectedErrors: []string{"link name must not be empty"},
+			name:          "link name is nil",
+			args:          []string{""},
+			flags:         &common.CommandLinkStatusFlags{},
+			expectedError: "link name must not be empty",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "link"},
-			flags:          &common.CommandLinkStatusFlags{},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "link"},
+			flags:         &common.CommandLinkStatusFlags{},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:           "link name is not valid.",
-			args:           []string{"my new link"},
-			flags:          &common.CommandLinkStatusFlags{},
-			expectedErrors: []string{"link name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "link name is not valid.",
+			args:          []string{"my new link"},
+			flags:         &common.CommandLinkStatusFlags{},
+			expectedError: "link name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "no args",
-			flags:          &common.CommandLinkStatusFlags{},
-			expectedErrors: []string{},
+			name:  "no args",
+			flags: &common.CommandLinkStatusFlags{},
 		},
 	}
 
@@ -99,11 +97,7 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 				}
 			}
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 
 		})
 	}
@@ -126,9 +120,8 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:         "run fails link doesn't exist",
-			linkName:     "no-link",
-			errorMessage: "failed to read file: open " + path + "/links/no-link.yaml: no such file or directory",
+			name:     "runs ok, link doesn't exist",
+			linkName: "no-link",
 		},
 		{
 			name:     "runs ok, returns 1 links",
@@ -172,6 +165,18 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 		Spec: v2alpha1.LinkSpec{
 			TlsCredentials: "my-secret",
 			Cost:           2,
+			Endpoints: []v2alpha1.Endpoint{
+				{
+					Name: "inter-router",
+					Host: "127.0.0.1",
+					Port: "55671",
+				},
+				{
+					Name: "edge",
+					Host: "127.0.0.1",
+					Port: "45671",
+				},
+			},
 		},
 		Status: v2alpha1.LinkStatus{
 			Status: v2alpha1.Status{
@@ -209,13 +214,40 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 		},
 	}
 
+	//Add a temp file so site exists for status tests
+	siteResource := v2alpha1.Site{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "Site",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-site",
+			Namespace: "test",
+		},
+		Spec: v2alpha1.SiteSpec{
+			Edge: true,
+		},
+		Status: v2alpha1.SiteStatus{
+			Status: v2alpha1.Status{
+				Conditions: []metav1.Condition{
+					{
+						Type:   "Configured",
+						Status: "True",
+					},
+				},
+			},
+		},
+	}
+
 	// add two Links in runtime directory
 	command := &CmdLinkStatus{}
 	command.namespace = "test"
 	command.linkHandler = fs.NewLinkHandler(command.namespace)
+	command.siteHandler = fs.NewSiteHandler(command.namespace)
 
 	defer command.linkHandler.Delete("my-link")
 	defer command.linkHandler.Delete("my-link2")
+	defer command.siteHandler.Delete("my-site")
 
 	path = filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.RuntimeSiteStatePath))
 	content, err := command.linkHandler.EncodeToYaml(linkResource1)
@@ -226,6 +258,11 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 	content, err = command.linkHandler.EncodeToYaml(linkResource2)
 	assert.Check(t, err == nil)
 	err = command.linkHandler.WriteFile(path, "my-link2.yaml", content, common.Links)
+	assert.Check(t, err == nil)
+
+	content, err = command.siteHandler.EncodeToYaml(siteResource)
+	assert.Check(t, err == nil)
+	err = command.siteHandler.WriteFile(path, "my-site.yaml", content, common.Sites)
 	assert.Check(t, err == nil)
 
 	for _, test := range testTable {
@@ -262,11 +299,6 @@ func TestCmdLinkStatus_RunNoDirectory(t *testing.T) {
 		{
 			name:         "runs fails no directory",
 			errorMessage: "failed to read directory: open " + path + "/links: no such file or directory",
-		},
-		{
-			name:         "runs fails no directory",
-			linkName:     "my-link",
-			errorMessage: "failed to read file: open " + path + "/links/my-link.yaml: no such file or directory",
 		},
 	}
 
