@@ -212,7 +212,7 @@ func TestContainer(t *testing.T) {
 	})
 
 	// Updating container image
-	image = strings.ReplaceAll(image, ":main", ":latest")
+	image = strings.ReplaceAll(image, ":v1-dev", ":latest")
 	t.Run("container-update-image", func(t *testing.T) {
 		c, err := cli.ContainerUpdateImage(ctx, name, image)
 		assert.Assert(t, err)
@@ -320,7 +320,7 @@ func TestContainerUpdateMock(t *testing.T) {
 	assert.Assert(t, err)
 	startedAt := cc.StartedAt
 
-	newImage := strings.Replace(image, ":main", ":updated", -1)
+	newImage := strings.Replace(image, ":v1-dev", ":updated", -1)
 	_, err = cli.ContainerUpdateImage(context.Background(), "my-container", newImage)
 	assert.Assert(t, err)
 
@@ -338,7 +338,7 @@ func TestContainerUpdateMock(t *testing.T) {
 
 func TestContainerUpdateErrorMock(t *testing.T) {
 	image := images.GetServiceControllerImageName()
-	newImage := strings.Replace(image, ":main", ":updated", -1)
+	newImage := strings.Replace(image, ":v1-dev", ":updated", -1)
 	cli := NewPodmanClientMock(mockContainers(image))
 	mock := cli.RestClient.(*RestClientMock)
 

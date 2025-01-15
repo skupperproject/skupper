@@ -9,7 +9,7 @@ const (
 	FlowCollectorImageName     string = "flow-collector:1.8.3"
 	SiteControllerImageName    string = "site-controller:1.8.3"
 	PrometheusImageRegistry    string = "quay.io/prometheus"
-	PrometheusServerImageName  string = "prometheus:v2.42.0"
+	PrometheusServerImageName  string = "prometheus:v2.55.1"
 	OauthProxyImageRegistry    string = "quay.io/openshift"
-	OauthProxyImageName        string = "origin-oauth-proxy:4.14.0"
+	OauthProxyImageName        string = "origin-oauth-proxy:4.18.0"
 )

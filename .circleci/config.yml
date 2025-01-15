@@ -350,11 +350,11 @@ yaml-templates:
       tags:
         only: /[0-9].*/
 
-  main_branch_filters: &run_for_main_branch
+  v1_branch_filters: &run_for_v1_branch
     filters:
       branches:
         ignore: /.*/
-        only: /main/
+        only: /v1/
 
   release_filters: &run_for_numeric_tags
     filters:
@@ -368,7 +368,7 @@ yaml-templates:
       - build-all
       - test-skupper-binary
       - test
-      - main_tests_minikube_local_cluster
+      - v1_tests_minikube_local_cluster
       - policy_tests_minikube_local_cluster
 
 workflows:
@@ -393,7 +393,7 @@ workflows:
       - build_and_save_test_images:
           <<: *run_for_all_branches_and_numeric_tags
 
-      - main_tests_minikube_local_cluster:
+      - v1_tests_minikube_local_cluster:
           <<: *run_for_all_branches_and_numeric_tags
           pre-steps:
             - prepare_for_local_cluster_tests
@@ -432,15 +432,15 @@ workflows:
           context:
             - skupper-org
 
-      - publish-github-main-artifacts:
-          <<: *run_for_main_branch
+      - publish-github-v1-artifacts:
+          <<: *run_for_v1_branch
           requires:
-            - publish-github-main-images
+            - publish-github-v1-images
           context:
             - skupper-org
 
-      - publish-github-main-images:
-          <<: *run_for_main_branch
+      - publish-github-v1-images:
+          <<: *run_for_v1_branch
           <<: *release_requires
           context:
             - skupper-org
@@ -578,7 +578,7 @@ jobs:
             cd dist/linux-amd64
             ./skupper version
 
-  main_tests_minikube_local_cluster:
+  v1_tests_minikube_local_cluster:
     executor: local_cluster_test_executor
     steps:
       - run: echo "skupper_image = ${SKUPPER_SERVICE_CONTROLLER_IMAGE}"
@@ -668,7 +668,7 @@ jobs:
             make -e docker-build
             make -e docker-push
 
-  publish-github-main-images:
+  publish-github-v1-images:
     executor:
       name: local_cluster_test_executor
     steps:
@@ -677,20 +677,20 @@ jobs:
           version: "v26.0.1"
       - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run:
-          name: "Publishing main images"
+          name: "Publishing v1 images"
           command: |
-            echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:main' >> $BASH_ENV
-            echo 'export CONTROLLER_PODMAN_IMAGE=quay.io/skupper/controller-podman:main' >> $BASH_ENV
-            echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:main' >> $BASH_ENV
-            echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:main' >> $BASH_ENV
-            echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:main' >> $BASH_ENV
-            echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:main' >> $BASH_ENV
+            echo 'export SERVICE_CONTROLLER_IMAGE=quay.io/skupper/service-controller:v1-dev' >> $BASH_ENV
+            echo 'export CONTROLLER_PODMAN_IMAGE=quay.io/skupper/controller-podman:v1-dev' >> $BASH_ENV
+            echo 'export SITE_CONTROLLER_IMAGE=quay.io/skupper/site-controller:v1-dev' >> $BASH_ENV
+            echo 'export CONFIG_SYNC_IMAGE=quay.io/skupper/config-sync:v1-dev' >> $BASH_ENV
+            echo 'export FLOW_COLLECTOR_IMAGE=quay.io/skupper/flow-collector:v1-dev' >> $BASH_ENV
+            echo 'export TEST_IMAGE=quay.io/skupper/skupper-tests:v1-dev' >> $BASH_ENV
             source $BASH_ENV
             docker buildx create --use --name skupper-buildx --bootstrap
             make -e docker-build
             make -e docker-push
 
-  publish-github-main-artifacts:
+  publish-github-v1-artifacts:
     docker:
       - image: cibuilds/github:0.10
     steps:
@@ -699,7 +699,7 @@ jobs:
       - run:
           name: "Create a Pre-Release on GitHub"
           command: |
-            VERSION="main-release"
+            VERSION="v1-dev-release"
             BASEDIR=`pwd`
             mkdir "${BASEDIR}/archives"
             for p in `ls dist` ; do
