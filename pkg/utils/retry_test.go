@@ -390,8 +390,12 @@ func TestRetryErrorWithContext(t *testing.T) {
 					t.Errorf("Expected to complete before timeout, but took %v", elapsed)
 				}
 			}
-			if !item.expectSuccess && (elapsed <= item.timeout || elapsed > item.timeout+20*time.Millisecond) {
-				t.Errorf("The execution should have timed out, but it did not or took too long.")
+			if !item.expectSuccess {
+				if elapsed <= item.timeout {
+					t.Errorf("The execution should have timed out, but it did not.")
+				} else if elapsed > item.timeout+20*time.Millisecond {
+					t.Errorf("The execution should have timed out, but it took too long. Elapsed %d ms, timeout %d ms.", elapsed/time.Millisecond, item.timeout)
+				}
 			}
 
 			if item.expectSuccess != (resp == nil) {
