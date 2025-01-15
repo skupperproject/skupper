@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 REGISTRY=${REGISTRY:-quay.io/skupper}
-IMAGE_TAG=${IMAGE_TAG:-"v2-latest"}
+IMAGE_TAG=${IMAGE_TAG:-"v2-dev"}
 ARCHIVES_PATH=${ARCHIVES_PATH:-./oci-archives}
 
 skopeo::digest (){

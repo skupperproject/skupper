@@ -2,4 +2,4 @@ apiVersion: v2
 name: skupper-setup
 description:  Helm chart for setting up Skupper.
 version: 0.1.0-devel
-appVersion: v2-latest
+appVersion: v2-dev
