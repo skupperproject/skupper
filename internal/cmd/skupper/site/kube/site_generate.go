@@ -53,14 +53,6 @@ func (cmd *CmdSiteGenerate) ValidateInput(args []string) error {
 	linkAccessTypeValidator := validator.NewOptionValidator(common.LinkAccessTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
-	if cmd.Flags != nil && cmd.Flags.BindHost != "" {
-		fmt.Println("Warning: --bind-host flag is not supported on this platform")
-	}
-
-	if cmd.Flags != nil && cmd.Flags.SubjectAlternativeNames != nil && len(cmd.Flags.SubjectAlternativeNames) > 0 {
-		fmt.Println("Warning: --subject-alternative-names flag is not supported on this platform")
-	}
-
 	if len(args) == 0 || args[0] == "" {
 		validationErrors = append(validationErrors, fmt.Errorf("site name must not be empty"))
 	} else if len(args) > 1 {
