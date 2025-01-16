@@ -75,7 +75,7 @@ func run(cfg Config) error {
 	)
 
 	var mux = mux.NewRouter().StrictSlash(true)
-	promSubrouter := mux.PathPrefix("/api/v1alpha1/internal/prom")
+	promSubrouter := mux.PathPrefix("/api/v2alpha1/internal/prom")
 	mux.Handle("/metrics", handleMetrics(reg))
 	mux.PathPrefix("/swagger").Handler(handleSwagger("/swagger", specFS))
 	apiMux := mux.PathPrefix("/").Subrouter()
@@ -92,9 +92,9 @@ func run(cfg Config) error {
 			return fmt.Errorf("error parsing prometheus-api as URL: %s", err)
 		}
 		// add unspec'd api routes
-		apiMux.Path("/api/v1alpha1/user").Handler(handleNoContent())
-		apiMux.Path("/api/v1alpha1/logout").Handler(handleNoContent())
-		promSubrouter.Handler(handleProxyPrometheusAPI("/api/v1alpha1/internal/prom", promAPI))
+		apiMux.Path("/api/v2alpha1/user").Handler(handleNoContent())
+		apiMux.Path("/api/v2alpha1/logout").Handler(handleNoContent())
+		promSubrouter.Handler(handleProxyPrometheusAPI("/api/v2alpha1/internal/prom", promAPI))
 
 		apiMux.PathPrefix("/").Handler(handleConsoleAssets(cfg.ConsoleLocation))
 	}
