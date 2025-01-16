@@ -1379,7 +1379,7 @@ func NewAddressesRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/addresses/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/addresses")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1413,7 +1413,7 @@ func NewAddressByIDRequest(server string, id PathID) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/addresses/%s/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/addresses/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1447,7 +1447,7 @@ func NewConnectionsByAddressRequest(server string, id PathID) (*http.Request, er
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/addresses/%s/connections/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/addresses/%s/connections", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1481,7 +1481,7 @@ func NewProcessesByAddressRequest(server string, id PathID) (*http.Request, erro
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/addresses/%s/processes/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/addresses/%s/processes", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1515,7 +1515,7 @@ func NewProcessPairsByAddressRequest(server string, id PathID) (*http.Request, e
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/addresses/%s/processpairs/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/addresses/%s/processpairs", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1542,7 +1542,7 @@ func NewApplicationflowsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/applicationflows/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/applicationflows")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1569,7 +1569,7 @@ func NewConnectionsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/connections/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/connections")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1596,7 +1596,7 @@ func NewConnectorsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/connectors/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/connectors")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1630,7 +1630,7 @@ func NewConnectorByIDRequest(server string, id PathID) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/connectors/%s/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/connectors/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1657,7 +1657,7 @@ func NewHostsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/hosts/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/hosts")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1691,7 +1691,7 @@ func NewHostsByIDRequest(server string, id PathID) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/hosts/%s/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/hosts/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1718,7 +1718,7 @@ func NewLinksRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/links/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/links")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1752,7 +1752,7 @@ func NewLinkByIDRequest(server string, id PathID) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/links/%s/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/links/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1779,7 +1779,7 @@ func NewListenersRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/listeners/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/listeners")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1813,7 +1813,7 @@ func NewListenerByIDRequest(server string, id PathID) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/listeners/%s/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/listeners/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1840,7 +1840,7 @@ func NewProcessesRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/processes/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/processes")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1874,7 +1874,7 @@ func NewProcessByIdRequest(server string, id PathID) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/processes/%s/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/processes/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1901,7 +1901,7 @@ func NewProcessgrouppairsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/processgrouppairs/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/processgrouppairs")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1935,7 +1935,7 @@ func NewProcessgrouppairByIDRequest(server string, id PathID) (*http.Request, er
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/processgrouppairs/%s/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/processgrouppairs/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1962,7 +1962,7 @@ func NewProcessgroupsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/processgroups/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/processgroups")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1996,7 +1996,7 @@ func NewProcessgroupByIDRequest(server string, id PathID) (*http.Request, error)
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/processgroups/%s/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/processgroups/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2023,7 +2023,7 @@ func NewProcesspairsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/processpairs/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/processpairs")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2057,7 +2057,7 @@ func NewProcesspairByIDRequest(server string, id PathID) (*http.Request, error) 
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/processpairs/%s/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/processpairs/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2084,7 +2084,7 @@ func NewRouteraccessRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/routeraccess/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/routeraccess")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2118,7 +2118,7 @@ func NewRouteraccessByIDRequest(server string, id PathID) (*http.Request, error)
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/routeraccess/%s/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/routeraccess/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2145,7 +2145,7 @@ func NewRouterlinksRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/routerlinks/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/routerlinks")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2179,7 +2179,7 @@ func NewRouterlinkByIDRequest(server string, id PathID) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/routerlinks/%s/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/routerlinks/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2206,7 +2206,7 @@ func NewRoutersRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/routers/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/routers")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2240,7 +2240,7 @@ func NewRouterByIDRequest(server string, id PathID) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/routers/%s/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/routers/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2274,7 +2274,7 @@ func NewLinksByRouterRequest(server string, id PathID) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/routers/%s/links/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/routers/%s/links", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2301,7 +2301,7 @@ func NewSitepairsRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/sitepairs/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/sitepairs")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2335,7 +2335,7 @@ func NewSitepairByIDRequest(server string, id PathID) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/sitepairs/%s/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/sitepairs/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2362,7 +2362,7 @@ func NewSitesRequest(server string) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/sites/")
+	operationPath := fmt.Sprintf("/api/v2alpha1/sites")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2396,7 +2396,7 @@ func NewSiteByIdRequest(server string, id PathID) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/sites/%s/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/sites/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2430,7 +2430,7 @@ func NewHostsBySiteRequest(server string, id PathID) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/sites/%s/hosts/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/sites/%s/hosts", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2464,7 +2464,7 @@ func NewLinksBySiteRequest(server string, id PathID) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/sites/%s/links/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/sites/%s/links", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2498,7 +2498,7 @@ func NewProcessesBySiteRequest(server string, id PathID) (*http.Request, error) 
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/sites/%s/processes/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/sites/%s/processes", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2532,7 +2532,7 @@ func NewRoutersBySiteRequest(server string, id PathID) (*http.Request, error) {
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/api/v1alpha1/sites/%s/routers/", pathParam0)
+	operationPath := fmt.Sprintf("/api/v2alpha1/sites/%s/routers", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -5133,118 +5133,118 @@ func ParseRoutersBySiteResponse(rsp *http.Response) (*RoutersBySiteResponse, err
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 
-	// (GET /api/v1alpha1/addresses/)
+	// (GET /api/v2alpha1/addresses)
 	Addresses(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/addresses/{id}/)
+	// (GET /api/v2alpha1/addresses/{id})
 	AddressByID(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/addresses/{id}/connections/)
+	// (GET /api/v2alpha1/addresses/{id}/connections)
 	ConnectionsByAddress(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/addresses/{id}/processes/)
+	// (GET /api/v2alpha1/addresses/{id}/processes)
 	ProcessesByAddress(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/addresses/{id}/processpairs/)
+	// (GET /api/v2alpha1/addresses/{id}/processpairs)
 	ProcessPairsByAddress(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/applicationflows/)
+	// (GET /api/v2alpha1/applicationflows)
 	Applicationflows(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/connections/)
+	// (GET /api/v2alpha1/connections)
 	Connections(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/connectors/)
+	// (GET /api/v2alpha1/connectors)
 	Connectors(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/connectors/{id}/)
+	// (GET /api/v2alpha1/connectors/{id})
 	ConnectorByID(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/hosts/)
+	// (GET /api/v2alpha1/hosts)
 	Hosts(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/hosts/{id}/)
+	// (GET /api/v2alpha1/hosts/{id})
 	HostsByID(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/links/)
+	// (GET /api/v2alpha1/links)
 	Links(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/links/{id}/)
+	// (GET /api/v2alpha1/links/{id})
 	LinkByID(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/listeners/)
+	// (GET /api/v2alpha1/listeners)
 	Listeners(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/listeners/{id}/)
+	// (GET /api/v2alpha1/listeners/{id})
 	ListenerByID(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/processes/)
+	// (GET /api/v2alpha1/processes)
 	Processes(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/processes/{id}/)
+	// (GET /api/v2alpha1/processes/{id})
 	ProcessById(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/processgrouppairs/)
+	// (GET /api/v2alpha1/processgrouppairs)
 	Processgrouppairs(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/processgrouppairs/{id}/)
+	// (GET /api/v2alpha1/processgrouppairs/{id})
 	ProcessgrouppairByID(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/processgroups/)
+	// (GET /api/v2alpha1/processgroups)
 	Processgroups(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/processgroups/{id}/)
+	// (GET /api/v2alpha1/processgroups/{id})
 	ProcessgroupByID(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/processpairs/)
+	// (GET /api/v2alpha1/processpairs)
 	Processpairs(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/processpairs/{id}/)
+	// (GET /api/v2alpha1/processpairs/{id})
 	ProcesspairByID(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/routeraccess/)
+	// (GET /api/v2alpha1/routeraccess)
 	Routeraccess(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/routeraccess/{id}/)
+	// (GET /api/v2alpha1/routeraccess/{id})
 	RouteraccessByID(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/routerlinks/)
+	// (GET /api/v2alpha1/routerlinks)
 	Routerlinks(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/routerlinks/{id}/)
+	// (GET /api/v2alpha1/routerlinks/{id})
 	RouterlinkByID(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/routers/)
+	// (GET /api/v2alpha1/routers)
 	Routers(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/routers/{id}/)
+	// (GET /api/v2alpha1/routers/{id})
 	RouterByID(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/routers/{id}/links/)
+	// (GET /api/v2alpha1/routers/{id}/links)
 	LinksByRouter(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/sitepairs/)
+	// (GET /api/v2alpha1/sitepairs)
 	Sitepairs(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/sitepairs/{id}/)
+	// (GET /api/v2alpha1/sitepairs/{id})
 	SitepairByID(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/sites/)
+	// (GET /api/v2alpha1/sites)
 	Sites(w http.ResponseWriter, r *http.Request)
 
-	// (GET /api/v1alpha1/sites/{id}/)
+	// (GET /api/v2alpha1/sites/{id})
 	SiteById(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/sites/{id}/hosts/)
+	// (GET /api/v2alpha1/sites/{id}/hosts)
 	HostsBySite(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/sites/{id}/links/)
+	// (GET /api/v2alpha1/sites/{id}/links)
 	LinksBySite(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/sites/{id}/processes/)
+	// (GET /api/v2alpha1/sites/{id}/processes)
 	ProcessesBySite(w http.ResponseWriter, r *http.Request, id PathID)
 
-	// (GET /api/v1alpha1/sites/{id}/routers/)
+	// (GET /api/v2alpha1/sites/{id}/routers)
 	RoutersBySite(w http.ResponseWriter, r *http.Request, id PathID)
 }
 
@@ -6182,81 +6182,81 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/", wrapper.Addresses).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/addresses", wrapper.Addresses).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/{id}/", wrapper.AddressByID).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/addresses/{id}", wrapper.AddressByID).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/{id}/connections/", wrapper.ConnectionsByAddress).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/addresses/{id}/connections", wrapper.ConnectionsByAddress).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/{id}/processes/", wrapper.ProcessesByAddress).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/addresses/{id}/processes", wrapper.ProcessesByAddress).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/addresses/{id}/processpairs/", wrapper.ProcessPairsByAddress).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/addresses/{id}/processpairs", wrapper.ProcessPairsByAddress).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/applicationflows/", wrapper.Applicationflows).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/applicationflows", wrapper.Applicationflows).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/connections/", wrapper.Connections).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/connections", wrapper.Connections).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/connectors/", wrapper.Connectors).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/connectors", wrapper.Connectors).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/connectors/{id}/", wrapper.ConnectorByID).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/connectors/{id}", wrapper.ConnectorByID).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/hosts/", wrapper.Hosts).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/hosts", wrapper.Hosts).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/hosts/{id}/", wrapper.HostsByID).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/hosts/{id}", wrapper.HostsByID).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/links/", wrapper.Links).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/links", wrapper.Links).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/links/{id}/", wrapper.LinkByID).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/links/{id}", wrapper.LinkByID).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/listeners/", wrapper.Listeners).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/listeners", wrapper.Listeners).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/listeners/{id}/", wrapper.ListenerByID).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/listeners/{id}", wrapper.ListenerByID).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processes/", wrapper.Processes).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processes", wrapper.Processes).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processes/{id}/", wrapper.ProcessById).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processes/{id}", wrapper.ProcessById).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processgrouppairs/", wrapper.Processgrouppairs).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processgrouppairs", wrapper.Processgrouppairs).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processgrouppairs/{id}/", wrapper.ProcessgrouppairByID).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processgrouppairs/{id}", wrapper.ProcessgrouppairByID).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processgroups/", wrapper.Processgroups).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processgroups", wrapper.Processgroups).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processgroups/{id}/", wrapper.ProcessgroupByID).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processgroups/{id}", wrapper.ProcessgroupByID).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processpairs/", wrapper.Processpairs).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processpairs", wrapper.Processpairs).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/processpairs/{id}/", wrapper.ProcesspairByID).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processpairs/{id}", wrapper.ProcesspairByID).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/routeraccess/", wrapper.Routeraccess).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/routeraccess", wrapper.Routeraccess).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/routeraccess/{id}/", wrapper.RouteraccessByID).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/routeraccess/{id}", wrapper.RouteraccessByID).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/routerlinks/", wrapper.Routerlinks).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/routerlinks", wrapper.Routerlinks).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/routerlinks/{id}/", wrapper.RouterlinkByID).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/routerlinks/{id}", wrapper.RouterlinkByID).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/routers/", wrapper.Routers).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/routers", wrapper.Routers).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/routers/{id}/", wrapper.RouterByID).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/routers/{id}", wrapper.RouterByID).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/routers/{id}/links/", wrapper.LinksByRouter).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/routers/{id}/links", wrapper.LinksByRouter).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/sitepairs/", wrapper.Sitepairs).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/sitepairs", wrapper.Sitepairs).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/sitepairs/{id}/", wrapper.SitepairByID).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/sitepairs/{id}", wrapper.SitepairByID).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/sites/", wrapper.Sites).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/sites", wrapper.Sites).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/sites/{id}/", wrapper.SiteById).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/sites/{id}", wrapper.SiteById).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/sites/{id}/hosts/", wrapper.HostsBySite).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/sites/{id}/hosts", wrapper.HostsBySite).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/sites/{id}/links/", wrapper.LinksBySite).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/sites/{id}/links", wrapper.LinksBySite).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/sites/{id}/processes/", wrapper.ProcessesBySite).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/sites/{id}/processes", wrapper.ProcessesBySite).Methods("GET")
 
-	r.HandleFunc(options.BaseURL+"/api/v1alpha1/sites/{id}/routers/", wrapper.RoutersBySite).Methods("GET")
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/sites/{id}/routers", wrapper.RoutersBySite).Methods("GET")
 
 	return r
 }
