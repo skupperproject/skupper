@@ -462,6 +462,7 @@ type SiteConfig struct {
 	Provider  string `json:"provider,omitempty"`
 	Platform  string `json:"platform,omitempty"`
 	Namespace string `json:"namespace,omitempty"`
+	Version   string `json:"version,omitempty"`
 }
 
 func convert(from interface{}, to interface{}) error {
