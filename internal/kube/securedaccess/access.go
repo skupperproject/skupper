@@ -324,6 +324,9 @@ func (m *SecuredAccessManager) CheckRoute(key string, route *routev1.Route) erro
 	} else {
 		m.routes[key] = route
 		if sa == nil {
+			if !canDelete(&route.ObjectMeta) {
+				return nil
+			}
 			log.Printf("Deleting route %s/%s as no matching ServiceAccess definition found", route.Namespace, route.Name)
 			return m.clients.GetRouteClient().Routes(route.Namespace).Delete(context.Background(), route.Name, metav1.DeleteOptions{})
 		}
@@ -375,6 +378,9 @@ func (m *SecuredAccessManager) CheckIngress(key string, ingress *networkingv1.In
 	} else {
 		m.ingresses[key] = ingress
 		if !ok || m.actualAccessType(sa) != ACCESS_TYPE_INGRESS_NGINX {
+			if !canDelete(&ingress.ObjectMeta) {
+				return nil
+			}
 			// delete this ingress as there is no corresponding securedaccess resource
 			log.Printf("Deleting redundant Ingress %s/%s", ingress.Namespace, ingress.Name)
 			return m.clients.GetKubeClient().NetworkingV1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
@@ -402,7 +408,11 @@ func (m *SecuredAccessManager) CheckService(key string, svc *corev1.Service) err
 	}
 	sa, ok := m.definitions[key]
 	if !ok {
+		if !canDelete(&svc.ObjectMeta) {
+			return nil
+		}
 		// delete this service as there is no corresponding securedaccess resource
+		log.Printf("Deleting redundant service %s/%s", svc.Namespace, svc.Name)
 		return m.clients.GetKubeClient().CoreV1().Services(svc.Namespace).Delete(context.Background(), svc.Name, metav1.DeleteOptions{})
 	}
 	m.services[key] = svc
@@ -524,4 +534,24 @@ func getHosts(sa *skupperv2alpha1.SecuredAccess) []string {
 		}
 	}
 	return results
+}
+
+func canDelete(obj *metav1.ObjectMeta) bool {
+	return isOwned(obj) && hasSecuredAccessLabel(obj)
+}
+
+func isOwned(obj *metav1.ObjectMeta) bool {
+	if obj.Annotations == nil {
+		return false
+	}
+	_, ok := obj.Annotations["internal.skupper.io/controlled"]
+	return ok
+}
+
+func hasSecuredAccessLabel(obj *metav1.ObjectMeta) bool {
+	if obj.Labels == nil {
+		return false
+	}
+	_, ok := obj.Labels["internal.skupper.io/secured-access"]
+	return ok
 }

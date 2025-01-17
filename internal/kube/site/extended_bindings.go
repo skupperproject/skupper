@@ -92,8 +92,9 @@ func (a *ExtendedBindings) ListenerUpdated(listener *skupperv2alpha1.Listener) {
 	if err != nil {
 		bindings_logger.Error("Unable to get port for listener",
 			slog.String("namespace", listener.Namespace),
-			slog.String("name", listener.Name))
-		slog.Any("error", err)
+			slog.String("name", listener.Name),
+			slog.Any("error", err),
+		)
 	} else {
 		port := Port{
 			Name:       listener.Name,
@@ -104,6 +105,15 @@ func (a *ExtendedBindings) ListenerUpdated(listener *skupperv2alpha1.Listener) {
 		if exposed := a.exposed.Expose(listener.Spec.Host, port); exposed != nil {
 			if err := a.context.Expose(exposed); err != nil {
 				//TODO: write error to listener status
+				bindings_logger.Error("Error exposing listener",
+					slog.String("namespace", listener.Namespace),
+					slog.String("name", listener.Name),
+					slog.Any("error", err))
+			} else {
+				bindings_logger.Info("Exposed listener",
+					slog.String("namespace", listener.Namespace),
+					slog.String("name", listener.Name))
+
 			}
 		}
 	}
@@ -119,6 +129,14 @@ func (a *ExtendedBindings) ListenerDeleted(listener *skupperv2alpha1.Listener) {
 		} else {
 			if err := a.context.Expose(exposed); err != nil {
 				//TODO: write error to listener status
+				bindings_logger.Error("Error re-exposing service after deleting listener",
+					slog.String("namespace", listener.Namespace),
+					slog.String("name", listener.Name),
+					slog.Any("error", err))
+			} else {
+				bindings_logger.Info("Re-exposed service after deleting listener",
+					slog.String("namespace", listener.Namespace),
+					slog.String("name", listener.Name))
 			}
 		}
 	}
@@ -182,7 +200,7 @@ func (b *ExtendedBindings) UpdateListener(name string, listener *skupperv2alpha1
 				updateConfig = true
 			}
 		} else {
-			b.perTargetListeners[name] = newPerTargetListener(listener)
+			b.perTargetListeners[name] = newPerTargetListener(listener, b.logger)
 		}
 	} else {
 		if existing, ok := b.perTargetListeners[name]; ok {

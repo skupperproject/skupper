@@ -1,6 +1,7 @@
 package site
 
 import (
+	"log/slog"
 	"reflect"
 	"strconv"
 	"strings"
@@ -12,12 +13,14 @@ import (
 type PerTargetListener struct {
 	definition *skupperv2alpha1.Listener
 	targets    map[string]int // name -> port
+	logger     *slog.Logger
 }
 
-func newPerTargetListener(l *skupperv2alpha1.Listener) *PerTargetListener {
+func newPerTargetListener(l *skupperv2alpha1.Listener, logger *slog.Logger) *PerTargetListener {
 	return &PerTargetListener{
 		definition: l,
 		targets:    map[string]int{},
+		logger:     logger,
 	}
 }
 
@@ -28,6 +31,9 @@ func (p *PerTargetListener) updateListener(l *skupperv2alpha1.Listener) bool {
 }
 
 func (p *PerTargetListener) extractTargets(network []skupperv2alpha1.SiteRecord, mapping *qdr.PortMapping, exposedPorts ExposedPorts, context BindingContext) (bool, error) {
+	p.logger.Info("Extracting targets for listener",
+		slog.String("namespace", p.definition.Namespace),
+		slog.String("listener", p.definition.Name))
 	targets := extractTargets(p.address(""), network)
 	changed := false
 	stale := map[string]bool{}
@@ -52,7 +58,13 @@ func (p *PerTargetListener) extractTargets(network []skupperv2alpha1.SiteRecord,
 		}
 		delete(p.targets, target)
 	}
-	return changed, nil
+	if !changed {
+		return false, nil
+	}
+	if err := p.expose(mapping, exposedPorts, context); err != nil {
+		return true, err
+	}
+	return true, nil
 }
 
 func (p *PerTargetListener) address(target string) string {
@@ -69,8 +81,20 @@ func (p *PerTargetListener) expose(mapping *qdr.PortMapping, exposedPorts Expose
 		}
 		if ports := exposedPorts.Expose(target, port); ports != nil {
 			if err := context.Expose(ports); err != nil {
+				p.logger.Error("Error exposing per target listener",
+					slog.String("namespace", p.definition.Namespace),
+					slog.String("listener", p.definition.Name),
+					slog.String("target", target),
+					slog.Any("error", err),
+				)
+
 				return err
 			}
+			p.logger.Info("Exposed per target listener",
+				slog.String("namespace", p.definition.Namespace),
+				slog.String("listener", p.definition.Name),
+				slog.String("target", target),
+			)
 		}
 	}
 	return nil
@@ -107,7 +131,6 @@ func (p *PerTargetListener) updateBridgeConfig(siteId string, config *qdr.Bridge
 			config.AddTcpListener(qdr.TcpEndpoint{
 				Name:       p.definition.Name + "@" + target,
 				SiteId:     siteId,
-				Host:       "0.0.0.0",
 				Port:       strconv.Itoa(port),
 				Address:    p.address(target),
 				SslProfile: p.definition.Spec.TlsCredentials,
@@ -126,19 +149,4 @@ func extractTargets(prefix string, network []skupperv2alpha1.SiteRecord) []strin
 		}
 	}
 	return results
-}
-
-func equivalentSlices(a []string, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for _, s := range a {
-		for _, r := range b {
-			if s == r {
-				continue
-			}
-		}
-		return false
-	}
-	return true
 }

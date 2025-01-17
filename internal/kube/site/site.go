@@ -560,6 +560,10 @@ func (s *Site) Unexpose(name string) error {
 				slog.String("namespace", s.namespace),
 				slog.Any("error", err))
 			return err
+		} else {
+			s.logger.Info("Deleted service",
+				slog.String("service", name),
+				slog.String("namespace", s.namespace))
 		}
 	}
 	return nil
