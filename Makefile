@@ -125,7 +125,10 @@ generate-skupper-deployment-cluster-scoped:
 generate-skupper-deployment-namespace-scoped:
 	helm template ./charts/skupper-setup  --include-crds --set scope=namespace > skupper-setup-namespace-scope.yaml
 
+generate-bundle:
+	./scripts/generate-bundle.sh
+
 clean:
 	rm -rf skupper controller kube-adaptor \
 		network-observer generate-doc \
-		cover.out oci-archives
+		cover.out oci-archives bundle bundle.Dockerfile
