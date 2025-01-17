@@ -23,7 +23,7 @@ var rootCmd = &cobra.Command{
 	Use:   "skupper",
 	Short: "Skupper is a tool for secure, cross-cluster Kubernetes communication",
 	Long: `Skupper is an open-source tool that enables secure communication across clusters with no VPNs or special firewall rules.
-For more information visit https://skupperproject.github.io/refdog/index.html`,
+For more information visit https://skupperproject.github.io/refdog/`,
 }
 
 func NewSkupperRootCommand() *cobra.Command {
