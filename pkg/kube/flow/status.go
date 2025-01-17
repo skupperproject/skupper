@@ -514,7 +514,6 @@ func asSiteInfo(site vanflow.SiteRecord) network.SiteInfo {
 		Namespace: dref(site.Namespace),
 		Platform:  dref(site.Platform),
 		Version:   dref(site.Version),
-		Policy:    dref(site.Policy),
 	}
 }
 
