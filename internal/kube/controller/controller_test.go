@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -20,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/dynamic"
 	fakedynamic "k8s.io/client-go/dynamic/fake"
 	k8stesting "k8s.io/client-go/testing"
@@ -35,6 +37,7 @@ import (
 type WaitFunction func(t *testing.T, clients internalclient.Clients) bool
 
 func TestGeneral(t *testing.T) {
+	fakeNetworkStatus := f.fakeNetworkStatusInfo("test")
 	testTable := []struct {
 		name                                     string
 		args                                     []string
@@ -85,7 +88,7 @@ func TestGeneral(t *testing.T) {
 		{
 			name: "site with network status",
 			k8sObjects: []runtime.Object{
-				f.skupperNetworkStatus("test", f.networkStatusInfo("test")),
+				f.skupperNetworkStatus("test", fakeNetworkStatus.info()),
 				f.pod("skupper-router-1", "test", map[string]string{"skupper.io/component": "router", "skupper.io/type": "site"}, nil,
 					f.podStatus("10.1.1.10", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue))),
 			},
@@ -97,7 +100,7 @@ func TestGeneral(t *testing.T) {
 				isSiteNetworkStatusSet("mysite", "test"),
 			},
 			expectedSiteStatuses: []*skupperv2alpha1.Site{
-				f.addNetworkStatus(f.siteStatus("mysite", "test", skupperv2alpha1.StatusReady, "OK")),
+				f.addNetworkStatus(f.siteStatus("mysite", "test", skupperv2alpha1.StatusReady, "OK"), fakeNetworkStatus),
 			},
 			expectedDynamicResources: map[schema.GroupVersionResource]*unstructured.Unstructured{
 				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
@@ -215,10 +218,58 @@ func TestGeneral(t *testing.T) {
 				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
 			},
 			expectedRouterConfig: []*RouterConfig{
-				f.routerConfig("skupper-router", "test").tcpListener("mylistener", "1024", ""),
+				f.routerConfig("skupper-router", "test").tcpListener("mylistener", "1024", "", ""),
 			},
 			expectedServices: []*corev1.Service{
 				f.service("mysvc", "test", f.routerSelector(true), f.servicePort("mylistener", 8080, 1024)),
+			},
+		},
+		{
+			name: "expose pods by name",
+			k8sObjects: []runtime.Object{
+				f.skupperNetworkStatus("test", f.networkStatusInfo("mysite", "test", nil, map[string]string{"mysvc": "mysvc", "mysvc.mypod-1": "10.1.1.10", "mysvc.mypod-2": "10.1.1.11"}).info()),
+				f.pod("mypod-1", "test", map[string]string{"app": "foo"}, nil, f.podStatus("10.1.1.10", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue))),
+				f.pod("mypod-2", "test", map[string]string{"app": "foo"}, nil, f.podStatus("10.1.1.11", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue))),
+			},
+			skupperObjects: []runtime.Object{
+				f.site("mysite", "test", "", false, false),
+				f.connectorWithExposePodsByName("myconnector", "test", "mysvc", "app=foo", 8080),
+				f.listenerWithExposePodsByName("mylistener", "test", "mysvc", "mysvc", 8080),
+			},
+			waitFunctions: []WaitFunction{
+				isConnectorStatusConditionTrue("myconnector", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED),
+				isListenerStatusConditionTrue("mylistener", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED),
+			},
+			expectedSiteStatuses: []*skupperv2alpha1.Site{
+				f.siteStatus("mysite", "test", skupperv2alpha1.StatusPending, "Not Running", f.condition(skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionTrue, "Ready", "OK")),
+			},
+			expectedDynamicResources: map[schema.GroupVersionResource]*unstructured.Unstructured{
+				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
+			},
+			expectedRouterConfig: []*RouterConfig{
+				f.routerConfig(
+					"skupper-router",
+					"test",
+				).tcpListener(
+					"mylistener", "1024", "mysvc", "",
+				).tcpListener(
+					"mylistener@mypod-1", "*", "mysvc.mypod-1", "",
+				).tcpListener(
+					"mylistener@mypod-2", "*", "mysvc.mypod-2", "",
+				).tcpConnector(
+					"myconnector@10.1.1.10", "10.1.1.10", "8080", "mysvc", "",
+				).tcpConnector(
+					"myconnector@10.1.1.11", "10.1.1.11", "8080", "mysvc", "",
+				).tcpConnector(
+					"myconnector@mypod-1", "10.1.1.10", "8080", "mysvc.mypod-1", "",
+				).tcpConnector(
+					"myconnector@mypod-2", "10.1.1.11", "8080", "mysvc.mypod-2", "",
+				),
+			},
+			expectedServices: []*corev1.Service{
+				f.service("mysvc", "test", f.routerSelector(true), f.servicePort("mylistener", 8080, 1024)),
+				f.service("mypod-1", "test", f.routerSelector(true), f.servicePortU("mylistener", 8080)),
+				f.service("mypod-2", "test", f.routerSelector(true), f.servicePortU("mylistener", 8080)),
 			},
 		},
 		{
@@ -244,7 +295,7 @@ func TestGeneral(t *testing.T) {
 				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
 			},
 			expectedRouterConfig: []*RouterConfig{
-				f.routerConfig("skupper-router", "test").tcpConnector("myconnector@mysvc", "mysvc", "8080", ""),
+				f.routerConfig("skupper-router", "test").tcpConnector("myconnector@mysvc", "mysvc", "8080", "", ""),
 			},
 		},
 		{
@@ -268,7 +319,7 @@ func TestGeneral(t *testing.T) {
 				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
 			},
 			expectedRouterConfig: []*RouterConfig{
-				f.routerConfig("skupper-router", "test").tcpConnector("myconnector@10.1.1.10", "10.1.1.10", "8080", ""),
+				f.routerConfig("skupper-router", "test").tcpConnector("myconnector@10.1.1.10", "10.1.1.10", "8080", "", ""),
 			},
 		},
 		{
@@ -303,7 +354,7 @@ func TestGeneral(t *testing.T) {
 				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
 			},
 			expectedRouterConfig: []*RouterConfig{
-				f.routerConfig("skupper-router", "test").tcpConnector("myconnector@10.1.1.10", "10.1.1.10", "8080", ""),
+				f.routerConfig("skupper-router", "test").tcpConnector("myconnector@10.1.1.10", "10.1.1.10", "8080", "", ""),
 			},
 		},
 		/* TODO: Fix
@@ -417,6 +468,13 @@ func TestGeneral(t *testing.T) {
 				actual, err := clients.GetKubeClient().CoreV1().Services(expected.Namespace).Get(context.Background(), expected.Name, metav1.GetOptions{})
 				assert.Assert(t, err)
 				assert.DeepEqual(t, expected.Spec.Selector, actual.Spec.Selector)
+				assert.Equal(t, len(expected.Spec.Ports), len(actual.Spec.Ports))
+				for i, port := range expected.Spec.Ports {
+					// in some cases it is not possible to know the order in which ports on the router are assigned, use * as a wildcard in such cases
+					if port.TargetPort.String() == "*" {
+						expected.Spec.Ports[i].TargetPort = actual.Spec.Ports[i].TargetPort
+					}
+				}
 				assert.DeepEqual(t, expected.Spec.Ports, actual.Spec.Ports)
 			}
 			for _, expected := range tt.expectedRouterAccesses {
@@ -576,6 +634,44 @@ func (*factory) connectorWithSelector(name string, namespace string, selector st
 		Spec: skupperv2alpha1.ConnectorSpec{
 			Selector: selector,
 			Port:     port,
+		},
+	}
+}
+
+func (*factory) listenerWithExposePodsByName(name string, namespace string, key string, host string, port int) *skupperv2alpha1.Listener {
+	return &skupperv2alpha1.Listener{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "Listener",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: skupperv2alpha1.ListenerSpec{
+			Host:             host,
+			Port:             port,
+			ExposePodsByName: true,
+			RoutingKey:       key,
+		},
+	}
+}
+
+func (*factory) connectorWithExposePodsByName(name string, namespace string, key string, selector string, port int) *skupperv2alpha1.Connector {
+	return &skupperv2alpha1.Connector{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "Connector",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: skupperv2alpha1.ConnectorSpec{
+			Selector:         selector,
+			Port:             port,
+			ExposePodsByName: true,
+			RoutingKey:       key,
 		},
 	}
 }
@@ -848,6 +944,16 @@ func (*factory) servicePort(name string, port int32, targetPort int32) corev1.Se
 	}
 }
 
+// where the target port cannot be determined in advance, use * as wildcard
+func (*factory) servicePortU(name string, port int32) corev1.ServicePort {
+	return corev1.ServicePort{
+		Name:       name,
+		Port:       port,
+		TargetPort: intstr.FromString("*"),
+		Protocol:   corev1.Protocol("TCP"),
+	}
+}
+
 func (*factory) pod(name string, namespace string, labels map[string]string, ownerRefs []metav1.OwnerReference, status *corev1.PodStatus) *corev1.Pod {
 	pod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
@@ -882,38 +988,9 @@ func (*factory) podCondition(conditionType corev1.PodConditionType, status corev
 	}
 }
 
-func (*factory) addNetworkStatus(site *skupperv2alpha1.Site) *skupperv2alpha1.Site {
+func (*factory) addNetworkStatus(site *skupperv2alpha1.Site, status *NetworkStatus) *skupperv2alpha1.Site {
 	//add equivalent data to that generated in networkStatusInfo
-	site.Status.Network = []skupperv2alpha1.SiteRecord{
-		{
-			Id:        "site-1",
-			Name:      "east",
-			Namespace: site.Namespace,
-			Services: []skupperv2alpha1.ServiceRecord{
-				{
-					RoutingKey: "mysvc",
-					Listeners: []string{
-						"mysvc",
-					},
-					Connectors: []string{
-						"foo",
-					},
-				},
-			},
-		},
-		{
-			Id:        "site-2",
-			Name:      "west",
-			Namespace: "other",
-			Links: []skupperv2alpha1.LinkRecord{
-				{
-					Name:           "link1",
-					RemoteSiteId:   "site-1",
-					RemoteSiteName: "east",
-				},
-			},
-		},
-	}
+	site.Status.Network = extractSiteRecords(*status.info())
 	return site
 }
 
@@ -930,65 +1007,85 @@ func (*factory) skupperNetworkStatus(namespace string, status *network.NetworkSt
 	}
 }
 
-func (*factory) networkStatusInfo(namespace string) *network.NetworkStatusInfo {
-	//create some dummy data
-	return &network.NetworkStatusInfo{
-		SiteStatus: []network.SiteStatusInfo{
+func (f *factory) fakeNetworkStatusInfo(namespace string) *NetworkStatus {
+	return f.networkStatusInfo(
+		"east", namespace, map[string]string{"mysvc": "mysvc"}, map[string]string{"mysvc": "foo"},
+	).site(
+		"west", "other", nil, nil,
+	).link(
+		"west", "east",
+	)
+}
+
+type NetworkStatus struct {
+	sites map[string]*network.SiteStatusInfo
+}
+
+func (n *NetworkStatus) info() *network.NetworkStatusInfo {
+	info := &network.NetworkStatusInfo{}
+	for _, site := range n.sites {
+		info.SiteStatus = append(info.SiteStatus, *site)
+	}
+	return info
+}
+
+func (n *NetworkStatus) site(name string, namespace string, listeners map[string]string, connectors map[string]string) *NetworkStatus {
+	router := network.RouterStatusInfo{
+		Router: network.RouterInfo{
+			Name:      name + "-skupper-router-" + rand.String(10) + "-" + rand.String(5),
+			Namespace: namespace,
+		},
+		AccessPoints: []network.RouterAccessInfo{
 			{
-				Site: network.SiteInfo{
-					Identity:  "site-1",
-					Name:      "east",
-					Namespace: namespace,
-				},
-				RouterStatus: []network.RouterStatusInfo{
-					{
-						Router: network.RouterInfo{
-							Name:      "red-skupper-router-5945f87d48-j97sp",
-							Namespace: namespace,
-						},
-						AccessPoints: []network.RouterAccessInfo{
-							{
-								Identity: "ap-site-1",
-							},
-						},
-						Listeners: []network.ListenerInfo{
-							{
-								Name:    "mysvc",
-								Address: "mysvc",
-							},
-						},
-						Connectors: []network.ConnectorInfo{
-							{
-								Address:  "mysvc",
-								DestHost: "foo",
-							},
-						},
-					},
-				},
-			},
-			{
-				Site: network.SiteInfo{
-					Identity:  "site-2",
-					Name:      "west",
-					Namespace: "other",
-				},
-				RouterStatus: []network.RouterStatusInfo{
-					{
-						Router: network.RouterInfo{
-							Name:      "blue-skupper-router-6435f81d22-a2xtp",
-							Namespace: "other",
-						},
-						Links: []network.LinkInfo{
-							{
-								Name: "link1",
-								Peer: "ap-site-1",
-							},
-						},
-					},
-				},
+				Identity: uuid.NewString(),
 			},
 		},
 	}
+	for address, name := range listeners {
+		router.Listeners = append(router.Listeners, network.ListenerInfo{
+			Name:    name,
+			Address: address,
+		})
+	}
+	for address, host := range connectors {
+		router.Connectors = append(router.Connectors, network.ConnectorInfo{
+			Address:  address,
+			DestHost: host,
+		})
+
+	}
+
+	n.sites[name] = &network.SiteStatusInfo{
+		Site: network.SiteInfo{
+			Identity:  uuid.NewString(),
+			Name:      name,
+			Namespace: namespace,
+		},
+		RouterStatus: []network.RouterStatusInfo{
+			router,
+		},
+	}
+	return n
+}
+
+func (n *NetworkStatus) link(from string, to string) *NetworkStatus {
+	siteA, ok1 := n.sites[from]
+	siteB, ok2 := n.sites[to]
+	if ok1 && ok2 && len(siteA.RouterStatus[0].AccessPoints) > 0 {
+		link := network.LinkInfo{
+			Name: fmt.Sprintf("link-%d", len(siteA.RouterStatus[0].Links)+1),
+			Peer: siteB.RouterStatus[0].AccessPoints[0].Identity,
+		}
+		siteA.RouterStatus[0].Links = append(siteA.RouterStatus[0].Links, link)
+	}
+	return n
+}
+
+func (*factory) networkStatusInfo(name string, namespace string, listeners map[string]string, connectors map[string]string) *NetworkStatus {
+	n := &NetworkStatus{
+		sites: map[string]*network.SiteStatusInfo{},
+	}
+	return n.site(name, namespace, listeners, connectors)
 }
 
 var f factory
@@ -1034,20 +1131,22 @@ type RouterConfig struct {
 	config    *qdr.RouterConfig
 }
 
-func (rc *RouterConfig) tcpListener(name string, port string, sslProfile string) *RouterConfig {
+func (rc *RouterConfig) tcpListener(name string, port string, address string, sslProfile string) *RouterConfig {
 	rc.config.Bridges.TcpListeners[name] = qdr.TcpEndpoint{
 		Name:       name,
 		Port:       port,
+		Address:    address,
 		SslProfile: sslProfile,
 	}
 	return rc
 }
 
-func (rc *RouterConfig) tcpConnector(name string, host string, port string, sslProfile string) *RouterConfig {
+func (rc *RouterConfig) tcpConnector(name string, host string, port string, address string, sslProfile string) *RouterConfig {
 	rc.config.Bridges.TcpConnectors[name] = qdr.TcpEndpoint{
 		Name:       name,
 		Host:       host,
 		Port:       port,
+		Address:    address,
 		SslProfile: sslProfile,
 	}
 	return rc
@@ -1079,6 +1178,10 @@ func (rc *RouterConfig) verify(t *testing.T, cm *corev1.ConfigMap) error {
 	for key, expected := range rc.config.Bridges.TcpListeners {
 		actual, ok := config.Bridges.TcpListeners[key]
 		assert.Assert(t, ok, "No tcp listener found for %s", key)
+		if expected.Port == "*" {
+			// in some cases it is not possible to deterministically infer the order in which ports will be assigned
+			expected.Port = actual.Port
+		}
 		assert.Equal(t, actual, expected)
 	}
 	for key, expected := range rc.config.Bridges.TcpConnectors {
@@ -1098,17 +1201,17 @@ func (rc *RouterConfig) verify(t *testing.T, cm *corev1.ConfigMap) error {
 
 func isSiteStatusConditionTrue(name string, namespace string, condition string) WaitFunction {
 	return func(t *testing.T, clients internalclient.Clients) bool {
-		connector, err := clients.GetSkupperClient().SkupperV2alpha1().Sites(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		site, err := clients.GetSkupperClient().SkupperV2alpha1().Sites(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		assert.Assert(t, err)
-		return meta.IsStatusConditionTrue(connector.Status.Conditions, condition)
+		return meta.IsStatusConditionTrue(site.Status.Conditions, condition)
 	}
 }
 
 func isSiteNetworkStatusSet(name string, namespace string) WaitFunction {
 	return func(t *testing.T, clients internalclient.Clients) bool {
-		connector, err := clients.GetSkupperClient().SkupperV2alpha1().Sites(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		site, err := clients.GetSkupperClient().SkupperV2alpha1().Sites(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		assert.Assert(t, err)
-		return connector.Status.Network != nil
+		return site.Status.Network != nil
 	}
 }
 
@@ -1117,6 +1220,14 @@ func isConnectorStatusConditionTrue(name string, namespace string, condition str
 		connector, err := clients.GetSkupperClient().SkupperV2alpha1().Connectors(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		assert.Assert(t, err)
 		return meta.IsStatusConditionTrue(connector.Status.Conditions, condition)
+	}
+}
+
+func isListenerStatusConditionTrue(name string, namespace string, condition string) WaitFunction {
+	return func(t *testing.T, clients internalclient.Clients) bool {
+		listener, err := clients.GetSkupperClient().SkupperV2alpha1().Listeners(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		assert.Assert(t, err)
+		return meta.IsStatusConditionTrue(listener.Status.Conditions, condition)
 	}
 }
 
