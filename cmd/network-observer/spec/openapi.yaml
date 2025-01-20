@@ -975,7 +975,7 @@ components:
             - destHost
             - destPort
             - protocol
-            - address
+            - routingKey
             - siteId
             - siteName
           properties:
@@ -989,7 +989,7 @@ components:
               type: string
             protocol:
               type: string
-            address:
+            routingKey:
               type: string
             serviceId:
               type: string
@@ -1007,7 +1007,7 @@ components:
             - destHost
             - destPort
             - protocol
-            - address
+            - routingKey
             - processId
             - target
             - siteId
@@ -1023,7 +1023,7 @@ components:
               type: string
             protocol:
               type: string
-            address:
+            routingKey:
               type: string
             serviceId:
               type: string
@@ -1067,7 +1067,7 @@ components:
               description: true when there are both listeners and connectors configured
             hasListener:
               type: boolean
-              description: true when there is at least one listener for this address
+              description: true when there is at least one listener for this routingKey
     ProcessGroupRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'

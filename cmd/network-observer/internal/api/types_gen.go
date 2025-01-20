@@ -172,7 +172,6 @@ type ConnectorListResponse struct {
 
 // ConnectorRecord defines model for ConnectorRecord.
 type ConnectorRecord struct {
-	Address  string `json:"address"`
 	DestHost string `json:"destHost"`
 	DestPort string `json:"destPort"`
 
@@ -180,14 +179,15 @@ type ConnectorRecord struct {
 	EndTime uint64 `json:"endTime"`
 
 	// Identity The unique identifier for the record.
-	Identity  string  `json:"identity"`
-	Name      string  `json:"name"`
-	Parent    string  `json:"parent"`
-	ProcessId string  `json:"processId"`
-	Protocol  string  `json:"protocol"`
-	ServiceId *string `json:"serviceId,omitempty"`
-	SiteId    string  `json:"siteId"`
-	SiteName  string  `json:"siteName"`
+	Identity   string  `json:"identity"`
+	Name       string  `json:"name"`
+	Parent     string  `json:"parent"`
+	ProcessId  string  `json:"processId"`
+	Protocol   string  `json:"protocol"`
+	RoutingKey string  `json:"routingKey"`
+	ServiceId  *string `json:"serviceId,omitempty"`
+	SiteId     string  `json:"siteId"`
+	SiteName   string  `json:"siteName"`
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64  `json:"startTime"`
@@ -291,7 +291,6 @@ type ListenerListResponse struct {
 
 // ListenerRecord defines model for ListenerRecord.
 type ListenerRecord struct {
-	Address  string `json:"address"`
 	DestHost string `json:"destHost"`
 	DestPort string `json:"destPort"`
 
@@ -299,13 +298,14 @@ type ListenerRecord struct {
 	EndTime uint64 `json:"endTime"`
 
 	// Identity The unique identifier for the record.
-	Identity  string  `json:"identity"`
-	Name      string  `json:"name"`
-	Parent    string  `json:"parent"`
-	Protocol  string  `json:"protocol"`
-	ServiceId *string `json:"serviceId,omitempty"`
-	SiteId    string  `json:"siteId"`
-	SiteName  string  `json:"siteName"`
+	Identity   string  `json:"identity"`
+	Name       string  `json:"name"`
+	Parent     string  `json:"parent"`
+	Protocol   string  `json:"protocol"`
+	RoutingKey string  `json:"routingKey"`
+	ServiceId  *string `json:"serviceId,omitempty"`
+	SiteId     string  `json:"siteId"`
+	SiteName   string  `json:"siteName"`
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64 `json:"startTime"`
@@ -539,7 +539,7 @@ type ServiceRecord struct {
 	// EndTime The end time in microseconds of the record in Unix timestamp format.
 	EndTime uint64 `json:"endTime"`
 
-	// HasListener true when there is at least one listener for this address
+	// HasListener true when there is at least one listener for this routingKey
 	HasListener bool `json:"hasListener"`
 
 	// Identity The unique identifier for the record.

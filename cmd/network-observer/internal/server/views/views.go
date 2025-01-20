@@ -144,7 +144,7 @@ func NewListenerProvider(graph collector.Graph) func(vanflow.ListenerRecord) api
 		setOpt(&out.Protocol, record.Protocol)
 		setOpt(&out.DestHost, record.DestHost)
 		setOpt(&out.DestPort, record.DestPort)
-		setOpt(&out.Address, record.Address)
+		setOpt(&out.RoutingKey, record.Address)
 
 		node := graph.Listener(record.ID)
 		if addressID := node.Address().ID(); addressID != "" {
@@ -160,15 +160,15 @@ func NewListenerProvider(graph collector.Graph) func(vanflow.ListenerRecord) api
 
 func defaultListener(id string) api.ListenerRecord {
 	return api.ListenerRecord{
-		Identity: id,
-		Name:     unknownStr,
-		Parent:   unknownStr,
-		Protocol: unknownStr,
-		Address:  unknownStr,
-		DestHost: unknownStr,
-		DestPort: unknownStr,
-		SiteId:   unknownStr,
-		SiteName: unknownStr,
+		Identity:   id,
+		Name:       unknownStr,
+		Parent:     unknownStr,
+		Protocol:   unknownStr,
+		RoutingKey: unknownStr,
+		DestHost:   unknownStr,
+		DestPort:   unknownStr,
+		SiteId:     unknownStr,
+		SiteName:   unknownStr,
 	}
 }
 
@@ -197,7 +197,7 @@ func NewConnectorProvider(graph collector.Graph) func(vanflow.ConnectorRecord) a
 		setOpt(&out.DestHost, record.DestHost)
 		setOpt(&out.DestPort, record.DestPort)
 		setOpt(&out.ProcessId, record.ProcessID)
-		setOpt(&out.Address, record.Address)
+		setOpt(&out.RoutingKey, record.Address)
 
 		node := graph.Connector(record.ID)
 		if addressID := node.Address().ID(); addressID != "" {
@@ -217,15 +217,15 @@ func NewConnectorProvider(graph collector.Graph) func(vanflow.ConnectorRecord) a
 
 func defaultConnector(id string) api.ConnectorRecord {
 	return api.ConnectorRecord{
-		Identity: id,
-		Name:     unknownStr,
-		Parent:   unknownStr,
-		Protocol: unknownStr,
-		Address:  unknownStr,
-		DestHost: unknownStr,
-		DestPort: unknownStr,
-		SiteId:   unknownStr,
-		SiteName: unknownStr,
+		Identity:   id,
+		Name:       unknownStr,
+		Parent:     unknownStr,
+		Protocol:   unknownStr,
+		RoutingKey: unknownStr,
+		DestHost:   unknownStr,
+		DestPort:   unknownStr,
+		SiteId:     unknownStr,
+		SiteName:   unknownStr,
 	}
 }
 
