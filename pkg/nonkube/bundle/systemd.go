@@ -18,7 +18,7 @@ func CreateSystemdServices(siteState *api.SiteState) error {
 	var err error
 	var logger = common.NewLogger()
 	serviceTemplates := map[string]string{
-		"systemd":   common.SystemdServiceTemplate,
+		"linux":     common.SystemdServiceTemplate,
 		"container": common.SystemdContainerServiceTemplate,
 	}
 	scriptsPath := api.GetInternalBundleOutputPath(siteState.Site.Namespace, api.ScriptsPath)

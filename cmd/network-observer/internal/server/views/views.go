@@ -690,8 +690,8 @@ func NewSiteProvider(graph collector.Graph) func(vanflow.SiteRecord) api.SiteRec
 				s.Platform = api.SitePlatformTypeDocker
 			case strings.EqualFold(platform, string(api.SitePlatformTypePodman)):
 				s.Platform = api.SitePlatformTypePodman
-			case strings.EqualFold(platform, string(api.SitePlatformTypeSystemd)):
-				s.Platform = api.SitePlatformTypeSystemd
+			case strings.EqualFold(platform, string(api.SitePlatformTypeLinux)):
+				s.Platform = api.SitePlatformTypeLinux
 			}
 		}
 		s.RouterCount = len(graph.Site(site.ID).Routers())

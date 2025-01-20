@@ -104,7 +104,7 @@ func (cmd *CmdSystemSetup) InputToOptions() {
 
 	if !isBundle {
 		switch selectedPlatform {
-		case types.PlatformSystemd:
+		case types.PlatformLinux:
 			binary = "skrouterd"
 		case types.PlatformDocker:
 			binary = "docker"

@@ -40,7 +40,7 @@ func TestCmdSystemSetup_ValidateInput(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			command := &CmdSystemSetup{}
-			command.CobraCmd = common.ConfigureCobraCommand(types.PlatformSystemd, common.SkupperCmdDescription{}, command, nil)
+			command.CobraCmd = common.ConfigureCobraCommand(types.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
 
 			if test.flags != nil {
 				command.Flags = test.flags
@@ -76,12 +76,12 @@ func TestCmdSystemSetup_InputToOptions(t *testing.T) {
 			expectedNamespace: "default",
 		},
 		{
-			name: "systemd",
+			name: "linux",
 			flags: common.CommandSystemSetupFlags{
 				Path: "input-path",
 			},
 			namespace:         "east",
-			platform:          "systemd",
+			platform:          "linux",
 			expectedBinary:    "skrouterd",
 			expectedNamespace: "east",
 		},

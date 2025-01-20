@@ -44,8 +44,8 @@ func GetPlatform() types.Platform {
 		return types.PlatformPodman
 	case types.PlatformDocker:
 		return types.PlatformDocker
-	case types.PlatformSystemd:
-		return types.PlatformSystemd
+	case types.PlatformLinux:
+		return types.PlatformLinux
 	default:
 		return types.PlatformKubernetes
 	}

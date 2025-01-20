@@ -835,7 +835,7 @@ components:
         - kubernetes
         - podman
         - docker
-        - systemd
+        - linux
         - unknown
     processBindingType:
       type: string

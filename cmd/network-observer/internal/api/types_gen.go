@@ -54,7 +54,7 @@ const (
 	SitePlatformTypeDocker     SitePlatformType = "docker"
 	SitePlatformTypeKubernetes SitePlatformType = "kubernetes"
 	SitePlatformTypePodman     SitePlatformType = "podman"
-	SitePlatformTypeSystemd    SitePlatformType = "systemd"
+	SitePlatformTypeLinux      SitePlatformType = "linux"
 	SitePlatformTypeUnknown    SitePlatformType = "unknown"
 )
 

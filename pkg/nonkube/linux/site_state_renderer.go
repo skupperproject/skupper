@@ -1,4 +1,4 @@
-package systemd
+package linux
 
 import (
 	"fmt"
@@ -87,7 +87,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	siteHome := api.GetHostSiteHome(s.siteState.Site)
 	s.configRenderer = &common.FileSystemConfigurationRenderer{
 		SslProfileBasePath: siteHome,
-		Platform:           string(types.PlatformSystemd),
+		Platform:           string(types.PlatformLinux),
 	}
 	err = s.configRenderer.Render(s.siteState)
 	if err != nil {
@@ -119,7 +119,7 @@ func (s *SiteStateRenderer) loadExistingSiteId(siteState *api.SiteState) error {
 
 func (s *SiteStateRenderer) createSystemdService() error {
 	// Creating systemd user service
-	systemd, err := common.NewSystemdServiceInfo(s.siteState, string(types.PlatformSystemd))
+	systemd, err := common.NewSystemdServiceInfo(s.siteState, string(types.PlatformLinux))
 	if err != nil {
 		return err
 	}
@@ -140,7 +140,7 @@ func (s *SiteStateRenderer) createSystemdService() error {
 
 func (s *SiteStateRenderer) removeSystemdService() error {
 	// Removing systemd user service
-	systemd, err := common.NewSystemdServiceInfo(s.loadedSiteState, string(types.PlatformSystemd))
+	systemd, err := common.NewSystemdServiceInfo(s.loadedSiteState, string(types.PlatformLinux))
 	if err != nil {
 		return err
 	}
