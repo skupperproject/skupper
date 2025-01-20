@@ -71,7 +71,7 @@ func TestProcesses(t *testing.T) {
 					Identity:       "1",
 					Parent:         "site-1",
 					ParentName:     "site one",
-					Addresses:      ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp"), api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp")}),
+					Services:       ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp"), api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp")}),
 					GroupName:      "group-one",
 					GroupIdentity:  "group-1-id",
 					ProcessBinding: api.Unbound,
@@ -96,7 +96,7 @@ func TestProcesses(t *testing.T) {
 					Identity:       "1",
 					Parent:         "site-1",
 					ParentName:     "site one",
-					Addresses:      ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp"), api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp")}),
+					Services:       ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp"), api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp")}),
 					GroupName:      "group-one",
 					GroupIdentity:  "group-1-id",
 					ProcessBinding: api.Bound,
@@ -126,14 +126,14 @@ func TestProcesses(t *testing.T) {
 		}, {
 			Records: exProcessWithAddresses(),
 			Parameters: map[string][]string{
-				"addresses": {"pizza-addr-id"},
+				"services": {"pizza-addr-id"},
 			},
 			ExpectOK:    true,
 			ExpectCount: 1,
 		}, {
 			Records: exProcessWithAddresses(),
 			Parameters: map[string][]string{
-				"addresses": {"gumbo"},
+				"services": {"gumbo"},
 			},
 			ExpectOK:    true,
 			ExpectCount: 0,
