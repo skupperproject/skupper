@@ -58,47 +58,6 @@ const (
 	SitePlatformTypeUnknown    SitePlatformType = "unknown"
 )
 
-// AddressListResponse defines model for AddressListResponse.
-type AddressListResponse struct {
-	// Count number of results in response
-	Count   int64           `json:"count"`
-	Results []AddressRecord `json:"results"`
-
-	// TimeRangeCount number of results matching filtering and time range constraints before any limit or offset is applied.
-	TimeRangeCount int64 `json:"timeRangeCount"`
-}
-
-// AddressRecord defines model for AddressRecord.
-type AddressRecord struct {
-	ConnectorCount int `json:"connectorCount"`
-
-	// EndTime The end time in microseconds of the record in Unix timestamp format.
-	EndTime uint64 `json:"endTime"`
-
-	// HasListener true when there is at least one listener for this address
-	HasListener bool `json:"hasListener"`
-
-	// Identity The unique identifier for the record.
-	Identity string `json:"identity"`
-
-	// IsBound true when there are both listeners and connectors configured
-	IsBound       bool   `json:"isBound"`
-	ListenerCount int    `json:"listenerCount"`
-	Name          string `json:"name"`
-
-	// ObservedApplicationProtocols Array of the observed application level protocols
-	ObservedApplicationProtocols []string `json:"observedApplicationProtocols"`
-	Protocol                     string   `json:"protocol"`
-
-	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
-	StartTime uint64 `json:"startTime"`
-}
-
-// AddressResponse defines model for AddressResponse.
-type AddressResponse struct {
-	Results AddressRecord `json:"results"`
-}
-
 // ApplicationFlowRecord defines model for ApplicationFlowRecord.
 type ApplicationFlowRecord struct {
 	ConnectionId    string  `json:"connectionId"`
@@ -213,22 +172,22 @@ type ConnectorListResponse struct {
 
 // ConnectorRecord defines model for ConnectorRecord.
 type ConnectorRecord struct {
-	Address   string  `json:"address"`
-	AddressId *string `json:"addressId,omitempty"`
-	DestHost  string  `json:"destHost"`
-	DestPort  string  `json:"destPort"`
+	DestHost string `json:"destHost"`
+	DestPort string `json:"destPort"`
 
 	// EndTime The end time in microseconds of the record in Unix timestamp format.
 	EndTime uint64 `json:"endTime"`
 
 	// Identity The unique identifier for the record.
-	Identity  string `json:"identity"`
-	Name      string `json:"name"`
-	Parent    string `json:"parent"`
-	ProcessId string `json:"processId"`
-	Protocol  string `json:"protocol"`
-	SiteId    string `json:"siteId"`
-	SiteName  string `json:"siteName"`
+	Identity   string  `json:"identity"`
+	Name       string  `json:"name"`
+	Parent     string  `json:"parent"`
+	ProcessId  string  `json:"processId"`
+	Protocol   string  `json:"protocol"`
+	RoutingKey string  `json:"routingKey"`
+	ServiceId  *string `json:"serviceId,omitempty"`
+	SiteId     string  `json:"siteId"`
+	SiteName   string  `json:"siteName"`
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64  `json:"startTime"`
@@ -332,21 +291,21 @@ type ListenerListResponse struct {
 
 // ListenerRecord defines model for ListenerRecord.
 type ListenerRecord struct {
-	Address   string  `json:"address"`
-	AddressId *string `json:"addressId,omitempty"`
-	DestHost  string  `json:"destHost"`
-	DestPort  string  `json:"destPort"`
+	DestHost string `json:"destHost"`
+	DestPort string `json:"destPort"`
 
 	// EndTime The end time in microseconds of the record in Unix timestamp format.
 	EndTime uint64 `json:"endTime"`
 
 	// Identity The unique identifier for the record.
-	Identity string `json:"identity"`
-	Name     string `json:"name"`
-	Parent   string `json:"parent"`
-	Protocol string `json:"protocol"`
-	SiteId   string `json:"siteId"`
-	SiteName string `json:"siteName"`
+	Identity   string  `json:"identity"`
+	Name       string  `json:"name"`
+	Parent     string  `json:"parent"`
+	Protocol   string  `json:"protocol"`
+	RoutingKey string  `json:"routingKey"`
+	ServiceId  *string `json:"serviceId,omitempty"`
+	SiteId     string  `json:"siteId"`
+	SiteName   string  `json:"siteName"`
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64 `json:"startTime"`
@@ -399,8 +358,6 @@ type ProcessListResponse struct {
 
 // ProcessRecord defines model for ProcessRecord.
 type ProcessRecord struct {
-	Addresses *[]AddressIdentifierType `json:"addresses"`
-
 	// EndTime The end time in microseconds of the record in Unix timestamp format.
 	EndTime uint64 `json:"endTime"`
 
@@ -425,6 +382,7 @@ type ProcessRecord struct {
 
 	// ProcessRole Internal processes are processes related to Skupper. Remote processes are processes indirectly connected, such as a proxy
 	ProcessRole ProcessRecordProcessRole `json:"processRole"`
+	Services    *[]ServiceIdentifierType `json:"services"`
 
 	// SourceHost The IP address of the node where the pod is running
 	SourceHost string `json:"sourceHost"`
@@ -564,6 +522,47 @@ type RouterResponse struct {
 	Results RouterRecord `json:"results"`
 }
 
+// ServiceListResponse defines model for ServiceListResponse.
+type ServiceListResponse struct {
+	// Count number of results in response
+	Count   int64           `json:"count"`
+	Results []ServiceRecord `json:"results"`
+
+	// TimeRangeCount number of results matching filtering and time range constraints before any limit or offset is applied.
+	TimeRangeCount int64 `json:"timeRangeCount"`
+}
+
+// ServiceRecord defines model for ServiceRecord.
+type ServiceRecord struct {
+	ConnectorCount int `json:"connectorCount"`
+
+	// EndTime The end time in microseconds of the record in Unix timestamp format.
+	EndTime uint64 `json:"endTime"`
+
+	// HasListener true when there is at least one listener for this routingKey
+	HasListener bool `json:"hasListener"`
+
+	// Identity The unique identifier for the record.
+	Identity string `json:"identity"`
+
+	// IsBound true when there are both listeners and connectors configured
+	IsBound       bool   `json:"isBound"`
+	ListenerCount int    `json:"listenerCount"`
+	Name          string `json:"name"`
+
+	// ObservedApplicationProtocols Array of the observed application level protocols
+	ObservedApplicationProtocols []string `json:"observedApplicationProtocols"`
+	Protocol                     string   `json:"protocol"`
+
+	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
+	StartTime uint64 `json:"startTime"`
+}
+
+// ServiceResponse defines model for ServiceResponse.
+type ServiceResponse struct {
+	Results ServiceRecord `json:"results"`
+}
+
 // SiteListResponse defines model for SiteListResponse.
 type SiteListResponse struct {
 	// Count number of results in response
@@ -603,9 +602,6 @@ type SiteResponse struct {
 	Results SiteRecord `json:"results"`
 }
 
-// AddressIdentifierType a special string for identifying addresses uses the form `name@identity@protocol`
-type AddressIdentifierType = AtmarkDelimitedString
-
 // BaseRecord defines model for baseRecord.
 type BaseRecord struct {
 	// EndTime The end time in microseconds of the record in Unix timestamp format.
@@ -639,6 +635,9 @@ type OperStatusType string
 // ProcessBindingType Indicates whether a process is exposed or not in a skupper network
 type ProcessBindingType string
 
+// ServiceIdentifierType a special string for identifying services uses the form `name@identity@protocol`
+type ServiceIdentifierType = AtmarkDelimitedString
+
 // SitePlatformType The platform used for the site.
 type SitePlatformType string
 
@@ -650,12 +649,6 @@ type ErrorBadRequest = ErrorResponse
 
 // ErrorNotFound defines model for errorNotFound.
 type ErrorNotFound = ErrorResponse
-
-// GetAddressByID defines model for getAddressByID.
-type GetAddressByID = AddressResponse
-
-// GetAddresses defines model for getAddresses.
-type GetAddresses = AddressListResponse
 
 // GetApplicationFlows defines model for getApplicationFlows.
 type GetApplicationFlows = ApplicationFlowResponse
@@ -716,6 +709,12 @@ type GetRouterLinks = RouterLinkListResponse
 
 // GetRouters defines model for getRouters.
 type GetRouters = RouterListResponse
+
+// GetServiceByID defines model for getServiceByID.
+type GetServiceByID = ServiceResponse
+
+// GetServices defines model for getServices.
+type GetServices = ServiceListResponse
 
 // GetSiteByID defines model for getSiteByID.
 type GetSiteByID = SiteResponse
@@ -799,21 +798,6 @@ func WithRequestEditorFn(fn RequestEditorFn) ClientOption {
 
 // The interface specification for the client above.
 type ClientInterface interface {
-	// Addresses request
-	Addresses(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// AddressByID request
-	AddressByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ConnectionsByAddress request
-	ConnectionsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ProcessesByAddress request
-	ProcessesByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ProcessPairsByAddress request
-	ProcessPairsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
 	// Applicationflows request
 	Applicationflows(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -889,6 +873,21 @@ type ClientInterface interface {
 	// LinksByRouter request
 	LinksByRouter(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// Services request
+	Services(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ServiceByID request
+	ServiceByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConnectionsByService request
+	ConnectionsByService(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ProcessesByService request
+	ProcessesByService(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ProcessPairsByService request
+	ProcessPairsByService(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// Sitepairs request
 	Sitepairs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -912,66 +911,6 @@ type ClientInterface interface {
 
 	// RoutersBySite request
 	RoutersBySite(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-}
-
-func (c *Client) Addresses(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewAddressesRequest(c.Server)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) AddressByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewAddressByIDRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ConnectionsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConnectionsByAddressRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ProcessesByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewProcessesByAddressRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ProcessPairsByAddress(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewProcessPairsByAddressRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
 }
 
 func (c *Client) Applicationflows(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -1274,6 +1213,66 @@ func (c *Client) LinksByRouter(ctx context.Context, id PathID, reqEditors ...Req
 	return c.Client.Do(req)
 }
 
+func (c *Client) Services(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewServicesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ServiceByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewServiceByIDRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ConnectionsByService(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConnectionsByServiceRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ProcessesByService(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewProcessesByServiceRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ProcessPairsByService(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewProcessPairsByServiceRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) Sitepairs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSitepairsRequest(c.Server)
 	if err != nil {
@@ -1368,169 +1367,6 @@ func (c *Client) RoutersBySite(ctx context.Context, id PathID, reqEditors ...Req
 		return nil, err
 	}
 	return c.Client.Do(req)
-}
-
-// NewAddressesRequest generates requests for Addresses
-func NewAddressesRequest(server string) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v2alpha1/addresses")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewAddressByIDRequest generates requests for AddressByID
-func NewAddressByIDRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v2alpha1/addresses/%s", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewConnectionsByAddressRequest generates requests for ConnectionsByAddress
-func NewConnectionsByAddressRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v2alpha1/addresses/%s/connections", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewProcessesByAddressRequest generates requests for ProcessesByAddress
-func NewProcessesByAddressRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v2alpha1/addresses/%s/processes", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewProcessPairsByAddressRequest generates requests for ProcessPairsByAddress
-func NewProcessPairsByAddressRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v2alpha1/addresses/%s/processpairs", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
 }
 
 // NewApplicationflowsRequest generates requests for Applicationflows
@@ -2292,6 +2128,169 @@ func NewLinksByRouterRequest(server string, id PathID) (*http.Request, error) {
 	return req, nil
 }
 
+// NewServicesRequest generates requests for Services
+func NewServicesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v2alpha1/services")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewServiceByIDRequest generates requests for ServiceByID
+func NewServiceByIDRequest(server string, id PathID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v2alpha1/services/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConnectionsByServiceRequest generates requests for ConnectionsByService
+func NewConnectionsByServiceRequest(server string, id PathID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v2alpha1/services/%s/connections", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewProcessesByServiceRequest generates requests for ProcessesByService
+func NewProcessesByServiceRequest(server string, id PathID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v2alpha1/services/%s/processes", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewProcessPairsByServiceRequest generates requests for ProcessPairsByService
+func NewProcessPairsByServiceRequest(server string, id PathID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v2alpha1/services/%s/processpairs", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewSitepairsRequest generates requests for Sitepairs
 func NewSitepairsRequest(server string) (*http.Request, error) {
 	var err error
@@ -2593,21 +2592,6 @@ func WithBaseURL(baseURL string) ClientOption {
 
 // ClientWithResponsesInterface is the interface specification for the client with responses above.
 type ClientWithResponsesInterface interface {
-	// AddressesWithResponse request
-	AddressesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AddressesResponse, error)
-
-	// AddressByIDWithResponse request
-	AddressByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*AddressByIDResponse, error)
-
-	// ConnectionsByAddressWithResponse request
-	ConnectionsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectionsByAddressResponse, error)
-
-	// ProcessesByAddressWithResponse request
-	ProcessesByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessesByAddressResponse, error)
-
-	// ProcessPairsByAddressWithResponse request
-	ProcessPairsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessPairsByAddressResponse, error)
-
 	// ApplicationflowsWithResponse request
 	ApplicationflowsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ApplicationflowsResponse, error)
 
@@ -2683,6 +2667,21 @@ type ClientWithResponsesInterface interface {
 	// LinksByRouterWithResponse request
 	LinksByRouterWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*LinksByRouterResponse, error)
 
+	// ServicesWithResponse request
+	ServicesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ServicesResponse, error)
+
+	// ServiceByIDWithResponse request
+	ServiceByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ServiceByIDResponse, error)
+
+	// ConnectionsByServiceWithResponse request
+	ConnectionsByServiceWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectionsByServiceResponse, error)
+
+	// ProcessesByServiceWithResponse request
+	ProcessesByServiceWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessesByServiceResponse, error)
+
+	// ProcessPairsByServiceWithResponse request
+	ProcessPairsByServiceWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessPairsByServiceResponse, error)
+
 	// SitepairsWithResponse request
 	SitepairsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*SitepairsResponse, error)
 
@@ -2706,121 +2705,6 @@ type ClientWithResponsesInterface interface {
 
 	// RoutersBySiteWithResponse request
 	RoutersBySiteWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*RoutersBySiteResponse, error)
-}
-
-type AddressesResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetAddresses
-	JSON400      *ErrorBadRequest
-}
-
-// Status returns HTTPResponse.Status
-func (r AddressesResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r AddressesResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type AddressByIDResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetAddressByID
-	JSON404      *ErrorNotFound
-}
-
-// Status returns HTTPResponse.Status
-func (r AddressByIDResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r AddressByIDResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type ConnectionsByAddressResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetConnections
-	JSON404      *ErrorNotFound
-}
-
-// Status returns HTTPResponse.Status
-func (r ConnectionsByAddressResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ConnectionsByAddressResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type ProcessesByAddressResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetProcesses
-	JSON400      *ErrorBadRequest
-}
-
-// Status returns HTTPResponse.Status
-func (r ProcessesByAddressResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ProcessesByAddressResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type ProcessPairsByAddressResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetFlowAggregates
-	JSON404      *ErrorNotFound
-}
-
-// Status returns HTTPResponse.Status
-func (r ProcessPairsByAddressResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ProcessPairsByAddressResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
 }
 
 type ApplicationflowsResponse struct {
@@ -3394,6 +3278,121 @@ func (r LinksByRouterResponse) StatusCode() int {
 	return 0
 }
 
+type ServicesResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *GetServices
+	JSON400      *ErrorBadRequest
+}
+
+// Status returns HTTPResponse.Status
+func (r ServicesResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ServicesResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ServiceByIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *GetServiceByID
+	JSON404      *ErrorNotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r ServiceByIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ServiceByIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ConnectionsByServiceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *GetConnections
+	JSON404      *ErrorNotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r ConnectionsByServiceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConnectionsByServiceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ProcessesByServiceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *GetProcesses
+	JSON400      *ErrorBadRequest
+}
+
+// Status returns HTTPResponse.Status
+func (r ProcessesByServiceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ProcessesByServiceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ProcessPairsByServiceResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *GetFlowAggregates
+	JSON404      *ErrorNotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r ProcessPairsByServiceResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ProcessPairsByServiceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 type SitepairsResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -3574,51 +3573,6 @@ func (r RoutersBySiteResponse) StatusCode() int {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
-}
-
-// AddressesWithResponse request returning *AddressesResponse
-func (c *ClientWithResponses) AddressesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AddressesResponse, error) {
-	rsp, err := c.Addresses(ctx, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseAddressesResponse(rsp)
-}
-
-// AddressByIDWithResponse request returning *AddressByIDResponse
-func (c *ClientWithResponses) AddressByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*AddressByIDResponse, error) {
-	rsp, err := c.AddressByID(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseAddressByIDResponse(rsp)
-}
-
-// ConnectionsByAddressWithResponse request returning *ConnectionsByAddressResponse
-func (c *ClientWithResponses) ConnectionsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectionsByAddressResponse, error) {
-	rsp, err := c.ConnectionsByAddress(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseConnectionsByAddressResponse(rsp)
-}
-
-// ProcessesByAddressWithResponse request returning *ProcessesByAddressResponse
-func (c *ClientWithResponses) ProcessesByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessesByAddressResponse, error) {
-	rsp, err := c.ProcessesByAddress(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseProcessesByAddressResponse(rsp)
-}
-
-// ProcessPairsByAddressWithResponse request returning *ProcessPairsByAddressResponse
-func (c *ClientWithResponses) ProcessPairsByAddressWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessPairsByAddressResponse, error) {
-	rsp, err := c.ProcessPairsByAddress(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseProcessPairsByAddressResponse(rsp)
 }
 
 // ApplicationflowsWithResponse request returning *ApplicationflowsResponse
@@ -3846,6 +3800,51 @@ func (c *ClientWithResponses) LinksByRouterWithResponse(ctx context.Context, id 
 	return ParseLinksByRouterResponse(rsp)
 }
 
+// ServicesWithResponse request returning *ServicesResponse
+func (c *ClientWithResponses) ServicesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ServicesResponse, error) {
+	rsp, err := c.Services(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseServicesResponse(rsp)
+}
+
+// ServiceByIDWithResponse request returning *ServiceByIDResponse
+func (c *ClientWithResponses) ServiceByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ServiceByIDResponse, error) {
+	rsp, err := c.ServiceByID(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseServiceByIDResponse(rsp)
+}
+
+// ConnectionsByServiceWithResponse request returning *ConnectionsByServiceResponse
+func (c *ClientWithResponses) ConnectionsByServiceWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ConnectionsByServiceResponse, error) {
+	rsp, err := c.ConnectionsByService(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConnectionsByServiceResponse(rsp)
+}
+
+// ProcessesByServiceWithResponse request returning *ProcessesByServiceResponse
+func (c *ClientWithResponses) ProcessesByServiceWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessesByServiceResponse, error) {
+	rsp, err := c.ProcessesByService(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseProcessesByServiceResponse(rsp)
+}
+
+// ProcessPairsByServiceWithResponse request returning *ProcessPairsByServiceResponse
+func (c *ClientWithResponses) ProcessPairsByServiceWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessPairsByServiceResponse, error) {
+	rsp, err := c.ProcessPairsByService(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseProcessPairsByServiceResponse(rsp)
+}
+
 // SitepairsWithResponse request returning *SitepairsResponse
 func (c *ClientWithResponses) SitepairsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*SitepairsResponse, error) {
 	rsp, err := c.Sitepairs(ctx, reqEditors...)
@@ -3916,171 +3915,6 @@ func (c *ClientWithResponses) RoutersBySiteWithResponse(ctx context.Context, id 
 		return nil, err
 	}
 	return ParseRoutersBySiteResponse(rsp)
-}
-
-// ParseAddressesResponse parses an HTTP response from a AddressesWithResponse call
-func ParseAddressesResponse(rsp *http.Response) (*AddressesResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &AddressesResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetAddresses
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest ErrorBadRequest
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseAddressByIDResponse parses an HTTP response from a AddressByIDWithResponse call
-func ParseAddressByIDResponse(rsp *http.Response) (*AddressByIDResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &AddressByIDResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetAddressByID
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest ErrorNotFound
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseConnectionsByAddressResponse parses an HTTP response from a ConnectionsByAddressWithResponse call
-func ParseConnectionsByAddressResponse(rsp *http.Response) (*ConnectionsByAddressResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ConnectionsByAddressResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetConnections
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest ErrorNotFound
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseProcessesByAddressResponse parses an HTTP response from a ProcessesByAddressWithResponse call
-func ParseProcessesByAddressResponse(rsp *http.Response) (*ProcessesByAddressResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ProcessesByAddressResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetProcesses
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest ErrorBadRequest
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseProcessPairsByAddressResponse parses an HTTP response from a ProcessPairsByAddressWithResponse call
-func ParseProcessPairsByAddressResponse(rsp *http.Response) (*ProcessPairsByAddressResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ProcessPairsByAddressResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetFlowAggregates
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest ErrorNotFound
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	}
-
-	return response, nil
 }
 
 // ParseApplicationflowsResponse parses an HTTP response from a ApplicationflowsWithResponse call
@@ -4880,6 +4714,171 @@ func ParseLinksByRouterResponse(rsp *http.Response) (*LinksByRouterResponse, err
 	return response, nil
 }
 
+// ParseServicesResponse parses an HTTP response from a ServicesWithResponse call
+func ParseServicesResponse(rsp *http.Response) (*ServicesResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ServicesResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetServices
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorBadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseServiceByIDResponse parses an HTTP response from a ServiceByIDWithResponse call
+func ParseServiceByIDResponse(rsp *http.Response) (*ServiceByIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ServiceByIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetServiceByID
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorNotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConnectionsByServiceResponse parses an HTTP response from a ConnectionsByServiceWithResponse call
+func ParseConnectionsByServiceResponse(rsp *http.Response) (*ConnectionsByServiceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConnectionsByServiceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetConnections
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorNotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseProcessesByServiceResponse parses an HTTP response from a ProcessesByServiceWithResponse call
+func ParseProcessesByServiceResponse(rsp *http.Response) (*ProcessesByServiceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ProcessesByServiceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetProcesses
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorBadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseProcessPairsByServiceResponse parses an HTTP response from a ProcessPairsByServiceWithResponse call
+func ParseProcessPairsByServiceResponse(rsp *http.Response) (*ProcessPairsByServiceResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ProcessPairsByServiceResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetFlowAggregates
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorNotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseSitepairsResponse parses an HTTP response from a SitepairsWithResponse call
 func ParseSitepairsResponse(rsp *http.Response) (*SitepairsResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -5133,21 +5132,6 @@ func ParseRoutersBySiteResponse(rsp *http.Response) (*RoutersBySiteResponse, err
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 
-	// (GET /api/v2alpha1/addresses)
-	Addresses(w http.ResponseWriter, r *http.Request)
-
-	// (GET /api/v2alpha1/addresses/{id})
-	AddressByID(w http.ResponseWriter, r *http.Request, id PathID)
-
-	// (GET /api/v2alpha1/addresses/{id}/connections)
-	ConnectionsByAddress(w http.ResponseWriter, r *http.Request, id PathID)
-
-	// (GET /api/v2alpha1/addresses/{id}/processes)
-	ProcessesByAddress(w http.ResponseWriter, r *http.Request, id PathID)
-
-	// (GET /api/v2alpha1/addresses/{id}/processpairs)
-	ProcessPairsByAddress(w http.ResponseWriter, r *http.Request, id PathID)
-
 	// (GET /api/v2alpha1/applicationflows)
 	Applicationflows(w http.ResponseWriter, r *http.Request)
 
@@ -5223,6 +5207,21 @@ type ServerInterface interface {
 	// (GET /api/v2alpha1/routers/{id}/links)
 	LinksByRouter(w http.ResponseWriter, r *http.Request, id PathID)
 
+	// (GET /api/v2alpha1/services)
+	Services(w http.ResponseWriter, r *http.Request)
+
+	// (GET /api/v2alpha1/services/{id})
+	ServiceByID(w http.ResponseWriter, r *http.Request, id PathID)
+
+	// (GET /api/v2alpha1/services/{id}/connections)
+	ConnectionsByService(w http.ResponseWriter, r *http.Request, id PathID)
+
+	// (GET /api/v2alpha1/services/{id}/processes)
+	ProcessesByService(w http.ResponseWriter, r *http.Request, id PathID)
+
+	// (GET /api/v2alpha1/services/{id}/processpairs)
+	ProcessPairsByService(w http.ResponseWriter, r *http.Request, id PathID)
+
 	// (GET /api/v2alpha1/sitepairs)
 	Sitepairs(w http.ResponseWriter, r *http.Request)
 
@@ -5256,125 +5255,6 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
-
-// Addresses operation middleware
-func (siw *ServerInterfaceWrapper) Addresses(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.Addresses(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// AddressByID operation middleware
-func (siw *ServerInterfaceWrapper) AddressByID(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AddressByID(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// ConnectionsByAddress operation middleware
-func (siw *ServerInterfaceWrapper) ConnectionsByAddress(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ConnectionsByAddress(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// ProcessesByAddress operation middleware
-func (siw *ServerInterfaceWrapper) ProcessesByAddress(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ProcessesByAddress(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// ProcessPairsByAddress operation middleware
-func (siw *ServerInterfaceWrapper) ProcessPairsByAddress(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ProcessPairsByAddress(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
 
 // Applicationflows operation middleware
 func (siw *ServerInterfaceWrapper) Applicationflows(w http.ResponseWriter, r *http.Request) {
@@ -5883,6 +5763,125 @@ func (siw *ServerInterfaceWrapper) LinksByRouter(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
+// Services operation middleware
+func (siw *ServerInterfaceWrapper) Services(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Services(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// ServiceByID operation middleware
+func (siw *ServerInterfaceWrapper) ServiceByID(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id PathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ServiceByID(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// ConnectionsByService operation middleware
+func (siw *ServerInterfaceWrapper) ConnectionsByService(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id PathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConnectionsByService(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// ProcessesByService operation middleware
+func (siw *ServerInterfaceWrapper) ProcessesByService(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id PathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ProcessesByService(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// ProcessPairsByService operation middleware
+func (siw *ServerInterfaceWrapper) ProcessPairsByService(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id PathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ProcessPairsByService(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
 // Sitepairs operation middleware
 func (siw *ServerInterfaceWrapper) Sitepairs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -6182,16 +6181,6 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	r.HandleFunc(options.BaseURL+"/api/v2alpha1/addresses", wrapper.Addresses).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v2alpha1/addresses/{id}", wrapper.AddressByID).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v2alpha1/addresses/{id}/connections", wrapper.ConnectionsByAddress).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v2alpha1/addresses/{id}/processes", wrapper.ProcessesByAddress).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v2alpha1/addresses/{id}/processpairs", wrapper.ProcessPairsByAddress).Methods("GET")
-
 	r.HandleFunc(options.BaseURL+"/api/v2alpha1/applicationflows", wrapper.Applicationflows).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v2alpha1/connections", wrapper.Connections).Methods("GET")
@@ -6241,6 +6230,16 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 	r.HandleFunc(options.BaseURL+"/api/v2alpha1/routers/{id}", wrapper.RouterByID).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v2alpha1/routers/{id}/links", wrapper.LinksByRouter).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/services", wrapper.Services).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/services/{id}", wrapper.ServiceByID).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/services/{id}/connections", wrapper.ConnectionsByService).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/services/{id}/processes", wrapper.ProcessesByService).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/services/{id}/processpairs", wrapper.ProcessPairsByService).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v2alpha1/sitepairs", wrapper.Sitepairs).Methods("GET")
 

@@ -34,7 +34,7 @@ func TestConnectors(t *testing.T) {
 				assert.DeepEqual(t, result, api.ConnectorRecord{
 					Identity: "c1", Name: "unknown", Parent: "unknown",
 					SiteName: "unknown", SiteId: "unknown",
-					Protocol: "unknown", Address: "unknown", DestHost: "unknown",
+					Protocol: "unknown", RoutingKey: "unknown", DestHost: "unknown",
 					ProcessId: "", DestPort: "unknown",
 				})
 			},
@@ -65,7 +65,7 @@ func TestConnectors(t *testing.T) {
 				assert.DeepEqual(t, result, api.ConnectorRecord{
 					Identity: "c1", Name: "conn-one", Parent: "r1",
 					SiteName: "one", SiteId: "s1",
-					Protocol: "tp", Address: "trombone", DestHost: "10.0.four.two",
+					Protocol: "tp", RoutingKey: "trombone", DestHost: "10.0.four.two",
 					ProcessId: "p1", Target: ptrTo("proc-one"), DestPort: "amqp",
 				})
 			},

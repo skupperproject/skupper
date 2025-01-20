@@ -5,26 +5,6 @@ package api
 // response objects
 
 // SetCount
-func (r *AddressListResponse) SetCount(v int64) {
-	r.Count = v
-}
-
-// SetResults
-func (r *AddressListResponse) SetResults(v []AddressRecord) {
-	r.Results = v
-}
-
-// SetTimeRangeCount
-func (r *AddressListResponse) SetTimeRangeCount(v int64) {
-	r.TimeRangeCount = v
-}
-
-// SetResults
-func (r *AddressResponse) SetResults(v AddressRecord) {
-	r.Results = v
-}
-
-// SetCount
 func (r *ApplicationFlowResponse) SetCount(v int64) {
 	r.Count = v
 }
@@ -235,6 +215,26 @@ func (r *RouterResponse) SetResults(v RouterRecord) {
 }
 
 // SetCount
+func (r *ServiceListResponse) SetCount(v int64) {
+	r.Count = v
+}
+
+// SetResults
+func (r *ServiceListResponse) SetResults(v []ServiceRecord) {
+	r.Results = v
+}
+
+// SetTimeRangeCount
+func (r *ServiceListResponse) SetTimeRangeCount(v int64) {
+	r.TimeRangeCount = v
+}
+
+// SetResults
+func (r *ServiceResponse) SetResults(v ServiceRecord) {
+	r.Results = v
+}
+
+// SetCount
 func (r *SiteListResponse) SetCount(v int64) {
 	r.Count = v
 }
@@ -265,16 +265,6 @@ func (r *CollectionResponse) SetTimeRangeCount(v int64) {
 }
 
 // Implements Record interface for the generated record objects
-
-// GetEndTime
-func (r AddressRecord) GetEndTime() uint64 {
-	return r.EndTime
-}
-
-// GetStartTime
-func (r AddressRecord) GetStartTime() uint64 {
-	return r.StartTime
-}
 
 // GetEndTime
 func (r ApplicationFlowRecord) GetEndTime() uint64 {
@@ -383,6 +373,16 @@ func (r RouterRecord) GetEndTime() uint64 {
 
 // GetStartTime
 func (r RouterRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
+func (r ServiceRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r ServiceRecord) GetStartTime() uint64 {
 	return r.StartTime
 }
 
