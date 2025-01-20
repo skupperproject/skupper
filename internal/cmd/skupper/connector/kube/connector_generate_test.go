@@ -5,13 +5,8 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
-	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"gotest.tools/v3/assert"
-	appsv1 "k8s.io/api/apps/v1"
-	v12 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -120,10 +115,10 @@ func TestCmdConnectorGenerate_ValidateInput(t *testing.T) {
 			name: "tls-credentials does not exist",
 			args: []string{"my-connector-tls", "8080"},
 			flags: common.CommandConnectorGenerateFlags{
-				TlsCredentials: "not-valid",
+				TlsCredentials: "not-$valid",
 				Selector:       "backend",
 			},
-			expectedError: "tlsCredentials is not valid: does not exist",
+			expectedError: "tlsCredentials is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name: "workload is not valid",
@@ -132,6 +127,14 @@ func TestCmdConnectorGenerate_ValidateInput(t *testing.T) {
 				Workload: "@345",
 			},
 			expectedError: "workload is not valid: workload must include <resource-type>/<resource-name>",
+		},
+		{
+			name: "workload bad resourceType",
+			args: []string{"bad-workload", "1234"},
+			flags: common.CommandConnectorGenerateFlags{
+				Workload: "bad/backend",
+			},
+			expectedError: "workload is not valid: resource-type does not match expected value: deployment/service/daemonset/statefulset",
 		},
 		{
 			name: "selector is not valid",
@@ -176,25 +179,6 @@ func TestCmdConnectorGenerate_ValidateInput(t *testing.T) {
 				Workload: "deployment/test",
 				Host:     "test",
 			},
-			k8sObjects: []runtime.Object{
-				&appsv1.Deployment{
-					TypeMeta: v1.TypeMeta{
-						APIVersion: "apps/v1",
-						Kind:       "Deployment",
-					},
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "test",
-						Namespace: "test",
-					},
-					Spec: appsv1.DeploymentSpec{
-						Selector: &v1.LabelSelector{
-							MatchLabels: map[string]string{
-								"app": "backend",
-							},
-						},
-					},
-				},
-			},
 			expectedError: "If host is configured, cannot configure workload or selector\n" +
 				"If workload is configured, cannot configure selector or host",
 		},
@@ -213,265 +197,6 @@ func TestCmdConnectorGenerate_ValidateInput(t *testing.T) {
 		})
 	}
 }
-
-func TestCmdConnectorGenerate_ValidateWorkload(t *testing.T) {
-	type test struct {
-		name             string
-		args             []string
-		flags            common.CommandConnectorGenerateFlags
-		k8sObjects       []runtime.Object
-		skupperObjects   []runtime.Object
-		expectedError    string
-		expectedSelector string
-	}
-
-	testTable := []test{
-		{
-			name: "workload-no-deployment",
-			args: []string{"workload-deployment", "1234"}, flags: common.CommandConnectorGenerateFlags{
-				Output:   "json",
-				Workload: "deployment/backend",
-			},
-			expectedError: "failed trying to get Deployment specified by workload: deployments.apps \"backend\" not found",
-		},
-		{
-			name: "workload-deployment-no-labels",
-			args: []string{"workload-deployment-no-labels", "1234"}, flags: common.CommandConnectorGenerateFlags{
-				Output:   "json",
-				Workload: "deployment/backend",
-			},
-			k8sObjects: []runtime.Object{
-				&appsv1.Deployment{
-					TypeMeta: v1.TypeMeta{
-						APIVersion: "apps/v1",
-						Kind:       "Deployment",
-					},
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "backend",
-						Namespace: "test",
-					},
-					Spec: appsv1.DeploymentSpec{
-						Selector: &v1.LabelSelector{},
-					},
-				},
-			},
-			expectedError: "workload, no selector Matchlabels found",
-		},
-		{
-			name: "workload-deployment",
-			args: []string{"workload-deployment", "1234"}, flags: common.CommandConnectorGenerateFlags{
-				Output:   "json",
-				Workload: "deployment/backend",
-			},
-			k8sObjects: []runtime.Object{
-				&appsv1.Deployment{
-					TypeMeta: v1.TypeMeta{
-						APIVersion: "apps/v1",
-						Kind:       "Deployment",
-					},
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "backend",
-						Namespace: "test",
-					},
-					Spec: appsv1.DeploymentSpec{
-						Selector: &v1.LabelSelector{
-							MatchLabels: map[string]string{
-								"app": "backend",
-							},
-						},
-					},
-				},
-			},
-			expectedSelector: "app=backend",
-		},
-		{
-			name: "workload-no-service",
-			args: []string{"workload-no-service", "1234"}, flags: common.CommandConnectorGenerateFlags{
-				Output:   "json",
-				Workload: "service/backend",
-			},
-			expectedError: "failed trying to get Service specified by workload: services \"backend\" not found",
-		},
-		{
-			name: "workload-service-no-labels",
-			args: []string{"workload-service-no-labels", "1234"}, flags: common.CommandConnectorGenerateFlags{
-				Output:   "json",
-				Workload: "service/backend",
-			},
-			k8sObjects: []runtime.Object{
-				&v12.Service{
-					TypeMeta: v1.TypeMeta{
-						APIVersion: "apps/v1",
-						Kind:       "Service",
-					},
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "backend",
-						Namespace: "test",
-					},
-					Spec: v12.ServiceSpec{},
-				},
-			},
-			expectedError: "workload, no selector labels found",
-		},
-		{
-			name: "workload-service",
-			args: []string{"workload-service", "1234"}, flags: common.CommandConnectorGenerateFlags{
-				Output:   "json",
-				Workload: "service/backend",
-			},
-			k8sObjects: []runtime.Object{
-				&v12.Service{
-					TypeMeta: v1.TypeMeta{
-						APIVersion: "apps/v1",
-						Kind:       "Service",
-					},
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "backend",
-						Namespace: "test",
-					},
-					Spec: v12.ServiceSpec{
-						Selector: map[string]string{
-							"app": "backend",
-						},
-					},
-				},
-			},
-			expectedSelector: "app=backend",
-		},
-		{
-			name: "workload-no-daemonset",
-			args: []string{"workload-no-daemonset", "1234"}, flags: common.CommandConnectorGenerateFlags{
-				Output:   "json",
-				Workload: "daemonset/backend",
-			},
-			expectedError: "failed trying to get DaemonSet specified by workload: daemonsets.apps \"backend\" not found",
-		},
-		{
-			name: "workload-daemonset-no-labels",
-			args: []string{"workload-daemonset-no-labels", "1234"}, flags: common.CommandConnectorGenerateFlags{
-				Output:   "json",
-				Workload: "daemonset/backend",
-			},
-			k8sObjects: []runtime.Object{
-				&appsv1.DaemonSet{
-					TypeMeta: v1.TypeMeta{
-						APIVersion: "apps/v1",
-						Kind:       "daemonset",
-					},
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "backend",
-						Namespace: "test",
-					},
-					Spec: appsv1.DaemonSetSpec{
-						Selector: &v1.LabelSelector{},
-					},
-				},
-			},
-			expectedError: "workload, no selector Matchlabels found",
-		},
-		{
-			name: "workload-daemonset",
-			args: []string{"workload-daemonset", "1234"}, flags: common.CommandConnectorGenerateFlags{
-				Output:   "json",
-				Workload: "DaemonSet/backend",
-			},
-			k8sObjects: []runtime.Object{
-				&appsv1.DaemonSet{
-					TypeMeta: v1.TypeMeta{
-						APIVersion: "apps/v1",
-						Kind:       "DaemonSet",
-					},
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "backend",
-						Namespace: "test",
-					},
-					Spec: appsv1.DaemonSetSpec{
-						Selector: &v1.LabelSelector{
-							MatchLabels: map[string]string{
-								"app": "backend",
-							},
-						},
-					},
-				},
-			},
-			expectedSelector: "app=backend",
-		},
-		{
-			name: "workload-no-statefulset",
-			args: []string{"workload-no-statefulset", "1234"}, flags: common.CommandConnectorGenerateFlags{
-				Output:   "json",
-				Workload: "StatefulSet/backend",
-			},
-			expectedError: "failed trying to get StatefulSet specified by workload: statefulsets.apps \"backend\" not found",
-		},
-		{
-			name: "workload-statefulset-no-labels",
-			args: []string{"workload-statefulset-no-labels", "1234"}, flags: common.CommandConnectorGenerateFlags{
-				Output:   "json",
-				Workload: "statefulset/backend",
-			},
-			k8sObjects: []runtime.Object{
-				&appsv1.StatefulSet{
-					TypeMeta: v1.TypeMeta{
-						APIVersion: "apps/v1",
-						Kind:       "statefulset",
-					},
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "backend",
-						Namespace: "test",
-					},
-					Spec: appsv1.StatefulSetSpec{
-						Selector: &v1.LabelSelector{},
-					},
-				},
-			},
-			expectedError: "workload, no selector Matchlabels found",
-		},
-		{
-			name: "workload-statefulset",
-			args: []string{"workload-statefulset", "1234"}, flags: common.CommandConnectorGenerateFlags{
-				Output:   "json",
-				Workload: "statefulset/backend",
-			},
-			k8sObjects: []runtime.Object{
-				&appsv1.StatefulSet{
-					TypeMeta: v1.TypeMeta{
-						APIVersion: "apps/v1",
-						Kind:       "StatefulSet",
-					},
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "backend",
-						Namespace: "test",
-					},
-					Spec: appsv1.StatefulSetSpec{
-						Selector: &v1.LabelSelector{
-							MatchLabels: map[string]string{
-								"app": "backend",
-							},
-						},
-					},
-				},
-			},
-			expectedSelector: "app=backend",
-		},
-	}
-
-	for _, test := range testTable {
-		t.Run(test.name, func(t *testing.T) {
-
-			command, err := newCmdConnectorGenerateWithMocks("test", test.k8sObjects, test.skupperObjects, "")
-			assert.Assert(t, err)
-
-			command.Flags = &test.flags
-
-			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
-
-			//validate selector is correct
-			assert.Check(t, command.selector == test.expectedSelector)
-		})
-	}
-}
-
 func TestCmdConnectorGenerate_InputToOptions(t *testing.T) {
 
 	type test struct {
@@ -607,16 +332,8 @@ func TestCmdConnectorGenerate_Run(t *testing.T) {
 
 func newCmdConnectorGenerateWithMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*CmdConnectorGenerate, error) {
 
-	// We make sure the interval is appropriate
-	utils.SetRetryProfile(utils.TestRetryProfile)
-	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
-	if err != nil {
-		return nil, err
-	}
 	cmdConnectorGenerate := &CmdConnectorGenerate{
-		client:     client.GetSkupperClient().SkupperV2alpha1(),
-		KubeClient: client.GetKubeClient(),
-		namespace:  namespace,
+		namespace: namespace,
 	}
 	return cmdConnectorGenerate, nil
 }

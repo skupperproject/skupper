@@ -42,7 +42,7 @@ func TestCmdSiteGenerate_ValidateInput(t *testing.T) {
 			name:          "service account name is not valid.",
 			args:          []string{"my-site"},
 			flags:         &common.CommandSiteGenerateFlags{ServiceAccount: "not valid service account name"},
-			expectedError: "service account name is not valid: serviceaccounts \"not valid service account name\" not found",
+			expectedError: "service account name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name:  "link access type is not valid",
@@ -78,11 +78,6 @@ func TestCmdSiteGenerate_ValidateInput(t *testing.T) {
 			cmd := common.ConfigureCobraCommand(types.PlatformKubernetes, common.SkupperCmdDescription{}, command, nil)
 
 			command.CobraCmd = cmd
-
-			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, "")
-			assert.Assert(t, err)
-			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
-			command.KubeClient = fakeSkupperClient.GetKubeClient()
 
 			if test.flags != nil {
 				command.Flags = test.flags
@@ -233,14 +228,8 @@ func TestCmdSiteGenerate_Run(t *testing.T) {
 
 func newCmdSiteGenerateWithMocks(namespace string) (*CmdSiteGenerate, error) {
 
-	client, err := fakeclient.NewFakeClient(namespace, nil, nil, "")
-	if err != nil {
-		return nil, err
-	}
 	cmdSiteGenerate := &CmdSiteGenerate{
-		Client:     client.GetSkupperClient().SkupperV2alpha1(),
-		KubeClient: client.GetKubeClient(),
-		Namespace:  namespace,
+		Namespace: namespace,
 	}
 
 	return cmdSiteGenerate, nil

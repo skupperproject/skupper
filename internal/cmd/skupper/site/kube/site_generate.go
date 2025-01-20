@@ -4,13 +4,11 @@ Copyright © 2024 Skupper Team <skupper@googlegroups.com>
 package kube
 
 import (
-	"context"
 	"errors"
 	"fmt"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
@@ -39,12 +37,9 @@ func NewCmdSiteGenerate() *CmdSiteGenerate {
 }
 
 func (cmd *CmdSiteGenerate) NewClient(cobraCommand *cobra.Command, args []string) {
-	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(utils.GenericError, err)
 
-	cmd.Client = cli.GetSkupperClient().SkupperV2alpha1()
-	cmd.KubeClient = cli.GetKubeClient()
-	cmd.Namespace = cli.Namespace
+	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
+
 }
 
 func (cmd *CmdSiteGenerate) ValidateInput(args []string) error {
@@ -78,8 +73,8 @@ func (cmd *CmdSiteGenerate) ValidateInput(args []string) error {
 	}
 
 	if cmd.Flags != nil && cmd.Flags.ServiceAccount != "" {
-		svcAccount, err := cmd.KubeClient.CoreV1().ServiceAccounts(cmd.Namespace).Get(context.TODO(), cmd.Flags.ServiceAccount, metav1.GetOptions{})
-		if err != nil || svcAccount == nil {
+		ok, err := resourceStringValidator.Evaluate(cmd.Flags.ServiceAccount)
+		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("service account name is not valid: %s", err))
 		}
 	}

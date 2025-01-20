@@ -20,63 +20,60 @@ func TestNonKubeCmdSiteGenerate_ValidateInput(t *testing.T) {
 		skupperObjects    []runtime.Object
 		flags             *common.CommandSiteGenerateFlags
 		cobraGenericFlags map[string]string
-		expectedErrors    []string
+		expectedError     string
 	}
 
 	testTable := []test{
 		{
-			name:           "site name is not valid.",
-			args:           []string{"my new site"},
-			flags:          &common.CommandSiteGenerateFlags{BindHost: "bindhost"},
-			expectedErrors: []string{"site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "site name is not valid.",
+			args:          []string{"my new site"},
+			flags:         &common.CommandSiteGenerateFlags{BindHost: "bindhost"},
+			expectedError: "site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "site name is not specified.",
-			args:           []string{},
-			flags:          &common.CommandSiteGenerateFlags{},
-			expectedErrors: []string{"site name must not be empty"},
+			name:          "site name is not specified.",
+			args:          []string{},
+			flags:         &common.CommandSiteGenerateFlags{},
+			expectedError: "site name must not be empty",
 		},
 		{
-			name:           "more than one argument was specified",
-			args:           []string{"my", "site"},
-			flags:          &common.CommandSiteGenerateFlags{BindHost: "1.2.3.4"},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument was specified",
+			args:          []string{"my", "site"},
+			flags:         &common.CommandSiteGenerateFlags{BindHost: "1.2.3.4"},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:           "bindHost was not specified ok",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteGenerateFlags{EnableLinkAccess: true},
-			expectedErrors: []string{},
+			name:  "bindHost was not specified ok",
+			args:  []string{"my-site"},
+			flags: &common.CommandSiteGenerateFlags{EnableLinkAccess: true},
 		},
 		{
-			name:           "bindHost was not valid",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteGenerateFlags{EnableLinkAccess: true, BindHost: "not-valid$"},
-			expectedErrors: []string{"bindhost is not valid: a valid IP address or hostname is expected"},
+			name:          "bindHost was not valid",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteGenerateFlags{EnableLinkAccess: true, BindHost: "not-valid$"},
+			expectedError: "bindhost is not valid: a valid IP address or hostname is expected",
 		},
 		{
-			name:           "subjectAlternativeNames was not valid",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteGenerateFlags{EnableLinkAccess: true, BindHost: "bindhost", SubjectAlternativeNames: []string{"not-valid$"}},
-			expectedErrors: []string{"SubjectAlternativeNames is not valid: a valid IP address or hostname is expected"},
+			name:          "subjectAlternativeNames was not valid",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteGenerateFlags{EnableLinkAccess: true, BindHost: "bindhost", SubjectAlternativeNames: []string{"not-valid$"}},
+			expectedError: "SubjectAlternativeNames is not valid: a valid IP address or hostname is expected",
 		},
 		{
-			name:           "output format is not valid",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteGenerateFlags{BindHost: "bindhost", Output: "not-valid"},
-			expectedErrors: []string{"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]"},
+			name:          "output format is not valid",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteGenerateFlags{BindHost: "bindhost", Output: "not-valid"},
+			expectedError: "output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 		},
 		{
-			name:           "service-account is not valid on this platform",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteGenerateFlags{ServiceAccount: "service-account"},
-			expectedErrors: []string{},
+			name:  "service-account is not valid on this platform",
+			args:  []string{"my-site"},
+			flags: &common.CommandSiteGenerateFlags{ServiceAccount: "service-account"},
 		},
 		{
-			name:           "kubernetes flags are not valid on this platform",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteGenerateFlags{},
-			expectedErrors: []string{},
+			name:  "kubernetes flags are not valid on this platform",
+			args:  []string{"my-site"},
+			flags: &common.CommandSiteGenerateFlags{},
 			cobraGenericFlags: map[string]string{
 				common.FlagNameContext:    "test",
 				common.FlagNameKubeconfig: "test",
@@ -90,7 +87,6 @@ func TestNonKubeCmdSiteGenerate_ValidateInput(t *testing.T) {
 				EnableLinkAccess:        true,
 				SubjectAlternativeNames: []string{"3.3.3.3"},
 			},
-			expectedErrors: []string{},
 		},
 	}
 

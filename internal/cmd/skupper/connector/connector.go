@@ -158,7 +158,7 @@ func CmdConnectorGenerateFactory(configuredPlatform types.Platform) *cobra.Comma
 
 	cmdConnectorGenerateDesc := common.SkupperCmdDescription{
 		Use:   "generate <name> <port>",
-		Short: "Generate a connector",
+		Short: "Generate a connector resource and output it to a file or screen",
 		Long:  "Clients at this site use the connector host and port to establish connections to the remote service.",
 		Example: `skupper connector generate database 5432
 skupper connector generate backend 8080 --workload deployment/backend`,

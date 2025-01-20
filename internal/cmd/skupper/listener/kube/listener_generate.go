@@ -1,7 +1,6 @@
 package kube
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -9,13 +8,11 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
-	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 type CmdListenerGenerate struct {
@@ -30,7 +27,6 @@ type CmdListenerGenerate struct {
 	listenerType   string
 	routingKey     string
 	output         string
-	KubeClient     kubernetes.Interface
 }
 
 func NewCmdListenerGenerate() *CmdListenerGenerate {
@@ -40,12 +36,8 @@ func NewCmdListenerGenerate() *CmdListenerGenerate {
 }
 
 func (cmd *CmdListenerGenerate) NewClient(cobraCommand *cobra.Command, args []string) {
-	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(utils.GenericError, err)
 
-	cmd.client = cli.GetSkupperClient().SkupperV2alpha1()
-	cmd.namespace = cli.Namespace
-	cmd.KubeClient = cli.Kube
+	cmd.namespace = cobraCommand.Flag("namespace").Value.String()
 }
 
 func (cmd *CmdListenerGenerate) ValidateInput(args []string) error {
@@ -91,10 +83,9 @@ func (cmd *CmdListenerGenerate) ValidateInput(args []string) error {
 	}
 
 	if cmd.Flags != nil && cmd.Flags.TlsCredentials != "" {
-		// check that the secret exists
-		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsCredentials, metav1.GetOptions{})
-		if err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("tls-secret is not valid: does not exist"))
+		ok, err := resourceStringValidator.Evaluate(cmd.Flags.TlsCredentials)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("tlsCredentials is not valid: %s", err))
 		}
 	}
 

@@ -156,7 +156,7 @@ func CmdListenerGenerateFactory(configuredPlatform types.Platform) *cobra.Comman
 
 	cmdListenerGenerateDesc := common.SkupperCmdDescription{
 		Use:   "generate <name> <port>",
-		Short: "generate a listener resource and output it to a file",
+		Short: "generate a listener resource and output it to a file or screen",
 		Long: `Clients at this site use the listener host and port to establish connections to the remote service.
 	generate a listener to evaluate what will be created with listener create command`,
 		Example: "skupper listener generate database 5432",

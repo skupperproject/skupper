@@ -1,7 +1,6 @@
 package kube
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -10,14 +9,11 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
-	"github.com/skupperproject/skupper/internal/kube/client"
-	pkgUtils "github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 type CmdConnectorGenerate struct {
@@ -34,7 +30,6 @@ type CmdConnectorGenerate struct {
 	routingKey          string
 	connectorType       string
 	includeNotReadyPods bool
-	KubeClient          kubernetes.Interface
 }
 
 func NewCmdConnectorGenerate() *CmdConnectorGenerate {
@@ -43,12 +38,8 @@ func NewCmdConnectorGenerate() *CmdConnectorGenerate {
 }
 
 func (cmd *CmdConnectorGenerate) NewClient(cobraCommand *cobra.Command, args []string) {
-	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(utils.GenericError, err)
 
-	cmd.client = cli.GetSkupperClient().SkupperV2alpha1()
-	cmd.namespace = cli.Namespace
-	cmd.KubeClient = cli.Kube
+	cmd.namespace = cobraCommand.Flag("namespace").Value.String()
 }
 
 func (cmd *CmdConnectorGenerate) ValidateInput(args []string) error {
@@ -96,10 +87,9 @@ func (cmd *CmdConnectorGenerate) ValidateInput(args []string) error {
 		}
 	}
 	if cmd.Flags != nil && cmd.Flags.TlsCredentials != "" {
-		// check that the secret exists
-		_, err := cmd.KubeClient.CoreV1().Secrets(cmd.namespace).Get(context.TODO(), cmd.Flags.TlsCredentials, metav1.GetOptions{})
-		if err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("tlsCredentials is not valid: does not exist"))
+		ok, err := resourceStringValidator.Evaluate(cmd.Flags.TlsCredentials)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("tlsCredentials is not valid: %s", err))
 		}
 	}
 	if cmd.Flags != nil && cmd.Flags.ConnectorType != "" {
@@ -133,57 +123,9 @@ func (cmd *CmdConnectorGenerate) ValidateInput(args []string) error {
 		if cmd.Flags.Selector != "" || cmd.Flags.Host != "" {
 			validationErrors = append(validationErrors, fmt.Errorf("If workload is configured, cannot configure selector or host"))
 		}
-		//workload get resource-type/resource-name and find selector labels
-		resourceType, resourceName, ok, err := workloadStringValidator.Evaluate(cmd.Flags.Workload)
+		_, _, ok, err := workloadStringValidator.Evaluate(cmd.Flags.Workload)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("workload is not valid: %s", err))
-		} else {
-			switch resourceType {
-			case "deployment":
-				deployment, err := cmd.KubeClient.AppsV1().Deployments(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
-				if err != nil {
-					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get Deployment specified by workload: %s", err))
-				} else {
-					if deployment.Spec.Selector.MatchLabels != nil {
-						cmd.selector = pkgUtils.StringifySelector(deployment.Spec.Selector.MatchLabels)
-					} else {
-						validationErrors = append(validationErrors, fmt.Errorf("workload, no selector Matchlabels found"))
-					}
-				}
-			case "service":
-				service, err := cmd.KubeClient.CoreV1().Services(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
-				if err != nil {
-					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get Service specified by workload: %s", err))
-				} else {
-					if service.Spec.Selector != nil {
-						cmd.selector = pkgUtils.StringifySelector(service.Spec.Selector)
-					} else {
-						validationErrors = append(validationErrors, fmt.Errorf("workload, no selector labels found"))
-					}
-				}
-			case "daemonset":
-				daemonSet, err := cmd.KubeClient.AppsV1().DaemonSets(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
-				if err != nil {
-					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get DaemonSet specified by workload: %s", err))
-				} else {
-					if daemonSet.Spec.Selector.MatchLabels != nil {
-						cmd.selector = pkgUtils.StringifySelector(daemonSet.Spec.Selector.MatchLabels)
-					} else {
-						validationErrors = append(validationErrors, fmt.Errorf("workload, no selector Matchlabels found"))
-					}
-				}
-			case "statefulset":
-				statefulSet, err := cmd.KubeClient.AppsV1().StatefulSets(cmd.namespace).Get(context.TODO(), resourceName, metav1.GetOptions{})
-				if err != nil {
-					validationErrors = append(validationErrors, fmt.Errorf("failed trying to get StatefulSet specified by workload: %s", err))
-				} else {
-					if statefulSet.Spec.Selector.MatchLabels != nil {
-						cmd.selector = pkgUtils.StringifySelector(statefulSet.Spec.Selector.MatchLabels)
-					} else {
-						validationErrors = append(validationErrors, fmt.Errorf("workload, no selector Matchlabels found"))
-					}
-				}
-			}
 		}
 	}
 	if cmd.Flags != nil && cmd.Flags.Output != "" {
@@ -196,7 +138,6 @@ func (cmd *CmdConnectorGenerate) ValidateInput(args []string) error {
 }
 
 func (cmd *CmdConnectorGenerate) InputToOptions() {
-
 	// workload, selector or host must be specified
 	if cmd.Flags.Workload == "" && cmd.Flags.Selector == "" && cmd.Flags.Host == "" {
 		// default selector to name of connector
@@ -222,7 +163,6 @@ func (cmd *CmdConnectorGenerate) InputToOptions() {
 }
 
 func (cmd *CmdConnectorGenerate) Run() error {
-
 	resource := v2alpha1.Connector{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v2alpha1",

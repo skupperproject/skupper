@@ -5,9 +5,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
-	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/v3/assert"
 	v12 "k8s.io/api/core/v1"
@@ -96,8 +94,8 @@ func TestCmdListenerGenerate_ValidateInput(t *testing.T) {
 		{
 			name:          "tls-credentials does not exist",
 			args:          []string{"my-listener-tls", "8080"},
-			flags:         common.CommandListenerGenerateFlags{TlsCredentials: "not-valid"},
-			expectedError: "tls-secret is not valid: does not exist",
+			flags:         common.CommandListenerGenerateFlags{TlsCredentials: "not-&valid"},
+			expectedError: "tlsCredentials is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name:          "output is not valid",
@@ -276,16 +274,8 @@ func TestCmdListenerGenerate_Run(t *testing.T) {
 
 func newCmdListenerGenerateWithMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*CmdListenerGenerate, error) {
 
-	// We make sure the interval is appropriate
-	utils.SetRetryProfile(utils.TestRetryProfile)
-	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
-	if err != nil {
-		return nil, err
-	}
 	cmdListenerGenerate := &CmdListenerGenerate{
-		client:     client.GetSkupperClient().SkupperV2alpha1(),
-		KubeClient: client.GetKubeClient(),
-		namespace:  namespace,
+		namespace: namespace,
 	}
 	return cmdListenerGenerate, nil
 }
