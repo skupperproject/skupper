@@ -53,8 +53,8 @@ const (
 const (
 	SitePlatformTypeDocker     SitePlatformType = "docker"
 	SitePlatformTypeKubernetes SitePlatformType = "kubernetes"
-	SitePlatformTypePodman     SitePlatformType = "podman"
 	SitePlatformTypeLinux      SitePlatformType = "linux"
+	SitePlatformTypePodman     SitePlatformType = "podman"
 	SitePlatformTypeUnknown    SitePlatformType = "unknown"
 )
 
@@ -103,6 +103,36 @@ type ApplicationFlowResponse struct {
 	TimeRangeCount int64 `json:"timeRangeCount"`
 }
 
+// ComponentListResponse defines model for ComponentListResponse.
+type ComponentListResponse struct {
+	// Count number of results in response
+	Count   int64             `json:"count"`
+	Results []ComponentRecord `json:"results"`
+
+	// TimeRangeCount number of results matching filtering and time range constraints before any limit or offset is applied.
+	TimeRangeCount int64 `json:"timeRangeCount"`
+}
+
+// ComponentRecord defines model for ComponentRecord.
+type ComponentRecord struct {
+	// EndTime The end time in microseconds of the record in Unix timestamp format.
+	EndTime uint64 `json:"endTime"`
+
+	// Identity The unique identifier for the record.
+	Identity     string `json:"identity"`
+	Name         string `json:"name"`
+	ProcessCount int    `json:"processCount"`
+	Role         string `json:"role"`
+
+	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
+	StartTime uint64 `json:"startTime"`
+}
+
+// ComponentResponse defines model for ComponentResponse.
+type ComponentResponse struct {
+	Results ComponentRecord `json:"results"`
+}
+
 // ConnectionListResponse defines model for ConnectionListResponse.
 type ConnectionListResponse struct {
 	// Count number of results in response
@@ -115,6 +145,7 @@ type ConnectionListResponse struct {
 
 // ConnectionRecord defines model for ConnectionRecord.
 type ConnectionRecord struct {
+	ComponentPairId *string `json:"componentPairId"`
 	ConnectorError  *string `json:"connectorError"`
 	ConnectorId     string  `json:"connectorId"`
 	DestHost        string  `json:"destHost"`
@@ -129,26 +160,25 @@ type ConnectionRecord struct {
 	EndTime uint64 `json:"endTime"`
 
 	// Identity The unique identifier for the record.
-	Identity           string  `json:"identity"`
-	Latency            uint64  `json:"latency"`
-	LatencyReverse     uint64  `json:"latencyReverse"`
-	ListenerError      *string `json:"listenerError"`
-	ListenerId         string  `json:"listenerId"`
-	Octets             uint64  `json:"octets"`
-	OctetsReverse      uint64  `json:"octetsReverse"`
-	ProcessGroupPairId *string `json:"processGroupPairId"`
-	ProcessPairId      *string `json:"processPairId"`
-	Protocol           string  `json:"protocol"`
-	ProxyHost          string  `json:"proxyHost"`
-	ProxyPort          string  `json:"proxyPort"`
-	RoutingKey         string  `json:"routingKey"`
-	SitePairId         *string `json:"sitePairId"`
-	SourceHost         string  `json:"sourceHost"`
-	SourcePort         string  `json:"sourcePort"`
-	SourceProcessId    string  `json:"sourceProcessId"`
-	SourceProcessName  string  `json:"sourceProcessName"`
-	SourceSiteId       string  `json:"sourceSiteId"`
-	SourceSiteName     string  `json:"sourceSiteName"`
+	Identity          string  `json:"identity"`
+	Latency           uint64  `json:"latency"`
+	LatencyReverse    uint64  `json:"latencyReverse"`
+	ListenerError     *string `json:"listenerError"`
+	ListenerId        string  `json:"listenerId"`
+	Octets            uint64  `json:"octets"`
+	OctetsReverse     uint64  `json:"octetsReverse"`
+	ProcessPairId     *string `json:"processPairId"`
+	Protocol          string  `json:"protocol"`
+	ProxyHost         string  `json:"proxyHost"`
+	ProxyPort         string  `json:"proxyPort"`
+	RoutingKey        string  `json:"routingKey"`
+	SitePairId        *string `json:"sitePairId"`
+	SourceHost        string  `json:"sourceHost"`
+	SourcePort        string  `json:"sourcePort"`
+	SourceProcessId   string  `json:"sourceProcessId"`
+	SourceProcessName string  `json:"sourceProcessName"`
+	SourceSiteId      string  `json:"sourceSiteId"`
+	SourceSiteName    string  `json:"sourceSiteName"`
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64 `json:"startTime"`
@@ -316,36 +346,6 @@ type ListenerResponse struct {
 	Results ListenerRecord `json:"results"`
 }
 
-// ProcessGroupListResponse defines model for ProcessGroupListResponse.
-type ProcessGroupListResponse struct {
-	// Count number of results in response
-	Count   int64                `json:"count"`
-	Results []ProcessGroupRecord `json:"results"`
-
-	// TimeRangeCount number of results matching filtering and time range constraints before any limit or offset is applied.
-	TimeRangeCount int64 `json:"timeRangeCount"`
-}
-
-// ProcessGroupRecord defines model for ProcessGroupRecord.
-type ProcessGroupRecord struct {
-	// EndTime The end time in microseconds of the record in Unix timestamp format.
-	EndTime uint64 `json:"endTime"`
-
-	// Identity The unique identifier for the record.
-	Identity         string `json:"identity"`
-	Name             string `json:"name"`
-	ProcessCount     int    `json:"processCount"`
-	ProcessGroupRole string `json:"processGroupRole"`
-
-	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
-	StartTime uint64 `json:"startTime"`
-}
-
-// ProcessGroupResponse defines model for ProcessGroupResponse.
-type ProcessGroupResponse struct {
-	Results ProcessGroupRecord `json:"results"`
-}
-
 // ProcessListResponse defines model for ProcessListResponse.
 type ProcessListResponse struct {
 	// Count number of results in response
@@ -358,12 +358,12 @@ type ProcessListResponse struct {
 
 // ProcessRecord defines model for ProcessRecord.
 type ProcessRecord struct {
+	// ComponentId Id of the component associated to the process. this is a parent of the process
+	ComponentId   string `json:"componentId"`
+	ComponentName string `json:"componentName"`
+
 	// EndTime The end time in microseconds of the record in Unix timestamp format.
 	EndTime uint64 `json:"endTime"`
-
-	// GroupIdentity Id of the component associated to the process. this is a parent of the process
-	GroupIdentity string `json:"groupIdentity"`
-	GroupName     string `json:"groupName"`
 
 	// HostName The IP address of the pod within the Kubernetes cluster
 	HostName *string `json:"hostName"`
@@ -653,6 +653,12 @@ type ErrorNotFound = ErrorResponse
 // GetApplicationFlows defines model for getApplicationFlows.
 type GetApplicationFlows = ApplicationFlowResponse
 
+// GetComponentByID defines model for getComponentByID.
+type GetComponentByID = ComponentResponse
+
+// GetComponents defines model for getComponents.
+type GetComponents = ComponentListResponse
+
 // GetConnections defines model for getConnections.
 type GetConnections = ConnectionListResponse
 
@@ -682,12 +688,6 @@ type GetListeners = ListenerListResponse
 
 // GetProcessByID defines model for getProcessByID.
 type GetProcessByID = ProcessResponse
-
-// GetProcessGroupByID defines model for getProcessGroupByID.
-type GetProcessGroupByID = ProcessGroupResponse
-
-// GetProcessGroups defines model for getProcessGroups.
-type GetProcessGroups = ProcessGroupListResponse
 
 // GetProcesses defines model for getProcesses.
 type GetProcesses = ProcessListResponse
@@ -801,6 +801,18 @@ type ClientInterface interface {
 	// Applicationflows request
 	Applicationflows(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// Componentpairs request
+	Componentpairs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ComponentpairByID request
+	ComponentpairByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// Components request
+	Components(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ComponentByID request
+	ComponentByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// Connections request
 	Connections(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -833,18 +845,6 @@ type ClientInterface interface {
 
 	// ProcessById request
 	ProcessById(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// Processgrouppairs request
-	Processgrouppairs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ProcessgrouppairByID request
-	ProcessgrouppairByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// Processgroups request
-	Processgroups(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// ProcessgroupByID request
-	ProcessgroupByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// Processpairs request
 	Processpairs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -915,6 +915,54 @@ type ClientInterface interface {
 
 func (c *Client) Applicationflows(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewApplicationflowsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) Componentpairs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewComponentpairsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ComponentpairByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewComponentpairByIDRequest(c.Server, id)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) Components(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewComponentsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) ComponentByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewComponentByIDRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1047,54 +1095,6 @@ func (c *Client) Processes(ctx context.Context, reqEditors ...RequestEditorFn) (
 
 func (c *Client) ProcessById(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewProcessByIdRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) Processgrouppairs(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewProcessgrouppairsRequest(c.Server)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ProcessgrouppairByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewProcessgrouppairByIDRequest(c.Server, id)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) Processgroups(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewProcessgroupsRequest(c.Server)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) ProcessgroupByID(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewProcessgroupByIDRequest(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -1379,6 +1379,128 @@ func NewApplicationflowsRequest(server string) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/api/v2alpha1/applicationflows")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewComponentpairsRequest generates requests for Componentpairs
+func NewComponentpairsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v2alpha1/componentpairs")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewComponentpairByIDRequest generates requests for ComponentpairByID
+func NewComponentpairByIDRequest(server string, id PathID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v2alpha1/componentpairs/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewComponentsRequest generates requests for Components
+func NewComponentsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v2alpha1/components")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewComponentByIDRequest generates requests for ComponentByID
+func NewComponentByIDRequest(server string, id PathID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v2alpha1/components/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -1711,128 +1833,6 @@ func NewProcessByIdRequest(server string, id PathID) (*http.Request, error) {
 	}
 
 	operationPath := fmt.Sprintf("/api/v2alpha1/processes/%s", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewProcessgrouppairsRequest generates requests for Processgrouppairs
-func NewProcessgrouppairsRequest(server string) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v2alpha1/processgrouppairs")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewProcessgrouppairByIDRequest generates requests for ProcessgrouppairByID
-func NewProcessgrouppairByIDRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v2alpha1/processgrouppairs/%s", pathParam0)
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewProcessgroupsRequest generates requests for Processgroups
-func NewProcessgroupsRequest(server string) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v2alpha1/processgroups")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
-// NewProcessgroupByIDRequest generates requests for ProcessgroupByID
-func NewProcessgroupByIDRequest(server string, id PathID) (*http.Request, error) {
-	var err error
-
-	var pathParam0 string
-
-	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v2alpha1/processgroups/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -2595,6 +2595,18 @@ type ClientWithResponsesInterface interface {
 	// ApplicationflowsWithResponse request
 	ApplicationflowsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ApplicationflowsResponse, error)
 
+	// ComponentpairsWithResponse request
+	ComponentpairsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ComponentpairsResponse, error)
+
+	// ComponentpairByIDWithResponse request
+	ComponentpairByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ComponentpairByIDResponse, error)
+
+	// ComponentsWithResponse request
+	ComponentsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ComponentsResponse, error)
+
+	// ComponentByIDWithResponse request
+	ComponentByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ComponentByIDResponse, error)
+
 	// ConnectionsWithResponse request
 	ConnectionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ConnectionsResponse, error)
 
@@ -2627,18 +2639,6 @@ type ClientWithResponsesInterface interface {
 
 	// ProcessByIdWithResponse request
 	ProcessByIdWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessByIdResponse, error)
-
-	// ProcessgrouppairsWithResponse request
-	ProcessgrouppairsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ProcessgrouppairsResponse, error)
-
-	// ProcessgrouppairByIDWithResponse request
-	ProcessgrouppairByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessgrouppairByIDResponse, error)
-
-	// ProcessgroupsWithResponse request
-	ProcessgroupsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ProcessgroupsResponse, error)
-
-	// ProcessgroupByIDWithResponse request
-	ProcessgroupByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessgroupByIDResponse, error)
 
 	// ProcesspairsWithResponse request
 	ProcesspairsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ProcesspairsResponse, error)
@@ -2723,6 +2723,98 @@ func (r ApplicationflowsResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ApplicationflowsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ComponentpairsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *GetFlowAggregates
+	JSON400      *ErrorBadRequest
+}
+
+// Status returns HTTPResponse.Status
+func (r ComponentpairsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ComponentpairsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ComponentpairByIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *GetFlowAggregateByID
+	JSON404      *ErrorNotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r ComponentpairByIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ComponentpairByIDResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ComponentsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *GetComponents
+	JSON400      *ErrorBadRequest
+}
+
+// Status returns HTTPResponse.Status
+func (r ComponentsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ComponentsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type ComponentByIDResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *GetComponentByID
+	JSON404      *ErrorNotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r ComponentByIDResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ComponentByIDResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -2974,98 +3066,6 @@ func (r ProcessByIdResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ProcessByIdResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type ProcessgrouppairsResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetFlowAggregates
-	JSON400      *ErrorBadRequest
-}
-
-// Status returns HTTPResponse.Status
-func (r ProcessgrouppairsResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ProcessgrouppairsResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type ProcessgrouppairByIDResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetFlowAggregateByID
-	JSON404      *ErrorNotFound
-}
-
-// Status returns HTTPResponse.Status
-func (r ProcessgrouppairByIDResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ProcessgrouppairByIDResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type ProcessgroupsResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetProcessGroups
-	JSON400      *ErrorBadRequest
-}
-
-// Status returns HTTPResponse.Status
-func (r ProcessgroupsResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ProcessgroupsResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
-type ProcessgroupByIDResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *GetProcessGroupByID
-	JSON404      *ErrorNotFound
-}
-
-// Status returns HTTPResponse.Status
-func (r ProcessgroupByIDResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r ProcessgroupByIDResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -3584,6 +3584,42 @@ func (c *ClientWithResponses) ApplicationflowsWithResponse(ctx context.Context, 
 	return ParseApplicationflowsResponse(rsp)
 }
 
+// ComponentpairsWithResponse request returning *ComponentpairsResponse
+func (c *ClientWithResponses) ComponentpairsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ComponentpairsResponse, error) {
+	rsp, err := c.Componentpairs(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseComponentpairsResponse(rsp)
+}
+
+// ComponentpairByIDWithResponse request returning *ComponentpairByIDResponse
+func (c *ClientWithResponses) ComponentpairByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ComponentpairByIDResponse, error) {
+	rsp, err := c.ComponentpairByID(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseComponentpairByIDResponse(rsp)
+}
+
+// ComponentsWithResponse request returning *ComponentsResponse
+func (c *ClientWithResponses) ComponentsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ComponentsResponse, error) {
+	rsp, err := c.Components(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseComponentsResponse(rsp)
+}
+
+// ComponentByIDWithResponse request returning *ComponentByIDResponse
+func (c *ClientWithResponses) ComponentByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ComponentByIDResponse, error) {
+	rsp, err := c.ComponentByID(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseComponentByIDResponse(rsp)
+}
+
 // ConnectionsWithResponse request returning *ConnectionsResponse
 func (c *ClientWithResponses) ConnectionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ConnectionsResponse, error) {
 	rsp, err := c.Connections(ctx, reqEditors...)
@@ -3681,42 +3717,6 @@ func (c *ClientWithResponses) ProcessByIdWithResponse(ctx context.Context, id Pa
 		return nil, err
 	}
 	return ParseProcessByIdResponse(rsp)
-}
-
-// ProcessgrouppairsWithResponse request returning *ProcessgrouppairsResponse
-func (c *ClientWithResponses) ProcessgrouppairsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ProcessgrouppairsResponse, error) {
-	rsp, err := c.Processgrouppairs(ctx, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseProcessgrouppairsResponse(rsp)
-}
-
-// ProcessgrouppairByIDWithResponse request returning *ProcessgrouppairByIDResponse
-func (c *ClientWithResponses) ProcessgrouppairByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessgrouppairByIDResponse, error) {
-	rsp, err := c.ProcessgrouppairByID(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseProcessgrouppairByIDResponse(rsp)
-}
-
-// ProcessgroupsWithResponse request returning *ProcessgroupsResponse
-func (c *ClientWithResponses) ProcessgroupsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ProcessgroupsResponse, error) {
-	rsp, err := c.Processgroups(ctx, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseProcessgroupsResponse(rsp)
-}
-
-// ProcessgroupByIDWithResponse request returning *ProcessgroupByIDResponse
-func (c *ClientWithResponses) ProcessgroupByIDWithResponse(ctx context.Context, id PathID, reqEditors ...RequestEditorFn) (*ProcessgroupByIDResponse, error) {
-	rsp, err := c.ProcessgroupByID(ctx, id, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseProcessgroupByIDResponse(rsp)
 }
 
 // ProcesspairsWithResponse request returning *ProcesspairsResponse
@@ -3937,6 +3937,138 @@ func ParseApplicationflowsResponse(rsp *http.Response) (*ApplicationflowsRespons
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseComponentpairsResponse parses an HTTP response from a ComponentpairsWithResponse call
+func ParseComponentpairsResponse(rsp *http.Response) (*ComponentpairsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ComponentpairsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetFlowAggregates
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorBadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseComponentpairByIDResponse parses an HTTP response from a ComponentpairByIDWithResponse call
+func ParseComponentpairByIDResponse(rsp *http.Response) (*ComponentpairByIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ComponentpairByIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetFlowAggregateByID
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorNotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseComponentsResponse parses an HTTP response from a ComponentsWithResponse call
+func ParseComponentsResponse(rsp *http.Response) (*ComponentsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ComponentsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetComponents
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest ErrorBadRequest
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseComponentByIDResponse parses an HTTP response from a ComponentByIDWithResponse call
+func ParseComponentByIDResponse(rsp *http.Response) (*ComponentByIDResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ComponentByIDResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GetComponentByID
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest ErrorNotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 
@@ -4275,138 +4407,6 @@ func ParseProcessByIdResponse(rsp *http.Response) (*ProcessByIdResponse, error) 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest GetProcessByID
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest ErrorNotFound
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseProcessgrouppairsResponse parses an HTTP response from a ProcessgrouppairsWithResponse call
-func ParseProcessgrouppairsResponse(rsp *http.Response) (*ProcessgrouppairsResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ProcessgrouppairsResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetFlowAggregates
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest ErrorBadRequest
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseProcessgrouppairByIDResponse parses an HTTP response from a ProcessgrouppairByIDWithResponse call
-func ParseProcessgrouppairByIDResponse(rsp *http.Response) (*ProcessgrouppairByIDResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ProcessgrouppairByIDResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetFlowAggregateByID
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
-		var dest ErrorNotFound
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON404 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseProcessgroupsResponse parses an HTTP response from a ProcessgroupsWithResponse call
-func ParseProcessgroupsResponse(rsp *http.Response) (*ProcessgroupsResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ProcessgroupsResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetProcessGroups
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
-
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
-		var dest ErrorBadRequest
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON400 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseProcessgroupByIDResponse parses an HTTP response from a ProcessgroupByIDWithResponse call
-func ParseProcessgroupByIDResponse(rsp *http.Response) (*ProcessgroupByIDResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &ProcessgroupByIDResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest GetProcessGroupByID
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -5135,6 +5135,18 @@ type ServerInterface interface {
 	// (GET /api/v2alpha1/applicationflows)
 	Applicationflows(w http.ResponseWriter, r *http.Request)
 
+	// (GET /api/v2alpha1/componentpairs)
+	Componentpairs(w http.ResponseWriter, r *http.Request)
+
+	// (GET /api/v2alpha1/componentpairs/{id})
+	ComponentpairByID(w http.ResponseWriter, r *http.Request, id PathID)
+
+	// (GET /api/v2alpha1/components)
+	Components(w http.ResponseWriter, r *http.Request)
+
+	// (GET /api/v2alpha1/components/{id})
+	ComponentByID(w http.ResponseWriter, r *http.Request, id PathID)
+
 	// (GET /api/v2alpha1/connections)
 	Connections(w http.ResponseWriter, r *http.Request)
 
@@ -5167,18 +5179,6 @@ type ServerInterface interface {
 
 	// (GET /api/v2alpha1/processes/{id})
 	ProcessById(w http.ResponseWriter, r *http.Request, id PathID)
-
-	// (GET /api/v2alpha1/processgrouppairs)
-	Processgrouppairs(w http.ResponseWriter, r *http.Request)
-
-	// (GET /api/v2alpha1/processgrouppairs/{id})
-	ProcessgrouppairByID(w http.ResponseWriter, r *http.Request, id PathID)
-
-	// (GET /api/v2alpha1/processgroups)
-	Processgroups(w http.ResponseWriter, r *http.Request)
-
-	// (GET /api/v2alpha1/processgroups/{id})
-	ProcessgroupByID(w http.ResponseWriter, r *http.Request, id PathID)
 
 	// (GET /api/v2alpha1/processpairs)
 	Processpairs(w http.ResponseWriter, r *http.Request)
@@ -5262,6 +5262,88 @@ func (siw *ServerInterfaceWrapper) Applicationflows(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Applicationflows(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// Componentpairs operation middleware
+func (siw *ServerInterfaceWrapper) Componentpairs(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Componentpairs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// ComponentpairByID operation middleware
+func (siw *ServerInterfaceWrapper) ComponentpairByID(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id PathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ComponentpairByID(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// Components operation middleware
+func (siw *ServerInterfaceWrapper) Components(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Components(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// ComponentByID operation middleware
+func (siw *ServerInterfaceWrapper) ComponentByID(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id PathID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ComponentByID(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5482,88 +5564,6 @@ func (siw *ServerInterfaceWrapper) ProcessById(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ProcessById(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// Processgrouppairs operation middleware
-func (siw *ServerInterfaceWrapper) Processgrouppairs(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.Processgrouppairs(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// ProcessgrouppairByID operation middleware
-func (siw *ServerInterfaceWrapper) ProcessgrouppairByID(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ProcessgrouppairByID(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// Processgroups operation middleware
-func (siw *ServerInterfaceWrapper) Processgroups(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.Processgroups(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// ProcessgroupByID operation middleware
-func (siw *ServerInterfaceWrapper) ProcessgroupByID(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id PathID
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", mux.Vars(r)["id"], &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ProcessgroupByID(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6183,6 +6183,14 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 
 	r.HandleFunc(options.BaseURL+"/api/v2alpha1/applicationflows", wrapper.Applicationflows).Methods("GET")
 
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/componentpairs", wrapper.Componentpairs).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/componentpairs/{id}", wrapper.ComponentpairByID).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/components", wrapper.Components).Methods("GET")
+
+	r.HandleFunc(options.BaseURL+"/api/v2alpha1/components/{id}", wrapper.ComponentByID).Methods("GET")
+
 	r.HandleFunc(options.BaseURL+"/api/v2alpha1/connections", wrapper.Connections).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v2alpha1/connectors", wrapper.Connectors).Methods("GET")
@@ -6204,14 +6212,6 @@ func HandlerWithOptions(si ServerInterface, options GorillaServerOptions) http.H
 	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processes", wrapper.Processes).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processes/{id}", wrapper.ProcessById).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processgrouppairs", wrapper.Processgrouppairs).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processgrouppairs/{id}", wrapper.ProcessgrouppairByID).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processgroups", wrapper.Processgroups).Methods("GET")
-
-	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processgroups/{id}", wrapper.ProcessgroupByID).Methods("GET")
 
 	r.HandleFunc(options.BaseURL+"/api/v2alpha1/processpairs", wrapper.Processpairs).Methods("GET")
 

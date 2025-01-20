@@ -204,34 +204,34 @@ func (s *server) ProcessById(w http.ResponseWriter, r *http.Request, id string) 
 	}
 }
 
-// (GET /api/v2alpha1/processgrouppairs)
-func (s *server) Processgrouppairs(w http.ResponseWriter, r *http.Request) {
-	results := views.NewProcessGroupPairSliceProvider()(listByType[collector.ProcGroupPairRecord](s.records))
+// (GET /api/v2alpha1/componentpairs)
+func (s *server) Componentpairs(w http.ResponseWriter, r *http.Request) {
+	results := views.NewComponentPairSliceProvider()(listByType[collector.ProcGroupPairRecord](s.records))
 	if err := handleCollection(w, r, &api.FlowAggregateListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
 }
 
-// (GET /api/v2alpha1/processgrouppairs/{id})
-func (s *server) ProcessgrouppairByID(w http.ResponseWriter, r *http.Request, id string) {
-	getRecord := fetchAndMap(s.records, views.NewProcessGroupPairProvider(), id)
+// (GET /api/v2alpha1/componentpairs/{id})
+func (s *server) ComponentpairByID(w http.ResponseWriter, r *http.Request, id string) {
+	getRecord := fetchAndMap(s.records, views.NewComponentPairProvider(), id)
 	if err := handleSingle(w, r, &api.FlowAggregateResponse{}, getRecord); err != nil {
 		s.logWriteError(r, err)
 	}
 }
 
-// (GET /api/v2alpha1/processgroups)
-func (s *server) Processgroups(w http.ResponseWriter, r *http.Request) {
-	results := views.NewProcessGroupSliceProvider(s.records)(listByType[collector.ProcessGroupRecord](s.records))
-	if err := handleCollection(w, r, &api.ProcessGroupListResponse{}, results); err != nil {
+// (GET /api/v2alpha1/components)
+func (s *server) Components(w http.ResponseWriter, r *http.Request) {
+	results := views.NewComponentSliceProvider(s.records)(listByType[collector.ProcessGroupRecord](s.records))
+	if err := handleCollection(w, r, &api.ComponentListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
 }
 
-// (GET /api/v2alpha1/processgroups/{id})
-func (s *server) ProcessgroupByID(w http.ResponseWriter, r *http.Request, id string) {
-	getRecord := fetchAndMap(s.records, views.NewProcessGroupProvider(s.records), id)
-	if err := handleSingle(w, r, &api.ProcessGroupResponse{}, getRecord); err != nil {
+// (GET /api/v2alpha1/components/{id})
+func (s *server) ComponentByID(w http.ResponseWriter, r *http.Request, id string) {
+	getRecord := fetchAndMap(s.records, views.NewComponentProvider(s.records), id)
+	if err := handleSingle(w, r, &api.ComponentResponse{}, getRecord); err != nil {
 		s.logWriteError(r, err)
 	}
 }

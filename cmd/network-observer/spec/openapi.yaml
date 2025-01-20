@@ -133,24 +133,24 @@ paths:
           $ref: '#/components/responses/getServiceByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v2alpha1/processgroups:
+  /api/v2alpha1/components:
     get:
-      tags: ["process group"]
-      operationId: processgroups
+      tags: ["component"]
+      operationId: components
       responses:
         '200':
-          $ref: '#/components/responses/getProcessGroups'
+          $ref: '#/components/responses/getComponents'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v2alpha1/processgroups/{id}:
+  /api/v2alpha1/components/{id}:
     get:
-      tags: ["process group"]
-      operationId: processgroupByID
+      tags: ["component"]
+      operationId: componentByID
       parameters:
         - $ref: '#/components/parameters/pathID'
       responses:
         '200':
-          $ref: '#/components/responses/getProcessGroupByID'
+          $ref: '#/components/responses/getComponentByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
   /api/v2alpha1/sitepairs:
@@ -173,19 +173,19 @@ paths:
           $ref: '#/components/responses/getFlowAggregateByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v2alpha1/processgrouppairs:
+  /api/v2alpha1/componentpairs:
     get:
       tags: ["flow aggregate"]
-      operationId: processgrouppairs
+      operationId: componentpairs
       responses:
         '200':
           $ref: '#/components/responses/getFlowAggregates'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v2alpha1/processgrouppairs/{id}:
+  /api/v2alpha1/componentpairs/{id}:
     get:
       tags: ["flow aggregate"]
-      operationId: processgrouppairByID
+      operationId: componentpairByID
       parameters:
         - $ref: '#/components/parameters/pathID'
       responses:
@@ -376,7 +376,7 @@ paths:
   /api/v2alpha1/services/{id}/processpairs:
     get:
       tags: [service, "flow aggregate"]
-      operationId: processPairsByService
+      operationId: componentPairsByService
       parameters:
         - $ref: '#/components/parameters/pathID'
       responses:
@@ -469,12 +469,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ServiceListResponse'
-    getProcessGroups:
-      description: response with a list of process groups
+    getComponents:
+      description: response with a list of components
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ProcessGroupListResponse'
+            $ref: '#/components/schemas/ComponentListResponse'
     getFlowAggregates:
       description: response with a list of flow aggregates
       content:
@@ -547,12 +547,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ServiceResponse'
-    getProcessGroupByID:
-      description: response with a single process group
+    getComponentByID:
+      description: response with a single component
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ProcessGroupResponse'
+            $ref: '#/components/schemas/ComponentResponse'
     getFlowAggregateByID:
       description: response with a single flow aggregate
       content:
@@ -704,7 +704,7 @@ components:
         properties:
           results:
             $ref: '#/components/schemas/ServiceRecord'
-    ProcessGroupListResponse:
+    ComponentListResponse:
       allOf:
         - $ref: '#/components/schemas/collectionResponse'
         - type: object
@@ -713,13 +713,13 @@ components:
             results:
               type: array
               items:
-                $ref: '#/components/schemas/ProcessGroupRecord'
-    ProcessGroupResponse:
+                $ref: '#/components/schemas/ComponentRecord'
+    ComponentResponse:
         type: object
         required: [results]
         properties:
           results:
-            $ref: '#/components/schemas/ProcessGroupRecord'
+            $ref: '#/components/schemas/ComponentRecord'
     FlowAggregateListResponse:
       allOf:
         - $ref: '#/components/schemas/collectionResponse'
@@ -892,8 +892,8 @@ components:
               - parent
               - parentName
               - imageName
-              - groupIdentity
-              - groupName
+              - componentId
+              - componentName
               - sourceHost
               - hostName
               - processRole
@@ -907,10 +907,10 @@ components:
               description: Id of the site associated to the process. this is a parent of the process
             parentName:
               type: string
-            groupIdentity:
+            componentId:
               type: string
               description: Id of the component associated to the process. this is a parent of the process
-            groupName:
+            componentName:
               type: string
             hostName:
               type: string
@@ -1068,18 +1068,18 @@ components:
             hasListener:
               type: boolean
               description: true when there is at least one listener for this routingKey
-    ProcessGroupRecord:
+    ComponentRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
             - name
-            - processGroupRole
+            - role
             - processCount
           properties:
             name:
               type: string
-            processGroupRole:
+            role:
               type: string
             processCount:
               type: integer
@@ -1258,7 +1258,7 @@ components:
             - destProcessName
             - duration
             - processPairId
-            - processGroupPairId
+            - componentPairId
             - sitePairId
             - protocol
             - routingKey
@@ -1286,7 +1286,7 @@ components:
             processPairId:
               type: string
               nullable: true
-            processGroupPairId:
+            componentPairId:
               type: string
               nullable: true
             sitePairId:
@@ -1444,8 +1444,8 @@ tags:
     description: requests involving Connector records
   - name: service
     description: requests involving Service records
-  - name: process group
-    description: requests involving ProcessGroup records
+  - name: component
+    description: requests involving Component records
   - name: flow aggregate
     description: >
       requests involving flow aggregates:

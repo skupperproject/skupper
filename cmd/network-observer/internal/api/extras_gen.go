@@ -20,6 +20,26 @@ func (r *ApplicationFlowResponse) SetTimeRangeCount(v int64) {
 }
 
 // SetCount
+func (r *ComponentListResponse) SetCount(v int64) {
+	r.Count = v
+}
+
+// SetResults
+func (r *ComponentListResponse) SetResults(v []ComponentRecord) {
+	r.Results = v
+}
+
+// SetTimeRangeCount
+func (r *ComponentListResponse) SetTimeRangeCount(v int64) {
+	r.TimeRangeCount = v
+}
+
+// SetResults
+func (r *ComponentResponse) SetResults(v ComponentRecord) {
+	r.Results = v
+}
+
+// SetCount
 func (r *ConnectionListResponse) SetCount(v int64) {
 	r.Count = v
 }
@@ -111,26 +131,6 @@ func (r *ListenerListResponse) SetTimeRangeCount(v int64) {
 
 // SetResults
 func (r *ListenerResponse) SetResults(v ListenerRecord) {
-	r.Results = v
-}
-
-// SetCount
-func (r *ProcessGroupListResponse) SetCount(v int64) {
-	r.Count = v
-}
-
-// SetResults
-func (r *ProcessGroupListResponse) SetResults(v []ProcessGroupRecord) {
-	r.Results = v
-}
-
-// SetTimeRangeCount
-func (r *ProcessGroupListResponse) SetTimeRangeCount(v int64) {
-	r.TimeRangeCount = v
-}
-
-// SetResults
-func (r *ProcessGroupResponse) SetResults(v ProcessGroupRecord) {
 	r.Results = v
 }
 
@@ -277,6 +277,16 @@ func (r ApplicationFlowRecord) GetStartTime() uint64 {
 }
 
 // GetEndTime
+func (r ComponentRecord) GetEndTime() uint64 {
+	return r.EndTime
+}
+
+// GetStartTime
+func (r ComponentRecord) GetStartTime() uint64 {
+	return r.StartTime
+}
+
+// GetEndTime
 func (r ConnectionRecord) GetEndTime() uint64 {
 	return r.EndTime
 }
@@ -323,16 +333,6 @@ func (r ListenerRecord) GetEndTime() uint64 {
 
 // GetStartTime
 func (r ListenerRecord) GetStartTime() uint64 {
-	return r.StartTime
-}
-
-// GetEndTime
-func (r ProcessGroupRecord) GetEndTime() uint64 {
-	return r.EndTime
-}
-
-// GetStartTime
-func (r ProcessGroupRecord) GetStartTime() uint64 {
 	return r.StartTime
 }
 
