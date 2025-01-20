@@ -21,6 +21,7 @@ const (
 	RuntimePath           InternalPath = "runtime"
 	RuntimeSiteStatePath  InternalPath = "runtime/resources"
 	RuntimeTokenPath      InternalPath = "runtime/links"
+	InternalBasePath      InternalPath = "internal"
 	LoadedSiteStatePath   InternalPath = "internal/snapshot"
 	ScriptsPath           InternalPath = "internal/scripts"
 )
