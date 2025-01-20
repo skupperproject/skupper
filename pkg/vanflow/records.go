@@ -32,8 +32,7 @@ type SiteRecord struct {
 	Platform  *string `vflow:"11"`
 	Namespace *string `vflow:"12"`
 	Name      *string `vflow:"30"` //unspeced
-	Version   *string `vflow:"52"`
-	Policy    *string `vflow:"53"`
+	Version   *string `vflow:"32"`
 }
 
 func (r SiteRecord) GetTypeMeta() TypeMeta {
