@@ -148,7 +148,7 @@ func NewListenerProvider(graph collector.Graph) func(vanflow.ListenerRecord) api
 
 		node := graph.Listener(record.ID)
 		if addressID := node.Address().ID(); addressID != "" {
-			out.AddressId = &addressID
+			out.ServiceId = &addressID
 		}
 		if site, ok := node.Parent().Parent().GetRecord(); ok {
 			out.SiteId = site.ID
@@ -201,7 +201,7 @@ func NewConnectorProvider(graph collector.Graph) func(vanflow.ConnectorRecord) a
 
 		node := graph.Connector(record.ID)
 		if addressID := node.Address().ID(); addressID != "" {
-			out.AddressId = &addressID
+			out.ServiceId = &addressID
 		}
 		if proc, ok := node.Target().GetRecord(); ok {
 			out.Target = proc.Name
@@ -359,7 +359,7 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 				addressList = append(addressList, addr)
 			}
 			sort.Slice(addressList, func(i, j int) bool { return addressList[i] < addressList[j] })
-			out.Addresses = &addressList
+			out.Services = &addressList
 		}
 
 		return out, true
@@ -508,10 +508,10 @@ func defaultRouterLink(id string) api.RouterLinkRecord {
 	}
 }
 
-func NewAddressSliceProvider(stor store.Interface, graph collector.Graph) func(entries []store.Entry) []api.AddressRecord {
-	provider := NewAddressProvider(stor, graph)
-	return func(entries []store.Entry) []api.AddressRecord {
-		results := make([]api.AddressRecord, 0, len(entries))
+func NewServiceSliceProvider(stor store.Interface, graph collector.Graph) func(entries []store.Entry) []api.ServiceRecord {
+	provider := NewServiceProvider(stor, graph)
+	return func(entries []store.Entry) []api.ServiceRecord {
+		results := make([]api.ServiceRecord, 0, len(entries))
 		for _, e := range entries {
 			record, ok := e.Record.(collector.AddressRecord)
 			if !ok {
@@ -523,7 +523,7 @@ func NewAddressSliceProvider(stor store.Interface, graph collector.Graph) func(e
 	}
 }
 
-func NewAddressProvider(stor store.Interface, graph collector.Graph) func(collector.AddressRecord) api.AddressRecord {
+func NewServiceProvider(stor store.Interface, graph collector.Graph) func(collector.AddressRecord) api.ServiceRecord {
 	requestRecordType := collector.RequestRecord{}.GetTypeMeta().String()
 	flowIndex := stor.IndexValues(collector.IndexFlowByAddress)
 	addressAppProtocols := make(map[string]map[string]struct{})
@@ -542,7 +542,7 @@ func NewAddressProvider(stor store.Interface, graph collector.Graph) func(collec
 		}
 		addressAppProtocols[address][protocol] = struct{}{}
 	}
-	return func(record collector.AddressRecord) api.AddressRecord {
+	return func(record collector.AddressRecord) api.ServiceRecord {
 		node := graph.Address(record.ID).RoutingKey()
 		listenerCt := len(node.Listeners())
 		connectorCt := len(node.Connectors())
@@ -551,7 +551,7 @@ func NewAddressProvider(stor store.Interface, graph collector.Graph) func(collec
 		for proto := range addressAppProtocols[record.Name] {
 			protocols = append(protocols, proto)
 		}
-		return api.AddressRecord{
+		return api.ServiceRecord{
 			Identity:                     record.ID,
 			StartTime:                    uint64(record.Start.UnixMicro()),
 			Protocol:                     record.Protocol,

@@ -20,8 +20,8 @@ func (s *server) Connections(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// (GET /api/v2alpha1/addresses/{id}/connections)
-func (s *server) ConnectionsByAddress(w http.ResponseWriter, r *http.Request, id string) {
+// (GET /api/v2alpha1/services/{id}/connections)
+func (s *server) ConnectionsByService(w http.ResponseWriter, r *http.Request, id string) {
 	getExemplar := fetchAndMap(s.records, func(a collector.AddressRecord) store.Entry {
 		return store.Entry{Record: collector.ConnectionRecord{RoutingKey: a.Name, Protocol: a.Protocol}}
 	}, id)
@@ -39,24 +39,24 @@ func (s *server) Applicationflows(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// (GET /api/v2alpha1/addresses)
-func (s *server) Addresses(w http.ResponseWriter, r *http.Request) {
-	results := views.NewAddressSliceProvider(s.records, s.graph)(listByType[collector.AddressRecord](s.records))
-	if err := handleCollection(w, r, &api.AddressListResponse{}, results); err != nil {
+// (GET /api/v2alpha1/services)
+func (s *server) Services(w http.ResponseWriter, r *http.Request) {
+	results := views.NewServiceSliceProvider(s.records, s.graph)(listByType[collector.AddressRecord](s.records))
+	if err := handleCollection(w, r, &api.ServiceListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
 }
 
-// (GET /api/v2alpha1/addresses/{id})
-func (s *server) AddressByID(w http.ResponseWriter, r *http.Request, id string) {
-	getRecord := fetchAndMap(s.records, views.NewAddressProvider(s.records, s.graph), id)
-	if err := handleSingle(w, r, &api.AddressResponse{}, getRecord); err != nil {
+// (GET /api/v2alpha1/services/{id})
+func (s *server) ServiceByID(w http.ResponseWriter, r *http.Request, id string) {
+	getRecord := fetchAndMap(s.records, views.NewServiceProvider(s.records, s.graph), id)
+	if err := handleSingle(w, r, &api.ServiceResponse{}, getRecord); err != nil {
 		s.logWriteError(r, err)
 	}
 }
 
-// (GET /api/v2alpha1/addresses/{id}/processes)
-func (s *server) ProcessesByAddress(w http.ResponseWriter, r *http.Request, id string) {
+// (GET /api/v2alpha1/services/{id}/processes)
+func (s *server) ProcessesByService(w http.ResponseWriter, r *http.Request, id string) {
 	//todo(ck) find a way to more directly index this
 	anode := s.graph.Address(id)
 	if !anode.IsKnown() {
@@ -82,8 +82,8 @@ func (s *server) ProcessesByAddress(w http.ResponseWriter, r *http.Request, id s
 
 }
 
-// (GET /api/v2alpha1/addresses/{id}/processpairs)
-func (s *server) ProcessPairsByAddress(w http.ResponseWriter, r *http.Request, id string) {
+// (GET /api/v2alpha1/services/{id}/processes)
+func (s *server) ProcessPairsByService(w http.ResponseWriter, r *http.Request, id string) {
 	//todo(ck) find a way to more directly index this
 	addr, ok := s.graph.Address(id).GetRecord()
 	if !ok {

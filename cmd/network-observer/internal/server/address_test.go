@@ -27,7 +27,7 @@ func TestAddresses(t *testing.T) {
 		ExpectOK             bool
 		ExpectCount          int
 		ExpectTimeRangeCount int
-		ExpectResults        func(t *testing.T, results []api.AddressRecord)
+		ExpectResults        func(t *testing.T, results []api.ServiceRecord)
 	}{
 		{ExpectOK: true},
 		{
@@ -44,10 +44,10 @@ func TestAddresses(t *testing.T) {
 			),
 			ExpectOK:    true,
 			ExpectCount: 3,
-			ExpectResults: func(t *testing.T, results []api.AddressRecord) {
+			ExpectResults: func(t *testing.T, results []api.ServiceRecord) {
 				for _, result := range results {
 					if result.Identity == "addr-1" {
-						assert.DeepEqual(t, result, api.AddressRecord{
+						assert.DeepEqual(t, result, api.ServiceRecord{
 							Identity:                     "addr-1",
 							Name:                         "pizza",
 							ConnectorCount:               2,
@@ -77,7 +77,7 @@ func TestAddresses(t *testing.T) {
 			},
 			ExpectOK:    true,
 			ExpectCount: 3,
-			ExpectResults: func(t *testing.T, results []api.AddressRecord) {
+			ExpectResults: func(t *testing.T, results []api.ServiceRecord) {
 				assert.Equal(t, results[2].Identity, "addr-1", "Expected addr-1 to be last with sortBy isBound.asc")
 				assert.Equal(t, results[2].IsBound, true, "Expected addr-1 to be bound")
 			},
@@ -95,7 +95,7 @@ func TestAddresses(t *testing.T) {
 			},
 			ExpectOK:    true,
 			ExpectCount: 3,
-			ExpectResults: func(t *testing.T, results []api.AddressRecord) {
+			ExpectResults: func(t *testing.T, results []api.ServiceRecord) {
 				assert.Equal(t, results[0].Identity, "addr-1", "Expected addr-1 to be first with sortBy isBound.asc")
 				assert.Equal(t, results[0].IsBound, true, "Expected addr-1 to be bound")
 			},
@@ -109,7 +109,7 @@ func TestAddresses(t *testing.T) {
 			for _, r := range tc.Records {
 				graph.(reset).Reindex(r.Record)
 			}
-			resp, err := c.AddressesWithResponse(context.TODO(), withParameters(tc.Parameters))
+			resp, err := c.ServicesWithResponse(context.TODO(), withParameters(tc.Parameters))
 			assert.Check(t, err)
 			if tc.ExpectOK {
 				assert.Equal(t, resp.StatusCode(), 200)

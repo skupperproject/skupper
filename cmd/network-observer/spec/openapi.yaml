@@ -113,24 +113,24 @@ paths:
           $ref: '#/components/responses/getConnectorByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v2alpha1/addresses:
+  /api/v2alpha1/services:
     get:
-      tags: [address]
-      operationId: addresses
+      tags: [service]
+      operationId: services
       responses:
         '200':
-          $ref: '#/components/responses/getAddresses'
+          $ref: '#/components/responses/getServices'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v2alpha1/addresses/{id}:
+  /api/v2alpha1/services/{id}:
     get:
-      tags: [address]
-      operationId: addressByID
+      tags: [service]
+      operationId: serviceByID
       parameters:
         - $ref: '#/components/parameters/pathID'
       responses:
         '200':
-          $ref: '#/components/responses/getAddressByID'
+          $ref: '#/components/responses/getServiceByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
   /api/v2alpha1/processgroups:
@@ -362,10 +362,10 @@ paths:
       responses:
         '410':
           $ref: '#/components/responses/notSupported'
-  /api/v2alpha1/addresses/{id}/processes:
+  /api/v2alpha1/services/{id}/processes:
     get:
-      tags: [address, process]
-      operationId: processesByAddress
+      tags: [service, process]
+      operationId: processesByService
       parameters:
         - $ref: '#/components/parameters/pathID'
       responses:
@@ -373,10 +373,10 @@ paths:
           $ref: '#/components/responses/getProcesses'
         '400':
           $ref: '#/components/responses/errorBadRequest'
-  /api/v2alpha1/addresses/{id}/processpairs:
+  /api/v2alpha1/services/{id}/processpairs:
     get:
-      tags: [address, "flow aggregate"]
-      operationId: processPairsByAddress
+      tags: [service, "flow aggregate"]
+      operationId: processPairsByService
       parameters:
         - $ref: '#/components/parameters/pathID'
       responses:
@@ -384,10 +384,10 @@ paths:
           $ref: '#/components/responses/getFlowAggregates'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v2alpha1/addresses/{id}/connections:
+  /api/v2alpha1/services/{id}/connections:
     get:
-      tags: [address, flows]
-      operationId: connectionsByAddress
+      tags: [service, flows]
+      operationId: connectionsByService
       parameters:
         - $ref: '#/components/parameters/pathID'
       responses:
@@ -463,12 +463,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ConnectorListResponse'
-    getAddresses:
-      description: response with a list of addresses
+    getServices:
+      description: response with a list of services
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/AddressListResponse'
+            $ref: '#/components/schemas/ServiceListResponse'
     getProcessGroups:
       description: response with a list of process groups
       content:
@@ -541,12 +541,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ConnectorResponse'
-    getAddressByID:
-      description: response with a single address
+    getServiceByID:
+      description: response with a single service
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/AddressResponse'
+            $ref: '#/components/schemas/ServiceResponse'
     getProcessGroupByID:
       description: response with a single process group
       content:
@@ -688,7 +688,7 @@ components:
         properties:
           results:
             $ref: '#/components/schemas/RouterRecord'
-    AddressListResponse:
+    ServiceListResponse:
       allOf:
         - $ref: '#/components/schemas/collectionResponse'
         - type: object
@@ -697,13 +697,13 @@ components:
             results:
               type: array
               items:
-                $ref: '#/components/schemas/AddressRecord'
-    AddressResponse:
+                $ref: '#/components/schemas/ServiceRecord'
+    ServiceResponse:
         type: object
         required: [results]
         properties:
           results:
-            $ref: '#/components/schemas/AddressRecord'
+            $ref: '#/components/schemas/ServiceRecord'
     ProcessGroupListResponse:
       allOf:
         - $ref: '#/components/schemas/collectionResponse'
@@ -843,9 +843,9 @@ components:
       enum:
         - bound
         - unbound
-    addressIdentifierType:
+    serviceIdentifierType:
       type: string
-      description: a special string for identifying addresses uses the form `name@identity@protocol`
+      description: a special string for identifying services uses the form `name@identity@protocol`
       example: backend@11111-1234@tcp
       x-go-type: AtmarkDelimitedString
     linkRoleType:
@@ -898,7 +898,7 @@ components:
               - hostName
               - processRole
               - processBinding
-              - addresses
+              - services
           properties:
             name:
               type: string
@@ -931,11 +931,11 @@ components:
               description: Internal processes are processes related to Skupper. Remote processes are processes indirectly connected, such as a proxy
             processBinding:
               $ref: '#/components/schemas/processBindingType'
-            addresses:
+            services:
               type: array
               nullable: true
               items:
-                $ref: '#/components/schemas/addressIdentifierType'
+                $ref: '#/components/schemas/serviceIdentifierType'
     RouterRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
@@ -991,7 +991,7 @@ components:
               type: string
             address:
               type: string
-            addressId:
+            serviceId:
               type: string
             siteId:
               type: string
@@ -1025,7 +1025,7 @@ components:
               type: string
             address:
               type: string
-            addressId:
+            serviceId:
               type: string
             processId:
               type: string
@@ -1036,7 +1036,7 @@ components:
               type: string
             siteName:
               type: string
-    AddressRecord:
+    ServiceRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
@@ -1442,8 +1442,8 @@ tags:
     description: requests involving Listener records
   - name: connector
     description: requests involving Connector records
-  - name: address
-    description: requests involving Address records
+  - name: service
+    description: requests involving Service records
   - name: process group
     description: requests involving ProcessGroup records
   - name: flow aggregate
