@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -36,6 +36,7 @@ type Controller struct {
 	accessRecovery       *securedaccess.SecuredAccessResourceWatcher
 	certMgr              *certificates.CertificateManagerImpl
 	attachableConnectors map[string]*skupperv2alpha1.AttachedConnector
+	log                  *slog.Logger
 }
 
 func skupperNetworkStatus() internalinterfaces.TweakListOptionsFunc {
@@ -49,6 +50,7 @@ func NewController(cli internalclient.Clients, config *Config) (*Controller, err
 		controller:           internalclient.NewController("Controller", cli),
 		sites:                map[string]*site.Site{},
 		attachableConnectors: map[string]*skupperv2alpha1.AttachedConnector{},
+		log:                  slog.New(slog.Default().Handler()).With(slog.String("component", "kube.controller")),
 	}
 
 	podname := os.Getenv("HOSTNAME")
@@ -57,7 +59,7 @@ func NewController(cli internalclient.Clients, config *Config) (*Controller, err
 		Namespace: config.Namespace,
 	}
 	if err != nil {
-		log.Printf("Could not deduce owning deployment, some resources may need to be manually deleted when controller is deleted: %s", err)
+		controller.log.Info("Could not deduce owning deployment, some resources may need to be manually deleted when controller is deleted", slog.Any("error", err))
 	} else {
 		controllerContext.Name = owner.Name
 		controllerContext.UID = string(owner.UID)
@@ -98,43 +100,68 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 }
 
 func (c *Controller) init(stopCh <-chan struct{}) error {
-	log.Println("Starting informers")
+	c.log.Info("Starting informers")
 	c.controller.StartWatchers(stopCh)
 	c.stopCh = stopCh
 
-	log.Println("Waiting for informer caches to sync")
+	c.log.Info("Waiting for informer caches to sync")
 	if ok := c.controller.WaitForCacheSync(stopCh); !ok {
 		return fmt.Errorf("Failed to wait for caches to sync")
 	}
 	//TODO: need to recover active sites first
 	//recover existing sites & bindings
 	for _, site := range c.siteWatcher.List() {
-		log.Printf("Recovering site %s/%s", site.ObjectMeta.Namespace, site.ObjectMeta.Name)
+		c.log.Info("Recovering site",
+			slog.String("name", site.Name),
+			slog.String("namespace", site.Namespace),
+		)
 		err := c.getSite(site.ObjectMeta.Namespace).StartRecovery(site)
 		if err != nil {
-			log.Printf("Error recovering site for %s/%s: %s", site.ObjectMeta.Namespace, site.ObjectMeta.Name, err)
+			c.log.Error("Error recovering site",
+				slog.String("name", site.Name),
+				slog.String("namespace", site.Namespace),
+				slog.Any("error", err),
+			)
 		}
 	}
 	for _, connector := range c.connectorWatcher.List() {
 		site := c.getSite(connector.ObjectMeta.Namespace)
-		log.Printf("Recovering connector %s in %s", connector.ObjectMeta.Name, connector.ObjectMeta.Namespace)
+		c.log.Info("Recovering connector",
+			slog.String("name", connector.Name),
+			slog.String("namespace", connector.Namespace),
+		)
 		site.CheckConnector(connector.ObjectMeta.Name, connector)
 	}
 	for _, listener := range c.listenerWatcher.List() {
 		site := c.getSite(listener.ObjectMeta.Namespace)
-		log.Printf("Recovering listener %s in %s", listener.ObjectMeta.Name, listener.ObjectMeta.Namespace)
+		c.log.Info("Recovering listener",
+			slog.String("name", listener.Name),
+			slog.String("namespace", listener.Namespace),
+		)
 		site.CheckListener(listener.ObjectMeta.Name, listener)
 	}
 	for _, la := range c.linkAccessWatcher.List() {
 		site := c.getSite(la.ObjectMeta.Namespace)
+		c.log.Info("Recovering router access",
+			slog.String("name", la.Name),
+			slog.String("namespace", la.Namespace),
+		)
 		site.CheckRouterAccess(la.ObjectMeta.Name, la)
 	}
 	for _, site := range c.siteWatcher.List() {
 		err := c.getSite(site.ObjectMeta.Namespace).Reconcile(site)
 		if err != nil {
-			log.Printf("Error recovering site for %s/%s: %s", site.ObjectMeta.Namespace, site.ObjectMeta.Name, err)
+			c.log.Error("Error recovering site",
+				slog.String("name", site.Name),
+				slog.String("namespace", site.Namespace),
+				slog.Any("error", err),
+			)
+		} else {
+			c.log.Info("Recovered site",
+				slog.String("name", site.Name),
+				slog.String("namespace", site.Namespace),
+			)
 		}
-		log.Printf("Recovered site %s/%s", site.ObjectMeta.Namespace, site.ObjectMeta.Name)
 	}
 	c.certMgr.Recover()
 	c.accessRecovery.Recover()
@@ -145,10 +172,10 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 }
 
 func (c *Controller) start(stopCh <-chan struct{}) error {
-	log.Println("Starting event loop")
+	c.log.Info("Starting event loop")
 	c.controller.Start(stopCh)
 	<-stopCh
-	log.Println("Shutting down")
+	c.log.Info("Shutting down")
 	return nil
 }
 
@@ -162,11 +189,14 @@ func (c *Controller) getSite(namespace string) *site.Site {
 }
 
 func (c *Controller) checkSite(key string, site *skupperv2alpha1.Site) error {
-	log.Printf("Checking site %s", key)
+	c.log.Debug("checkSite", slog.String("key", key))
 	if site != nil {
 		err := c.getSite(site.ObjectMeta.Namespace).Reconcile(site)
 		if err != nil {
-			log.Printf("Error initialising site for %s: %s", key, err)
+			c.log.Info("Error initialising site",
+				slog.String("key", key),
+				slog.Any("error", err),
+			)
 		}
 	} else {
 		namespace, _, err := cache.SplitMetaNamespaceKey(key)
@@ -180,7 +210,7 @@ func (c *Controller) checkSite(key string, site *skupperv2alpha1.Site) error {
 }
 
 func (c *Controller) checkConnector(key string, connector *skupperv2alpha1.Connector) error {
-	log.Printf("checkConnector(%s)", key)
+	c.log.Debug("checkConnector", slog.String("key", key))
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -189,7 +219,7 @@ func (c *Controller) checkConnector(key string, connector *skupperv2alpha1.Conne
 }
 
 func (c *Controller) checkListener(key string, listener *skupperv2alpha1.Listener) error {
-	log.Printf("checkListener(%s)", key)
+	c.log.Debug("checkListener", slog.String("key", key))
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		return err
@@ -277,16 +307,16 @@ func (c *Controller) networkStatusUpdate(key string, cm *corev1.ConfigMap) error
 	}
 	encoded := cm.Data["NetworkStatus"]
 	if encoded == "" {
-		log.Printf("No network status found in %s", key)
+		c.log.Info("No network status found", slog.String("site", key))
 		return nil
 	}
 	var status network.NetworkStatusInfo
 	err := json.Unmarshal([]byte(encoded), &status)
 	if err != nil {
-		log.Printf("Error unmarshalling network status from %s: %s", key, err)
+		c.log.Error("Error unmarshalling network status", slog.String("site", key), slog.Any("error", err))
 		return nil
 	}
-	log.Printf("Updating network status for %s", cm.ObjectMeta.Namespace)
+	c.log.Debug("Updating network status", slog.String("site", key))
 	return c.getSite(cm.ObjectMeta.Namespace).NetworkStatusUpdated(extractSiteRecords(status))
 }
 
