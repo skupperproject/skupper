@@ -1,0 +1,146 @@
+# Default values for network-observer.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# This is to override the chart name.
+nameOverride: ""
+fullnameOverride: ""
+
+# This sets the network-observer container image
+image:
+  repository: quay.io/skupper/network-observer
+  # This sets the pull policy for images.
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+# prometheus configures the prometheus container image
+prometheus:
+  repository: "quay.io/prometheus/prometheus"
+  pullPolicy: IfNotPresent
+  tag: "v3.0.1"
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+# nginx configuration for reverse proxy (excluding openshift auth)
+nginx:
+  repository: "mirror.gcr.io/nginxinc/nginx-unprivileged"
+  tag: "1.27.3-alpine"
+  pullPolicy: IfNotPresent
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+# openshift oauth proxy configuration when auth strategy is openshift
+openshiftOauthProxy:
+  repository: "quay.io/openshift/origin-oauth-proxy"
+  tag: "4.14.0"
+  pullPolicy: IfNotPresent
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+# extraArgs to pass to the network-observer container
+extraArgs:
+  # - -enable-console=false
+  # - -flow-record-ttl=10m
+
+# router configuration establishes the point at which the network observer attaches to the skupper network
+router:
+  endpoint: "amqps://skupper-router-local"
+  certificate:
+    create: true
+    nameOverride: ""
+
+# This block configures the network-observer http service with TLS
+tls:
+  # secretName set to the secret containing the TLS certificate and key
+  secretName: ""
+  # openshiftIssued - configure annotations so that openshift will issue a
+  # certificate
+  openshiftIssued: false
+  # skupperIssued configures the network-observer with a TLS certificate issued
+  # by the skupper controller using the same mechanisim used to provision
+  # certificates for linking sites.
+  skupperIssued: true
+  
+
+# This block configures authentication strategies
+auth:
+  # strategy is one of none, basic, or openshift
+  strategy: "basic"
+  basic:
+    create: true
+    secretName: ""
+    htpasswd: |
+      # skupper: skupper
+      skupper:$2y$05$Fz95zqZnAapAe5BqmRjx3.vCOzepI6h/UCdDQfP5cdsLoaef2HMaq
+  openshift:
+    # Service account for openshift auth
+    serviceAccount:
+      create: true
+      nameOverride: ""
+
+
+# This is for setting Kubernetes Annotations to a Pod.
+podAnnotations: {}
+# This is for setting Kubernetes Labels to a Pod.
+podLabels: {}
+
+# This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
+service:
+  # This sets the service type
+  type: ClusterIP
+  # Port exposed by the service
+  port: 443
+
+# This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# This block is for configuring an openshift route to expose the network
+# observer
+route:
+  enabled: false
+
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# pod level securityContext
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
+
+# network-observer container securityContext
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+skipManagementLabels: false

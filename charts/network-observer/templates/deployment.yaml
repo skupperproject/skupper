@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "network-observer.fullname" . }}
+  labels:
+    {{- include "network-observer.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "network-observer.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "network-observer.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- $serviceAccountName := (include "network-observer.serviceAccountName" .) }}
+      {{- if $serviceAccountName }}
+      serviceAccountName: {{ $serviceAccountName }}
+      {{- end }}
+      containers:
+        - name: network-observer
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          args:
+            - -listen=127.0.0.1:8080
+            - -prometheus-api=http://127.0.0.1:9090
+            - -router-endpoint={{ .Values.router.endpoint }}
+            - -router-tls-ca=/etc/messaging/ca.crt
+            - -router-tls-cert=/etc/messaging/tls.crt
+            - -router-tls-key=/etc/messaging/tls.key
+            {{- range .Values.extraArgs }}
+            - {{ . }}
+            {{- end }}
+          ports:
+            - name: api
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - mountPath: /etc/messaging/
+              name: skupper-management-client
+        - name: proxy
+          {{- if eq "openshift" .Values.auth.strategy }}
+          {{- (include "network-observer.openshiftOauthProxySpec" .) | nindent 10 }}
+          {{- else }}
+          {{- (include "network-observer.nginxProxySpec" .) | nindent 10 }}
+          {{- end }}
+        - name: prometheus
+          image: "{{ .Values.prometheus.repository }}:{{ .Values.prometheus.tag }}"
+          imagePullPolicy: {{ .Values.prometheus.pullPolicy }}
+          {{- with .Values.prometheus.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus/
+          ports:
+            - name: prom
+              containerPort: 9090
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - mountPath: /etc/prometheus
+              name: prometheus-config
+            - mountPath: /prometheus
+              name: prometheus-storage-volume
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: {{ include "network-observer.fullname" . }}-prometheus
+        name: prometheus-config
+      - emptyDir: {}
+        name: prometheus-storage-volume
+      - name: skupper-management-client
+        secret:
+          defaultMode: 420
+          secretName: {{ include "network-observer.clientCertificateName" . }}
+      - name: {{ include "network-observer.tlsSecretName" . }}
+        secret:
+          defaultMode: 420
+          secretName: {{ include "network-observer.tlsSecretName" . }}
+      {{- (include "network-observer.proxyVolumeMounts" .) | nindent 6 }}
