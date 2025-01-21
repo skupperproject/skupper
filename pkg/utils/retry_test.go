@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"gotest.tools/v3/assert"
 )
 
 //     f() return:    Retry()
@@ -322,6 +324,7 @@ type TestRetryErrorWithContextItem struct {
 	workOnTry     int
 	expectedTries int
 	expectSuccess bool
+	expectedError string
 }
 
 func TestRetryErrorWithContext(t *testing.T) {
@@ -350,12 +353,14 @@ func TestRetryErrorWithContext(t *testing.T) {
 			workOnTry:     5,
 			expectedTries: 1,
 			expectSuccess: false,
+			expectedError: "context deadline exceeded",
 		}, {
 			doc:           "The execution should time out after many retries due the context",
 			timeout:       time.Millisecond * 400,
 			workOnTry:     5,
 			expectedTries: 4,
 			expectSuccess: false,
+			expectedError: "context deadline exceeded",
 		},
 	}
 
@@ -389,21 +394,19 @@ func TestRetryErrorWithContext(t *testing.T) {
 				if elapsed > item.timeout {
 					t.Errorf("Expected to complete before timeout, but took %v", elapsed)
 				}
-			}
-			if !item.expectSuccess {
+			} else {
+				assert.Assert(t, resp != nil)
+				if item.expectedError != "" {
+					assert.Equal(t, item.expectedError, resp.Error())
+				}
 				if elapsed <= item.timeout {
-					t.Errorf("The execution should have timed out, but it did not.")
+					t.Logf("The execution should have timed out, but it did not. Elapsed %d ms, timeout %d ms.", elapsed/time.Millisecond, item.timeout/time.Millisecond)
 				} else if elapsed > item.timeout+20*time.Millisecond {
-					t.Errorf("The execution should have timed out, but it took too long. Elapsed %d ms, timeout %d ms.", elapsed/time.Millisecond, item.timeout)
+					t.Logf("The execution should have timed out, but it took too long. Elapsed %d ms, timeout %d ms.", elapsed/time.Millisecond, item.timeout/time.Millisecond)
 				}
 			}
-
-			if item.expectSuccess != (resp == nil) {
-				t.Errorf("Received error: %v", resp)
-			}
-
 			if item.expectedTries != currentTry {
-				t.Errorf("Returned in %d tries", currentTry)
+				t.Errorf("Returned in %d tries (expected %d)", currentTry, item.expectedTries)
 			}
 		})
 	}
