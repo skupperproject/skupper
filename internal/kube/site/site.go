@@ -133,6 +133,12 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 		s.setBindingsConfiguredStatus(nil)
 		s.checkSecuredAccess()
 	} else if len(s.currentGroups) != len(s.groups()) {
+		s.logger.Info("HA setting changed for site",
+			slog.String("namespace", siteDef.Namespace),
+			slog.String("name", siteDef.Name),
+			slog.String("latest", strings.Join(s.groups(), ",")),
+			slog.String("previous", strings.Join(s.currentGroups, ",")),
+		)
 		s.currentGroups = s.groups()
 		if _, err := s.recoverRouterConfig(true); err != nil {
 			return err
@@ -612,10 +618,12 @@ func (s *Site) recoverRouterConfig(update bool) ([]*qdr.RouterConfig, error) {
 	}
 	//need to ensure that the list of configs is in the right order, i.e. matching s.groups()
 	var configs []*qdr.RouterConfig
-	for _, group := range s.groups() {
+	groups := s.groups()
+	for i, group := range groups {
 		if config, ok := byName[group]; ok {
 			if update {
-				if err := kubeqdr.UpdateRouterConfig(s.controller.GetKubeClient(), group, s.namespace, context.TODO(), ConfigUpdateList{s.bindings, s}); err != nil {
+				op := ConfigUpdateList{s.bindings, s, s.linkAccess.DesiredConfig(groups[:i], SSL_PROFILE_PATH)}
+				if err := kubeqdr.UpdateRouterConfig(s.controller.GetKubeClient(), group, s.namespace, context.TODO(), op); err != nil {
 					s.logger.Error("Failed to update router config map",
 						slog.String("namespace", s.namespace),
 						slog.String("name", group),
@@ -627,6 +635,7 @@ func (s *Site) recoverRouterConfig(update bool) ([]*qdr.RouterConfig, error) {
 		} else {
 			routerConfig := s.initialRouterConfig()
 			s.bindings.Apply(routerConfig)
+			s.linkAccess.DesiredConfig(groups[:i], SSL_PROFILE_PATH).Apply(routerConfig)
 			if err := s.createRouterConfigForGroup(group, routerConfig); err != nil {
 				s.logger.Error("Failed to create router config map",
 					slog.String("namespace", s.namespace),

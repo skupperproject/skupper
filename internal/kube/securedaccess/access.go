@@ -173,7 +173,9 @@ func (m *SecuredAccessManager) reconcile(sa *skupperv2alpha1.SecuredAccess) erro
 	endpoints, resourceErr := m.accessType(sa).RealiseAndResolve(sa, svc)
 
 	if sa.SetResolved(endpoints) {
-		log.Printf("Resolved endpoints for %s: %v", sa.Key(), endpoints)
+		if len(endpoints) > 0 {
+			log.Printf("Resolved endpoints for %s: %v", sa.Key(), endpoints)
+		}
 		updated = true
 	}
 
@@ -327,7 +329,7 @@ func (m *SecuredAccessManager) CheckRoute(key string, route *routev1.Route) erro
 			if !canDelete(&route.ObjectMeta) {
 				return nil
 			}
-			log.Printf("Deleting route %s/%s as no matching ServiceAccess definition found", route.Namespace, route.Name)
+			log.Printf("Deleting redundant route %s/%s as no matching ServiceAccess definition found", route.Namespace, route.Name)
 			return m.clients.GetRouteClient().Routes(route.Namespace).Delete(context.Background(), route.Name, metav1.DeleteOptions{})
 		}
 	}

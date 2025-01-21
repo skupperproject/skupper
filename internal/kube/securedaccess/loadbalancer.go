@@ -1,7 +1,6 @@
 package securedaccess
 
 import (
-	"log"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -20,7 +19,6 @@ func newLoadbalancerAccess(m *SecuredAccessManager) AccessType {
 }
 
 func (o *LoadbalancerAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv2alpha1.Endpoint, error) {
-	log.Printf("Resolving endpoints for SecuredAccess %s of accessType 'loadbalancer'", access.Key())
 	var endpoints []skupperv2alpha1.Endpoint
 	for _, i := range svc.Status.LoadBalancer.Ingress {
 		var host string
