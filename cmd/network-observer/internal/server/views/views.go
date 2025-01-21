@@ -316,9 +316,9 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 			mode := *record.Mode
 			switch {
 			case strings.EqualFold(mode, "internal"):
-				out.ProcessRole = api.Internal
+				out.Role = api.Internal
 			case strings.EqualFold(mode, "remote"):
-				out.ProcessRole = api.Remote
+				out.Role = api.Remote
 			}
 		}
 
@@ -376,7 +376,7 @@ func defaultProcess(id string) api.ProcessRecord {
 		ComponentName:  unknownStr,
 		SourceHost:     unknownStr,
 		ProcessBinding: api.Unbound,
-		ProcessRole:    api.External,
+		Role:           api.External,
 	}
 }
 func RouterAccessList(entries []store.Entry) []api.RouterAccessRecord {

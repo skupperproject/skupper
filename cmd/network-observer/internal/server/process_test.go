@@ -57,7 +57,7 @@ func TestProcesses(t *testing.T) {
 					ComponentId:    "unknown",
 					ProcessBinding: api.Unbound,
 					Name:           "unknown",
-					ProcessRole:    api.External,
+					Role:           api.External,
 					SourceHost:     "unknown",
 				})
 			},
@@ -76,7 +76,7 @@ func TestProcesses(t *testing.T) {
 					ComponentId:    "group-1-id",
 					ProcessBinding: api.Unbound,
 					Name:           "processone",
-					ProcessRole:    api.Internal,
+					Role:           api.Internal,
 					SourceHost:     "10.99.99.2",
 				})
 			},
@@ -101,7 +101,7 @@ func TestProcesses(t *testing.T) {
 					ComponentId:    "group-1-id",
 					ProcessBinding: api.Bound,
 					Name:           "processone",
-					ProcessRole:    api.Internal,
+					Role:           api.Internal,
 					SourceHost:     "10.99.99.2",
 				})
 			},

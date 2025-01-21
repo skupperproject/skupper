@@ -16,11 +16,11 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
-// Defines values for ProcessRecordProcessRole.
+// Defines values for ProcessRecordRole.
 const (
-	External ProcessRecordProcessRole = "external"
-	Internal ProcessRecordProcessRole = "internal"
-	Remote   ProcessRecordProcessRole = "remote"
+	External ProcessRecordRole = "external"
+	Internal ProcessRecordRole = "internal"
+	Remote   ProcessRecordRole = "remote"
 )
 
 // Defines values for FlowAggregatePairType.
@@ -380,9 +380,9 @@ type ProcessRecord struct {
 	// ProcessBinding Indicates whether a process is exposed or not in a skupper network
 	ProcessBinding ProcessBindingType `json:"processBinding"`
 
-	// ProcessRole Internal processes are processes related to Skupper. Remote processes are processes indirectly connected, such as a proxy
-	ProcessRole ProcessRecordProcessRole `json:"processRole"`
-	Services    *[]ServiceIdentifierType `json:"services"`
+	// Role Internal processes are processes related to Skupper. Remote processes are processes indirectly connected, such as a proxy
+	Role     ProcessRecordRole        `json:"role"`
+	Services *[]ServiceIdentifierType `json:"services"`
 
 	// SourceHost The IP address of the node where the pod is running
 	SourceHost string `json:"sourceHost"`
@@ -391,8 +391,8 @@ type ProcessRecord struct {
 	StartTime uint64 `json:"startTime"`
 }
 
-// ProcessRecordProcessRole Internal processes are processes related to Skupper. Remote processes are processes indirectly connected, such as a proxy
-type ProcessRecordProcessRole string
+// ProcessRecordRole Internal processes are processes related to Skupper. Remote processes are processes indirectly connected, such as a proxy
+type ProcessRecordRole string
 
 // ProcessResponse defines model for ProcessResponse.
 type ProcessResponse struct {

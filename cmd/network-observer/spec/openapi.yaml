@@ -376,7 +376,7 @@ paths:
   /api/v2alpha1/services/{id}/processpairs:
     get:
       tags: [service, "flow aggregate"]
-      operationId: componentPairsByService
+      operationId: processPairsByService
       parameters:
         - $ref: '#/components/parameters/pathID'
       responses:
@@ -896,7 +896,7 @@ components:
               - componentName
               - sourceHost
               - hostName
-              - processRole
+              - role
               - processBinding
               - services
           properties:
@@ -922,7 +922,7 @@ components:
             imageName:
               type: string
               nullable: true
-            processRole:
+            role:
               type: string
               enum:
                 - internal
