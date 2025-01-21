@@ -153,14 +153,20 @@ workflows:
           context:
             - skupper-org
       - generate-manifest:
+          <<: *run_for_v2_branch
           requires:
             - publish-oci-images
+      - generate-skupper-setup:
+          <<: *run_for_v2_branch
+          requires:
+            - generate-manifest
       - publish-github-prerelease-artifacts:
           <<: *run_for_v2_branch
           version: v2-dev-release
           requires:
             - publish-oci-images
             - generate-manifest
+            - generate-skupper-setup
           context:
             - skupper-org
 
@@ -399,4 +405,5 @@ jobs:
             done
             cd ${BASEDIR}
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
+            cp skupper-setup/*.yaml archives
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease ${VERSION} "${BASEDIR}/archives"
