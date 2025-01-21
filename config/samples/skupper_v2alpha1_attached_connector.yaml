@@ -1,0 +1,9 @@
+apiVersion: skupper.io/v2alpha1
+kind: AttachedConnector
+metadata:
+  name: backend
+  namespace: other
+spec:
+  port: 8080
+  selector: app=backend
+  siteNamespace: west

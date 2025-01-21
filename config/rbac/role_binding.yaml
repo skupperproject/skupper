@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    application: skupper-controller
+  name: skupper-controller
+subjects:
+  - kind: ServiceAccount
+    name: skupper-controller
+    namespace: skupper
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: skupper-controller

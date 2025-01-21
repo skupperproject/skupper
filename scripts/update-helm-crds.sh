@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Source directory
-SOURCE_DIR="./api/types/crds"
+SOURCE_DIR="./config/crd/bases"
 
 # Destination directory
 DEST_DIR="./charts/skupper-setup/crds"

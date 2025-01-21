@@ -1,0 +1,15 @@
+# This kustomization.yaml is not intended to be run by itself,
+# since it depends on service name and namespace that are out of this kustomize package.
+# It should be run by config/default
+resources:
+- bases/skupper_access_grant_crd.yaml
+- bases/skupper_access_token_crd.yaml
+- bases/skupper_attached_connector_binding_crd.yaml
+- bases/skupper_attached_connector_crd.yaml
+- bases/skupper_certificate_crd.yaml
+- bases/skupper_connector_crd.yaml
+- bases/skupper_link_crd.yaml
+- bases/skupper_listener_crd.yaml
+- bases/skupper_router_access_crd.yaml
+- bases/skupper_secured_access_crd.yaml
+- bases/skupper_site_crd.yaml

@@ -1,0 +1,7 @@
+apiVersion: skupper.io/v2alpha1
+kind: SecuredAccess
+metadata:
+  name: west-access
+spec:
+  issuer: default
+

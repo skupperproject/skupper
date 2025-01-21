@@ -1,0 +1,7 @@
+domain: skupper.io
+layout:
+- go.kubebuilder.io/v4
+projectName: skupper-operator
+repo: github.com/skupperproject/skupper-operator
+resources:
+version: "3"

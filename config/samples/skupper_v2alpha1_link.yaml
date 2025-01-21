@@ -1,0 +1,15 @@
+apiVersion: skupper.io/v2alpha1
+kind: Link
+metadata:
+  name: my-token
+spec:
+  endpoints:
+  - group: skupper-router-1
+    host: 10.102.82.46
+    name: inter-router
+    port: "55671"
+  - group: skupper-router-1
+    host: 10.102.82.46
+    name: edge
+    port: "45671"
+  tlsCredentials: my-token
