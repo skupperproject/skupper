@@ -273,6 +273,7 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string, platform string) q
 		Name:      routerName,
 		Namespace: s.GetNamespace(),
 		Platform:  platform,
+		Version:   version.Version,
 	}
 
 	// override metadata
