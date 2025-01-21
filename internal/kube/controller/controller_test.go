@@ -425,7 +425,7 @@ func TestGeneral(t *testing.T) {
 				assert.Assert(t, err)
 				verifyStatus(t, expected.Status.Status, actual.Status.Status)
 				if expected.Status.Network != nil {
-					assert.DeepEqual(t, expected.Status.Network, actual.Status.Network)
+					assert.DeepEqual(t, mapByName(expected.Status.Network), mapByName(actual.Status.Network))
 				}
 			}
 			for _, expected := range tt.expectedListenerStatuses {
@@ -503,6 +503,14 @@ func verifyStatus(t *testing.T, expected skupperv2alpha1.Status, actual skupperv
 			assert.Equal(t, condition.Message, existing.Message)
 		}
 	}
+}
+
+func mapByName(records []skupperv2alpha1.SiteRecord) map[string]skupperv2alpha1.SiteRecord {
+	index := map[string]skupperv2alpha1.SiteRecord{}
+	for _, record := range records {
+		index[record.Name] = record
+	}
+	return index
 }
 
 func enableSSA(client dynamic.Interface) bool {
