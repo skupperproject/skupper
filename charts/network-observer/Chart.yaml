@@ -3,4 +3,4 @@ name: network-observer
 description: A Helm chart for the Skupper Network Observer
 type: application
 version: 0.1.0-devel
-appVersion: "v2-latest"
+appVersion: "v2-dev"
