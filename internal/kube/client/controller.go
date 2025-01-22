@@ -156,7 +156,11 @@ func (c *Controller) GetDeploymentForPod(podName string, namespace string) (*app
 		return nil, fmt.Errorf("Could not determine deployment name from %s", podName)
 	}
 	deploymentName := matches[1]
-	return c.GetKubeClient().AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+	deployment, err := c.GetKubeClient().AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve controller deployment for %s/%s: %s", namespace, deploymentName, err)
+	}
+	return deployment, nil
 }
 
 func (c *Controller) AddEvent(o interface{}) {
