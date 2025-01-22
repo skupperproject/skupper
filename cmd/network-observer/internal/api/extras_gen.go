@@ -95,26 +95,6 @@ func (r *FlowAggregateResponse) SetResults(v FlowAggregateRecord) {
 }
 
 // SetCount
-func (r *LinkListResponse) SetCount(v int64) {
-	r.Count = v
-}
-
-// SetResults
-func (r *LinkListResponse) SetResults(v []LinkRecord) {
-	r.Results = v
-}
-
-// SetTimeRangeCount
-func (r *LinkListResponse) SetTimeRangeCount(v int64) {
-	r.TimeRangeCount = v
-}
-
-// SetResults
-func (r *LinkResponse) SetResults(v LinkRecord) {
-	r.Results = v
-}
-
-// SetCount
 func (r *ListenerListResponse) SetCount(v int64) {
 	r.Count = v
 }
@@ -313,16 +293,6 @@ func (r FlowAggregateRecord) GetEndTime() uint64 {
 
 // GetStartTime
 func (r FlowAggregateRecord) GetStartTime() uint64 {
-	return r.StartTime
-}
-
-// GetEndTime
-func (r LinkRecord) GetEndTime() uint64 {
-	return r.EndTime
-}
-
-// GetStartTime
-func (r LinkRecord) GetStartTime() uint64 {
 	return r.StartTime
 }
 

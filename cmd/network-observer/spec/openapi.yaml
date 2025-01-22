@@ -253,28 +253,6 @@ paths:
           $ref: '#/components/responses/getRouterAccessByID'
         '404':
           $ref: '#/components/responses/errorNotFound'
-  /api/v2alpha1/links:
-    get:
-      tags: [link]
-      deprecated: true
-      operationId: links
-      responses:
-        '200':
-          $ref: '#/components/responses/getLinks'
-        '400':
-          $ref: '#/components/responses/errorBadRequest'
-  /api/v2alpha1/links/{id}:
-    get:
-      tags: [link]
-      deprecated: true
-      operationId: linkByID
-      parameters:
-        - $ref: '#/components/parameters/pathID'
-      responses:
-        '200':
-          $ref: '#/components/responses/getLinkByID'
-        '404':
-          $ref: '#/components/responses/errorNotFound'
   /api/v2alpha1/hosts:
     get:
       tags: [deprecated]
@@ -336,26 +314,6 @@ paths:
     get:
       tags: [site]
       operationId: hostsBySite
-      deprecated: true
-      parameters:
-        - $ref: '#/components/parameters/pathID'
-      responses:
-        '410':
-          $ref: '#/components/responses/notSupported'
-  /api/v2alpha1/sites/{id}/links:
-    get:
-      tags: [site]
-      operationId: linksBySite
-      deprecated: true
-      parameters:
-        - $ref: '#/components/parameters/pathID'
-      responses:
-        '410':
-          $ref: '#/components/responses/notSupported'
-  /api/v2alpha1/routers/{id}/links:
-    get:
-      tags: [router]
-      operationId: linksByRouter
       deprecated: true
       parameters:
         - $ref: '#/components/parameters/pathID'
@@ -481,12 +439,6 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/FlowAggregateListResponse'
-    getLinks:
-      description: response with a list of links
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/LinkListResponse'
     getRouterLinks:
       description: response with a list of router links
       content:
@@ -559,12 +511,6 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/FlowAggregateResponse'
-    getLinkByID:
-      description: response with a single link
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/LinkResponse'
     getRouterLinkByID:
       description: response with a single router link
       content:
@@ -736,22 +682,6 @@ components:
         properties:
           results:
             $ref: '#/components/schemas/FlowAggregateRecord'
-    LinkListResponse:
-      allOf:
-        - $ref: '#/components/schemas/collectionResponse'
-        - type: object
-          required: [results]
-          properties:
-            results:
-              type: array
-              items:
-                $ref: '#/components/schemas/LinkRecord'
-    LinkResponse:
-        type: object
-        required: [results]
-        properties:
-          results:
-            $ref: '#/components/schemas/LinkRecord'
     RouterLinkListResponse:
       allOf:
         - $ref: '#/components/schemas/collectionResponse'
@@ -1130,34 +1060,6 @@ components:
       enum:
         - up
         - down
-    LinkRecord:
-      allOf:
-        - $ref: '#/components/schemas/baseRecord'
-        - type: object
-          required:
-            - parent
-            - name
-            - linkCost
-            - mode
-            - direction
-            - sourceSiteId
-            - destinationSiteId
-          properties:
-            parent:
-              type: string
-            name:
-              type: string
-            linkCost:
-              type: integer
-              format: uint64
-            mode:
-              type: string
-            direction:
-              type: string
-            sourceSiteId:
-              type: string
-            destinationSiteId:
-              type: string
     RouterLinkRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'

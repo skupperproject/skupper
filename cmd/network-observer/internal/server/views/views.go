@@ -565,60 +565,6 @@ func NewServiceProvider(stor store.Interface, graph collector.Graph) func(collec
 	}
 }
 
-func NewLinkSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.LinkRecord {
-	provider := NewLinkProvider(graph)
-	return func(entries []store.Entry) []api.LinkRecord {
-		results := make([]api.LinkRecord, 0, len(entries))
-		for _, e := range entries {
-			link, ok := e.Record.(vanflow.LinkRecord)
-			if !ok {
-				continue
-			}
-			if l, ok := provider(link); ok {
-				results = append(results, l)
-			}
-		}
-		return results
-	}
-}
-
-func NewLinkProvider(graph collector.Graph) func(vanflow.LinkRecord) (api.LinkRecord, bool) {
-	return func(link vanflow.LinkRecord) (api.LinkRecord, bool) {
-		out := defaultLink(link.ID)
-		out.StartTime, out.EndTime = vanflowTimes(link.BaseRecord)
-		if link.Status == nil || !strings.EqualFold(*link.Status, "up") ||
-			link.Parent == nil || link.Peer == nil {
-			return out, false
-		}
-		siteNode := graph.Link(link.ID).Parent().Parent()
-		if !siteNode.IsKnown() {
-			return out, false
-		}
-		out.SourceSiteId = siteNode.ID()
-
-		destSiteNode := graph.RouterAccess(*link.Peer).Parent().Parent()
-		if !destSiteNode.IsKnown() {
-			return out, false
-		}
-		out.DestinationSiteId = destSiteNode.ID()
-
-		setOpt(&out.LinkCost, link.LinkCost)
-		setOpt(&out.Mode, link.Role)
-		setOpt(&out.Name, link.Name)
-		setOpt(&out.Parent, link.Parent)
-		return out, true
-	}
-}
-
-func defaultLink(id string) api.LinkRecord {
-	return api.LinkRecord{
-		Identity:  id,
-		Mode:      unknownStr,
-		Name:      unknownStr,
-		Direction: "outgoing",
-	}
-}
-
 func Routers(entries []store.Entry) []api.RouterRecord {
 	results := make([]api.RouterRecord, 0, len(entries))
 	for _, e := range entries {

@@ -156,22 +156,6 @@ func (s *server) HostsByID(w http.ResponseWriter, r *http.Request, id string) {
 	}
 }
 
-// (GET /api/v2alpha1/links)
-func (s *server) Links(w http.ResponseWriter, r *http.Request) {
-	results := views.NewLinkSliceProvider(s.graph)(listByType[vanflow.LinkRecord](s.records))
-	if err := handleCollection(w, r, &api.LinkListResponse{}, results); err != nil {
-		s.logWriteError(r, err)
-	}
-}
-
-// (GET /api/v2alpha1/links/{id})
-func (s *server) LinkByID(w http.ResponseWriter, r *http.Request, id string) {
-	getRecord := fetchAndConditionalMap(s.records, views.NewLinkProvider(s.graph), id)
-	if err := handleSingle(w, r, &api.LinkResponse{}, getRecord); err != nil {
-		s.logWriteError(r, err)
-	}
-}
-
 // (GET /api/v2alpha1/listeners)
 func (s *server) Listeners(w http.ResponseWriter, r *http.Request) {
 	results := views.NewListenerSliceProvider(s.graph)(listByType[vanflow.ListenerRecord](s.records))
@@ -300,15 +284,6 @@ func (s *server) RouterByID(w http.ResponseWriter, r *http.Request, id string) {
 	}
 }
 
-// (GET /api/v2alpha1/routers/{id}/links)
-func (s *server) LinksByRouter(w http.ResponseWriter, r *http.Request, id string) {
-	exemplar := store.Entry{Record: vanflow.LinkRecord{Parent: &id}}
-	results := views.NewLinkSliceProvider(s.graph)(index(s.records, collector.IndexByTypeParent, exemplar))
-	if err := handleCollection(w, r, &api.LinkListResponse{}, results); err != nil {
-		s.logWriteError(r, err)
-	}
-}
-
 // (GET /api/v2alpha1/sitepairs)
 func (s *server) Sitepairs(w http.ResponseWriter, r *http.Request) {
 	results := views.NewSitePairSliceProvider(s.graph)(listByType[collector.SitePairRecord](s.records))
@@ -341,22 +316,6 @@ func (s *server) SiteById(w http.ResponseWriter, r *http.Request, id string) {
 func (s *server) HostsBySite(w http.ResponseWriter, r *http.Request, id string) {
 	//TODO(ck) implement
 	if err := handleCollection(w, r, &api.SiteListResponse{}, []api.SiteRecord{}); err != nil {
-		s.logWriteError(r, err)
-	}
-}
-
-// (GET /api/v2alpha1/sites/{id}/links)
-func (s *server) LinksBySite(w http.ResponseWriter, r *http.Request, id string) {
-	node := s.graph.Site(id)
-	linkNodes := node.Links()
-	linkEntries := make([]store.Entry, 0, len(linkNodes))
-	for _, ln := range linkNodes {
-		if le, ok := ln.Get(); ok {
-			linkEntries = append(linkEntries, le)
-		}
-	}
-	results := views.NewLinkSliceProvider(s.graph)(linkEntries)
-	if err := handleCollection(w, r, &api.LinkListResponse{}, results); err != nil {
 		s.logWriteError(r, err)
 	}
 }
