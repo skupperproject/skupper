@@ -50,15 +50,15 @@ func TestProcesses(t *testing.T) {
 			ExpectResults: func(t *testing.T, results []api.ProcessRecord) {
 				r := results[0]
 				assert.DeepEqual(t, r, api.ProcessRecord{
-					Identity:       "1",
-					Parent:         "s1",
-					ParentName:     "unknown",
-					ComponentName:  "unknown",
-					ComponentId:    "unknown",
-					ProcessBinding: api.Unbound,
-					Name:           "unknown",
-					Role:           api.External,
-					SourceHost:     "unknown",
+					Identity:      "1",
+					Parent:        "s1",
+					ParentName:    "unknown",
+					ComponentName: "unknown",
+					ComponentId:   "unknown",
+					Binding:       api.Unbound,
+					Name:          "unknown",
+					Role:          api.External,
+					SourceHost:    "unknown",
 				})
 			},
 		}, {
@@ -68,16 +68,16 @@ func TestProcesses(t *testing.T) {
 			ExpectResults: func(t *testing.T, results []api.ProcessRecord) {
 				r := results[0]
 				assert.DeepEqual(t, r, api.ProcessRecord{
-					Identity:       "1",
-					Parent:         "site-1",
-					ParentName:     "site one",
-					Services:       ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp"), api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp")}),
-					ComponentName:  "group-one",
-					ComponentId:    "group-1-id",
-					ProcessBinding: api.Unbound,
-					Name:           "processone",
-					Role:           api.Internal,
-					SourceHost:     "10.99.99.2",
+					Identity:      "1",
+					Parent:        "site-1",
+					ParentName:    "site one",
+					Services:      ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp"), api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp")}),
+					ComponentName: "group-one",
+					ComponentId:   "group-1-id",
+					Binding:       api.Unbound,
+					Name:          "processone",
+					Role:          api.Internal,
+					SourceHost:    "10.99.99.2",
 				})
 			},
 		}, {
@@ -93,16 +93,16 @@ func TestProcesses(t *testing.T) {
 			ExpectResults: func(t *testing.T, results []api.ProcessRecord) {
 				r := results[0]
 				assert.DeepEqual(t, r, api.ProcessRecord{
-					Identity:       "1",
-					Parent:         "site-1",
-					ParentName:     "site one",
-					Services:       ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp"), api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp")}),
-					ComponentName:  "group-one",
-					ComponentId:    "group-1-id",
-					ProcessBinding: api.Bound,
-					Name:           "processone",
-					Role:           api.Internal,
-					SourceHost:     "10.99.99.2",
+					Identity:      "1",
+					Parent:        "site-1",
+					ParentName:    "site one",
+					Services:      ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp"), api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp")}),
+					ComponentName: "group-one",
+					ComponentId:   "group-1-id",
+					Binding:       api.Bound,
+					Name:          "processone",
+					Role:          api.Internal,
+					SourceHost:    "10.99.99.2",
 				})
 			},
 		}, {
@@ -117,7 +117,7 @@ func TestProcesses(t *testing.T) {
 			ExpectOK:    true,
 			ExpectCount: 2,
 			Parameters: map[string][]string{
-				"sortBy": {"processBinding.asc"},
+				"sortBy": {"binding.asc"},
 			},
 			ExpectResults: func(t *testing.T, results []api.ProcessRecord) {
 				assert.Equal(t, results[0].Identity, "1")

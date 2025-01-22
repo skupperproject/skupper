@@ -85,7 +85,7 @@ func TestConnections(t *testing.T) {
 					DestSiteId:        "site-b",
 					Protocol:          "tcp",
 
-					Octets:       33,
+					OctetCount:   33,
 					TraceRouters: []string{"router a.1", "router b.1", "router b.2"},
 					TraceSites:   []string{"site a", "site b"},
 				})

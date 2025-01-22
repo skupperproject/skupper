@@ -41,8 +41,8 @@ func NewConnectionsProvider(stor store.Interface) func(collector.ConnectionRecor
 		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
 		out.ConnectorError = record.ErrorConnector
 		out.ListenerError = record.ErrorListener
-		setOpt(&out.Octets, record.Octets)
-		setOpt(&out.OctetsReverse, record.OctetsReverse)
+		setOpt(&out.OctetCount, record.Octets)
+		setOpt(&out.OctetReverseCount, record.OctetsReverse)
 		setOpt(&out.Latency, record.Latency)
 		setOpt(&out.LatencyReverse, record.LatencyReverse)
 		setOpt(&out.SourceHost, record.SourceHost)
@@ -200,8 +200,8 @@ func NewRequestProvider(stor store.Interface) func(collector.RequestRecord) (api
 		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
 		setOpt(&out.Method, record.Method)
 		setOpt(&out.Status, record.Result)
-		setOpt(&out.Octets, record.Octets)
-		setOpt(&out.OctetsReverse, record.OctetsReverse)
+		setOpt(&out.OctetCount, record.Octets)
+		setOpt(&out.OctetReverseCount, record.OctetsReverse)
 
 		if record.EndTime != nil && record.StartTime != nil && record.EndTime.After(record.StartTime.Time) {
 			if record.EndTime != nil && record.StartTime != nil {

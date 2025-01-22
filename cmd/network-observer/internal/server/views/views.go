@@ -352,7 +352,7 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 
 		if len(addresses) > 0 {
 			if hasListeners && hasConnectors {
-				out.ProcessBinding = api.Bound
+				out.Binding = api.Bound
 			}
 			addressList := make([]api.AtmarkDelimitedString, 0, len(addresses))
 			for addr := range addresses {
@@ -368,15 +368,15 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 
 func defaultProcess(id string) api.ProcessRecord {
 	return api.ProcessRecord{
-		Identity:       id,
-		Name:           unknownStr,
-		Parent:         unknownStr,
-		ParentName:     unknownStr,
-		ComponentId:    unknownStr,
-		ComponentName:  unknownStr,
-		SourceHost:     unknownStr,
-		ProcessBinding: api.Unbound,
-		Role:           api.External,
+		Identity:      id,
+		Name:          unknownStr,
+		Parent:        unknownStr,
+		ParentName:    unknownStr,
+		ComponentId:   unknownStr,
+		ComponentName: unknownStr,
+		SourceHost:    unknownStr,
+		Binding:       api.Unbound,
+		Role:          api.External,
 	}
 }
 func RouterAccessList(entries []store.Entry) []api.RouterAccessRecord {
@@ -622,11 +622,11 @@ func NewSiteProvider(graph collector.Graph) func(vanflow.SiteRecord) api.SiteRec
 	return func(site vanflow.SiteRecord) api.SiteRecord {
 		s := defaultSite(site.ID)
 		s.StartTime, s.EndTime = vanflowTimes(site.BaseRecord)
-		s.NameSpace = site.Namespace
+		s.Namespace = site.Namespace
 
 		setOpt(&s.Name, site.Name)
 		setOpt(&s.Provider, site.Provider)
-		setOpt(&s.SiteVersion, site.Version)
+		setOpt(&s.Version, site.Version)
 		if site.Platform != nil {
 			platform := *site.Platform
 			switch {
@@ -647,10 +647,10 @@ func NewSiteProvider(graph collector.Graph) func(vanflow.SiteRecord) api.SiteRec
 
 func defaultSite(id string) api.SiteRecord {
 	return api.SiteRecord{
-		Identity:    id,
-		Name:        unknownStr,
-		Platform:    api.SitePlatformTypeUnknown,
-		SiteVersion: unknownStr,
+		Identity: id,
+		Name:     unknownStr,
+		Platform: api.SitePlatformTypeUnknown,
+		Version:  unknownStr,
 	}
 }
 
