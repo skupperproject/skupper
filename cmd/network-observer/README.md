@@ -21,7 +21,7 @@ access the Swagger UI at `http://localhost:8080/swagger/`.
 To edit the specification using a hosted (swagger
 editor)[https://editor-next.swagger.io/], open the editor in your browser, and
 import the spec by URL (File -> Import URL) from
-`https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/network-observer/spec/openapi.yaml`.
+`https://raw.githubusercontent.com/skupperproject/skupper/main/cmd/network-observer/spec/openapi.yaml`.
 
 ## Metrics
 
