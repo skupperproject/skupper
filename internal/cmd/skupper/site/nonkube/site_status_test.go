@@ -122,7 +122,7 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 
 	homeDir, err := os.UserHomeDir()
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
+	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test3/", string(api.InputSiteStatePath))
 	testTable := []test{
 		{
 			name:         "run fails site doesn't exist",
@@ -151,7 +151,7 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-site",
-			Namespace: "test",
+			Namespace: "test3",
 		},
 		Spec: v2alpha1.SiteSpec{
 			LinkAccess: "route",
@@ -173,11 +173,11 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 
 	// add site in runtime directory
 	command := &CmdSiteStatus{}
-	command.namespace = "test"
+	command.namespace = "test3"
 	command.siteHandler = fs.NewSiteHandler(command.namespace)
 	content, err := command.siteHandler.EncodeToYaml(siteResource1)
 	assert.Check(t, err == nil)
-	path = filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.RuntimeSiteStatePath))
+	path = filepath.Join(homeDir, "/.local/share/skupper/namespaces/test3/", string(api.RuntimeSiteStatePath))
 	err = command.siteHandler.WriteFile(path, "my-site.yaml", content, common.Sites)
 	assert.Check(t, err == nil)
 	defer command.siteHandler.Delete("my-site")
@@ -209,7 +209,7 @@ func TestCmdSiteStatus_RunNoDirectory(t *testing.T) {
 
 	homeDir, err := os.UserHomeDir()
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test1/", string(api.InputSiteStatePath), "/site")
+	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test3/", string(api.InputSiteStatePath), "/site")
 
 	testTable := []test{
 		{
@@ -220,7 +220,7 @@ func TestCmdSiteStatus_RunNoDirectory(t *testing.T) {
 
 	for _, test := range testTable {
 		command := &CmdSiteStatus{}
-		command.namespace = "test1"
+		command.namespace = "test3"
 		command.siteHandler = fs.NewSiteHandler(command.namespace)
 		command.siteName = test.siteName
 		t.Run(test.name, func(t *testing.T) {

@@ -29,7 +29,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 
 	homeDir, err := os.UserHomeDir()
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
+	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test4/", string(api.InputSiteStatePath))
 
 	testTable := []test{
 		{
@@ -104,7 +104,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-site",
-			Namespace: "test",
+			Namespace: "test4",
 		},
 	}
 
@@ -115,7 +115,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "router-access-mysite",
-			Namespace: "test",
+			Namespace: "test4",
 		},
 		Spec: v2alpha1.RouterAccessSpec{
 			Roles: []v2alpha1.RouterAccessRole{
@@ -134,7 +134,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 	}
 	command := &CmdSiteUpdate{Flags: &common.CommandSiteUpdateFlags{}}
 	command.CobraCmd = &cobra.Command{Use: "test"}
-	command.namespace = "test"
+	command.namespace = "test4"
 	command.siteHandler = fs.NewSiteHandler(command.namespace)
 	command.routerAccessHandler = fs.NewRouterAccessHandler(command.namespace)
 
@@ -213,13 +213,13 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 		{
 			name:      "options without enable link access and subject alternative names",
 			args:      []string{"my-site"},
-			namespace: "test",
+			namespace: "test4",
 			flags:     common.CommandSiteUpdateFlags{EnableLinkAccess: false, BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
 			expectedLinkAccess:              false,
-			expectedNamespace:               "test",
+			expectedNamespace:               "test4",
 			expectedBindHost:                "",
 			expectedSubjectAlternativeNames: nil,
 			expectedRouterAccessName:        "router-access-my-site",
@@ -227,13 +227,13 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 		{
 			name:      "options with enable link access and subject alternative names",
 			args:      []string{"my-site"},
-			namespace: "test",
+			namespace: "test4",
 			flags:     common.CommandSiteUpdateFlags{EnableLinkAccess: true, BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
 			expectedLinkAccess:              true,
-			expectedNamespace:               "test",
+			expectedNamespace:               "test4",
 			expectedSubjectAlternativeNames: []string{"test"},
 			expectedBindHost:                "1.2.3.4",
 			expectedRouterAccessName:        "router-access-my-site",
@@ -279,7 +279,7 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 	testTable := []test{
 		{
 			name:      "runs ok link enable",
-			namespace: "test",
+			namespace: "test4",
 			siteName:  "my-site",
 			flags: common.CommandSiteUpdateFlags{
 				BindHost:                "1.2.3.4",
@@ -290,7 +290,7 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 		},
 		{
 			name:      "runs ok",
-			namespace: "test",
+			namespace: "test4",
 			siteName:  "my-site",
 			flags:     common.CommandSiteUpdateFlags{},
 		},

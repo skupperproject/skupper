@@ -39,9 +39,14 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			expectedError: "site name must be specified",
 		},
 		{
+			name:  "site name is not specified, all",
+			args:  []string{},
+			flags: &common.CommandSiteDeleteFlags{All: true},
+		},
+		{
 			name:          "site name is nil",
 			args:          []string{""},
-			flags:         &common.CommandSiteDeleteFlags{},
+			flags:         &common.CommandSiteDeleteFlags{All: false},
 			expectedError: "site name must not be empty",
 		},
 		{
@@ -138,10 +143,17 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 		},
 		{
 			name:              "run delete all",
-			namespace:         "test",
+			namespace:         "test2",
 			deleteName:        "my-site",
 			errorMessage:      "error",
-			expectedNamespace: "test",
+			expectedNamespace: "test2",
+			all:               true,
+		},
+		{
+			name:              "run delete all",
+			namespace:         "test2",
+			errorMessage:      "error",
+			expectedNamespace: "test2",
 			all:               true,
 		},
 	}
@@ -154,7 +166,7 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-listener",
-			Namespace: "test",
+			Namespace: "test2",
 		},
 	}
 	connectorResource := v2alpha1.Connector{
@@ -164,7 +176,7 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-connector",
-			Namespace: "test",
+			Namespace: "test2",
 		},
 	}
 	siteResource := v2alpha1.Site{
@@ -174,20 +186,20 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-site",
-			Namespace: "test",
+			Namespace: "test2",
 		},
 	}
 
 	homeDir, err := os.UserHomeDir()
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.RuntimeSiteStatePath))
+	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test2/", string(api.InputSiteStatePath))
 
 	command := &CmdSiteDelete{Flags: &common.CommandSiteDeleteFlags{}}
-	command.namespace = "test"
+	command.namespace = "test2"
 	command.siteHandler = fs.NewSiteHandler(command.namespace)
-	command.listenerHandler = fs.NewListenerHandler(command.namespace)
-	command.connectorHandler = fs.NewConnectorHandler(command.namespace)
 	command.routerAccessHandler = fs.NewRouterAccessHandler(command.namespace)
+	listenerHandler := fs.NewListenerHandler(command.namespace)
+	connectorHandler := fs.NewConnectorHandler(command.namespace)
 
 	content, err := command.siteHandler.EncodeToYaml(siteResource)
 	assert.Check(t, err == nil)
@@ -195,17 +207,17 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 	assert.Check(t, err == nil)
 	defer command.siteHandler.Delete("my-site")
 
-	content, err = command.listenerHandler.EncodeToYaml(listenerResource)
+	content, err = listenerHandler.EncodeToYaml(listenerResource)
 	assert.Check(t, err == nil)
-	err = command.listenerHandler.WriteFile(path, "my-listener.yaml", content, common.Listeners)
+	err = listenerHandler.WriteFile(path, "my-listener.yaml", content, common.Listeners)
 	assert.Check(t, err == nil)
-	defer command.listenerHandler.Delete("my-listener")
+	defer listenerHandler.Delete("my-listener")
 
-	content, err = command.connectorHandler.EncodeToYaml(connectorResource)
+	content, err = connectorHandler.EncodeToYaml(connectorResource)
 	assert.Check(t, err == nil)
-	err = command.connectorHandler.WriteFile(path, "my-connector.yaml", content, common.Connectors)
+	err = connectorHandler.WriteFile(path, "my-connector.yaml", content, common.Connectors)
 	assert.Check(t, err == nil)
-	defer command.connectorHandler.Delete("my-connector")
+	defer connectorHandler.Delete("my-connector")
 
 	for _, test := range testTable {
 
@@ -227,14 +239,14 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 					opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
 					site, _ := command.siteHandler.Get(command.siteName, opts)
 					assert.Check(t, site == nil)
-					listeners, _ := command.listenerHandler.List()
+					listeners, _ := listenerHandler.List()
 					for _, listener := range listeners {
-						resource, _ := command.listenerHandler.Get(listener.Name, opts)
+						resource, _ := listenerHandler.Get(listener.Name, opts)
 						assert.Check(t, resource == nil)
 					}
-					connectors, _ := command.connectorHandler.List()
+					connectors, _ := connectorHandler.List()
 					for _, connector := range connectors {
-						resource, _ := command.connectorHandler.Get(connector.Name, opts)
+						resource, _ := connectorHandler.Get(connector.Name, opts)
 						assert.Check(t, resource == nil)
 					}
 				}

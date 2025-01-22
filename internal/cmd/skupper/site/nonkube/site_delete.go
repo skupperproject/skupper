@@ -13,8 +13,6 @@ import (
 type CmdSiteDelete struct {
 	siteHandler         *fs.SiteHandler
 	routerAccessHandler *fs.RouterAccessHandler
-	listenerHandler     *fs.ListenerHandler
-	connectorHandler    *fs.ConnectorHandler
 	CobraCmd            *cobra.Command
 	namespace           string
 	siteName            string
@@ -33,8 +31,6 @@ func (cmd *CmdSiteDelete) NewClient(cobraCommand *cobra.Command, args []string) 
 
 	cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
 	cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.namespace)
-	cmd.listenerHandler = fs.NewListenerHandler(cmd.namespace)
-	cmd.connectorHandler = fs.NewConnectorHandler(cmd.namespace)
 }
 
 func (cmd *CmdSiteDelete) ValidateInput(args []string) error {
@@ -51,18 +47,20 @@ func (cmd *CmdSiteDelete) ValidateInput(args []string) error {
 	}
 
 	// Validate arguments name
-	if len(args) < 1 {
-		validationErrors = append(validationErrors, fmt.Errorf("site name must be specified"))
-	} else if len(args) > 1 {
-		validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
-	} else if args[0] == "" {
-		validationErrors = append(validationErrors, fmt.Errorf("site name must not be empty"))
-	} else {
-		ok, err := resourceStringValidator.Evaluate(args[0])
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("site name is not valid: %s", err))
+	if cmd.Flags.All == false {
+		if len(args) < 1 {
+			validationErrors = append(validationErrors, fmt.Errorf("site name must be specified"))
+		} else if len(args) > 1 {
+			validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
+		} else if args[0] == "" {
+			validationErrors = append(validationErrors, fmt.Errorf("site name must not be empty"))
 		} else {
-			cmd.siteName = args[0]
+			ok, err := resourceStringValidator.Evaluate(args[0])
+			if !ok {
+				validationErrors = append(validationErrors, fmt.Errorf("site name is not valid: %s", err))
+			} else {
+				cmd.siteName = args[0]
+			}
 		}
 	}
 
@@ -84,34 +82,21 @@ func (cmd *CmdSiteDelete) InputToOptions() {
 }
 
 func (cmd *CmdSiteDelete) Run() error {
-	err := cmd.siteHandler.Delete(cmd.siteName)
-	if err != nil {
-		return err
-	}
-	err = cmd.routerAccessHandler.Delete("router-access-" + cmd.siteName)
-	if err != nil {
-		return err
-	}
-	// if delete all, also remove all the other resources
+	// if all flag is set remove input/resources and its contents
 	if cmd.all {
-		listeners, err := cmd.listenerHandler.List()
-		if listeners != nil && err == nil {
-			for _, listener := range listeners {
-				fmt.Println("delete listener", listener.Name)
-				err = cmd.listenerHandler.Delete(listener.Name)
-				if err != nil {
-					return err
-				}
-			}
+		err := cmd.siteHandler.Delete("")
+		if err != nil {
+			return err
 		}
-		connectors, err := cmd.connectorHandler.List()
-		if connectors != nil && err == nil {
-			for _, connector := range connectors {
-				err = cmd.connectorHandler.Delete(connector.Name)
-				if err != nil {
-					return err
-				}
-			}
+	} else {
+		// just removing site
+		err := cmd.siteHandler.Delete(cmd.siteName)
+		if err != nil {
+			return err
+		}
+		err = cmd.routerAccessHandler.Delete("router-access-" + cmd.siteName)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

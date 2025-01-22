@@ -86,9 +86,6 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) error {
 		site, err := cmd.siteHandler.Get(cmd.siteName, opts)
 		if site == nil || err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("site %s must exist to be updated", cmd.siteName))
-		} else {
-			// save existing values
-
 		}
 
 		routerAccessName := "router-access-" + cmd.siteName

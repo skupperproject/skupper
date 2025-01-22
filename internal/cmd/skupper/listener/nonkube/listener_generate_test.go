@@ -271,7 +271,6 @@ func TestNonKubeCmdListenerGenerate_Run(t *testing.T) {
 		command.listenerType = test.listenerType
 		command.namespace = "test"
 		command.listenerHandler = fs.NewListenerHandler(command.namespace)
-		defer command.listenerHandler.Delete("test1")
 		t.Run(test.name, func(t *testing.T) {
 
 			err := command.Run()
