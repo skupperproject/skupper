@@ -86,8 +86,8 @@ func NewProcessPairProvider(graph collector.Graph) func(collector.ProcPairRecord
 		return out
 	}
 }
-func NewProcessGroupPairSliceProvider() func(entries []store.Entry) []api.FlowAggregateRecord {
-	provider := NewProcessGroupPairProvider()
+func NewComponentPairSliceProvider() func(entries []store.Entry) []api.FlowAggregateRecord {
+	provider := NewComponentPairProvider()
 	return func(entries []store.Entry) []api.FlowAggregateRecord {
 		results := make([]api.FlowAggregateRecord, 0, len(entries))
 		for _, e := range entries {
@@ -100,7 +100,7 @@ func NewProcessGroupPairSliceProvider() func(entries []store.Entry) []api.FlowAg
 		return results
 	}
 }
-func NewProcessGroupPairProvider() func(collector.ProcGroupPairRecord) api.FlowAggregateRecord {
+func NewComponentPairProvider() func(collector.ProcGroupPairRecord) api.FlowAggregateRecord {
 	return func(record collector.ProcGroupPairRecord) api.FlowAggregateRecord {
 		out := defaultFlowAggregate(record.ID)
 		out.StartTime = uint64(record.Start.UnixMicro())
@@ -229,10 +229,10 @@ func defaultConnector(id string) api.ConnectorRecord {
 	}
 }
 
-func NewProcessGroupSliceProvider(stor store.Interface) func(entries []store.Entry) []api.ProcessGroupRecord {
-	provider := NewProcessGroupProvider(stor)
-	return func(entries []store.Entry) []api.ProcessGroupRecord {
-		results := make([]api.ProcessGroupRecord, 0, len(entries))
+func NewComponentSliceProvider(stor store.Interface) func(entries []store.Entry) []api.ComponentRecord {
+	provider := NewComponentProvider(stor)
+	return func(entries []store.Entry) []api.ComponentRecord {
+		results := make([]api.ComponentRecord, 0, len(entries))
 		for _, e := range entries {
 			link, ok := e.Record.(collector.ProcessGroupRecord)
 			if !ok {
@@ -244,11 +244,11 @@ func NewProcessGroupSliceProvider(stor store.Interface) func(entries []store.Ent
 	}
 }
 
-func NewProcessGroupProvider(stor store.Interface) func(collector.ProcessGroupRecord) api.ProcessGroupRecord {
+func NewComponentProvider(stor store.Interface) func(collector.ProcessGroupRecord) api.ComponentRecord {
 	// todo(ck) not v efficient
 	allProcesses := stor.Index(store.TypeIndex, store.Entry{Record: vanflow.ProcessRecord{}})
-	return func(record collector.ProcessGroupRecord) api.ProcessGroupRecord {
-		group := defaultProcessGroup(record.ID)
+	return func(record collector.ProcessGroupRecord) api.ComponentRecord {
+		group := defaultComponent(record.ID)
 		group.StartTime = uint64(record.Start.UnixMicro())
 		group.Name = record.Name
 		var (
@@ -263,17 +263,17 @@ func NewProcessGroupProvider(stor store.Interface) func(collector.ProcessGroupRe
 				}
 			}
 		}
-		group.ProcessGroupRole = role
+		group.Role = role
 		group.ProcessCount = pCount
 		return group
 	}
 }
 
-func defaultProcessGroup(id string) api.ProcessGroupRecord {
-	return api.ProcessGroupRecord{
-		Identity:         id,
-		Name:             unknownStr,
-		ProcessGroupRole: string(api.External),
+func defaultComponent(id string) api.ComponentRecord {
+	return api.ComponentRecord{
+		Identity: id,
+		Name:     unknownStr,
+		Role:     string(api.External),
 	}
 }
 
@@ -316,19 +316,19 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 			mode := *record.Mode
 			switch {
 			case strings.EqualFold(mode, "internal"):
-				out.ProcessRole = api.Internal
+				out.Role = api.Internal
 			case strings.EqualFold(mode, "remote"):
-				out.ProcessRole = api.Remote
+				out.Role = api.Remote
 			}
 		}
 
-		setOpt(&out.GroupName, record.Group)
+		setOpt(&out.ComponentName, record.Group)
 		if record.Group != nil {
 			group := *record.Group
 			groups := stor.Index(collector.IndexByTypeName, store.Entry{Record: collector.ProcessGroupRecord{Name: group}})
 			if len(groups) > 0 {
 				gid := groups[0].Record.Identity()
-				out.GroupIdentity = gid
+				out.ComponentId = gid
 			}
 		}
 
@@ -372,11 +372,11 @@ func defaultProcess(id string) api.ProcessRecord {
 		Name:           unknownStr,
 		Parent:         unknownStr,
 		ParentName:     unknownStr,
-		GroupIdentity:  unknownStr,
-		GroupName:      unknownStr,
+		ComponentId:    unknownStr,
+		ComponentName:  unknownStr,
 		SourceHost:     unknownStr,
 		ProcessBinding: api.Unbound,
-		ProcessRole:    api.External,
+		Role:           api.External,
 	}
 }
 func RouterAccessList(entries []store.Entry) []api.RouterAccessRecord {
