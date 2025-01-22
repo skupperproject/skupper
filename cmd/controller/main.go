@@ -68,6 +68,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Error getting van client ", err.Error())
 	}
+	config.Namespace = cli.Namespace
 
 	controller, err := controller.NewController(cli, config)
 	if err != nil {
