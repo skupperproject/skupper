@@ -26,7 +26,7 @@ func TestCmdSiteFactory(t *testing.T) {
 				common.FlagNameLinkAccessType:          "",
 				common.FlagNameServiceAccount:          "",
 				common.FlagNameOutput:                  "",
-				common.FlagNameTimeout:                 "30s",
+				common.FlagNameTimeout:                 "3m0s",
 				common.FlagNameBindHost:                "0.0.0.0",
 				common.FlagNameSubjectAlternativeNames: "[]",
 				common.FlagNameWait:                    "ready",
