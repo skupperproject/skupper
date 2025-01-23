@@ -9,8 +9,8 @@ import (
 	"github.com/skupperproject/skupper-libpod/v4/client/networks_compat"
 	"github.com/skupperproject/skupper-libpod/v4/models"
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/container"
-	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 func (c *CompatClient) NetworkList() ([]*container.Network, error) {

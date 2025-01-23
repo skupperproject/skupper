@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/cleanhttp"
-	"github.com/skupperproject/skupper/pkg/utils"
 	"github.com/spf13/cobra"
 )
 

@@ -15,9 +15,9 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/skupperproject/skupper-libpod/v4/client/containers_compat"
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/internal/images"
+	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/container"
-	"github.com/skupperproject/skupper/pkg/images"
-	"github.com/skupperproject/skupper/pkg/utils"
 	"gotest.tools/v3/assert"
 	"k8s.io/apimachinery/pkg/util/rand"
 )

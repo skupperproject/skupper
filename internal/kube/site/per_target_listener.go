@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/skupperproject/skupper/internal/qdr"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
 type PerTargetListener struct {

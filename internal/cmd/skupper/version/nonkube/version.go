@@ -7,11 +7,11 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/images"
 	"github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/utils/configs"
+	"github.com/skupperproject/skupper/internal/utils/validator"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/images"
-	"github.com/skupperproject/skupper/pkg/utils/configs"
-	"github.com/skupperproject/skupper/pkg/utils/validator"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 )

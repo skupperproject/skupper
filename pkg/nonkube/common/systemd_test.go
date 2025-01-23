@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
-	"github.com/skupperproject/skupper/pkg/utils"
 	"gotest.tools/v3/assert"
 )
 

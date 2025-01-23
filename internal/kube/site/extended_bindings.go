@@ -5,9 +5,9 @@ import (
 	"log/slog"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/qdr"
+	"github.com/skupperproject/skupper/internal/site"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/qdr"
-	"github.com/skupperproject/skupper/pkg/site"
 )
 
 type ExtendedBindings struct {

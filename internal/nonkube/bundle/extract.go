@@ -9,8 +9,8 @@ import (
 	"text/template"
 
 	"github.com/skupperproject/skupper/internal/utils"
-	pkgutils "github.com/skupperproject/skupper/pkg/utils"
-	"github.com/skupperproject/skupper/pkg/version"
+	pkgutils "github.com/skupperproject/skupper/internal/utils"
+	"github.com/skupperproject/skupper/internal/version"
 )
 
 type SelfExtractingBundle struct {

@@ -21,9 +21,9 @@ import (
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/collector"
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/flowlog"
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/server"
+	"github.com/skupperproject/skupper/internal/version"
 	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/session"
-	"github.com/skupperproject/skupper/pkg/version"
 )
 
 func run(cfg Config) error {

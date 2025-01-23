@@ -11,7 +11,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/skupperproject/skupper/pkg/utils/tlscfg"
+	"github.com/skupperproject/skupper/internal/utils/tlscfg"
 )
 
 type Server struct {

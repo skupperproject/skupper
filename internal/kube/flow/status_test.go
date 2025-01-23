@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/skupperproject/skupper/pkg/network"
+	"github.com/skupperproject/skupper/internal/network"
 	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/eventsource"
 	"github.com/skupperproject/skupper/pkg/vanflow/session"

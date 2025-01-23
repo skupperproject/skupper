@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/internal/images"
 	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
+	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/container"
-	"github.com/skupperproject/skupper/pkg/images"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"
-	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 type SiteStateRenderer struct {

@@ -18,10 +18,10 @@ import (
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	kubeqdr "github.com/skupperproject/skupper/internal/kube/qdr"
 	"github.com/skupperproject/skupper/internal/kube/site/resources"
+	"github.com/skupperproject/skupper/internal/qdr"
+	"github.com/skupperproject/skupper/internal/site"
+	"github.com/skupperproject/skupper/internal/version"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/qdr"
-	"github.com/skupperproject/skupper/pkg/site"
-	"github.com/skupperproject/skupper/pkg/version"
 )
 
 type SecuredAccessFactory interface {

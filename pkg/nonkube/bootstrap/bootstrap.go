@@ -8,13 +8,13 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	internalbundle "github.com/skupperproject/skupper/internal/nonkube/bundle"
+	"github.com/skupperproject/skupper/internal/utils"
 	internalutils "github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/bundle"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"
 	"github.com/skupperproject/skupper/pkg/nonkube/compat"
 	"github.com/skupperproject/skupper/pkg/nonkube/linux"
-	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 type Config struct {

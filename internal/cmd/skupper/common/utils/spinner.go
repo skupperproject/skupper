@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/briandowns/spinner"
-	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/internal/utils"
 )
 
 func NewSpinner(message string, maxRetries int, function func() error) error {

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/skupperproject/skupper/internal/network"
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
-	"github.com/skupperproject/skupper/pkg/network"
 
 	openshiftroute "github.com/openshift/client-go/route/clientset/versioned"
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"

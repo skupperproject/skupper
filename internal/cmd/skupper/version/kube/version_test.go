@@ -5,7 +5,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	"github.com/skupperproject/skupper/pkg/utils/configs"
+	"github.com/skupperproject/skupper/internal/utils/configs"
 	"gotest.tools/v3/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 )

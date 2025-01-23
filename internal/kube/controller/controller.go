@@ -18,8 +18,8 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/grants"
 	"github.com/skupperproject/skupper/internal/kube/securedaccess"
 	"github.com/skupperproject/skupper/internal/kube/site"
+	"github.com/skupperproject/skupper/internal/network"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/network"
 )
 
 type Controller struct {

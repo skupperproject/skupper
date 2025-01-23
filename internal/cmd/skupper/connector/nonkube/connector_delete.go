@@ -5,7 +5,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
-	"github.com/skupperproject/skupper/pkg/utils/validator"
+	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/spf13/cobra"
 )
 

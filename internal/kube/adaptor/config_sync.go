@@ -8,7 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	"github.com/skupperproject/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/internal/qdr"
 )
 
 // Syncs the live router config with the configmap (bridge configuration,

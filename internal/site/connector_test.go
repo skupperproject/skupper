@@ -3,19 +3,17 @@ package site
 import (
 	"testing"
 
+	"github.com/skupperproject/skupper/internal/qdr"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/qdr"
 	"gotest.tools/v3/assert"
-
-	//	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestUpdateBridgeConfigForListener(t *testing.T) {
+func TestUpdateBridgeConfigForConnector(t *testing.T) {
 	type args struct {
-		siteId   string
-		listener *skupperv2alpha1.Listener
-		config   qdr.BridgeConfig
+		siteId    string
+		connector *skupperv2alpha1.Connector
+		config    qdr.BridgeConfig
 	}
 	tests := []struct {
 		name               string
@@ -27,12 +25,12 @@ func TestUpdateBridgeConfigForListener(t *testing.T) {
 			name: "no spec type",
 			args: args{
 				siteId: "my-site-123",
-				listener: &skupperv2alpha1.Listener{
+				connector: &skupperv2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "echo",
 						Namespace: "test",
 					},
-					Spec: skupperv2alpha1.ListenerSpec{
+					Spec: skupperv2alpha1.ConnectorSpec{
 						RoutingKey: "echo:9090",
 						Host:       "10.10.10.1",
 						Port:       9090,
@@ -48,12 +46,12 @@ func TestUpdateBridgeConfigForListener(t *testing.T) {
 			name: "tcp spec type",
 			args: args{
 				siteId: "my-site-123",
-				listener: &skupperv2alpha1.Listener{
+				connector: &skupperv2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "echo",
 						Namespace: "test",
 					},
-					Spec: skupperv2alpha1.ListenerSpec{
+					Spec: skupperv2alpha1.ConnectorSpec{
 						RoutingKey: "echo:9090",
 						Host:       "10.10.10.1",
 						Port:       9090,
@@ -69,15 +67,15 @@ func TestUpdateBridgeConfigForListener(t *testing.T) {
 			name: "bad spec type",
 			args: args{
 				siteId: "my-site-123",
-				listener: &skupperv2alpha1.Listener{
+				connector: &skupperv2alpha1.Connector{
 					ObjectMeta: v1.ObjectMeta{
-						Name:      "echo",
+						Name:      "my-web",
 						Namespace: "test",
 					},
-					Spec: skupperv2alpha1.ListenerSpec{
-						RoutingKey: "echo:9090",
+					Spec: skupperv2alpha1.ConnectorSpec{
+						RoutingKey: "my-web:8080",
 						Host:       "10.10.10.1",
-						Port:       9090,
+						Port:       8080,
 						Type:       "sctp",
 					},
 				},
@@ -87,14 +85,13 @@ func TestUpdateBridgeConfigForListener(t *testing.T) {
 			expectedTcpDeleted: 0,
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			configToUpdate := qdr.NewBridgeConfigCopy(tt.args.config)
-			UpdateBridgeConfigForListener(tt.args.siteId, tt.args.listener, &configToUpdate)
+			UpdateBridgeConfigForConnector(tt.args.siteId, tt.args.connector, &configToUpdate)
 			result := tt.args.config.Difference(&configToUpdate)
-			assert.Assert(t, len(result.TcpListeners.Added) == tt.expectedTcpAdded)
-			assert.Assert(t, len(result.TcpListeners.Deleted) == tt.expectedTcpDeleted)
+			assert.Assert(t, len(result.TcpConnectors.Added) == tt.expectedTcpAdded)
+			assert.Assert(t, len(result.TcpConnectors.Deleted) == tt.expectedTcpDeleted)
 		})
 	}
 }

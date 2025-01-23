@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/skupperproject/skupper/pkg/images"
+	"github.com/skupperproject/skupper/internal/images"
 	"gotest.tools/v3/assert"
 )
 

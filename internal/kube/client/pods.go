@@ -22,7 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/internal/utils"
 )
 
 func IsPodReady(pod *corev1.Pod) bool {
