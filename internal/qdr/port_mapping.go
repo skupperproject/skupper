@@ -4,7 +4,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/skupperproject/skupper/pkg/ports"
+	"github.com/skupperproject/skupper/internal/ports"
 )
 
 type PortMapping struct {

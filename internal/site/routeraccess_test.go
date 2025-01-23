@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/skupperproject/skupper/internal/qdr"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/qdr"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/skupperproject/skupper/pkg/utils/tlscfg"
+	"github.com/skupperproject/skupper/internal/utils/tlscfg"
 )
 
 type Config struct {

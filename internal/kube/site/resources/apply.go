@@ -9,10 +9,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	skuppertypes "github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/internal/images"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/resource"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/images"
 )
 
 //go:embed skupper-router-deployment.yaml

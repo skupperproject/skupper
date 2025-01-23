@@ -7,7 +7,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 
-	"github.com/skupperproject/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/internal/qdr"
 )
 
 func UpdateRouterConfig(client kubernetes.Interface, name string, namespace string, ctxt context.Context, update qdr.ConfigUpdate) error {

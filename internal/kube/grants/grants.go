@@ -14,8 +14,8 @@ import (
 	kubetypes "k8s.io/apimachinery/pkg/types"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/utils"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 type GrantResponse func(namespace string, name string, subject string, writer io.Writer) error

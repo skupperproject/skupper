@@ -6,9 +6,9 @@ import (
 	"os"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/nonkube/common"
-	"github.com/skupperproject/skupper/pkg/utils"
 )
 
 type SiteStateRenderer struct {

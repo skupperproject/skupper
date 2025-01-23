@@ -18,7 +18,7 @@ import (
 	runtimeclient "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/utils"
+	"github.com/skupperproject/skupper/internal/utils"
 )
 
 const (

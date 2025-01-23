@@ -3,7 +3,7 @@ package configs
 import (
 	"os"
 
-	"github.com/skupperproject/skupper/pkg/images"
+	"github.com/skupperproject/skupper/internal/images"
 )
 
 type SkupperManifest struct {

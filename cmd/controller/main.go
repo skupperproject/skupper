@@ -12,7 +12,7 @@ import (
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/controller"
-	"github.com/skupperproject/skupper/pkg/version"
+	"github.com/skupperproject/skupper/internal/version"
 )
 
 func describe(i interface{}) {

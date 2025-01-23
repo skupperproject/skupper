@@ -6,7 +6,7 @@ import (
 
 	amqp "github.com/interconnectedcloud/go-amqp"
 
-	"github.com/skupperproject/skupper/pkg/messaging"
+	"github.com/skupperproject/skupper/internal/messaging"
 )
 
 type TlsConfigRetriever interface {

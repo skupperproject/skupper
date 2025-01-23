@@ -7,7 +7,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/skupperproject/skupper/pkg/network"
+	"github.com/skupperproject/skupper/internal/network"
 )
 
 type PlatformSupport struct {

@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/skupperproject/skupper/pkg/qdr"
+	"github.com/skupperproject/skupper/internal/qdr"
 )
 
 func InitialiseConfig(client kubernetes.Interface, namespace string, path string, routerConfigMap string) error {

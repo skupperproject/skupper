@@ -29,9 +29,9 @@ import (
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/internal/kube/resource"
+	"github.com/skupperproject/skupper/internal/network"
+	"github.com/skupperproject/skupper/internal/qdr"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"github.com/skupperproject/skupper/pkg/network"
-	"github.com/skupperproject/skupper/pkg/qdr"
 )
 
 type WaitFunction func(t *testing.T, clients internalclient.Clients) bool

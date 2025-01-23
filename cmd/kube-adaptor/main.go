@@ -15,7 +15,7 @@ import (
 	iflag "github.com/skupperproject/skupper/internal/flag"
 	"github.com/skupperproject/skupper/internal/kube/adaptor"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	"github.com/skupperproject/skupper/pkg/version"
+	"github.com/skupperproject/skupper/internal/version"
 )
 
 var onlyOneSignalHandler = make(chan struct{})
