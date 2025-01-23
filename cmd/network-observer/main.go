@@ -92,8 +92,8 @@ func run(cfg Config) error {
 			return fmt.Errorf("error parsing prometheus-api as URL: %s", err)
 		}
 		// add unspec'd api routes
-		apiMux.Path("/api/v2alpha1/user").Handler(handleNoContent())
-		apiMux.Path("/api/v2alpha1/logout").Handler(handleNoContent())
+		apiMux.Path("/api/v2alpha1/user").Handler(handleGetUser())
+		apiMux.Path("/api/v2alpha1/logout").Handler(handleUserLogout())
 		promSubrouter.Handler(handleProxyPrometheusAPI("/api/v2alpha1/internal/prom", promAPI))
 
 		apiMux.PathPrefix("/").Handler(handleConsoleAssets(cfg.ConsoleLocation))
