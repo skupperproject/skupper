@@ -53,7 +53,7 @@ There can be only one site definition per namespace.`,
 	cmd.Flags().StringVar(&cmdFlags.LinkAccessType, common.FlagNameLinkAccessType, "", common.FlagDescLinkAccessType)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	cmd.Flags().StringVar(&cmdFlags.ServiceAccount, common.FlagNameServiceAccount, "", common.FlagDescServiceAccount)
-	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 30*time.Second, common.FlagDescTimeout)
+	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 3*time.Minute, common.FlagDescTimeout)
 	cmd.Flags().StringVar(&cmdFlags.BindHost, common.FlagNameBindHost, "0.0.0.0", common.FlagDescBindHost)
 	cmd.Flags().StringSliceVar(&cmdFlags.SubjectAlternativeNames, common.FlagNameSubjectAlternativeNames, []string{}, common.FlagDescSubjectAlternativeNames)
 	cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "ready", common.FlagDescWait)
