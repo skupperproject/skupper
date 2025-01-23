@@ -1,0 +1,8 @@
+# Reference the base deployment
+resources:
+  - ../../base
+  - rbac.yaml
+
+# Add the patch
+patches:
+  - path: patch-add-env-var-watch-namespace.yaml

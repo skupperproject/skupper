@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skupper-controller
+spec:
+  selector:
+    matchLabels:
+      application: skupper-controller
+  template:
+    spec:
+      containers:
+        - name: controller
+          env:
+            - name: SKUPPER_KUBE_ADAPTOR_IMAGE
+              value: "quay.io/skupper/kube-adaptor:v2-latest"
+            - name: SKUPPER_KUBE_ADAPTOR_IMAGE_PULL_POLICY
+              value: Always
