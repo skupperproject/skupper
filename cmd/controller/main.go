@@ -8,8 +8,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/controller"
 	"github.com/skupperproject/skupper/internal/version"
@@ -55,7 +53,7 @@ func main() {
 		os.Exit(0)
 	}
 	log.Printf("Version: %s", version.Version)
-	if config.WatchNamespace == metav1.NamespaceAll {
+	if config.WatchingAllNamespaces() {
 		log.Println("Skupper controller watching all namespaces")
 	} else {
 		log.Println("Skupper controller watching namespace", config.WatchNamespace)

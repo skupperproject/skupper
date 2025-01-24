@@ -1,13 +1,16 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
+	"regexp"
 	"strings"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers/internalinterfaces"
@@ -23,6 +26,8 @@ import (
 )
 
 type Controller struct {
+	name                 string
+	requireAnnotation    bool
 	controller           *internalclient.Controller
 	stopCh               <-chan struct{}
 	siteWatcher          *internalclient.SiteWatcher
@@ -47,23 +52,36 @@ func skupperNetworkStatus() internalinterfaces.TweakListOptionsFunc {
 
 func NewController(cli internalclient.Clients, config *Config) (*Controller, error) {
 	controller := &Controller{
+		requireAnnotation:    config.sitesRequireAnnotation(),
 		controller:           internalclient.NewController("Controller", cli),
 		sites:                map[string]*site.Site{},
 		attachableConnectors: map[string]*skupperv2alpha1.AttachedConnector{},
 		log:                  slog.New(slog.Default().Handler()).With(slog.String("component", "kube.controller")),
 	}
 
-	podname := os.Getenv("HOSTNAME")
-	owner, err := controller.controller.GetDeploymentForPod(podname, config.Namespace)
+	hostname := os.Getenv("HOSTNAME")
+	owner, err := controller.getDeploymentForPod(hostname, config.Namespace)
 	controllerContext := securedaccess.ControllerContext{
 		Namespace: config.Namespace,
 	}
+	name := config.Name
 	if err != nil {
 		controller.log.Info("Could not deduce owning deployment, some resources may need to be manually deleted when controller is deleted", slog.Any("error", err))
+		if name == "" {
+			if hostname != "" {
+				name = hostname
+			} else {
+				name = "skupper-controller"
+			}
+		}
 	} else {
 		controllerContext.Name = owner.Name
 		controllerContext.UID = string(owner.UID)
+		if name == "" {
+			name = owner.Name
+		}
 	}
+	controller.name = config.Namespace + "/" + name
 
 	controller.siteWatcher = controller.controller.WatchSites(config.WatchNamespace, controller.checkSite)
 	controller.listenerWatcher = controller.controller.WatchListeners(config.WatchNamespace, controller.checkListener)
@@ -92,6 +110,27 @@ func NewController(cli internalclient.Clients, config *Config) (*Controller, err
 	return controller, nil
 }
 
+func (c *Controller) matches(site *skupperv2alpha1.Site) bool {
+	if desired := getControllerAnnotation(site); desired != "" {
+		return desired == c.name
+	}
+	return !c.requireAnnotation
+}
+
+func (c *Controller) getDeploymentForPod(podName string, namespace string) (*appsv1.Deployment, error) {
+	re := regexp.MustCompile(`^(\S+)\-[a-z0-9]{9,10}\-[a-z0-9]{5}$`)
+	matches := re.FindStringSubmatch(podName)
+	if len(matches) != 2 {
+		return nil, fmt.Errorf("Could not determine deployment name from %s", podName)
+	}
+	deploymentName := matches[1]
+	deployment, err := c.controller.GetKubeClient().AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve controller deployment for %s/%s: %s", namespace, deploymentName, err)
+	}
+	return deployment, nil
+}
+
 func (c *Controller) Run(stopCh <-chan struct{}) error {
 	if err := c.init(stopCh); err != nil {
 		return err
@@ -111,6 +150,9 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 	//TODO: need to recover active sites first
 	//recover existing sites & bindings
 	for _, site := range c.siteWatcher.List() {
+		if !c.matches(site) {
+			continue
+		}
 		c.log.Info("Recovering site",
 			slog.String("name", site.Name),
 			slog.String("namespace", site.Namespace),
@@ -149,6 +191,9 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		site.CheckRouterAccess(la.ObjectMeta.Name, la)
 	}
 	for _, site := range c.siteWatcher.List() {
+		if !c.matches(site) {
+			continue
+		}
 		err := c.getSite(site.ObjectMeta.Namespace).Reconcile(site)
 		if err != nil {
 			c.log.Error("Error recovering site",
@@ -191,6 +236,10 @@ func (c *Controller) getSite(namespace string) *site.Site {
 func (c *Controller) checkSite(key string, site *skupperv2alpha1.Site) error {
 	c.log.Debug("checkSite", slog.String("key", key))
 	if site != nil {
+		if !c.matches(site) {
+			return nil
+		}
+		c.log.Info("Ignoring site as it does not have required annotation", slog.String("key", key))
 		err := c.getSite(site.ObjectMeta.Namespace).Reconcile(site)
 		if err != nil {
 			c.log.Info("Error initialising site",
@@ -203,6 +252,7 @@ func (c *Controller) checkSite(key string, site *skupperv2alpha1.Site) error {
 		if err != nil {
 			return err
 		}
+		//TODO: need to check that this is the current active site
 		c.getSite(namespace).Deleted()
 		delete(c.sites, namespace)
 	}
@@ -389,4 +439,13 @@ func extractSiteRecords(status network.NetworkStatusInfo) []skupperv2alpha1.Site
 		records = append(records, record)
 	}
 	return records
+}
+
+func getControllerAnnotation(site *skupperv2alpha1.Site) string {
+	if len(site.ObjectMeta.Annotations) > 0 {
+		if value, ok := site.ObjectMeta.Annotations["skupper.io/controller"]; ok {
+			return value
+		}
+	}
+	return ""
 }

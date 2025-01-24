@@ -18,10 +18,8 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"regexp"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -147,20 +145,6 @@ func (c *Controller) GetRouteClient() routev1client.RouteV1Interface {
 
 func (c *Controller) GetSkupperClient() skupperclient.Interface {
 	return c.skupperClient
-}
-
-func (c *Controller) GetDeploymentForPod(podName string, namespace string) (*appsv1.Deployment, error) {
-	re := regexp.MustCompile(`^(\S+)\-[a-z0-9]{9,10}\-[a-z0-9]{5}$`)
-	matches := re.FindStringSubmatch(podName)
-	if len(matches) != 2 {
-		return nil, fmt.Errorf("Could not determine deployment name from %s", podName)
-	}
-	deploymentName := matches[1]
-	deployment, err := c.GetKubeClient().AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve controller deployment for %s/%s: %s", namespace, deploymentName, err)
-	}
-	return deployment, nil
 }
 
 func (c *Controller) AddEvent(o interface{}) {
