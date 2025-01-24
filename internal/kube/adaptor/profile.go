@@ -1,6 +1,7 @@
 package adaptor
 
 import (
+	"bytes"
 	"os"
 	paths "path"
 	"reflect"
@@ -48,27 +49,37 @@ type SslProfile struct {
 	secret *corev1.Secret
 }
 
-func (s *SslProfile) sync(secret *corev1.Secret) error {
+func (s *SslProfile) sync(secret *corev1.Secret) (error, bool) {
 	if s.secret != nil && reflect.DeepEqual(s.secret.Data, secret.Data) {
-		return nil
+		return nil, false
 	}
-	if err := writeSecretToPath(secret, s.path); err != nil {
-		return err
+	var wrote bool
+	var err error
+	if err, wrote = writeSecretToPath(secret, s.path); err != nil {
+		return err, wrote
 	}
 	s.secret = secret
-	return nil
+	return nil, wrote
 }
 
-func writeSecretToPath(secret *corev1.Secret, path string) error {
+func writeSecretToPath(secret *corev1.Secret, path string) (error, bool) {
+	wrote := false
 	if err := mkdir(path); err != nil {
-		return err
+		return err, false
 	}
 	for key, value := range secret.Data {
-		if err := os.WriteFile(paths.Join(path, key), value, 0777); err != nil {
-			return err
+		certFileName := paths.Join(path, key)
+		if content, err := os.ReadFile(certFileName); err == nil {
+			if bytes.Equal(content, value) {
+				continue
+			}
 		}
+		if err := os.WriteFile(certFileName, value, 0777); err != nil {
+			return err, wrote
+		}
+		wrote = true
 	}
-	return nil
+	return nil, wrote
 }
 
 func mkdir(path string) error {

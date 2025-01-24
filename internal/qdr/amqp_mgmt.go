@@ -367,6 +367,11 @@ func (a *Agent) Create(typename string, name string, attributes map[string]inter
 	return a.request("CREATE", typename, name, &attributes)
 }
 
+func (a *Agent) Update(typename string, name string, attributes map[string]interface{}) error {
+	log.Println("UPDATE", typename, name, attributes)
+	return a.request("UPDATE", typename, name, &attributes)
+}
+
 func (a *Agent) Delete(typename string, name string) error {
 	if name == "" {
 		return fmt.Errorf("Cannot delete entity of type %s with no name", typename)
@@ -1400,6 +1405,29 @@ func (a *Agent) CreateSslProfile(profile SslProfile) error {
 	}
 	if err := a.Create("io.skupper.router.sslProfile", profile.Name, record); err != nil {
 		return fmt.Errorf("Error adding SSL Profile: %s", err)
+	}
+
+	return nil
+}
+
+func (a *Agent) ReloadSslProfile(name string) error {
+
+	profile, err := a.GetSslProfileByName(name)
+	if err != nil {
+		return err
+	}
+
+	// A profile is expected to be returned
+	if profile == nil {
+		return fmt.Errorf("No SSL Profile with name %s found", name)
+	}
+
+	record := map[string]interface{}{}
+	if err := convert(profile, &record); err != nil {
+		return fmt.Errorf("Failed to convert record: %s", err)
+	}
+	if err := a.Update("io.skupper.router.sslProfile", profile.Name, record); err != nil {
+		return fmt.Errorf("Error updating SSL Profile: %s", err)
 	}
 
 	return nil

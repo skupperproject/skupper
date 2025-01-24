@@ -75,11 +75,19 @@ func (c *ConfigSync) sync(target *SslProfile) error {
 		log.Printf("CONFIG_SYNC: No secret %q cached", target.name)
 		return fmt.Errorf("No secret %q cached", target.name)
 	}
-	if err := target.sync(secret); err != nil {
+	var wrote bool
+	if err, wrote = target.sync(secret); err != nil {
 		log.Printf("CONFIG_SYNC: Error syncing secret %q: %s", target.name, err)
 		return err
 	}
 	log.Printf("CONFIG_SYNC: Secret %q synced", target.name)
+	if wrote {
+		if err := c.reloadSslProfileInRouter(target.name); err != nil {
+			log.Printf("CONFIG_SYNC: Error reloading SslProfile %q: %s", target.name, err)
+			return err
+		}
+		log.Printf("CONFIG_SYNC: SslProfile %q reloaded", target.name)
+	}
 	return nil
 }
 
@@ -92,11 +100,20 @@ func (c *ConfigSync) secretEvent(key string, secret *corev1.Secret) error {
 			log.Printf("CONFIG_SYNC: Secret %q already up to date", secret.Name)
 			return nil
 		}
-		if err := current.sync(secret); err != nil {
+		var err error
+		var wrote bool
+		if err, wrote = current.sync(secret); err != nil {
 			log.Printf("CONFIG_SYNC: Error syncing secret %q: %s", secret.Name, err)
 			return err
 		}
 		log.Printf("CONFIG_SYNC: Secret %q synced", secret.Name)
+		if wrote {
+			if err := c.reloadSslProfileInRouter(current.name); err != nil {
+				log.Printf("CONFIG_SYNC: Error reloading SslProfile %q: %s", current.name, err)
+				return err
+			}
+			log.Printf("CONFIG_SYNC: SslProfile %q reloaded", current.name)
+		}
 	} else {
 		log.Printf("CONFIG_SYNC: Secret %q not being tracked", secret.Name)
 	}
@@ -215,6 +232,14 @@ func syncListeners(agent *qdr.Agent, desired *qdr.RouterConfig) error {
 		}
 	}
 	return nil
+}
+
+func (c *ConfigSync) reloadSslProfileInRouter(sslProfileName string) error {
+	agent, err := c.agentPool.Get()
+	if err != nil {
+		return err
+	}
+	return agent.ReloadSslProfile(sslProfileName)
 }
 
 func (c *ConfigSync) syncSslProfilesToRouter(desired map[string]qdr.SslProfile) error {
