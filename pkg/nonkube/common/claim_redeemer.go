@@ -83,9 +83,11 @@ func redeemAccessToken(claim *skupperv2alpha1.AccessToken, siteState *api.SiteSt
 	}
 
 	siteState.Secrets[decoder.secret.ObjectMeta.Name] = &decoder.secret
+	decoder.secret.ObjectMeta.Namespace = siteState.GetNamespace()
 
 	for _, link := range decoder.links {
 		siteState.Links[link.ObjectMeta.Name] = &link
+		link.ObjectMeta.Namespace = siteState.GetNamespace()
 	}
 
 	return nil
