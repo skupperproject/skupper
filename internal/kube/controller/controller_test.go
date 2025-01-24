@@ -69,6 +69,31 @@ func TestGeneral(t *testing.T) {
 			},
 		},
 		{
+			name: "ignored site",
+			skupperObjects: []runtime.Object{
+				f.annotateForController(f.site("mysite", "test", "", false, false), "foo/bar"),
+			},
+			expectedSiteStatuses: []*skupperv2alpha1.Site{
+				f.siteStatus("mysite", "test", "", ""),
+			},
+		},
+		{
+			name: "explicitly matched site",
+			env: map[string]string{
+				"NAMESPACE": "foo",
+				"CONTROLLER_NAME": "bar",
+			},
+			skupperObjects: []runtime.Object{
+				f.annotateForController(f.site("mysite", "test", "", false, false), "foo/bar"),
+			},
+			expectedSiteStatuses: []*skupperv2alpha1.Site{
+				f.siteStatus("mysite", "test", skupperv2alpha1.StatusPending, "Not Running", f.condition(skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionTrue, "Ready", "OK")),
+			},
+			expectedDynamicResources: map[schema.GroupVersionResource]*unstructured.Unstructured{
+				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
+			},
+		},
+		{
 			name: "site with running router pods",
 			k8sObjects: []runtime.Object{
 				f.pod("skupper-router-1", "test", map[string]string{"skupper.io/component": "router", "skupper.io/type": "site"}, nil,
@@ -593,6 +618,14 @@ func (*factory) site(name string, namespace string, linkAccess string, ha bool, 
 			Edge:       edge,
 		},
 	}
+}
+
+func (*factory) annotateForController(site *skupperv2alpha1.Site, controller string) *skupperv2alpha1.Site {
+	if site.ObjectMeta.Annotations == nil {
+		site.ObjectMeta.Annotations = map[string]string{}
+	}
+	site.ObjectMeta.Annotations["skupper.io/controller"] = controller
+	return site
 }
 
 func (*factory) listener(name string, namespace string, host string, port int) *skupperv2alpha1.Listener {
