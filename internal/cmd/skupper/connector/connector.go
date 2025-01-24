@@ -49,25 +49,19 @@ skupper connector create backend 8080 --workload deployment/backend`,
 	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
-	cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReadyPods, common.FlagNameIncludeNotReadyPods, "i", false, common.FlagDescIncludeNotRead)
-	cmd.Flags().StringVarP(&cmdFlags.Selector, common.FlagNameSelector, "s", "", common.FlagDescSelector)
-	cmd.Flags().StringVarP(&cmdFlags.Workload, common.FlagNameWorkload, "w", "", common.FlagDescWorkload)
-	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
-	cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "configured", common.FlagDescWait)
+	if configuredPlatform == types.PlatformKubernetes {
+		cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReadyPods, common.FlagNameIncludeNotReadyPods, "i", false, common.FlagDescIncludeNotRead)
+		cmd.Flags().StringVarP(&cmdFlags.Selector, common.FlagNameSelector, "s", "", common.FlagDescSelector)
+		cmd.Flags().StringVarP(&cmdFlags.Workload, common.FlagNameWorkload, "w", "", common.FlagDescWorkload)
+		cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
+		cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "configured", common.FlagDescWait)
+	}
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
-
-	if configuredPlatform != types.PlatformKubernetes {
-		cmd.Flags().MarkHidden(common.FlagNameIncludeNotReadyPods)
-		cmd.Flags().MarkHidden(common.FlagNameSelector)
-		cmd.Flags().MarkHidden(common.FlagNameWorkload)
-		cmd.Flags().MarkHidden(common.FlagNameTimeout)
-		cmd.Flags().MarkHidden(common.FlagNameWait)
-	}
 
 	return cmd
 }
@@ -116,26 +110,20 @@ func CmdConnectorUpdateFactory(configuredPlatform types.Platform) *cobra.Command
 	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
-	cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReadyPods, common.FlagNameIncludeNotReadyPods, "i", false, common.FlagDescIncludeNotRead)
-	cmd.Flags().StringVarP(&cmdFlags.Selector, common.FlagNameSelector, "s", "", common.FlagDescSelector)
-	cmd.Flags().StringVarP(&cmdFlags.Workload, common.FlagNameWorkload, "w", "", common.FlagDescWorkload)
-	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	cmd.Flags().IntVar(&cmdFlags.Port, common.FlagNameConnectorPort, 0, common.FlagDescConnectorPort)
-	cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "configured", common.FlagDescWait)
+	if configuredPlatform == types.PlatformKubernetes {
+		cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReadyPods, common.FlagNameIncludeNotReadyPods, "i", false, common.FlagDescIncludeNotRead)
+		cmd.Flags().StringVarP(&cmdFlags.Selector, common.FlagNameSelector, "s", "", common.FlagDescSelector)
+		cmd.Flags().StringVarP(&cmdFlags.Workload, common.FlagNameWorkload, "w", "", common.FlagDescWorkload)
+		cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
+		cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "configured", common.FlagDescWait)
+	}
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
-
-	if configuredPlatform != types.PlatformKubernetes {
-		cmd.Flags().MarkHidden(common.FlagNameIncludeNotReadyPods)
-		cmd.Flags().MarkHidden(common.FlagNameSelector)
-		cmd.Flags().MarkHidden(common.FlagNameWorkload)
-		cmd.Flags().MarkHidden(common.FlagNameTimeout)
-		cmd.Flags().MarkHidden(common.FlagNameWait)
-	}
 
 	return cmd
 }

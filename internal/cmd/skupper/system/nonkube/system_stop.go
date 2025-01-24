@@ -2,6 +2,7 @@ package nonkube
 
 import (
 	"fmt"
+
 	"github.com/skupperproject/skupper/pkg/nonkube/bootstrap"
 	"github.com/spf13/cobra"
 )
@@ -9,7 +10,6 @@ import (
 type CmdSystemStop struct {
 	CobraCmd   *cobra.Command
 	Namespace  string
-	Platform   string
 	SystemStop func(service string) error
 }
 
@@ -23,7 +23,6 @@ func NewCmdSystemStop() *CmdSystemStop {
 func (cmd *CmdSystemStop) NewClient(cobraCommand *cobra.Command, args []string) {
 	cmd.SystemStop = bootstrap.Stop
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
-	cmd.Platform = cobraCommand.Flag("platform").Value.String()
 }
 
 func (cmd *CmdSystemStop) ValidateInput(args []string) []error {

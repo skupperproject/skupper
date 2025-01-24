@@ -2,6 +2,7 @@ package nonkube
 
 import (
 	"fmt"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
@@ -15,7 +16,6 @@ type CmdSystemReload struct {
 	PreCheck        func(config *bootstrap.Config) error
 	Bootstrap       func(config *bootstrap.Config) (*api.SiteState, error)
 	PostExec        func(config *bootstrap.Config, siteState *api.SiteState)
-	Platform        string
 	ConfigBootstrap bootstrap.Config
 }
 
@@ -31,7 +31,6 @@ func (cmd *CmdSystemReload) NewClient(cobraCommand *cobra.Command, args []string
 	cmd.PreCheck = bootstrap.PreBootstrap
 	cmd.PostExec = bootstrap.PostBootstrap
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
-	cmd.Platform = cobraCommand.Flag("platform").Value.String()
 }
 
 func (cmd *CmdSystemReload) ValidateInput(args []string) []error {
@@ -52,10 +51,6 @@ func (cmd *CmdSystemReload) InputToOptions() {
 	var binary string
 
 	selectedPlatform := config.GetPlatform()
-
-	if cmd.Platform != "" {
-		selectedPlatform = types.Platform(cmd.Platform)
-	}
 
 	switch selectedPlatform {
 	case types.PlatformLinux:
