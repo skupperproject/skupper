@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"io/fs"
 	"net/http"
 	"net/http/httputil"
@@ -51,4 +53,42 @@ func handleProxyPrometheusAPI(prefix string, target *url.URL) http.Handler {
 			}
 		}),
 	)
+}
+
+func handleGetUser() http.Handler {
+	type UserResponse struct {
+		Username string `json:"username"`
+		AuthMode string `json:"authType"`
+	}
+	handleEmpty := handleNoContent()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var response UserResponse
+		if cookie, err := r.Cookie("_oauth_proxy"); err == nil && cookie != nil {
+			if cookieDecoded, _ := base64.StdEncoding.DecodeString(cookie.Value); cookieDecoded != nil {
+				response.Username = string(cookieDecoded)
+				response.AuthMode = "openshift"
+				json.NewEncoder(w).Encode(response)
+				return
+			}
+		}
+		handleEmpty.ServeHTTP(w, r)
+	})
+}
+
+func handleUserLogout() http.Handler {
+	handleEmpty := handleNoContent()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// when an oauth proxy cookie is present, delete it
+		if cookie, err := r.Cookie("_oauth_proxy"); err == nil && cookie != nil {
+			cookie := http.Cookie{
+				Name:   "_oauth_proxy", // openshift cookie name
+				Path:   "/",
+				MaxAge: -1,
+				Domain: r.Host,
+			}
+			http.SetCookie(w, &cookie)
+			return
+		}
+		handleEmpty.ServeHTTP(w, r)
+	})
 }
