@@ -96,7 +96,8 @@ func IsValidFor(actual string, minimum string) bool {
 	}
 	va := ParseVersion(actual)
 	vb := ParseVersion(minimum)
-	return va.IsUndefined() || !va.LessRecentThan(vb)
+	isModified := strings.Contains(va.Qualifier, "-modified")
+	return isModified || va.IsUndefined() || !va.LessRecentThan(vb)
 }
 
 func GetVersionTag(imageDescriptor string) string {
