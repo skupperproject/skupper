@@ -59,7 +59,7 @@ func TestSites(t *testing.T) {
 				assert.Equal(t, results[0].Identity, "site-2")
 				assert.Equal(t, results[0].RouterCount, 3)
 			},
-			Parameters: map[string][]string{"nameSpace": {"testns"}},
+			Parameters: map[string][]string{"namespace": {"testns"}},
 		},
 		{
 			Parameters:  map[string][]string{"fizz": {"baz", "buz"}},
@@ -118,10 +118,10 @@ func TestSiteByID(t *testing.T) {
 			ExpectOK: true,
 			ExpectResult: func(t *testing.T, results api.SiteRecord) {
 				assert.DeepEqual(t, results, api.SiteRecord{
-					Identity:    "site-1",
-					Name:        "unknown",
-					Platform:    "unknown",
-					SiteVersion: "unknown",
+					Identity: "site-1",
+					Name:     "unknown",
+					Platform: "unknown",
+					Version:  "unknown",
 				})
 			},
 		},

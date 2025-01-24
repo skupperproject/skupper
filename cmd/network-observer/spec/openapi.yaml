@@ -793,8 +793,8 @@ components:
             - provider
             - platform
             - name
-            - nameSpace
-            - siteVersion
+            - namespace
+            - version
             - policy
             - routerCount
           properties:
@@ -805,10 +805,10 @@ components:
               $ref: '#/components/schemas/sitePlatformType'
             name:
               type: string
-            nameSpace:
+            namespace:
               type: string
               nullable: true
-            siteVersion:
+            version:
               type: string
               description: The current skupper version installed. Can be any string or 'unknown'
             routerCount:
@@ -827,7 +827,7 @@ components:
               - sourceHost
               - hostName
               - role
-              - processBinding
+              - binding
               - services
           properties:
             name:
@@ -859,7 +859,7 @@ components:
                 - external
                 - remote
               description: Internal processes are processes related to Skupper. Remote processes are processes indirectly connected, such as a proxy
-            processBinding:
+            binding:
               $ref: '#/components/schemas/processBindingType'
             services:
               type: array
@@ -1071,8 +1071,8 @@ components:
             - cost
             - role
             - status
-            - octets
-            - octetsReverse
+            - octetCount
+            - octetReverseCount
             - sourceSiteId
             - sourceSiteName
             - destinationSiteId
@@ -1096,10 +1096,10 @@ components:
               $ref: '#/components/schemas/linkRoleType'
             status:
               $ref: '#/components/schemas/operStatusType'
-            octets:
+            octetCount:
               type: integer
               format: uint64
-            octetsReverse:
+            octetReverseCount:
               type: integer
               format: uint64
             routerAccessId:
@@ -1172,8 +1172,8 @@ components:
             - destPort
             - proxyHost
             - proxyPort
-            - octets
-            - octetsReverse
+            - octetCount
+            - octetReverseCount
             - latency
             - latencyReverse
             - listenerError
@@ -1231,10 +1231,10 @@ components:
               type: string
             proxyPort:
               type: string
-            octets:
+            octetCount:
               type: integer
               format: uint64
-            octetsReverse:
+            octetReverseCount:
               type: integer
               format: uint64
             latency:
@@ -1280,8 +1280,8 @@ components:
             - status
             - traceRouters
             - traceSites
-            - octets
-            - octetsReverse
+            - octetCount
+            - octetReverseCount
           properties:
             connectionId:
               type: string
@@ -1316,10 +1316,10 @@ components:
             status:
               type: string
               example: 200
-            octets:
+            octetCount:
               type: integer
               format: uint64
-            octetsReverse:
+            octetReverseCount:
               type: integer
               format: uint64
             traceRouters:

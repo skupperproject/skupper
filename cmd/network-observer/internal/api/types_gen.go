@@ -73,8 +73,8 @@ type ApplicationFlowRecord struct {
 	// Identity The unique identifier for the record.
 	Identity          string `json:"identity"`
 	Method            string `json:"method"`
-	Octets            uint64 `json:"octets"`
-	OctetsReverse     uint64 `json:"octetsReverse"`
+	OctetCount        uint64 `json:"octetCount"`
+	OctetReverseCount uint64 `json:"octetReverseCount"`
 	Protocol          string `json:"protocol"`
 	RoutingKey        string `json:"routingKey"`
 	SourceProcessId   string `json:"sourceProcessId"`
@@ -165,8 +165,8 @@ type ConnectionRecord struct {
 	LatencyReverse    uint64  `json:"latencyReverse"`
 	ListenerError     *string `json:"listenerError"`
 	ListenerId        string  `json:"listenerId"`
-	Octets            uint64  `json:"octets"`
-	OctetsReverse     uint64  `json:"octetsReverse"`
+	OctetCount        uint64  `json:"octetCount"`
+	OctetReverseCount uint64  `json:"octetReverseCount"`
 	ProcessPairId     *string `json:"processPairId"`
 	Protocol          string  `json:"protocol"`
 	ProxyHost         string  `json:"proxyHost"`
@@ -323,6 +323,9 @@ type ProcessListResponse struct {
 
 // ProcessRecord defines model for ProcessRecord.
 type ProcessRecord struct {
+	// Binding Indicates whether a process is exposed or not in a skupper network
+	Binding ProcessBindingType `json:"binding"`
+
 	// ComponentId Id of the component associated to the process. this is a parent of the process
 	ComponentId   string `json:"componentId"`
 	ComponentName string `json:"componentName"`
@@ -341,9 +344,6 @@ type ProcessRecord struct {
 	// Parent Id of the site associated to the process. this is a parent of the process
 	Parent     string `json:"parent"`
 	ParentName string `json:"parentName"`
-
-	// ProcessBinding Indicates whether a process is exposed or not in a skupper network
-	ProcessBinding ProcessBindingType `json:"processBinding"`
 
 	// Role Internal processes are processes related to Skupper. Remote processes are processes indirectly connected, such as a proxy
 	Role     ProcessRecordRole        `json:"role"`
@@ -426,10 +426,10 @@ type RouterLinkRecord struct {
 	EndTime uint64 `json:"endTime"`
 
 	// Identity The unique identifier for the record.
-	Identity      string `json:"identity"`
-	Name          string `json:"name"`
-	Octets        uint64 `json:"octets"`
-	OctetsReverse uint64 `json:"octetsReverse"`
+	Identity          string `json:"identity"`
+	Name              string `json:"name"`
+	OctetCount        uint64 `json:"octetCount"`
+	OctetReverseCount uint64 `json:"octetReverseCount"`
 
 	// Role The class of skupper link
 	Role LinkRoleType `json:"role"`
@@ -546,7 +546,7 @@ type SiteRecord struct {
 	// Identity The unique identifier for the record.
 	Identity  string  `json:"identity"`
 	Name      string  `json:"name"`
-	NameSpace *string `json:"nameSpace"`
+	Namespace *string `json:"namespace"`
 
 	// Platform The platform used for the site.
 	Platform SitePlatformType `json:"platform"`
@@ -555,11 +555,11 @@ type SiteRecord struct {
 	Provider    string `json:"provider"`
 	RouterCount int    `json:"routerCount"`
 
-	// SiteVersion The current skupper version installed. Can be any string or 'unknown'
-	SiteVersion string `json:"siteVersion"`
-
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64 `json:"startTime"`
+
+	// Version The current skupper version installed. Can be any string or 'unknown'
+	Version string `json:"version"`
 }
 
 // SiteResponse defines model for SiteResponse.
