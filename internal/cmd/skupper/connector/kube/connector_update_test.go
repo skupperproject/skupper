@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
@@ -23,39 +24,39 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		flags          common.CommandConnectorUpdateFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		expectedErrors []string
+		expectedError  string
 	}
 
 	testTable := []test{
 		{
-			name:           "connector is not updated because get connector returned error",
-			args:           []string{"my-connector"},
-			flags:          common.CommandConnectorUpdateFlags{Timeout: 10 * time.Second},
-			expectedErrors: []string{"connector my-connector must exist in namespace test to be updated"},
+			name:          "connector is not updated because get connector returned error",
+			args:          []string{"my-connector"},
+			flags:         common.CommandConnectorUpdateFlags{Timeout: 10 * time.Second},
+			expectedError: "connector my-connector must exist in namespace test to be updated",
 		},
 		{
-			name:           "connector name is not specified",
-			args:           []string{},
-			flags:          common.CommandConnectorUpdateFlags{Timeout: 10 * time.Second},
-			expectedErrors: []string{"connector name must be configured"},
+			name:          "connector name is not specified",
+			args:          []string{},
+			flags:         common.CommandConnectorUpdateFlags{Timeout: 10 * time.Second},
+			expectedError: "connector name must be configured",
 		},
 		{
-			name:           "connector name is nil",
-			args:           []string{""},
-			flags:          common.CommandConnectorUpdateFlags{Timeout: 10 * time.Minute},
-			expectedErrors: []string{"connector name must not be empty"},
+			name:          "connector name is nil",
+			args:          []string{""},
+			flags:         common.CommandConnectorUpdateFlags{Timeout: 10 * time.Minute},
+			expectedError: "connector name must not be empty",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "connector"},
-			flags:          common.CommandConnectorUpdateFlags{Timeout: 10 * time.Minute},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "connector"},
+			flags:         common.CommandConnectorUpdateFlags{Timeout: 10 * time.Minute},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:           "connector name is not valid.",
-			args:           []string{"my new connector"},
-			flags:          common.CommandConnectorUpdateFlags{Timeout: 10 * time.Minute},
-			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "connector name is not valid.",
+			args:          []string{"my new connector"},
+			flags:         common.CommandConnectorUpdateFlags{Timeout: 10 * time.Minute},
+			expectedError: "connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name: "connector type is not valid",
@@ -82,8 +83,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"connector type is not valid: value not-valid not allowed. It should be one of this options: [tcp]"},
+			expectedError: "connector type is not valid: value not-valid not allowed. It should be one of this options: [tcp]",
 		},
 		{
 			name: "routing key is not valid",
@@ -110,8 +110,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			expectedError: "routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name: "tls-secret is not valid",
@@ -138,7 +137,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"tls-secret is not valid: does not exist"},
+			expectedError: "tls-secret is not valid: does not exist",
 		},
 		{
 			name: "port is not valid",
@@ -165,8 +164,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"connector port is not valid: value is not positive"},
+			expectedError: "connector port is not valid: value is not positive",
 		},
 		{
 			name: "workload is not valid",
@@ -193,8 +191,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"workload is not valid: workload must include <resource-type>/<resource-name>"},
+			expectedError: "workload is not valid: workload must include <resource-type>/<resource-name>",
 		},
 		{
 			name: "selector is not valid",
@@ -221,8 +218,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"selector is not valid: value does not match this regular expression: ^[A-Za-z0-9=:./-]+$"},
+			expectedError: "selector is not valid: value does not match this regular expression: ^[A-Za-z0-9=:./-]+$",
 		},
 		{
 			name: "selector/host",
@@ -251,9 +247,8 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"If host is configured, cannot configure workload or selector",
-				"If selector is configured, cannot configure workload or host"},
+			expectedError: "If host is configured, cannot configure workload or selector\n" +
+				"If selector is configured, cannot configure workload or host",
 		},
 		{
 			name: "workload/host",
@@ -301,9 +296,8 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"If host is configured, cannot configure workload or selector",
-				"If workload is configured, cannot configure selector or host"},
+			expectedError: "If host is configured, cannot configure workload or selector\n" +
+				"If workload is configured, cannot configure selector or host",
 		},
 		{
 			name: "timeout is not valid",
@@ -330,7 +324,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 1s"},
+			expectedError: "timeout is not valid: duration must not be less than 10s; got 1s",
 		},
 		{
 			name: "output is not valid",
@@ -357,8 +351,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
+			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
 		},
 		{
 			name: "flags all valid",
@@ -398,7 +391,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 		{
 			name:  "wait status is not valid",
@@ -422,9 +415,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
-			},
+			expectedError: "status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
 		},
 	}
 
@@ -436,12 +427,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 
 			command.Flags = &test.flags
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }
@@ -453,7 +439,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 		flags            common.CommandConnectorUpdateFlags
 		k8sObjects       []runtime.Object
 		skupperObjects   []runtime.Object
-		expectedErrors   []string
+		expectedError    string
 		expectedSelector string
 		expectedStatus   string
 	}
@@ -484,9 +470,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"failed trying to get Deployment specified by workload: deployments.apps \"backend\" not found",
-			},
+			expectedError: "failed trying to get Deployment specified by workload: deployments.apps \"backend\" not found",
 		},
 		{
 			name: "workload-deployment-no-labels",
@@ -528,7 +512,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"workload, no selector Matchlabels found"},
+			expectedError: "workload, no selector Matchlabels found",
 		},
 		{
 			name: "workload-deployment",
@@ -574,7 +558,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{},
+			expectedError:    "",
 			expectedSelector: "app=backend",
 		},
 		{
@@ -602,9 +586,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"failed trying to get Service specified by workload: services \"backend\" not found",
-			},
+			expectedError: "failed trying to get Service specified by workload: services \"backend\" not found",
 		},
 		{
 			name: "workload-service-no-labels",
@@ -644,7 +626,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 					Spec: v12.ServiceSpec{},
 				},
 			},
-			expectedErrors: []string{"workload, no selector labels found"},
+			expectedError: "workload, no selector labels found",
 		},
 		{
 			name: "workload-service",
@@ -688,7 +670,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{},
+			expectedError:    "",
 			expectedSelector: "app=backend",
 		},
 		{
@@ -716,9 +698,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"failed trying to get DaemonSet specified by workload: daemonsets.apps \"backend\" not found",
-			},
+			expectedError: "failed trying to get DaemonSet specified by workload: daemonsets.apps \"backend\" not found",
 		},
 		{
 			name: "workload-daemonset-no-labels",
@@ -760,7 +740,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"workload, no selector Matchlabels found"},
+			expectedError: "workload, no selector Matchlabels found",
 		},
 		{
 			name: "workload-daemonset",
@@ -806,7 +786,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{},
+			expectedError:    "",
 			expectedSelector: "app=backend",
 		},
 		{
@@ -834,9 +814,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"failed trying to get StatefulSet specified by workload: statefulsets.apps \"backend\" not found",
-			},
+			expectedError: "failed trying to get StatefulSet specified by workload: statefulsets.apps \"backend\" not found",
 		},
 		{
 			name: "workload-statefulset-no-labels",
@@ -878,7 +856,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"workload, no selector Matchlabels found"},
+			expectedError: "workload, no selector Matchlabels found",
 		},
 		{
 			name: "workload-statefulset",
@@ -924,7 +902,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors:   []string{},
+			expectedError:    "",
 			expectedSelector: "app=backend",
 		},
 	}
@@ -937,11 +915,7 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 
 			command.Flags = &test.flags
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 
 			//validate selector is correct
 			assert.Check(t, command.newSettings.selector == test.expectedSelector)

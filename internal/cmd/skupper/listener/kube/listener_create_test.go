@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
@@ -23,7 +24,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
-		expectedErrors      []string
+		expectedError       string
 	}
 
 	testTable := []test{
@@ -50,64 +51,61 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 				},
 			},
 			skupperErrorMessage: "AllReadyExists",
-			expectedErrors: []string{
-				"there is already a listener my-listener created for namespace test"},
+			expectedError:       "there is already a listener my-listener created for namespace test",
 		},
 		{
-			name:           "listener name and port are not specified",
-			args:           []string{},
-			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"listener name and port must be configured"},
+			name:          "listener name and port are not specified",
+			args:          []string{},
+			flags:         common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener name and port must be configured",
 		},
 		{
-			name:           "listener name empty",
-			args:           []string{"", "8090"},
-			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"listener name must not be empty"},
+			name:          "listener name empty",
+			args:          []string{"", "8090"},
+			flags:         common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener name must not be empty",
 		},
 		{
-			name:           "listener port empty",
-			args:           []string{"my-name-port-empty", ""},
-			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"listener port must not be empty"},
+			name:          "listener port empty",
+			args:          []string{"my-name-port-empty", ""},
+			flags:         common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener port must not be empty",
 		},
 		{
-			name:           "listener port not positive",
-			args:           []string{"my-port-positive", "-45"},
-			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"listener port is not valid: value is not positive"},
+			name:          "listener port not positive",
+			args:          []string{"my-port-positive", "-45"},
+			flags:         common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener port is not valid: value is not positive",
 		},
 		{
-			name:           "listener name and port are not specified",
-			args:           []string{},
-			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"listener name and port must be configured"},
+			name:          "listener name and port are not specified",
+			args:          []string{},
+			flags:         common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener name and port must be configured",
 		},
 		{
-			name:           "listener port is not specified",
-			args:           []string{"my-name"},
-			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"listener name and port must be configured"},
+			name:          "listener port is not specified",
+			args:          []string{"my-name"},
+			flags:         common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener name and port must be configured",
 		},
 		{
-			name:           "more than two arguments are specified",
-			args:           []string{"my", "listener", "8080"},
-			flags:          common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"only two arguments are allowed for this command"},
+			name:          "more than two arguments are specified",
+			args:          []string{"my", "listener", "8080"},
+			flags:         common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
+			expectedError: "only two arguments are allowed for this command",
 		},
 		{
-			name:  "listener name is not valid.",
-			args:  []string{"my new listener", "8080"},
-			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{
-				"listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "listener name is not valid.",
+			args:          []string{"my new listener", "8080"},
+			flags:         common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:  "port is not valid.",
-			args:  []string{"my-listener-port", "abcd"},
-			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{
-				"listener port is not valid: strconv.Atoi: parsing \"abcd\": invalid syntax"},
+			name:          "port is not valid.",
+			args:          []string{"my-listener-port", "abcd"},
+			flags:         common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener port is not valid: strconv.Atoi: parsing \"abcd\": invalid syntax",
 		},
 		{
 			name: "listener type is not valid",
@@ -116,8 +114,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 				Timeout:      1 * time.Minute,
 				ListenerType: "not-valid",
 			},
-			expectedErrors: []string{
-				"listener type is not valid: value not-valid not allowed. It should be one of this options: [tcp]"},
+			expectedError: "listener type is not valid: value not-valid not allowed. It should be one of this options: [tcp]",
 		},
 		{
 			name: "routing key is not valid",
@@ -126,8 +123,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 				Timeout:    60 * time.Second,
 				RoutingKey: "not-valid$",
 			},
-			expectedErrors: []string{
-				"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			expectedError: "routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name: "tls-secret does not exist",
@@ -136,13 +132,13 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 				Timeout:        1 * time.Minute,
 				TlsCredentials: "not-valid",
 			},
-			expectedErrors: []string{"tls-secret is not valid: does not exist"},
+			expectedError: "tls-secret is not valid: does not exist",
 		},
 		{
-			name:           "timeout is not valid",
-			args:           []string{"bad-timeout", "8080"},
-			flags:          common.CommandListenerCreateFlags{Timeout: 0 * time.Second},
-			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 0s"},
+			name:          "timeout is not valid",
+			args:          []string{"bad-timeout", "8080"},
+			flags:         common.CommandListenerCreateFlags{Timeout: 0 * time.Second},
+			expectedError: "timeout is not valid: duration must not be less than 10s; got 0s",
 		},
 		{
 			name: "output is not valid",
@@ -151,8 +147,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 				Timeout: 30 * time.Second,
 				Output:  "not-supported",
 			},
-			expectedErrors: []string{
-				"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
+			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
 		},
 		{
 			name: "flags all valid",
@@ -191,15 +186,13 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 		{
-			name:  "wait status is not valid",
-			args:  []string{"my-listener-tls", "8080"},
-			flags: common.CommandListenerCreateFlags{Timeout: time.Minute, Wait: "created"},
-			expectedErrors: []string{
-				"status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
-			},
+			name:          "wait status is not valid",
+			args:          []string{"my-listener-tls", "8080"},
+			flags:         common.CommandListenerCreateFlags{Timeout: time.Minute, Wait: "created"},
+			expectedError: "status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
 		},
 	}
 
@@ -211,12 +204,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 
 			command.Flags = &test.flags
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

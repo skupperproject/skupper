@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/utils/configs"
 	"gotest.tools/v3/assert"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,25 +21,25 @@ func TestCmdVersion_ValidateInput(t *testing.T) {
 		flags          common.CommandVersionFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		expectedErrors []string
+		expectedError  string
 	}
 
 	testTable := []test{
 		{
-			name:           "bad output",
-			args:           []string{""},
-			flags:          common.CommandVersionFlags{Output: "not-supported"},
-			expectedErrors: []string{"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
+			name:          "bad output",
+			args:          []string{""},
+			flags:         common.CommandVersionFlags{Output: "not-supported"},
+			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
 		},
 		{
-			name:           "good output",
-			flags:          common.CommandVersionFlags{Output: "json"},
-			expectedErrors: []string{},
+			name:          "good output",
+			flags:         common.CommandVersionFlags{Output: "json"},
+			expectedError: "",
 		},
 		{
-			name:           "ok no output",
-			flags:          common.CommandVersionFlags{},
-			expectedErrors: []string{},
+			name:          "ok no output",
+			flags:         common.CommandVersionFlags{},
+			expectedError: "",
 		},
 	}
 
@@ -51,11 +51,7 @@ func TestCmdVersion_ValidateInput(t *testing.T) {
 
 			cmd.Flags = &test.flags
 
-			actualErrors := cmd.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
+			testutils.CheckValidateInput(t, cmd, test.expectedError, test.args)
 		})
 	}
 }

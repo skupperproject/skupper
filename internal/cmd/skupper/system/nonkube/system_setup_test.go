@@ -2,37 +2,38 @@ package nonkube
 
 import (
 	"fmt"
-	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	"github.com/skupperproject/skupper/pkg/nonkube/api"
-	"github.com/skupperproject/skupper/pkg/nonkube/bootstrap"
-	"gotest.tools/v3/assert"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
+	"github.com/skupperproject/skupper/pkg/nonkube/bootstrap"
+	"gotest.tools/v3/assert"
 )
 
 func TestCmdSystemSetup_ValidateInput(t *testing.T) {
 	type test struct {
-		name           string
-		args           []string
-		flags          *common.CommandSystemSetupFlags
-		expectedErrors []string
+		name          string
+		args          []string
+		flags         *common.CommandSystemSetupFlags
+		expectedError string
 	}
 
 	testTable := []test{
 		{
-			name:           "args-are-not-accepted",
-			args:           []string{"something"},
-			expectedErrors: []string{"this command does not accept arguments"},
+			name:          "args-are-not-accepted",
+			args:          []string{"something"},
+			expectedError: "this command does not accept arguments",
 		},
 		{
 			name: "invalid-bundle-strategy",
 			flags: &common.CommandSystemSetupFlags{
 				Strategy: "not-valid",
 			},
-			expectedErrors: []string{"invalid bundle strategy: not-valid"},
+			expectedError: "invalid bundle strategy: not-valid",
 		},
 	}
 
@@ -46,10 +47,7 @@ func TestCmdSystemSetup_ValidateInput(t *testing.T) {
 				command.Flags = test.flags
 			}
 
-			actualErrors := command.ValidateInput(test.args)
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

@@ -10,7 +10,7 @@ import (
 
 type SkupperCommand interface {
 	NewClient(cobraCommand *cobra.Command, args []string)
-	ValidateInput(args []string) []error
+	ValidateInput(args []string) error
 	InputToOptions()
 	Run() error
 	WaitUntil() error
@@ -52,12 +52,12 @@ func ConfigureCobraCommand(configuredPlatform types.Platform, description Skuppe
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			utils.HandleErrorList(skupperCommand.ValidateInput(args))
+			utils.HandleError(utils.ValidationError, skupperCommand.ValidateInput(args))
 			skupperCommand.InputToOptions()
-			utils.HandleError(skupperCommand.Run())
+			utils.HandleError(utils.GenericError, skupperCommand.Run())
 		},
 		PostRun: func(cmd *cobra.Command, args []string) {
-			utils.HandleError(skupperCommand.WaitUntil())
+			utils.HandleError(utils.GenericError, skupperCommand.WaitUntil())
 		},
 	}
 

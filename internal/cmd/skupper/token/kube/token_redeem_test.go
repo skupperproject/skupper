@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
@@ -26,7 +27,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 		flags          common.CommandTokenRedeemFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		expectedErrors []string
+		expectedError  string
 	}
 
 	// create temp token file for tests
@@ -37,10 +38,10 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:           "token no site",
-			args:           []string{"/tmp/token-redeem.yaml"},
-			flags:          common.CommandTokenRedeemFlags{Timeout: 60 * time.Second},
-			expectedErrors: []string{"A site must exist in namespace test before a token can be redeemed"},
+			name:          "token no site",
+			args:          []string{"/tmp/token-redeem.yaml"},
+			flags:         common.CommandTokenRedeemFlags{Timeout: 60 * time.Second},
+			expectedError: "A site must exist in namespace test before a token can be redeemed",
 		},
 		{
 			name:  "token not site ok",
@@ -50,7 +51,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 				&v2alpha1.SiteList{
 					Items: []v2alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
@@ -58,7 +59,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"there is no active skupper site in this namespace"},
+			expectedError: "there is no active skupper site in this namespace",
 		},
 		{
 			name:  "file name is not specified",
@@ -68,7 +69,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 				&v2alpha1.SiteList{
 					Items: []v2alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
@@ -94,7 +95,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"token file name must be configured"},
+			expectedError: "token file name must be configured",
 		},
 		{
 			name:  "file name empty",
@@ -104,7 +105,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 				&v2alpha1.SiteList{
 					Items: []v2alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
@@ -130,7 +131,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"file name must not be empty"},
+			expectedError: "file name must not be empty",
 		},
 		{
 			name:  "more than one argument is specified",
@@ -140,7 +141,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 				&v2alpha1.SiteList{
 					Items: []v2alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
@@ -166,7 +167,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
 			name:  "token file name is not valid.",
@@ -176,7 +177,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 				&v2alpha1.SiteList{
 					Items: []v2alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
@@ -202,7 +203,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"token file name is not valid: value does not match this regular expression: ^[A-Za-z0-9./~-]+$"},
+			expectedError: "token file name is not valid: value does not match this regular expression: ^[A-Za-z0-9./~-]+$",
 		},
 		{
 			name:  "timeout is not valid",
@@ -212,7 +213,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 				&v2alpha1.SiteList{
 					Items: []v2alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
@@ -238,10 +239,8 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"token file does not exist: stat ~/token.yaml: no such file or directory",
+			expectedError: "token file does not exist: stat ~/token.yaml: no such file or directory\n" +
 				"timeout is not valid: duration must not be less than 10s; got 0s"},
-		},
 		{
 			name:  "flags all valid",
 			args:  []string{"/tmp/token-redeem.yaml"},
@@ -250,7 +249,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 				&v2alpha1.SiteList{
 					Items: []v2alpha1.Site{
 						{
-							ObjectMeta: v1.ObjectMeta{
+							ObjectMeta: metav1.ObjectMeta{
 								Name:      "the-site",
 								Namespace: "test",
 							},
@@ -276,7 +275,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 	}
 
@@ -288,12 +287,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 
 			command.Flags = &test.flags
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

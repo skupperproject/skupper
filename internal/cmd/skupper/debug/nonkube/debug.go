@@ -2,6 +2,7 @@ package nonkube
 
 import (
 	"fmt"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 )
@@ -23,7 +24,7 @@ func (cmd *CmdDebug) NewClient(cobraCommand *cobra.Command, args []string) {
 
 }
 
-func (cmd *CmdDebug) ValidateInput(args []string) []error { return nil }
+func (cmd *CmdDebug) ValidateInput(args []string) error { return nil }
 
 func (cmd *CmdDebug) InputToOptions() {}
 

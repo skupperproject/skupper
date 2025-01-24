@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
@@ -24,7 +24,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		k8sObjects        []runtime.Object
 		skupperObjects    []runtime.Object
 		cobraGenericFlags map[string]string
-		expectedErrors    []string
+		expectedError     string
 	}
 
 	homeDir, err := os.UserHomeDir()
@@ -32,70 +32,70 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
 	testTable := []test{
 		{
-			name:           "connector is not updated because get connector returned error",
-			args:           []string{"no-connector"},
-			flags:          &common.CommandConnectorUpdateFlags{},
-			expectedErrors: []string{"connector no-connector must exist in namespace test to be updated"},
+			name:          "connector is not updated because get connector returned error",
+			args:          []string{"no-connector"},
+			flags:         &common.CommandConnectorUpdateFlags{},
+			expectedError: "connector no-connector must exist in namespace test to be updated",
 		},
 		{
-			name:           "connector name is not specified",
-			args:           []string{},
-			flags:          &common.CommandConnectorUpdateFlags{},
-			expectedErrors: []string{"connector name must be configured"},
+			name:          "connector name is not specified",
+			args:          []string{},
+			flags:         &common.CommandConnectorUpdateFlags{},
+			expectedError: "connector name must be configured",
 		},
 		{
-			name:           "connector name is nil",
-			args:           []string{""},
-			flags:          &common.CommandConnectorUpdateFlags{},
-			expectedErrors: []string{"connector name must not be empty"},
+			name:          "connector name is nil",
+			args:          []string{""},
+			flags:         &common.CommandConnectorUpdateFlags{},
+			expectedError: "connector name must not be empty",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "connector"},
-			flags:          &common.CommandConnectorUpdateFlags{},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "connector"},
+			flags:         &common.CommandConnectorUpdateFlags{},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:           "connector name is not valid.",
-			args:           []string{"my new connector"},
-			flags:          &common.CommandConnectorUpdateFlags{},
-			expectedErrors: []string{"connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "connector name is not valid.",
+			args:          []string{"my new connector"},
+			flags:         &common.CommandConnectorUpdateFlags{},
+			expectedError: "connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "connector type is not valid",
-			args:           []string{"my-connector"},
-			flags:          &common.CommandConnectorUpdateFlags{ConnectorType: "not-valid"},
-			expectedErrors: []string{"connector type is not valid: value not-valid not allowed. It should be one of this options: [tcp]"},
+			name:          "connector type is not valid",
+			args:          []string{"my-connector"},
+			flags:         &common.CommandConnectorUpdateFlags{ConnectorType: "not-valid"},
+			expectedError: "connector type is not valid: value not-valid not allowed. It should be one of this options: [tcp]",
 		},
 		{
-			name:           "routing key is not valid",
-			args:           []string{"my-connector"},
-			flags:          &common.CommandConnectorUpdateFlags{RoutingKey: "not-valid$"},
-			expectedErrors: []string{"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "routing key is not valid",
+			args:          []string{"my-connector"},
+			flags:         &common.CommandConnectorUpdateFlags{RoutingKey: "not-valid$"},
+			expectedError: "routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "tlsCredentials is not valid",
-			args:           []string{"my-connector"},
-			flags:          &common.CommandConnectorUpdateFlags{TlsCredentials: "not-valid$", Host: "1.2.3.4"},
-			expectedErrors: []string{"tlsCredentials value is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "tlsCredentials is not valid",
+			args:          []string{"my-connector"},
+			flags:         &common.CommandConnectorUpdateFlags{TlsCredentials: "not-valid$", Host: "1.2.3.4"},
+			expectedError: "tlsCredentials value is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "host is not valid",
-			args:           []string{"my-connector"},
-			flags:          &common.CommandConnectorUpdateFlags{Host: "not-valid$"},
-			expectedErrors: []string{"host is not valid: a valid IP address or hostname is expected"},
+			name:          "host is not valid",
+			args:          []string{"my-connector"},
+			flags:         &common.CommandConnectorUpdateFlags{Host: "not-valid$"},
+			expectedError: "host is not valid: a valid IP address or hostname is expected",
 		},
 		{
-			name:           "port is not valid",
-			args:           []string{"my-connector"},
-			flags:          &common.CommandConnectorUpdateFlags{Port: -1},
-			expectedErrors: []string{"connector port is not valid: value is not positive"},
+			name:          "port is not valid",
+			args:          []string{"my-connector"},
+			flags:         &common.CommandConnectorUpdateFlags{Port: -1},
+			expectedError: "connector port is not valid: value is not positive",
 		},
 		{
-			name:           "output is not valid",
-			args:           []string{"my-connector"},
-			flags:          &common.CommandConnectorUpdateFlags{Output: "not-supported"},
-			expectedErrors: []string{"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
+			name:          "output is not valid",
+			args:          []string{"my-connector"},
+			flags:         &common.CommandConnectorUpdateFlags{Output: "not-supported"},
+			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
 		},
 		{
 			name:  "kubernetes flags are not valid on this platform",
@@ -105,7 +105,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				common.FlagNameContext:    "test",
 				common.FlagNameKubeconfig: "test",
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 		{
 			name: "flags all valid",
@@ -118,7 +118,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				Output:         "json",
 				Host:           "1.2.3.4",
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 	}
 
@@ -158,12 +158,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 				}
 			}
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

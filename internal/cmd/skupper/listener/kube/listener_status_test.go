@@ -1,10 +1,10 @@
 package kube
 
 import (
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/v3/assert"
@@ -19,33 +19,33 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 		flags          common.CommandListenerStatusFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		expectedErrors []string
+		expectedError  string
 	}
 
 	testTable := []test{
 		{
-			name:           "listener is not shown because listener does not exist in the namespace",
-			args:           []string{"my-listener"},
-			expectedErrors: []string{"listener my-listener does not exist in namespace test"},
+			name:          "listener is not shown because listener does not exist in the namespace",
+			args:          []string{"my-listener"},
+			expectedError: "listener my-listener does not exist in namespace test",
 		},
 		{
-			name:           "listener name is nil",
-			args:           []string{""},
-			expectedErrors: []string{"listener name must not be empty"},
+			name:          "listener name is nil",
+			args:          []string{""},
+			expectedError: "listener name must not be empty",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "listener"},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "listener"},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:           "listener name is not valid.",
-			args:           []string{"my new listener"},
-			expectedErrors: []string{"listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "listener name is not valid.",
+			args:          []string{"my new listener"},
+			expectedError: "listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "no args",
-			expectedErrors: []string{},
+			name:          "no args",
+			expectedError: "",
 		},
 		{
 			name:  "bad output status",
@@ -78,12 +78,12 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
+			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
 		},
 		{
-			name:           "good output status",
-			flags:          common.CommandListenerStatusFlags{Output: "json"},
-			expectedErrors: []string{},
+			name:          "good output status",
+			flags:         common.CommandListenerStatusFlags{Output: "json"},
+			expectedError: "",
 		},
 	}
 
@@ -95,11 +95,7 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 
 			command.Flags = &test.flags
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

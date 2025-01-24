@@ -1,7 +1,11 @@
 package kube
 
 import (
+	"testing"
+	"time"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -9,8 +13,6 @@ import (
 	v12 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"testing"
-	"time"
 )
 
 func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
@@ -20,7 +22,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 		flags          common.CommandLinkUpdateFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		expectedErrors []string
+		expectedError  string
 	}
 
 	testTable := []test{
@@ -36,7 +38,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"there is no skupper site in this namespace"},
+			expectedError: "there is no skupper site in this namespace",
 		},
 		{
 			name:  "link is not available",
@@ -54,7 +56,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"the link \"my-link\" is not available in the namespace: links.skupper.io \"my-link\" not found"},
+			expectedError: "the link \"my-link\" is not available in the namespace: links.skupper.io \"my-link\" not found",
 		},
 		{
 			name:  "selected link does not exist",
@@ -78,7 +80,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"the link \"my\" is not available in the namespace: links.skupper.io \"my\" not found"},
+			expectedError: "the link \"my\" is not available in the namespace: links.skupper.io \"my\" not found",
 		},
 		{
 			name:  "link name is not specified.",
@@ -102,7 +104,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"link name must not be empty"},
+			expectedError: "link name must not be empty",
 		},
 		{
 			name:  "more than one argument was specified",
@@ -126,7 +128,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
 			name:  "Cost is not valid.",
@@ -150,7 +152,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"link cost is not valid: strconv.Atoi: parsing \"one\": invalid syntax"},
+			expectedError: "link cost is not valid: strconv.Atoi: parsing \"one\": invalid syntax",
 		},
 		{
 			name:  "Cost is not positive",
@@ -174,9 +176,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"link cost is not valid: value is not positive",
-			},
+			expectedError: "link cost is not valid: value is not positive",
 		},
 		{
 			name:  "output format is not valid",
@@ -200,9 +200,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
-			},
+			expectedError: "output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 		},
 		{
 			name:  "tls secret not available",
@@ -226,9 +224,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"the TLS secret \"secret\" is not available in the namespace: secrets \"secret\" not found",
-			},
+			expectedError: "the TLS secret \"secret\" is not available in the namespace: secrets \"secret\" not found",
 		},
 		{
 			name:  "Timeout value is 0",
@@ -260,9 +256,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"timeout is not valid: duration must not be less than 10s; got 0s",
-			},
+			expectedError: "timeout is not valid: duration must not be less than 10s; got 0s",
 		},
 		{
 			name:       "wait status is not valid",
@@ -287,9 +281,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
-			},
+			expectedError: "status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
 		},
 	}
 
@@ -301,12 +293,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 
 			command.Flags = &test.flags
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

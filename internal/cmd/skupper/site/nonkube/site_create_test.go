@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
@@ -19,59 +19,57 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 		skupperObjects    []runtime.Object
 		flags             *common.CommandSiteCreateFlags
 		cobraGenericFlags map[string]string
-		expectedErrors    []string
+		expectedError     string
 	}
 
 	testTable := []test{
 		{
-			name:           "site name is not valid.",
-			args:           []string{"my new site"},
-			flags:          &common.CommandSiteCreateFlags{BindHost: "bindhost", EnableLinkAccess: true},
-			expectedErrors: []string{"site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "site name is not valid.",
+			args:          []string{"my new site"},
+			flags:         &common.CommandSiteCreateFlags{BindHost: "bindhost", EnableLinkAccess: true},
+			expectedError: "site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "site name is not specified.",
-			args:           []string{},
-			flags:          &common.CommandSiteCreateFlags{BindHost: "bindhost"},
-			expectedErrors: []string{"site name must not be empty"},
+			name:          "site name is not specified.",
+			args:          []string{},
+			flags:         &common.CommandSiteCreateFlags{BindHost: "bindhost"},
+			expectedError: "site name must not be empty",
 		},
 		{
-			name:           "more than one argument was specified",
-			args:           []string{"my", "site"},
-			flags:          &common.CommandSiteCreateFlags{BindHost: "bindhost"},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument was specified",
+			args:          []string{"my", "site"},
+			flags:         &common.CommandSiteCreateFlags{BindHost: "bindhost"},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:  "output format is not valid",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteCreateFlags{BindHost: "127.0.0.1", Output: "not-valid"},
-			expectedErrors: []string{
-				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
-			},
+			name:          "output format is not valid",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteCreateFlags{BindHost: "127.0.0.1", Output: "not-valid"},
+			expectedError: "output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 		},
 		{
-			name:           "bindHost was not specified ok",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteCreateFlags{EnableLinkAccess: true},
-			expectedErrors: []string{},
+			name:          "bindHost was not specified ok",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteCreateFlags{EnableLinkAccess: true},
+			expectedError: "",
 		},
 		{
-			name:           "bindHost was not valid",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteCreateFlags{EnableLinkAccess: true, BindHost: "not-valid$"},
-			expectedErrors: []string{"bindhost is not valid: a valid IP address or hostname is expected"},
+			name:          "bindHost was not valid",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteCreateFlags{EnableLinkAccess: true, BindHost: "not-valid$"},
+			expectedError: "bindhost is not valid: a valid IP address or hostname is expected",
 		},
 		{
-			name:           "subjectAlternativeNames was not valid",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteCreateFlags{EnableLinkAccess: true, BindHost: "not-valid", SubjectAlternativeNames: []string{"not-valid$"}},
-			expectedErrors: []string{"SubjectAlternativeNames is not valid: a valid IP address or hostname is expected"},
+			name:          "subjectAlternativeNames was not valid",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteCreateFlags{EnableLinkAccess: true, BindHost: "not-valid", SubjectAlternativeNames: []string{"not-valid$"}},
+			expectedError: "SubjectAlternativeNames is not valid: a valid IP address or hostname is expected",
 		},
 		{
-			name:           "kubernetes flags are not valid on this platform",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteCreateFlags{BindHost: "bindhost"},
-			expectedErrors: []string{},
+			name:          "kubernetes flags are not valid on this platform",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteCreateFlags{BindHost: "bindhost"},
+			expectedError: "",
 			cobraGenericFlags: map[string]string{
 				common.FlagNameContext:    "test",
 				common.FlagNameKubeconfig: "test",
@@ -86,7 +84,7 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 				EnableLinkAccess:        true,
 				SubjectAlternativeNames: []string{"3.3.3.3"},
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 	}
 
@@ -106,12 +104,7 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 				}
 			}
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

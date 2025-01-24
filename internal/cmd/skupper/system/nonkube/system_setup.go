@@ -1,6 +1,7 @@
 package nonkube
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -38,7 +39,7 @@ func (cmd *CmdSystemSetup) NewClient(cobraCommand *cobra.Command, args []string)
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
 }
 
-func (cmd *CmdSystemSetup) ValidateInput(args []string) []error {
+func (cmd *CmdSystemSetup) ValidateInput(args []string) error {
 	var validationErrors []error
 
 	if args != nil && len(args) > 0 {
@@ -77,7 +78,7 @@ func (cmd *CmdSystemSetup) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdSystemSetup) InputToOptions() {

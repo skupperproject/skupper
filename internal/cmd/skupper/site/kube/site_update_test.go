@@ -2,10 +2,12 @@ package kube
 
 import (
 	"fmt"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"testing"
 	"time"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -22,7 +24,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		skupperError   string
-		expectedErrors []string
+		expectedError  string
 	}
 
 	testTable := []test{
@@ -44,8 +46,8 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			skupperError:   "",
-			expectedErrors: []string{},
+			skupperError:  "",
+			expectedError: "",
 		},
 		{
 			name:       "site name is not specified.",
@@ -65,8 +67,8 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			skupperError:   "",
-			expectedErrors: []string{},
+			skupperError:  "",
+			expectedError: "",
 		},
 		{
 			name:       "more than one argument was specified",
@@ -86,8 +88,8 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			skupperError:   "",
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			skupperError:  "",
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
 			name:       "service account name is not valid.",
@@ -107,8 +109,8 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			skupperError:   "",
-			expectedErrors: []string{"service account name is not valid: serviceaccounts \"not valid service account name\" not found"},
+			skupperError:  "",
+			expectedError: "service account name is not valid: serviceaccounts \"not valid service account name\" not found",
 		},
 		{
 			name:  "host name was specified, but this flag does not work on kube platforms",
@@ -127,7 +129,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"--host flag is not supported on this platform"},
+			expectedError: "--host flag is not supported on this platform",
 		},
 		{
 			name:       "link access type is not valid",
@@ -148,10 +150,8 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 				},
 			},
 			skupperError: "",
-			expectedErrors: []string{
-				"link access type is not valid: value not-valid not allowed. It should be one of this options: [route loadbalancer default]",
+			expectedError: "link access type is not valid: value not-valid not allowed. It should be one of this options: [route loadbalancer default]\n" +
 				"for the site to work with this type of linkAccess, the --enable-link-access option must be set to true",
-			},
 		},
 		{
 			name:       "output format is not valid",
@@ -171,9 +171,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
-			},
+			expectedError: "output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 		},
 		{
 			name:           "there is no skupper site",
@@ -182,9 +180,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			k8sObjects:     nil,
 			skupperObjects: nil,
 			skupperError:   "",
-			expectedErrors: []string{
-				"there is no existing Skupper site resource to update",
-			},
+			expectedError:  "there is no existing Skupper site resource to update",
 		},
 		{
 			name:       "there are several skupper sites and no site name was specified",
@@ -215,8 +211,8 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			skupperError:   "",
-			expectedErrors: []string{"site name is required because there are several sites in this namespace"},
+			skupperError:  "",
+			expectedError: "site name is required because there are several sites in this namespace",
 		},
 		{
 			name:       "there are several skupper sites but not the one specified by the user",
@@ -247,8 +243,8 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			skupperError:   "",
-			expectedErrors: []string{"site with name \"special-site\" is not available"},
+			skupperError:  "",
+			expectedError: "site with name \"special-site\" is not available",
 		},
 		{
 			name:       "there are several skupper sites and the user specifies one of them",
@@ -279,8 +275,8 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			skupperError:   "",
-			expectedErrors: []string{},
+			skupperError:  "",
+			expectedError: "",
 		},
 		{
 			name:       "the name specified in the arguments does not match with the current site",
@@ -300,10 +296,8 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			skupperError: "",
-			expectedErrors: []string{
-				"site with name \"a-site\" is not available",
-			},
+			skupperError:  "",
+			expectedError: "site with name \"a-site\" is not available",
 		},
 		{
 			name:       "timeout format is not valid",
@@ -323,9 +317,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"timeout is not valid: duration must not be less than 10s; got 0s",
-			},
+			expectedError: "timeout is not valid: duration must not be less than 10s; got 0s",
 		},
 		{
 			name:       "wait status is not valid",
@@ -345,9 +337,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
-			},
+			expectedError: "status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
 		},
 	}
 
@@ -367,12 +357,7 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 				command.Flags = test.flags
 			}
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

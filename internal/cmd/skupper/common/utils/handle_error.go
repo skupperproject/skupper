@@ -5,32 +5,16 @@ import (
 	"syscall"
 )
 
+type ErrorType int
+
 const (
-	GenericError    = 1
-	ValidationError = 2
+	GenericError    ErrorType = 1
+	ValidationError ErrorType = 2
 )
 
-func HandleError(err error) {
+func HandleError(errType ErrorType, err error) {
 	if err != nil {
 		fmt.Println(err)
-		syscall.Exit(GenericError)
+		syscall.Exit(int(errType))
 	}
-}
-
-func HandleErrorList(errList []error) {
-	if errList != nil && len(errList) > 0 {
-		for _, err := range errList {
-			fmt.Println(err)
-		}
-
-		syscall.Exit(ValidationError)
-	}
-}
-
-func ErrorsToMessages(errs []error) []string {
-	messages := make([]string, len(errs))
-	for i, err := range errs {
-		messages[i] = err.Error()
-	}
-	return messages
 }

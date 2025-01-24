@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
@@ -22,39 +23,39 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 		flags          common.CommandListenerUpdateFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		expectedErrors []string
+		expectedError  string
 	}
 
 	testTable := []test{
 		{
-			name:           "listener is not updated because listener does not exist in the namespace",
-			args:           []string{"my-listener"},
-			flags:          common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"listener my-listener must exist in namespace test to be updated"},
+			name:          "listener is not updated because listener does not exist in the namespace",
+			args:          []string{"my-listener"},
+			flags:         common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener my-listener must exist in namespace test to be updated",
 		},
 		{
-			name:           "listener name is not specified",
-			args:           []string{},
-			flags:          common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"listener name must be configured"},
+			name:          "listener name is not specified",
+			args:          []string{},
+			flags:         common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener name must be configured",
 		},
 		{
-			name:           "listener name is nil",
-			args:           []string{""},
-			flags:          common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"listener name must not be empty"},
+			name:          "listener name is nil",
+			args:          []string{""},
+			flags:         common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener name must not be empty",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "listener"},
-			flags:          common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "listener"},
+			flags:         common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:           "listener name is not valid.",
-			args:           []string{"my new listener"},
-			flags:          common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "listener name is not valid.",
+			args:          []string{"my new listener"},
+			flags:         common.CommandListenerUpdateFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name: "listener type is not valid",
@@ -81,8 +82,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"listener type is not valid: value not-valid not allowed. It should be one of this options: [tcp]"},
+			expectedError: "listener type is not valid: value not-valid not allowed. It should be one of this options: [tcp]",
 		},
 		{
 			name: "routing key is not valid",
@@ -108,8 +108,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			expectedError: "routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name: "tls-secret is not valid",
@@ -136,7 +135,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"tls-secret is not valid: does not exist"},
+			expectedError: "tls-secret is not valid: does not exist",
 		},
 		{
 			name: "port is not valid",
@@ -163,7 +162,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"listener port is not valid: value is not positive"},
+			expectedError: "listener port is not valid: value is not positive",
 		},
 		{
 			name:  "timeout is not valid",
@@ -187,7 +186,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{"timeout is not valid: duration must not be less than 10s; got 5s"},
+			expectedError: "timeout is not valid: duration must not be less than 10s; got 5s",
 		},
 		{
 			name: "output is not valid",
@@ -214,8 +213,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]"},
+			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
 		},
 		{
 			name: "flags all valid",
@@ -255,7 +253,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 		{
 			name:       "wait status is not valid",
@@ -280,9 +278,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedErrors: []string{
-				"status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
-			},
+			expectedError: "status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
 		},
 	}
 
@@ -294,12 +290,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 
 			command.Flags = &test.flags
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

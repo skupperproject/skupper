@@ -1,6 +1,7 @@
 package nonkube
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -31,7 +32,7 @@ func (cmd *CmdSiteDelete) NewClient(cobraCommand *cobra.Command, args []string) 
 	cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.namespace)
 }
 
-func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
+func (cmd *CmdSiteDelete) ValidateInput(args []string) error {
 	var validationErrors []error
 	opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
 	resourceStringValidator := validator.NewResourceStringValidator()
@@ -67,7 +68,7 @@ func (cmd *CmdSiteDelete) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("site %s does not exist", cmd.siteName))
 		}
 	}
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdSiteDelete) InputToOptions() {

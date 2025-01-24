@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
@@ -24,7 +24,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 		cobraGenericFlags map[string]string
 		k8sObjects        []runtime.Object
 		skupperObjects    []runtime.Object
-		expectedErrors    []string
+		expectedError     string
 	}
 
 	homeDir, err := os.UserHomeDir()
@@ -33,40 +33,40 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:           "site name is not specified",
-			args:           []string{},
-			flags:          &common.CommandSiteDeleteFlags{},
-			expectedErrors: []string{"site name must be specified"},
+			name:          "site name is not specified",
+			args:          []string{},
+			flags:         &common.CommandSiteDeleteFlags{},
+			expectedError: "site name must be specified",
 		},
 		{
-			name:           "site name is nil",
-			args:           []string{""},
-			flags:          &common.CommandSiteDeleteFlags{},
-			expectedErrors: []string{"site name must not be empty"},
+			name:          "site name is nil",
+			args:          []string{""},
+			flags:         &common.CommandSiteDeleteFlags{},
+			expectedError: "site name must not be empty",
 		},
 		{
-			name:           "site name is not valid",
-			args:           []string{"my name"},
-			flags:          &common.CommandSiteDeleteFlags{},
-			expectedErrors: []string{"site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "site name is not valid",
+			args:          []string{"my name"},
+			flags:         &common.CommandSiteDeleteFlags{},
+			expectedError: "site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "site"},
-			flags:          &common.CommandSiteDeleteFlags{},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "site"},
+			flags:         &common.CommandSiteDeleteFlags{},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:           "site doesn't exist",
-			args:           []string{"no-site"},
-			flags:          &common.CommandSiteDeleteFlags{},
-			expectedErrors: []string{"site no-site does not exist"},
+			name:          "site doesn't exist",
+			args:          []string{"no-site"},
+			flags:         &common.CommandSiteDeleteFlags{},
+			expectedError: "site no-site does not exist",
 		},
 		{
-			name:           "kubernetes flags are not valid on this platform",
-			args:           []string{"my-site"},
-			flags:          &common.CommandSiteDeleteFlags{},
-			expectedErrors: []string{},
+			name:          "kubernetes flags are not valid on this platform",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteDeleteFlags{},
+			expectedError: "",
 			cobraGenericFlags: map[string]string{
 				common.FlagNameContext:    "test",
 				common.FlagNameKubeconfig: "test",
@@ -110,12 +110,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 				}
 			}
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

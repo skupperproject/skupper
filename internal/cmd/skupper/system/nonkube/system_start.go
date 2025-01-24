@@ -1,6 +1,7 @@
 package nonkube
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/skupperproject/skupper/pkg/nonkube/bootstrap"
@@ -25,14 +26,12 @@ func (cmd *CmdSystemStart) NewClient(cobraCommand *cobra.Command, args []string)
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
 }
 
-func (cmd *CmdSystemStart) ValidateInput(args []string) []error {
-	var validationErrors []error
-
-	if args != nil && len(args) > 0 {
-		validationErrors = append(validationErrors, fmt.Errorf("this command does not accept arguments"))
+func (cmd *CmdSystemStart) ValidateInput(args []string) error {
+	if len(args) > 0 {
+		return errors.New("this command does not accept arguments")
 	}
 
-	return validationErrors
+	return nil
 }
 
 func (cmd *CmdSystemStart) InputToOptions() {

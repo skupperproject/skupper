@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/spf13/cobra"
 
@@ -20,87 +20,87 @@ func TestNonKubeCmdListenerCreate_ValidateInput(t *testing.T) {
 		skupperObjects    []runtime.Object
 		flags             *common.CommandListenerCreateFlags
 		cobraGenericFlags map[string]string
-		expectedErrors    []string
+		expectedError     string
 	}
 
 	testTable := []test{
 		{
-			name:           "listener name and port are not specified",
-			args:           []string{},
-			flags:          &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
-			expectedErrors: []string{"listener name and port must be configured"},
+			name:          "listener name and port are not specified",
+			args:          []string{},
+			flags:         &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
+			expectedError: "listener name and port must be configured",
 		},
 		{
-			name:           "listener name is not valid",
-			args:           []string{"my new Listener", "8080"},
-			flags:          &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
-			expectedErrors: []string{"listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "listener name is not valid",
+			args:          []string{"my new Listener", "8080"},
+			flags:         &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
+			expectedError: "listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "listener name is empty",
-			args:           []string{"", "1234"},
-			flags:          &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
-			expectedErrors: []string{"listener name must not be empty"},
+			name:          "listener name is empty",
+			args:          []string{"", "1234"},
+			flags:         &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
+			expectedError: "listener name must not be empty",
 		},
 		{
-			name:           "listener port empty",
-			args:           []string{"my-name-port-empty", ""},
-			flags:          &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
-			expectedErrors: []string{"listener port must not be empty"},
+			name:          "listener port empty",
+			args:          []string{"my-name-port-empty", ""},
+			flags:         &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
+			expectedError: "listener port must not be empty",
 		},
 		{
-			name:           "port is not valid",
-			args:           []string{"my-listener-port", "abcd"},
-			flags:          &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
-			expectedErrors: []string{"listener port is not valid: strconv.Atoi: parsing \"abcd\": invalid syntax"},
+			name:          "port is not valid",
+			args:          []string{"my-listener-port", "abcd"},
+			flags:         &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
+			expectedError: "listener port is not valid: strconv.Atoi: parsing \"abcd\": invalid syntax",
 		},
 		{
-			name:           "listener port not positive",
-			args:           []string{"my-port-positive", "-45"},
-			flags:          &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
-			expectedErrors: []string{"listener port is not valid: value is not positive"},
+			name:          "listener port not positive",
+			args:          []string{"my-port-positive", "-45"},
+			flags:         &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
+			expectedError: "listener port is not valid: value is not positive",
 		},
 		{
-			name:           "more than two arguments was specified",
-			args:           []string{"my", "listener", "test"},
-			flags:          &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
-			expectedErrors: []string{"only two arguments are allowed for this command"},
+			name:          "more than two arguments was specified",
+			args:          []string{"my", "listener", "test"},
+			flags:         &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
+			expectedError: "only two arguments are allowed for this command",
 		},
 		{
-			name:           "type is not valid",
-			args:           []string{"my-listener", "8080"},
-			flags:          &common.CommandListenerCreateFlags{ListenerType: "not-valid", Host: "1.2.3.4"},
-			expectedErrors: []string{"listener type is not valid: value not-valid not allowed. It should be one of this options: [tcp]"},
+			name:          "type is not valid",
+			args:          []string{"my-listener", "8080"},
+			flags:         &common.CommandListenerCreateFlags{ListenerType: "not-valid", Host: "1.2.3.4"},
+			expectedError: "listener type is not valid: value not-valid not allowed. It should be one of this options: [tcp]",
 		},
 		{
-			name:           "routing key is not valid",
-			args:           []string{"my-listener-rk", "8080"},
-			flags:          &common.CommandListenerCreateFlags{RoutingKey: "not-valid$", Host: "1.2.3.4"},
-			expectedErrors: []string{"routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "routing key is not valid",
+			args:          []string{"my-listener-rk", "8080"},
+			flags:         &common.CommandListenerCreateFlags{RoutingKey: "not-valid$", Host: "1.2.3.4"},
+			expectedError: "routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "TlsCredentials key is not valid",
-			args:           []string{"my-listener-tls", "8080"},
-			flags:          &common.CommandListenerCreateFlags{TlsCredentials: "not-valid$", Host: "1.2.3.4"},
-			expectedErrors: []string{"tlsCredentials value is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "TlsCredentials key is not valid",
+			args:          []string{"my-listener-tls", "8080"},
+			flags:         &common.CommandListenerCreateFlags{TlsCredentials: "not-valid$", Host: "1.2.3.4"},
+			expectedError: "tlsCredentials value is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "host is not valid",
-			args:           []string{"my-listener-host", "8080"},
-			flags:          &common.CommandListenerCreateFlags{Host: "not-valid$"},
-			expectedErrors: []string{"host is not valid: a valid IP address or hostname is expected"},
+			name:          "host is not valid",
+			args:          []string{"my-listener-host", "8080"},
+			flags:         &common.CommandListenerCreateFlags{Host: "not-valid$"},
+			expectedError: "host is not valid: a valid IP address or hostname is expected",
 		},
 		{
-			name:           "output format is not valid",
-			args:           []string{"my-listener", "8080"},
-			flags:          &common.CommandListenerCreateFlags{Output: "not-valid", Host: "1.2.3.4"},
-			expectedErrors: []string{"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]"},
+			name:          "output format is not valid",
+			args:          []string{"my-listener", "8080"},
+			flags:         &common.CommandListenerCreateFlags{Output: "not-valid", Host: "1.2.3.4"},
+			expectedError: "output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 		},
 		{
-			name:           "kubernetes flags are not valid on this platform",
-			args:           []string{"my-listener", "8080"},
-			flags:          &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
-			expectedErrors: []string{},
+			name:          "kubernetes flags are not valid on this platform",
+			args:          []string{"my-listener", "8080"},
+			flags:         &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
+			expectedError: "",
 			cobraGenericFlags: map[string]string{
 				common.FlagNameContext:    "test",
 				common.FlagNameKubeconfig: "test",
@@ -116,7 +116,7 @@ func TestNonKubeCmdListenerCreate_ValidateInput(t *testing.T) {
 				Output:         "json",
 				Host:           "1.2.3.4",
 			},
-			expectedErrors: []string{},
+			expectedError: "",
 		},
 	}
 
@@ -135,12 +135,7 @@ func TestNonKubeCmdListenerCreate_ValidateInput(t *testing.T) {
 				}
 			}
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

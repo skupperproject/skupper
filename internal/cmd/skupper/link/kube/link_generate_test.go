@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/v3/assert"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -22,14 +22,15 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 		flags          common.CommandLinkGenerateFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		expectedErrors []string
+		expectedError  string
 	}
 
 	testTable := []test{
 		{
-			name:           "link yaml is not generated because there is no site in the namespace.",
-			expectedErrors: []string{"there is no skupper site in this namespace", "there is no active skupper site in this namespace"},
-			flags:          common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "secret", Timeout: time.Minute},
+			name: "link yaml is not generated because there is no site in the namespace.",
+			expectedError: "there is no skupper site in this namespace\n" +
+				"there is no active skupper site in this namespace",
+			flags: common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "secret", Timeout: time.Minute},
 		},
 		{
 			name: "arguments were specified and they are not needed",
@@ -81,8 +82,8 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags:          common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "secret", Timeout: time.Minute},
-			expectedErrors: []string{"arguments are not allowed in this command"},
+			flags:         common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "secret", Timeout: time.Minute},
+			expectedError: "arguments are not allowed in this command",
 		},
 		{
 			name: "tls secret was not specified",
@@ -133,8 +134,8 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags:          common.CommandLinkGenerateFlags{Cost: "1", Timeout: time.Minute},
-			expectedErrors: []string{"the TLS secret name was not specified"},
+			flags:         common.CommandLinkGenerateFlags{Cost: "1", Timeout: time.Minute},
+			expectedError: "the TLS secret name was not specified",
 		},
 		{
 			name: "cost is not valid.",
@@ -185,8 +186,8 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags:          common.CommandLinkGenerateFlags{Cost: "one", TlsCredentials: "secret", Timeout: time.Minute},
-			expectedErrors: []string{"link cost is not valid: strconv.Atoi: parsing \"one\": invalid syntax"},
+			flags:         common.CommandLinkGenerateFlags{Cost: "one", TlsCredentials: "secret", Timeout: time.Minute},
+			expectedError: "link cost is not valid: strconv.Atoi: parsing \"one\": invalid syntax",
 		},
 		{
 			name: "cost is not positive",
@@ -237,10 +238,8 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: common.CommandLinkGenerateFlags{Cost: "-4", TlsCredentials: "secret", Timeout: time.Minute},
-			expectedErrors: []string{
-				"link cost is not valid: value is not positive",
-			},
+			flags:         common.CommandLinkGenerateFlags{Cost: "-4", TlsCredentials: "secret", Timeout: time.Minute},
+			expectedError: "link cost is not valid: value is not positive",
 		},
 		{
 			name: "output format is not valid",
@@ -291,10 +290,8 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "secret", Output: "not-valid", Timeout: time.Minute},
-			expectedErrors: []string{
-				"output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
-			},
+			flags:         common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "secret", Output: "not-valid", Timeout: time.Minute},
+			expectedError: "output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 		},
 		{
 			name: "tls secret name is not valid",
@@ -345,10 +342,8 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "tls secret", Timeout: time.Minute},
-			expectedErrors: []string{
-				"the name of the tls secret is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
-			},
+			flags:         common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "tls secret", Timeout: time.Minute},
+			expectedError: "the name of the tls secret is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name: "timeout is not valid",
@@ -399,10 +394,8 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags: common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "secret", Timeout: time.Second * 0},
-			expectedErrors: []string{
-				"timeout is not valid: duration must not be less than 10s; got 0s",
-			},
+			flags:         common.CommandLinkGenerateFlags{Cost: "1", TlsCredentials: "secret", Timeout: time.Second * 0},
+			expectedError: "timeout is not valid: duration must not be less than 10s; got 0s",
 		},
 	}
 
@@ -413,12 +406,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 			assert.Assert(t, err)
 			command.Flags = &test.flags
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
-
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }
@@ -845,11 +833,11 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 			tlsCredentials:     "link-test",
 			k8sObjects: []runtime.Object{
 				&corev1.Secret{
-					TypeMeta: metav1.TypeMeta{
+					TypeMeta: v1.TypeMeta{
 						APIVersion: "v1",
 						Kind:       "Secret",
 					},
-					ObjectMeta: metav1.ObjectMeta{
+					ObjectMeta: v1.ObjectMeta{
 						Name:      "link-test",
 						Namespace: "test",
 					},
@@ -879,11 +867,11 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 			tlsCredentials:     "link-test",
 			k8sObjects: []runtime.Object{
 				&corev1.Secret{
-					TypeMeta: metav1.TypeMeta{
+					TypeMeta: v1.TypeMeta{
 						APIVersion: "v1",
 						Kind:       "Secret",
 					},
-					ObjectMeta: metav1.ObjectMeta{
+					ObjectMeta: v1.ObjectMeta{
 						Name:      "link-test",
 						Namespace: "test",
 					},

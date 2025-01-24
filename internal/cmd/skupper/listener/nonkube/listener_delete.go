@@ -1,6 +1,7 @@
 package nonkube
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -30,7 +31,7 @@ func (cmd *CmdListenerDelete) NewClient(cobraCommand *cobra.Command, args []stri
 
 }
 
-func (cmd *CmdListenerDelete) ValidateInput(args []string) []error {
+func (cmd *CmdListenerDelete) ValidateInput(args []string) error {
 	var validationErrors []error
 	opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
 
@@ -68,7 +69,7 @@ func (cmd *CmdListenerDelete) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdListenerDelete) InputToOptions() {

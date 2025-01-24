@@ -1,6 +1,7 @@
 package nonkube
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -40,7 +41,7 @@ func (cmd *CmdListenerCreate) NewClient(cobraCommand *cobra.Command, args []stri
 	cmd.listenerHandler = fs.NewListenerHandler(cmd.namespace)
 }
 
-func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
+func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
 	var validationErrors []error
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
@@ -120,7 +121,7 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) []error {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
 	}
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdListenerCreate) InputToOptions() {

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
@@ -22,39 +23,39 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
-		expectedErrors      []string
+		expectedError       string
 	}
 
 	testTable := []test{
 		{
-			name:           "listener is not deleted because listener does not exist in the namespace",
-			args:           []string{"my-listener"},
-			flags:          common.CommandListenerDeleteFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"listener my-listener does not exist in namespace test"},
+			name:          "listener is not deleted because listener does not exist in the namespace",
+			args:          []string{"my-listener"},
+			flags:         common.CommandListenerDeleteFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener my-listener does not exist in namespace test",
 		},
 		{
-			name:           "listener name is not specified",
-			args:           []string{},
-			flags:          common.CommandListenerDeleteFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"listener name must be specified"},
+			name:          "listener name is not specified",
+			args:          []string{},
+			flags:         common.CommandListenerDeleteFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener name must be specified",
 		},
 		{
-			name:           "listener name is nil",
-			args:           []string{""},
-			flags:          common.CommandListenerDeleteFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"listener name must not be empty"},
+			name:          "listener name is nil",
+			args:          []string{""},
+			flags:         common.CommandListenerDeleteFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener name must not be empty",
 		},
 		{
-			name:           "listener name is not valid",
-			args:           []string{"my name"},
-			flags:          common.CommandListenerDeleteFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$"},
+			name:          "listener name is not valid",
+			args:          []string{"my name"},
+			flags:         common.CommandListenerDeleteFlags{Timeout: 1 * time.Minute},
+			expectedError: "listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:           "more than one argument is specified",
-			args:           []string{"my", "listener"},
-			flags:          common.CommandListenerDeleteFlags{Timeout: 1 * time.Minute},
-			expectedErrors: []string{"only one argument is allowed for this command"},
+			name:          "more than one argument is specified",
+			args:          []string{"my", "listener"},
+			flags:         common.CommandListenerDeleteFlags{Timeout: 1 * time.Minute},
+			expectedError: "only one argument is allowed for this command",
 		},
 		{
 			name: "timeout is not valid",
@@ -79,7 +80,7 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 			},
 			flags:               common.CommandListenerDeleteFlags{Timeout: 0 * time.Minute},
 			skupperErrorMessage: "timeout is not valid",
-			expectedErrors:      []string{"timeout is not valid: duration must not be less than 10s; got 0s"},
+			expectedError:       "timeout is not valid: duration must not be less than 10s; got 0s",
 		},
 	}
 
@@ -91,11 +92,7 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 
 			command.Flags = &test.flags
 
-			actualErrors := command.ValidateInput(test.args)
-
-			actualErrorsMessages := utils.ErrorsToMessages(actualErrors)
-
-			assert.DeepEqual(t, actualErrorsMessages, test.expectedErrors)
+			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }

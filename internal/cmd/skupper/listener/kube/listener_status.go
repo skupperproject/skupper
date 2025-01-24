@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"text/tabwriter"
@@ -13,7 +14,7 @@ import (
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -33,13 +34,13 @@ func NewCmdListenerStatus() *CmdListenerStatus {
 
 func (cmd *CmdListenerStatus) NewClient(cobraCommand *cobra.Command, args []string) {
 	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-	utils.HandleError(err)
+	utils.HandleError(utils.GenericError, err)
 
 	cmd.client = cli.GetSkupperClient().SkupperV2alpha1()
 	cmd.namespace = cli.Namespace
 }
 
-func (cmd *CmdListenerStatus) ValidateInput(args []string) []error {
+func (cmd *CmdListenerStatus) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
@@ -77,7 +78,7 @@ func (cmd *CmdListenerStatus) ValidateInput(args []string) []error {
 		}
 	}
 
-	return validationErrors
+	return errors.Join(validationErrors...)
 }
 func (cmd *CmdListenerStatus) Run() error {
 	if cmd.name == "" {
@@ -107,7 +108,7 @@ func (cmd *CmdListenerStatus) Run() error {
 		}
 	} else {
 		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if resource == nil || errors.IsNotFound(err) {
+		if resource == nil || k8serrs.IsNotFound(err) {
 			fmt.Println("No listeners found")
 			return err
 		}
