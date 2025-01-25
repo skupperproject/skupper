@@ -2,7 +2,7 @@ VERSION := $(shell git describe --tags --dirty=-modified --always)
 REVISION := $(shell git rev-parse HEAD)
 
 LDFLAGS_EXTRA ?= -s -w # default to building stripped executables
-LDFLAGS := ${LDFLAGS_EXTRA} -X github.com/skupperproject/skupper/pkg/version.Version=${VERSION}
+LDFLAGS := ${LDFLAGS_EXTRA} -X github.com/skupperproject/skupper/internal/version.Version=${VERSION}
 TESTFLAGS := -v -race -short
 GOOS ?= linux
 GOARCH ?= amd64
