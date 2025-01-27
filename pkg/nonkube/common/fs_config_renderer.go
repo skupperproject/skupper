@@ -129,6 +129,7 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *api.SiteState) error
 		}
 	}
 	siteState.Site.SetConfigured(nil)
+	siteState.Site.SetRunning(v2alpha1.ReadyCondition())
 	endpoints := make([]v2alpha1.Endpoint, 0)
 	for raName, ra := range siteState.RouterAccesses {
 		for _, role := range ra.Spec.Roles {
