@@ -42,7 +42,7 @@ func InitialiseConfig(client kubernetes.Interface, namespace string, path string
 		if err != nil {
 			return err
 		}
-		if err := target.sync(secret); err != nil {
+		if err, _ := target.sync(secret); err != nil {
 			return err
 		}
 		log.Printf("Resources for SslProfile %s written to %s", profile.Name, target.path)
