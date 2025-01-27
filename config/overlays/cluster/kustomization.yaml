@@ -1,0 +1,8 @@
+# Reference the base deployment
+resources:
+  - ../../base
+  - ../../rbac
+  - namespace.yaml
+
+namespace: skupper
+

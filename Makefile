@@ -25,7 +25,7 @@ DOCKER := docker
 SKOPEO := skopeo
 PODMAN := podman
 
-all: build-cli build-kube-adaptor build-controller build-network-observer update-helm-crd
+all: build-cli build-kube-adaptor build-controller build-network-observer
 
 build-cli:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o skupper ./cmd/skupper
@@ -117,14 +117,17 @@ generate-manifest: build-cli
 generate-doc: build-doc-generator
 	./generate-doc ./doc/cli
 
-update-helm-crd:
-	./scripts/update-helm-crds.sh
+generate-skupper-helm-chart:
+	./scripts/skupper-helm-chart-generator.sh ${IMAGE_TAG}
 
-generate-skupper-deployment-cluster-scoped:
-	helm template ./charts/skupper-setup  --include-crds --set scope=cluster > skupper-setup-cluster-scope.yaml
+generate-skupper-deployment-cluster-scoped: generate-skupper-helm-chart
+	helm template ./charts/skupper  --include-crds --set scope=cluster > skupper-cluster-scope.yaml
 
-generate-skupper-deployment-namespace-scoped:
-	helm template ./charts/skupper-setup  --include-crds --set scope=namespace > skupper-setup-namespace-scope.yaml
+generate-skupper-deployment-namespace-scoped: generate-skupper-helm-chart
+	helm template ./charts/skupper  --include-crds --set scope=namespace > skupper-namespace-scope.yaml
+
+pack-skupper-helm-chart: generate-skupper-helm-chart
+	helm package ./charts/skupper
 
 generate-bundle:
 	./scripts/generate-bundle.sh
@@ -151,4 +154,5 @@ generate-network-observer-devel:
 clean:
 	rm -rf skupper controller kube-adaptor \
 		network-observer generate-doc \
-		cover.out oci-archives bundle bundle.Dockerfile
+		cover.out oci-archives bundle bundle.Dockerfile \
+		charts/skupper

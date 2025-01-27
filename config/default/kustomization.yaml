@@ -9,7 +9,8 @@
 #namePrefix:
 
 resources:
+- ../base
 - ../crd
 - ../rbac
-- ../manager
 
+namespace: skupper
