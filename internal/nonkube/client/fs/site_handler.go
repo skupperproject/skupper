@@ -74,11 +74,19 @@ func (s *SiteHandler) Get(name string, opts GetOptions) (*v2alpha1.Site, error) 
 }
 
 func (s *SiteHandler) Delete(name string) error {
-	fileName := name + ".yaml"
-
-	if err := s.DeleteFile(s.pathProvider.GetNamespace(), fileName, common.Sites); err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			return err
+	if name != "" {
+		fileName := name + ".yaml"
+		if err := s.DeleteFile(s.pathProvider.GetNamespace(), fileName, common.Sites); err != nil {
+			if !errors.Is(err, fs.ErrNotExist) {
+				return err
+			}
+		}
+	} else {
+		// remove directory and its contents
+		if err := s.DeleteFile(s.pathProvider.GetNamespace(), "", ""); err != nil {
+			if !errors.Is(err, fs.ErrNotExist) {
+				return err
+			}
 		}
 	}
 

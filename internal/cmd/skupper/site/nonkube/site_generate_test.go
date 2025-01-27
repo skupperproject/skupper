@@ -279,8 +279,6 @@ func TestNonKubeCmdSiteGenerate_Run(t *testing.T) {
 		command.linkAccessEnabled = test.linkAccessEnabled
 		command.siteHandler = fs2.NewSiteHandler(command.namespace)
 		command.routerAccessHandler = fs2.NewRouterAccessHandler(command.namespace)
-		defer command.siteHandler.Delete("my-site")
-		defer command.routerAccessHandler.Delete("my-site")
 		t.Run(test.name, func(t *testing.T) {
 
 			err := command.Run()

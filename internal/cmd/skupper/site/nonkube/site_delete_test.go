@@ -39,9 +39,14 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			expectedError: "site name must be specified",
 		},
 		{
+			name:  "site name is not specified, all",
+			args:  []string{},
+			flags: &common.CommandSiteDeleteFlags{All: true},
+		},
+		{
 			name:          "site name is nil",
 			args:          []string{""},
-			flags:         &common.CommandSiteDeleteFlags{},
+			flags:         &common.CommandSiteDeleteFlags{All: false},
 			expectedError: "site name must not be empty",
 		},
 		{
@@ -124,38 +129,127 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
 		errorMessage        string
+		expectedNamespace   string
+		all                 bool
 	}
 
 	testTable := []test{
 		{
-			name:         "run fails default",
-			deleteName:   "my-site",
-			errorMessage: "error",
+			name:              "run default",
+			deleteName:        "no-site",
+			errorMessage:      "error",
+			expectedNamespace: "default",
+			all:               false,
 		},
 		{
-			name:         "run fails",
-			namespace:    "test",
-			deleteName:   "my-site",
-			errorMessage: "error",
+			name:              "run delete all",
+			namespace:         "test2",
+			deleteName:        "my-site",
+			errorMessage:      "error",
+			expectedNamespace: "test2",
+			all:               true,
+		},
+		{
+			name:              "run delete all",
+			namespace:         "test2",
+			errorMessage:      "error",
+			expectedNamespace: "test2",
+			all:               true,
 		},
 	}
 
+	// Add a temp file so listener/connector/site exists for delete tests
+	listenerResource := v2alpha1.Listener{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "Listener",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-listener",
+			Namespace: "test2",
+		},
+	}
+	connectorResource := v2alpha1.Connector{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "Connector",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-connector",
+			Namespace: "test2",
+		},
+	}
+	siteResource := v2alpha1.Site{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "Site",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-site",
+			Namespace: "test2",
+		},
+	}
+
+	homeDir, err := os.UserHomeDir()
+	assert.Check(t, err == nil)
+	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test2/", string(api.InputSiteStatePath))
+
+	command := &CmdSiteDelete{Flags: &common.CommandSiteDeleteFlags{}}
+	command.namespace = "test2"
+	command.siteHandler = fs.NewSiteHandler(command.namespace)
+	command.routerAccessHandler = fs.NewRouterAccessHandler(command.namespace)
+	listenerHandler := fs.NewListenerHandler(command.namespace)
+	connectorHandler := fs.NewConnectorHandler(command.namespace)
+
+	content, err := command.siteHandler.EncodeToYaml(siteResource)
+	assert.Check(t, err == nil)
+	err = command.siteHandler.WriteFile(path, "my-site.yaml", content, common.Sites)
+	assert.Check(t, err == nil)
+	defer command.siteHandler.Delete("my-site")
+
+	content, err = listenerHandler.EncodeToYaml(listenerResource)
+	assert.Check(t, err == nil)
+	err = listenerHandler.WriteFile(path, "my-listener.yaml", content, common.Listeners)
+	assert.Check(t, err == nil)
+	defer listenerHandler.Delete("my-listener")
+
+	content, err = connectorHandler.EncodeToYaml(connectorResource)
+	assert.Check(t, err == nil)
+	err = connectorHandler.WriteFile(path, "my-connector.yaml", content, common.Connectors)
+	assert.Check(t, err == nil)
+	defer connectorHandler.Delete("my-connector")
+
 	for _, test := range testTable {
-		cmd := &CmdSiteDelete{}
 
 		t.Run(test.name, func(t *testing.T) {
+			command.namespace = test.namespace
+			command.siteName = test.deleteName
+			command.Flags.All = test.all
+			command.InputToOptions()
 
-			cmd.siteName = test.deleteName
-			cmd.namespace = test.namespace
-			cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
-			cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.namespace)
-			cmd.InputToOptions()
-
-			err := cmd.Run()
+			err := command.Run()
 			if err != nil {
 				assert.Check(t, test.errorMessage == err.Error())
 			} else {
 				assert.Check(t, err == nil)
+				assert.Equal(t, command.namespace, test.expectedNamespace)
+				if test.all {
+					// only deleting from input/resources directory
+					// expect all resources are deleted
+					opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
+					site, _ := command.siteHandler.Get(command.siteName, opts)
+					assert.Check(t, site == nil)
+					listeners, _ := listenerHandler.List()
+					for _, listener := range listeners {
+						resource, _ := listenerHandler.Get(listener.Name, opts)
+						assert.Check(t, resource == nil)
+					}
+					connectors, _ := connectorHandler.List()
+					for _, connector := range connectors {
+						resource, _ := connectorHandler.Get(connector.Name, opts)
+						assert.Check(t, resource == nil)
+					}
+				}
 			}
 		})
 	}

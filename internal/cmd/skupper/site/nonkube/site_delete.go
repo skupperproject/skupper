@@ -17,6 +17,7 @@ type CmdSiteDelete struct {
 	namespace           string
 	siteName            string
 	Flags               *common.CommandSiteDeleteFlags
+	all                 bool
 }
 
 func NewCmdSiteDelete() *CmdSiteDelete {
@@ -46,18 +47,20 @@ func (cmd *CmdSiteDelete) ValidateInput(args []string) error {
 	}
 
 	// Validate arguments name
-	if len(args) < 1 {
-		validationErrors = append(validationErrors, fmt.Errorf("site name must be specified"))
-	} else if len(args) > 1 {
-		validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
-	} else if args[0] == "" {
-		validationErrors = append(validationErrors, fmt.Errorf("site name must not be empty"))
-	} else {
-		ok, err := resourceStringValidator.Evaluate(args[0])
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("site name is not valid: %s", err))
+	if cmd.Flags.All == false {
+		if len(args) < 1 {
+			validationErrors = append(validationErrors, fmt.Errorf("site name must be specified"))
+		} else if len(args) > 1 {
+			validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
+		} else if args[0] == "" {
+			validationErrors = append(validationErrors, fmt.Errorf("site name must not be empty"))
 		} else {
-			cmd.siteName = args[0]
+			ok, err := resourceStringValidator.Evaluate(args[0])
+			if !ok {
+				validationErrors = append(validationErrors, fmt.Errorf("site name is not valid: %s", err))
+			} else {
+				cmd.siteName = args[0]
+			}
 		}
 	}
 
@@ -75,16 +78,26 @@ func (cmd *CmdSiteDelete) InputToOptions() {
 	if cmd.namespace == "" {
 		cmd.namespace = "default"
 	}
+	cmd.all = cmd.Flags.All
 }
 
 func (cmd *CmdSiteDelete) Run() error {
-	err := cmd.siteHandler.Delete(cmd.siteName)
-	if err != nil {
-		return err
-	}
-	err = cmd.routerAccessHandler.Delete("router-access-" + cmd.siteName)
-	if err != nil {
-		return err
+	// if all flag is set remove input/resources and its contents
+	if cmd.all {
+		err := cmd.siteHandler.Delete("")
+		if err != nil {
+			return err
+		}
+	} else {
+		// just removing site
+		err := cmd.siteHandler.Delete(cmd.siteName)
+		if err != nil {
+			return err
+		}
+		err = cmd.routerAccessHandler.Delete("router-access-" + cmd.siteName)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
