@@ -11,7 +11,7 @@ spec:
       containers:
         - name: controller
           env:
-            - name: SKUPPER_KUBE_ADAPTOR_IMAGE
-              value: "quay.io/skupper/kube-adaptor:v2-latest"
-            - name: SKUPPER_KUBE_ADAPTOR_IMAGE_PULL_POLICY
-              value: Always
+            - name: RELATED_IMAGE_kube_adaptor
+              value: quay.io/skupper/kube-adaptor:v2-dev
+            - name: RELATED_IMAGE_skupper-router
+              value: quay.io/skupper/skupper-router:3.1.0
