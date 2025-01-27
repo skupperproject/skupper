@@ -1,9 +1,0 @@
-images:
-  controller: "quay.io/skupper/controller:v2-dev"
-  adaptor: "quay.io/skupper/kube-adaptor:v2-dev"
-
-# available options: cluster, namespace
-scope: cluster
-
-# namespace in which the controller will be deployed for the cluster option
-controllerNamespace: skupper
