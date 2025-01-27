@@ -201,6 +201,7 @@ func (s WorkloadValidator) Evaluate(value interface{}) (string, string, bool, er
 				return option, resource[1], true, nil
 			}
 		}
+		return "", "", false, fmt.Errorf("resource-type does not match expected value: deployment/service/daemonset/statefulset")
 	}
 	return "", "", false, fmt.Errorf("value does not match this regular expression: %s", s.Expression)
 }

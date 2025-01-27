@@ -7,8 +7,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"time"
+
+	"k8s.io/apimachinery/pkg/api/meta"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -30,7 +31,6 @@ type CmdSiteCreate struct {
 	serviceAccountName string
 	Namespace          string
 	linkAccessType     string
-	output             string
 	timeout            time.Duration
 	status             string
 }
@@ -56,7 +56,6 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
 	linkAccessTypeValidator := validator.NewOptionValidator(common.LinkAccessTypes)
-	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 
@@ -64,10 +63,6 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 	siteList, _ := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if siteList != nil && len(siteList.Items) > 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("there is already a site created for this namespace"))
-	}
-
-	if cmd.Flags != nil && cmd.Flags.SubjectAlternativeNames != nil && len(cmd.Flags.SubjectAlternativeNames) > 0 {
-		fmt.Println("Warning: --subject-alternative-names flag is not supported on this platform")
 	}
 
 	if len(args) == 0 || args[0] == "" {
@@ -101,13 +96,6 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 		}
 	}
 
-	if cmd.Flags != nil && cmd.Flags.Output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
-		}
-	}
-
 	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
 		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
 		if !ok {
@@ -137,7 +125,6 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 		}
 	}
 
-	cmd.output = cmd.Flags.Output
 	cmd.timeout = cmd.Flags.Timeout
 	cmd.status = cmd.Flags.Wait
 
@@ -160,25 +147,12 @@ func (cmd *CmdSiteCreate) Run() error {
 		},
 	}
 
-	if cmd.output != "" {
-		encodedOutput, err := utils.Encode(cmd.output, resource)
-		fmt.Println(encodedOutput)
-
-		return err
-
-	} else {
-		_, err := cmd.Client.Sites(cmd.Namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
-		return err
-	}
+	_, err := cmd.Client.Sites(cmd.Namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
+	return err
 
 }
 
 func (cmd *CmdSiteCreate) WaitUntil() error {
-
-	// the site resource was not created
-	if cmd.output != "" {
-		return nil
-	}
 
 	if cmd.status == "none" {
 		return nil

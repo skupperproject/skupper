@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -14,10 +15,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type CmdListenerCreate struct {
+type CmdListenerGenerate struct {
 	listenerHandler *fs.ListenerHandler
 	CobraCmd        *cobra.Command
-	Flags           *common.CommandListenerCreateFlags
+	Flags           *common.CommandListenerGenerateFlags
 	namespace       string
 	listenerName    string
 	port            int
@@ -25,13 +26,14 @@ type CmdListenerCreate struct {
 	tlsCredentials  string
 	listenerType    string
 	routingKey      string
+	output          string
 }
 
-func NewCmdListenerCreate() *CmdListenerCreate {
-	return &CmdListenerCreate{}
+func NewCmdListenerGenerate() *CmdListenerGenerate {
+	return &CmdListenerGenerate{}
 }
 
-func (cmd *CmdListenerCreate) NewClient(cobraCommand *cobra.Command, args []string) {
+func (cmd *CmdListenerGenerate) NewClient(cobraCommand *cobra.Command, args []string) {
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace) != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String() != "" {
 		cmd.namespace = cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String()
 	}
@@ -39,7 +41,7 @@ func (cmd *CmdListenerCreate) NewClient(cobraCommand *cobra.Command, args []stri
 	cmd.listenerHandler = fs.NewListenerHandler(cmd.namespace)
 }
 
-func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
+func (cmd *CmdListenerGenerate) ValidateInput(args []string) error {
 	var validationErrors []error
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
@@ -53,6 +55,7 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	listenerTypeValidator := validator.NewOptionValidator(common.ListenerTypes)
+	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	hostStringValidator := validator.NewHostStringValidator()
 
 	// Validate arguments name and port
@@ -108,14 +111,20 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
 	if cmd.Flags.TlsCredentials != "" {
 		ok, err := resourceStringValidator.Evaluate(cmd.Flags.TlsCredentials)
 		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("tlsCredentials value is not valid: %s", err))
+			validationErrors = append(validationErrors, fmt.Errorf("tlsCredentials is not valid: %s", err))
 		}
 	}
 
+	if cmd.Flags.Output != "" {
+		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
+		}
+	}
 	return errors.Join(validationErrors...)
 }
 
-func (cmd *CmdListenerCreate) InputToOptions() {
+func (cmd *CmdListenerGenerate) InputToOptions() {
 	// default routingkey to name of listener
 	if cmd.Flags.RoutingKey == "" {
 		cmd.routingKey = cmd.listenerName
@@ -135,9 +144,10 @@ func (cmd *CmdListenerCreate) InputToOptions() {
 
 	cmd.tlsCredentials = cmd.Flags.TlsCredentials
 	cmd.listenerType = cmd.Flags.ListenerType
+	cmd.output = cmd.Flags.Output
 }
 
-func (cmd *CmdListenerCreate) Run() error {
+func (cmd *CmdListenerGenerate) Run() error {
 	listenerResource := v2alpha1.Listener{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v2alpha1",
@@ -156,11 +166,10 @@ func (cmd *CmdListenerCreate) Run() error {
 		},
 	}
 
-	err := cmd.listenerHandler.Add(listenerResource)
-	if err != nil {
-		return err
-	}
-	return nil
+	encodedOutput, err := utils.Encode(cmd.output, listenerResource)
+	fmt.Println(encodedOutput)
+	return err
+
 }
 
-func (cmd *CmdListenerCreate) WaitUntil() error { return nil }
+func (cmd *CmdListenerGenerate) WaitUntil() error { return nil }

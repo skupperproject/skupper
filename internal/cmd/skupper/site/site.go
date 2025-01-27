@@ -28,6 +28,7 @@ skupper site status`,
 	cmd.AddCommand(CmdSiteStatusFactory(config.GetPlatform()))
 	cmd.AddCommand(CmdSiteDeleteFactory(config.GetPlatform()))
 	cmd.AddCommand(CmdSiteUpdateFactory(config.GetPlatform()))
+	cmd.AddCommand(CmdSiteGenerateFactory(config.GetPlatform()))
 
 	return cmd
 }
@@ -51,7 +52,6 @@ There can be only one site definition per namespace.`,
 
 	cmd.Flags().BoolVar(&cmdFlags.EnableLinkAccess, common.FlagNameEnableLinkAccess, false, common.FlagDescEnableLinkAccess)
 	cmd.Flags().StringVar(&cmdFlags.LinkAccessType, common.FlagNameLinkAccessType, "", common.FlagDescLinkAccessType)
-	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	cmd.Flags().StringVar(&cmdFlags.ServiceAccount, common.FlagNameServiceAccount, "", common.FlagDescServiceAccount)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 3*time.Minute, common.FlagDescTimeout)
 	cmd.Flags().StringVar(&cmdFlags.BindHost, common.FlagNameBindHost, "0.0.0.0", common.FlagDescBindHost)
@@ -91,7 +91,6 @@ func CmdSiteUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 
 	cmd.Flags().BoolVar(&cmdFlags.EnableLinkAccess, common.FlagNameEnableLinkAccess, false, common.FlagDescEnableLinkAccess)
 	cmd.Flags().StringVar(&cmdFlags.LinkAccessType, common.FlagNameLinkAccessType, "", common.FlagDescLinkAccessType)
-	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	cmd.Flags().StringVar(&cmdFlags.ServiceAccount, common.FlagNameServiceAccount, "", common.FlagDescServiceAccount)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 30*time.Second, common.FlagDescTimeout)
 	cmd.Flags().StringVar(&cmdFlags.BindHost, common.FlagNameBindHost, "", common.FlagDescBindHost)
@@ -165,4 +164,46 @@ skupper site delete --wait=false`,
 	nonKubeCommand.Flags = &cmdFlags
 
 	return cmd
+}
+
+func CmdSiteGenerateFactory(configuredPlatform types.Platform) *cobra.Command {
+	kubeCommand := kube.NewCmdSiteGenerate()
+	nonKubeCommand := nonkube.NewCmdSiteGenerate()
+
+	cmdSiteGenerateDesc := common.SkupperCmdDescription{
+		Use:   "generate <name>",
+		Short: "Generate a site resource and output it to a file or screen",
+		Long: `A site is a place where components of your application are running.
+Sites are linked to form application networks.
+There can be only one site definition per namespace.
+Generate a site resource to evaluate what will be created with the site create command`,
+		Example: "skupper site generate my-site --enable-link-access",
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSiteGenerateDesc, kubeCommand, nonKubeCommand)
+
+	cmdFlags := common.CommandSiteGenerateFlags{}
+
+	cmd.Flags().BoolVar(&cmdFlags.EnableLinkAccess, common.FlagNameEnableLinkAccess, false, common.FlagDescEnableLinkAccess)
+	cmd.Flags().StringVar(&cmdFlags.LinkAccessType, common.FlagNameLinkAccessType, "", common.FlagDescLinkAccessType)
+	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "yaml", common.FlagDescOutput)
+	cmd.Flags().StringVar(&cmdFlags.ServiceAccount, common.FlagNameServiceAccount, "", common.FlagDescServiceAccount)
+	cmd.Flags().StringVar(&cmdFlags.BindHost, common.FlagNameBindHost, "0.0.0.0", common.FlagDescBindHost)
+	cmd.Flags().StringSliceVar(&cmdFlags.SubjectAlternativeNames, common.FlagNameSubjectAlternativeNames, []string{}, common.FlagDescSubjectAlternativeNames)
+
+	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
+	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
+
+	if configuredPlatform == types.PlatformKubernetes {
+		cmd.Flags().MarkHidden(common.FlagNameServiceAccount)
+	} else {
+		cmd.Flags().MarkHidden(common.FlagNameBindHost)
+		cmd.Flags().MarkHidden(common.FlagNameSubjectAlternativeNames)
+
+	}
+
+	return cmd
+
 }

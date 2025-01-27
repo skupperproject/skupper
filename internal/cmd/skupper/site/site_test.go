@@ -25,7 +25,6 @@ func TestCmdSiteFactory(t *testing.T) {
 				common.FlagNameEnableLinkAccess:        "false",
 				common.FlagNameLinkAccessType:          "",
 				common.FlagNameServiceAccount:          "",
-				common.FlagNameOutput:                  "",
 				common.FlagNameTimeout:                 "3m0s",
 				common.FlagNameBindHost:                "0.0.0.0",
 				common.FlagNameSubjectAlternativeNames: "[]",
@@ -39,7 +38,6 @@ func TestCmdSiteFactory(t *testing.T) {
 				common.FlagNameEnableLinkAccess:        "false",
 				common.FlagNameLinkAccessType:          "",
 				common.FlagNameServiceAccount:          "",
-				common.FlagNameOutput:                  "",
 				common.FlagNameBindHost:                "",
 				common.FlagNameTimeout:                 "30s",
 				common.FlagNameSubjectAlternativeNames: "[]",
@@ -62,6 +60,18 @@ func TestCmdSiteFactory(t *testing.T) {
 				common.FlagNameOutput: "",
 			},
 			command: CmdSiteStatusFactory(types.PlatformKubernetes),
+		},
+		{
+			name: "CmdSiteGenerateFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameEnableLinkAccess:        "false",
+				common.FlagNameLinkAccessType:          "",
+				common.FlagNameServiceAccount:          "",
+				common.FlagNameOutput:                  "yaml",
+				common.FlagNameBindHost:                "0.0.0.0",
+				common.FlagNameSubjectAlternativeNames: "[]",
+			},
+			command: CmdSiteGenerateFactory(types.PlatformKubernetes),
 		},
 	}
 

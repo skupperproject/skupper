@@ -199,21 +199,19 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			expectedError: "timeout is not valid: duration must not be less than 10s; got 0s",
 		},
 		{
-			name: "output is not valid",
-			args: []string{"bad-output", "1234"},
+			name: "host is not valid",
+			args: []string{"my-connector-host", "8080"},
 			flags: common.CommandConnectorCreateFlags{
-				Host:    "host",
+				Host:    "not-valid$",
 				Timeout: 10 * time.Second,
-				Output:  "not-supported",
 			},
-			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
+			expectedError: "host is not valid: a valid IP address or hostname is expected",
 		},
 		{
 			name: "selector/host",
 			args: []string{"selector", "1234"},
 			flags: common.CommandConnectorCreateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Selector: "app=test",
 				Host:     "test",
 			},
@@ -225,7 +223,6 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 			args: []string{"workload", "1234"},
 			flags: common.CommandConnectorCreateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "deployment/test",
 				Host:     "test",
 			},
@@ -282,7 +279,6 @@ func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
 			name: "workload-no-deployment",
 			args: []string{"workload-deployment", "1234"}, flags: common.CommandConnectorCreateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "deployment/backend",
 			},
 			expectedError: "failed trying to get Deployment specified by workload: deployments.apps \"backend\" not found",
@@ -291,7 +287,6 @@ func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
 			name: "workload-deployment-no-labels",
 			args: []string{"workload-deployment-no-labels", "1234"}, flags: common.CommandConnectorCreateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "deployment/backend",
 			},
 			k8sObjects: []runtime.Object{
@@ -315,7 +310,6 @@ func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
 			name: "workload-deployment",
 			args: []string{"workload-deployment", "1234"}, flags: common.CommandConnectorCreateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "deployment/backend",
 			},
 			k8sObjects: []runtime.Object{
@@ -344,7 +338,6 @@ func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
 			name: "workload-no-service",
 			args: []string{"workload-no-service", "1234"}, flags: common.CommandConnectorCreateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "service/backend",
 			},
 			expectedError: "failed trying to get Service specified by workload: services \"backend\" not found",
@@ -353,7 +346,6 @@ func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
 			name: "workload-service-no-labels",
 			args: []string{"workload-service-no-labels", "1234"}, flags: common.CommandConnectorCreateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "service/backend",
 			},
 			k8sObjects: []runtime.Object{
@@ -375,7 +367,6 @@ func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
 			name: "workload-service",
 			args: []string{"workload-service", "1234"}, flags: common.CommandConnectorCreateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "service/backend",
 			},
 			k8sObjects: []runtime.Object{
@@ -402,7 +393,6 @@ func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
 			name: "workload-no-daemonset",
 			args: []string{"workload-no-daemonset", "1234"}, flags: common.CommandConnectorCreateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "daemonset/backend",
 			},
 			expectedError: "failed trying to get DaemonSet specified by workload: daemonsets.apps \"backend\" not found",
@@ -411,7 +401,6 @@ func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
 			name: "workload-daemonset-no-labels",
 			args: []string{"workload-daemonset-no-labels", "1234"}, flags: common.CommandConnectorCreateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "daemonset/backend",
 			},
 			k8sObjects: []runtime.Object{
@@ -435,7 +424,6 @@ func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
 			name: "workload-daemonset",
 			args: []string{"workload-daemonset", "1234"}, flags: common.CommandConnectorCreateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "DaemonSet/backend",
 			},
 			k8sObjects: []runtime.Object{
@@ -464,7 +452,6 @@ func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
 			name: "workload-no-statefulset",
 			args: []string{"workload-no-statefulset", "1234"}, flags: common.CommandConnectorCreateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "StatefulSet/backend",
 			},
 			expectedError: "failed trying to get StatefulSet specified by workload: statefulsets.apps \"backend\" not found",
@@ -473,7 +460,6 @@ func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
 			name: "workload-statefulset-no-labels",
 			args: []string{"workload-statefulset-no-labels", "1234"}, flags: common.CommandConnectorCreateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "statefulset/backend",
 			},
 			k8sObjects: []runtime.Object{
@@ -497,7 +483,6 @@ func TestCmdConnectorCreate_ValidateWorkload(t *testing.T) {
 			name: "workload-statefulset",
 			args: []string{"workload-statefulset", "1234"}, flags: common.CommandConnectorCreateFlags{
 				Timeout:  10 * time.Second,
-				Output:   "json",
 				Workload: "statefulset/backend",
 			},
 			k8sObjects: []runtime.Object{
@@ -557,7 +542,6 @@ func TestCmdConnectorCreate_InputToOptions(t *testing.T) {
 		expectedSelector       string
 		expectedRoutingKey     string
 		expectedConnectorType  string
-		expectedOutput         string
 		expectedTimeout        time.Duration
 		expectedStatus         string
 	}
@@ -565,37 +549,34 @@ func TestCmdConnectorCreate_InputToOptions(t *testing.T) {
 	testTable := []test{
 		{
 			name:                   "test1",
-			flags:                  common.CommandConnectorCreateFlags{"backend", "", "app=backend", "secret", "tcp", true, "", 20 * time.Second, "json", "ready"},
+			flags:                  common.CommandConnectorCreateFlags{"backend", "", "app=backend", "secret", "tcp", true, "", 20 * time.Second, "ready"},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "",
 			expectedRoutingKey:     "backend",
 			expectedTimeout:        20 * time.Second,
 			expectedConnectorType:  "tcp",
-			expectedOutput:         "json",
 			expectedSelector:       "app=backend",
 			expectedStatus:         "ready",
 		},
 		{
 			name:                   "test2",
-			flags:                  common.CommandConnectorCreateFlags{"backend", "backend", "", "secret", "tcp", true, "", 20 * time.Second, "json", "configured"},
+			flags:                  common.CommandConnectorCreateFlags{"backend", "backend", "", "secret", "tcp", true, "", 20 * time.Second, "configured"},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "backend",
 			expectedRoutingKey:     "backend",
 			expectedTimeout:        20 * time.Second,
 			expectedConnectorType:  "tcp",
-			expectedOutput:         "json",
 			expectedSelector:       "",
 			expectedStatus:         "configured",
 		},
 		{
 			name:                   "test3",
-			flags:                  common.CommandConnectorCreateFlags{"", "", "", "secret", "tcp", false, "", 30 * time.Second, "yaml", "none"},
+			flags:                  common.CommandConnectorCreateFlags{"", "", "", "secret", "tcp", false, "", 30 * time.Second, "none"},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "",
 			expectedRoutingKey:     "test3",
 			expectedTimeout:        30 * time.Second,
 			expectedConnectorType:  "tcp",
-			expectedOutput:         "yaml",
 			expectedSelector:       "app=test3",
 			expectedStatus:         "none",
 		},
@@ -613,7 +594,6 @@ func TestCmdConnectorCreate_InputToOptions(t *testing.T) {
 			cmd.InputToOptions()
 
 			assert.Check(t, cmd.routingKey == test.expectedRoutingKey)
-			assert.Check(t, cmd.output == test.expectedOutput)
 			assert.Check(t, cmd.tlsCredentials == test.expectedTlsCredentials)
 			assert.Check(t, cmd.host == test.expectedHost)
 			assert.Check(t, cmd.timeout == test.expectedTimeout)
@@ -650,20 +630,6 @@ func TestCmdConnectorCreate_Run(t *testing.T) {
 				Timeout:             10 * time.Second,
 			},
 		},
-		{
-			name:          "run output json",
-			connectorName: "my-connector-json",
-			connectorPort: 8080,
-			flags: common.CommandConnectorCreateFlags{
-				ConnectorType:       "tcp",
-				Host:                "hostname",
-				RoutingKey:          "keyname",
-				TlsCredentials:      "secretname",
-				IncludeNotReadyPods: true,
-				Timeout:             10 * time.Second,
-				Output:              "json",
-			},
-		},
 	}
 
 	for _, test := range testTable {
@@ -675,7 +641,6 @@ func TestCmdConnectorCreate_Run(t *testing.T) {
 			cmd.Flags = &common.CommandConnectorCreateFlags{}
 			cmd.name = test.connectorName
 			cmd.port = test.connectorPort
-			cmd.output = test.flags.Output
 			cmd.namespace = "test"
 
 			err := cmd.Run()
@@ -691,7 +656,6 @@ func TestCmdConnectorCreate_Run(t *testing.T) {
 func TestCmdConnectorCreate_WaitUntil(t *testing.T) {
 	type test struct {
 		name                string
-		output              string
 		status              string
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
@@ -731,29 +695,6 @@ func TestCmdConnectorCreate_WaitUntil(t *testing.T) {
 							Conditions: []v1.Condition{
 								{
 									Type:   "Ready",
-									Status: "True",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name:   "connector is ready yaml output",
-			output: "yaml",
-			skupperObjects: []runtime.Object{
-				&v2alpha1.Connector{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-connector",
-						Namespace: "test",
-					},
-					Status: v2alpha1.ConnectorStatus{
-						Status: v2alpha1.Status{
-							Conditions: []v1.Condition{
-								{
-									Type:   "Configured",
 									Status: "True",
 								},
 							},
@@ -851,7 +792,6 @@ func TestCmdConnectorCreate_WaitUntil(t *testing.T) {
 		assert.Assert(t, err)
 
 		cmd.name = "my-connector"
-		cmd.output = test.output
 		cmd.timeout = 1 * time.Second
 		cmd.namespace = "test"
 		cmd.status = test.status

@@ -34,7 +34,6 @@ type CmdListenerCreate struct {
 	listenerType   string
 	routingKey     string
 	timeout        time.Duration
-	output         string
 	KubeClient     kubernetes.Interface
 	status         string
 }
@@ -59,7 +58,6 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	listenerTypeValidator := validator.NewOptionValidator(common.ListenerTypes)
-	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 
@@ -128,13 +126,6 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
 		}
 	}
 
-	if cmd.Flags != nil && cmd.Flags.Output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
-		}
-	}
-
 	if cmd.Flags != nil && cmd.Flags.Wait != "" {
 		ok, err := statusValidator.Evaluate(cmd.Flags.Wait)
 		if !ok {
@@ -160,7 +151,6 @@ func (cmd *CmdListenerCreate) InputToOptions() {
 	cmd.timeout = cmd.Flags.Timeout
 	cmd.tlsCredentials = cmd.Flags.TlsCredentials
 	cmd.listenerType = cmd.Flags.ListenerType
-	cmd.output = cmd.Flags.Output
 	cmd.status = cmd.Flags.Wait
 }
 
@@ -184,21 +174,11 @@ func (cmd *CmdListenerCreate) Run() error {
 		},
 	}
 
-	if cmd.output != "" {
-		encodedOutput, err := utils.Encode(cmd.output, resource)
-		fmt.Println(encodedOutput)
-		return err
-	} else {
-		_, err := cmd.client.Listeners(cmd.namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
-		return err
-	}
+	_, err := cmd.client.Listeners(cmd.namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
+	return err
 }
 
 func (cmd *CmdListenerCreate) WaitUntil() error {
-	// the site resource was not created
-	if cmd.output != "" {
-		return nil
-	}
 
 	if cmd.status == "none" {
 		return nil

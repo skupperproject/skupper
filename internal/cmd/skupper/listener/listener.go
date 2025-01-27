@@ -25,6 +25,7 @@ skupper listener status my-listener`,
 	cmd.AddCommand(CmdListenerStatusFactory(config.GetPlatform()))
 	cmd.AddCommand(CmdListenerUpdateFactory(config.GetPlatform()))
 	cmd.AddCommand(CmdListenerDeleteFactory(config.GetPlatform()))
+	cmd.AddCommand(CmdListenerGenerateFactory(config.GetPlatform()))
 
 	return cmd
 }
@@ -48,7 +49,7 @@ func CmdListenerCreateFactory(configuredPlatform types.Platform) *cobra.Command 
 	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameListenerHost, "", common.FlagDescListenerHost)
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ListenerType, common.FlagNameListenerType, "tcp", common.FlagDescListenerType)
-	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
+
 	if configuredPlatform == types.PlatformKubernetes {
 		cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 		cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "configured", common.FlagDescWait)
@@ -83,7 +84,6 @@ func CmdListenerUpdateFactory(configuredPlatform types.Platform) *cobra.Command 
 	cmd.Flags().StringVarP(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "t", "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ListenerType, common.FlagNameListenerType, "tcp", common.FlagDescListenerType)
 	cmd.Flags().IntVar(&cmdFlags.Port, common.FlagNameListenerPort, 0, common.FlagDescListenerPort)
-	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	if configuredPlatform == types.PlatformKubernetes {
 		cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 		cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "configured", common.FlagDescWait)
@@ -141,6 +141,36 @@ func CmdListenerDeleteFactory(configuredPlatform types.Platform) *cobra.Command 
 		cmd.Flags().DurationVarP(&cmdFlags.Timeout, common.FlagNameTimeout, "t", 60*time.Second, common.FlagDescTimeout)
 		cmd.Flags().BoolVar(&cmdFlags.Wait, common.FlagNameWait, true, common.FlagDescDeleteWait)
 	}
+
+	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
+	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
+
+	return cmd
+}
+
+func CmdListenerGenerateFactory(configuredPlatform types.Platform) *cobra.Command {
+	kubeCommand := kube.NewCmdListenerGenerate()
+	nonKubeCommand := nonkube.NewCmdListenerGenerate()
+
+	cmdListenerGenerateDesc := common.SkupperCmdDescription{
+		Use:   "generate <name> <port>",
+		Short: "generate a listener resource and output it to a file or screen",
+		Long: `Clients at this site use the listener host and port to establish connections to the remote service.
+	generate a listener to evaluate what will be created with listener create command`,
+		Example: "skupper listener generate database 5432",
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdListenerGenerateDesc, kubeCommand, nonKubeCommand)
+
+	cmdFlags := common.CommandListenerGenerateFlags{}
+
+	cmd.Flags().StringVarP(&cmdFlags.RoutingKey, common.FlagNameRoutingKey, "r", "", common.FlagDescRoutingKey)
+	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameListenerHost, "", common.FlagDescListenerHost)
+	cmd.Flags().StringVarP(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "t", "", common.FlagDescTlsCredentials)
+	cmd.Flags().StringVar(&cmdFlags.ListenerType, common.FlagNameListenerType, "tcp", common.FlagDescListenerType)
+	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "yaml", common.FlagDescOutput)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags

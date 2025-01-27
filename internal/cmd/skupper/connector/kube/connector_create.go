@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"k8s.io/apimachinery/pkg/api/meta"
+	"net"
 	"strconv"
 	"time"
+
+	"k8s.io/apimachinery/pkg/api/meta"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -29,7 +31,6 @@ type CmdConnectorCreate struct {
 	namespace           string
 	name                string
 	port                int
-	output              string
 	host                string
 	selector            string
 	tlsCredentials      string
@@ -60,11 +61,11 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
-	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 	workloadStringValidator := validator.NewWorkloadStringValidator(common.WorkloadTypes)
 	selectorStringValidator := validator.NewSelectorStringValidator()
 	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
+	hostStringValidator := validator.NewHostStringValidator()
 
 	// Validate arguments name and port
 	if len(args) < 2 {
@@ -125,7 +126,11 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) error {
 		if cmd.Flags.Workload != "" || cmd.Flags.Selector != "" {
 			validationErrors = append(validationErrors, fmt.Errorf("If host is configured, cannot configure workload or selector"))
 		}
-		//TBD what characters are not allowed for host flag
+		ip := net.ParseIP(cmd.Flags.Host)
+		ok, _ := hostStringValidator.Evaluate(cmd.Flags.Host)
+		if !ok && ip == nil {
+			validationErrors = append(validationErrors, fmt.Errorf("host is not valid: a valid IP address or hostname is expected"))
+		}
 	}
 	if cmd.Flags != nil && cmd.Flags.Selector != "" {
 		if cmd.Flags.Workload != "" || cmd.Flags.Host != "" {
@@ -194,17 +199,10 @@ func (cmd *CmdConnectorCreate) ValidateInput(args []string) error {
 			}
 		}
 	}
-	//TBD what is valid timeout
 	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
 		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("timeout is not valid: %s", err))
-		}
-	}
-	if cmd.Flags != nil && cmd.Flags.Output != "" {
-		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
 	}
 
@@ -241,7 +239,6 @@ func (cmd *CmdConnectorCreate) InputToOptions() {
 	cmd.timeout = cmd.Flags.Timeout
 	cmd.tlsCredentials = cmd.Flags.TlsCredentials
 	cmd.connectorType = cmd.Flags.ConnectorType
-	cmd.output = cmd.Flags.Output
 	cmd.includeNotReadyPods = cmd.Flags.IncludeNotReadyPods
 	cmd.status = cmd.Flags.Wait
 }
@@ -268,21 +265,11 @@ func (cmd *CmdConnectorCreate) Run() error {
 		},
 	}
 
-	if cmd.output != "" {
-		encodedOutput, err := utils.Encode(cmd.output, resource)
-		fmt.Println(encodedOutput)
-		return err
-	} else {
-		_, err := cmd.client.Connectors(cmd.namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
-		return err
-	}
+	_, err := cmd.client.Connectors(cmd.namespace).Create(context.TODO(), &resource, metav1.CreateOptions{})
+	return err
 }
 
 func (cmd *CmdConnectorCreate) WaitUntil() error {
-	// the site resource was not created
-	if cmd.output != "" {
-		return nil
-	}
 
 	if cmd.status == "none" {
 		return nil

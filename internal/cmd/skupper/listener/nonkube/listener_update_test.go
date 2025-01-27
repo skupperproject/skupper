@@ -93,12 +93,6 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 			expectedError: "host is not valid: a valid IP address or hostname is expected",
 		},
 		{
-			name:          "output is not valid",
-			args:          []string{"my-listener"},
-			flags:         &common.CommandListenerUpdateFlags{Output: "not-supported"},
-			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
-		},
-		{
 			name:  "kubernetes flags are not valid on this platform",
 			args:  []string{"my-listener"},
 			flags: &common.CommandListenerUpdateFlags{},
@@ -116,7 +110,6 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 				TlsCredentials: "secretname",
 				Port:           1234,
 				ListenerType:   "tcp",
-				Output:         "json",
 				Host:           "1.2.3.4",
 			},
 			expectedError: "",
@@ -175,7 +168,6 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 		errorMessage        string
 		listenerName        string
 		host                string
-		output              string
 		routingKey          string
 		tlsCredentials      string
 		listenerType        string
@@ -194,14 +186,12 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 			tlsCredentials: "secretname",
 		},
 		{
-			name:           "run output json",
-			listenerName:   "my-listener",
-			port:           8181,
-			listenerType:   "tcp",
-			host:           "hostname",
-			routingKey:     "keyname",
-			tlsCredentials: "secretname",
-			output:         "json",
+			name:         "run ok no secret",
+			listenerName: "my-listener",
+			port:         8181,
+			listenerType: "tcp",
+			host:         "hostname",
+			routingKey:   "keyname",
 		},
 	}
 
@@ -209,7 +199,6 @@ func TestCmdListenerUpdate_Run(t *testing.T) {
 		command := &CmdListenerUpdate{}
 		command.CobraCmd = &cobra.Command{Use: "test"}
 		command.listenerName = test.listenerName
-		command.newSettings.output = test.output
 		command.newSettings.port = test.port
 		command.newSettings.host = test.host
 		command.newSettings.routingKey = test.routingKey
