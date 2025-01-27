@@ -1,18 +1,18 @@
 # Installing the skupper controller
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/config/crd/bases/skupper_access_grant_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/config/crd/bases/skupper_access_token_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/config/crd/bases/skupper_attached_connector_anchor_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/config/crd/bases/skupper_attached_connector_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/config/crd/bases/skupper_certificate_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/config/crd/bases/skupper_connector_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/config/crd/bases/skupper_link_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/config/crd/bases/skupper_listener_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/config/crd/bases/skupper_router_access_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/config/crd/bases/skupper_secured_access_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/config/crd/bases/skupper_site_crd.yaml
-kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/deploy_cluster_scope.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/main/config/crd/bases/skupper_access_grant_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/main/config/crd/bases/skupper_access_token_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/main/config/crd/bases/skupper_attached_connector_anchor_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/main/config/crd/bases/skupper_attached_connector_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/main/config/crd/bases/skupper_certificate_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/main/config/crd/bases/skupper_connector_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/main/config/crd/bases/skupper_link_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/main/config/crd/bases/skupper_listener_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/main/config/crd/bases/skupper_router_access_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/main/config/crd/bases/skupper_secured_access_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/main/config/crd/bases/skupper_site_crd.yaml
+kubectl apply -f https://raw.githubusercontent.com/skupperproject/skupper/main/cmd/controller/deploy_cluster_scope.yaml
 ```
 
 # Deploy application in two namespaces (or contexts)
@@ -32,23 +32,23 @@ kubectl create deployment backend --image quay.io/skupper/hello-world-backend --
 # Create sites
 
 ```
-kubectl apply -n west -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/site1.yaml
+kubectl apply -n west -f https://raw.githubusercontent.com/skupperproject/skupper/main/cmd/controller/example/site1.yaml
 ```
 
 ```
-kubectl apply -n east -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/site2.yaml
+kubectl apply -n east -f https://raw.githubusercontent.com/skupperproject/skupper/main/cmd/controller/example/site2.yaml
 ```
 
 # Expose backend in east site
 
 ```
-kubectl apply -n east -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/connector.yaml
+kubectl apply -n east -f https://raw.githubusercontent.com/skupperproject/skupper/main/cmd/controller/example/connector.yaml
 ```
 
 # Consume backend in west site
 
 ```
-kubectl apply -n west -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/listener.yaml
+kubectl apply -n west -f https://raw.githubusercontent.com/skupperproject/skupper/main/cmd/controller/example/listener.yaml
 ```
 
 # Link sites
@@ -56,7 +56,7 @@ kubectl apply -n west -f https://raw.githubusercontent.com/skupperproject/skuppe
 Create a Grant in west site:
 
 ```
-kubectl apply -n west -f https://raw.githubusercontent.com/skupperproject/skupper/v2/cmd/controller/example/access_grant.yaml
+kubectl apply -n west -f https://raw.githubusercontent.com/skupperproject/skupper/main/cmd/controller/example/access_grant.yaml
 ```
 
 Wait until url and ca fields in status are set:
