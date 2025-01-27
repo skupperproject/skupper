@@ -22,6 +22,18 @@ commands:
       - run:
           name: Apt Install Skopeo
           command: sudo apt-get update -y && sudo apt-get install -y skopeo
+  kubectl-install:
+    description: Install kubectl
+    steps:
+      - run: curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+      - run: sudo chmod +x kubectl
+      - run: sudo mv kubectl /usr/local/bin
+  operator-sdk-install:
+    description: Install operator-sdk
+    steps:
+      - run: curl -LO https://github.com/operator-framework/operator-sdk/releases/latest/download/operator-sdk_linux_amd64
+      - run: sudo chmod +x operator-sdk_linux_amd64
+      - run: mv operator-sdk_linux_amd64 /usr/local/bin/operator-sdk
 
   compile_go_program:
     description: Compile specified platform.
@@ -116,6 +128,10 @@ workflows:
           <<: *run_for_numeric_tags
           requires:
              - generate-manifest
+      - generate-operator-bundle:
+          <<: *run_for_numeric_tags
+          requires:
+            - generate-manifest
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
           requires:
@@ -157,6 +173,10 @@ workflows:
           requires:
             - publish-oci-images
       - generate-skupper-setup:
+          <<: *run_for_v2_branch
+          requires:
+            - generate-manifest
+      - generate-operator-bundle:
           <<: *run_for_v2_branch
           requires:
             - generate-manifest
@@ -215,21 +235,39 @@ jobs:
           paths:
             - skupper-manifest
 
+  generate-operator-bundle:
+    executor:
+      name: go_cimg
+    steps:
+      - checkout
+      - go/mod-download-cached
+      - kubectl-install
+      - operator-sdk-install
+      - run: make generate-bundle
+      - persist_to_workspace:
+          root: .
+          paths:
+            - operator-bundle
+
   generate-skupper-setup:
     executor:
       name: go_cimg
     steps:
       - checkout
       - go/mod-download-cached
+      - kubectl-install
       - run:
           name: Install Helm CLI
           command: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      - run: make generate-skupper-helm-chart
       - run: make generate-skupper-deployment-cluster-scoped
       - run: make generate-skupper-deployment-namespace-scoped
       - run: make generate-network-observer
       - run: make generate-network-observer-httpbasic
       - run: mkdir skupper-setup
       - run: cp ./*.yaml skupper-setup
+      - run: make pack-skupper-helm-chart
+      - run: cp ./skupper-*.tgz skupper-setup
       - run:
           name: Verify skupper-setup Directory Contents
           command: |
@@ -378,7 +416,8 @@ jobs:
             done
             cd ${BASEDIR}
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
-            cp skupper-setup/*.yaml archives
+            cp skupper-setup/* archives
+            tar -zcf "${BASEDIR}/archives/operator-bundle-${VERSION}.tgz" operator-bundle/*
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
 
   publish-github-prerelease-artifacts:
@@ -407,5 +446,6 @@ jobs:
             done
             cd ${BASEDIR}
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
-            cp skupper-setup/*.yaml archives
+            cp skupper-setup/* archives
+            tar -zcf "${BASEDIR}/archives/operator-bundle-${VERSION}.tgz" operator-bundle/*
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease ${VERSION} "${BASEDIR}/archives"

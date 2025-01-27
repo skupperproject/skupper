@@ -58,7 +58,6 @@ cat <<EOF >"$TEMPLATES_DIR/NOTES.txt"
 EOF
 
 
-echo "Helm chart directory structure created successfully for '$CHART_NAME' with version=$VERSION and appVersion=$APP_VERSION."
 
 CRD_SOURCE_DIR="../config/crd/bases"
 
@@ -107,3 +106,6 @@ sed -i -E 's|quay.io/skupper/controller:[a-zA-Z0-9-]*|{{ .Values.controllerImage
 
 sed -i 's|quay.io/skupper/kube-adaptor:[a-zA-Z0-9-]*|{{ .Values.kubeAdaptorImage }}|g' "$CLUSTER_TEMPLATE"
 sed -i 's|quay.io/skupper/kube-adaptor:[a-zA-Z0-9-]*|{{ .Values.kubeAdaptorImage }}|g' "$NAMESPACE_TEMPLATE"
+
+
+echo "Helm chart directory structure created successfully for '$CHART_NAME' with version=$VERSION and appVersion=$APP_VERSION."
