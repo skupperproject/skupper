@@ -6,5 +6,3 @@ resources:
 
 namespace: skupper
 
-patches:
-  - path: patch-add-env-var-kube-adaptor.yaml

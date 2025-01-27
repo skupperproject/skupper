@@ -14,7 +14,3 @@ resources:
 - ../rbac
 
 namespace: skupper
-patches:
-  - path: patch-add-env-var-related-images.yaml
-
-
