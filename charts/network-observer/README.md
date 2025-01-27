@@ -24,11 +24,34 @@ To deploy the Skupper Network Observer to a namsapce using Helm
 helm install skupper-network-observer .
 ```
 
+## Non-Helm Usage with preconfigured manifest yaml
+
 Without Helm, the Skupper Network Observer can be installed using one of the manifests generated from the chart published alongside a Skupper release.
 
+**skupper-network-observer.yaml**
+
+The most basic Skupper Network Observer deployment. Exposes the console and API as a ClusterIP Service in the namespace without authentication.
+
 ```
-make generate-network-observer-generic # runs helm template
-kubectl apply -f ./skupper-network-observer-generic.yaml
+kubectl apply -f skupper-network-observer.yaml; # install the network observer
+kubectl port-forward services/skupper-network-observer 8443:443 # access the service at https://localhost:8443 via kube-proxy
+```
+
+**skupper-network-observer-httpbasic.yaml**
+
+Similar to skupper-network-observer.yaml, but secured with http basic auth. Requires additional action to add authenticated users.
+
+```
+kubectl apply -f skupper-network-observer-httpbasic.yaml;
+# Create a htpasswd file with user provided credentials
+htpasswd -c /tmp/htpasswd my-user;
+# Update the secret containing the authenticated users and hashed credentials
+kubectl patch secret skupper-network-observer-auth \
+  -p '{"data":{"htpasswd":"'$(base64 -w0 /tmp/htpasswd)'"}}';
+
+# access the service at https://localhost:8443 via kube-proxy
+# should be prompted for http basic auth.
+kubectl port-forward services/skupper-network-observer 8443:443
 ```
 
 ## Configuration
@@ -78,14 +101,14 @@ To use an openshift generated service certificate, set
 `tls.openshiftIssued=true` and `tls.skupperIssued=false`. An annotation will be
 added to the service that should prompt openshift to provision a TLS secret.
 
-### Authorization
+### Authentication
 
-The network observer pod contains a reverse proxy that handles authorization
+The network observer pod contains a reverse proxy that handles authentication
 and TLS termination for the read only application that binds only to localhost.
-When authorization strategy is "basic", nginx is configured as the proxy, and
+When authentication strategy is "basic", nginx is configured as the proxy, and
 can be configured with user-provided htpasswd file contents or a secret name.
-When authorization strategy is "openshift" an oauth2 proxy is used instead, and
-is configured to use the cluster identity provider for authorization. Openshift
+When authentication strategy is "openshift" an oauth2 proxy is used instead, and
+is configured to use the cluster identity provider for authentication. Openshift
 auth only works with ingress type Route.
 
 To set a secure basic auth credentials run:

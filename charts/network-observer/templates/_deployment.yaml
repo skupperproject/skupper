@@ -32,13 +32,11 @@ ports:
 volumeMounts:
   - mountPath: /etc/certificates/
     name: {{ include "network-observer.tlsSecretName" . }}
-  - mountPath: /etc/nginx/nginx.conf
+  - mountPath: /etc/nginx
     name: nginx-config
-    subPath: nginx.conf
 {{- if eq .Values.auth.strategy "basic" }}
-  - mountPath: /etc/nginx/.htpasswd
+  - mountPath: /etc/httpusers
     name: nginx-htpasswd
-    subPath: htpasswd
 {{- end }}
 {{- end -}}
 
