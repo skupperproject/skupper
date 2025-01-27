@@ -22,11 +22,13 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/securedaccess"
 	"github.com/skupperproject/skupper/internal/kube/site"
 	"github.com/skupperproject/skupper/internal/network"
+	"github.com/skupperproject/skupper/internal/version"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 type Controller struct {
 	name                 string
+	self                 skupperv2alpha1.Controller
 	requireAnnotation    bool
 	controller           *internalclient.Controller
 	stopCh               <-chan struct{}
@@ -82,6 +84,9 @@ func NewController(cli internalclient.Clients, config *Config) (*Controller, err
 		}
 	}
 	controller.name = config.Namespace + "/" + name
+	controller.self.Name = name
+	controller.self.Namespace = config.Namespace
+	controller.self.Version = version.Version
 
 	controller.siteWatcher = controller.controller.WatchSites(config.WatchNamespace, controller.checkSite)
 	controller.listenerWatcher = controller.controller.WatchListeners(config.WatchNamespace, controller.checkListener)
@@ -194,6 +199,7 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		if !c.matches(site) {
 			continue
 		}
+		site.Status.Controller = &c.self
 		err := c.getSite(site.ObjectMeta.Namespace).Reconcile(site)
 		if err != nil {
 			c.log.Error("Error recovering site",
@@ -237,9 +243,10 @@ func (c *Controller) checkSite(key string, site *skupperv2alpha1.Site) error {
 	c.log.Debug("checkSite", slog.String("key", key))
 	if site != nil {
 		if !c.matches(site) {
+			c.log.Info("Ignoring site as it does not have required annotation", slog.String("key", key))
 			return nil
 		}
-		c.log.Info("Ignoring site as it does not have required annotation", slog.String("key", key))
+		site.Status.Controller = &c.self
 		err := c.getSite(site.ObjectMeta.Namespace).Reconcile(site)
 		if err != nil {
 			c.log.Info("Error initialising site",

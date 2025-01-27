@@ -288,6 +288,13 @@ type SiteStatus struct {
 	SitesInNetwork int          `json:"sitesInNetwork,omitempty"`
 	Network        []SiteRecord `json:"network,omitempty"`
 	DefaultIssuer  string       `json:"defaultIssuer,omitempty"`
+	Controller     *Controller  `json:"controller,omitempty"`
+}
+
+type Controller struct {
+	Name      string `json:"name,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
+	Version   string `json:"version,omitempty"`
 }
 
 type Endpoint struct {

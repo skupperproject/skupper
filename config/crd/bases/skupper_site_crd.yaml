@@ -38,6 +38,15 @@ spec:
                   type: string
                 message:
                   type: string
+                controller:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                    version:
+                      type: string
                 conditions:
                   type: array
                   items:
