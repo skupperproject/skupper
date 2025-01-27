@@ -14,6 +14,7 @@ const (
 	Listeners      string = "listeners"
 	Sites          string = "site"
 	RouterAccesses string = "routerAccesses"
+	Links          string = "links"
 )
 
 const (

@@ -85,7 +85,7 @@ func (s *SiteHandler) Delete(name string) error {
 	return nil
 }
 
-func (s *SiteHandler) List() ([]*v2alpha1.Site, error) {
+func (s *SiteHandler) List(opts GetOptions) ([]*v2alpha1.Site, error) {
 	var sites []*v2alpha1.Site
 
 	// First read from runtime directory, where output is found after bootstrap
@@ -93,7 +93,9 @@ func (s *SiteHandler) List() ([]*v2alpha1.Site, error) {
 	path := s.pathProvider.GetRuntimeNamespace()
 	err, files := s.ReadDir(path, common.Sites)
 	if err != nil {
-		os.Stderr.WriteString("Site not initialized yet\n")
+		if opts.LogWarning {
+			os.Stderr.WriteString("Site not initialized yet\n")
+		}
 		path = s.pathProvider.GetNamespace()
 		err, files = s.ReadDir(path, common.Sites)
 		if err != nil {

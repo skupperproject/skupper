@@ -76,7 +76,8 @@ func (cmd *CmdSiteStatus) ValidateInput(args []string) error {
 }
 
 func (cmd *CmdSiteStatus) Run() error {
-	sites, err := cmd.siteHandler.List()
+	opts := fs.GetOptions{LogWarning: true}
+	sites, err := cmd.siteHandler.List(opts)
 	if sites == nil || err != nil {
 		fmt.Println("no site found:")
 		return err

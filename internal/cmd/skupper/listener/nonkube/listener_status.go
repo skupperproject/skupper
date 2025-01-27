@@ -108,7 +108,7 @@ func (cmd *CmdListenerStatus) Run() error {
 	} else {
 		listener, err := cmd.listenerHandler.Get(cmd.listenerName, opts)
 		if listener == nil || err != nil {
-			fmt.Println("No listeners found:", err)
+			fmt.Println("No listeners found:")
 			return err
 		}
 		if cmd.output != "" {
