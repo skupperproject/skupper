@@ -31,6 +31,7 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/resource"
 	"github.com/skupperproject/skupper/internal/network"
 	"github.com/skupperproject/skupper/internal/qdr"
+	"github.com/skupperproject/skupper/internal/version"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
@@ -80,14 +81,18 @@ func TestGeneral(t *testing.T) {
 		{
 			name: "explicitly matched site",
 			env: map[string]string{
-				"NAMESPACE": "foo",
+				"NAMESPACE":       "foo",
 				"CONTROLLER_NAME": "bar",
 			},
 			skupperObjects: []runtime.Object{
 				f.annotateForController(f.site("mysite", "test", "", false, false), "foo/bar"),
 			},
 			expectedSiteStatuses: []*skupperv2alpha1.Site{
-				f.siteStatus("mysite", "test", skupperv2alpha1.StatusPending, "Not Running", f.condition(skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionTrue, "Ready", "OK")),
+				f.addControllerToStatus(
+					f.siteStatus("mysite", "test", skupperv2alpha1.StatusPending, "Not Running", f.condition(skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionTrue, "Ready", "OK")),
+					"bar",
+					"foo",
+				),
 			},
 			expectedDynamicResources: map[schema.GroupVersionResource]*unstructured.Unstructured{
 				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
@@ -452,6 +457,9 @@ func TestGeneral(t *testing.T) {
 				if expected.Status.Network != nil {
 					assert.DeepEqual(t, mapByName(expected.Status.Network), mapByName(actual.Status.Network))
 				}
+				if expected.Status.Controller != nil {
+					assert.DeepEqual(t, expected.Status.Controller, actual.Status.Controller)
+				}
 			}
 			for _, expected := range tt.expectedListenerStatuses {
 				actual, err := clients.GetSkupperClient().SkupperV2alpha1().Listeners(expected.Namespace).Get(context.Background(), expected.Name, metav1.GetOptions{})
@@ -765,6 +773,15 @@ func (*factory) siteStatus(name string, namespace string, statusType skupperv2al
 			Status: f.status(statusType, message, conditions...),
 		},
 	}
+}
+
+func (*factory) addControllerToStatus(site *skupperv2alpha1.Site, name string, namespace string) *skupperv2alpha1.Site {
+	site.Status.Controller = &skupperv2alpha1.Controller{
+		Name:      name,
+		Namespace: namespace,
+		Version:   version.Version,
+	}
+	return site
 }
 
 func (*factory) listenerStatus(name string, namespace string, statusType skupperv2alpha1.StatusType, message string, conditions ...metav1.Condition) *skupperv2alpha1.Listener {
