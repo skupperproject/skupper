@@ -151,8 +151,11 @@ generate-network-observer-devel:
 		--set extraArgs={"-cors-allow-all"} \
 		--set skipManagementLabels=true > skupper-network-observer-devel.yaml
 
+generate-artifacthub-repo-file:
+	./scripts/generate-artifacthub-repo.sh
+
 clean:
 	rm -rf skupper controller kube-adaptor \
 		network-observer generate-doc \
 		cover.out oci-archives bundle bundle.Dockerfile \
-		charts/skupper skupper-*.tgz
+		charts/skupper skupper-*.tgz artifacthub-repo.yml
