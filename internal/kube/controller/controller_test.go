@@ -424,6 +424,24 @@ func TestGeneral(t *testing.T) {
 					f.condition(skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionFalse, "Error", "No matching AttachedConnector")),
 			},
 		},
+		{
+			name: "multiple site recovery",
+			env: map[string]string{
+				"NAMESPACE":       "foo",
+				"CONTROLLER_NAME": "bar",
+			},
+			k8sObjects: []runtime.Object{
+				f.routerConfig("skupper-router", "test").asConfigMapWithOwner("siteB", "49b03ad4-d414-42be-bbb5-b32d7d4ca503"),
+			},
+			skupperObjects: []runtime.Object{
+				f.site("siteA", "test", "", false, false),
+				f.addUID(f.site("siteB", "test", "", false, false), "49b03ad4-d414-42be-bbb5-b32d7d4ca503"),
+			},
+			expectedSiteStatuses: []*skupperv2alpha1.Site{
+				f.siteStatus("siteA", "test", skupperv2alpha1.StatusError, "An active site already exists in the namespace (siteB)"),
+				f.siteStatus("siteB", "test", skupperv2alpha1.StatusPending, "Not Running", f.condition(skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionTrue, "Ready", "OK")),
+			},
+		},
 	}
 	for _, tt := range testTable {
 		t.Run(tt.name, func(t *testing.T) {
@@ -608,6 +626,28 @@ func (*factory) routerConfig(name string, namespace string) *RouterConfig {
 			},
 		},
 	}
+}
+
+func (*factory) configMapWithOwner(name string, namespace string, owners ...metav1.OwnerReference) *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            name,
+			Namespace:       namespace,
+			OwnerReferences: owners,
+		},
+	}
+}
+
+func (*factory) ownerRef(name string, uid string) metav1.OwnerReference {
+	return metav1.OwnerReference{
+		Name: name,
+		UID:  types.UID(uid),
+	}
+}
+
+func (*factory) addUID(site *skupperv2alpha1.Site, uid string) *skupperv2alpha1.Site {
+	site.ObjectMeta.UID = types.UID(uid)
+	return site
 }
 
 func (*factory) site(name string, namespace string, linkAccess string, ha bool, edge bool) *skupperv2alpha1.Site {
@@ -1208,6 +1248,23 @@ func (rc *RouterConfig) tcpConnector(name string, host string, port string, addr
 		SslProfile: sslProfile,
 	}
 	return rc
+}
+
+func (rc *RouterConfig) asConfigMapWithOwner(name string, uid string) *corev1.ConfigMap {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      rc.name,
+			Namespace: rc.namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					Name: name,
+					UID:  types.UID(uid),
+				},
+			},
+		},
+	}
+	rc.config.WriteToConfigMap(cm)
+	return cm
 }
 
 func (rc *RouterConfig) verify(t *testing.T, cm *corev1.ConfigMap) error {
