@@ -144,9 +144,10 @@ func CmdSiteDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
 	cmdSiteDeleteDesc := common.SkupperCmdDescription{
 		Use:   "delete",
 		Short: "Delete a site",
-		Long:  `Delete a site by name`,
+		Long:  "Delete a site",
 		Example: `skupper site delete my-site
-skupper site delete --wait=false`,
+skupper site delete my-site --wait=false
+skupper site delete --all`,
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSiteDeleteDesc, kubeCommand, nonKubeCommand)
