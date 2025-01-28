@@ -12,6 +12,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/kube/certificates"
@@ -63,6 +64,10 @@ func NewSite(namespace string, controller *internalclient.Controller, certs cert
 	}
 }
 
+func (s *Site) NameMatches(name string) bool {
+	return s.name == name
+}
+
 func (s *Site) verifySiteSpec(site *skupperv2alpha1.Site) error {
 	if site.Spec.LinkAccess != "" && site.Spec.LinkAccess != "none" && site.Spec.LinkAccess != "default" && !s.access.IsValidAccessType(site.Spec.LinkAccess) {
 		return fmt.Errorf("Unsupported value for LinkAccess: %s", site.Spec.LinkAccess)
@@ -96,10 +101,6 @@ func (s *Site) Reconcile(siteDef *skupperv2alpha1.Site) error {
 
 func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 	if s.site != nil && s.site.Name != siteDef.Name {
-		s.logger.Error("Rejecting sitedef as active site already exists in the namespace",
-			slog.String("sitedef_namespace", siteDef.Namespace),
-			slog.String("sitedef_name", siteDef.Name),
-			slog.String("name", s.site.Name))
 		return s.markSiteInactive(siteDef, fmt.Errorf("An active site already exists in the namespace (%s)", s.site.Name))
 	}
 	s.site = siteDef
@@ -1041,6 +1042,12 @@ func (s *Site) NetworkStatusUpdated(network []skupperv2alpha1.SiteRecord) error 
 
 func (s *Site) markSiteInactive(site *skupperv2alpha1.Site, err error) error {
 	if site.SetConfigured(err) {
+		s.logger.Info("Site marked inactive",
+			slog.String("reason", err.Error()),
+			slog.String("namespace", site.Namespace),
+			slog.String("name", site.Name),
+			slog.String("active", s.site.Name),
+		)
 		if _, err := s.UpdateSiteStatus(site); err != nil {
 			return err
 		}
@@ -1289,6 +1296,58 @@ func updateSelectorFromMap(spec *corev1.ServiceSpec, desired map[string]string) 
 	if !equivalentSelectors(spec.Selector, desired) {
 		spec.Selector = desired
 		return true
+	}
+	return false
+}
+
+type SiteRecovery struct {
+	client kubernetes.Interface
+	owners map[string][]metav1.OwnerReference
+	logger *slog.Logger
+}
+
+func NewSiteRecovery(client kubernetes.Interface) *SiteRecovery {
+	return &SiteRecovery{
+		client: client,
+		owners: map[string][]metav1.OwnerReference{},
+		logger: slog.New(slog.Default().Handler()).With(
+			slog.String("component", "kube.site.site"),
+		),
+	}
+}
+
+func (s *SiteRecovery) IsActive(site *skupperv2alpha1.Site) bool {
+	if owners, ok := s.owners[site.Namespace]; ok {
+		return isOwner(site, owners)
+	} else {
+		owners, err := s.getOwnerReferencesForRouterConfig(site.Namespace)
+		if errors.IsNotFound(err) {
+			return true
+		} else if err != nil {
+			s.logger.Error("Could not retrieve owner references for router config",
+				slog.String("namespace", site.Namespace),
+				slog.Any("error", err),
+			)
+			return false
+		}
+		s.owners[site.Namespace] = owners
+		return isOwner(site, owners)
+	}
+}
+
+func (s *SiteRecovery) getOwnerReferencesForRouterConfig(namespace string) ([]metav1.OwnerReference, error) {
+	cm, err := s.client.CoreV1().ConfigMaps(namespace).Get(context.TODO(), "skupper-router", metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return cm.ObjectMeta.OwnerReferences, nil
+}
+
+func isOwner(site *skupperv2alpha1.Site, owners []metav1.OwnerReference) bool {
+	for _, owner := range owners {
+		if owner.Name == site.Name && owner.UID == site.ObjectMeta.UID {
+			return true
+		}
 	}
 	return false
 }

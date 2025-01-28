@@ -152,10 +152,21 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 	if ok := c.controller.WaitForCacheSync(stopCh); !ok {
 		return fmt.Errorf("Failed to wait for caches to sync")
 	}
-	//TODO: need to recover active sites first
 	//recover existing sites & bindings
+	siteRecovery := site.NewSiteRecovery(c.controller.GetKubeClient())
 	for _, site := range c.siteWatcher.List() {
 		if !c.matches(site) {
+			c.log.Info("Ignoring site as it does not have required annotation",
+				slog.String("name", site.Name),
+				slog.String("namespace", site.Namespace),
+			)
+			continue
+		}
+		if !siteRecovery.IsActive(site) {
+			c.log.Info("Skipping site recovery as it not the active site",
+				slog.String("name", site.Name),
+				slog.String("namespace", site.Namespace),
+			)
 			continue
 		}
 		c.log.Info("Recovering site",
@@ -255,13 +266,15 @@ func (c *Controller) checkSite(key string, site *skupperv2alpha1.Site) error {
 			)
 		}
 	} else {
-		namespace, _, err := cache.SplitMetaNamespaceKey(key)
+		namespace, name, err := cache.SplitMetaNamespaceKey(key)
 		if err != nil {
 			return err
 		}
-		//TODO: need to check that this is the current active site
-		c.getSite(namespace).Deleted()
-		delete(c.sites, namespace)
+		s := c.getSite(namespace)
+		if s.NameMatches(name) {
+			s.Deleted()
+			delete(c.sites, namespace)
+		}
 	}
 	return nil
 }
