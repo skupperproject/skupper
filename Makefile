@@ -155,4 +155,4 @@ clean:
 	rm -rf skupper controller kube-adaptor \
 		network-observer generate-doc \
 		cover.out oci-archives bundle bundle.Dockerfile \
-		charts/skupper
+		charts/skupper skupper-*.tgz

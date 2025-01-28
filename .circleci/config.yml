@@ -34,7 +34,17 @@ commands:
       - run: curl -LO https://github.com/operator-framework/operator-sdk/releases/latest/download/operator-sdk_linux_amd64
       - run: sudo chmod +x operator-sdk_linux_amd64
       - run: mv operator-sdk_linux_amd64 /usr/local/bin/operator-sdk
-
+  helm-install:
+    description: Install Helm CLI
+    steps:
+      - run: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  oras-install:
+    description: Set Up ORAS CLI
+    steps:
+      - run: curl -LO "https://github.com/oras-project/oras/releases/download/v1.2.2/oras_1.2.2_linux_amd64.tar.gz"
+      - run: mkdir -p oras-install/
+      - run: tar -zxf oras_1.2.2_*.tar.gz -C oras-install/
+      - run: sudo mv oras-install/oras /usr/local/bin/
   compile_go_program:
     description: Compile specified platform.
     parameters:
@@ -256,9 +266,8 @@ jobs:
       - checkout
       - go/mod-download-cached
       - kubectl-install
-      - run:
-          name: Install Helm CLI
-          command: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      - helm-install
+      - oras-install
       - run: make generate-skupper-helm-chart
       - run: make generate-skupper-deployment-cluster-scoped
       - run: make generate-skupper-deployment-namespace-scoped
@@ -268,6 +277,9 @@ jobs:
       - run: cp ./*.yaml skupper-setup
       - run: make pack-skupper-helm-chart
       - run: cp ./skupper-*.tgz skupper-setup
+      - run: helm registry login -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD} quay.io
+      - run: helm push skupper-*.tgz oci://quay.io/skupper/helm
+      - run: oras push oci://quay.io/skupper/helm/skupper:artifacthub.io --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml artifacthub-repo.yml:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml
       - run:
           name: Verify skupper-setup Directory Contents
           command: |
