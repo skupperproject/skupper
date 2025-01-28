@@ -148,9 +148,6 @@ func TestConnections(t *testing.T) {
 			stor.Replace(tc.Records)
 			flowStor.Replace(tc.Flows)
 			graph.(reset).Reset()
-			for _, r := range tc.Records {
-				graph.(reset).Reindex(r.Record)
-			}
 			resp, err := c.ConnectionsWithResponse(context.TODO(), withParameters(tc.Parameters))
 			assert.Check(t, err)
 			if tc.ExpectOK {

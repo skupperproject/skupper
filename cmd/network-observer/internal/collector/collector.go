@@ -117,7 +117,11 @@ func (c *Collector) updateGraph(event changeEvent, stor readonly) {
 	if !ok {
 		return
 	}
-	c.graph.Reindex(entry.Record)
+	if _, ok := event.(addEvent); ok {
+		c.graph.Index(entry.Record)
+	} else {
+		c.graph.Reindex(entry.Record)
+	}
 }
 
 func (c *Collector) monitoring(ctx context.Context) func() error {

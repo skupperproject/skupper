@@ -63,9 +63,6 @@ func TestRouters(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			stor.Replace(tc.Records)
 			graph.(reset).Reset()
-			for _, r := range tc.Records {
-				graph.(reset).Reindex(r.Record)
-			}
 			resp, err := c.RoutersWithResponse(context.TODO(), withParameters(tc.Parameters))
 			assert.Check(t, err)
 			if tc.ExpectOK {
