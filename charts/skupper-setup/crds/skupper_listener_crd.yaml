@@ -102,7 +102,7 @@ spec:
       - name: Has Matching Connector
         type: boolean
         description: Whether there is at least one connector in the network with a matching routing key.
-        jsonPath: .status.hasMtchingConnector
+        jsonPath: .status.hasMatchingConnector
       - name: Message
         type: string
         description: Any human readable message relevant to the listener
