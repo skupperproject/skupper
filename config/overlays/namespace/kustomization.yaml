@@ -1,7 +1,8 @@
 # Reference the base deployment
 resources:
   - ../../base
-  - rbac.yaml
+  - role.yaml
+  - role_binding.yaml
 
 # Add the patch
 patches:
