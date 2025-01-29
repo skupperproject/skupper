@@ -129,7 +129,7 @@ generate-skupper-deployment-namespace-scoped: generate-skupper-helm-chart
 pack-skupper-helm-chart: generate-skupper-helm-chart
 	helm package ./charts/skupper
 
-pack-network-observer-chart:
+pack-network-observer-helm-chart:
 	helm package ./charts/network-observer
 
 generate-bundle:

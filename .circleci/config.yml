@@ -434,9 +434,7 @@ jobs:
             cd ${BASEDIR}
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
             cp skupper-setup/* archives
-            cp operator-bundle/bundle.Dockerfile archives
-            cd operator-bundle
-            tar -zcf "${BASEDIR}/archives/operator-bundle-${VERSION}.tgz" bundle
+            tar -zcf "${BASEDIR}/archives/operator-bundle-${VERSION}.tgz" operator-bundle
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
 
   publish-github-prerelease-artifacts:
@@ -466,7 +464,5 @@ jobs:
             cd ${BASEDIR}
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
             cp skupper-setup/* archives
-            cp operator-bundle/bundle.Dockerfile archives
-            cd operator-bundle
-            tar -zcf "${BASEDIR}/archives/operator-bundle-${VERSION}.tgz" bundle
+            tar -zcf "${BASEDIR}/archives/operator-bundle-${VERSION}.tgz" operator-bundle
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease ${VERSION} "${BASEDIR}/archives"
