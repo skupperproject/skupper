@@ -8,6 +8,27 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+func TestGraphRecoversChildRelationships(t *testing.T) {
+	stor := store.NewSyncMapStore(store.SyncMapStoreConfig{Indexers: RecordIndexers()})
+
+	site := vanflow.SiteRecord{BaseRecord: vanflow.NewBase("site-1")}
+	router := vanflow.RouterRecord{BaseRecord: vanflow.NewBase("router-1"), Parent: ptrTo("site-1")}
+	stor.Replace([]store.Entry{{Record: site}, {Record: router}})
+
+	graf := NewGraph(stor).(*graph)
+	graf.Index(router)
+	graf.Index(site)
+	assert.Equal(t, graf.Router("router-1").Parent().ID(), "site-1")
+
+	stor.Delete("site-1")
+	graf.Unindex(site)
+	assert.Equal(t, graf.Router("router-1").Parent().IsKnown(), false)
+
+	stor.Add(site, store.SourceRef{})
+	graf.Index(site)
+	assert.Equal(t, graf.Router("router-1").Parent().ID(), "site-1")
+}
+
 func TestGraphRelations(t *testing.T) {
 	testCases := []struct {
 		Name    string
@@ -88,9 +109,6 @@ func TestGraphRelations(t *testing.T) {
 			stor.Replace(wrapRecords(tc.Records...))
 			graf := NewGraph(stor).(*graph)
 			graf.Reset()
-			for _, r := range stor.List() {
-				graf.Reindex(r.Record)
-			}
 			tc.Expect(t, graf)
 		})
 	}

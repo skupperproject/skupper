@@ -41,15 +41,19 @@ func NewGraph(stor store.Interface) Graph {
 	}
 }
 
+// Reset graph. Testing only - not concurrent safe.
 func (g *graph) Reset() {
 	g.dag = dag.NewDAG()
 	for _, e := range g.stor.List() {
-		g.Reindex(e.Record)
+		g.Index(e.Record)
 	}
 }
 
 func (g *graph) Site(id string) Site {
 	return vertexByType[Site](g.dag, id)
+}
+func (g *graph) Router(id string) Router {
+	return vertexByType[Router](g.dag, id)
 }
 func (g *graph) Process(id string) Process {
 	return vertexByType[Process](g.dag, id)
@@ -89,15 +93,28 @@ func (g *graph) Unindex(in vanflow.Record) {
 	g.dag.DeleteVertex(in.Identity())
 }
 
+// Index a known new record - will look for children relations
+func (g *graph) Index(in vanflow.Record) {
+	g.reindex(in, true)
+}
+
+// Reindex a known record
 func (g *graph) Reindex(in vanflow.Record) {
+	g.reindex(in, false)
+}
+
+func (g *graph) reindex(in vanflow.Record, fullIndex bool) {
 	id := in.Identity()
-	vertex, _ := g.dag.GetVertex(id)
 	switch record := in.(type) {
 	case vanflow.SiteRecord:
-		if vertex != nil {
-			return
-		}
 		g.dag.AddVertex(Site{g.newBase(id)})
+		if fullIndex {
+			children := g.stor.Index(IndexByTypeParent, store.Entry{Record: vanflow.RouterRecord{Parent: &id}})
+			children = append(children, g.stor.Index(IndexByTypeParent, store.Entry{Record: vanflow.ProcessRecord{Parent: &id}})...)
+			for _, entry := range children {
+				g.reindex(entry.Record, false)
+			}
+		}
 	case vanflow.RouterRecord:
 		g.dag.AddVertex(Router{g.newBase(id)})
 		var edges []Node
@@ -105,6 +122,17 @@ func (g *graph) Reindex(in vanflow.Record) {
 			edges = []Node{Site{g.newBase(*record.Parent)}}
 		}
 		g.ensureParents(id, edges)
+
+		if fullIndex {
+			children := g.stor.Index(IndexByTypeParent, store.Entry{Record: vanflow.LinkRecord{Parent: &id}})
+			children = append(children, g.stor.Index(IndexByTypeParent, store.Entry{Record: vanflow.RouterAccessRecord{Parent: &id}})...)
+			children = append(children, g.stor.Index(IndexByTypeParent, store.Entry{Record: vanflow.ListenerRecord{Parent: &id}})...)
+			children = append(children, g.stor.Index(IndexByTypeParent, store.Entry{Record: vanflow.ConnectorRecord{Parent: &id}})...)
+			for _, entry := range children {
+				g.reindex(entry.Record, false)
+			}
+
+		}
 	case vanflow.LinkRecord:
 		g.dag.AddVertex(Link{g.newBase(id)})
 		var edges []Node
@@ -145,6 +173,17 @@ func (g *graph) Reindex(in vanflow.Record) {
 			ctID := SiteHostID(*siteID, *sourceHost)
 			g.dag.AddVertex(SiteHost{g.newBase(ctID)})
 			g.ensureParents(ctID, []Node{processVtx})
+			if fullIndex {
+				routers := g.stor.Index(IndexByTypeParent, store.Entry{Record: vanflow.RouterRecord{Parent: siteID}})
+				var connectors []store.Entry
+				for _, rtr := range routers {
+					rtrID := rtr.Record.Identity()
+					connectors = append(connectors, g.stor.Index(IndexByTypeParent, store.Entry{Record: vanflow.ConnectorRecord{Parent: &rtrID}})...)
+				}
+				for _, cn := range connectors {
+					g.reindex(cn.Record, false)
+				}
+			}
 		}
 	case vanflow.ConnectorRecord:
 		connectorVtx := Connector{g.newBase(id)}
@@ -160,7 +199,6 @@ func (g *graph) Reindex(in vanflow.Record) {
 			edges = append(edges, Process{g.newBase(*record.ProcessID)})
 		}
 		if record.DestHost != nil && record.Parent != nil {
-			// TODO(ck) Fix race - if a connector came in before its router parent record we'd miss this relation
 			snode := vertexByType[Router](g.dag, *record.Parent).Parent()
 			if snode.IsKnown() {
 				edges = append(edges, SiteHost{g.newBase(SiteHostID(snode.ID(), *record.DestHost))})
@@ -366,8 +404,7 @@ type Process struct {
 func (n Process) GetRecord() (record vanflow.ProcessRecord, found bool) {
 	return getrecord[vanflow.ProcessRecord](n)
 }
-func (n Process) Parent() Site         { return parentOfType[Site](n.dag, n.identity) }
-func (n Process) Addresses() []Address { return nil }
+func (n Process) Parent() Site { return parentOfType[Site](n.dag, n.identity) }
 func (n Process) Connectors() []Connector {
 	connectors := childrenByType[Connector](n.dag, n.identity)
 	for _, target := range childrenByType[SiteHost](n.dag, n.identity) {
