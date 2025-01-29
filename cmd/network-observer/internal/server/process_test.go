@@ -51,8 +51,8 @@ func TestProcesses(t *testing.T) {
 				r := results[0]
 				assert.DeepEqual(t, r, api.ProcessRecord{
 					Identity:      "1",
-					Parent:        "s1",
-					ParentName:    "unknown",
+					SiteId:        "s1",
+					SiteName:      "unknown",
 					ComponentName: "unknown",
 					ComponentId:   "unknown",
 					Binding:       api.Unbound,
@@ -69,8 +69,8 @@ func TestProcesses(t *testing.T) {
 				r := results[0]
 				assert.DeepEqual(t, r, api.ProcessRecord{
 					Identity:      "1",
-					Parent:        "site-1",
-					ParentName:    "site one",
+					SiteId:        "site-1",
+					SiteName:      "site one",
 					Services:      ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp"), api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp")}),
 					ComponentName: "group-one",
 					ComponentId:   "group-1-id",
@@ -94,8 +94,8 @@ func TestProcesses(t *testing.T) {
 				r := results[0]
 				assert.DeepEqual(t, r, api.ProcessRecord{
 					Identity:      "1",
-					Parent:        "site-1",
-					ParentName:    "site one",
+					SiteId:        "site-1",
+					SiteName:      "site one",
 					Services:      ptrTo([]api.AtmarkDelimitedString{api.AtmarkDelimitedString("icecream@icecream-addr-id@tcp"), api.AtmarkDelimitedString("pizza@pizza-addr-id@tcp")}),
 					ComponentName: "group-one",
 					ComponentId:   "group-1-id",

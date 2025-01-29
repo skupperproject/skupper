@@ -48,7 +48,7 @@ func TestRouters(t *testing.T) {
 								ImageName:    "unknown",
 								ImageVersion: "unknown",
 								Mode:         "inter-router",
-								Parent:       "site-a",
+								SiteId:       "site-a",
 							},
 						)
 

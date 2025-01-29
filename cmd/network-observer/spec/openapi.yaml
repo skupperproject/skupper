@@ -819,8 +819,8 @@ components:
         - type: object
           required:
               - name
-              - parent
-              - parentName
+              - siteId
+              - siteName
               - imageName
               - componentId
               - componentName
@@ -832,14 +832,14 @@ components:
           properties:
             name:
               type: string
-            parent:
+            siteId:
               type: string
-              description: Id of the site associated to the process. this is a parent of the process
-            parentName:
+              description: Id of the site associated to the process.
+            siteName:
               type: string
             componentId:
               type: string
-              description: Id of the component associated to the process. this is a parent of the process
+              description: Id of the component associated to the process.
             componentName:
               type: string
             hostName:
@@ -871,7 +871,7 @@ components:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
-            - parent
+            - siteId
             - name
             - mode
             - imageName
@@ -879,7 +879,7 @@ components:
             - hostName
             - buildVersion
           properties:
-            parent:
+            siteId:
               type: string
             name:
               type: string
@@ -900,7 +900,7 @@ components:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
-            - parent
+            - routerId
             - name
             - destHost
             - destPort
@@ -909,7 +909,7 @@ components:
             - siteId
             - siteName
           properties:
-            parent:
+            routerId:
               type: string
             name:
               type: string
@@ -932,7 +932,7 @@ components:
         - $ref: '#/components/schemas/baseRecord'
         - type: object
           required:
-            - parent
+            - routerId
             - name
             - destHost
             - destPort
@@ -943,7 +943,7 @@ components:
             - siteId
             - siteName
           properties:
-            parent:
+            routerId:
               type: string
             name:
               type: string
