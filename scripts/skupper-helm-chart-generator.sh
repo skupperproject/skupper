@@ -38,15 +38,13 @@ kubeAdaptorImage: quay.io/skupper/kube-adaptor:$APP_VERSION
 # available options: cluster, namespace
 scope: cluster
 
-# namespace in which the controller will be deployed for the cluster option
-controllerNamespace: skupper
 EOF
 
 cat <<EOF >"$TEMPLATES_DIR/NOTES.txt"
 {{- if eq .Values.scope "cluster"}}
 ===========================================================
   Skupper chart is now installed in the cluster.
-  Skupper controller was deployed in the namespace "{{ .Values.controllerNamespace }}".
+  Skupper controller was deployed in the namespace "{{ .Release.Namespace }}".
 
 ===========================================================
 {{- end }}
@@ -96,9 +94,8 @@ else
     exit 1
 fi
 
-# Substitute "namespace: <name>" with "namespace: {{ .Values.controllerNamespace }}"
-sed -i 's/namespace: [a-zA-Z0-9-]*/namespace: {{ .Values.controllerNamespace }}/g' "$CLUSTER_TEMPLATE"
-sed -i 's/^  name: skupper$/  name: {{ .Values.controllerNamespace }}/' "$CLUSTER_TEMPLATE"
+# Substitute "namespace: <name>" with "namespace: {{ .Release.Namespace }}"
+sed -i 's/namespace: [a-zA-Z0-9-]*/namespace: {{ .Release.Namespace }}/g' "$CLUSTER_TEMPLATE"
 
 sed -i -E 's|quay.io/skupper/controller:[a-zA-Z0-9-]*|{{ .Values.controllerImage }}|' "$CLUSTER_TEMPLATE"
 sed -i -E 's|quay.io/skupper/controller:[a-zA-Z0-9-]*|{{ .Values.controllerImage }}|' "$NAMESPACE_TEMPLATE"

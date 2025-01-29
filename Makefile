@@ -129,6 +129,9 @@ generate-skupper-deployment-namespace-scoped: generate-skupper-helm-chart
 pack-skupper-helm-chart: generate-skupper-helm-chart
 	helm package ./charts/skupper
 
+pack-network-observer-chart:
+	helm package ./charts/network-observer
+
 generate-bundle:
 	./scripts/generate-bundle.sh
 
@@ -151,11 +154,15 @@ generate-network-observer-devel:
 		--set extraArgs={"-cors-allow-all"} \
 		--set skipManagementLabels=true > skupper-network-observer-devel.yaml
 
-generate-artifacthub-repo-file:
-	./scripts/generate-artifacthub-repo.sh
+push-skupper-artifacthub-repo:
+	./scripts/push-artifacthub-repo.sh skupper
+
+push-network-observer-artifacthub-repo:
+	./scripts/push-artifacthub-repo.sh network-observer
 
 clean:
 	rm -rf skupper controller kube-adaptor \
 		network-observer generate-doc \
 		cover.out oci-archives bundle bundle.Dockerfile \
-		charts/skupper skupper-*.tgz artifacthub-repo.yml
+		charts/skupper skupper-*.tgz artifacthub-repo.yml \
+		network-observer-*.tgz  skupper-*-scope.yaml

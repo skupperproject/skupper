@@ -1,3 +1,4 @@
 resources:
 - ../../crd
+- namespace.yaml
 - ../../overlays/cluster

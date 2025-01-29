@@ -254,11 +254,12 @@ jobs:
       - kubectl-install
       - operator-sdk-install
       - run: make generate-bundle
+      - run: mkdir operator-bundle
+      - run: cp bundle.Dockerfile ./bundle  -rf operator-bundle
       - persist_to_workspace:
           root: .
           paths:
             - operator-bundle
-
   generate-skupper-setup:
     executor:
       name: go_cimg
@@ -275,12 +276,15 @@ jobs:
       - run: make generate-network-observer-httpbasic
       - run: mkdir skupper-setup
       - run: cp ./*.yaml skupper-setup
+      - run: helm registry login -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD} quay.io
       - run: make pack-skupper-helm-chart
       - run: cp ./skupper-*.tgz skupper-setup
-      - run: helm registry login -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD} quay.io
       - run: helm push skupper-*.tgz oci://quay.io/skupper/helm
-      - run: make generate-artifacthub-repo-file
-      - run: oras push quay.io/skupper/helm/skupper:artifacthub.io --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml artifacthub-repo.yml:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml
+      - run: make push-skupper-artifacthub-repo
+      - run: make pack-network-observer-helm-chart
+      - run: cp ./network-observer-*.tgz skupper-setup
+      - run: helm push network-observer-*.tgz oci://quay.io/skupper/helm
+      - run: make push-network-observer-artifacthub-repo
       - run:
           name: Verify skupper-setup Directory Contents
           command: |
@@ -430,7 +434,9 @@ jobs:
             cd ${BASEDIR}
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
             cp skupper-setup/* archives
-            tar -zcf "${BASEDIR}/archives/operator-bundle-${VERSION}.tgz" operator-bundle/*
+            cp operator-bundle/bundle.Dockerfile archives
+            cd operator-bundle
+            tar -zcf "${BASEDIR}/archives/operator-bundle-${VERSION}.tgz" bundle
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
 
   publish-github-prerelease-artifacts:
@@ -460,5 +466,7 @@ jobs:
             cd ${BASEDIR}
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
             cp skupper-setup/* archives
-            tar -zcf "${BASEDIR}/archives/operator-bundle-${VERSION}.tgz" operator-bundle/*
+            cp operator-bundle/bundle.Dockerfile archives
+            cd operator-bundle
+            tar -zcf "${BASEDIR}/archives/operator-bundle-${VERSION}.tgz" bundle
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease ${VERSION} "${BASEDIR}/archives"

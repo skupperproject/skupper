@@ -2,7 +2,6 @@
 resources:
   - ../../base
   - ../../rbac
-  - namespace.yaml
 
 namespace: skupper
 
