@@ -120,11 +120,11 @@ generate-doc: build-doc-generator
 generate-skupper-helm-chart:
 	./scripts/skupper-helm-chart-generator.sh ${IMAGE_TAG}
 
-generate-skupper-deployment-cluster-scoped: generate-skupper-helm-chart
-	helm template ./charts/skupper  --include-crds --set scope=cluster > skupper-cluster-scope.yaml
+generate-skupper-deployment-cluster-scoped:
+	kubectl kustomize ./config/default/cluster > skupper-cluster-scope.yaml
 
-generate-skupper-deployment-namespace-scoped: generate-skupper-helm-chart
-	helm template ./charts/skupper  --include-crds --set scope=namespace > skupper-namespace-scope.yaml
+generate-skupper-deployment-namespace-scoped:
+	kubectl kustomize ./config/default/namespace> skupper-namespace-scope.yaml
 
 pack-skupper-helm-chart: generate-skupper-helm-chart
 	helm package ./charts/skupper
