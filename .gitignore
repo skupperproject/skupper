@@ -30,6 +30,12 @@ vendor/
 # Generated files
 manifest.json
 oci-archives/
-skupper-setup-cluster-scope.yaml
-skupper-setup-namespace-scope.yaml
+skupper-cluster-scope.yaml
+skupper-namespace-scope.yaml
 skupper-network-observer*.yaml
+bundle.Dockerfile
+bundle/
+charts/skupper/
+skupper-*.tgz
+artifacthub-repo.yml
+network-observer-*.tgz
