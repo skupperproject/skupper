@@ -279,6 +279,7 @@ jobs:
       - run: mkdir skupper-setup
       - run: cp ./*.yaml skupper-setup
       - run: helm registry login -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD} quay.io
+      - run: oras login -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD} quay.io
       - run: make pack-skupper-helm-chart
       - run: cp ./skupper-*.tgz skupper-setup
       - run: helm push skupper-*.tgz oci://quay.io/skupper/helm
