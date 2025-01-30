@@ -39,6 +39,10 @@ spec:
               value: quay.io/skupper/kube-adaptor:v2-dev
             - name: SKUPPER_KUBE_ADAPTOR_IMAGE_PULL_POLICY
               value: Always
+            - name: SKUPPER_ROUTER_IMAGE
+              value: quay.io/skupper/skupper-router:main
+            - name: SKUPPER_ROUTER_IMAGE_PULL_POLICY
+              value: Always
           securityContext:
             capabilities:
               drop:

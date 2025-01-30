@@ -1,14 +1,15 @@
 #!/bin/bash
 
 # Check if the script is executed with two arguments
-if [ "$#" -ne 1 ]; then
-    echo "Usage: $0 <app version>"
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <controller-version> <router-version>"
     exit 1
 fi
 
 
 VERSION="0.1.0-dev"
 APP_VERSION="$1"
+ROUTER_VERSION="$2"
 
 # Set chart name and directories
 CHART_NAME="skupper"
@@ -34,6 +35,7 @@ EOF
 cat <<EOF >"$CHART_NAME/values.yaml"
 controllerImage: quay.io/skupper/controller:$APP_VERSION
 kubeAdaptorImage: quay.io/skupper/kube-adaptor:$APP_VERSION
+routerImage: quay.io/skupper/skupper-router:$ROUTER_VERSION
 
 # available options: cluster, namespace
 scope: cluster
@@ -99,6 +101,9 @@ sed -i 's/namespace: [a-zA-Z0-9-]*/namespace: {{ .Release.Namespace }}/g' "$CLUS
 
 sed -i -E 's|quay.io/skupper/controller:[a-zA-Z0-9-]*|{{ .Values.controllerImage }}|' "$CLUSTER_TEMPLATE"
 sed -i -E 's|quay.io/skupper/controller:[a-zA-Z0-9-]*|{{ .Values.controllerImage }}|' "$NAMESPACE_TEMPLATE"
+
+sed -i -E 's|quay.io/skupper/skupper-router:[a-zA-Z0-9-]*|{{ .Values.routerImage }}|' "$CLUSTER_TEMPLATE"
+sed -i -E 's|quay.io/skupper/skupper-router:[a-zA-Z0-9-]*|{{ .Values.routerImage }}|' "$NAMESPACE_TEMPLATE"
 
 
 sed -i 's|quay.io/skupper/kube-adaptor:[a-zA-Z0-9-]*|{{ .Values.kubeAdaptorImage }}|g' "$CLUSTER_TEMPLATE"

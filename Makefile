@@ -9,6 +9,7 @@ GOARCH ?= amd64
 
 REGISTRY := quay.io/skupper
 IMAGE_TAG := v2-dev
+ROUTER_IMAGE_TAG := main
 PLATFORMS ?= linux/amd64,linux/arm64
 CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer
 SHARED_IMAGE_LABELS = \
@@ -118,7 +119,7 @@ generate-doc: build-doc-generator
 	./generate-doc ./doc/cli
 
 generate-skupper-helm-chart:
-	./scripts/skupper-helm-chart-generator.sh ${IMAGE_TAG}
+	./scripts/skupper-helm-chart-generator.sh ${IMAGE_TAG} ${ROUTER_IMAGE_TAG}
 
 generate-skupper-deployment-cluster-scoped:
 	kubectl kustomize ./config/default/cluster > skupper-cluster-scope.yaml
