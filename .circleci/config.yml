@@ -33,7 +33,7 @@ commands:
     steps:
       - run: curl -LO https://github.com/operator-framework/operator-sdk/releases/latest/download/operator-sdk_linux_amd64
       - run: sudo chmod +x operator-sdk_linux_amd64
-      - run: mv operator-sdk_linux_amd64 /usr/local/bin/operator-sdk
+      - run: sudo mv operator-sdk_linux_amd64 /usr/local/bin/operator-sdk
   helm-install:
     description: Install Helm CLI
     steps:
@@ -148,6 +148,7 @@ workflows:
             - publish-oci-images
             - generate-manifest
             - generate-skupper-setup
+            - generate-operator-bundle
           context:
             - skupper-org
   build:
@@ -197,6 +198,7 @@ workflows:
             - publish-oci-images
             - generate-manifest
             - generate-skupper-setup
+            - generate-operator-bundle
           context:
             - skupper-org
 
