@@ -4,14 +4,14 @@ Skupper allows you to create a Virtual Application Network (VAN) enabling secure
 communication between systems including public cloud, private cloud, virtual machines (VMs),
 bare metal hosts, and mainframes.
 
-Version 1 of Skupper is working in many production environments and has significantly reduced the
-time, effort and expense of deploying applications to a hybrid multicloud.
+Version 1 of Skupper, [v1 branch](https://github.com/skupperproject/skupper/tree/v1) is working in many production 
+environments and has significantly reduced the time, effort and expense of deploying applications to a hybrid multicloud.
 
-The [v2 branch](https://github.com/skupperproject/skupper/tree/v2) focuses on the development of the upcoming
-major release of the Skupper project based on feedback from users.
+The main branch focuses on the development of the upcoming major release of the Skupper project based on feedback from 
+users.
 
 The plan is to produce a number of "previews" on the branch in order to get further user feedback and refine the
-implementation of this major release. The v2 branch is intended for evaluation purposes only and should not be used
+implementation of this major release. The v2 version is intended for evaluation purposes only and should not be used
 in production environments.
 
 # Highlights
@@ -38,9 +38,11 @@ Skupper v1 will continue to be maintained but no new significant features are pl
 # Useful Links
 Using Skupper v2
 
-* [Simple Example](https://github.com/skupperproject/skupper/blob/v2/cmd/controller/example/README.md)
-* [Network Observer Deployment](https://github.com/skupperproject/skupper/blob/v2/cmd/network-observer/resources/README.md)
+* [Simple Example](https://github.com/skupperproject/skupper/blob/main/cmd/controller/example/README.md)
+* [Network Observer Deployment](https://github.com/skupperproject/skupper/blob/main/cmd/network-observer/README.md)
 * [Redis Example](https://github.com/skupperproject/skupper-example-redis/tree/v2)
+* [CLI Example](https://github.com/skupperproject/skupper/blob/main/cmd/skupper/README.md)
+* [Helm Charts](https://github.com/skupperproject/skupper/blob/main/charts/README.md)
 
 # Questions and Feedback
 

@@ -2,5 +2,8 @@
 # used to generate the 'manifests/' directory in a bundle.
 resources:
 - bases/skupper-operator.clusterserviceversion.yaml
-- ../default
+- ../default/cluster
 - ../samples
+
+patches:
+  - path: patch-add-env-var-related-images.yaml

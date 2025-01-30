@@ -1,12 +1,3 @@
-# Installing the skupper controller
-
-```
-kubectl create namespace skupper
-kubectl config set-context --current --namespace skupper
-```
-
-Apply the CRDs in the cluster and deploy the skupper controller ([instructions](../../charts/skupper-setup/README.md)):
-
 
 # Deploy application in two namespaces (or contexts)
 

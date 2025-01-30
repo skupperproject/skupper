@@ -9,6 +9,7 @@ GOARCH ?= amd64
 
 REGISTRY := quay.io/skupper
 IMAGE_TAG := v2-dev
+ROUTER_IMAGE_TAG := main
 PLATFORMS ?= linux/amd64,linux/arm64
 CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer
 SHARED_IMAGE_LABELS = \
@@ -25,7 +26,7 @@ DOCKER := docker
 SKOPEO := skopeo
 PODMAN := podman
 
-all: build-cli build-kube-adaptor build-controller build-network-observer update-helm-crd
+all: build-cli build-kube-adaptor build-controller build-network-observer
 
 build-cli:
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o skupper ./cmd/skupper
@@ -117,14 +118,20 @@ generate-manifest: build-cli
 generate-doc: build-doc-generator
 	./generate-doc ./doc/cli
 
-update-helm-crd:
-	./scripts/update-helm-crds.sh
+generate-skupper-helm-chart:
+	./scripts/skupper-helm-chart-generator.sh ${IMAGE_TAG} ${ROUTER_IMAGE_TAG}
 
 generate-skupper-deployment-cluster-scoped:
-	helm template ./charts/skupper-setup  --include-crds --set scope=cluster > skupper-setup-cluster-scope.yaml
+	kubectl kustomize ./config/default/cluster > skupper-cluster-scope.yaml
 
 generate-skupper-deployment-namespace-scoped:
-	helm template ./charts/skupper-setup  --include-crds --set scope=namespace > skupper-setup-namespace-scope.yaml
+	kubectl kustomize ./config/default/namespace> skupper-namespace-scope.yaml
+
+pack-skupper-helm-chart: generate-skupper-helm-chart
+	helm package ./charts/skupper
+
+pack-network-observer-helm-chart:
+	helm package ./charts/network-observer
 
 generate-bundle:
 	./scripts/generate-bundle.sh
@@ -148,7 +155,15 @@ generate-network-observer-devel:
 		--set extraArgs={"-cors-allow-all"} \
 		--set skipManagementLabels=true > skupper-network-observer-devel.yaml
 
+push-skupper-artifacthub-repo:
+	./scripts/push-artifacthub-repo.sh skupper
+
+push-network-observer-artifacthub-repo:
+	./scripts/push-artifacthub-repo.sh network-observer
+
 clean:
 	rm -rf skupper controller kube-adaptor \
 		network-observer generate-doc \
-		cover.out oci-archives bundle bundle.Dockerfile
+		cover.out oci-archives bundle bundle.Dockerfile \
+		charts/skupper skupper-*.tgz artifacthub-repo.yml \
+		network-observer-*.tgz  skupper-*-scope.yaml

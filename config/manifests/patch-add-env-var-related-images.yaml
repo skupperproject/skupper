@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skupper-controller
+spec:
+  selector:
+    matchLabels:
+      application: skupper-controller
+  template:
+    spec:
+      containers:
+        - name: controller
+          env:
+            - name: RELATED_IMAGE_kube_adaptor
+              value: quay.io/skupper/kube-adaptor:v2-dev
+            - name: RELATED_IMAGE_skupper-router
+              value: quay.io/skupper/skupper-router:3.1.0

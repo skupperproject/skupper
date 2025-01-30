@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: skupper-controller
-  namespace: skupper
 spec:
   replicas: 1
   selector:
@@ -31,15 +30,19 @@ spec:
           type: RuntimeDefault
       containers:
         - name: controller
-          image: quay.io/skupper/controller:v2-latest
+          image: quay.io/skupper/controller:v2-dev
           imagePullPolicy: Always
           command: ["/app/controller"]
           args: ["-enable-grants", "-grant-server-autoconfigure"]
           env:
-            - name: RELATED_IMAGE_kube_adaptor
-              value: quay.io/skupper/kube-adaptor:v2-latest
-            - name: RELATED_IMAGE_skupper-router
-              value: quay.io/skupper/skupper-router:3.1.0
+            - name: SKUPPER_KUBE_ADAPTOR_IMAGE
+              value: quay.io/skupper/kube-adaptor:v2-dev
+            - name: SKUPPER_KUBE_ADAPTOR_IMAGE_PULL_POLICY
+              value: Always
+            - name: SKUPPER_ROUTER_IMAGE
+              value: quay.io/skupper/skupper-router:main
+            - name: SKUPPER_ROUTER_IMAGE_PULL_POLICY
+              value: Always
           securityContext:
             capabilities:
               drop:
