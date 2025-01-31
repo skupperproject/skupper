@@ -211,9 +211,9 @@ type ConnectorRecord struct {
 	// Identity The unique identifier for the record.
 	Identity   string  `json:"identity"`
 	Name       string  `json:"name"`
-	Parent     string  `json:"parent"`
 	ProcessId  string  `json:"processId"`
 	Protocol   string  `json:"protocol"`
+	RouterId   string  `json:"routerId"`
 	RoutingKey string  `json:"routingKey"`
 	ServiceId  *string `json:"serviceId,omitempty"`
 	SiteId     string  `json:"siteId"`
@@ -295,8 +295,8 @@ type ListenerRecord struct {
 	// Identity The unique identifier for the record.
 	Identity   string  `json:"identity"`
 	Name       string  `json:"name"`
-	Parent     string  `json:"parent"`
 	Protocol   string  `json:"protocol"`
+	RouterId   string  `json:"routerId"`
 	RoutingKey string  `json:"routingKey"`
 	ServiceId  *string `json:"serviceId,omitempty"`
 	SiteId     string  `json:"siteId"`
@@ -326,7 +326,7 @@ type ProcessRecord struct {
 	// Binding Indicates whether a process is exposed or not in a skupper network
 	Binding ProcessBindingType `json:"binding"`
 
-	// ComponentId Id of the component associated to the process. this is a parent of the process
+	// ComponentId Id of the component associated to the process.
 	ComponentId   string `json:"componentId"`
 	ComponentName string `json:"componentName"`
 
@@ -341,13 +341,13 @@ type ProcessRecord struct {
 	ImageName *string `json:"imageName"`
 	Name      string  `json:"name"`
 
-	// Parent Id of the site associated to the process. this is a parent of the process
-	Parent     string `json:"parent"`
-	ParentName string `json:"parentName"`
-
 	// Role Internal processes are processes related to Skupper. Remote processes are processes indirectly connected, such as a proxy
 	Role     ProcessRecordRole        `json:"role"`
 	Services *[]ServiceIdentifierType `json:"services"`
+
+	// SiteId Id of the site associated to the process.
+	SiteId   string `json:"siteId"`
+	SiteName string `json:"siteName"`
 
 	// SourceHost The IP address of the node where the pod is running
 	SourceHost string `json:"sourceHost"`
@@ -476,7 +476,7 @@ type RouterRecord struct {
 	Mode         string  `json:"mode"`
 	Name         string  `json:"name"`
 	Namespace    *string `json:"namespace,omitempty"`
-	Parent       string  `json:"parent"`
+	SiteId       string  `json:"siteId"`
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64 `json:"startTime"`

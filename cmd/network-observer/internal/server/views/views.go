@@ -140,7 +140,7 @@ func NewListenerProvider(graph collector.Graph) func(vanflow.ListenerRecord) api
 		out := defaultListener(record.ID)
 		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
 		setOpt(&out.Name, record.Name)
-		setOpt(&out.Parent, record.Parent)
+		setOpt(&out.RouterId, record.Parent)
 		setOpt(&out.Protocol, record.Protocol)
 		setOpt(&out.DestHost, record.DestHost)
 		setOpt(&out.DestPort, record.DestPort)
@@ -162,7 +162,7 @@ func defaultListener(id string) api.ListenerRecord {
 	return api.ListenerRecord{
 		Identity:   id,
 		Name:       unknownStr,
-		Parent:     unknownStr,
+		RouterId:   unknownStr,
 		Protocol:   unknownStr,
 		RoutingKey: unknownStr,
 		DestHost:   unknownStr,
@@ -192,7 +192,7 @@ func NewConnectorProvider(graph collector.Graph) func(vanflow.ConnectorRecord) a
 		out := defaultConnector(record.ID)
 		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
 		setOpt(&out.Name, record.Name)
-		setOpt(&out.Parent, record.Parent)
+		setOpt(&out.RouterId, record.Parent)
 		setOpt(&out.Protocol, record.Protocol)
 		setOpt(&out.DestHost, record.DestHost)
 		setOpt(&out.DestPort, record.DestPort)
@@ -219,7 +219,7 @@ func defaultConnector(id string) api.ConnectorRecord {
 	return api.ConnectorRecord{
 		Identity:   id,
 		Name:       unknownStr,
-		Parent:     unknownStr,
+		RouterId:   unknownStr,
 		Protocol:   unknownStr,
 		RoutingKey: unknownStr,
 		DestHost:   unknownStr,
@@ -305,12 +305,12 @@ func NewProcessProvider(stor store.Interface, graph collector.Graph) func(vanflo
 		if !ok {
 			return out, false
 		}
-		setOpt(&out.ParentName, site.Name)
+		setOpt(&out.SiteName, site.Name)
 		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
 		out.ImageName = record.ImageName
 		out.HostName = record.Hostname
 		setOpt(&out.Name, record.Name)
-		setOpt(&out.Parent, record.Parent)
+		setOpt(&out.SiteId, record.Parent)
 		setOpt(&out.SourceHost, record.SourceHost)
 		if record.Mode != nil {
 			mode := *record.Mode
@@ -370,8 +370,8 @@ func defaultProcess(id string) api.ProcessRecord {
 	return api.ProcessRecord{
 		Identity:      id,
 		Name:          unknownStr,
-		Parent:        unknownStr,
-		ParentName:    unknownStr,
+		SiteId:        unknownStr,
+		SiteName:      unknownStr,
 		ComponentId:   unknownStr,
 		ComponentName: unknownStr,
 		SourceHost:    unknownStr,
@@ -581,7 +581,7 @@ func Router(record vanflow.RouterRecord) api.RouterRecord {
 	out := defaultRouter(record.ID)
 	out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
 	out.Namespace = record.Namespace
-	setOpt(&out.Parent, record.Parent)
+	setOpt(&out.SiteId, record.Parent)
 	setOpt(&out.HostName, record.Hostname)
 	setOpt(&out.ImageName, record.ImageName)
 	setOpt(&out.ImageVersion, record.ImageVersion)
@@ -599,7 +599,7 @@ func defaultRouter(id string) api.RouterRecord {
 		ImageVersion: unknownStr,
 		Mode:         unknownStr,
 		Name:         unknownStr,
-		Parent:       unknownStr,
+		SiteId:       unknownStr,
 	}
 }
 
