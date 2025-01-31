@@ -87,6 +87,9 @@ func NewController(cli internalclient.Clients, config *Config) (*Controller, err
 	controller.self.Name = name
 	controller.self.Namespace = config.Namespace
 	controller.self.Version = version.Version
+	if controller.requireAnnotation {
+		controller.log.Info("This controller will only process sites with the skupper.io/controller annotation set to " + controller.name)
+	}
 
 	controller.siteWatcher = controller.controller.WatchSites(config.WatchNamespace, controller.checkSite)
 	controller.listenerWatcher = controller.controller.WatchListeners(config.WatchNamespace, controller.checkListener)
@@ -163,7 +166,7 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 			continue
 		}
 		if !siteRecovery.IsActive(site) {
-			c.log.Info("Skipping site recovery as it not the active site",
+			c.log.Info("Skipping site recovery as it is not the active site",
 				slog.String("name", site.Name),
 				slog.String("namespace", site.Namespace),
 			)

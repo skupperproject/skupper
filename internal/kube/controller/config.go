@@ -46,7 +46,7 @@ func BoundConfig(flags *flag.FlagSet) (*Config, error) {
 	iflag.StringVar(flags, &c.Namespace, "namespace", "NAMESPACE", "", "The Kubernetes namespace scope for the controller")
 	iflag.StringVar(flags, &c.Kubeconfig, "kubeconfig", "KUBECONFIG", "", "A path to the kubeconfig file to use")
 	iflag.StringVar(flags, &c.WatchNamespace, "watch-namespace", "WATCH_NAMESPACE", metav1.NamespaceAll, "The Kubernetes namespace the controller should monitor for controlled resources (will monitor all if not specified)")
-	iflag.StringVar(flags, &c.Name, "name", "CONTROLLER_NAME", "", "A name identifying the controller. If mot specified it will be deduced from the hostname.")
+	iflag.StringVar(flags, &c.Name, "name", "CONTROLLER_NAME", "", "A name identifying the controller. If not specified it will be deduced from the hostname.")
 	iflag.BoolVar(flags, &c.RequireAnnotation, "sites-require-annotation", "SITES_REQUIRE_ANNOTATION", false, "If set, this controller instance will only process sites with an annotation matching the controller's namespace qualified name")
 	return c, nil
 }
