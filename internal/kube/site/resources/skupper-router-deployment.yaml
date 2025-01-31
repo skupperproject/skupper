@@ -1,3 +1,18 @@
+{{- define "resources" }}
+        resources:
+{{- if .Requests }}
+          requests:
+{{- range $key, $value := .Requests }}
+            {{ $key }}: "{{$value -}}"
+{{- end }}
+{{- end }}
+{{- if .Limits }}
+          limits:
+{{- range $key, $value := .Limits }}
+            {{ $key }}: "{{$value -}}"
+{{- end -}}
+{{- end -}}
+{{- end -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -79,6 +94,9 @@ spec:
         volumeMounts:
         - mountPath: /etc/skupper-router-certs
           name: skupper-router-certs
+{{- if .Sizing.Router.NotEmpty -}}
+        {{- template "resources" .Sizing.Router -}}
+{{- end }}
       - env:
         - name: SKUPPER_NAMESPACE
           valueFrom:
@@ -109,6 +127,9 @@ spec:
         volumeMounts:
         - mountPath: /etc/skupper-router-certs
           name: skupper-router-certs
+{{- if .Sizing.Adaptor.NotEmpty -}}
+        {{- template "resources" .Sizing.Adaptor -}}
+{{- end }}
       initContainers:
       - env:
         - name: SKUPPER_ROUTER_CONFIG
@@ -120,6 +141,9 @@ spec:
         volumeMounts:
         - mountPath: /etc/skupper-router-certs
           name: skupper-router-certs
+{{- if .Sizing.Adaptor.NotEmpty -}}
+        {{- template "resources" .Sizing.Adaptor -}}
+{{- end }}
       serviceAccount: {{ .ServiceAccount }}
       volumes:
       - emptyDir: {}

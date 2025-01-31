@@ -21,6 +21,7 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/grants"
 	"github.com/skupperproject/skupper/internal/kube/securedaccess"
 	"github.com/skupperproject/skupper/internal/kube/site"
+	"github.com/skupperproject/skupper/internal/kube/site/sizing"
 	"github.com/skupperproject/skupper/internal/network"
 	"github.com/skupperproject/skupper/internal/version"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -42,6 +43,8 @@ type Controller struct {
 	accessMgr            *securedaccess.SecuredAccessManager
 	accessRecovery       *securedaccess.SecuredAccessResourceWatcher
 	certMgr              *certificates.CertificateManagerImpl
+	siteSizing           *sizing.Registry
+	siteSizingWatcher    *internalclient.ConfigMapWatcher
 	attachableConnectors map[string]*skupperv2alpha1.AttachedConnector
 	log                  *slog.Logger
 }
@@ -52,11 +55,18 @@ func skupperNetworkStatus() internalinterfaces.TweakListOptionsFunc {
 	}
 }
 
+func skupperSiteSizingConfig() internalinterfaces.TweakListOptionsFunc {
+	return func(options *metav1.ListOptions) {
+		options.LabelSelector = sizing.SiteSizingLabel
+	}
+}
+
 func NewController(cli internalclient.Clients, config *Config) (*Controller, error) {
 	controller := &Controller{
 		requireAnnotation:    config.sitesRequireAnnotation(),
 		controller:           internalclient.NewController("Controller", cli),
 		sites:                map[string]*site.Site{},
+		siteSizing:           sizing.NewRegistry(),
 		attachableConnectors: map[string]*skupperv2alpha1.AttachedConnector{},
 		log:                  slog.New(slog.Default().Handler()).With(slog.String("component", "kube.controller")),
 	}
@@ -101,6 +111,7 @@ func NewController(cli internalclient.Clients, config *Config) (*Controller, err
 	controller.controller.WatchConfigMaps(skupperNetworkStatus(), config.WatchNamespace, controller.networkStatusUpdate)
 	controller.controller.WatchAccessTokens(config.WatchNamespace, controller.checkAccessToken)
 	controller.controller.WatchPods("skupper.io/component=router,skupper.io/type=site", config.WatchNamespace, controller.routerPodEvent)
+	controller.siteSizingWatcher = controller.controller.WatchConfigMaps(skupperSiteSizingConfig(), config.Namespace, controller.siteSizing.Update)
 
 	controller.certMgr = certificates.NewCertificateManager(controller.controller)
 	controller.certMgr.Watch(config.WatchNamespace)
@@ -154,6 +165,13 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 	c.log.Info("Waiting for informer caches to sync")
 	if ok := c.controller.WaitForCacheSync(stopCh); !ok {
 		return fmt.Errorf("Failed to wait for caches to sync")
+	}
+	for _, config := range c.siteSizingWatcher.List() {
+		c.log.Info("Recovering site sizing",
+			slog.String("name", config.Name),
+			slog.String("namespace", config.Namespace),
+		)
+		c.siteSizing.Update(config.Namespace+"/"+config.Name, config)
 	}
 	//recover existing sites & bindings
 	siteRecovery := site.NewSiteRecovery(c.controller.GetKubeClient())
@@ -248,7 +266,7 @@ func (c *Controller) getSite(namespace string) *site.Site {
 	if existing, ok := c.sites[namespace]; ok {
 		return existing
 	}
-	site := site.NewSite(namespace, c.controller, c.certMgr, c.accessMgr)
+	site := site.NewSite(namespace, c.controller, c.certMgr, c.accessMgr, c.siteSizing)
 	c.sites[namespace] = site
 	return site
 }
