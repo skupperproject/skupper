@@ -442,6 +442,24 @@ func TestGeneral(t *testing.T) {
 				f.siteStatus("siteB", "test", skupperv2alpha1.StatusPending, "Not Running", f.condition(skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionTrue, "Ready", "OK")),
 			},
 		},
+		{
+			name: "site with default size",
+			k8sObjects: []runtime.Object{
+				f.siteSizing("default", "", map[string]string{
+					"router-cpu-request":    "0.6",
+					"router-memory-request": "500M",
+				}),
+			},
+			skupperObjects: []runtime.Object{
+				f.site("mysite", "test", "", false, false),
+			},
+			expectedSiteStatuses: []*skupperv2alpha1.Site{
+				f.siteStatus("mysite", "test", skupperv2alpha1.StatusPending, "Not Running", f.condition(skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionTrue, "Ready", "OK")),
+			},
+			expectedDynamicResources: map[schema.GroupVersionResource]*unstructured.Unstructured{
+				resource.DeploymentResource(): f.resources().routerMemoryRequest("500M").routerCpuRequest("600m").deployment("skupper-router", "test"),
+			},
+		},
 	}
 	for _, tt := range testTable {
 		t.Run(tt.name, func(t *testing.T) {
@@ -508,7 +526,7 @@ func TestGeneral(t *testing.T) {
 					assert.Assert(t, ok, key)
 					assert.Equal(t, expectedValue, actualValue)
 				}
-				match(expected.UnstructuredContent(), actual.UnstructuredContent())
+				assert.Assert(t, match(expected.UnstructuredContent(), actual.UnstructuredContent()))
 			}
 			for _, expected := range tt.expectedRouterConfig {
 				actual, err := clients.GetKubeClient().CoreV1().ConfigMaps(expected.namespace).Get(context.Background(), expected.name, metav1.GetOptions{})
@@ -951,6 +969,133 @@ func (f *factory) routerDeployment(name string, namespace string) *unstructured.
 	return f.unstructured(name, namespace, content, labels)
 }
 
+type ExpectedResources struct {
+	routerRequests  map[string]string
+	routerLimits    map[string]string
+	adaptorRequests map[string]string
+	adaptorLimits   map[string]string
+}
+
+func (f *factory) resources() *ExpectedResources {
+	return &ExpectedResources{}
+}
+
+func (r *ExpectedResources) routerMemoryLimit(value string) *ExpectedResources {
+	if r.routerLimits == nil {
+		r.routerLimits = map[string]string{}
+	}
+	r.routerLimits["memory"] = value
+	return r
+}
+
+func (r *ExpectedResources) routerCpuLimit(value string) *ExpectedResources {
+	if r.routerLimits == nil {
+		r.routerLimits = map[string]string{}
+	}
+	r.routerLimits["cpu"] = value
+	return r
+}
+
+func (r *ExpectedResources) routerMemoryRequest(value string) *ExpectedResources {
+	if r.routerRequests == nil {
+		r.routerRequests = map[string]string{}
+	}
+	r.routerRequests["memory"] = value
+	return r
+}
+
+func (r *ExpectedResources) routerCpuRequest(value string) *ExpectedResources {
+	if r.routerRequests == nil {
+		r.routerRequests = map[string]string{}
+	}
+	r.routerRequests["cpu"] = value
+	return r
+}
+
+func (r *ExpectedResources) adaptorMemoryLimit(value string) *ExpectedResources {
+	if r.adaptorLimits == nil {
+		r.adaptorLimits = map[string]string{}
+	}
+	r.adaptorLimits["memory"] = value
+	return r
+}
+
+func (r *ExpectedResources) adaptorCpuLimit(value string) *ExpectedResources {
+	if r.adaptorLimits == nil {
+		r.adaptorLimits = map[string]string{}
+	}
+	r.adaptorLimits["cpu"] = value
+	return r
+}
+
+func (r *ExpectedResources) adaptorMemoryRequest(value string) *ExpectedResources {
+	if r.adaptorRequests == nil {
+		r.adaptorRequests = map[string]string{}
+	}
+	r.adaptorRequests["memory"] = value
+	return r
+}
+
+func (r *ExpectedResources) adaptorCpuRequest(value string) *ExpectedResources {
+	if r.adaptorRequests == nil {
+		r.adaptorRequests = map[string]string{}
+	}
+	r.adaptorRequests["cpu"] = value
+	return r
+}
+
+func (r *ExpectedResources) routerResources() map[string]interface{} {
+	m := map[string]interface{}{}
+	if len(r.routerLimits) > 0 {
+		m["limits"] = r.routerLimits
+	}
+	if len(r.routerRequests) > 0 {
+		m["requests"] = r.routerRequests
+	}
+	return m
+}
+
+func (r *ExpectedResources) adaptorResources() map[string]interface{} {
+	m := map[string]interface{}{}
+	if len(r.adaptorLimits) > 0 {
+		m["limits"] = r.adaptorLimits
+	}
+	if len(r.adaptorRequests) > 0 {
+		m["requests"] = r.adaptorRequests
+	}
+	return m
+}
+
+func (r *ExpectedResources) deployment(name string, namespace string) *unstructured.Unstructured {
+	labels := map[string]string{
+		"application":          "skupper-router",
+		"skupper.io/component": "router",
+		"skupper.io/type":      "site",
+	}
+	content := map[string]interface{}{
+		"spec": map[string]interface{}{
+			"selector": map[string]interface{}{
+				"matchLabels": f.routerSelector(false),
+			},
+			"template": map[string]interface{}{
+				"spec": map[string]interface{}{
+					"containers": []map[string]interface{}{
+						{
+							"name":      "router",
+							"resources": r.routerResources(),
+						},
+						{
+							"name":      "kube-adaptor",
+							"resources": r.adaptorResources(),
+						},
+					},
+				},
+			},
+		},
+	}
+	return f.unstructured(name, namespace, content, labels)
+}
+
 func (*factory) unstructured(name string, namespace string, content map[string]interface{}, labels map[string]string) *unstructured.Unstructured {
 	obj := &unstructured.Unstructured{}
 	if content != nil {
@@ -1105,6 +1250,22 @@ func (*factory) skupperNetworkStatus(namespace string, status *network.NetworkSt
 	}
 }
 
+func (*factory) siteSizing(name string, namespace string, data map[string]string) *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"skupper.io/site-sizing": "default",
+			},
+			Annotations: map[string]string{
+				"skupper.io/default-site-sizing": "",
+			},
+		},
+		Data: data,
+	}
+}
+
 func (f *factory) fakeNetworkStatusInfo(namespace string) *NetworkStatus {
 	return f.networkStatusInfo(
 		"east", namespace, map[string]string{"mysvc": "mysvc"}, map[string]string{"mysvc": "foo"},
@@ -1198,7 +1359,15 @@ func _match(expected reflect.Value, actual reflect.Value) error {
 		return fmt.Errorf("Expected value of type %s, got value of type %s", expected.Kind(), actual.Kind())
 	} else if expected.Kind() == reflect.Map {
 		for _, key := range expected.MapKeys() {
-			if err := _match(expected.MapIndex(key), actual.MapIndex(key)); err != nil {
+			a := expected.MapIndex(key)
+			b := actual.MapIndex(key)
+			if !a.IsValid() && !b.IsValid() {
+				return nil
+			}
+			if a.IsValid() != b.IsValid() {
+				return fmt.Errorf("%s does not match: expected %v, got %v", key, a, b)
+			}
+			if err := match(expected.MapIndex(key).Interface(), actual.MapIndex(key).Interface()); err != nil {
 				return fmt.Errorf("Value for %s does not match: %s", key.String(), err)
 			}
 		}
@@ -1208,7 +1377,7 @@ func _match(expected reflect.Value, actual reflect.Value) error {
 			return fmt.Errorf("Different number of items, expected %s, got %s", expected.String(), actual.String())
 		}
 		for i := 0; i < expected.Len(); i++ {
-			if err := _match(expected.Index(i), actual.Index(i)); err != nil {
+			if err := match(expected.Index(i).Interface(), actual.Index(i).Interface()); err != nil {
 				return fmt.Errorf("Item at index %d does not match: %s", i, err)
 			}
 		}
