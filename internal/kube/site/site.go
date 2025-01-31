@@ -19,6 +19,7 @@ import (
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	kubeqdr "github.com/skupperproject/skupper/internal/kube/qdr"
 	"github.com/skupperproject/skupper/internal/kube/site/resources"
+	"github.com/skupperproject/skupper/internal/kube/site/sizing"
 	"github.com/skupperproject/skupper/internal/qdr"
 	"github.com/skupperproject/skupper/internal/site"
 	"github.com/skupperproject/skupper/internal/version"
@@ -43,12 +44,13 @@ type Site struct {
 	linkAccess    site.RouterAccessMap
 	certs         certificates.CertificateManager
 	access        SecuredAccessFactory
+	sizes         *sizing.Registry
 	routerPods    map[string]*corev1.Pod
 	logger        *slog.Logger
 	currentGroups []string
 }
 
-func NewSite(namespace string, controller *internalclient.Controller, certs certificates.CertificateManager, access SecuredAccessFactory) *Site {
+func NewSite(namespace string, controller *internalclient.Controller, certs certificates.CertificateManager, access SecuredAccessFactory, sizes *sizing.Registry) *Site {
 	return &Site{
 		bindings:   NewExtendedBindings(controller, SSL_PROFILE_PATH),
 		namespace:  namespace,
@@ -57,6 +59,7 @@ func NewSite(namespace string, controller *internalclient.Controller, certs cert
 		linkAccess: site.RouterAccessMap{},
 		certs:      certs,
 		access:     access,
+		sizes:      sizes,
 		routerPods: map[string]*corev1.Pod{},
 		logger: slog.New(slog.Default().Handler()).With(
 			slog.String("component", "kube.site.site"),
@@ -181,9 +184,22 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 	}
 
 	// 3. deployment
+	size, err := s.sizes.GetSizing(s.site)
+	if err != nil {
+		s.logger.Info("Did not retrieve size for site",
+			slog.String("namespace", s.site.Namespace),
+			slog.String("name", s.site.Name),
+			slog.String("reason", err.Error()),
+		)
+	} else {
+		s.logger.Debug("Sizing for site",
+			slog.String("namespace", s.site.Namespace),
+			slog.String("name", s.site.Name),
+			slog.Any("sizing", size),
+		)
+	}
 	for _, group := range s.groups() {
-		//TODO: if change from HA=true to HA=false, will need to remove previous resources
-		if err := resources.Apply(s.controller, ctxt, s.site, group); err != nil {
+		if err := resources.Apply(s.controller, ctxt, s.site, group, size); err != nil {
 			return err
 		}
 	}
