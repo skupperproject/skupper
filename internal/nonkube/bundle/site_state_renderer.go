@@ -10,11 +10,10 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/images"
-	internalbundle "github.com/skupperproject/skupper/internal/nonkube/bundle"
+	"github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
-	"github.com/skupperproject/skupper/pkg/nonkube/common"
 )
 
 var (
@@ -27,7 +26,7 @@ type SiteStateRenderer struct {
 	siteState       *api.SiteState
 	configRenderer  *common.FileSystemConfigurationRenderer
 	containers      map[string]container.Container
-	Strategy        internalbundle.BundleStrategy
+	Strategy        BundleStrategy
 	Platform        types.Platform
 }
 
@@ -162,16 +161,16 @@ func (s *SiteStateRenderer) createBundle() error {
 	if err != nil {
 		return fmt.Errorf("failed to add files to tarball (%q): %v", siteHomeDir, err)
 	}
-	var generator internalbundle.BundleGenerator
+	var generator BundleGenerator
 	switch s.Strategy {
-	case internalbundle.BundleStrategyTarball:
-		generator = &internalbundle.TarballBundle{
+	case BundleStrategyTarball:
+		generator = &TarballBundle{
 			SiteName:   s.siteState.Site.Name,
 			Namespace:  s.siteState.GetNamespace(),
 			OutputPath: bundlesHomeDir,
 		}
 	default:
-		generator = &internalbundle.SelfExtractingBundle{
+		generator = &SelfExtractingBundle{
 			SiteName:   s.siteState.Site.Name,
 			Namespace:  s.siteState.GetNamespace(),
 			OutputPath: bundlesHomeDir,

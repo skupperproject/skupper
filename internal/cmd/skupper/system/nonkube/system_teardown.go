@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/skupperproject/skupper/internal/config"
-	"github.com/skupperproject/skupper/pkg/nonkube/bootstrap"
+	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
 	"github.com/spf13/cobra"
 )
 

@@ -8,13 +8,12 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	internalbundle "github.com/skupperproject/skupper/internal/nonkube/bundle"
+	"github.com/skupperproject/skupper/internal/nonkube/common"
+	"github.com/skupperproject/skupper/internal/nonkube/compat"
+	"github.com/skupperproject/skupper/internal/nonkube/linux"
 	"github.com/skupperproject/skupper/internal/utils"
 	internalutils "github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
-	"github.com/skupperproject/skupper/pkg/nonkube/bundle"
-	"github.com/skupperproject/skupper/pkg/nonkube/common"
-	"github.com/skupperproject/skupper/pkg/nonkube/compat"
-	"github.com/skupperproject/skupper/pkg/nonkube/linux"
 )
 
 type Config struct {
@@ -122,7 +121,7 @@ func Bootstrap(config *Config) (*api.SiteState, error) {
 
 	var siteStateRenderer api.StaticSiteStateRenderer
 	if config.IsBundle {
-		siteStateRenderer = &bundle.SiteStateRenderer{
+		siteStateRenderer = &internalbundle.SiteStateRenderer{
 			Strategy: internalbundle.BundleStrategy(config.BundleStrategy),
 			Platform: config.Platform,
 		}
