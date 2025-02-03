@@ -92,11 +92,11 @@ spec:
       - name: Redemptions Made
         type: integer
         description: The number of times an access token originating from this grant has been redeemed
-        jsonPath: .status.redeemed
+        jsonPath: .status.redemptions
       - name: Expiration
         type: string
         description: When the grant will expire
-        jsonPath: .status.expiration
+        jsonPath: .status.expirationTime
       - name: Status
         type: string
         description: The status of the grant
