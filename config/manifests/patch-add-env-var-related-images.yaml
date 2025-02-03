@@ -12,6 +12,6 @@ spec:
         - name: controller
           env:
             - name: RELATED_IMAGE_kube_adaptor
-              value: quay.io/skupper/kube-adaptor:v2-dev
+              value: quay.io/skupper/kube-adaptor:2.0.0-rc1
             - name: RELATED_IMAGE_skupper-router
-              value: quay.io/skupper/skupper-router:3.1.0
+              value: quay.io/skupper/skupper-router:3.2.0

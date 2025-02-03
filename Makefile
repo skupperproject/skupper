@@ -8,8 +8,8 @@ GOOS ?= linux
 GOARCH ?= amd64
 
 REGISTRY := quay.io/skupper
-IMAGE_TAG := v2-dev
-ROUTER_IMAGE_TAG := main
+IMAGE_TAG := 2.0.0-rc1
+ROUTER_IMAGE_TAG := 3.2.0
 PLATFORMS ?= linux/amd64,linux/arm64
 CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer
 SHARED_IMAGE_LABELS = \
