@@ -97,17 +97,17 @@ else
 fi
 
 # Substitute "namespace: <name>" with "namespace: {{ .Release.Namespace }}"
-sed -i 's/namespace: [a-zA-Z0-9-]*/namespace: {{ .Release.Namespace }}/g' "$CLUSTER_TEMPLATE"
+sed -i 's/namespace: [a-zA-Z0-9.-]*/namespace: {{ .Release.Namespace }}/g' "$CLUSTER_TEMPLATE"
 
-sed -i -E 's|quay.io/skupper/controller:[a-zA-Z0-9-]*|{{ .Values.controllerImage }}|' "$CLUSTER_TEMPLATE"
-sed -i -E 's|quay.io/skupper/controller:[a-zA-Z0-9-]*|{{ .Values.controllerImage }}|' "$NAMESPACE_TEMPLATE"
+sed -i -E 's|quay.io/skupper/controller:[a-zA-Z0-9.-]*|{{ .Values.controllerImage }}|' "$CLUSTER_TEMPLATE"
+sed -i -E 's|quay.io/skupper/controller:[a-zA-Z0-9.-]*|{{ .Values.controllerImage }}|' "$NAMESPACE_TEMPLATE"
 
-sed -i -E 's|quay.io/skupper/skupper-router:[a-zA-Z0-9-]*|{{ .Values.routerImage }}|' "$CLUSTER_TEMPLATE"
-sed -i -E 's|quay.io/skupper/skupper-router:[a-zA-Z0-9-]*|{{ .Values.routerImage }}|' "$NAMESPACE_TEMPLATE"
+sed -i -E 's|quay.io/skupper/skupper-router:[a-zA-Z0-9.-]*|{{ .Values.routerImage }}|' "$CLUSTER_TEMPLATE"
+sed -i -E 's|quay.io/skupper/skupper-router:[a-zA-Z0-9.-]*|{{ .Values.routerImage }}|' "$NAMESPACE_TEMPLATE"
 
 
-sed -i 's|quay.io/skupper/kube-adaptor:[a-zA-Z0-9-]*|{{ .Values.kubeAdaptorImage }}|g' "$CLUSTER_TEMPLATE"
-sed -i 's|quay.io/skupper/kube-adaptor:[a-zA-Z0-9-]*|{{ .Values.kubeAdaptorImage }}|g' "$NAMESPACE_TEMPLATE"
+sed -i 's|quay.io/skupper/kube-adaptor:[a-zA-Z0-9.-]*|{{ .Values.kubeAdaptorImage }}|g' "$CLUSTER_TEMPLATE"
+sed -i 's|quay.io/skupper/kube-adaptor:[a-zA-Z0-9.-]*|{{ .Values.kubeAdaptorImage }}|g' "$NAMESPACE_TEMPLATE"
 
 
 echo "Helm chart directory structure created successfully for '$CHART_NAME' with version=$VERSION and appVersion=$APP_VERSION."
