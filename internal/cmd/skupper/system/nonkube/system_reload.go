@@ -6,8 +6,8 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/config"
+	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
-	"github.com/skupperproject/skupper/pkg/nonkube/bootstrap"
 	"github.com/spf13/cobra"
 )
 

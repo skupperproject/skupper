@@ -9,9 +9,9 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/config"
+	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
 	internalbundle "github.com/skupperproject/skupper/internal/nonkube/bundle"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
-	"github.com/skupperproject/skupper/pkg/nonkube/bootstrap"
 	"github.com/spf13/cobra"
 )
 

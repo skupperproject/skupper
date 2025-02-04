@@ -10,8 +10,8 @@ import (
 	"text/template"
 
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
-	"github.com/skupperproject/skupper/pkg/nonkube/common"
 )
 
 func CreateSystemdServices(siteState *api.SiteState) error {
