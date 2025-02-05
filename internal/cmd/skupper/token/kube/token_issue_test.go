@@ -28,68 +28,6 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
-			name: "token is not issued because there is already the same token in the namespace",
-			args: []string{"~/token.yaml"},
-			flags: common.CommandTokenIssueFlags{
-				ExpirationWindow:   15 * time.Minute,
-				RedemptionsAllowed: 1,
-				Timeout:            60 * time.Second,
-				Name:               "my-token",
-				Cost:               "1",
-			},
-			skupperObjects: []runtime.Object{
-				&v2alpha1.SiteList{
-					Items: []v2alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "the-site",
-								Namespace: "test",
-							},
-							Status: v2alpha1.SiteStatus{
-								Status: v2alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-										{
-											Type:   "Running",
-											Status: "True",
-										},
-										{
-											Type:   "Ready",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-				&v2alpha1.AccessGrant{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-token",
-						Namespace: "test",
-					},
-					Spec: v2alpha1.AccessGrantSpec{
-						RedemptionsAllowed: 1,
-						ExpirationWindow:   "15m0s",
-					},
-					Status: v2alpha1.AccessGrantStatus{
-						Status: v2alpha1.Status{
-							Conditions: []v1.Condition{
-								{
-									Type:   "Ready",
-									Status: "True",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedError: "there is already a token my-token created in namespace test",
-		},
-		{
 			name: "token no site",
 			args: []string{"filename"},
 			flags: common.CommandTokenIssueFlags{
@@ -272,48 +210,6 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 				},
 			},
 			expectedError: "only one argument is allowed for this command",
-		},
-		{
-			name: "token name is not valid.",
-			args: []string{"~/token.yaml"},
-			flags: common.CommandTokenIssueFlags{
-				ExpirationWindow:   15 * time.Minute,
-				RedemptionsAllowed: 1,
-				Timeout:            60 * time.Second,
-				Name:               "my new token",
-				Cost:               "1",
-			},
-			skupperObjects: []runtime.Object{
-				&v2alpha1.SiteList{
-					Items: []v2alpha1.Site{
-						{
-							ObjectMeta: v1.ObjectMeta{
-								Name:      "site1",
-								Namespace: "test",
-							},
-							Status: v2alpha1.SiteStatus{
-								Status: v2alpha1.Status{
-									Conditions: []v1.Condition{
-										{
-											Type:   "Configured",
-											Status: "True",
-										},
-										{
-											Type:   "Running",
-											Status: "True",
-										},
-										{
-											Type:   "Ready",
-											Status: "True",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedError: "token name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name: "token file name is not valid.",

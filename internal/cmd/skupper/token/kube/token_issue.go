@@ -46,7 +46,6 @@ func (cmd *CmdTokenIssue) NewClient(cobraCommand *cobra.Command, args []string) 
 
 func (cmd *CmdTokenIssue) ValidateInput(args []string) error {
 	var validationErrors []error
-	resourceStringValidator := validator.NewResourceStringValidator()
 	tokenStringValidator := validator.NewFilePathStringValidator()
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 	expirationValidator := validator.NewExpirationInSecondsValidator()
@@ -81,17 +80,7 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) error {
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 		} else {
-			// used configured name or generate a grant name
-			if cmd.Flags.Name != "" {
-				ok, err := resourceStringValidator.Evaluate(cmd.Flags.Name)
-				if !ok {
-					validationErrors = append(validationErrors, fmt.Errorf("token name is not valid: %s", err))
-				} else {
-					cmd.grantName = cmd.Flags.Name
-				}
-			} else {
-				cmd.grantName = siteName + "-" + uuid.New().String()
-			}
+			cmd.grantName = siteName + "-" + uuid.New().String()
 		}
 	}
 
