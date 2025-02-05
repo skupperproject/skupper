@@ -429,8 +429,8 @@ func (c *connectionManager) getTransportMetricSet(l labelSet) transportMetrics {
 func (c *connectionManager) run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	go c.runReconcile(ctx)
-	go c.runReconcileApp(ctx)
+	go c.scheduleReconcile(ctx)
+	go c.scheduleAppReconcile(ctx)
 	invalidateCache := time.NewTicker(time.Second * 30)
 	defer invalidateCache.Stop()
 	purgeFlows := time.NewTicker(time.Second * 10)
@@ -598,7 +598,67 @@ func (c *connectionManager) run(ctx context.Context) {
 	}
 }
 
-func (c *connectionManager) runReconcileApp(ctx context.Context) {
+type appReconcileResult struct {
+	Dirty                          int
+	PendingTransportCount          int
+	PendingTransportReconcileCount int
+	PendingProtocolCount           int
+	PendingUnknownCount            int
+	Reconciled                     []RequestRecord
+}
+
+func (c *connectionManager) runAppReconcile() appReconcileResult {
+	var result appReconcileResult
+	c.appFlows.Matching(func(state *appState) bool {
+		return state.metrics == nil
+	})(func(state appState) bool {
+		if state.metrics != nil {
+			return true
+		}
+		var push bool
+		if state.Dirty {
+			push = true
+			state.Dirty = false
+			result.Dirty++
+		}
+
+		request, reason := c.reconcileRequest(state)
+		switch reason {
+		case missingTransport:
+			result.PendingTransportCount++
+		case missingProtocol:
+			result.PendingProtocolCount++
+		case unreconciledTransport:
+			result.PendingTransportReconcileCount++
+		case success:
+			c.records.Add(request, c.source)
+			push = true
+			metrics := request.metrics
+			state.metrics = &metrics
+			result.Reconciled = append(result.Reconciled, request)
+
+			c.pairMu.Lock()
+			p := pair{
+				Protocol: request.Protocol,
+				Source:   request.Source.ID,
+				Dest:     request.Dest.ID,
+			}
+			if _, ok := c.processPairs[p]; !ok {
+				c.processPairs[p] = true
+			}
+			c.pairMu.Unlock()
+		default:
+			result.PendingUnknownCount++
+		}
+		if push {
+			c.appFlows.Push(state.ID, state)
+		}
+		return true
+	})
+	return result
+}
+
+func (c *connectionManager) scheduleAppReconcile(ctx context.Context) {
 	reconcileProcesses := c.metrics.internal.reconcileTime.WithLabelValues(c.source.ID, "appflow_processes")
 	b := backoff.WithContext(backoff.NewExponentialBackOff(
 		backoff.WithMaxElapsedTime(0),
@@ -642,78 +702,78 @@ func (c *connectionManager) runReconcileApp(ctx context.Context) {
 			defer func() {
 				reconcileProcesses.Observe(time.Since(start).Seconds())
 			}()
-			var dirty int
-			var reconciled []RequestRecord
-			var (
-				pendingTransportCt      int
-				pendingTransportReconCt int
-				pendingProtocolCt       int
-				pendingUnknownCt        int
-			)
-			c.appFlows.Matching(func(state *appState) bool {
-				return state.metrics == nil
-			})(func(state appState) bool {
-				if state.metrics != nil {
-					return true
-				}
-				var push bool
-				if state.Dirty {
-					push = true
-					state.Dirty = false
-					dirty++
-				}
+			result := c.runAppReconcile()
+			pendingTransport.Set(float64(result.PendingTransportCount))
+			pendingReconcile.Set(float64(result.PendingTransportReconcileCount))
+			pendingProtocol.Set(float64(result.PendingProtocolCount))
+			pendingUnknown.Set(float64(result.PendingUnknownCount))
 
-				request, result := c.reconcileRequest(state)
-				switch result {
-				case missingTransport:
-					pendingTransportCt++
-				case missingProtocol:
-					pendingProtocolCt++
-				case unreconciledTransport:
-					pendingTransportReconCt++
-				case success:
-					c.records.Add(request, c.source)
-					push = true
-					metrics := request.metrics
-					state.metrics = &metrics
-					reconciled = append(reconciled, request)
-
-					c.pairMu.Lock()
-					p := pair{
-						Protocol: request.Protocol,
-						Source:   request.Source.ID,
-						Dest:     request.Dest.ID,
-					}
-					if _, ok := c.processPairs[p]; !ok {
-						c.processPairs[p] = true
-					}
-					c.pairMu.Unlock()
-				default:
-					pendingUnknownCt++
-				}
-				if push {
-					c.appFlows.Push(state.ID, state)
-				}
-				return true
-			})
-			pendingTransport.Set(float64(pendingTransportCt))
-			pendingReconcile.Set(float64(pendingTransportReconCt))
-			pendingProtocol.Set(float64(pendingProtocolCt))
-			pendingUnknown.Set(float64(pendingUnknownCt))
-
-			for _, r := range reconciled {
+			for _, r := range result.Reconciled {
 				if flow, ok := r.GetFlow(); ok {
 					c.handleAppFlow(flow)
 				}
 			}
-			if dirty > 0 {
+			if result.Dirty > 0 {
 				b.Reset()
 			}
 		}()
 	}
 }
 
-func (c *connectionManager) runReconcile(ctx context.Context) {
+type reconcileResult struct {
+	PendingConnectorCount int
+	PendingSourceCount    int
+	PendingDestCount      int
+	Dirty                 int
+	Reconciled            []ConnectionRecord
+}
+
+func (c *connectionManager) runReconcile() reconcileResult {
+	var result reconcileResult
+	c.transportFlows.Matching(func(state *transportState) bool {
+		return state.metrics == nil
+	})(func(state transportState) bool {
+		var push bool
+		if state.Dirty {
+			result.Dirty++
+			push = true
+			state.Dirty = false
+		}
+		connection, reason := c.reconcile(state)
+		switch reason {
+		case missingConnector:
+			result.PendingConnectorCount++
+		case missingSource:
+			result.PendingSourceCount++
+		case missingDest:
+			result.PendingDestCount++
+		case success:
+			push = true
+			c.records.Add(connection, c.source)
+			metrics := connection.metrics
+			state.metrics = &metrics
+			result.Reconciled = append(result.Reconciled, connection)
+
+			c.pairMu.Lock()
+			p := pair{
+				Protocol: connection.Protocol,
+				Source:   connection.Source.ID,
+				Dest:     connection.Dest.ID,
+			}
+			if _, ok := c.processPairs[p]; !ok {
+				c.processPairs[p] = true
+			}
+			c.pairMu.Unlock()
+		}
+		if push {
+			c.transportFlows.Push(state.ID, state)
+		}
+		return true
+	})
+	return result
+}
+
+func (c *connectionManager) scheduleReconcile(ctx context.Context) {
 	reconcileProcesses := c.metrics.internal.reconcileTime.WithLabelValues(c.source.ID, "flow_processes")
 	b := backoff.WithContext(backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0), backoff.WithMaxInterval(time.Second*5)), ctx)
 	pending := c.metrics.internal.pendingFlows.MustCurryWith(prometheus.Labels{"eventsource": c.source.ID})
@@ -749,63 +809,17 @@ func (c *connectionManager) runReconcile(ctx context.Context) {
 			defer func() {
 				reconcileProcesses.Observe(time.Since(start).Seconds())
 			}()
-			var dirty int
-			var reconciled []ConnectionRecord
-			var (
-				pendingConn int
-				pendingSrc  int
-				pendingDst  int
-			)
-			c.transportFlows.Matching(func(state *transportState) bool {
-				return state.metrics == nil
-			})(func(state transportState) bool {
-				var push bool
-				if state.Dirty {
-					dirty++
-					push = true
-					state.Dirty = false
-				}
-				connection, result := c.reconcile(state)
-				switch result {
-				case missingConnector:
-					pendingConn++
-				case missingSource:
-					pendingSrc++
-				case missingDest:
-					pendingDst++
-				case success:
-					push = true
-					c.records.Add(connection, c.source)
-					metrics := connection.metrics
-					state.metrics = &metrics
-					reconciled = append(reconciled, connection)
+			result := c.runReconcile()
+			pendingConnector.Set(float64(result.PendingConnectorCount))
+			pendingSource.Set(float64(result.PendingSourceCount))
+			pendingDest.Set(float64(result.PendingDestCount))
 
-					c.pairMu.Lock()
-					p := pair{
-						Protocol: connection.Protocol,
-						Source:   connection.Source.ID,
-						Dest:     connection.Dest.ID,
-					}
-					if _, ok := c.processPairs[p]; !ok {
-						c.processPairs[p] = true
-					}
-					c.pairMu.Unlock()
-				}
-				if push {
-					c.transportFlows.Push(state.ID, state)
-				}
-				return true
-			})
-			pendingConnector.Set(float64(pendingConn))
-			pendingSource.Set(float64(pendingSrc))
-			pendingDest.Set(float64(pendingDst))
-
-			for _, r := range reconciled {
+			for _, r := range result.Reconciled {
 				if flow, ok := r.GetFlow(); ok {
 					c.handleTransportFlow(flow)
 				}
 			}
-			if dirty > 0 {
+			if result.Dirty > 0 {
 				b.Reset()
 			}
 		}()
