@@ -12,6 +12,7 @@ import (
 	"github.com/skupperproject/skupper/internal/images"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/resource"
+	"github.com/skupperproject/skupper/internal/kube/site/sizing"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
@@ -21,8 +22,8 @@ var routerDeploymentTemplate string
 //go:embed skupper-router-local-service.yaml
 var routerLocalServiceTemplate string
 
-func resourceTemplates(site *skupperv2alpha1.Site, group string) []resource.Template {
-	options := getCoreParams(site, group)
+func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Sizing) []resource.Template {
+	options := getCoreParams(site, group, size)
 	templates := []resource.Template{
 		{
 			Name:       "deployment",
@@ -57,6 +58,16 @@ type CoreParams struct {
 	ConfigDigest   string
 	RouterImage    skuppertypes.ImageDetails
 	AdaptorImage   skuppertypes.ImageDetails
+	Sizing         sizing.Sizing
+}
+
+type Resources struct {
+	Requests map[string]string
+	Limits   map[string]string
+}
+
+func (r Resources) NotEmpty() bool {
+	return len(r.Requests) > 0 || len(r.Limits) > 0
 }
 
 func configDigest(config *skupperv2alpha1.SiteSpec) string {
@@ -79,7 +90,7 @@ func configDigest(config *skupperv2alpha1.SiteSpec) string {
 	return ""
 }
 
-func getCoreParams(site *skupperv2alpha1.Site, group string) CoreParams {
+func getCoreParams(site *skupperv2alpha1.Site, group string, size sizing.Sizing) CoreParams {
 	return CoreParams{
 		SiteId:         site.GetSiteId(),
 		SiteName:       site.Name,
@@ -89,11 +100,12 @@ func getCoreParams(site *skupperv2alpha1.Site, group string) CoreParams {
 		ConfigDigest:   configDigest(&site.Spec),
 		RouterImage:    images.GetRouterImageDetails(),
 		AdaptorImage:   images.GetKubeAdaptorImageDetails(),
+		Sizing:         size,
 	}
 }
 
-func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv2alpha1.Site, group string) error {
-	for _, t := range resourceTemplates(site, group) {
+func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv2alpha1.Site, group string, size sizing.Sizing) error {
+	for _, t := range resourceTemplates(site, group, size) {
 		_, err := t.Apply(clients.GetDynamicClient(), ctx, site.Namespace)
 		if err != nil {
 			return err
