@@ -27,9 +27,10 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		expectedError     string
 	}
 
-	err := os.Setenv("SKUPPER_OUTPUT_PATH", "/tmp/skupper")
+	tmpDir := filepath.Join(t.TempDir(), "/skupper")
+	err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
 	assert.Check(t, err == nil)
-	path := filepath.Join("/tmp/skupper/namespaces/test4/", string(api.InputSiteStatePath))
+	path := filepath.Join(tmpDir, "/namespaces/test4/", string(api.InputSiteStatePath))
 
 	testTable := []test{
 		{
