@@ -27,9 +27,9 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 		expectedError     string
 	}
 
-	homeDir, err := os.UserHomeDir()
+	err := os.Setenv("SKUPPER_OUTPUT_PATH", "/tmp/skupper")
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
+	path := filepath.Join("/tmp/skupper/namespaces/test/", string(api.InputSiteStatePath))
 
 	testTable := []test{
 		{
@@ -190,9 +190,9 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 		},
 	}
 
-	homeDir, err := os.UserHomeDir()
+	err := os.Setenv("SKUPPER_OUTPUT_PATH", "/tmp/skupper")
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test2/", string(api.InputSiteStatePath))
+	path := filepath.Join("/tmp/skupper/namespaces/test2/", string(api.InputSiteStatePath))
 
 	command := &CmdSiteDelete{Flags: &common.CommandSiteDeleteFlags{}}
 	command.namespace = "test2"

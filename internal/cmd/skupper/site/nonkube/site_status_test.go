@@ -26,9 +26,9 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 		expectedError     string
 	}
 
-	homeDir, err := os.UserHomeDir()
+	err := os.Setenv("SKUPPER_OUTPUT_PATH", "/tmp/skupper")
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.RuntimeSiteStatePath))
+	path := filepath.Join("/tmp/skupper/namespaces/test/", string(api.RuntimeSiteStatePath))
 
 	testTable := []test{
 		{
@@ -120,9 +120,9 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 		output              string
 	}
 
-	homeDir, err := os.UserHomeDir()
+	err := os.Setenv("SKUPPER_OUTPUT_PATH", "/tmp/skupper")
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test3/", string(api.InputSiteStatePath))
+	path := filepath.Join("/tmp/skupper/namespaces/test3/", string(api.InputSiteStatePath))
 	testTable := []test{
 		{
 			name:         "run fails site doesn't exist",
@@ -177,7 +177,7 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 	command.siteHandler = fs.NewSiteHandler(command.namespace)
 	content, err := command.siteHandler.EncodeToYaml(siteResource1)
 	assert.Check(t, err == nil)
-	path = filepath.Join(homeDir, "/.local/share/skupper/namespaces/test3/", string(api.RuntimeSiteStatePath))
+	path = filepath.Join("/tmp/skupper/namespaces/test3/", string(api.RuntimeSiteStatePath))
 	err = command.siteHandler.WriteFile(path, "my-site.yaml", content, common.Sites)
 	assert.Check(t, err == nil)
 	defer command.siteHandler.Delete("my-site")
@@ -207,9 +207,9 @@ func TestCmdSiteStatus_RunNoDirectory(t *testing.T) {
 		errorMessage        string
 	}
 
-	homeDir, err := os.UserHomeDir()
+	err := os.Setenv("SKUPPER_OUTPUT_PATH", "/tmp/skupper")
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test3/", string(api.InputSiteStatePath), "/site")
+	path := filepath.Join("/tmp/skupper/namespaces/test3/", string(api.InputSiteStatePath), "/site")
 
 	testTable := []test{
 		{
