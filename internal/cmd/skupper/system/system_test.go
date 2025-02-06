@@ -1,12 +1,12 @@
 package system
 
 import (
-	"github.com/skupperproject/skupper/api/types"
+	"testing"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"gotest.tools/v3/assert"
-	"testing"
 )
 
 func TestCmdSystemFactory(t *testing.T) {
@@ -25,17 +25,17 @@ func TestCmdSystemFactory(t *testing.T) {
 				common.FlagNameStrategy: "",
 				common.FlagNameForce:    "false",
 			},
-			command: CmdSystemSetupFactory(types.PlatformKubernetes),
+			command: CmdSystemSetupFactory(common.PlatformKubernetes),
 		},
 		{
 			name:                          "CmdSystemReloadFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{},
-			command:                       CmdSystemReloadFactory(types.PlatformKubernetes),
+			command:                       CmdSystemReloadFactory(common.PlatformKubernetes),
 		},
 		{
 			name:                          "CmdSystemStopFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{},
-			command:                       CmdSystemStopFactory(types.PlatformKubernetes),
+			command:                       CmdSystemStopFactory(common.PlatformKubernetes),
 		},
 	}
 

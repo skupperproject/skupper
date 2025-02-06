@@ -1,7 +1,6 @@
 package version
 
 import (
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/version/nonkube"
 	"github.com/skupperproject/skupper/internal/config"
@@ -13,12 +12,13 @@ import (
 
 func NewCmdVersion() *cobra.Command {
 
-	cmd := CmdVersionFactory(config.GetPlatform())
+	platform := common.Platform(config.GetPlatform())
+	cmd := CmdVersionFactory(platform)
 
 	return cmd
 }
 
-func CmdVersionFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdVersionFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdVersion()
 	nonKubeCommand := nonkube.NewCmdVersion()
 

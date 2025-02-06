@@ -6,7 +6,6 @@ package site
 import (
 	"time"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/site/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/site/nonkube"
@@ -23,17 +22,17 @@ func NewCmdSite() *cobra.Command {
 		Example: `skupper site create my-site
 skupper site status`,
 	}
-
-	cmd.AddCommand(CmdSiteCreateFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdSiteStatusFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdSiteDeleteFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdSiteUpdateFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdSiteGenerateFactory(config.GetPlatform()))
+	platform := common.Platform(config.GetPlatform())
+	cmd.AddCommand(CmdSiteCreateFactory(platform))
+	cmd.AddCommand(CmdSiteStatusFactory(platform))
+	cmd.AddCommand(CmdSiteDeleteFactory(platform))
+	cmd.AddCommand(CmdSiteUpdateFactory(platform))
+	cmd.AddCommand(CmdSiteGenerateFactory(platform))
 
 	return cmd
 }
 
-func CmdSiteCreateFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdSiteCreateFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdSiteCreate()
 	nonKubeCommand := nonkube.NewCmdSiteCreate()
 
@@ -63,7 +62,7 @@ There can be only one site definition per namespace.`,
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
 
-	if configuredPlatform == types.PlatformKubernetes {
+	if configuredPlatform == common.PlatformKubernetes {
 		cmd.Flags().MarkHidden(common.FlagNameBindHost)
 		cmd.Flags().MarkHidden(common.FlagNameSubjectAlternativeNames)
 	} else {
@@ -75,7 +74,7 @@ There can be only one site definition per namespace.`,
 
 }
 
-func CmdSiteUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdSiteUpdateFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdSiteUpdate()
 	nonKubeCommand := nonkube.NewCmdSiteUpdate()
 
@@ -102,7 +101,7 @@ func CmdSiteUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
 
-	if configuredPlatform == types.PlatformKubernetes {
+	if configuredPlatform == common.PlatformKubernetes {
 		cmd.Flags().MarkHidden(common.FlagNameBindHost)
 		cmd.Flags().MarkHidden(common.FlagNameSubjectAlternativeNames)
 	} else {
@@ -113,7 +112,7 @@ func CmdSiteUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 	return cmd
 }
 
-func CmdSiteStatusFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdSiteStatusFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdSiteStatus()
 	nonKubeCommand := nonkube.NewCmdSiteStatus()
 
@@ -137,7 +136,7 @@ func CmdSiteStatusFactory(configuredPlatform types.Platform) *cobra.Command {
 
 }
 
-func CmdSiteDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdSiteDeleteFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdSiteDelete()
 	nonKubeCommand := nonkube.NewCmdSiteDelete()
 
@@ -155,7 +154,7 @@ skupper site delete --all`,
 
 	cmd.Flags().BoolVar(&cmdFlags.All, common.FlagNameAll, false, common.FlagDescDeleteAll)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
-	if configuredPlatform == types.PlatformKubernetes {
+	if configuredPlatform == common.PlatformKubernetes {
 		cmd.Flags().BoolVar(&cmdFlags.Wait, common.FlagNameWait, true, common.FlagDescDeleteWait)
 	}
 
@@ -167,7 +166,7 @@ skupper site delete --all`,
 	return cmd
 }
 
-func CmdSiteGenerateFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdSiteGenerateFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdSiteGenerate()
 	nonKubeCommand := nonkube.NewCmdSiteGenerate()
 
@@ -197,7 +196,7 @@ Generate a site resource to evaluate what will be created with the site create c
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
 
-	if configuredPlatform == types.PlatformKubernetes {
+	if configuredPlatform == common.PlatformKubernetes {
 		cmd.Flags().MarkHidden(common.FlagNameServiceAccount)
 	} else {
 		cmd.Flags().MarkHidden(common.FlagNameBindHost)

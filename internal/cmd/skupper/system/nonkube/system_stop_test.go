@@ -3,7 +3,6 @@ package nonkube
 import (
 	"fmt"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"gotest.tools/v3/assert"
@@ -30,7 +29,7 @@ func TestCmdSystemStop_ValidateInput(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			command := &CmdSystemStop{}
-			command.CobraCmd = common.ConfigureCobraCommand(types.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
+			command.CobraCmd = common.ConfigureCobraCommand(common.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
 
 			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})

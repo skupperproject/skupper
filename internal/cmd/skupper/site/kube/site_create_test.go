@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -104,7 +103,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 				Namespace: "test",
 			}
 
-			cmd := common.ConfigureCobraCommand(types.PlatformKubernetes, common.SkupperCmdDescription{}, command, nil)
+			cmd := common.ConfigureCobraCommand(common.PlatformKubernetes, common.SkupperCmdDescription{}, command, nil)
 
 			command.CobraCmd = cmd
 

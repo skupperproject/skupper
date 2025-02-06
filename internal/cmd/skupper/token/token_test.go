@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -28,14 +27,14 @@ func TestCmdTokenFactory(t *testing.T) {
 				common.FlagNameRedemptionsAllowed: "1",
 				common.FlagNameCost:               "1",
 			},
-			command: CmdTokenIssueFactory(types.PlatformKubernetes),
+			command: CmdTokenIssueFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdTokenRedeemFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameTimeout: "1m0s",
 			},
-			command: CmdTokenRedeemFactory(types.PlatformKubernetes),
+			command: CmdTokenRedeemFactory(common.PlatformKubernetes),
 		},
 	}
 

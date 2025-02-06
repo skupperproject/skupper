@@ -3,7 +3,6 @@ package token
 import (
 	"time"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/token/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/token/nonkube"
@@ -24,13 +23,14 @@ Redeem the token on the other site. `,
 		Example: `skupper token issue <name> ~/token.yaml`,
 	}
 
-	cmd.AddCommand(CmdTokenIssueFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdTokenRedeemFactory(config.GetPlatform()))
+	platform := common.Platform(config.GetPlatform())
+	cmd.AddCommand(CmdTokenIssueFactory(platform))
+	cmd.AddCommand(CmdTokenRedeemFactory(platform))
 
 	return cmd
 }
 
-func CmdTokenIssueFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdTokenIssueFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdTokenIssue()
 	nonKubeCommand := nonkube.NewCmdTokenIssue()
 
@@ -58,7 +58,7 @@ func CmdTokenIssueFactory(configuredPlatform types.Platform) *cobra.Command {
 	return cmd
 }
 
-func CmdTokenRedeemFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdTokenRedeemFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdTokenRedeem()
 	nonKubeCommand := nonkube.NewCmdTokenRedeem()
 
