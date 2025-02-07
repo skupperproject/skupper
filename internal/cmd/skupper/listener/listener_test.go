@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -30,7 +29,7 @@ func TestCmdListenerFactory(t *testing.T) {
 				common.FlagNameTimeout:        "1m0s",
 				common.FlagNameWait:           "configured",
 			},
-			command: CmdListenerCreateFactory(types.PlatformKubernetes),
+			command: CmdListenerCreateFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdListenerUpdateFactory",
@@ -43,14 +42,14 @@ func TestCmdListenerFactory(t *testing.T) {
 				common.FlagNameListenerPort:   "0",
 				common.FlagNameWait:           "configured",
 			},
-			command: CmdListenerUpdateFactory(types.PlatformKubernetes),
+			command: CmdListenerUpdateFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdListenerStatusFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameOutput: "",
 			},
-			command: CmdListenerStatusFactory(types.PlatformKubernetes),
+			command: CmdListenerStatusFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdListenerDeleteFactory",
@@ -58,7 +57,7 @@ func TestCmdListenerFactory(t *testing.T) {
 				common.FlagNameTimeout: "1m0s",
 				common.FlagNameWait:    "true",
 			},
-			command: CmdListenerDeleteFactory(types.PlatformKubernetes),
+			command: CmdListenerDeleteFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdListenerGenerateFactory",
@@ -69,7 +68,7 @@ func TestCmdListenerFactory(t *testing.T) {
 				common.FlagNameListenerType:   "tcp",
 				common.FlagNameOutput:         "yaml",
 			},
-			command: CmdListenerGenerateFactory(types.PlatformKubernetes),
+			command: CmdListenerGenerateFactory(common.PlatformKubernetes),
 		},
 	}
 

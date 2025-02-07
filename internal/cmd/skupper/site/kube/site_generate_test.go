@@ -3,7 +3,6 @@ package kube
 import (
 	"testing"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
@@ -75,7 +74,7 @@ func TestCmdSiteGenerate_ValidateInput(t *testing.T) {
 				Namespace: "test",
 			}
 
-			cmd := common.ConfigureCobraCommand(types.PlatformKubernetes, common.SkupperCmdDescription{}, command, nil)
+			cmd := common.ConfigureCobraCommand(common.PlatformKubernetes, common.SkupperCmdDescription{}, command, nil)
 
 			command.CobraCmd = cmd
 

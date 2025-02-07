@@ -1,7 +1,6 @@
 package system
 
 import (
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/system/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/system/nonkube"
@@ -53,16 +52,17 @@ approach, which is based on the new set of Custom Resource Definitions (CRDs).`,
 		Example: "system setup --path ./my-config-path -n my-namespace",
 	}
 
-	cmd.AddCommand(CmdSystemSetupFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdSystemReloadFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdSystemStartFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdSystemStopFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdSystemTeardownFactory(config.GetPlatform()))
+	platform := common.Platform(config.GetPlatform())
+	cmd.AddCommand(CmdSystemSetupFactory(platform))
+	cmd.AddCommand(CmdSystemReloadFactory(platform))
+	cmd.AddCommand(CmdSystemStartFactory(platform))
+	cmd.AddCommand(CmdSystemStopFactory(platform))
+	cmd.AddCommand(CmdSystemTeardownFactory(platform))
 
 	return cmd
 }
 
-func CmdSystemSetupFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdSystemSetupFactory(configuredPlatform common.Platform) *cobra.Command {
 
 	//This implementation will warn the user that the command is not available for Kubernetes environments.
 	kubeCommand := kube.NewCmdSystemSetup()
@@ -90,7 +90,7 @@ func CmdSystemSetupFactory(configuredPlatform types.Platform) *cobra.Command {
 	return cmd
 }
 
-func CmdSystemReloadFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdSystemReloadFactory(configuredPlatform common.Platform) *cobra.Command {
 
 	//This implementation will warn the user that the command is not available for Kubernetes environments.
 	kubeCommand := kube.NewCmdSystemReload()
@@ -111,7 +111,7 @@ func CmdSystemReloadFactory(configuredPlatform types.Platform) *cobra.Command {
 	return cmd
 }
 
-func CmdSystemStartFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdSystemStartFactory(configuredPlatform common.Platform) *cobra.Command {
 
 	//This implementation will warn the user that the command is not available for Kubernetes environments.
 	kubeCommand := kube.NewCmdCmdSystemStart()
@@ -129,7 +129,7 @@ func CmdSystemStartFactory(configuredPlatform types.Platform) *cobra.Command {
 	return cmd
 }
 
-func CmdSystemStopFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdSystemStopFactory(configuredPlatform common.Platform) *cobra.Command {
 
 	//This implementation will warn the user that the command is not available for Kubernetes environments.
 	kubeCommand := kube.NewCmdSystemStop()
@@ -147,7 +147,7 @@ func CmdSystemStopFactory(configuredPlatform types.Platform) *cobra.Command {
 	return cmd
 }
 
-func CmdSystemTeardownFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdSystemTeardownFactory(configuredPlatform common.Platform) *cobra.Command {
 
 	//This implementation will warn the user that the command is not available for Kubernetes environments.
 	kubeCommand := kube.NewCmdSystemTeardown()

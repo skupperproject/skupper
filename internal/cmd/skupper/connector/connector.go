@@ -3,7 +3,6 @@ package connector
 import (
 	"time"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/connector/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/connector/nonkube"
@@ -21,16 +20,17 @@ func NewCmdConnector() *cobra.Command {
 skupper connector status my-connector`,
 	}
 
-	cmd.AddCommand(CmdConnectorCreateFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdConnectorStatusFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdConnectorUpdateFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdConnectorDeleteFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdConnectorGenerateFactory(config.GetPlatform()))
+	platform := common.Platform(config.GetPlatform())
+	cmd.AddCommand(CmdConnectorCreateFactory(platform))
+	cmd.AddCommand(CmdConnectorStatusFactory(platform))
+	cmd.AddCommand(CmdConnectorUpdateFactory(platform))
+	cmd.AddCommand(CmdConnectorDeleteFactory(platform))
+	cmd.AddCommand(CmdConnectorGenerateFactory(platform))
 
 	return cmd
 }
 
-func CmdConnectorCreateFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdConnectorCreateFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdConnectorCreate()
 	nonKubeCommand := nonkube.NewCmdConnectorCreate()
 
@@ -50,7 +50,7 @@ skupper connector create backend 8080 --workload deployment/backend`,
 	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
-	if configuredPlatform == types.PlatformKubernetes {
+	if configuredPlatform == common.PlatformKubernetes {
 		cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReadyPods, common.FlagNameIncludeNotReadyPods, "i", false, common.FlagDescIncludeNotRead)
 		cmd.Flags().StringVarP(&cmdFlags.Selector, common.FlagNameSelector, "s", "", common.FlagDescSelector)
 		cmd.Flags().StringVarP(&cmdFlags.Workload, common.FlagNameWorkload, "w", "", common.FlagDescWorkload)
@@ -66,7 +66,7 @@ skupper connector create backend 8080 --workload deployment/backend`,
 	return cmd
 }
 
-func CmdConnectorStatusFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdConnectorStatusFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdConnectorStatus()
 	nonKubeCommand := nonkube.NewCmdConnectorStatus()
 
@@ -90,7 +90,7 @@ func CmdConnectorStatusFactory(configuredPlatform types.Platform) *cobra.Command
 	return cmd
 }
 
-func CmdConnectorUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdConnectorUpdateFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdConnectorUpdate()
 	nonKubeCommand := nonkube.NewCmdConnectorUpdate()
 
@@ -111,7 +111,7 @@ func CmdConnectorUpdateFactory(configuredPlatform types.Platform) *cobra.Command
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
 	cmd.Flags().IntVar(&cmdFlags.Port, common.FlagNameConnectorPort, 0, common.FlagDescConnectorPort)
-	if configuredPlatform == types.PlatformKubernetes {
+	if configuredPlatform == common.PlatformKubernetes {
 		cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReadyPods, common.FlagNameIncludeNotReadyPods, "i", false, common.FlagDescIncludeNotRead)
 		cmd.Flags().StringVarP(&cmdFlags.Selector, common.FlagNameSelector, "s", "", common.FlagDescSelector)
 		cmd.Flags().StringVarP(&cmdFlags.Workload, common.FlagNameWorkload, "w", "", common.FlagDescWorkload)
@@ -127,7 +127,7 @@ func CmdConnectorUpdateFactory(configuredPlatform types.Platform) *cobra.Command
 	return cmd
 }
 
-func CmdConnectorDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdConnectorDeleteFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdConnectorDelete()
 	nonKubeCommand := nonkube.NewCmdConnectorDelete()
 
@@ -152,7 +152,7 @@ func CmdConnectorDeleteFactory(configuredPlatform types.Platform) *cobra.Command
 	return cmd
 }
 
-func CmdConnectorGenerateFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdConnectorGenerateFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdConnectorGenerate()
 	nonKubeCommand := nonkube.NewCmdConnectorGenerate()
 
@@ -173,7 +173,7 @@ skupper connector generate backend 8080 --workload deployment/backend`,
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "yaml", common.FlagDescOutput)
-	if configuredPlatform == types.PlatformKubernetes {
+	if configuredPlatform == common.PlatformKubernetes {
 		cmd.Flags().BoolVarP(&cmdFlags.IncludeNotReadyPods, common.FlagNameIncludeNotReadyPods, "i", false, common.FlagDescIncludeNotRead)
 		cmd.Flags().StringVarP(&cmdFlags.Selector, common.FlagNameSelector, "s", "", common.FlagDescSelector)
 		cmd.Flags().StringVarP(&cmdFlags.Workload, common.FlagNameWorkload, "w", "", common.FlagDescWorkload)

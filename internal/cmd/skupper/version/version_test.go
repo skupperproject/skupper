@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -25,7 +24,7 @@ func TestCmdVersionFactory(t *testing.T) {
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameOutput: "",
 			},
-			command: CmdVersionFactory(types.PlatformKubernetes),
+			command: CmdVersionFactory(common.PlatformKubernetes),
 		},
 	}
 

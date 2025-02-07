@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -29,7 +28,7 @@ func TestCmdLinkFactory(t *testing.T) {
 				common.FlagNameGenerateCredential: "true",
 				common.FlagNameTimeout:            "1m0s",
 			},
-			command: CmdLinkGenerateFactory(types.PlatformKubernetes),
+			command: CmdLinkGenerateFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdLinkUpdateFactory",
@@ -39,14 +38,14 @@ func TestCmdLinkFactory(t *testing.T) {
 				common.FlagNameTimeout:        "1m0s",
 				common.FlagNameWait:           "ready",
 			},
-			command: CmdLinkUpdateFactory(types.PlatformKubernetes),
+			command: CmdLinkUpdateFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdLinkStatusFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameOutput: "",
 			},
-			command: CmdLinkStatusFactory(types.PlatformKubernetes),
+			command: CmdLinkStatusFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdLinkDeleteFactory",
@@ -54,7 +53,7 @@ func TestCmdLinkFactory(t *testing.T) {
 				common.FlagNameTimeout: "1m0s",
 				common.FlagNameWait:    "true",
 			},
-			command: CmdLinkDeleteFactory(types.PlatformKubernetes),
+			command: CmdLinkDeleteFactory(common.PlatformKubernetes),
 		},
 	}
 

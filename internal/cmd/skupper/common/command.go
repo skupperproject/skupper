@@ -3,7 +3,6 @@ package common
 import (
 	"fmt"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/spf13/cobra"
 )
@@ -23,7 +22,7 @@ type SkupperCmdDescription struct {
 	Example string
 }
 
-func ConfigureCobraCommand(configuredPlatform types.Platform, description SkupperCmdDescription, kubeImpl SkupperCommand, nonKubeImpl SkupperCommand) *cobra.Command {
+func ConfigureCobraCommand(configuredPlatform Platform, description SkupperCmdDescription, kubeImpl SkupperCommand, nonKubeImpl SkupperCommand) *cobra.Command {
 	var skupperCommand SkupperCommand
 	var platform string
 

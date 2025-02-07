@@ -6,7 +6,6 @@ import (
 	"os"
 	"text/tabwriter"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/internal/utils/validator"
@@ -87,11 +86,11 @@ func (cmd *CmdLinkStatus) Run() error {
 
 				// get the site and determine role of router, default to interRouter
 				endpointName := ""
-				endPointType := types.InterRouterRole
+				endPointType := common.InterRouterRole
 				sites, err := cmd.siteHandler.List(opts)
 				if sites != nil && err == nil {
 					if sites[0].Spec.Edge {
-						endPointType = types.EdgeRole
+						endPointType = common.EdgeRole
 					}
 				}
 				for index, endpoint := range link.Spec.Endpoints {

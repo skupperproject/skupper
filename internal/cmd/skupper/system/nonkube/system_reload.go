@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
@@ -51,10 +51,10 @@ func (cmd *CmdSystemReload) InputToOptions() {
 
 	selectedPlatform := config.GetPlatform()
 
-	switch selectedPlatform {
-	case types.PlatformLinux:
+	switch common.Platform(selectedPlatform) {
+	case common.PlatformLinux:
 		binary = "skrouterd"
-	case types.PlatformDocker:
+	case common.PlatformDocker:
 		binary = "docker"
 	default:
 		binary = "podman"
