@@ -155,12 +155,6 @@ generate-network-observer-devel:
 		--set extraArgs={"-cors-allow-all"} \
 		--set skipManagementLabels=true > skupper-network-observer-devel.yaml
 
-push-skupper-artifacthub-repo:
-	./scripts/push-artifacthub-repo.sh skupper
-
-push-network-observer-artifacthub-repo:
-	./scripts/push-artifacthub-repo.sh network-observer
-
 clean:
 	rm -rf skupper controller kube-adaptor \
 		network-observer generate-doc \

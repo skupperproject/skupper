@@ -38,13 +38,6 @@ commands:
     description: Install Helm CLI
     steps:
       - run: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-  oras-install:
-    description: Set Up ORAS CLI
-    steps:
-      - run: curl -LO "https://github.com/oras-project/oras/releases/download/v1.2.2/oras_1.2.2_linux_amd64.tar.gz"
-      - run: mkdir -p oras-install/
-      - run: tar -zxf oras_1.2.2_*.tar.gz -C oras-install/
-      - run: sudo mv oras-install/oras /usr/local/bin/
   compile_go_program:
     description: Compile specified platform.
     parameters:
@@ -270,7 +263,6 @@ jobs:
       - go/mod-download-cached
       - kubectl-install
       - helm-install
-      - oras-install
       - run: make generate-skupper-helm-chart
       - run: make generate-skupper-deployment-cluster-scoped
       - run: make generate-skupper-deployment-namespace-scoped
@@ -279,15 +271,12 @@ jobs:
       - run: mkdir skupper-setup
       - run: cp ./*.yaml skupper-setup
       - run: helm registry login -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD} quay.io
-      - run: oras login -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD} quay.io
       - run: make pack-skupper-helm-chart
       - run: cp ./skupper-*.tgz skupper-setup
       - run: helm push skupper-*.tgz oci://quay.io/skupper/helm
-      - run: make push-skupper-artifacthub-repo
       - run: make pack-network-observer-helm-chart
       - run: cp ./network-observer-*.tgz skupper-setup
       - run: helm push network-observer-*.tgz oci://quay.io/skupper/helm
-      - run: make push-network-observer-artifacthub-repo
       - run:
           name: Verify skupper-setup Directory Contents
           command: |
