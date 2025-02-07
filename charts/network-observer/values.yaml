@@ -18,7 +18,7 @@ image:
 prometheus:
   repository: "quay.io/prometheus/prometheus"
   pullPolicy: IfNotPresent
-  tag: "v3.0.1"
+  tag: "v3.1.0"
   securityContext:
     allowPrivilegeEscalation: false
     capabilities:
