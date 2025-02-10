@@ -35,8 +35,8 @@ type connectionManager struct {
 	transportProcessingTime prometheus.Observer
 	appProcessingTime       prometheus.Observer
 
-	transportFlows *keyedLRUCache[transportState]
-	appFlows       *keyedLRUCache[appState]
+	transportFlows *keyedLRUCache[transportState, *transportState]
+	appFlows       *keyedLRUCache[appState, *appState]
 
 	pairMu       sync.Mutex
 	processPairs map[pair]bool
@@ -58,11 +58,11 @@ func newConnectionmanager(ctx context.Context, log *slog.Logger, source store.So
 		ttl:                     ttl,
 		transportProcessingTime: metrics.internal.flowProcessingTime.WithLabelValues(vanflow.TransportBiflowRecord{}.GetTypeMeta().String()),
 		appProcessingTime:       metrics.internal.flowProcessingTime.WithLabelValues(vanflow.AppBiflowRecord{}.GetTypeMeta().String()),
-		transportFlows: &keyedLRUCache[transportState]{
+		transportFlows: &keyedLRUCache[transportState, *transportState]{
 			byID: make(map[string]*list.Element),
 			lru:  list.New(),
 		},
-		appFlows: &keyedLRUCache[appState]{
+		appFlows: &keyedLRUCache[appState, *appState]{
 			byID: make(map[string]*list.Element),
 			lru:  list.New(),
 		},
@@ -89,18 +89,14 @@ func newConnectionmanager(ctx context.Context, log *slog.Logger, source store.So
 
 func (c *connectionManager) handleTransportFlow(record vanflow.TransportBiflowRecord) {
 	state, ok := c.transportFlows.Get(record.ID)
-	if !ok || state.metrics == nil {
+	state.LastSeen = time.Now()
+	if !ok {
 		state.ID = record.ID
-		state.FirstSeen = time.Now()
-		state.LastSeen = state.FirstSeen
-		state.Dirty = true
-		c.transportFlows.Push(record.ID, state)
-		return
+		state.FirstSeen = state.LastSeen
 	}
 	metrics := state.metrics
 	if metrics == nil {
 		state.Dirty = true
-		state.LastSeen = time.Now()
 		c.transportFlows.Push(record.ID, state)
 		return
 	}
@@ -132,21 +128,17 @@ func (c *connectionManager) handleTransportFlow(record vanflow.TransportBiflowRe
 		state.BytesSent = bs
 		state.BytesReceived = br
 	}
-	state.LastSeen = time.Now()
 	c.transportFlows.Push(record.ID, state)
 }
 
 func (c *connectionManager) handleAppFlow(record vanflow.AppBiflowRecord) {
 	state, ok := c.appFlows.Get(record.ID)
-	state.LastSeen = time.Now()
-	if !ok || state.metrics == nil {
+	if !ok {
 		state.ID = record.ID
 		state.TransportID = dref(record.Parent)
 		state.FirstSeen = time.Now()
-		state.Dirty = true
-		c.appFlows.Push(record.ID, state)
-		return
 	}
+	state.LastSeen = time.Now()
 	metrics := state.metrics
 	if metrics == nil {
 		state.Dirty = true
@@ -437,8 +429,8 @@ func (c *connectionManager) getTransportMetricSet(l labelSet) transportMetrics {
 func (c *connectionManager) run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	go c.runReconcile(ctx)
-	go c.runReconcileApp(ctx)
+	go c.scheduleReconcile(ctx)
+	go c.scheduleAppReconcile(ctx)
 	invalidateCache := time.NewTicker(time.Second * 30)
 	defer invalidateCache.Stop()
 	purgeFlows := time.NewTicker(time.Second * 10)
@@ -461,32 +453,33 @@ func (c *connectionManager) run(ctx context.Context) {
 				defer func() {
 					reconcileSources.Observe(time.Since(start).Seconds())
 				}()
-				for _, state := range c.transportFlows.Items() {
-					if state.metrics != nil {
-						continue
-					}
-					if time.Since(state.FirstSeen) < 15*time.Second {
-						continue
-					}
+				c.transportFlows.Matching(func(state *transportState) bool {
+					// only reconcile flow sources for flows that are not yet
+					// reconcilled, but have been waiting at least 15s (a delay
+					// for any related records to propogate before perminately
+					// associating a flow with an inferred source)
+					return state.metrics == nil &&
+						time.Since(state.FirstSeen) > 15*time.Second
+				})(func(state transportState) bool {
 					ent, ok := c.flows.Get(state.ID)
 					if !ok {
-						continue
+						return true
 					}
 					flow, ok := ent.Record.(vanflow.TransportBiflowRecord)
 					if !ok {
-						continue
+						return true
 					}
 					listener := c.graph.Listener(dref(flow.Parent))
 					sourceSiteID := listener.Parent().Parent().ID()
 					sourceSiteHost := dref(flow.SourceHost)
 
 					if sourceSiteID == "" || sourceSiteHost == "" {
-						continue
+						return true
 					}
 
 					flowSourceID := c.idp.ID("flowsource", sourceSiteID, sourceSiteHost)
 					if _, ok := flowSources[flowSourceID]; ok {
-						continue
+						return true
 					}
 					c.logger.Info("registering flow source", slog.String("site", sourceSiteID), slog.String("host", sourceSiteHost))
 					c.records.Add(FlowSourceRecord{
@@ -496,7 +489,8 @@ func (c *connectionManager) run(ctx context.Context) {
 						Start: time.Now(),
 					}, c.source)
 					flowSources[flowSourceID] = struct{}{}
-				}
+					return true
+				})
 			}()
 		case <-invalidateCache.C:
 			func() {
@@ -515,18 +509,18 @@ func (c *connectionManager) run(ctx context.Context) {
 				{
 					terminated := map[string]struct{}{}
 					stale := map[string]struct{}{}
-					flowStates := c.transportFlows.Items()
-					for i := len(flowStates) - 1; i >= 0; i-- {
-						state := flowStates[i]
-						if !state.LastSeen.Before(time.Now().Add(-1 * c.ttl)) {
-							break
+					cutoff := time.Now().Add(-1 * c.ttl)
+					c.transportFlows.All()(func(state transportState) bool {
+						if !state.LastSeen.Before(cutoff) {
+							return false
 						}
 						if state.Terminated {
 							terminated[state.ID] = struct{}{}
 						} else {
 							stale[state.ID] = struct{}{}
 						}
-					}
+						return true
+					})
 
 					if ct := len(terminated); ct > 0 {
 						c.logger.Debug("purging terminated transport flows", slog.Int("count", ct))
@@ -546,19 +540,18 @@ func (c *connectionManager) run(ctx context.Context) {
 				{
 					terminated := map[string]struct{}{}
 					stale := map[string]struct{}{}
-					flowStates := c.appFlows.Items()
-					for i := len(flowStates) - 1; i >= 0; i-- {
-						state := flowStates[i]
-						if !state.LastSeen.Before(time.Now().Add(-1 * c.ttl)) {
-							break
+					cutoff := time.Now().Add(-1 * c.ttl)
+					c.appFlows.All()(func(state appState) bool {
+						if !state.LastSeen.Before(cutoff) {
+							return false
 						}
 						if state.Terminated {
 							terminated[state.ID] = struct{}{}
 						} else {
 							stale[state.ID] = struct{}{}
 						}
-					}
-
+						return true
+					})
 					if ct := len(terminated); ct > 0 {
 						c.logger.Debug("purging terminated app flows", slog.Int("count", ct))
 						for id := range terminated {
@@ -605,9 +598,73 @@ func (c *connectionManager) run(ctx context.Context) {
 	}
 }
 
-func (c *connectionManager) runReconcileApp(ctx context.Context) {
+type appReconcileResult struct {
+	Dirty                          int
+	PendingTransportCount          int
+	PendingTransportReconcileCount int
+	PendingProtocolCount           int
+	PendingUnknownCount            int
+	Reconciled                     []RequestRecord
+}
+
+func (c *connectionManager) runAppReconcile() appReconcileResult {
+	var result appReconcileResult
+	c.appFlows.Matching(func(state *appState) bool {
+		return state.metrics == nil
+	})(func(state appState) bool {
+		if state.metrics != nil {
+			return true
+		}
+		var push bool
+		if state.Dirty {
+			push = true
+			state.Dirty = false
+			result.Dirty++
+		}
+
+		request, reason := c.reconcileRequest(state)
+		switch reason {
+		case missingTransport:
+			result.PendingTransportCount++
+		case missingProtocol:
+			result.PendingProtocolCount++
+		case unreconciledTransport:
+			result.PendingTransportReconcileCount++
+		case success:
+			c.records.Add(request, c.source)
+			push = true
+			metrics := request.metrics
+			state.metrics = &metrics
+			result.Reconciled = append(result.Reconciled, request)
+
+			c.pairMu.Lock()
+			p := pair{
+				Protocol: request.Protocol,
+				Source:   request.Source.ID,
+				Dest:     request.Dest.ID,
+			}
+			if _, ok := c.processPairs[p]; !ok {
+				c.processPairs[p] = true
+			}
+			c.pairMu.Unlock()
+		default:
+			result.PendingUnknownCount++
+		}
+		if push {
+			c.appFlows.Push(state.ID, state)
+		}
+		return true
+	})
+	return result
+}
+
+func (c *connectionManager) scheduleAppReconcile(ctx context.Context) {
 	reconcileProcesses := c.metrics.internal.reconcileTime.WithLabelValues(c.source.ID, "appflow_processes")
-	b := backoff.WithContext(backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0), backoff.WithMaxInterval(time.Second*5)), ctx)
+	b := backoff.WithContext(backoff.NewExponentialBackOff(
+		backoff.WithMaxElapsedTime(0),
+		backoff.WithMaxInterval(time.Second*5),
+		backoff.WithInitialInterval(time.Second),
+	), ctx)
 	pending := c.metrics.internal.pendingFlows.MustCurryWith(prometheus.Labels{"eventsource": c.source.ID})
 	ttyp := vanflow.AppBiflowRecord{}.GetTypeMeta().String()
 	pendingTransport := pending.With(prometheus.Labels{
@@ -645,75 +702,78 @@ func (c *connectionManager) runReconcileApp(ctx context.Context) {
 			defer func() {
 				reconcileProcesses.Observe(time.Since(start).Seconds())
 			}()
-			states := c.appFlows.Items()
-			var dirty int
-			var reconciled []RequestRecord
-			var (
-				pendingTransportCt      int
-				pendingTransportReconCt int
-				pendingProtocolCt       int
-				pendingUnknownCt        int
-			)
-			for _, state := range states {
-				var push bool
-				if state.Dirty {
-					push = true
-					state.Dirty = false
-					dirty++
-				}
+			result := c.runAppReconcile()
+			pendingTransport.Set(float64(result.PendingTransportCount))
+			pendingReconcile.Set(float64(result.PendingTransportReconcileCount))
+			pendingProtocol.Set(float64(result.PendingProtocolCount))
+			pendingUnknown.Set(float64(result.PendingUnknownCount))
 
-				if state.metrics == nil {
-					request, result := c.reconcileRequest(state)
-					switch result {
-					case missingTransport:
-						pendingTransportCt++
-					case missingProtocol:
-						pendingProtocolCt++
-					case unreconciledTransport:
-						pendingTransportReconCt++
-					case success:
-						c.records.Add(request, c.source)
-						push = true
-						metrics := request.metrics
-						state.metrics = &metrics
-						reconciled = append(reconciled, request)
-
-						c.pairMu.Lock()
-						p := pair{
-							Protocol: request.Protocol,
-							Source:   request.Source.ID,
-							Dest:     request.Dest.ID,
-						}
-						if _, ok := c.processPairs[p]; !ok {
-							c.processPairs[p] = true
-						}
-						c.pairMu.Unlock()
-					default:
-						pendingUnknownCt++
-					}
-				}
-				if push {
-					c.appFlows.Push(state.ID, state)
-				}
-			}
-			pendingTransport.Set(float64(pendingTransportCt))
-			pendingReconcile.Set(float64(pendingTransportReconCt))
-			pendingProtocol.Set(float64(pendingProtocolCt))
-			pendingUnknown.Set(float64(pendingUnknownCt))
-
-			for _, r := range reconciled {
+			for _, r := range result.Reconciled {
 				if flow, ok := r.GetFlow(); ok {
 					c.handleAppFlow(flow)
 				}
 			}
-			if dirty > 0 {
+			if result.Dirty > 0 {
 				b.Reset()
 			}
 		}()
 	}
 }
 
-func (c *connectionManager) runReconcile(ctx context.Context) {
+type reconcileResult struct {
+	PendingConnectorCount int
+	PendingSourceCount    int
+	PendingDestCount      int
+	Dirty                 int
+	Reconciled            []ConnectionRecord
+}
+
+func (c *connectionManager) runReconcile() reconcileResult {
+	var result reconcileResult
+	c.transportFlows.Matching(func(state *transportState) bool {
+		return state.metrics == nil
+	})(func(state transportState) bool {
+		var push bool
+		if state.Dirty {
+			result.Dirty++
+			push = true
+			state.Dirty = false
+		}
+		connection, reason := c.reconcile(state)
+		switch reason {
+		case missingConnector:
+			result.PendingConnectorCount++
+		case missingSource:
+			result.PendingSourceCount++
+		case missingDest:
+			result.PendingDestCount++
+		case success:
+			push = true
+			c.records.Add(connection, c.source)
+			metrics := connection.metrics
+			state.metrics = &metrics
+			result.Reconciled = append(result.Reconciled, connection)
+
+			c.pairMu.Lock()
+			p := pair{
+				Protocol: connection.Protocol,
+				Source:   connection.Source.ID,
+				Dest:     connection.Dest.ID,
+			}
+			if _, ok := c.processPairs[p]; !ok {
+				c.processPairs[p] = true
+			}
+			c.pairMu.Unlock()
+		}
+		if push {
+			c.transportFlows.Push(state.ID, state)
+		}
+		return true
+	})
+	return result
+}
+
+func (c *connectionManager) scheduleReconcile(ctx context.Context) {
 	reconcileProcesses := c.metrics.internal.reconcileTime.WithLabelValues(c.source.ID, "flow_processes")
 	b := backoff.WithContext(backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0), backoff.WithMaxInterval(time.Second*5)), ctx)
 	pending := c.metrics.internal.pendingFlows.MustCurryWith(prometheus.Labels{"eventsource": c.source.ID})
@@ -749,65 +809,17 @@ func (c *connectionManager) runReconcile(ctx context.Context) {
 			defer func() {
 				reconcileProcesses.Observe(time.Since(start).Seconds())
 			}()
-			states := c.transportFlows.Items()
-			var dirty int
-			var reconciled []ConnectionRecord
-			var (
-				pendingConn int
-				pendingSrc  int
-				pendingDst  int
-			)
-			for _, state := range states {
-				var push bool
-				if state.Dirty {
-					dirty++
-					push = true
-					state.Dirty = false
-				}
+			result := c.runReconcile()
+			pendingConnector.Set(float64(result.PendingConnectorCount))
+			pendingSource.Set(float64(result.PendingSourceCount))
+			pendingDest.Set(float64(result.PendingDestCount))
 
-				if state.metrics == nil {
-					connection, result := c.reconcile(state)
-					switch result {
-					case missingConnector:
-						pendingConn++
-					case missingSource:
-						pendingSrc++
-					case missingDest:
-						pendingDst++
-					case success:
-						push = true
-						c.records.Add(connection, c.source)
-						metrics := connection.metrics
-						state.metrics = &metrics
-						reconciled = append(reconciled, connection)
-
-						c.pairMu.Lock()
-						p := pair{
-							Protocol: connection.Protocol,
-							Source:   connection.Source.ID,
-							Dest:     connection.Dest.ID,
-						}
-						if _, ok := c.processPairs[p]; !ok {
-							c.processPairs[p] = true
-						}
-						c.pairMu.Unlock()
-					}
-				}
-				if push {
-					c.transportFlows.Push(state.ID, state)
-				}
-			}
-			pendingConnector.Set(float64(pendingConn))
-			pendingSource.Set(float64(pendingSrc))
-			pendingDest.Set(float64(pendingDst))
-
-			for _, r := range reconciled {
+			for _, r := range result.Reconciled {
 				if flow, ok := r.GetFlow(); ok {
 					c.handleTransportFlow(flow)
 				}
 			}
-
-			if dirty > 0 {
+			if result.Dirty > 0 {
 				b.Reset()
 			}
 		}()
@@ -845,6 +857,10 @@ type appState struct {
 	LastSeen  time.Time
 }
 
+func (s *appState) Identity() string {
+	return s.ID
+}
+
 type transportState struct {
 	ID    string
 	Dirty bool
@@ -861,13 +877,24 @@ type transportState struct {
 	LastSeen  time.Time
 }
 
-type keyedLRUCache[T any] struct {
+func (s *transportState) Identity() string {
+	return s.ID
+}
+
+type ider interface {
+	Identity() string
+}
+
+type keyedLRUCache[T any, PT interface {
+	*T
+	ider
+}] struct {
 	mu   sync.Mutex
 	byID map[string]*list.Element
 	lru  *list.List
 }
 
-func (q *keyedLRUCache[T]) Get(id string) (T, bool) {
+func (q *keyedLRUCache[T, PT]) Get(id string) (T, bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	elt, ok := q.byID[id]
@@ -875,22 +902,22 @@ func (q *keyedLRUCache[T]) Get(id string) (T, bool) {
 		var t T
 		return t, false
 	}
-	return elt.Value.(T), true
+	return *elt.Value.(PT), true
 }
 
-func (q *keyedLRUCache[T]) Push(id string, state T) {
+func (q *keyedLRUCache[T, PT]) Push(id string, state T) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if item, ok := q.byID[id]; ok {
-		item.Value = state
+		item.Value = &state
 		q.lru.MoveToBack(item)
 		return
 	}
-	item := q.lru.PushBack(state)
+	item := q.lru.PushBack(&state)
 	q.byID[id] = item
 }
 
-func (q *keyedLRUCache[T]) Pop(id string) (T, bool) {
+func (q *keyedLRUCache[T, PT]) Pop(id string) (T, bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	elt, ok := q.byID[id]
@@ -900,19 +927,52 @@ func (q *keyedLRUCache[T]) Pop(id string) (T, bool) {
 	}
 	q.lru.Remove(elt)
 	delete(q.byID, id)
-	return elt.Value.(T), true
+	return *elt.Value.(PT), true
 }
 
-func (q *keyedLRUCache[T]) Items() []T {
+type sequence[T any] func(yield func(T) bool)
+
+func (q *keyedLRUCache[T, PT]) Matching(matches func(PT) bool) sequence[T] {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	out := make([]T, 0, len(q.byID))
+	var ids []string
 	head := q.lru.Back()
 	for head != nil {
-		out = append(out, head.Value.(T))
+		item := head.Value.(PT)
+		if matches(item) {
+			ids = append(ids, item.Identity())
+		}
 		head = head.Prev()
 	}
-	return out
+	return q.iter(ids)
+}
+
+func (q *keyedLRUCache[T, PT]) All() sequence[T] {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	ids := make([]string, q.lru.Len())
+	head := q.lru.Front()
+	idx := 0
+	for head != nil {
+		ids[idx] = head.Value.(PT).Identity()
+		head = head.Next()
+		idx++
+	}
+	return q.iter(ids)
+}
+
+func (q *keyedLRUCache[T, PT]) iter(ids []string) sequence[T] {
+	return func(yield func(T) bool) {
+		for _, id := range ids {
+			v, ok := q.Get(id)
+			if !ok {
+				continue
+			}
+			if !yield(v) {
+				return
+			}
+		}
+	}
 }
 
 func (c *connectionManager) connectorAttrs(id string) (connectorAttrs, bool) {
