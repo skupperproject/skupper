@@ -212,7 +212,7 @@ func TestCmdSiteStatus_RunNoDirectory(t *testing.T) {
 	tmpDir := filepath.Join(t.TempDir(), "/skupper")
 	err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
 	assert.Check(t, err == nil)
-	path := filepath.Join(tmpDir, "/namespaces/test3/", string(api.InputSiteStatePath), "/site")
+	path := filepath.Join(tmpDir, "/namespaces/test3/", string(api.InputSiteStatePath))
 
 	testTable := []test{
 		{

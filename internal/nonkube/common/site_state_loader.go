@@ -132,7 +132,7 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 				var routerAccess v2alpha1.RouterAccess
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &routerAccess)
 				siteState.RouterAccesses[routerAccess.Name] = &routerAccess
-			case "Grant":
+			case "AccessGrant":
 				var grant v2alpha1.AccessGrant
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &grant)
 				siteState.Grants[grant.Name] = &grant

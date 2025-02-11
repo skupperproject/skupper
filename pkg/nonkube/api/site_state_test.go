@@ -141,20 +141,20 @@ func TestMarshalSiteState(t *testing.T) {
 	}()
 	assert.Assert(t, MarshalSiteState(*ss, dir))
 	expectedFiles := []string{
-		"site/site-name.yaml",
-		"listeners/listener-one.yaml",
-		"listeners/listener-two.yaml",
-		"connectors/connector-one.yaml",
-		"routerAccesses/link-access-one.yaml",
-		"links/link-one.yaml",
-		"certificates/skupper-service-ca.yaml",
-		"certificates/listener-one-credentials.yaml",
-		"certificates/listener-two-credentials.yaml",
-		"certificates/connector-one-credentials.yaml",
-		"certificates/skupper-site-ca.yaml",
-		"certificates/link-access-one.yaml",
-		"certificates/client-link-access-one.yaml",
-		"secrets/link-one-profile.yaml",
+		"Site-site-name.yaml",
+		"Listener-listener-one.yaml",
+		"Listener-listener-two.yaml",
+		"Connector-connector-one.yaml",
+		"RouterAccess-link-access-one.yaml",
+		"Link-link-one.yaml",
+		"Certificate-skupper-service-ca.yaml",
+		"Certificate-listener-one-credentials.yaml",
+		"Certificate-listener-two-credentials.yaml",
+		"Certificate-connector-one-credentials.yaml",
+		"Certificate-skupper-site-ca.yaml",
+		"Certificate-link-access-one.yaml",
+		"Certificate-client-link-access-one.yaml",
+		"Secret-link-one-profile.yaml",
 	}
 	for _, expectedFile := range expectedFiles {
 		info, err := os.Stat(path.Join(dir, expectedFile))

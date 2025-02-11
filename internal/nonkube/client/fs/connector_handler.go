@@ -54,9 +54,9 @@ func (s *ConnectorHandler) Get(name string, opt GetOptions) (*v2alpha1.Connector
 			if err != nil {
 				return nil, err
 			}
-			if err := s.DecodeYaml(file, &context); err != nil {
-				return nil, err
-			}
+		}
+		if err := s.DecodeYaml(file, &context); err != nil {
+			return nil, err
 		}
 	} else {
 		// read from input directory to get lastest config

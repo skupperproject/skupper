@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 
@@ -48,11 +49,10 @@ func (b *BaseCustomResourceHandler) DecodeYaml(content []byte, resource interfac
 
 func (b *BaseCustomResourceHandler) WriteFile(path string, name string, content string, kind string) error {
 
-	fullPath := filepath.Join(path, kind)
-	completeFilePath := filepath.Join(fullPath, name)
+	completeFilePath := filepath.Join(path, fmt.Sprintf("%s-%s", kind, name))
 
 	// Create the directories recursively
-	err := os.MkdirAll(fullPath, 0775)
+	err := os.MkdirAll(path, 0775)
 	if err != nil {
 		return fmt.Errorf("failed to create directories: %s", err)
 	}
@@ -77,8 +77,10 @@ func (b *BaseCustomResourceHandler) WriteFile(path string, name string, content 
 
 func (b *BaseCustomResourceHandler) ReadFile(path string, name string, kind string) (error, []byte) {
 
-	fullPath := filepath.Join(path, kind)
-	completeFilePath := filepath.Join(fullPath, name)
+	completeFilePath := filepath.Join(path, fmt.Sprintf("%s-%s", kind, name))
+	if strings.HasPrefix(name, kind+"-") {
+		completeFilePath = filepath.Join(path, name)
+	}
 
 	file, err := os.ReadFile(completeFilePath)
 	if err != nil {
@@ -91,8 +93,10 @@ func (b *BaseCustomResourceHandler) ReadFile(path string, name string, kind stri
 func (b *BaseCustomResourceHandler) DeleteFile(path string, name string, kind string) error {
 	var completeFilePath string
 
-	fullPath := filepath.Join(path, kind)
-	completeFilePath = filepath.Join(fullPath, name)
+	completeFilePath = filepath.Join(path, fmt.Sprintf("%s-%s", kind, name))
+	if kind == "" && name == "" {
+		completeFilePath = path
+	}
 
 	if err := os.RemoveAll(completeFilePath); err != nil {
 		return fmt.Errorf("failed to delete file: %s", err)
@@ -103,12 +107,19 @@ func (b *BaseCustomResourceHandler) DeleteFile(path string, name string, kind st
 
 func (b *BaseCustomResourceHandler) ReadDir(path string, kind string) (error, []fs.DirEntry) {
 
-	fullPath := filepath.Join(path, kind)
-
-	files, err := os.ReadDir(fullPath)
+	filter := func(files []fs.DirEntry) (ret []fs.DirEntry) {
+		prefix := fmt.Sprintf("%s-", kind)
+		for _, f := range files {
+			if strings.HasPrefix(f.Name(), prefix) {
+				ret = append(ret, f)
+			}
+		}
+		return ret
+	}
+	files, err := os.ReadDir(path)
 	if err != nil {
 		return fmt.Errorf("failed to read directory: %s", err), nil
 	}
 
-	return nil, files
+	return nil, filter(files)
 }

@@ -134,7 +134,7 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 		{
 			name:         "run fails listener doesn't exist",
 			listenerName: "no-listener",
-			errorMessage: "failed to read file: open " + path + "/listeners/no-listener.yaml: no such file or directory",
+			errorMessage: "failed to read file: open " + path + "/Listener-no-listener.yaml: no such file or directory",
 		},
 		{
 			name:         "runs ok, returns 1 listeners",
@@ -269,7 +269,7 @@ func TestCmdListenerStatus_RunNoDirectory(t *testing.T) {
 	testTable := []test{
 		{
 			name:         "runs fails no directory",
-			errorMessage: "failed to read file: open " + path + "/listeners/my-listener.yaml: no such file or directory",
+			errorMessage: "failed to read file: open " + path + "/Listener-my-listener.yaml: no such file or directory",
 		},
 	}
 

@@ -163,9 +163,12 @@ remove_site() {
         echo "Namespace \"${NAMESPACE}\" does not exist"
         exit 0
     fi
-
-    SITE_PATH="${NAMESPACES_PATH}/${NAMESPACE}/runtime/resources/site/"
-    if ! grep -qr "name: ${SITE_NAME}\$" "${SITE_PATH}"; then
+    SITE_PATH="${NAMESPACES_PATH}/${NAMESPACE}/runtime/resources/"
+    if [ ! -d "${SITE_PATH}" ]; then
+        echo "Namespace \"${NAMESPACE}\" is not initialized"
+        exit 0
+    fi
+    if [ ! -f "${SITE_PATH}/Site-${SITE_NAME}.yaml" ]; then
         echo "Site \"${SITE_NAME}\" is not defined on namespace \"${NAMESPACE}\""
         exit 0
     fi
@@ -350,7 +353,7 @@ handle_provided_certificates() {
 update_static_links() {
     DIR="./${SOURCE_NAMESPACE}"
     export USER_CERTIFICATES_PATH="${NAMESPACES_PATH}/${NAMESPACE}/input/certs"
-    router_access_files=$(find "${DIR:?}/internal/snapshot/routerAccesses" -type f)
+    router_access_files=$(find "${DIR:?}/internal/snapshot" -type f -name "RouterAccess-*")
 
     for ra in ${router_access_files}; do
         ra_name=$(grep name: "${ra}" | grep -v '\- name:' | awk '{print $NF}' | sed 's/"//g')
@@ -393,7 +396,7 @@ generate_static_links_for_sans() {
         return
     fi
 
-    router_access_files=$(find "${DIR:?}/internal/snapshot/routerAccesses" -type f)
+    router_access_files=$(find "${DIR:?}/internal/snapshot" -type f -name "RouterAccess-*")
 
     for ra in ${router_access_files}; do
         ra_name=$(grep name: "${ra}" | grep -v '\- name:' | awk '{print $NF}' | sed 's/"//g')
