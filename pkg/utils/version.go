@@ -72,6 +72,10 @@ func (v *Version) IsUndefined() bool {
 	return v.Major == 0 && v.Minor == 0 && v.Patch == 0 && v.Qualifier == ""
 }
 
+func (v *Version) IsDevelopmentVersion() bool {
+	return strings.HasPrefix(v.Qualifier, "dev")
+}
+
 func EquivalentVersion(a string, b string) bool {
 	va := ParseVersion(a)
 	vb := ParseVersion(b)
@@ -96,7 +100,7 @@ func IsValidFor(actual string, minimum string) bool {
 	}
 	va := ParseVersion(actual)
 	vb := ParseVersion(minimum)
-	return va.IsUndefined() || !va.LessRecentThan(vb)
+	return va.IsUndefined() || !va.LessRecentThan(vb) || va.IsDevelopmentVersion()
 }
 
 func GetVersionTag(imageDescriptor string) string {
