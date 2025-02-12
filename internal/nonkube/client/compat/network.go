@@ -121,7 +121,7 @@ func (c *CompatClient) NetworkCreate(network *container.Network) (*container.Net
 	if network.Labels == nil {
 		network.Labels = map[string]string{}
 	}
-	network.Labels["application"] = types.AppName
+	network.Labels["application"] = container.AppName
 	params := networks_compat.NewNetworkCreateParams()
 	params.Create = fromNetwork(network)
 
@@ -156,7 +156,7 @@ func (c *CompatClient) NetworkCreate(network *container.Network) (*container.Net
 
 func fromNetwork(network *container.Network) *models.NetworkCreateRequest {
 	labels := map[string]string{
-		types.PartOfLabel: types.AppName,
+		types.PartOfLabel: container.AppName,
 	}
 	if network.Labels != nil {
 		for k, v := range network.Labels {

@@ -16,7 +16,6 @@ import (
 	"github.com/skupperproject/skupper-libpod/v4/client/containers_compat"
 	"github.com/skupperproject/skupper-libpod/v4/client/exec_compat"
 	"github.com/skupperproject/skupper-libpod/v4/models"
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/container"
 )
 
@@ -227,18 +226,18 @@ func FromInspectContainer(c *containers_compat.ContainerInspectOKBody) *containe
 	return ct
 }
 
-func (c *CompatClient) ContainerCreate(container *container.Container) error {
+func (c *CompatClient) ContainerCreate(ct *container.Container) error {
 	cli := containers_compat.New(c.RestClient, formats)
 	params := containers_compat.NewContainerCreateParams()
-	if container.Labels == nil {
-		container.Labels = map[string]string{}
+	if ct.Labels == nil {
+		ct.Labels = map[string]string{}
 	}
-	container.Labels["application"] = types.AppName
-	params.Name = &container.Name
-	params.Body = c.ToSpecGenerator(container)
+	ct.Labels["application"] = container.AppName
+	params.Name = &ct.Name
+	params.Body = c.ToSpecGenerator(ct)
 	_, err := cli.ContainerCreate(params)
 	if err != nil {
-		return fmt.Errorf("error creating container %s: %v", container.Name, ToAPIError(err))
+		return fmt.Errorf("error creating container %s: %v", ct.Name, ToAPIError(err))
 	}
 	return nil
 }
