@@ -112,7 +112,7 @@ commands:
           command: sudo rm -rf /usr/local/go
       - docker/install-docker
       - go/install:
-          version: "1.22"
+          version: "1.22.0"
       - kube-orb/install-kubectl
       - run: make
 
