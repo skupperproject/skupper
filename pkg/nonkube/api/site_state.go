@@ -329,12 +329,11 @@ func (s *SiteState) SetNamespace(namespace string) {
 
 func marshal(outputDirectory, resourceType, resourceName string, resource interface{}) error {
 	var err error
-	writeDirectory := path.Join(outputDirectory, resourceType)
-	err = os.MkdirAll(writeDirectory, 0755)
+	err = os.MkdirAll(outputDirectory, 0755)
 	if err != nil {
-		return fmt.Errorf("error creating directory %s: %w", writeDirectory, err)
+		return fmt.Errorf("error creating directory %s: %w", outputDirectory, err)
 	}
-	fileName := path.Join(writeDirectory, fmt.Sprintf("%s.yaml", resourceName))
+	fileName := path.Join(outputDirectory, fmt.Sprintf("%s-%s.yaml", resourceType, resourceName))
 	file, err := os.Create(fileName)
 	defer file.Close()
 	if err != nil {
@@ -343,7 +342,7 @@ func marshal(outputDirectory, resourceType, resourceName string, resource interf
 	yaml := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 	err = yaml.Encode(resource.(runtime.Object), file)
 	if err != nil {
-		return fmt.Errorf("error marshalling resource %s: %w", resourceName, err)
+		return fmt.Errorf("error marshalling resource %s-%s: %w", resourceType, resourceName, err)
 	}
 	return nil
 }
@@ -360,34 +359,34 @@ func marshalMap[V any](outputDirectory, resourceType string, resourceMap map[str
 
 func MarshalSiteState(siteState SiteState, outputDirectory string) error {
 	var err error
-	if err = marshal(outputDirectory, "site", siteState.Site.Name, siteState.Site); err != nil {
+	if err = marshal(outputDirectory, "Site", siteState.Site.Name, siteState.Site); err != nil {
 		return err
 	}
-	if err = marshalMap(outputDirectory, "listeners", siteState.Listeners); err != nil {
+	if err = marshalMap(outputDirectory, "Listener", siteState.Listeners); err != nil {
 		return err
 	}
-	if err = marshalMap(outputDirectory, "connectors", siteState.Connectors); err != nil {
+	if err = marshalMap(outputDirectory, "Connector", siteState.Connectors); err != nil {
 		return err
 	}
-	if err = marshalMap(outputDirectory, "routerAccesses", siteState.RouterAccesses); err != nil {
+	if err = marshalMap(outputDirectory, "RouterAccess", siteState.RouterAccesses); err != nil {
 		return err
 	}
-	if err = marshalMap(outputDirectory, "links", siteState.Links); err != nil {
+	if err = marshalMap(outputDirectory, "Link", siteState.Links); err != nil {
 		return err
 	}
-	if err = marshalMap(outputDirectory, "grants", siteState.Grants); err != nil {
+	if err = marshalMap(outputDirectory, "AccessGrant", siteState.Grants); err != nil {
 		return err
 	}
-	if err = marshalMap(outputDirectory, "claims", siteState.Claims); err != nil {
+	if err = marshalMap(outputDirectory, "AccessToken", siteState.Claims); err != nil {
 		return err
 	}
-	if err = marshalMap(outputDirectory, "certificates", siteState.Certificates); err != nil {
+	if err = marshalMap(outputDirectory, "Certificate", siteState.Certificates); err != nil {
 		return err
 	}
-	if err = marshalMap(outputDirectory, "securedAccesses", siteState.SecuredAccesses); err != nil {
+	if err = marshalMap(outputDirectory, "SecuredAccess", siteState.SecuredAccesses); err != nil {
 		return err
 	}
-	if err = marshalMap(outputDirectory, "secrets", siteState.Secrets); err != nil {
+	if err = marshalMap(outputDirectory, "Secret", siteState.Secrets); err != nil {
 		return err
 	}
 	return nil

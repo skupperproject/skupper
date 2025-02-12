@@ -134,7 +134,7 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 		{
 			name:          "run fails connector doesn't exist",
 			connectorName: "no-connector",
-			errorMessage:  "failed to read file: open " + path + "/connectors/no-connector.yaml: no such file or directory",
+			errorMessage:  "failed to read file: open " + path + "/Connector-no-connector.yaml: no such file or directory",
 		},
 		{
 			name:          "runs ok, returns 1 connectors",
@@ -244,9 +244,9 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			err := command.Run()
 			if err != nil {
-				assert.Check(t, test.errorMessage == err.Error())
+				assert.Equal(t, test.errorMessage, err.Error())
 			} else {
-				assert.Check(t, err == nil)
+				assert.NilError(t, err)
 			}
 		})
 	}
@@ -269,7 +269,7 @@ func TestCmdConnectorStatus_RunNoDirectory(t *testing.T) {
 	testTable := []test{
 		{
 			name:         "runs fails no directory",
-			errorMessage: "failed to read file: open " + path + "/connectors/my-connector.yaml: no such file or directory",
+			errorMessage: "failed to read file: open " + path + "/Connector-my-connector.yaml: no such file or directory",
 		},
 	}
 
