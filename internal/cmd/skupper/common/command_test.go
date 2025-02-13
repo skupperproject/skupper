@@ -3,7 +3,6 @@ package common
 import (
 	"testing"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 )
@@ -50,7 +49,7 @@ func TestConfigureCobraCommand(t *testing.T) {
 			Example: "testexample",
 		}
 
-		result := ConfigureCobraCommand(types.PlatformKubernetes, desc, kubeCmd, nonKubeCmd)
+		result := ConfigureCobraCommand(PlatformKubernetes, desc, kubeCmd, nonKubeCmd)
 
 		// After executing the returned cobra.Command,
 		// the corresponding methods on the correct SkupperCommand should have been called
@@ -82,7 +81,7 @@ func TestConfigureCobraCommand(t *testing.T) {
 		}
 
 		var selectedPlatform string
-		result := ConfigureCobraCommand(types.PlatformKubernetes, desc, kubeCmd, nonKubeCmd)
+		result := ConfigureCobraCommand(PlatformKubernetes, desc, kubeCmd, nonKubeCmd)
 		result.Flags().StringVarP(&selectedPlatform, FlagNamePlatform, "p", "docker", FlagDescPlatform)
 
 		// After executing the returned cobra.Command,
@@ -115,7 +114,7 @@ func TestConfigureCobraCommand(t *testing.T) {
 		}
 
 		var selectedPlatform string
-		result := ConfigureCobraCommand(types.PlatformKubernetes, desc, kubeCmd, nonKubeCmd)
+		result := ConfigureCobraCommand(PlatformKubernetes, desc, kubeCmd, nonKubeCmd)
 		result.Flags().StringVarP(&selectedPlatform, FlagNamePlatform, "p", "unsupported", FlagDescPlatform)
 
 		// After executing the returned cobra.Command,
