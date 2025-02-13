@@ -1828,7 +1828,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				assert.Assert(t, tt.ssaRecorder.enable(client.GetDynamicClient()))
 			}
 			certs := newMockCertificateManager()
-			m := NewSecuredAccessManager(client, certs, &tt.config, ControllerContext{Namespace: "test"})
+			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: "test"})
 
 			err = m.Ensure(tt.definition.Namespace, tt.definition.Name, tt.definition.Spec, nil, nil)
 			if tt.expectedError != "" {
@@ -2378,7 +2378,7 @@ func TestSecuredAccessDeleted(t *testing.T) {
 				e.Prepend(client)
 			}
 			certs := newMockCertificateManager()
-			m := NewSecuredAccessManager(client, certs, &tt.config, ControllerContext{Namespace: "test"})
+			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: "test"})
 			w := NewSecuredAccessResourceWatcher(m)
 			controller := internalclient.NewController("Controller", client)
 			w.WatchResources(controller, metav1.NamespaceAll)
@@ -3451,7 +3451,7 @@ func TestRecreateOnDelete(t *testing.T) {
 			ssaRecorder := newServerSideApplyRecorder()
 			assert.Assert(t, ssaRecorder.enable(client.GetDynamicClient()))
 			certs := newMockCertificateManager()
-			m := NewSecuredAccessManager(client, certs, &tt.config, ControllerContext{Namespace: "test"})
+			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: "test"})
 			w := NewSecuredAccessResourceWatcher(m)
 			controller := internalclient.NewController("Controller", client)
 			w.WatchResources(controller, metav1.NamespaceAll)
@@ -3528,4 +3528,26 @@ func TestRecreateOnDelete(t *testing.T) {
 			}
 		})
 	}
+}
+
+type FakeControllerContext struct {
+	name      string
+	namespace string
+	uid       string
+}
+
+func (c *FakeControllerContext) IsControlled(namespace string) bool {
+	return true
+}
+
+func (c *FakeControllerContext) Namespace() string {
+	return c.namespace
+}
+
+func (c *FakeControllerContext) Name() string {
+	return c.name
+}
+
+func (c *FakeControllerContext) UID() string {
+	return c.uid
 }

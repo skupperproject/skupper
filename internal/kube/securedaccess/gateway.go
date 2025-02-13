@@ -52,14 +52,16 @@ type GatewayAccessType struct {
 
 func newGatewayAccess(manager *SecuredAccessManager, class string, domain string, port int, context ControllerContext) (AccessType, func() error, error) {
 	at := &GatewayAccessType{
-		manager:          manager,
-		class:            class,
-		domain:           domain,
-		port:             port,
-		gatewayNamespace: context.Namespace,
-		controllerName:   context.Name,
-		controllerUID:    context.UID,
-		unreconciled:     map[string]*skupperv2alpha1.SecuredAccess{},
+		manager:      manager,
+		class:        class,
+		domain:       domain,
+		port:         port,
+		unreconciled: map[string]*skupperv2alpha1.SecuredAccess{},
+	}
+	if context != nil {
+		at.gatewayNamespace = context.Namespace()
+		at.controllerName = context.Name()
+		at.controllerUID = context.UID()
 	}
 	if err := at.init(); err != nil {
 		return nil, nil, err

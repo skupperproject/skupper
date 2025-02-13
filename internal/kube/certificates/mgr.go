@@ -18,6 +18,10 @@ import (
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
+type ControllerContext interface {
+	IsControlled(namespace string) bool
+}
+
 type CertificateManager interface {
 	EnsureCA(namespace string, name string, subject string, refs []metav1.OwnerReference) error
 	Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error
@@ -29,6 +33,7 @@ type CertificateManagerImpl struct {
 	certificateWatcher *internalclient.CertificateWatcher
 	secretWatcher      *internalclient.SecretWatcher
 	controller         *internalclient.Controller
+	context            ControllerContext
 }
 
 func NewCertificateManager(controller *internalclient.Controller) *CertificateManagerImpl {
@@ -39,16 +44,33 @@ func NewCertificateManager(controller *internalclient.Controller) *CertificateMa
 	}
 }
 
+func (m *CertificateManagerImpl) SetControllerContext(context ControllerContext) {
+	m.context = context
+}
+
 func (m *CertificateManagerImpl) Watch(watchNamespace string) {
-	m.certificateWatcher = m.controller.WatchCertificates(watchNamespace, m.checkCertificate)
-	m.secretWatcher = m.controller.WatchAllSecrets(watchNamespace, m.checkSecret)
+	m.certificateWatcher = m.controller.WatchCertificates(watchNamespace, internalclient.FilterByNamespace(m.isControlled, m.checkCertificate))
+	m.secretWatcher = m.controller.WatchAllSecrets(watchNamespace, internalclient.FilterByNamespace(m.isControlled, m.checkSecret))
+}
+
+func (m *CertificateManagerImpl) isControlled(namespace string) bool {
+	if m.context != nil {
+		return m.context.IsControlled(namespace)
+	}
+	return true
 }
 
 func (m *CertificateManagerImpl) Recover() {
 	for _, secret := range m.secretWatcher.List() {
+		if !m.isControlled(secret.Namespace) {
+			continue
+		}
 		m.secrets[secretKey(secret)] = secret
 	}
 	for _, cert := range m.certificateWatcher.List() {
+		if !m.isControlled(cert.Namespace) {
+			continue
+		}
 		if err := m.checkCertificate(cert.Key(), cert); err != nil {
 			log.Printf("Error trying to reconcile %s: %s", cert.Key(), err)
 		}

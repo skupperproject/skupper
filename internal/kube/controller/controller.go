@@ -28,9 +28,9 @@ import (
 )
 
 type Controller struct {
-	name                 string
 	self                 skupperv2alpha1.Controller
-	requireAnnotation    bool
+	deploymentName       string
+	deploymentUid        string
 	controller           *internalclient.Controller
 	stopCh               <-chan struct{}
 	siteWatcher          *internalclient.SiteWatcher
@@ -47,6 +47,7 @@ type Controller struct {
 	siteSizingWatcher    *internalclient.ConfigMapWatcher
 	attachableConnectors map[string]*skupperv2alpha1.AttachedConnector
 	log                  *slog.Logger
+	namespaces           *NamespaceConfig
 }
 
 func skupperNetworkStatus() internalinterfaces.TweakListOptionsFunc {
@@ -63,7 +64,6 @@ func skupperSiteSizingConfig() internalinterfaces.TweakListOptionsFunc {
 
 func NewController(cli internalclient.Clients, config *Config) (*Controller, error) {
 	controller := &Controller{
-		requireAnnotation:    config.sitesRequireAnnotation(),
 		controller:           internalclient.NewController("Controller", cli),
 		sites:                map[string]*site.Site{},
 		siteSizing:           sizing.NewRegistry(),
@@ -73,9 +73,6 @@ func NewController(cli internalclient.Clients, config *Config) (*Controller, err
 
 	hostname := os.Getenv("HOSTNAME")
 	owner, err := controller.getDeploymentForPod(hostname, config.Namespace)
-	controllerContext := securedaccess.ControllerContext{
-		Namespace: config.Namespace,
-	}
 	name := config.Name
 	if err != nil {
 		controller.log.Info("Could not deduce owning deployment, some resources may need to be manually deleted when controller is deleted", slog.Any("error", err))
@@ -87,53 +84,61 @@ func NewController(cli internalclient.Clients, config *Config) (*Controller, err
 			}
 		}
 	} else {
-		controllerContext.Name = owner.Name
-		controllerContext.UID = string(owner.UID)
+		controller.deploymentName = owner.Name
+		controller.deploymentUid = string(owner.UID)
 		if name == "" {
 			name = owner.Name
 		}
 	}
-	controller.name = config.Namespace + "/" + name
+	controller.namespaces = newNamespaceConfig(config.Namespace+"/"+name, config.requireExplicitControl(), newControlLogging(config.WatchingAllNamespaces(), controller.log))
 	controller.self.Name = name
 	controller.self.Namespace = config.Namespace
 	controller.self.Version = version.Version
-	if controller.requireAnnotation {
-		controller.log.Info("This controller will only process sites with the skupper.io/controller annotation set to " + controller.name)
-	}
 
-	controller.siteWatcher = controller.controller.WatchSites(config.WatchNamespace, controller.checkSite)
-	controller.listenerWatcher = controller.controller.WatchListeners(config.WatchNamespace, controller.checkListener)
-	controller.connectorWatcher = controller.controller.WatchConnectors(config.WatchNamespace, controller.checkConnector)
-	controller.linkAccessWatcher = controller.controller.WatchRouterAccesses(config.WatchNamespace, controller.checkRouterAccess)
-	controller.controller.WatchAttachedConnectors(config.WatchNamespace, controller.checkAttachedConnector)
-	controller.controller.WatchAttachedConnectorBindings(config.WatchNamespace, controller.checkAttachedConnectorBinding)
-	controller.controller.WatchLinks(config.WatchNamespace, controller.checkLink)
-	controller.controller.WatchConfigMaps(skupperNetworkStatus(), config.WatchNamespace, controller.networkStatusUpdate)
-	controller.controller.WatchAccessTokens(config.WatchNamespace, controller.checkAccessToken)
-	controller.controller.WatchPods("skupper.io/component=router,skupper.io/type=site", config.WatchNamespace, controller.routerPodEvent)
-	controller.siteSizingWatcher = controller.controller.WatchConfigMaps(skupperSiteSizingConfig(), config.Namespace, controller.siteSizing.Update)
+	controller.siteWatcher = controller.controller.WatchSites(config.WatchNamespace, filter(controller, controller.checkSite))
+	controller.listenerWatcher = controller.controller.WatchListeners(config.WatchNamespace, filter(controller, controller.checkListener))
+	controller.connectorWatcher = controller.controller.WatchConnectors(config.WatchNamespace, filter(controller, controller.checkConnector))
+	controller.linkAccessWatcher = controller.controller.WatchRouterAccesses(config.WatchNamespace, filter(controller, controller.checkRouterAccess))
+	controller.controller.WatchAttachedConnectors(config.WatchNamespace, filter(controller, controller.checkAttachedConnector))
+	controller.controller.WatchAttachedConnectorBindings(config.WatchNamespace, filter(controller, controller.checkAttachedConnectorBinding))
+	controller.controller.WatchLinks(config.WatchNamespace, filter(controller, controller.checkLink))
+	controller.controller.WatchConfigMaps(skupperNetworkStatus(), config.WatchNamespace, filter(controller, controller.networkStatusUpdate))
+	controller.controller.WatchAccessTokens(config.WatchNamespace, filter(controller, controller.checkAccessToken))
+	controller.controller.WatchPods("skupper.io/component=router,skupper.io/type=site", config.WatchNamespace, filter(controller, controller.routerPodEvent))
+	controller.siteSizingWatcher = controller.controller.WatchConfigMaps(skupperSiteSizingConfig(), config.Namespace, filter(controller, controller.siteSizing.Update))
+	controller.namespaces.watch(controller.controller, config.WatchNamespace)
 
 	controller.certMgr = certificates.NewCertificateManager(controller.controller)
+	controller.certMgr.SetControllerContext(controller)
 	controller.certMgr.Watch(config.WatchNamespace)
 
-	controller.accessMgr = securedaccess.NewSecuredAccessManager(controller.controller, controller.certMgr, config.SecuredAccessConfig, controllerContext)
+	controller.accessMgr = securedaccess.NewSecuredAccessManager(controller.controller, controller.certMgr, config.SecuredAccessConfig, controller)
 	controller.accessRecovery = securedaccess.NewSecuredAccessResourceWatcher(controller.accessMgr)
 	controller.accessRecovery.WatchResources(controller.controller, config.WatchNamespace)
 	controller.accessRecovery.WatchSecuredAccesses(controller.controller, config.WatchNamespace, controller.checkSecuredAccess)
 	controller.accessRecovery.WatchGateway(controller.controller, config.Namespace)
 
-	controller.startGrantServer = grants.Initialise(controller.controller, config.Namespace, config.WatchNamespace, config.GrantConfig, controller.generateLinkConfig)
+	controller.startGrantServer = grants.Initialise(controller.controller, config.Namespace, config.WatchNamespace, config.GrantConfig, controller.generateLinkConfig, controller.IsControlled)
 
 	controller.controller.WatchConfigMaps(skupperLogConfig(), config.Namespace, controller.logConfigUpdate)
 
 	return controller, nil
 }
 
-func (c *Controller) matches(site *skupperv2alpha1.Site) bool {
-	if desired := getControllerAnnotation(site); desired != "" {
-		return desired == c.name
-	}
-	return !c.requireAnnotation
+func (c *Controller) IsControlled(namespace string) bool {
+	return c.namespaces.isControlled(namespace)
+}
+
+func (c *Controller) Namespace() string {
+	return c.self.Namespace
+}
+
+func (c *Controller) Name() string {
+	return c.deploymentName
+}
+
+func (c *Controller) UID() string {
+	return c.deploymentUid
 }
 
 func (c *Controller) getDeploymentForPod(podName string, namespace string) (*appsv1.Deployment, error) {
@@ -166,6 +171,8 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 	if ok := c.controller.WaitForCacheSync(stopCh); !ok {
 		return fmt.Errorf("Failed to wait for caches to sync")
 	}
+	c.namespaces.recover()
+
 	for _, config := range c.siteSizingWatcher.List() {
 		c.log.Info("Recovering site sizing",
 			slog.String("name", config.Name),
@@ -176,11 +183,7 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 	//recover existing sites & bindings
 	siteRecovery := site.NewSiteRecovery(c.controller.GetKubeClient())
 	for _, site := range c.siteWatcher.List() {
-		if !c.matches(site) {
-			c.log.Info("Ignoring site as it does not have required annotation",
-				slog.String("name", site.Name),
-				slog.String("namespace", site.Namespace),
-			)
+		if !c.namespaces.isControlled(site.Namespace) {
 			continue
 		}
 		if !siteRecovery.IsActive(site) {
@@ -204,6 +207,9 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		}
 	}
 	for _, connector := range c.connectorWatcher.List() {
+		if !c.namespaces.isControlled(connector.Namespace) {
+			continue
+		}
 		site := c.getSite(connector.ObjectMeta.Namespace)
 		c.log.Info("Recovering connector",
 			slog.String("name", connector.Name),
@@ -212,6 +218,9 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		site.CheckConnector(connector.ObjectMeta.Name, connector)
 	}
 	for _, listener := range c.listenerWatcher.List() {
+		if !c.namespaces.isControlled(listener.Namespace) {
+			continue
+		}
 		site := c.getSite(listener.ObjectMeta.Namespace)
 		c.log.Info("Recovering listener",
 			slog.String("name", listener.Name),
@@ -220,6 +229,9 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		site.CheckListener(listener.ObjectMeta.Name, listener)
 	}
 	for _, la := range c.linkAccessWatcher.List() {
+		if !c.namespaces.isControlled(la.Namespace) {
+			continue
+		}
 		site := c.getSite(la.ObjectMeta.Namespace)
 		c.log.Info("Recovering router access",
 			slog.String("name", la.Name),
@@ -228,7 +240,7 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		site.CheckRouterAccess(la.ObjectMeta.Name, la)
 	}
 	for _, site := range c.siteWatcher.List() {
-		if !c.matches(site) {
+		if !c.namespaces.isControlled(site.Namespace) {
 			continue
 		}
 		site.Status.Controller = &c.self
@@ -274,8 +286,8 @@ func (c *Controller) getSite(namespace string) *site.Site {
 func (c *Controller) checkSite(key string, site *skupperv2alpha1.Site) error {
 	c.log.Debug("checkSite", slog.String("key", key))
 	if site != nil {
-		if !c.matches(site) {
-			c.log.Info("Ignoring site as it does not have required annotation", slog.String("key", key))
+		if !c.namespaces.isControlled(site.Namespace) {
+			c.log.Info("Ignoring site as it not controlled by this controller", slog.String("key", key))
 			return nil
 		}
 		site.Status.Controller = &c.self
@@ -482,11 +494,6 @@ func extractSiteRecords(status network.NetworkStatusInfo) []skupperv2alpha1.Site
 	return records
 }
 
-func getControllerAnnotation(site *skupperv2alpha1.Site) string {
-	if len(site.ObjectMeta.Annotations) > 0 {
-		if value, ok := site.ObjectMeta.Annotations["skupper.io/controller"]; ok {
-			return value
-		}
-	}
-	return ""
+func filter[V any](controller *Controller, handler func(string, V) error) func(string, V) error {
+	return internalclient.FilterByNamespace(controller.IsControlled, handler)
 }
