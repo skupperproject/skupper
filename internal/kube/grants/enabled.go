@@ -10,14 +10,16 @@ import (
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
-func enabled(controller *internalclient.Controller, currentNamespace string, watchNamespace string, config *GrantConfig, generator GrantResponse) *GrantsEnabled {
+type NamespaceFilter func(string) bool
+
+func enabled(controller *internalclient.Controller, currentNamespace string, watchNamespace string, config *GrantConfig, generator GrantResponse, filter NamespaceFilter) *GrantsEnabled {
 	gc := &GrantsEnabled{
 		grants: newGrants(controller, generator, config.scheme(), config.BaseUrl),
 	}
 	gc.server = newServer(config.addr(), config.tlsEnabled(), gc.grants)
 
-	gc.grantWatcher = controller.WatchAccessGrants(watchNamespace, gc.grants.checkGrant)
-	gc.secretWatcher = controller.WatchSecrets(internalclient.ByName(config.TlsCredentialsSecret), watchNamespace, gc.tlsCredentialsUpdated)
+	gc.grantWatcher = controller.WatchAccessGrants(watchNamespace, internalclient.FilterByNamespace(filter, gc.grants.checkGrant))
+	gc.secretWatcher = controller.WatchSecrets(internalclient.ByName(config.TlsCredentialsSecret), watchNamespace, internalclient.FilterByNamespace(filter, gc.tlsCredentialsUpdated))
 
 	if config.AutoConfigure {
 		ac, err := newAutoConfigure(gc.securedAccessChanged, controller, currentNamespace, config)
@@ -36,6 +38,7 @@ type GrantsEnabled struct {
 	secretWatcher *internalclient.SecretWatcher
 	autoConfigure *AutoConfigure
 	started       bool
+	filter        NamespaceFilter
 }
 
 func (c *GrantsEnabled) Start() {
@@ -48,12 +51,18 @@ func (c *GrantsEnabled) Start() {
 
 func (c *GrantsEnabled) recoverGrants() {
 	for _, grant := range c.grantWatcher.List() {
+		if c.filter != nil && !c.filter(grant.Namespace) {
+			continue
+		}
 		c.grants.checkGrant(fmt.Sprintf("%s/%s", grant.Namespace, grant.Name), grant)
 	}
 }
 
 func (c *GrantsEnabled) recoverSecrets() {
 	for _, secret := range c.secretWatcher.List() {
+		if c.filter != nil && !c.filter(secret.Namespace) {
+			continue
+		}
 		c.tlsCredentialsUpdated(fmt.Sprintf("%s/%s", secret.Namespace, secret.Name), secret)
 	}
 }

@@ -77,7 +77,7 @@ func Test_Initialise(t *testing.T) {
 			}
 			controller := internalclient.NewController("Controller", client)
 
-			start := Initialise(controller, "test", metav1.NamespaceAll, &tt.config, nil)
+			start := Initialise(controller, "test", metav1.NamespaceAll, &tt.config, nil, nil)
 			if tt.endpoint != nil {
 				err = updateSecuredAccessEndpoint(controller, "skupper-grant-server", "test", tt.endpoint)
 				if err != nil {
