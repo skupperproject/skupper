@@ -95,3 +95,5 @@ spec:
     plural: attachedconnectorbindings
     singular: attachedconnectorbinding
     kind: AttachedConnectorBinding
+    shortNames:
+    - acrb
