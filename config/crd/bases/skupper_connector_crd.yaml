@@ -137,3 +137,5 @@ spec:
     plural: connectors
     singular: connector
     kind: Connector
+    shortNames:
+    - cr

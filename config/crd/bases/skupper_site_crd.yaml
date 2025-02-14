@@ -161,3 +161,5 @@ spec:
     plural: sites
     singular: site
     kind: Site
+    shortNames:
+    - st
