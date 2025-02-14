@@ -100,3 +100,6 @@ spec:
     plural: accesstokens
     singular: accesstoken
     kind: AccessToken
+    shortNames:
+    - token
+    - to

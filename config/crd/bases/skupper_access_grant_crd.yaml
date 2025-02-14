@@ -110,3 +110,6 @@ spec:
     plural: accessgrants
     singular: accessgrant
     kind: AccessGrant
+    shortNames:
+    - grant
+    - gr

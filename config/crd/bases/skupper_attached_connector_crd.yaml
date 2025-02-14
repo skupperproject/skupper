@@ -109,3 +109,5 @@ spec:
     plural: attachedconnectors
     singular: attachedconnector
     kind: AttachedConnector
+    shortNames:
+    - acr

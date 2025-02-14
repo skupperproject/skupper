@@ -105,3 +105,5 @@ spec:
     plural: links
     singular: link
     kind: Link
+    shortNames:
+    - ln
