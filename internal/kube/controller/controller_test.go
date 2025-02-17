@@ -71,8 +71,11 @@ func TestGeneral(t *testing.T) {
 		},
 		{
 			name: "ignored site",
+			k8sObjects: []runtime.Object{
+				f.configmap("skupper", "test", map[string]string{"controller": "foo/bar"}),
+			},
 			skupperObjects: []runtime.Object{
-				f.annotateForController(f.site("mysite", "test", "", false, false), "foo/bar"),
+				f.site("mysite", "test", "", false, false),
 			},
 			expectedSiteStatuses: []*skupperv2alpha1.Site{
 				f.siteStatus("mysite", "test", "", ""),
@@ -84,8 +87,11 @@ func TestGeneral(t *testing.T) {
 				"NAMESPACE":       "foo",
 				"CONTROLLER_NAME": "bar",
 			},
+			k8sObjects: []runtime.Object{
+				f.configmap("skupper", "test", map[string]string{"controller": "foo/bar"}),
+			},
 			skupperObjects: []runtime.Object{
-				f.annotateForController(f.site("mysite", "test", "", false, false), "foo/bar"),
+				f.site("mysite", "test", "", false, false),
 			},
 			expectedSiteStatuses: []*skupperv2alpha1.Site{
 				f.addControllerToStatus(
@@ -684,14 +690,6 @@ func (*factory) site(name string, namespace string, linkAccess string, ha bool, 
 			Edge:       edge,
 		},
 	}
-}
-
-func (*factory) annotateForController(site *skupperv2alpha1.Site, controller string) *skupperv2alpha1.Site {
-	if site.ObjectMeta.Annotations == nil {
-		site.ObjectMeta.Annotations = map[string]string{}
-	}
-	site.ObjectMeta.Annotations["skupper.io/controller"] = controller
-	return site
 }
 
 func (*factory) listener(name string, namespace string, host string, port int) *skupperv2alpha1.Listener {
@@ -1345,6 +1343,16 @@ func (*factory) networkStatusInfo(name string, namespace string, listeners map[s
 		sites: map[string]*network.SiteStatusInfo{},
 	}
 	return n.site(name, namespace, listeners, connectors)
+}
+
+func (*factory) configmap(name string, namespace string, data map[string]string) *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: data,
+	}
 }
 
 var f factory

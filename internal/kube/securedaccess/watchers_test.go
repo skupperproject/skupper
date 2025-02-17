@@ -694,7 +694,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 				e.Prepend(client)
 			}
 			certs := newMockCertificateManager()
-			m := NewSecuredAccessManager(client, certs, &tt.config, ControllerContext{Namespace: "test"})
+			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: "test"})
 			w := NewSecuredAccessResourceWatcher(m)
 			controller := internalclient.NewController("Controller", client)
 			w.WatchResources(controller, metav1.NamespaceAll)
@@ -1197,7 +1197,7 @@ func TestGateway(t *testing.T) {
 				assert.Assert(t, tt.ssaRecorder.enable(client.GetDynamicClient()))
 			}
 			certs := newMockCertificateManager()
-			m := NewSecuredAccessManager(client, certs, &tt.config, ControllerContext{Namespace: tt.namespace})
+			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: tt.namespace})
 			w := NewSecuredAccessResourceWatcher(m)
 			controller := internalclient.NewController("Controller", client)
 			w.WatchResources(controller, metav1.NamespaceAll)

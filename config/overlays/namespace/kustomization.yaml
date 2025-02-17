@@ -1,6 +1,7 @@
 # Reference the base deployment
 resources:
   - ../../base
+  - config.yaml
   - role.yaml
   - role_binding.yaml
 

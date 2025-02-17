@@ -25,10 +25,11 @@ type AccessType interface {
 	RealiseAndResolve(access *skupperv2alpha1.SecuredAccess, service *corev1.Service) ([]skupperv2alpha1.Endpoint, error)
 }
 
-type ControllerContext struct {
-	Namespace string
-	Name      string
-	UID       string
+type ControllerContext interface {
+	IsControlled(namespace string) bool
+	Namespace() string
+	Name() string
+	UID() string
 }
 
 type SecuredAccessManager struct {
@@ -43,6 +44,7 @@ type SecuredAccessManager struct {
 	enabledAccessTypes map[string]AccessType
 	defaultAccessType  string
 	gatewayInit        func() error
+	context            ControllerContext
 }
 
 func NewSecuredAccessManager(clients internalclient.Clients, certMgr certificates.CertificateManager, config *Config, context ControllerContext) *SecuredAccessManager {
@@ -57,6 +59,7 @@ func NewSecuredAccessManager(clients internalclient.Clients, certMgr certificate
 		certMgr:            certMgr,
 		enabledAccessTypes: map[string]AccessType{},
 		defaultAccessType:  config.getDefaultAccessType(clients),
+		context:            context,
 	}
 	for _, accessType := range config.EnabledAccessTypes {
 		if accessType == ACCESS_TYPE_ROUTE {

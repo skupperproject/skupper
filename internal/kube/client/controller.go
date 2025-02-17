@@ -1750,3 +1750,16 @@ func (w *AttachedConnectorWatcher) List() []*skupperv2alpha1.AttachedConnector {
 	}
 	return results
 }
+
+func FilterByNamespace[V any](match func(string) bool, handler func(string, V) error) func(string, V) error {
+	if match == nil {
+		return handler
+	}
+	return func(key string, value V) error {
+		namespace, _, _ := cache.SplitMetaNamespaceKey(key)
+		if match(namespace) {
+			return handler(key, value)
+		}
+		return nil
+	}
+}
