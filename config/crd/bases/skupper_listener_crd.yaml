@@ -112,3 +112,5 @@ spec:
     plural: listeners
     singular: listener
     kind: Listener
+    shortNames:
+    - lr
