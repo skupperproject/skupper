@@ -3,7 +3,6 @@ package link
 import (
 	"time"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/link/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/link/nonkube"
@@ -20,16 +19,16 @@ func NewCmdLink() *cobra.Command {
 		Example: `skupper link generate
 skupper link status`,
 	}
-
-	cmd.AddCommand(CmdLinkGenerateFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdLinkUpdateFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdLinkStatusFactory(config.GetPlatform()))
-	cmd.AddCommand(CmdLinkDeleteFactory(config.GetPlatform()))
+	platform := common.Platform(config.GetPlatform())
+	cmd.AddCommand(CmdLinkGenerateFactory(platform))
+	cmd.AddCommand(CmdLinkUpdateFactory(platform))
+	cmd.AddCommand(CmdLinkStatusFactory(platform))
+	cmd.AddCommand(CmdLinkDeleteFactory(platform))
 
 	return cmd
 }
 
-func CmdLinkGenerateFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdLinkGenerateFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdLinkGenerate()
 	nonKubeCommand := nonkube.NewCmdLinkGenerate()
 
@@ -56,7 +55,7 @@ output needs to be applied in the site in which we want to create the link.`,
 	return cmd
 }
 
-func CmdLinkUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdLinkUpdateFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdLinkUpdate()
 	nonKubeCommand := nonkube.NewCmdLinkUpdate()
 
@@ -71,7 +70,7 @@ func CmdLinkUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.Cost, common.FlagNameCost, "1", common.FlagDescCost)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
-	if configuredPlatform == types.PlatformKubernetes {
+	if configuredPlatform == common.PlatformKubernetes {
 		cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "ready", common.FlagDescWait)
 	}
 
@@ -83,7 +82,7 @@ func CmdLinkUpdateFactory(configuredPlatform types.Platform) *cobra.Command {
 	return cmd
 }
 
-func CmdLinkStatusFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdLinkStatusFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdLinkStatus()
 	nonKubeCommand := nonkube.NewCmdLinkStatus()
 
@@ -106,7 +105,7 @@ func CmdLinkStatusFactory(configuredPlatform types.Platform) *cobra.Command {
 	return cmd
 }
 
-func CmdLinkDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdLinkDeleteFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdLinkDelete()
 	nonKubeCommand := nonkube.NewCmdLinkDelete()
 
@@ -120,7 +119,7 @@ func CmdLinkDeleteFactory(configuredPlatform types.Platform) *cobra.Command {
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdLinkDeleteDesc, kubeCommand, nonKubeCommand)
 	cmdFlags := common.CommandLinkDeleteFlags{}
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
-	if configuredPlatform == types.PlatformKubernetes {
+	if configuredPlatform == common.PlatformKubernetes {
 		cmd.Flags().BoolVar(&cmdFlags.Wait, common.FlagNameWait, true, common.FlagDescDeleteWait)
 	}
 

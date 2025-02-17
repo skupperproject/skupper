@@ -3,7 +3,6 @@ package site
 import (
 	"testing"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -30,7 +29,7 @@ func TestCmdSiteFactory(t *testing.T) {
 				common.FlagNameSubjectAlternativeNames: "[]",
 				common.FlagNameWait:                    "ready",
 			},
-			command: CmdSiteCreateFactory(types.PlatformKubernetes),
+			command: CmdSiteCreateFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdSiteUpdateFactory",
@@ -43,7 +42,7 @@ func TestCmdSiteFactory(t *testing.T) {
 				common.FlagNameSubjectAlternativeNames: "[]",
 				common.FlagNameWait:                    "ready",
 			},
-			command: CmdSiteUpdateFactory(types.PlatformKubernetes),
+			command: CmdSiteUpdateFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdSiteDeleteFactory",
@@ -52,14 +51,14 @@ func TestCmdSiteFactory(t *testing.T) {
 				common.FlagNameWait:    "true",
 				common.FlagNameAll:     "false",
 			},
-			command: CmdSiteDeleteFactory(types.PlatformKubernetes),
+			command: CmdSiteDeleteFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdSiteStatusFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameOutput: "",
 			},
-			command: CmdSiteStatusFactory(types.PlatformKubernetes),
+			command: CmdSiteStatusFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdSiteGenerateFactory",
@@ -71,7 +70,7 @@ func TestCmdSiteFactory(t *testing.T) {
 				common.FlagNameBindHost:                "0.0.0.0",
 				common.FlagNameSubjectAlternativeNames: "[]",
 			},
-			command: CmdSiteGenerateFactory(types.PlatformKubernetes),
+			command: CmdSiteGenerateFactory(common.PlatformKubernetes),
 		},
 	}
 

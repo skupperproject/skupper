@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/config"
@@ -33,7 +32,7 @@ func TestCmdSystemReload_ValidateInput(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			command := &CmdSystemReload{}
-			command.CobraCmd = common.ConfigureCobraCommand(types.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
+			command.CobraCmd = common.ConfigureCobraCommand(common.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
 
 			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
@@ -68,7 +67,7 @@ func TestCmdSystemReload_InputToOptions(t *testing.T) {
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-			os.Setenv(types.ENV_PLATFORM, test.platform)
+			os.Setenv(common.ENV_PLATFORM, test.platform)
 			config.ClearPlatform()
 
 			cmd := newCmdSystemReloadWithMocks(false, false)

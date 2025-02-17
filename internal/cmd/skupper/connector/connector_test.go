@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -33,7 +32,7 @@ func TestCmdConnectorFactory(t *testing.T) {
 				common.FlagNameTimeout:             "1m0s",
 				common.FlagNameWait:                "configured",
 			},
-			command: CmdConnectorCreateFactory(types.PlatformKubernetes),
+			command: CmdConnectorCreateFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdConnectorUpdateFactory",
@@ -49,14 +48,14 @@ func TestCmdConnectorFactory(t *testing.T) {
 				common.FlagNameConnectorPort:       "0",
 				common.FlagNameWait:                "configured",
 			},
-			command: CmdConnectorUpdateFactory(types.PlatformKubernetes),
+			command: CmdConnectorUpdateFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdConnectorStatusFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameConnectorStatusOutput: "",
 			},
-			command: CmdConnectorStatusFactory(types.PlatformKubernetes),
+			command: CmdConnectorStatusFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdConnectorDeleteFactory",
@@ -64,7 +63,7 @@ func TestCmdConnectorFactory(t *testing.T) {
 				common.FlagNameTimeout: "1m0s",
 				common.FlagNameWait:    "true",
 			},
-			command: CmdConnectorDeleteFactory(types.PlatformKubernetes),
+			command: CmdConnectorDeleteFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdConnectorGenerateFactory",
@@ -78,7 +77,7 @@ func TestCmdConnectorFactory(t *testing.T) {
 				common.FlagNameWorkload:            "",
 				common.FlagNameOutput:              "yaml",
 			},
-			command: CmdConnectorGenerateFactory(types.PlatformKubernetes),
+			command: CmdConnectorGenerateFactory(common.PlatformKubernetes),
 		},
 	}
 

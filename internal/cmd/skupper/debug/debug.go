@@ -1,7 +1,6 @@
 package debug
 
 import (
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/debug/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/debug/nonkube"
@@ -11,13 +10,13 @@ import (
 )
 
 func NewCmdDebug() *cobra.Command {
-
-	cmd := CmdDebugFactory(config.GetPlatform())
+	platform := common.Platform(config.GetPlatform())
+	cmd := CmdDebugFactory(platform)
 
 	return cmd
 }
 
-func CmdDebugFactory(configuredPlatform types.Platform) *cobra.Command {
+func CmdDebugFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdDebug()
 	nonKubeCommand := nonkube.NewCmdDebug()
 
