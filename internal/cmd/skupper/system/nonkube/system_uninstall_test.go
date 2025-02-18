@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"gotest.tools/v3/assert"
@@ -33,7 +32,7 @@ func TestCmdSystemUnInstall_ValidateInput(t *testing.T) {
 			name:          "force flag is not provided and there are active sites",
 			flags:         &common.CommandSystemUninstallFlags{Force: false},
 			mock:          mockCmdSystemUninstallThereAreStillSites,
-			expectedError: "there are still active sites",
+			expectedError: "Uninstallation halted: Active sites detected.",
 		},
 		{
 			name:  "force flag is not provided but there are not any active site",
@@ -52,7 +51,7 @@ func TestCmdSystemUnInstall_ValidateInput(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			command := newCmdSystemUninstallWithMocks(false, false)
-			command.CobraCmd = common.ConfigureCobraCommand(types.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
+			command.CobraCmd = common.ConfigureCobraCommand(common.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
 			command.CheckActiveSites = test.mock
 			command.Flags = test.flags
 

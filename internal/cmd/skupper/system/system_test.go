@@ -40,14 +40,14 @@ func TestCmdSystemFactory(t *testing.T) {
 		{
 			name:                          "CmdSystemInstallFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{},
-			command:                       CmdSystemInstallFactory(types.PlatformKubernetes),
+			command:                       CmdSystemInstallFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdSystemUninstallFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameForce: "false",
 			},
-			command: CmdSystemUnInstallFactory(types.PlatformKubernetes),
+			command: CmdSystemUnInstallFactory(common.PlatformKubernetes),
 		},
 	}
 
