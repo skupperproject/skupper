@@ -7,6 +7,7 @@ import (
 	"github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"os"
+	"path"
 )
 
 func Uninstall() error {
@@ -35,7 +36,8 @@ func Uninstall() error {
 }
 
 func CheckActiveSites() (bool, error) {
-	entries, err := os.ReadDir(api.GetRuntimeDir())
+
+	entries, err := os.ReadDir(path.Join(api.GetDataHome(), "namespaces/"))
 	if err != nil {
 		return false, err
 	}
