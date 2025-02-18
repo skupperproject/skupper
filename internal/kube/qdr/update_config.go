@@ -10,13 +10,18 @@ import (
 	"github.com/skupperproject/skupper/internal/qdr"
 )
 
-func UpdateRouterConfig(client kubernetes.Interface, name string, namespace string, ctxt context.Context, update qdr.ConfigUpdate) error {
+type Labelling interface {
+	SetLabels(namespace string, name string, kind string, labels map[string]string) bool
+	SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool
+}
+
+func UpdateRouterConfig(client kubernetes.Interface, name string, namespace string, ctxt context.Context, update qdr.ConfigUpdate, labelling Labelling) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		return updateRouterConfig(client, name, namespace, ctxt, update)
+		return updateRouterConfig(client, name, namespace, ctxt, update, labelling)
 	})
 }
 
-func updateRouterConfig(client kubernetes.Interface, name string, namespace string, ctxt context.Context, update qdr.ConfigUpdate) error {
+func updateRouterConfig(client kubernetes.Interface, name string, namespace string, ctxt context.Context, update qdr.ConfigUpdate, labelling Labelling) error {
 	current, err := client.CoreV1().ConfigMaps(namespace).Get(ctxt, name, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -26,8 +31,20 @@ func updateRouterConfig(client kubernetes.Interface, name string, namespace stri
 	if err != nil {
 		return err
 	}
+	updated := false
 
-	if !update.Apply(config) {
+	if update.Apply(config) {
+		updated = true
+	}
+	if labelling != nil {
+		if labelling.SetLabels(namespace, name, "ConfigMap", current.ObjectMeta.Labels) {
+			updated = true
+		}
+		if labelling.SetAnnotations(namespace, name, "ConfigMap", current.ObjectMeta.Annotations) {
+			updated = true
+		}
+	}
+	if !updated {
 		// no change required
 		return nil
 	}

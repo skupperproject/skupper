@@ -20,6 +20,8 @@ import (
 
 type ControllerContext interface {
 	IsControlled(namespace string) bool
+	SetLabels(namespace string, name string, kind string, labels map[string]string) bool
+	SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool
 }
 
 type CertificateManager interface {
@@ -102,13 +104,28 @@ func (m *CertificateManagerImpl) definitionUpdated(key string, def *skupperv2alp
 func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skupperv2alpha1.CertificateSpec, refs []metav1.OwnerReference) error {
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
-		if !mergeOwnerReferences(current.ObjectMeta.OwnerReferences, refs) && reflect.DeepEqual(spec, current.Spec) {
+		changed := false
+		if mergeOwnerReferences(current.ObjectMeta.OwnerReferences, refs) {
+			changed = true
+		}
+		if !reflect.DeepEqual(spec, current.Spec) {
+			// merge hosts as the certificate may be shared by sources each requiring different sets of hosts:
+			hosts := getHostChanges(getPreviousHosts(current, refs), spec.Hosts, key).apply(current.Spec.Hosts)
+			current.Spec = spec
+			current.Spec.Hosts = hosts
+			changed = true
+		}
+		if m.context != nil {
+			if m.context.SetLabels(namespace, name, "Certificate", current.ObjectMeta.Labels) {
+				changed = true
+			}
+			if m.context.SetAnnotations(namespace, name, "Certificate", current.ObjectMeta.Annotations) {
+				changed = true
+			}
+		}
+		if !changed {
 			return nil
 		}
-		// merge hosts as the certificate may be shared by sources each requiring different sets of hosts:
-		hosts := getHostChanges(getPreviousHosts(current, refs), spec.Hosts, key).apply(current.Spec.Hosts)
-		current.Spec = spec
-		current.Spec.Hosts = hosts
 		updated, err := m.controller.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
 		if err != nil {
 			return err
@@ -136,6 +153,11 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 		if len(refs) > 0 {
 			cert.ObjectMeta.Annotations["internal.skupper.io/hosts-"+string(refs[0].UID)] = strings.Join(spec.Hosts, ",")
 		}
+		if m.context != nil {
+			m.context.SetLabels(namespace, cert.Name, "Certificate", cert.ObjectMeta.Labels)
+			m.context.SetAnnotations(namespace, cert.Name, "Certificate", cert.ObjectMeta.Annotations)
+		}
+
 		created, err := m.controller.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Create(context.Background(), cert, metav1.CreateOptions{})
 		if err != nil {
 			return err
@@ -199,24 +221,46 @@ func (m *CertificateManagerImpl) updateStatus(certificate *skupperv2alpha1.Certi
 }
 
 func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv2alpha1.Certificate, secret *corev1.Secret) error {
+	changed := false
+	controlled := isSecretControlled(secret)
 	if !isSecretCorrect(certificate, secret) {
-		if !isSecretControlled(secret) {
+		if !controlled {
 			return errors.New("Secret exists but is not controlled by skupper")
 		}
 
-		secret, err := m.generateSecret(certificate)
+		var err error
+		secret, err = m.generateSecret(certificate)
 		if err != nil {
 			log.Printf("Error generating Secret %s/%s for Certificate %s", certificate.Namespace, secret.Name, key)
 			return err
 		}
-		updated, err := m.controller.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
-		if err != nil {
-			log.Printf("Error updating Secret %s/%s for Certificate %s: %s", secret.Namespace, secret.Name, key, err)
-			return err
-		}
-		m.secrets[key] = updated
-		log.Printf("Updated Secret %s/%s for Certificate %s (hosts %v)", secret.Namespace, secret.Name, key, certificate.Spec.Hosts)
+		changed = true
 	}
+	if m.context != nil && controlled {
+		if secret.Labels == nil {
+			secret.Labels = map[string]string{}
+		}
+		if secret.Annotations == nil {
+			secret.Annotations = map[string]string{}
+		}
+		if m.context.SetLabels(certificate.Namespace, secret.Name, "Secret", secret.Labels) {
+			changed = true
+		}
+		if m.context.SetAnnotations(certificate.Namespace, secret.Name, "Secret", secret.Annotations) {
+			changed = true
+		}
+	}
+	if !changed {
+		return nil
+	}
+
+	updated, err := m.controller.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
+	if err != nil {
+		log.Printf("Error updating Secret %s/%s for Certificate %s: %s", secret.Namespace, secret.Name, key, err)
+		return err
+	}
+	m.secrets[key] = updated
+	log.Printf("Updated Secret %s/%s for Certificate %s (hosts %v)", secret.Namespace, secret.Name, key, certificate.Spec.Hosts)
 	return nil
 }
 
@@ -251,7 +295,12 @@ func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv2
 		"internal.skupper.io/certificate": "true",
 		"internal.skupper.io/hosts":       strings.Join(certificate.Spec.Hosts, ","),
 	}
+	secret.Labels = map[string]string{}
 
+	if m.context != nil {
+		m.context.SetLabels(certificate.Namespace, secret.Name, "Secret", secret.Labels)
+		m.context.SetAnnotations(certificate.Namespace, secret.Name, "Secret", secret.Annotations)
+	}
 	log.Printf("Creating Secret %s/%s for Certificate %s for hosts %v", certificate.Namespace, secret.Name, key, certificate.Spec.Hosts)
 	created, err := m.controller.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
