@@ -34,6 +34,11 @@ type SystemdService interface {
 	GetServiceFile() string
 }
 
+type SystemdGlobal interface {
+	Enable() error
+	Disable() error
+}
+
 type CommandExecutor func(name string, arg ...string) *exec.Cmd
 
 type systemdServiceInfo struct {
@@ -44,6 +49,13 @@ type systemdServiceInfo struct {
 	SiteConfigPath      string
 	SiteHomePath        string
 	RuntimeDir          string
+	getUid              api.IdGetter
+	command             CommandExecutor
+	rootSystemdBasePath string
+	platform            string
+}
+
+type systemdGobal struct {
 	getUid              api.IdGetter
 	command             CommandExecutor
 	rootSystemdBasePath string
@@ -259,4 +271,51 @@ func IsLingeringEnabled(user string) bool {
 	lingerFile := fmt.Sprintf("/var/lib/systemd/linger/%s", user)
 	_, err := os.Stat(lingerFile)
 	return err == nil
+}
+
+func NewSystemdGlobal(platform string) (SystemdGlobal, error) {
+
+	return &systemdGobal{
+		getUid:              os.Getuid,
+		command:             exec.Command,
+		rootSystemdBasePath: rootSystemdBasePath,
+		platform:            platform,
+	}, nil
+}
+
+func (sg *systemdGobal) getCmdEnablePodmanSocket() *exec.Cmd {
+	return sg.command("systemctl", "--user", "enable", "--now", "podman.socket")
+}
+
+func (sg *systemdGobal) getCmdStartPodmanSocket() *exec.Cmd {
+	return sg.command("systemctl", "--user", "start", "podman.socket")
+}
+
+func (sg *systemdGobal) getCmdDisablePodmanSocket() *exec.Cmd {
+	return sg.command("systemctl", "--user", "disable", "--now", "podman.socket")
+}
+
+func (sg *systemdGobal) Enable() error {
+	err := sg.getCmdEnablePodmanSocket().Run()
+	if err != nil {
+		return err
+	}
+
+	err = sg.getCmdStartPodmanSocket().Run()
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func (sg *systemdGobal) Disable() error {
+	err := sg.getCmdDisablePodmanSocket().Run()
+
+	if err != nil {
+		return err
+	}
+	return nil
+
 }
