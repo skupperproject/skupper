@@ -60,12 +60,6 @@ type ResourceChangeHandler interface {
 	Describe(event ResourceChange) string
 }
 
-func ListByName(name string) internalinterfaces.TweakListOptionsFunc {
-	return func(options *metav1.ListOptions) {
-		options.FieldSelector = "metadata.name=" + name
-	}
-}
-
 func ListByLabelSelector(selector string) internalinterfaces.TweakListOptionsFunc {
 	return func(options *metav1.ListOptions) {
 		options.LabelSelector = selector

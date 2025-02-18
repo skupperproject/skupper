@@ -21,6 +21,7 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/grants"
 	"github.com/skupperproject/skupper/internal/kube/securedaccess"
 	"github.com/skupperproject/skupper/internal/kube/site"
+	"github.com/skupperproject/skupper/internal/kube/site/labels"
 	"github.com/skupperproject/skupper/internal/kube/site/sizing"
 	"github.com/skupperproject/skupper/internal/network"
 	"github.com/skupperproject/skupper/internal/version"
@@ -45,6 +46,8 @@ type Controller struct {
 	certMgr              *certificates.CertificateManagerImpl
 	siteSizing           *sizing.Registry
 	siteSizingWatcher    *internalclient.ConfigMapWatcher
+	labelling            *labels.LabelsAndAnnotations
+	labellingWatcher     *internalclient.ConfigMapWatcher
 	attachableConnectors map[string]*skupperv2alpha1.AttachedConnector
 	log                  *slog.Logger
 	namespaces           *NamespaceConfig
@@ -62,11 +65,18 @@ func skupperSiteSizingConfig() internalinterfaces.TweakListOptionsFunc {
 	}
 }
 
+func labelling() internalinterfaces.TweakListOptionsFunc {
+	return func(options *metav1.ListOptions) {
+		options.LabelSelector = "skupper.io/label-template"
+	}
+}
+
 func NewController(cli internalclient.Clients, config *Config) (*Controller, error) {
 	controller := &Controller{
 		controller:           internalclient.NewController("Controller", cli),
 		sites:                map[string]*site.Site{},
 		siteSizing:           sizing.NewRegistry(),
+		labelling:            labels.NewLabelsAndAnnotations(config.Namespace),
 		attachableConnectors: map[string]*skupperv2alpha1.AttachedConnector{},
 		log:                  slog.New(slog.Default().Handler()).With(slog.String("component", "kube.controller")),
 	}
@@ -107,6 +117,7 @@ func NewController(cli internalclient.Clients, config *Config) (*Controller, err
 	controller.controller.WatchPods("skupper.io/component=router,skupper.io/type=site", config.WatchNamespace, filter(controller, controller.routerPodEvent))
 	controller.siteSizingWatcher = controller.controller.WatchConfigMaps(skupperSiteSizingConfig(), config.Namespace, filter(controller, controller.siteSizing.Update))
 	controller.namespaces.watch(controller.controller, config.WatchNamespace)
+	controller.labellingWatcher = controller.controller.WatchConfigMaps(labelling(), config.WatchNamespace, controller.labelling.Update)
 
 	controller.certMgr = certificates.NewCertificateManager(controller.controller)
 	controller.certMgr.SetControllerContext(controller)
@@ -127,6 +138,14 @@ func NewController(cli internalclient.Clients, config *Config) (*Controller, err
 
 func (c *Controller) IsControlled(namespace string) bool {
 	return c.namespaces.isControlled(namespace)
+}
+
+func (c *Controller) SetLabels(namespace string, name string, kind string, labels map[string]string) bool {
+	return c.labelling.SetLabels(namespace, name, kind, labels)
+}
+
+func (c *Controller) SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool {
+	return c.labelling.SetAnnotations(namespace, name, kind, annotations)
 }
 
 func (c *Controller) Namespace() string {
@@ -179,6 +198,13 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 			slog.String("namespace", config.Namespace),
 		)
 		c.siteSizing.Update(config.Namespace+"/"+config.Name, config)
+	}
+	for _, config := range c.labellingWatcher.List() {
+		c.log.Info("Recovering label and annotation configuration",
+			slog.String("name", config.Name),
+			slog.String("namespace", config.Namespace),
+		)
+		c.labelling.Update(config.Namespace+"/"+config.Name, config)
 	}
 	//recover existing sites & bindings
 	siteRecovery := site.NewSiteRecovery(c.controller.GetKubeClient())
@@ -278,7 +304,7 @@ func (c *Controller) getSite(namespace string) *site.Site {
 	if existing, ok := c.sites[namespace]; ok {
 		return existing
 	}
-	site := site.NewSite(namespace, c.controller, c.certMgr, c.accessMgr, c.siteSizing)
+	site := site.NewSite(namespace, c.controller, c.certMgr, c.accessMgr, c.siteSizing, c)
 	c.sites[namespace] = site
 	return site
 }

@@ -22,6 +22,17 @@ metadata:
     application: skupper-router
     skupper.io/component: router
     skupper.io/type: site
+{{- if .Labels }}
+{{- range $key, $value := .Labels }}
+    {{ $key }}: {{$value -}}
+{{- end }}
+{{- end }}
+{{- if .Annotations }}
+  annotations:
+{{- range $key, $value := .Annotations }}
+    {{ $key }}: {{$value -}}
+{{- end }}
+{{- end }}
   name: {{ .Group }}
   ownerReferences:
   - apiVersion: skupper.io/v2alpha1

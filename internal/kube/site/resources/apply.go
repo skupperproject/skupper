@@ -22,13 +22,17 @@ var routerDeploymentTemplate string
 //go:embed skupper-router-local-service.yaml
 var routerLocalServiceTemplate string
 
-func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Sizing) []resource.Template {
-	options := getCoreParams(site, group, size)
+type Labelling interface {
+	SetLabels(namespace string, name string, kind string, labels map[string]string) bool
+	SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool
+}
+
+func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Sizing, labelling Labelling) []resource.Template {
 	templates := []resource.Template{
 		{
 			Name:       "deployment",
 			Template:   routerDeploymentTemplate,
-			Parameters: options,
+			Parameters: getCoreParams(site, group, size).setLabelsAndAnnotations(labelling, site.Namespace, "skupper-router", "Deployment"),
 			Resource: schema.GroupVersionResource{
 				Group:    "apps",
 				Version:  "v1",
@@ -38,7 +42,7 @@ func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Siz
 		{
 			Name:       "localService",
 			Template:   routerLocalServiceTemplate,
-			Parameters: options,
+			Parameters: getCoreParams(site, group, size).setLabelsAndAnnotations(labelling, site.Namespace, "skupper-router-local", "Service"),
 			Resource: schema.GroupVersionResource{
 				Group:    "",
 				Version:  "v1",
@@ -59,6 +63,19 @@ type CoreParams struct {
 	RouterImage    skuppertypes.ImageDetails
 	AdaptorImage   skuppertypes.ImageDetails
 	Sizing         sizing.Sizing
+	Labels         map[string]string
+	Annotations    map[string]string
+}
+
+func (p *CoreParams) setLabelsAndAnnotations(labelling Labelling, namespace string, name string, kind string) *CoreParams {
+	if labelling == nil {
+		return p
+	}
+	p.Labels = map[string]string{}
+	p.Annotations = map[string]string{}
+	labelling.SetLabels(namespace, name, kind, p.Labels)
+	labelling.SetAnnotations(namespace, name, kind, p.Annotations)
+	return p
 }
 
 type Resources struct {
@@ -90,8 +107,8 @@ func configDigest(config *skupperv2alpha1.SiteSpec) string {
 	return ""
 }
 
-func getCoreParams(site *skupperv2alpha1.Site, group string, size sizing.Sizing) CoreParams {
-	return CoreParams{
+func getCoreParams(site *skupperv2alpha1.Site, group string, size sizing.Sizing) *CoreParams {
+	return &CoreParams{
 		SiteId:         site.GetSiteId(),
 		SiteName:       site.Name,
 		Group:          group,
@@ -101,11 +118,12 @@ func getCoreParams(site *skupperv2alpha1.Site, group string, size sizing.Sizing)
 		RouterImage:    images.GetRouterImageDetails(),
 		AdaptorImage:   images.GetKubeAdaptorImageDetails(),
 		Sizing:         size,
+		Labels:         map[string]string{},
 	}
 }
 
-func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv2alpha1.Site, group string, size sizing.Sizing) error {
-	for _, t := range resourceTemplates(site, group, size) {
+func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv2alpha1.Site, group string, size sizing.Sizing, labelling Labelling) error {
+	for _, t := range resourceTemplates(site, group, size, labelling) {
 		_, err := t.Apply(clients.GetDynamicClient(), ctx, site.Namespace)
 		if err != nil {
 			return err
