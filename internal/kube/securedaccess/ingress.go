@@ -66,12 +66,30 @@ func (o *IngressAccessType) ensureIngress(namespace string, ingress *networkingv
 				log.Printf("Updated hosts for ingress %s/%s by appending domain %s", namespace, ingress.Name, domain)
 			}
 		}
-		if equivalentIngress(existing, ingress) {
+		changed := false
+		copy := *existing
+		if !equivalentIngress(existing, ingress) {
+			copy.Spec = ingress.Spec
+			changed = true
+		}
+		if o.manager.context != nil {
+			if copy.ObjectMeta.Labels == nil {
+				copy.ObjectMeta.Labels = map[string]string{}
+			}
+			if copy.ObjectMeta.Annotations == nil {
+				copy.ObjectMeta.Annotations = map[string]string{}
+			}
+			if o.manager.context.SetLabels(namespace, copy.Name, "Ingress", copy.ObjectMeta.Labels) {
+				changed = true
+			}
+			if o.manager.context.SetAnnotations(namespace, copy.Name, "Ingress", copy.ObjectMeta.Annotations) {
+				changed = true
+			}
+		}
+		if !changed {
 			log.Printf("No change to ingress %s/%s is required", namespace, ingress.Name)
 			return existing, domain != "", nil
 		}
-		copy := *existing
-		copy.Spec = ingress.Spec
 		updated, err := o.manager.clients.GetKubeClient().NetworkingV1().Ingresses(namespace).Update(context.Background(), &copy, metav1.UpdateOptions{})
 		if err != nil {
 			log.Printf("Error on update for ingress %s/%s: %s", namespace, ingress.Name, err)
@@ -80,6 +98,10 @@ func (o *IngressAccessType) ensureIngress(namespace string, ingress *networkingv
 		log.Printf("Ingress %s/%s updated successfully", namespace, ingress.Name)
 		o.manager.ingresses[key] = updated
 		return updated, domain != "", nil
+	}
+	if o.manager.context != nil {
+		o.manager.context.SetLabels(namespace, ingress.Name, "Ingress", ingress.ObjectMeta.Labels)
+		o.manager.context.SetAnnotations(namespace, ingress.Name, "Ingress", ingress.ObjectMeta.Annotations)
 	}
 	created, err := o.manager.clients.GetKubeClient().NetworkingV1().Ingresses(namespace).Create(context.Background(), ingress, metav1.CreateOptions{})
 	if err != nil {

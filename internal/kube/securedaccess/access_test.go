@@ -47,6 +47,8 @@ func TestSecuredAccessGeneral(t *testing.T) {
 		expectedError        string
 		defaultDomain        string
 		nodePorts            map[string]int32
+		labels               map[string]string
+		annotations          map[string]string
 	}{
 		{
 			name: "loadbalancer",
@@ -56,6 +58,12 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ACCESS_TYPE_ROUTE,
 					ACCESS_TYPE_LOCAL,
 				},
+			},
+			labels: map[string]string{
+				"foo": "bar",
+			},
+			annotations: map[string]string{
+				"abc": "123",
 			},
 			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
@@ -88,6 +96,12 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mysvc",
 						Namespace: "test",
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+						Annotations: map[string]string{
+							"abc": "123",
+						},
 					},
 					Spec: corev1.ServiceSpec{
 						Selector: map[string]string{
@@ -301,6 +315,12 @@ func TestSecuredAccessGeneral(t *testing.T) {
 		},
 		{
 			name: "route",
+			labels: map[string]string{
+				"foo": "bar",
+			},
+			annotations: map[string]string{
+				"abc": "123",
+			},
 			config: Config{
 				EnabledAccessTypes: []string{
 					ACCESS_TYPE_LOADBALANCER,
@@ -372,6 +392,12 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mysvc-a",
 						Namespace: "test",
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+						Annotations: map[string]string{
+							"abc": "123",
+						},
 					},
 					Spec: routev1.RouteSpec{
 						Host: "",
@@ -392,6 +418,12 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mysvc-b",
 						Namespace: "test",
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+						Annotations: map[string]string{
+							"abc": "123",
+						},
 					},
 					Spec: routev1.RouteSpec{
 						Host: "",
@@ -585,6 +617,12 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ACCESS_TYPE_LOCAL,
 				},
 			},
+			labels: map[string]string{
+				"foo": "bar",
+			},
+			annotations: map[string]string{
+				"abc": "123",
+			},
 			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "skupper.io/v2alpha1",
@@ -649,6 +687,12 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "mysvc",
 						Namespace: "test",
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+						Annotations: map[string]string{
+							"abc": "123",
+						},
 					},
 					Spec: networkingv1.IngressSpec{
 						Rules: []networkingv1.IngressRule{
@@ -1331,6 +1375,12 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 				HttpProxyDomain: "gateway.acme.com",
 			},
+			labels: map[string]string{
+				"foo": "bar",
+			},
+			annotations: map[string]string{
+				"abc": "123",
+			},
 			definition: &skupperv2alpha1.SecuredAccess{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "skupper.io/v2alpha1",
@@ -1439,6 +1489,12 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				GatewayClass:  "xyz",
 				GatewayDomain: "mygateway.net",
 				GatewayPort:   8443,
+			},
+			labels: map[string]string{
+				"foo": "bar",
+			},
+			annotations: map[string]string{
+				"abc": "123",
 			},
 			ssaRecorder: newServerSideApplyRecorder(),
 			expectedSSA: map[string]*unstructured.Unstructured{
@@ -1828,7 +1884,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				assert.Assert(t, tt.ssaRecorder.enable(client.GetDynamicClient()))
 			}
 			certs := newMockCertificateManager()
-			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: "test"})
+			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: "test", labels: tt.labels, annotations: tt.annotations})
 
 			err = m.Ensure(tt.definition.Namespace, tt.definition.Name, tt.definition.Spec, nil, nil)
 			if tt.expectedError != "" {
@@ -1867,6 +1923,14 @@ func TestSecuredAccessGeneral(t *testing.T) {
 							assert.Assert(t, err)
 						}
 					}
+					for k, v := range desired.ObjectMeta.Labels {
+						assert.Assert(t, actual.ObjectMeta.Labels != nil)
+						assert.Equal(t, actual.ObjectMeta.Labels[k], v)
+					}
+					for k, v := range desired.ObjectMeta.Annotations {
+						assert.Assert(t, actual.ObjectMeta.Annotations != nil)
+						assert.Equal(t, actual.ObjectMeta.Annotations[k], v)
+					}
 					err = m.CheckService(serviceKey(actual), actual)
 					assert.Assert(t, err)
 				}
@@ -1874,6 +1938,14 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					actual, err := m.clients.GetRouteClient().Routes(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
 					assert.Assert(t, err)
 					assert.DeepEqual(t, desired.Spec, actual.Spec)
+					for k, v := range desired.ObjectMeta.Labels {
+						assert.Assert(t, actual.ObjectMeta.Labels != nil)
+						assert.Equal(t, actual.ObjectMeta.Labels[k], v)
+					}
+					for k, v := range desired.ObjectMeta.Annotations {
+						assert.Assert(t, actual.ObjectMeta.Annotations != nil)
+						assert.Equal(t, actual.ObjectMeta.Annotations[k], v)
+					}
 					host := actual.Spec.Host
 					if host == "" {
 						host = fmt.Sprintf("%s.%s.%s", actual.Name, actual.Namespace, tt.defaultDomain)
@@ -1890,6 +1962,14 @@ func TestSecuredAccessGeneral(t *testing.T) {
 					assert.Equal(t, len(desired.Spec.Rules), len(actual.Spec.Rules))
 					for _, rule := range desired.Spec.Rules {
 						assert.Assert(t, cmp.Contains(actual.Spec.Rules, rule))
+					}
+					for k, v := range desired.ObjectMeta.Labels {
+						assert.Assert(t, actual.ObjectMeta.Labels != nil)
+						assert.Equal(t, actual.ObjectMeta.Labels[k], v)
+					}
+					for k, v := range desired.ObjectMeta.Annotations {
+						assert.Assert(t, actual.ObjectMeta.Annotations != nil)
+						assert.Equal(t, actual.ObjectMeta.Annotations[k], v)
 					}
 					if !reflect.DeepEqual(desired.Status, actual.Status) {
 						actual.Status = desired.Status
@@ -3531,13 +3611,37 @@ func TestRecreateOnDelete(t *testing.T) {
 }
 
 type FakeControllerContext struct {
-	name      string
-	namespace string
-	uid       string
+	name        string
+	namespace   string
+	uid         string
+	labels      map[string]string
+	annotations map[string]string
 }
 
 func (c *FakeControllerContext) IsControlled(namespace string) bool {
 	return true
+}
+
+func (c *FakeControllerContext) SetLabels(namespace string, name string, kind string, labels map[string]string) bool {
+	updated := false
+	for k, v := range c.labels {
+		if labels[k] != v {
+			labels[k] = v
+			updated = true
+		}
+	}
+	return updated
+}
+
+func (c *FakeControllerContext) SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool {
+	updated := false
+	for k, v := range c.annotations {
+		if annotations[k] != v {
+			annotations[k] = v
+			updated = true
+		}
+	}
+	return updated
 }
 
 func (c *FakeControllerContext) Namespace() string {

@@ -27,6 +27,8 @@ type AccessType interface {
 
 type ControllerContext interface {
 	IsControlled(namespace string) bool
+	SetLabels(namespace string, name string, kind string, labels map[string]string) bool
+	SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool
 	Namespace() string
 	Name() string
 	UID() string
@@ -96,11 +98,34 @@ func (m *SecuredAccessManager) IsValidAccessType(accessType string) bool {
 func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skupperv2alpha1.SecuredAccessSpec, annotations map[string]string, refs []metav1.OwnerReference) error {
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
-		if reflect.DeepEqual(spec, current.Spec) && reflect.DeepEqual(annotations, current.ObjectMeta.Annotations) {
+		if current.ObjectMeta.Labels == nil {
+			current.ObjectMeta.Labels = map[string]string{}
+		}
+		if current.ObjectMeta.Annotations == nil {
+			current.ObjectMeta.Annotations = map[string]string{}
+		}
+		update := false
+		if !reflect.DeepEqual(spec, current.Spec) {
+			current.Spec = spec
+			update = true
+		}
+		for k, v := range annotations {
+			if current.ObjectMeta.Annotations[k] != v {
+				current.ObjectMeta.Annotations[k] = v
+				update = true
+			}
+		}
+		if m.context != nil {
+			if m.context.SetLabels(namespace, name, "SecuredAccess", current.ObjectMeta.Labels) {
+				update = true
+			}
+			if m.context.SetAnnotations(namespace, name, "SecuredAccess", current.ObjectMeta.Annotations) {
+				update = true
+			}
+		}
+		if !update {
 			return nil
 		}
-		current.Spec = spec
-		current.ObjectMeta.Annotations = annotations
 		updated, err := m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
 		if err != nil {
 			return err
@@ -117,8 +142,16 @@ func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skuppe
 				Name:            name,
 				OwnerReferences: refs,
 				Annotations:     annotations,
+				Labels:          map[string]string{},
 			},
 			Spec: spec,
+		}
+		if m.context != nil {
+			if sa.ObjectMeta.Annotations == nil {
+				sa.ObjectMeta.Annotations = map[string]string{}
+			}
+			m.context.SetLabels(namespace, name, "SecuredAccess", sa.ObjectMeta.Labels)
+			m.context.SetAnnotations(namespace, name, "SecuredAccess", sa.ObjectMeta.Annotations)
 		}
 		created, err := m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Create(context.Background(), sa, metav1.CreateOptions{})
 		if err != nil {
@@ -141,7 +174,35 @@ func (m *SecuredAccessManager) Delete(namespace string, name string) error {
 	return nil
 }
 
+func (m *SecuredAccessManager) checkLabelsAndAnnotations(key string, current *skupperv2alpha1.SecuredAccess) *skupperv2alpha1.SecuredAccess {
+	if m.context != nil {
+		update := false
+		if current.ObjectMeta.Labels == nil {
+			current.ObjectMeta.Labels = map[string]string{}
+		}
+		if m.context.SetLabels(current.Namespace, current.Name, "SecuredAccess", current.ObjectMeta.Labels) {
+			update = true
+		}
+		if current.ObjectMeta.Annotations == nil {
+			current.ObjectMeta.Annotations = map[string]string{}
+		}
+		if m.context.SetAnnotations(current.Namespace, current.Name, "SecuredAccess", current.ObjectMeta.Annotations) {
+			update = true
+		}
+		if update {
+			updated, err := m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(current.Namespace).Update(context.Background(), current, metav1.UpdateOptions{})
+			if err != nil {
+				log.Printf("Error updating labels/annotations for SecuredAccess %s: %s", key, err)
+			} else {
+				return updated
+			}
+		}
+	}
+	return current
+}
+
 func (m *SecuredAccessManager) SecuredAccessChanged(key string, current *skupperv2alpha1.SecuredAccess) error {
+	current = m.checkLabelsAndAnnotations(key, current)
 	m.definitions[key] = current
 	return m.reconcile(current)
 }
@@ -226,6 +287,21 @@ func (m *SecuredAccessManager) checkService(sa *skupperv2alpha1.SecuredAccess) (
 		if updateType(&svc.Spec, m.actualAccessType(sa)) {
 			update = true
 		}
+		if m.context != nil {
+			if svc.ObjectMeta.Labels == nil {
+				svc.ObjectMeta.Labels = map[string]string{}
+			}
+			if svc.ObjectMeta.Annotations == nil {
+				svc.ObjectMeta.Annotations = map[string]string{}
+			}
+			if m.context.SetLabels(svc.Namespace, svc.Name, "Service", svc.ObjectMeta.Labels) {
+				update = true
+			}
+			if m.context.SetAnnotations(svc.Namespace, svc.Name, "Service", svc.ObjectMeta.Annotations) {
+				update = true
+			}
+		}
+
 		if !update {
 			return svc, nil
 		}
@@ -261,8 +337,11 @@ func (m *SecuredAccessManager) createService(sa *skupperv2alpha1.SecuredAccess) 
 			Type:     serviceType(m.actualAccessType(sa)),
 		},
 	}
-	//TODO: copy labels and annotations from SecuredAccess resource
 	updatePorts(&service.Spec, sa.Spec.Ports)
+	if m.context != nil {
+		m.context.SetLabels(sa.Namespace, sa.Name, "Service", service.ObjectMeta.Labels)
+		m.context.SetAnnotations(sa.Namespace, sa.Name, "Service", service.ObjectMeta.Annotations)
+	}
 	created, err := m.clients.GetKubeClient().CoreV1().Services(sa.Namespace).Create(context.Background(), service, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err

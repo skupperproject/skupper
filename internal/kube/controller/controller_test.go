@@ -72,7 +72,7 @@ func TestGeneral(t *testing.T) {
 		{
 			name: "ignored site",
 			k8sObjects: []runtime.Object{
-				f.configmap("skupper", "test", map[string]string{"controller": "foo/bar"}),
+				f.configmap("skupper", "test", map[string]string{"controller": "foo/bar"}, nil, nil),
 			},
 			skupperObjects: []runtime.Object{
 				f.site("mysite", "test", "", false, false),
@@ -88,7 +88,7 @@ func TestGeneral(t *testing.T) {
 				"CONTROLLER_NAME": "bar",
 			},
 			k8sObjects: []runtime.Object{
-				f.configmap("skupper", "test", map[string]string{"controller": "foo/bar"}),
+				f.configmap("skupper", "test", map[string]string{"controller": "foo/bar"}, nil, nil),
 			},
 			skupperObjects: []runtime.Object{
 				f.site("mysite", "test", "", false, false),
@@ -466,6 +466,28 @@ func TestGeneral(t *testing.T) {
 				resource.DeploymentResource(): f.resources().routerMemoryRequest("500M").routerCpuRequest("600m").deployment("skupper-router", "test"),
 			},
 		},
+		{
+			name: "labelling",
+			k8sObjects: []runtime.Object{
+				f.configmap("labels", "test", nil, map[string]string{"skupper.io/label-template": "true", "acme.com/foo": "bar"}, nil),
+			},
+			skupperObjects: []runtime.Object{
+				f.site("mysvc", "test", "", false, false),
+				f.listener("mylistener", "test", "mysvc", 8080),
+			},
+			expectedSiteStatuses: []*skupperv2alpha1.Site{
+				f.siteStatus("mysvc", "test", skupperv2alpha1.StatusPending, "Not Running", f.condition(skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionTrue, "Ready", "OK")),
+			},
+			expectedDynamicResources: map[schema.GroupVersionResource]*unstructured.Unstructured{
+				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
+			},
+			expectedRouterConfig: []*RouterConfig{
+				f.routerConfig("skupper-router", "test").tcpListener("mylistener", "1024", "", ""),
+			},
+			expectedServices: []*corev1.Service{
+				f.serviceWithMetadata(f.service("mysvc", "test", f.routerSelector(true), f.servicePort("mylistener", 8080, 1024)), map[string]string{"acme.com/foo": "bar"}, nil),
+			},
+		},
 	}
 	for _, tt := range testTable {
 		t.Run(tt.name, func(t *testing.T) {
@@ -551,6 +573,14 @@ func TestGeneral(t *testing.T) {
 					}
 				}
 				assert.DeepEqual(t, expected.Spec.Ports, actual.Spec.Ports)
+				for k, v := range expected.ObjectMeta.Labels {
+					assert.Assert(t, actual.ObjectMeta.Labels != nil)
+					assert.Equal(t, actual.ObjectMeta.Labels[k], v)
+				}
+				for k, v := range expected.ObjectMeta.Annotations {
+					assert.Assert(t, actual.ObjectMeta.Annotations != nil)
+					assert.Equal(t, actual.ObjectMeta.Annotations[k], v)
+				}
 			}
 			for _, expected := range tt.expectedRouterAccesses {
 				actual, err := clients.GetSkupperClient().SkupperV2alpha1().RouterAccesses(expected.Namespace).Get(context.Background(), expected.Name, metav1.GetOptions{})
@@ -567,7 +597,7 @@ func TestGeneral(t *testing.T) {
 }
 
 func verifyStatus(t *testing.T, expected skupperv2alpha1.Status, actual skupperv2alpha1.Status) {
-	assert.Equal(t, expected.StatusType, actual.StatusType)
+	assert.Equal(t, expected.StatusType, actual.StatusType, actual.Message)
 	assert.Equal(t, expected.Message, actual.Message)
 	for _, condition := range expected.Conditions {
 		existing := meta.FindStatusCondition(actual.Conditions, condition.Type)
@@ -1176,6 +1206,12 @@ func (*factory) service(name string, namespace string, selector map[string]strin
 	}
 }
 
+func (*factory) serviceWithMetadata(svc *corev1.Service, labels map[string]string, annotations map[string]string) *corev1.Service {
+	svc.ObjectMeta.Labels = labels
+	svc.ObjectMeta.Annotations = annotations
+	return svc
+}
+
 func (*factory) servicePort(name string, port int32, targetPort int32) corev1.ServicePort {
 	return corev1.ServicePort{
 		Name:       name,
@@ -1264,6 +1300,18 @@ func (*factory) siteSizing(name string, namespace string, data map[string]string
 	}
 }
 
+func (*factory) configmap(name string, namespace string, data map[string]string, labels map[string]string, annotations map[string]string) *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Namespace:   namespace,
+			Labels:      labels,
+			Annotations: annotations,
+		},
+		Data: data,
+	}
+}
+
 func (f *factory) fakeNetworkStatusInfo(namespace string) *NetworkStatus {
 	return f.networkStatusInfo(
 		"east", namespace, map[string]string{"mysvc": "mysvc"}, map[string]string{"mysvc": "foo"},
@@ -1343,16 +1391,6 @@ func (*factory) networkStatusInfo(name string, namespace string, listeners map[s
 		sites: map[string]*network.SiteStatusInfo{},
 	}
 	return n.site(name, namespace, listeners, connectors)
-}
-
-func (*factory) configmap(name string, namespace string, data map[string]string) *corev1.ConfigMap {
-	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Data: data,
-	}
 }
 
 var f factory
