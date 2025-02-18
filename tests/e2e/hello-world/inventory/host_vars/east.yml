@@ -1,0 +1,26 @@
+---
+# Kubeconfig path for east site
+east_kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
+kubeconfig: "{{ east_kubeconfig }}"
+
+# Namespace configuration
+namespace_name: hello-world-east
+
+# Deployment configuration for workload
+deploy_workload_workload_image: "{{ skupper_test_image_hello_world_backend }}"
+deploy_workload_deployment_name: "backend"
+deploy_workload_replicas: 3
+
+# Skupper site configuration
+skupper_site_include_spec: false
+
+# Access grant configuration
+access_grant_name: hello-world-grant
+access_grant_redemptions_allowed: 10
+access_grant_expiration_window: 1h
+access_grant_state: present
+
+# Default variables for the link_site role
+link_site_access_token_name: "access-token"
+link_site_target_namespace: "default"
+link_site_skip_listener_check: true
