@@ -13,7 +13,7 @@ import (
 type CmdSystemInstall struct {
 	CobraCmd      *cobra.Command
 	Namespace     string
-	SystemInstall func() error
+	SystemInstall func(string) error
 }
 
 func NewCmdSystemInstall() *CmdSystemInstall {
@@ -35,8 +35,8 @@ func (cmd *CmdSystemInstall) ValidateInput(args []string) error {
 		validationErrors = append(validationErrors, fmt.Errorf("this command does not accept arguments"))
 	}
 
-	if config.GetPlatform() != types.PlatformPodman {
-		validationErrors = append(validationErrors, fmt.Errorf("the selected platorm is not podman. There is nothing to install"))
+	if config.GetPlatform() != types.PlatformPodman && config.GetPlatform() != types.PlatformDocker {
+		validationErrors = append(validationErrors, fmt.Errorf("the selected platform is not supported by this command. There is nothing to install"))
 	}
 	return errors.Join(validationErrors...)
 }
@@ -44,13 +44,13 @@ func (cmd *CmdSystemInstall) ValidateInput(args []string) error {
 func (cmd *CmdSystemInstall) InputToOptions() {}
 
 func (cmd *CmdSystemInstall) Run() error {
-	err := cmd.SystemInstall()
+	err := cmd.SystemInstall(string(config.GetPlatform()))
 
 	if err != nil {
 		return fmt.Errorf("failed to configure the environment : %s", err)
 	}
 
-	fmt.Println("Podman is now configured for Skupper")
+	fmt.Printf("Platform %s is now configured for Skupper\n", string(config.GetPlatform()))
 
 	return nil
 }

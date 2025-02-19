@@ -1,13 +1,12 @@
 package bootstrap
 
 import (
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/nonkube/common"
 )
 
-func Install() error {
+func Install(platform string) error {
 
-	systemdGlobal, err := common.NewSystemdGlobal(string(types.PlatformPodman))
+	systemdGlobal, err := common.NewSystemdGlobal(platform)
 	if err != nil {
 		return err
 	}

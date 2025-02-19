@@ -1,16 +1,15 @@
 package bootstrap
 
 import (
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"os"
 	"path"
 )
 
-func Uninstall() error {
+func Uninstall(platform string) error {
 
-	systemdGlobal, err := common.NewSystemdGlobal(string(types.PlatformPodman))
+	systemdGlobal, err := common.NewSystemdGlobal(platform)
 	if err != nil {
 		return err
 	}

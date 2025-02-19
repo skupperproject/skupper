@@ -43,7 +43,7 @@ flag must be set to "bundle" or "tarball".
 `
 	systemInstallDescription = `
 Checks the local environment for required resources and configuration.
-In some instances, configures the local environment. On Podman, it starts the Podman API 
+In some instances, configures the local environment. It starts the Podman/Docker API 
 service if it is not already available.`
 )
 
@@ -200,7 +200,7 @@ func CmdSystemUnInstallFactory(configuredPlatform common.Platform) *cobra.Comman
 	cmdSystemUninstallDesc := common.SkupperCmdDescription{
 		Use:   "uninstall",
 		Short: "Remove local system infrastructure",
-		Long:  "Remove local system infrastructure",
+		Long:  "Remove local system infrastructure, undoing the configuration changes made by skupper system install, by disabling the Podman/Docker API.",
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSystemUninstallDesc, kubeCommand, nonKubeCommand)

@@ -283,25 +283,34 @@ func NewSystemdGlobal(platform string) (SystemdGlobal, error) {
 	}, nil
 }
 
-func (sg *systemdGlobal) getCmdEnablePodmanSocket() *exec.Cmd {
-	return sg.command("systemctl", "--user", "enable", "--now", "podman.socket")
+func (sg *systemdGlobal) getCmdEnableSocket() *exec.Cmd {
+	if sg.platform == "docker" || sg.getUid() == 0 {
+		return sg.command("systemctl", "enable", sg.platform+".socket")
+	}
+	return sg.command("systemctl", "--user", "enable", sg.platform+".socket")
 }
 
-func (sg *systemdGlobal) getCmdStartPodmanSocket() *exec.Cmd {
-	return sg.command("systemctl", "--user", "start", "podman.socket")
+func (sg *systemdGlobal) getCmdStartSocket() *exec.Cmd {
+	if sg.platform == "docker" || sg.getUid() == 0 {
+		return sg.command("systemctl", "start", sg.platform+".socket")
+	}
+	return sg.command("systemctl", "--user", "start", sg.platform+".socket")
 }
 
-func (sg *systemdGlobal) getCmdDisablePodmanSocket() *exec.Cmd {
-	return sg.command("systemctl", "--user", "disable", "--now", "podman.socket")
+func (sg *systemdGlobal) getCmdDisableSocket() *exec.Cmd {
+	if sg.platform == "docker" || sg.getUid() == 0 {
+		return sg.command("systemctl", "disable", sg.platform+".socket")
+	}
+	return sg.command("systemctl", "--user", "disable", sg.platform+".socket")
 }
 
 func (sg *systemdGlobal) Enable() error {
-	err := sg.getCmdEnablePodmanSocket().Run()
+	err := sg.getCmdEnableSocket().Run()
 	if err != nil {
 		return err
 	}
 
-	err = sg.getCmdStartPodmanSocket().Run()
+	err = sg.getCmdStartSocket().Run()
 	if err != nil {
 		return err
 	}
@@ -311,7 +320,7 @@ func (sg *systemdGlobal) Enable() error {
 }
 
 func (sg *systemdGlobal) Disable() error {
-	err := sg.getCmdDisablePodmanSocket().Run()
+	err := sg.getCmdDisableSocket().Run()
 
 	if err != nil {
 		return err

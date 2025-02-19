@@ -2,6 +2,8 @@ package nonkube
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/internal/config"
+	"os"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -14,6 +16,7 @@ func TestCmdSystemUnInstall_ValidateInput(t *testing.T) {
 		name          string
 		args          []string
 		flags         *common.CommandSystemUninstallFlags
+		platform      string
 		mock          func() (bool, error)
 		expectedError string
 	}
@@ -22,36 +25,49 @@ func TestCmdSystemUnInstall_ValidateInput(t *testing.T) {
 		{
 			name:          "args are not accepted",
 			args:          []string{"something"},
+			platform:      "podman",
 			expectedError: "this command does not accept arguments",
 		},
 		{
-			name:  "force flag is provided",
-			flags: &common.CommandSystemUninstallFlags{Force: true},
+			name:     "force flag is provided",
+			platform: "podman",
+			flags:    &common.CommandSystemUninstallFlags{Force: true},
 		},
 		{
 			name:          "force flag is not provided and there are active sites",
 			flags:         &common.CommandSystemUninstallFlags{Force: false},
+			platform:      "podman",
 			mock:          mockCmdSystemUninstallThereAreStillSites,
 			expectedError: "Uninstallation halted: Active sites detected.",
 		},
 		{
-			name:  "force flag is not provided but there are not any active site",
-			flags: &common.CommandSystemUninstallFlags{Force: false},
-			mock:  mockCmdSystemUninstallNoActiveSites,
+			name:     "force flag is not provided but there are not any active site",
+			flags:    &common.CommandSystemUninstallFlags{Force: false},
+			platform: "podman",
+			mock:     mockCmdSystemUninstallNoActiveSites,
 		},
 		{
 			name:          "force flag is not provided but checking sites fails",
 			flags:         &common.CommandSystemUninstallFlags{Force: false},
+			platform:      "podman",
 			mock:          mockCmdSystemUninstallCheckActiveSitesFails,
 			expectedError: "error",
+		},
+		{
+			name:          "platform not supported",
+			platform:      "linux",
+			expectedError: "the selected platform is not supported by this command. There is nothing to uninstall",
 		},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
+			config.ClearPlatform()
+			err := os.Setenv("SKUPPER_PLATFORM", test.platform)
+			assert.Check(t, err == nil)
+
 			command := newCmdSystemUninstallWithMocks(false)
-			command.CobraCmd = common.ConfigureCobraCommand(common.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
 			command.CheckActiveSites = test.mock
 			command.Flags = test.flags
 
@@ -145,8 +161,8 @@ func newCmdSystemUninstallWithMocks(disableSocketFails bool) *CmdSystemUninstall
 	return cmdMock
 }
 
-func mockCmdSystemUninstall() error { return nil }
-func mockCmdSystemUninstallDisableSocketFails() error {
+func mockCmdSystemUninstall(platform string) error { return nil }
+func mockCmdSystemUninstallDisableSocketFails(platform string) error {
 	return fmt.Errorf("disable socket fails")
 }
 

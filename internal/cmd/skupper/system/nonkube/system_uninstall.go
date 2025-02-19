@@ -3,7 +3,9 @@ package nonkube
 import (
 	"errors"
 	"fmt"
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
 	"github.com/spf13/cobra"
 )
@@ -11,7 +13,7 @@ import (
 type CmdSystemUninstall struct {
 	CobraCmd         *cobra.Command
 	Namespace        string
-	SystemUninstall  func() error
+	SystemUninstall  func(string) error
 	CheckActiveSites func() (bool, error)
 	Flags            *common.CommandSystemUninstallFlags
 	forceUninstall   bool
@@ -37,6 +39,10 @@ func (cmd *CmdSystemUninstall) ValidateInput(args []string) error {
 		validationErrors = append(validationErrors, fmt.Errorf("this command does not accept arguments"))
 	}
 
+	if config.GetPlatform() != types.PlatformPodman && config.GetPlatform() != types.PlatformDocker {
+		validationErrors = append(validationErrors, fmt.Errorf("the selected platform is not supported by this command. There is nothing to uninstall"))
+	}
+
 	if cmd.Flags != nil && !cmd.Flags.Force {
 		activeSites, err := cmd.CheckActiveSites()
 		if err != nil {
@@ -57,13 +63,13 @@ func (cmd *CmdSystemUninstall) InputToOptions() {
 
 func (cmd *CmdSystemUninstall) Run() error {
 
-	err := cmd.SystemUninstall()
+	err := cmd.SystemUninstall(string(config.GetPlatform()))
 
 	if err != nil {
 		return fmt.Errorf("failed to uninstall : %s", err)
 	}
 
-	fmt.Println("Podman infrastructure for Skupper is now uninstalled")
+	fmt.Printf("Platform %s infrastructure for Skupper is now uninstalled\n", string(config.GetPlatform()))
 
 	return nil
 }
