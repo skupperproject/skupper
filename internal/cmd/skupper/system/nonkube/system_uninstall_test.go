@@ -50,7 +50,7 @@ func TestCmdSystemUnInstall_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command := newCmdSystemUninstallWithMocks(false, false)
+			command := newCmdSystemUninstallWithMocks(false)
 			command.CobraCmd = common.ConfigureCobraCommand(common.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
 			command.CheckActiveSites = test.mock
 			command.Flags = test.flags
@@ -85,7 +85,7 @@ func TestCmdSystemUninstall_InputToOptions(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			cmd := newCmdSystemUninstallWithMocks(false, false)
+			cmd := newCmdSystemUninstallWithMocks(false)
 			cmd.Flags = test.flags
 			cmd.InputToOptions()
 
@@ -97,7 +97,6 @@ func TestCmdSystemUninstall_InputToOptions(t *testing.T) {
 func TestCmdSystemUninstall_Run(t *testing.T) {
 	type test struct {
 		name               string
-		removeNetworkFails bool
 		disableSocketFails bool
 		errorMessage       string
 	}
@@ -105,26 +104,18 @@ func TestCmdSystemUninstall_Run(t *testing.T) {
 	testTable := []test{
 		{
 			name:               "runs ok",
-			removeNetworkFails: false,
 			disableSocketFails: false,
 			errorMessage:       "",
 		},
 		{
-			name:               "remove network fails",
-			removeNetworkFails: true,
-			disableSocketFails: false,
-			errorMessage:       "failed to uninstall : remove network fails",
-		},
-		{
 			name:               "disable socket fails",
-			removeNetworkFails: false,
 			disableSocketFails: true,
 			errorMessage:       "failed to uninstall : disable socket fails",
 		},
 	}
 
 	for _, test := range testTable {
-		command := newCmdSystemUninstallWithMocks(test.removeNetworkFails, test.disableSocketFails)
+		command := newCmdSystemUninstallWithMocks(test.disableSocketFails)
 
 		t.Run(test.name, func(t *testing.T) {
 
@@ -140,14 +131,11 @@ func TestCmdSystemUninstall_Run(t *testing.T) {
 
 // --- helper methods
 
-func newCmdSystemUninstallWithMocks(removeNetworkFails bool, disableSocketFails bool) *CmdSystemUninstall {
+func newCmdSystemUninstallWithMocks(disableSocketFails bool) *CmdSystemUninstall {
 
 	cmdMock := &CmdSystemUninstall{
 		SystemUninstall:  mockCmdSystemUninstall,
 		CheckActiveSites: mockCmdSystemUninstallNoActiveSites,
-	}
-	if removeNetworkFails {
-		cmdMock.SystemUninstall = mockCmdSystemUninstallRemoveNetworkFails
 	}
 
 	if disableSocketFails {
@@ -158,9 +146,6 @@ func newCmdSystemUninstallWithMocks(removeNetworkFails bool, disableSocketFails 
 }
 
 func mockCmdSystemUninstall() error { return nil }
-func mockCmdSystemUninstallRemoveNetworkFails() error {
-	return fmt.Errorf("remove network fails")
-}
 func mockCmdSystemUninstallDisableSocketFails() error {
 	return fmt.Errorf("disable socket fails")
 }

@@ -37,35 +37,26 @@ func TestCmdSystemInstall_ValidateInput(t *testing.T) {
 
 func TestCmdSystemInstall_Run(t *testing.T) {
 	type test struct {
-		name           string
-		preCheckFails  bool
-		bootstrapFails bool
-		errorMessage   string
+		name                  string
+		socketEnablementFails bool
+		errorMessage          string
 	}
 
 	testTable := []test{
 		{
-			name:           "runs ok",
-			preCheckFails:  false,
-			bootstrapFails: false,
-			errorMessage:   "",
+			name:                  "runs ok",
+			socketEnablementFails: false,
+			errorMessage:          "",
 		},
 		{
-			name:           "network creation fails",
-			preCheckFails:  true,
-			bootstrapFails: false,
-			errorMessage:   "failed to configure the environment : skupper network cannot be created",
-		},
-		{
-			name:           "socket enablement fails",
-			preCheckFails:  false,
-			bootstrapFails: true,
-			errorMessage:   "failed to configure the environment : systemd failed to enable podman socket",
+			name:                  "socket enablement fails",
+			socketEnablementFails: true,
+			errorMessage:          "failed to configure the environment : systemd failed to enable podman socket",
 		},
 	}
 
 	for _, test := range testTable {
-		command := newCmdSystemInstallWithMocks(test.preCheckFails, test.bootstrapFails)
+		command := newCmdSystemInstallWithMocks(test.socketEnablementFails)
 
 		t.Run(test.name, func(t *testing.T) {
 
@@ -81,14 +72,10 @@ func TestCmdSystemInstall_Run(t *testing.T) {
 
 // --- helper methods
 
-func newCmdSystemInstallWithMocks(networkCreationFails bool, podmanSocketEnablementFails bool) *CmdSystemInstall {
+func newCmdSystemInstallWithMocks(podmanSocketEnablementFails bool) *CmdSystemInstall {
 
 	cmdMock := &CmdSystemInstall{
 		SystemInstall: mockCmdSystemInstall,
-	}
-
-	if networkCreationFails {
-		cmdMock.SystemInstall = mockCmdSystemInstallNetworkCreationFails
 	}
 
 	if podmanSocketEnablementFails {
@@ -99,9 +86,6 @@ func newCmdSystemInstallWithMocks(networkCreationFails bool, podmanSocketEnablem
 }
 
 func mockCmdSystemInstall() error { return nil }
-func mockCmdSystemInstallNetworkCreationFails() error {
-	return fmt.Errorf("skupper network cannot be created")
-}
 func mockCmdSystemInstallSocketEnablementFails() error {
 	return fmt.Errorf("systemd failed to enable podman socket")
 }
