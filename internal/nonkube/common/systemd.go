@@ -55,7 +55,7 @@ type systemdServiceInfo struct {
 	platform            string
 }
 
-type systemdGobal struct {
+type systemdGlobal struct {
 	getUid              api.IdGetter
 	command             CommandExecutor
 	rootSystemdBasePath string
@@ -275,7 +275,7 @@ func IsLingeringEnabled(user string) bool {
 
 func NewSystemdGlobal(platform string) (SystemdGlobal, error) {
 
-	return &systemdGobal{
+	return &systemdGlobal{
 		getUid:              os.Getuid,
 		command:             exec.Command,
 		rootSystemdBasePath: rootSystemdBasePath,
@@ -283,19 +283,19 @@ func NewSystemdGlobal(platform string) (SystemdGlobal, error) {
 	}, nil
 }
 
-func (sg *systemdGobal) getCmdEnablePodmanSocket() *exec.Cmd {
+func (sg *systemdGlobal) getCmdEnablePodmanSocket() *exec.Cmd {
 	return sg.command("systemctl", "--user", "enable", "--now", "podman.socket")
 }
 
-func (sg *systemdGobal) getCmdStartPodmanSocket() *exec.Cmd {
+func (sg *systemdGlobal) getCmdStartPodmanSocket() *exec.Cmd {
 	return sg.command("systemctl", "--user", "start", "podman.socket")
 }
 
-func (sg *systemdGobal) getCmdDisablePodmanSocket() *exec.Cmd {
+func (sg *systemdGlobal) getCmdDisablePodmanSocket() *exec.Cmd {
 	return sg.command("systemctl", "--user", "disable", "--now", "podman.socket")
 }
 
-func (sg *systemdGobal) Enable() error {
+func (sg *systemdGlobal) Enable() error {
 	err := sg.getCmdEnablePodmanSocket().Run()
 	if err != nil {
 		return err
@@ -310,7 +310,7 @@ func (sg *systemdGobal) Enable() error {
 
 }
 
-func (sg *systemdGobal) Disable() error {
+func (sg *systemdGlobal) Disable() error {
 	err := sg.getCmdDisablePodmanSocket().Run()
 
 	if err != nil {
