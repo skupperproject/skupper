@@ -34,6 +34,11 @@ type SystemdService interface {
 	GetServiceFile() string
 }
 
+type SystemdGlobal interface {
+	Enable() error
+	Disable() error
+}
+
 type CommandExecutor func(name string, arg ...string) *exec.Cmd
 
 type systemdServiceInfo struct {
@@ -44,6 +49,13 @@ type systemdServiceInfo struct {
 	SiteConfigPath      string
 	SiteHomePath        string
 	RuntimeDir          string
+	getUid              api.IdGetter
+	command             CommandExecutor
+	rootSystemdBasePath string
+	platform            string
+}
+
+type systemdGlobal struct {
 	getUid              api.IdGetter
 	command             CommandExecutor
 	rootSystemdBasePath string
@@ -259,4 +271,60 @@ func IsLingeringEnabled(user string) bool {
 	lingerFile := fmt.Sprintf("/var/lib/systemd/linger/%s", user)
 	_, err := os.Stat(lingerFile)
 	return err == nil
+}
+
+func NewSystemdGlobal(platform string) (SystemdGlobal, error) {
+
+	return &systemdGlobal{
+		getUid:              os.Getuid,
+		command:             exec.Command,
+		rootSystemdBasePath: rootSystemdBasePath,
+		platform:            platform,
+	}, nil
+}
+
+func (sg *systemdGlobal) getCmdEnableSocket() *exec.Cmd {
+	if sg.platform == "docker" || sg.getUid() == 0 {
+		return sg.command("systemctl", "enable", sg.platform+".socket")
+	}
+	return sg.command("systemctl", "--user", "enable", sg.platform+".socket")
+}
+
+func (sg *systemdGlobal) getCmdStartSocket() *exec.Cmd {
+	if sg.platform == "docker" || sg.getUid() == 0 {
+		return sg.command("systemctl", "start", sg.platform+".socket")
+	}
+	return sg.command("systemctl", "--user", "start", sg.platform+".socket")
+}
+
+func (sg *systemdGlobal) getCmdDisableSocket() *exec.Cmd {
+	if sg.platform == "docker" || sg.getUid() == 0 {
+		return sg.command("systemctl", "disable", sg.platform+".socket")
+	}
+	return sg.command("systemctl", "--user", "disable", sg.platform+".socket")
+}
+
+func (sg *systemdGlobal) Enable() error {
+	err := sg.getCmdEnableSocket().Run()
+	if err != nil {
+		return err
+	}
+
+	err = sg.getCmdStartSocket().Run()
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func (sg *systemdGlobal) Disable() error {
+	err := sg.getCmdDisableSocket().Run()
+
+	if err != nil {
+		return err
+	}
+	return nil
+
 }
