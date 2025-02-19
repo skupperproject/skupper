@@ -1,4 +1,4 @@
-# Declarative Simple Example
+# Simple Declarative Example
 
 This example demonstrates how to connect two sites declaratively, without relying on the CLI.
 
