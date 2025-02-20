@@ -18,10 +18,10 @@ observer is to be installed in.
 
 ## Usage
 
-To deploy the Skupper Network Observer to a namsapce using Helm
+To deploy the Skupper Network Observer to a namespace using Helm
 
 ```
-helm install skupper-network-observer .
+helm install skupper-network-observer oci://quay.io/skupper/helm/network-observer --devel
 ```
 
 ## Non-Helm Usage with preconfigured manifest yaml
@@ -86,20 +86,20 @@ ingress:
         - skupper-net-01.mycluster.local
 ```
 
-* Configure an openshift route by setting `route.enabled=true`.
+* Configure an OpenShift route by setting `route.enabled=true`.
 
 * Expose the service as type LoadBalancer `service.type=LoadBalancer`.
 
 ### TLS
 
 TLS is mandatory for this deployment. It can be configured as user provided, provided
-by openshift or by the skupper controller.
+by OpenShift or by the skupper controller.
 
 To use an existing TLS secret, overwrite `tls.secretName`.
 
-To use an openshift generated service certificate, set
+To use an OpenShift generated service certificate, set
 `tls.openshiftIssued=true` and `tls.skupperIssued=false`. An annotation will be
-added to the service that should prompt openshift to provision a TLS secret.
+added to the service that should prompt OpenShift to provision a TLS secret.
 
 ### Authentication
 
@@ -107,8 +107,8 @@ The network observer pod contains a reverse proxy that handles authentication
 and TLS termination for the read only application that binds only to localhost.
 When authentication strategy is "basic", nginx is configured as the proxy, and
 can be configured with user-provided htpasswd file contents or a secret name.
-When authentication strategy is "openshift" an oauth2 proxy is used instead, and
-is configured to use the cluster identity provider for authentication. Openshift
+When authentication strategy is "OpenShift" an oauth2 proxy is used instead, and
+is configured to use the cluster identity provider for authentication. OpenShift
 auth only works with ingress type Route.
 
 To set a secure basic auth credentials run:
