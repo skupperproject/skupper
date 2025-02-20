@@ -21,7 +21,7 @@ observer is to be installed in.
 To deploy the Skupper Network Observer to a namespace using Helm
 
 ```
-helm install skupper-network-observer oci://quay.io/skupper/helm/network-observer
+helm install skupper-network-observer oci://quay.io/skupper/helm/network-observer --devel
 ```
 
 ## Non-Helm Usage with preconfigured manifest yaml
