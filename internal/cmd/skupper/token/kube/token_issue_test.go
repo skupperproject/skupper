@@ -105,6 +105,9 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Name:      "site1",
 								Namespace: "test",
 							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "default",
+							},
 							Status: v2alpha1.SiteStatus{
 								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
@@ -145,6 +148,9 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
+							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "default",
 							},
 							Status: v2alpha1.SiteStatus{
 								Status: v2alpha1.Status{
@@ -187,6 +193,9 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Name:      "site1",
 								Namespace: "test",
 							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "default",
+							},
 							Status: v2alpha1.SiteStatus{
 								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
@@ -227,6 +236,9 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
+							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "default",
 							},
 							Status: v2alpha1.SiteStatus{
 								Status: v2alpha1.Status{
@@ -269,6 +281,9 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Name:      "site1",
 								Namespace: "test",
 							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "default",
+							},
 							Status: v2alpha1.SiteStatus{
 								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
@@ -309,6 +324,9 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
+							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "default",
 							},
 							Status: v2alpha1.SiteStatus{
 								Status: v2alpha1.Status{
@@ -351,6 +369,9 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Name:      "site1",
 								Namespace: "test",
 							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "default",
+							},
 							Status: v2alpha1.SiteStatus{
 								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
@@ -391,6 +412,9 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
+							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "default",
 							},
 							Status: v2alpha1.SiteStatus{
 								Status: v2alpha1.Status{
@@ -433,6 +457,9 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Name:      "site1",
 								Namespace: "test",
 							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "default",
+							},
 							Status: v2alpha1.SiteStatus{
 								Status: v2alpha1.Status{
 									Conditions: []v1.Condition{
@@ -458,6 +485,47 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 			expectedError: `link cost is not valid: strconv.Atoi: parsing "Not-valid": invalid syntax`,
 		},
 		{
+			name: "linkaccess is not valid",
+			args: []string{"~/token.yaml"},
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
+				Cost:               "1",
+			},
+			skupperObjects: []runtime.Object{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "site1",
+								Namespace: "test",
+							},
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
+											Status: "True",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedError: `A site must have link access enabled before a token can be created`,
+		},
+		{
 			name: "flags all valid",
 			args: []string{"~/token.yaml"},
 			flags: common.CommandTokenIssueFlags{
@@ -473,6 +541,9 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
+							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "default",
 							},
 							Status: v2alpha1.SiteStatus{
 								Status: v2alpha1.Status{
