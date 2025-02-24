@@ -10,6 +10,7 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
+          description: "A short-lived credential used to create a link"
           type: object
           properties:
             spec:

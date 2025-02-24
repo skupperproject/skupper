@@ -10,6 +10,7 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
+          description: "A connector binds a local workload to listeners in remote sites"
           type: object
           properties:
             spec:
