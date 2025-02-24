@@ -596,6 +596,60 @@ func TestGeneral(t *testing.T) {
 	}
 }
 
+func TestUpdate(t *testing.T) {
+	testTable := []struct {
+		name           string
+		args           []string
+		env            map[string]string
+		k8sObjects     []runtime.Object
+		skupperObjects []runtime.Object
+		functions      []WaitFunction
+	}{
+		{
+			name: "change listener host",
+			skupperObjects: []runtime.Object{
+				f.site("mysite", "test", "", false, false),
+				f.listener("mylistener", "test", "mysvc", 8080),
+			},
+			functions: []WaitFunction{
+				isListenerStatusConditionTrue("mylistener", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED),
+				serviceCheck("mysvc", "test").check,
+				updateListener("mylistener", "test", "adifferentsvc", 8080),
+				isListenerStatusConditionTrue("mylistener", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED),
+				serviceCheck("adifferentsvc", "test").check,
+				negativeServiceCheck("mysvc", "test"),
+			},
+		},
+	}
+	for _, tt := range testTable {
+		t.Run(tt.name, func(t *testing.T) {
+			flags := &flag.FlagSet{}
+			for k, v := range tt.env {
+				t.Setenv(k, v)
+			}
+			config, err := BoundConfig(flags)
+			assert.Assert(t, err)
+			flags.Parse(tt.args)
+			clients, err := fakeclient.NewFakeClient(config.Namespace, tt.k8sObjects, tt.skupperObjects, "")
+			assert.Assert(t, err)
+			enableSSA(clients.GetDynamicClient())
+			controller, err := NewController(clients, config)
+			assert.Assert(t, err)
+			stopCh := make(chan struct{})
+			err = controller.init(stopCh)
+			assert.Assert(t, err)
+			for i := 0; i < len(tt.k8sObjects)+len(tt.skupperObjects); i++ {
+				controller.controller.TestProcess()
+			}
+			for _, f := range tt.functions {
+				for !f(t, clients) {
+					controller.controller.TestProcess()
+				}
+			}
+		})
+	}
+}
+
 func verifyStatus(t *testing.T, expected skupperv2alpha1.Status, actual skupperv2alpha1.Status) {
 	assert.Equal(t, expected.StatusType, actual.StatusType, actual.Message)
 	assert.Equal(t, expected.Message, actual.Message)
@@ -1553,11 +1607,16 @@ func isConnectorStatusConditionTrue(name string, namespace string, condition str
 	}
 }
 
+func isConditionUpToDate(conditions []metav1.Condition, conditionType string, generation int64) bool {
+	cond := meta.FindStatusCondition(conditions, conditionType)
+	return cond != nil && cond.ObservedGeneration == generation
+}
+
 func isListenerStatusConditionTrue(name string, namespace string, condition string) WaitFunction {
 	return func(t *testing.T, clients internalclient.Clients) bool {
 		listener, err := clients.GetSkupperClient().SkupperV2alpha1().Listeners(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		assert.Assert(t, err)
-		return meta.IsStatusConditionTrue(listener.Status.Conditions, condition)
+		return isConditionUpToDate(listener.Status.Conditions, condition, listener.ObjectMeta.Generation) && meta.IsStatusConditionTrue(listener.Status.Conditions, condition)
 	}
 }
 
@@ -1566,5 +1625,90 @@ func isAttachedConnectorStatusConditionTrue(name string, namespace string, condi
 		connector, err := clients.GetSkupperClient().SkupperV2alpha1().AttachedConnectors(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		assert.Assert(t, err)
 		return meta.IsStatusConditionTrue(connector.Status.Conditions, condition)
+	}
+}
+
+type ServiceCheck struct {
+	name         string
+	namespace    string
+	ports_       []corev1.ServicePort
+	selector_    map[string]string
+	labels_      map[string]string
+	annotations_ map[string]string
+}
+
+func serviceCheck(name string, namespace string) *ServiceCheck {
+	return &ServiceCheck{
+		name:      name,
+		namespace: namespace,
+	}
+}
+
+func (s *ServiceCheck) selector(selector map[string]string) *ServiceCheck {
+	s.selector_ = selector
+	return s
+}
+
+func (s *ServiceCheck) ports(ports ...corev1.ServicePort) *ServiceCheck {
+	s.ports_ = ports
+	return s
+}
+
+func (s *ServiceCheck) labels(labels map[string]string) *ServiceCheck {
+	s.labels_ = labels
+	return s
+}
+
+func (s *ServiceCheck) annotations(annotations map[string]string) *ServiceCheck {
+	s.annotations_ = annotations
+	return s
+}
+
+func (s *ServiceCheck) check(t *testing.T, clients internalclient.Clients) bool {
+	actual, err := clients.GetKubeClient().CoreV1().Services(s.namespace).Get(context.Background(), s.name, metav1.GetOptions{})
+	assert.Assert(t, err)
+	if s.selector_ != nil {
+		assert.DeepEqual(t, s.selector_, actual.Spec.Selector)
+	}
+	if s.ports_ != nil {
+		assert.Equal(t, len(s.ports_), len(actual.Spec.Ports))
+		for i, port := range s.ports_ {
+			// in some cases it is not possible to know the order in which ports on the router are assigned, use * as a wildcard in such cases
+			if port.TargetPort.String() == "*" {
+				s.ports_[i].TargetPort = actual.Spec.Ports[i].TargetPort
+			}
+		}
+		assert.DeepEqual(t, s.ports_, actual.Spec.Ports)
+	}
+	for k, v := range s.labels_ {
+		assert.Assert(t, actual.ObjectMeta.Labels != nil)
+		assert.Equal(t, actual.ObjectMeta.Labels[k], v)
+	}
+	for k, v := range s.annotations_ {
+		assert.Assert(t, actual.ObjectMeta.Annotations != nil)
+		assert.Equal(t, actual.ObjectMeta.Annotations[k], v)
+	}
+	return true
+}
+
+func updateListener(name string, namespace string, host string, port int) WaitFunction {
+	return func(t *testing.T, clients internalclient.Clients) bool {
+		ctxt := context.Background()
+		current, err := clients.GetSkupperClient().SkupperV2alpha1().Listeners(namespace).Get(ctxt, name, metav1.GetOptions{})
+		assert.Assert(t, err)
+		current.Spec.Host = host
+		current.Spec.Port = port
+		current.ObjectMeta.Generation++
+		_, err = clients.GetSkupperClient().SkupperV2alpha1().Listeners(namespace).Update(ctxt, current, metav1.UpdateOptions{})
+		assert.Assert(t, err)
+		return true
+	}
+}
+
+func negativeServiceCheck(name string, namespace string) WaitFunction {
+	return func(t *testing.T, clients internalclient.Clients) bool {
+		_, err := clients.GetKubeClient().CoreV1().Services(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		assert.Assert(t, errors.IsNotFound(err))
+		return true
 	}
 }

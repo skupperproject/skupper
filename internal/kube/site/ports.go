@@ -59,6 +59,11 @@ func (p ExposedPorts) Expose(host string, port Port) *ExposedPortSet {
 	}
 }
 
+func (p ExposedPorts) isExposed(host string) bool {
+	existing, ok := p[host]
+	return ok && !existing.empty()
+}
+
 func (p ExposedPorts) Unexpose(host string, portname string) *ExposedPortSet {
 	if existing, ok := p[host]; ok && existing.remove(portname) {
 		if existing.empty() {

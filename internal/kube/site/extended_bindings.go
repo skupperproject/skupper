@@ -18,6 +18,7 @@ type ExtendedBindings struct {
 	bindings           *site.Bindings
 	connectors         map[string]*AttachedConnector
 	perTargetListeners map[string]*PerTargetListener
+	listenerHosts      map[string]string // listener name -> host
 	controller         *internalclient.Controller
 	site               *Site
 	logger             *slog.Logger
@@ -28,6 +29,7 @@ func NewExtendedBindings(controller *internalclient.Controller, profilePath stri
 		bindings:           site.NewBindings(profilePath),
 		connectors:         map[string]*AttachedConnector{},
 		perTargetListeners: map[string]*PerTargetListener{},
+		listenerHosts:      map[string]string{},
 		controller:         controller,
 		logger: slog.New(slog.Default().Handler()).With(
 			slog.String("component", "kube.site.attached_connector"),
@@ -212,6 +214,16 @@ func (b *ExtendedBindings) UpdateListener(name string, listener *skupperv2alpha1
 			updateConfig = true
 		}
 	}
+	if listener != nil {
+		if previousHost, ok := b.listenerHosts[name]; !ok || previousHost != listener.Spec.Host {
+			if exposed := b.exposed.Unexpose(previousHost, name); exposed != nil && exposed.empty() {
+				if err := b.context.Unexpose(previousHost); err != nil {
+					errs = append(errs, err)
+				}
+			}
+		}
+		b.listenerHosts[name] = listener.Spec.Host
+	}
 	if b.bindings.UpdateListener(name, listener) != nil {
 		updateConfig = true
 	}
@@ -325,4 +337,8 @@ func (b *ExtendedBindings) networkUpdated(network []skupperv2alpha1.SiteRecord) 
 		return nil
 	}
 	return b
+}
+
+func (a *ExtendedBindings) isHostExposed(host string) bool {
+	return a.exposed.isExposed(host)
 }
