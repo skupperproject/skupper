@@ -113,4 +113,4 @@ spec:
     singular: listener
     kind: Listener
     shortNames:
-    - lr
+    - lnr

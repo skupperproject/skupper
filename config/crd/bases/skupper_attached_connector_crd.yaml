@@ -110,4 +110,4 @@ spec:
     singular: attachedconnector
     kind: AttachedConnector
     shortNames:
-    - acr
+    - acnr
