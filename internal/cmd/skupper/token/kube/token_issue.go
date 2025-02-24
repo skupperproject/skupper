@@ -88,7 +88,7 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) error {
 	if cmd.grantName != "" {
 		grant, err := cmd.client.AccessGrants(cmd.namespace).Get(context.TODO(), cmd.grantName, metav1.GetOptions{})
 		if grant != nil && !k8serrs.IsNotFound(err) {
-			validationErrors = append(validationErrors, fmt.Errorf("there is already a token %s created in namespace %s", cmd.grantName, cmd.namespace))
+			validationErrors = append(validationErrors, fmt.Errorf("There is already a token %s created in namespace %s", cmd.grantName, cmd.namespace))
 		}
 	}
 
