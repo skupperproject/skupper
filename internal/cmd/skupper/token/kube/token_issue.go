@@ -82,7 +82,7 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) error {
 		} else {
 			ok, siteName = utils.SiteLinkAccessEnabled(siteList)
 			if !ok {
-				validationErrors = append(validationErrors, fmt.Errorf("A site must have link access enabled before a token can be created"))
+				validationErrors = append(validationErrors, fmt.Errorf("You must have enabled link access for this site before you can create a token."))
 			} else {
 				cmd.grantName = siteName + "-" + uuid.New().String()
 			}

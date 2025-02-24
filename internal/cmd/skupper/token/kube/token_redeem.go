@@ -131,7 +131,6 @@ func (cmd *CmdTokenRedeem) WaitUntil() error {
 	}
 
 	fmt.Printf("Token %q has been redeemed\n", cmd.name)
-	fmt.Printf("You can now safely delete %s\n", cmd.fileName)
 	return nil
 }
 

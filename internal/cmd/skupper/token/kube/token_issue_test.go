@@ -485,7 +485,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 			expectedError: `link cost is not valid: strconv.Atoi: parsing "Not-valid": invalid syntax`,
 		},
 		{
-			name: "linkaccess is not valid",
+			name: "link access is not valid",
 			args: []string{"~/token.yaml"},
 			flags: common.CommandTokenIssueFlags{
 				ExpirationWindow:   15 * time.Minute,
@@ -523,7 +523,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedError: `A site must have link access enabled before a token can be created`,
+			expectedError: `You must have enabled link access for this site before you can create a token.`,
 		},
 		{
 			name: "flags all valid",
