@@ -92,7 +92,7 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
 	if cmd.name != "" {
 		listener, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
 		if listener != nil && !k8serrs.IsNotFound(err) {
-			validationErrors = append(validationErrors, fmt.Errorf("there is already a listener %s created for namespace %s", cmd.name, cmd.namespace))
+			validationErrors = append(validationErrors, fmt.Errorf("There is already a listener %s created for namespace %s", cmd.name, cmd.namespace))
 		}
 	}
 

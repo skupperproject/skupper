@@ -51,7 +51,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 				},
 			},
 			skupperErrorMessage: "AllReadyExists",
-			expectedError:       "there is already a listener my-listener created for namespace test",
+			expectedError:       "There is already a listener my-listener created for namespace test",
 		},
 		{
 			name:          "listener name and port are not specified",

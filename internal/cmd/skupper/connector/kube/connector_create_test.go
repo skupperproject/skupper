@@ -58,7 +58,7 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "there is already a connector my-connector created for namespace test",
+			expectedError: "There is already a connector my-connector created for namespace test",
 		},
 		{
 			name: "connector name and port are not specified",
