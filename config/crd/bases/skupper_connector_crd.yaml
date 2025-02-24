@@ -138,4 +138,4 @@ spec:
     singular: connector
     kind: Connector
     shortNames:
-    - cr
+    - cnr
