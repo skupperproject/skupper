@@ -59,6 +59,12 @@ func skupperNetworkStatus() internalinterfaces.TweakListOptionsFunc {
 	}
 }
 
+func listenerServices() internalinterfaces.TweakListOptionsFunc {
+	return func(options *metav1.ListOptions) {
+		options.LabelSelector = "internal.skupper.io/listener"
+	}
+}
+
 func skupperSiteSizingConfig() internalinterfaces.TweakListOptionsFunc {
 	return func(options *metav1.ListOptions) {
 		options.LabelSelector = sizing.SiteSizingLabel
@@ -107,6 +113,7 @@ func NewController(cli internalclient.Clients, config *Config) (*Controller, err
 
 	controller.siteWatcher = controller.controller.WatchSites(config.WatchNamespace, filter(controller, controller.checkSite))
 	controller.listenerWatcher = controller.controller.WatchListeners(config.WatchNamespace, filter(controller, controller.checkListener))
+	controller.controller.WatchServices(listenerServices(), config.WatchNamespace, filter(controller, controller.checkListenerService))
 	controller.connectorWatcher = controller.controller.WatchConnectors(config.WatchNamespace, filter(controller, controller.checkConnector))
 	controller.linkAccessWatcher = controller.controller.WatchRouterAccesses(config.WatchNamespace, filter(controller, controller.checkRouterAccess))
 	controller.controller.WatchAttachedConnectors(config.WatchNamespace, filter(controller, controller.checkAttachedConnector))
@@ -354,6 +361,14 @@ func (c *Controller) checkListener(key string, listener *skupperv2alpha1.Listene
 		return err
 	}
 	return c.getSite(namespace).CheckListener(name, listener)
+}
+
+func (c *Controller) checkListenerService(key string, svc *corev1.Service) error {
+	c.log.Debug("checkListenerService", slog.String("key", key))
+	if svc == nil {
+		return nil
+	}
+	return c.getSite(svc.Namespace).CheckListenerService(svc)
 }
 
 func (c *Controller) checkLink(key string, linkconfig *skupperv2alpha1.Link) error {
