@@ -10,6 +10,7 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
+          description: "A site is a place on the network where application workloads are running"
           type: object
           properties:
             spec:

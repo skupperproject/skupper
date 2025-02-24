@@ -10,6 +10,7 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
+          description: "A connector in a peer namespace"
           type: object
           properties:
             spec:

@@ -10,6 +10,7 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
+          description: "An internal resource used to indicate TLS credentials to be created"
           type: object
           properties:
             spec:

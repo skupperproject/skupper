@@ -10,6 +10,7 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
+          description: "Permission to redeem access tokens for links to the local site"
           type: object
           properties:
             spec:
