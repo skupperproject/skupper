@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
@@ -22,9 +23,11 @@ func SiteReady(siteList *v2alpha1.SiteList) (bool, string) {
 	return false, ""
 }
 
-func SiteLinkAccessEnabled(siteList *v2alpha1.SiteList) (bool, string) {
+func SiteLinkAccessEnabled(siteList *v2alpha1.SiteList, linkAccessTypes []string) (bool, string) {
+	linkAccessTypeValidator := validator.NewOptionValidator(linkAccessTypes)
 	for _, s := range siteList.Items {
-		if s.Spec.LinkAccess == "default" {
+		ok, _ := linkAccessTypeValidator.Evaluate(s.Spec.LinkAccess)
+		if ok {
 			return true, s.Name
 		}
 	}

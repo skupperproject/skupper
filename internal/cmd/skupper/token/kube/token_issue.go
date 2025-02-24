@@ -80,9 +80,9 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) error {
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 		} else {
-			ok, siteName = utils.SiteLinkAccessEnabled(siteList)
+			ok, siteName = utils.SiteLinkAccessEnabled(siteList, common.LinkAccessTypes)
 			if !ok {
-				validationErrors = append(validationErrors, fmt.Errorf("A site must have link access enabled before a token can be created"))
+				validationErrors = append(validationErrors, fmt.Errorf("You must enable link access for this site before you can create a token."))
 			} else {
 				cmd.grantName = siteName + "-" + uuid.New().String()
 			}

@@ -150,7 +150,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Namespace: "test",
 							},
 							Spec: v2alpha1.SiteSpec{
-								LinkAccess: "default",
+								LinkAccess: "loadbalancer",
 							},
 							Status: v2alpha1.SiteStatus{
 								Status: v2alpha1.Status{
@@ -282,7 +282,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 								Namespace: "test",
 							},
 							Spec: v2alpha1.SiteSpec{
-								LinkAccess: "default",
+								LinkAccess: "route",
 							},
 							Status: v2alpha1.SiteStatus{
 								Status: v2alpha1.Status{
@@ -485,7 +485,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 			expectedError: `link cost is not valid: strconv.Atoi: parsing "Not-valid": invalid syntax`,
 		},
 		{
-			name: "linkaccess is not valid",
+			name: "link access is not valid",
 			args: []string{"~/token.yaml"},
 			flags: common.CommandTokenIssueFlags{
 				ExpirationWindow:   15 * time.Minute,
@@ -523,7 +523,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedError: `A site must have link access enabled before a token can be created`,
+			expectedError: `You must enable link access for this site before you can create a token.`,
 		},
 		{
 			name: "flags all valid",
