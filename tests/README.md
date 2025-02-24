@@ -12,6 +12,11 @@ This folder is intended to receive Skupper tests, including end-to-end (e2e) tes
 
 Each e2e test will be located in its own folder within the `e2e` subdirectory. The folder name will correspond to the name of the test. Inside each folder, you will find all the necessary files and scripts to run the test.
 
+### Tests:
+
+- [Hello World](e2e/hello-world/): A simple test to check if Skupper is working properly by deploying a simple application.
+- [Iperf Attached](e2e/iperf-attached/): A test to check the attached connector functionality by running an iperf server and client.
+
 ## Test Collection
 
 The tests in this repository will use the following collection: [Skupper Tests](https://github.com/rafaelvzago/skupper-tests).
