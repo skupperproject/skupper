@@ -21,3 +21,12 @@ func SiteReady(siteList *v2alpha1.SiteList) (bool, string) {
 	}
 	return false, ""
 }
+
+func SiteLinkAccessEnabled(siteList *v2alpha1.SiteList) (bool, string) {
+	for _, s := range siteList.Items {
+		if s.Spec.LinkAccess != "" && s.Spec.LinkAccess != "none" {
+			return true, s.Name
+		}
+	}
+	return false, ""
+}
