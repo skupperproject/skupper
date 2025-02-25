@@ -3,6 +3,8 @@
 ## 📖 **Description**  
 This test evaluates **network connectivity and performance** between different components using **iperf3** and **Attached Connectors**. The test environment is configured and executed using **Ansible**.  
 
+## ![Diagram](diagram.png)
+
 ## 🏗 **Project Structure**  
 
 ```
