@@ -1,0 +1,13 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: iperf-test
+spec:
+  backoffLimit: 4
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: iperf3
+          image: quay.io/skupper/lanyard
+          command: ["iperf3", "-c", "iperf3", "-p", "5201", "-t", "1", "-b", "1k"]

@@ -1,0 +1,17 @@
+---
+collections:
+  - name: ansible.posix
+    version: 1.4.0
+
+  - name: ansible.scm
+    version: 2.0.0
+
+  - name: ansible.utils
+    version: 4.0.0
+
+  - name: kubernetes.core
+    version: 3.2.0
+
+  - name: https://github.com/rafaelvzago/skupper-tests.git#collections/ansible_collections/rhsiqe/skupper
+    type: git
+    version: 0.1.11
