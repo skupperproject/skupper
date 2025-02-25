@@ -47,11 +47,29 @@ func (o *RouteAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAcces
 func (o *RouteAccessType) ensureRoute(namespace string, route *routev1.Route) (error, *routev1.Route) {
 	key := fmt.Sprintf("%s/%s", namespace, route.Name)
 	if existing, ok := o.manager.routes[key]; ok {
-		if equivalentRoute(existing, route) {
+		changed := false
+		copy := *existing
+		if !equivalentRoute(existing, route) {
+			copy.Spec = route.Spec
+			changed = true
+		}
+		if o.manager.context != nil {
+			if copy.ObjectMeta.Labels == nil {
+				copy.ObjectMeta.Labels = map[string]string{}
+			}
+			if copy.ObjectMeta.Annotations == nil {
+				copy.ObjectMeta.Annotations = map[string]string{}
+			}
+			if o.manager.context.SetLabels(namespace, copy.Name, "Route", copy.ObjectMeta.Labels) {
+				changed = true
+			}
+			if o.manager.context.SetAnnotations(namespace, copy.Name, "Route", copy.ObjectMeta.Annotations) {
+				changed = true
+			}
+		}
+		if !changed {
 			return nil, existing
 		}
-		copy := *existing
-		copy.Spec = route.Spec
 		updated, err := o.manager.clients.GetRouteClient().Routes(namespace).Update(context.Background(), &copy, metav1.UpdateOptions{})
 		if err != nil {
 			log.Printf("Error on update for route %s/%s: %s", namespace, route.Name, err)
@@ -60,6 +78,10 @@ func (o *RouteAccessType) ensureRoute(namespace string, route *routev1.Route) (e
 		log.Printf("Route %s/%s updated successfully", namespace, route.Name)
 		o.manager.routes[key] = updated
 		return nil, updated
+	}
+	if o.manager.context != nil {
+		o.manager.context.SetLabels(namespace, route.Name, "Route", route.ObjectMeta.Labels)
+		o.manager.context.SetAnnotations(namespace, route.Name, "Route", route.ObjectMeta.Annotations)
 	}
 	created, err := o.manager.clients.GetRouteClient().Routes(namespace).Create(context.Background(), route, metav1.CreateOptions{})
 	if err != nil {
