@@ -1,78 +1,108 @@
-# Skupper Tests Folder
+# Skupper Tests
 
-This folder is intended to receive Skupper tests, including end-to-end (e2e) tests which will be placed in the `e2e` subfolder. Each e2e test will be organized into its own folder, containing all necessary files and scripts to run the test.
+This repository contains tests for Skupper, a layer 7 service interconnect solution that enables secure communication across Kubernetes clusters and other environments.
 
 ## Repository Structure
 
-- `LICENSE`: Contains the Apache License, Version 2.0 under which this project is licensed.
-- `README.md`: This file, providing an overview of the project.
-- `tests/`: Directory that will contain folders for each e2e test. Each folder will be named after the test it contains.
-
-## E2E Tests
-
-Each e2e test will be located in its own folder within the `e2e` subdirectory. The folder name will correspond to the name of the test. Inside each folder, you will find all the necessary files and scripts to run the test.
-
-### Tests:
-
-- [Hello World](e2e/hello-world/): A simple test to check if Skupper is working properly by deploying a simple application.
-- [Iperf Attached](e2e/iperf-attached/): A test to check the attached connector functionality by running an iperf server and client.
-
-## Test Collection
-
-The tests in this repository will use the following collection: [Skupper Tests](https://github.com/rafaelvzago/skupper-tests).
-
-## Prerequisites
-
-To run the tests in this repository, you will need to have the following prerequisites installed on your system:
-
-- Skupper V2 installed on the cluster(s) you will be testing.
-- If you are willing to test in a namespace level, you will need to have it installed prior to running the tests.
-
-## E2E Tests Structure
-
-* Each e2e test will be organized into its own folder within the `e2e` subdirectory. The folder name will correspond to the name of the test. Inside each folder, you will find all the necessary files and scripts to run the test.
-* Inside the `e2e/YOUR_TEST` folder you will need to follow:
-
 ```
-e2e/
-  └── YOUR_TEST/
-    ├── requirements.txt
-    └── test.yml
+tests/
+├── e2e/                      # End-to-end tests directory
+│   ├── hello-world/          # Basic Skupper functionality test
+│   └── iperf3-attached/      # Network performance test with attached connectors
+└── README.md                 # This file
 ```
 
-* `requirements.txt`: List of dependencies required to run the test.
-* `test.yml`: Configuration file for the test.
+## End-to-End (E2E) Tests
 
-A virtual environment is recommended to run the tests. To create a virtual environment.
+The `e2e` directory contains tests that validate Skupper functionality across different environments. Each test is organized into its own directory with all necessary files to run independently.
 
-Example:
+### Available E2E Tests
+
+- **[hello-world](e2e/hello-world/)**: A simple test to verify basic Skupper functionality by deploying frontend and backend components across Skupper sites.
+- **[iperf3-attached](e2e/iperf3-attached/)**: Tests the attached connector functionality by measuring network performance using iperf3.
+
+## Test Requirements
+
+To run the tests in this repository, you'll need:
+
+1. **Skupper V2**: Installed on the target cluster(s)
+2. **Kubernetes Access**: Valid kubeconfig with appropriate permissions
+3. **Ansible**: Core Ansible packages and required collections
+4. **Python**: 3.7+ with required dependencies
+
+## Getting Started
+
+Each test directory contains its own README with specific instructions, but here's the general process:
+
+### 1. Set Up Environment
 
 ```bash
 # Create a virtual environment
-python3.11 -m venv --upgrade-deps e2e/hello-world/venv
+python3 -m venv .venv
 
 # Activate the virtual environment
-source e2e/hello-world/venv/bin/activate
-
-# Install the dependencies
-pip install -r e2e/hello-world/requirements.txt
-
-# Run the test
-ansible-playbook e2e/hello-world/test.yml -i e2e/hello-world/inventory
+source .venv/bin/activate  # On Linux/Mac
+# OR
+.venv\Scripts\activate     # On Windows
 ```
 
-## Running the Tests
+### 2. Install Dependencies
 
-To run the tests, follow the instructions provided in each test folder. Generally, you will need to have Skupper.io tool version 2 installed and configured on your system.
+```bash
+# Navigate to the specific test directory
+cd e2e/hello-world/  # Example
 
-## License
+# Install Python dependencies
+pip install -r requirements.txt
 
-This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for more details.
+# Install Ansible collections
+ansible-galaxy collection install -r collections/requirements.yml
+```
+
+### 3. Run Test
+
+```bash
+# Run the test playbook
+ansible-playbook test.yml -i inventory
+```
+
+## Core Ansible Collections
+
+The tests rely on the following Ansible collections:
+
+- **ansible.posix** (v1.4.0)
+- **ansible.scm** (v2.0.0)
+- **ansible.utils** (v4.0.0)
+- **kubernetes.core** (v3.2.0)
+- **skupper.v2** (v2.0.0-preview-1)
+- **rhsiqe.skupper** (from GitHub: rafaelvzago/skupper-tests)
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request if you have any improvements or new tests to add.
+When adding new tests to this repository, please follow these guidelines:
+
+1. **Directory Structure**: Create a new directory under `e2e/` with a descriptive name
+2. **Documentation**: Include a comprehensive README.md
+3. **Requirements**: List all dependencies in requirements.txt
+4. **Testing**: Ensure tests have proper validation and cleanup
+
+A standard test directory should include:
+
+```
+e2e/your-test/
+├── ansible.cfg           # Ansible configuration
+├── collections/          # Ansible collections
+│   └── requirements.yml  # Collection dependencies
+├── inventory/            # Test inventory
+├── README.md             # Test documentation
+├── requirements.txt      # Python dependencies
+└── test.yml              # Main test playbook
+```
+
+## License
+
+This project is licensed under the Apache License, Version 2.0. See the [LICENSE](../LICENSE) file for more details.
 
 ## Contact
 
-For any questions or issues, please open an issue in this repository.
+For questions or issues, please open an issue in this repository.
