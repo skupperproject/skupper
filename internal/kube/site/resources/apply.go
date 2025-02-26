@@ -56,17 +56,18 @@ func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Siz
 }
 
 type CoreParams struct {
-	SiteId         string
-	SiteName       string
-	Group          string
-	Replicas       int
-	ServiceAccount string
-	ConfigDigest   string
-	RouterImage    skuppertypes.ImageDetails
-	AdaptorImage   skuppertypes.ImageDetails
-	Sizing         sizing.Sizing
-	Labels         map[string]string
-	Annotations    map[string]string
+	SiteId             string
+	SiteName           string
+	Group              string
+	Replicas           int
+	ServiceAccount     string
+	ConfigDigest       string
+	RouterImage        skuppertypes.ImageDetails
+	AdaptorImage       skuppertypes.ImageDetails
+	Sizing             sizing.Sizing
+	Labels             map[string]string
+	Annotations        map[string]string
+	EnableAntiAffinity bool
 }
 
 func (p *CoreParams) setLabelsAndAnnotations(labelling Labelling, namespace string, name string, kind string) *CoreParams {
@@ -150,16 +151,17 @@ func configDigest(config *skupperv2alpha1.SiteSpec) string {
 
 func getCoreParams(site *skupperv2alpha1.Site, group string, size sizing.Sizing) *CoreParams {
 	return &CoreParams{
-		SiteId:         site.GetSiteId(),
-		SiteName:       site.Name,
-		Group:          group,
-		Replicas:       1,
-		ServiceAccount: site.Spec.GetServiceAccount(),
-		ConfigDigest:   configDigest(&site.Spec),
-		RouterImage:    images.GetRouterImageDetails(),
-		AdaptorImage:   images.GetKubeAdaptorImageDetails(),
-		Sizing:         size,
-		Labels:         map[string]string{},
+		SiteId:             site.GetSiteId(),
+		SiteName:           site.Name,
+		Group:              group,
+		Replicas:           1,
+		ServiceAccount:     site.Spec.GetServiceAccount(),
+		ConfigDigest:       configDigest(&site.Spec),
+		RouterImage:        images.GetRouterImageDetails(),
+		AdaptorImage:       images.GetKubeAdaptorImageDetails(),
+		Sizing:             size,
+		Labels:             map[string]string{},
+		EnableAntiAffinity: enableAntiAffinity(site),
 	}
 }
 
@@ -171,4 +173,19 @@ func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv2a
 		}
 	}
 	return nil
+}
+
+func enableAntiAffinity(site *skupperv2alpha1.Site) bool {
+	return site.Spec.HA && !getValueAsBool(site.Spec.Settings, "disable-anti-affinity")
+}
+
+func getValueAsBool(settings map[string]string, key string) bool {
+	if settings == nil {
+		return false
+	}
+	if sval, ok := settings[key]; ok {
+		bval, _ := strconv.ParseBool(sval)
+		return bval
+	}
+	return false
 }
