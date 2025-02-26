@@ -159,3 +159,15 @@ spec:
       volumes:
       - emptyDir: {}
         name: skupper-router-certs
+{{- if .EnableAntiAffinity}}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  application: skupper-router
+                  skupper.io/type: site
+              topologyKey: "kubernetes.io/hostname"
+{{- end }}
