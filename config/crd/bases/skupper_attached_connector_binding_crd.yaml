@@ -87,7 +87,7 @@ spec:
         description: The status of the connector
         jsonPath: .status.status
       - name: Has Matching Listener
-        type: integer
+        type: boolean
         description: Whether there is at least one listener in the network with a matching routing key.
         jsonPath: .status.hasMatchingListener
   scope: Namespaced
