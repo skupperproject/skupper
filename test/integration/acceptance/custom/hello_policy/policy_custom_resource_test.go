@@ -7,6 +7,7 @@ import (
 	"context"
 	"log"
 	"regexp"
+	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
