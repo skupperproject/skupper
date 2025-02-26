@@ -49,7 +49,7 @@ func removeCrd(cluster *base.ClusterContext) (changed bool, err error) {
 		return
 	}
 
-	output, err = cluster.KubectlExec("delete crd skupperclusterpolicies.skupper.io")
+	output, err := cluster.KubectlExec("delete crd skupperclusterpolicies.skupper.io")
 	if strings.Contains(string(output), "not found") {
 		changed = true
 		log.Printf("CRD not found while trying to delete, skipping: %v", err)
@@ -58,7 +58,7 @@ func removeCrd(cluster *base.ClusterContext) (changed bool, err error) {
 	}
 
 	if err != nil {
-		log.Printf("Removal of CRD failed: %v", err.Error())
+		log.Printf("Removal of CRD failed: %v", err)
 	}
 	return
 }
