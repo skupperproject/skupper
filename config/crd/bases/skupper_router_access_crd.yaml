@@ -25,6 +25,8 @@ spec:
                         type: string
                       port:
                         type: integer
+                    required:
+                      - name
                 generateTlsCredentials:
                   type: boolean
                 issuer:
