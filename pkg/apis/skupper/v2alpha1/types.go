@@ -1012,7 +1012,7 @@ type AttachedConnectorList struct {
 
 type AttachedConnectorSpec struct {
 	SiteNamespace       string            `json:"siteNamespace"`
-	Selector            string            `json:"selector,omitempty"`
+	Selector            string            `json:"selector"`
 	Port                int               `json:"port"`
 	TlsCredentials      string            `json:"tlsCredentials,omitempty"`
 	UseClientCert       bool              `json:"useClientCert,omitempty"`
