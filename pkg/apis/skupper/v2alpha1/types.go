@@ -313,8 +313,8 @@ func (a *Endpoint) Url() string {
 }
 
 type SiteRecord struct {
-	Id        string          `json:"id"`
-	Name      string          `json:"name"`
+	Id        string          `json:"id,omitempty"`
+	Name      string          `json:"name,omitempty"`
 	Namespace string          `json:"namespace,omitempty"`
 	Platform  string          `json:"platform,omitempty"`
 	Version   string          `json:"version,omitempty"`
@@ -323,16 +323,16 @@ type SiteRecord struct {
 }
 
 type ServiceRecord struct {
-	RoutingKey string   `json:"routingKey"`
-	Connectors []string `json:"connectors"`
-	Listeners  []string `json:"listeners"`
+	RoutingKey string   `json:"routingKey,omitempty"`
+	Connectors []string `json:"connectors,omitempty"`
+	Listeners  []string `json:"listeners,omitempty"`
 }
 
 type LinkRecord struct {
-	Name           string `json:"name"`
-	RemoteSiteId   string `json:"remoteSiteId"`
-	RemoteSiteName string `json:"remoteSiteName"`
-	Operational    bool   `json:"operational"`
+	Name           string `json:"name,omitempty"`
+	RemoteSiteId   string `json:"remoteSiteId,omitempty"`
+	RemoteSiteName string `json:"remoteSiteName,omitempty"`
+	Operational    bool   `json:"operational,omitempty"`
 }
 
 // +genclient
@@ -504,8 +504,8 @@ type ConnectorSpec struct {
 
 type PodDetails struct {
 	UID  string `json:"-"`
-	Name string `json:"name"`
-	IP   string `json:"ip"`
+	Name string `json:"name,omitempty"`
+	IP   string `json:"ip,omitempty"`
 }
 
 type ConnectorStatus struct {
@@ -701,9 +701,9 @@ type AccessGrantSpec struct {
 
 type AccessGrantStatus struct {
 	Status         `json:",inline"`
-	Url            string `json:"url"`
-	Code           string `json:"code"`
-	Ca             string `json:"ca"`
+	Url            string `json:"url,omitempty"`
+	Code           string `json:"code,omitempty"`
+	Ca             string `json:"ca,omitempty"`
 	Redemptions    int    `json:"redemptions,omitempty"`
 	ExpirationTime string `json:"expirationTime,omitempty"`
 }
