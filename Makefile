@@ -26,22 +26,36 @@ DOCKER := docker
 SKOPEO := skopeo
 PODMAN := podman
 
-all: build-cli build-kube-adaptor build-controller build-network-observer
+all: skupper controller kube-adaptor network-observer
 
-build-cli:
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o skupper ./cmd/skupper
+basepkg = github.com/skupperproject/skupper
+# This lists non-test Go files inside each directory corresponding
+# to the first argument and any Go-determined dependencies
+godeps = $(filter-out %_test.go,$(wildcard $(patsubst %,%/*.go,$(1) $(shell go list -json $(1) | jq -r '.Deps[] | select(startswith("$(basepkg)/")) | sub("$(basepkg)"; ".")'))))
+# This lists embedded files in Go dependencies
+embeddeddeps = $(wildcard $(shell grep //go:embed $(call godeps,$(1)) | sed -E 'sX[^/]+.go:.*//go:embed XX'))
+# This lists all dependencies from a given package
+pkgdeps = $(call godeps,$(1)) $(call embeddeddeps,$(1))
 
-build-controller:
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o controller ./cmd/controller
+build-cli: skupper
+skupper: $(call pkgdeps,./cmd/skupper)
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o $@ ./cmd/skupper
 
-build-kube-adaptor:
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o kube-adaptor ./cmd/kube-adaptor
+build-controller: controller
+controller: $(call pkgdeps,./cmd/controller)
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o $@ ./cmd/controller
 
-build-network-observer:
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o network-observer ./cmd/network-observer
+build-kube-adaptor: kube-adaptor
+kube-adaptor: $(call pkgdeps,./cmd/kube-adaptor)
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o $@ ./cmd/kube-adaptor
 
-build-doc-generator:
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o generate-doc ./internal/cmd/generate-doc
+build-network-observer: network-observer
+network-observer: $(call pkgdeps,./cmd/network-observer)
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o $@ ./cmd/network-observer
+
+build-doc-generator: generate-doc
+generate-doc: $(call pkgdeps,./internal/cmd/generate-doc)
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o $@ ./internal/cmd/generate-doc
 
 ## native/default container image builds
 docker-build: $(patsubst Dockerfile.%,docker-build-%,$(CONTAINERFILES))
@@ -112,10 +126,10 @@ cover:
 		-coverprofile cover.out \
 		./...
 
-generate-manifest: build-cli
+generate-manifest: skupper
 	./skupper version -o json > manifest.json
 
-generate-doc: build-doc-generator
+generate-docs: generate-doc
 	./generate-doc ./doc/cli
 
 generate-skupper-helm-chart:
