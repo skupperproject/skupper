@@ -164,6 +164,8 @@ func TestIsValidFor(t *testing.T) {
 		{"0.7.1", "0.7.0", true},
 		{"0.8.6", "0.7.5", true},
 		{"1.0.0", "0.7.0", true},
+		{"v1-dev", "1.5.0", true},
+		{"v1-dev-release-3-gc4f821eb", "1.5.0", true},
 	}
 	for _, test := range tests {
 		if actual := IsValidFor(test.actual, test.minimum); actual != test.expected {

@@ -7,6 +7,7 @@ import (
 	"context"
 	"log"
 	"regexp"
+	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/client"
@@ -48,7 +49,13 @@ func removeCrd(cluster *base.ClusterContext) (changed bool, err error) {
 		return
 	}
 
-	if _, err = cluster.KubectlExec("delete crd skupperclusterpolicies.skupper.io"); err != nil {
+	output, err := cluster.KubectlExec("delete crd skupperclusterpolicies.skupper.io")
+	if strings.Contains(string(output), "not found") {
+		log.Printf("CRD not found while trying to delete, skipping")
+		return true, nil
+	}
+
+	if err != nil {
 		log.Printf("Removal of CRD failed: %v", err)
 	}
 	return

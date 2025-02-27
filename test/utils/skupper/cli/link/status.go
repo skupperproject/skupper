@@ -63,6 +63,7 @@ func (l *StatusTester) Run(platform types.Platform, cluster *base.ClusterContext
 		stdout, stderr, err = l.run(platform, cluster)
 		log.Printf("Validating 'skupper link status' - attempt %d", attempt)
 		if err != nil {
+			log.Printf("skupper link status command output:\n %s \n", stdout)
 			log.Printf("error executing link status command: %v", err)
 			return false, nil
 		}
