@@ -1118,7 +1118,7 @@ func asSecuredAccessSpec(la *skupperv2alpha1.RouterAccess, group string, default
 		},
 		Certificate: la.Spec.TlsCredentials,
 		Issuer:      issuer,
-		Options:     la.Spec.Options,
+		Settings:    la.Spec.Settings,
 	}
 	if group != "" {
 		//add extra label to allow for distinct sets of routers in HA
