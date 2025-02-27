@@ -29,6 +29,9 @@ spec:
                         type: integer
                       protocol:
                         type: string
+                    required:
+                    - name
+                    - port
                 selector:
                   type: object
                   additionalProperties:
