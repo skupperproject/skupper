@@ -34,6 +34,8 @@ spec:
               properties:
                 status:
                   type: string
+                message:
+                  type: string
                 conditions:
                   type: array
                   items:
