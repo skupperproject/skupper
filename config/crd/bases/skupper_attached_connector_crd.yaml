@@ -24,6 +24,8 @@ spec:
                   type: string
                 tlsCredentials:
                   type: string
+                useClientCert:
+                  type: boolean
                 type:
                   type: string
                 includeNotReadyPods:
