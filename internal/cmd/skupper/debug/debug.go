@@ -2,6 +2,7 @@ package debug
 
 import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/debug/check"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/debug/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/debug/nonkube"
 	"github.com/skupperproject/skupper/internal/config"
@@ -27,6 +28,8 @@ func CmdDebugFactory(configuredPlatform common.Platform) *cobra.Command {
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdDebugDesc, kubeCommand, nonKubeCommand)
+
+	cmd.AddCommand(check.NewCmdCheck())
 
 	cmdFlags := common.CommandDebugFlags{}
 
