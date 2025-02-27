@@ -940,7 +940,7 @@ type RouterAccessList struct {
 
 type RouterAccessRole struct {
 	Name string `json:"name"`
-	Port int    `json:"port"`
+	Port int    `json:"port,omitempty"`
 }
 
 func (role RouterAccessRole) GetPort() int32 {
@@ -957,8 +957,8 @@ type RouterAccessSpec struct {
 	AccessType              string             `json:"accessType,omitempty"`
 	Roles                   []RouterAccessRole `json:"roles"`
 	TlsCredentials          string             `json:"tlsCredentials"`
-	GenerateTlsCredentials  bool               `json:"generateTlsCredentials"`
-	Issuer                  string             `json:"issuer"`
+	GenerateTlsCredentials  bool               `json:"generateTlsCredentials,omitempty"`
+	Issuer                  string             `json:"issuer,omitempty"`
 	Options                 map[string]string  `json:"options,omitempty"`
 	BindHost                string             `json:"bindHost,omitempty"`
 	SubjectAlternativeNames []string           `json:"subjectAlternativeNames,omitempty"`
