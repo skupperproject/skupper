@@ -73,7 +73,7 @@ func (o *RouteAccessType) ensureRoute(namespace string, route *routev1.Route) (e
 
 func desiredRouteForPort(sa *skupperv2alpha1.SecuredAccess, port skupperv2alpha1.SecuredAccessPort) *routev1.Route {
 	name := fmt.Sprintf("%s-%s", sa.Name, port.Name)
-	host := sa.Spec.Options["domain"]
+	host := sa.Spec.Settings["domain"]
 	if host != "" {
 		host = fmt.Sprintf("%s.%s.%s", name, sa.Namespace, host)
 	}

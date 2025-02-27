@@ -456,7 +456,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 				},
 				Spec: skupperv2alpha1.SecuredAccessSpec{
 					AccessType: ACCESS_TYPE_ROUTE,
-					Options: map[string]string{
+					Settings: map[string]string{
 						"domain": "users.domain.org",
 					},
 					Selector: map[string]string{

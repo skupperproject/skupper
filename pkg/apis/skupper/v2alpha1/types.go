@@ -772,7 +772,6 @@ type SecuredAccessSpec struct {
 	Ports       []SecuredAccessPort `json:"ports"`
 	Certificate string              `json:"certificate,omitempty"`
 	Issuer      string              `json:"issuer,omitempty"`
-	Options     map[string]string   `json:"options,omitempty"`
 	Settings    map[string]string   `json:"settings,omitempty"`
 }
 
@@ -959,7 +958,6 @@ type RouterAccessSpec struct {
 	TlsCredentials          string             `json:"tlsCredentials"`
 	GenerateTlsCredentials  bool               `json:"generateTlsCredentials,omitempty"`
 	Issuer                  string             `json:"issuer,omitempty"`
-	Options                 map[string]string  `json:"options,omitempty"`
 	BindHost                string             `json:"bindHost,omitempty"`
 	SubjectAlternativeNames []string           `json:"subjectAlternativeNames,omitempty"`
 	Settings                map[string]string  `json:"settings,omitempty"`
