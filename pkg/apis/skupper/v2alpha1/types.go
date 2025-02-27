@@ -576,7 +576,7 @@ type LinkList struct {
 }
 
 type LinkSpec struct {
-	Endpoints      []Endpoint        `json:"endpoints,omitempty"`
+	Endpoints      []Endpoint        `json:"endpoints"`
 	TlsCredentials string            `json:"tlsCredentials,omitempty"`
 	Cost           int               `json:"cost,omitempty"`
 	Settings       map[string]string `json:"settings,omitempty"`
