@@ -210,7 +210,7 @@ func main() {
 
 	flags.BoolVar(&cfg.EnableConsole, "enable-console", true, "Enables the web console")
 	flags.StringVar(&cfg.ConsoleLocation, "console-location", "/app/console", "Location where the console assets are installed")
-	flags.StringVar(&cfg.PrometheusAPI, "prometheus-api", "http://network-observer-prometheus:9090", "Prometheus API HTTP endpoint for console")
+	flags.StringVar(&cfg.PrometheusAPI, "prometheus-api", "http://127.0.0.1:9090", "Prometheus API HTTP endpoint for console")
 
 	flags.DurationVar(&cfg.FlowRecordTTL, "flow-record-ttl", 15*time.Minute, "How long to retain flow records in memory")
 	flags.BoolVar(&cfg.CORSAllowAll, "cors-allow-all", false, "Development option to allow all origins")
