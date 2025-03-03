@@ -284,27 +284,51 @@ func NewSystemdGlobal(platform string) (SystemdGlobal, error) {
 }
 
 func (sg *systemdGlobal) getCmdEnableSocket() *exec.Cmd {
-	if sg.platform == "docker" || sg.getUid() == 0 {
+	if sg.getUid() == 0 {
 		return sg.command("systemctl", "enable", sg.platform+".socket")
+	} else if sg.platform == "podman" {
+		return sg.command("systemctl", "--user", "enable", sg.platform+".socket")
 	}
-	return sg.command("systemctl", "--user", "enable", sg.platform+".socket")
+	return nil
 }
 
 func (sg *systemdGlobal) getCmdStartSocket() *exec.Cmd {
-	if sg.platform == "docker" || sg.getUid() == 0 {
+	if sg.getUid() == 0 {
 		return sg.command("systemctl", "start", sg.platform+".socket")
+	} else if sg.platform == "podman" {
+		return sg.command("systemctl", "--user", "start", sg.platform+".socket")
 	}
-	return sg.command("systemctl", "--user", "start", sg.platform+".socket")
+	return nil
+}
+
+func (sg *systemdGlobal) getCmdStopSocket() *exec.Cmd {
+
+	if sg.getUid() == 0 {
+		return sg.command("systemctl", "stop", sg.platform+".socket")
+	} else if sg.platform == "podman" {
+		return sg.command("systemctl", "--user", "stop", sg.platform+".socket")
+	}
+
+	return nil
 }
 
 func (sg *systemdGlobal) getCmdDisableSocket() *exec.Cmd {
-	if sg.platform == "docker" || sg.getUid() == 0 {
+
+	if sg.getUid() == 0 {
 		return sg.command("systemctl", "disable", sg.platform+".socket")
+	} else if sg.platform == "podman" {
+		return sg.command("systemctl", "--user", "disable", sg.platform+".socket")
 	}
-	return sg.command("systemctl", "--user", "disable", sg.platform+".socket")
+
+	return nil
 }
 
 func (sg *systemdGlobal) Enable() error {
+
+	if sg.platform == "docker" && sg.getUid() != 0 {
+		return fmt.Errorf("Docker installation must be run as root user.")
+	}
+
 	err := sg.getCmdEnableSocket().Run()
 	if err != nil {
 		return err
@@ -320,11 +344,20 @@ func (sg *systemdGlobal) Enable() error {
 }
 
 func (sg *systemdGlobal) Disable() error {
-	err := sg.getCmdDisableSocket().Run()
 
-	if err != nil {
-		return err
+	if sg.platform == "podman" {
+
+		err := sg.getCmdDisableSocket().Run()
+		if err != nil {
+			return err
+		}
+
+		err = sg.getCmdStopSocket().Run()
+		if err != nil {
+			return err
+		}
 	}
+
 	return nil
 
 }
