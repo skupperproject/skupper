@@ -1,0 +1,6 @@
+---
+kubeconfig: "{{ lookup('env', 'HOME') }}/.kube/config"
+namespace_prefix: test
+namespace_name: skupper
+teardown_test_namespace_label: "test"
+

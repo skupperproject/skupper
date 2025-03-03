@@ -1,5 +1,9 @@
 ---
 ansible_connection: local
-ansible_user: rzago
+ansible_user: "{{ lookup('env', 'USER') }}"
 debug: false
-namespace_prefix: zago
+namespace_prefix: e2e
+
+# Generate variables for the namespace
+generate_namespaces_namespace_label: "test"
+teteardown_test_namespace_label: "test"

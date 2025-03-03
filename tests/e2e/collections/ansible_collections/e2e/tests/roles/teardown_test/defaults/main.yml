@@ -1,0 +1,4 @@
+---
+# defaults file for roles/teardown_namespaces
+teardown_test_temp_dir_path: "" # Path to the temporary directory
+teardown_test_namespace_label: "" # Label to identify the namespaces to be deleted

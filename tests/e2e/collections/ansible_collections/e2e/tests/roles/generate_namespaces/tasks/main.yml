@@ -1,11 +1,16 @@
 ---
 # roles/generate_namespaces/tasks/main.yml
-- name: Create namespace
+- name: Creating the namespaces
   kubernetes.core.k8s:
-    kubeconfig: "{{ kubeconfig }}"
     state: present
-    kind: Namespace
-    name: "{{ namespace_prefix }}-{{ namespace_name }}"
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ namespace_prefix }}-{{ namespace_name }}"
+        labels:
+          e2e.id: "{{ generate_namespaces_namespace_label }}"
+    kubeconfig: "{{ kubeconfig }}"
   register: namespace
 
 - name: Display namespace name
