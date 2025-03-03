@@ -1,0 +1,4 @@
+---
+ansible_connection: local
+ansible_user: rzago
+debug: false

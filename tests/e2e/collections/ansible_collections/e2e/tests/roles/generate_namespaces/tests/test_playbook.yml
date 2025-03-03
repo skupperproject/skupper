@@ -1,0 +1,15 @@
+---
+- name: Test playbook for the generate_namespaces role
+  hosts: all
+  roles:
+  - rhsiqe.skupper.skupper_test_images
+  tasks:
+    - name: Include the role to generate the namespaces
+      ansible.builtin.include_role:
+        name: rhsiqe.skupper.generate_namespaces
+      register: generate_namespaces_result
+
+    - name: Include role to delete test artifacts
+      ansible.builtin.include_role:
+        name: rhsiqe.skupper.teardown_test
+      register: teardown_result

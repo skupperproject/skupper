@@ -1,0 +1,12 @@
+# roles/env_shakeout/tasks/main.yml
+---
+- name: Debug all host vars
+  ansible.builtin.debug:
+    var: hostvars[inventory_hostname]
+  when: env_shakeout_debug | bool
+
+- name: Check cluster connection
+  kubernetes.core.k8s_info:
+    kind: Node
+    kubeconfig: "{{ kubeconfig }}"
+  register: cluster_check
