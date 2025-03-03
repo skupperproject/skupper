@@ -1,0 +1,5 @@
+resources:
+- bases/skupper-operator.clusterserviceversion.yaml
+
+patches:
+  - path: patch-related-images.yaml
