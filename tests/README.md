@@ -2,6 +2,17 @@
 
 This repository contains tests for Skupper, a layer 7 service interconnect solution that enables secure communication across Kubernetes clusters and other environments.
 
+## Python Version
+
+This repository requires Python 3.9 or later. Create a virtual environment and install the dependencies to run the tests. Please keep in mind that is your responsibility to ensure that the Python version is compatible with the dependencies.
+
+```bash
+# Under E2E test directory
+python3.13 -m venv --upgrade-deps venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
 ## Repository Structure
 
 ```
