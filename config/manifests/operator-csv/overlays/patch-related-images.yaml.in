@@ -1,0 +1,17 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  name: skupper-operator.v${FULL_VERSION}
+  namespace: placeholder
+spec:
+  relatedImages:
+    - image: ${IMAGE_REGISTRY}/${REPOSITORY_NAME}/skupper-router@${SKUPPER_ROUTER_SHA}
+      name: skupper-router
+    - image: ${IMAGE_REGISTRY}/${REPOSITORY_NAME}/kube-adaptor@${KUBE_ADAPTOR_SHA}
+      name: skupper-kube-adaptor
+    - image: ${IMAGE_REGISTRY}/${REPOSITORY_NAME}/controller@${CONTROLLER_SHA}
+      name: skupper-controller
+    - image: ${IMAGE_REGISTRY}/${REPOSITORY_NAME}/cli@${CLI_SHA}
+      name: skupper-cli
+    - image: ${IMAGE_REGISTRY}/${REPOSITORY_NAME}/network-observer@${NETWORK_OBSERVER_SHA}
+      name: skupper-network-observer

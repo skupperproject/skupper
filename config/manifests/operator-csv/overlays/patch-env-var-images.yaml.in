@@ -1,0 +1,27 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  name: skupper-operator.v${FULL_VERSION}
+  namespace: placeholder
+spec:
+  install:
+    spec:
+      deployments:
+      - name: skupper-controller
+        spec:
+          selector:
+            matchLabels:
+              application: skupper-controller        
+          template:
+            spec:
+              containers:
+                - name: controller
+                  env:
+                    - name: SKUPPER_ROUTER_IMAGE
+                      value: ${IMAGE_REGISTRY}/${REPOSITORY_NAME}/skupper-router@${SKUPPER_ROUTER_SHA}
+                    - name: SKUPPER_ROUTER_IMAGE_PULL_POLICY
+                      value: Always
+                    - name: SKUPPER_KUBE_ADAPTOR_IMAGE
+                      value: ${IMAGE_REGISTRY}/${REPOSITORY_NAME}/kube-adaptor@${KUBE_ADAPTOR_SHA}
+                    - name: SKUPPER_KUBE_ADAPTOR_IMAGE_PULL_POLICY
+                      value: Always

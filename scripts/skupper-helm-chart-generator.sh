@@ -6,6 +6,16 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
+source ./scripts/render_bundle_vars.sh
+for file in $(find ./config/manifests/cluster-scope -name "*.yaml.in"); do
+  echo "Processing file: $file"
+  envsubst < ${file} > ${file%.in}
+done
+
+for file in $(find ./config/manifests/namespace-scope -name "*.yaml.in"); do
+  echo "Processing file: $file"
+  envsubst < ${file} > ${file%.in}
+done
 
 VERSION="0.1.0-dev"
 APP_VERSION="$1"
@@ -71,8 +81,8 @@ fi
 
 cp "$CRD_SOURCE_DIR"/* "$CRD_DIR"
 
-CLUSTER_KUSTOMIZE_DIR="../config/overlays/cluster/"
-NAMESPACE_KUSTOMIZE_DIR="../config/overlays/namespace/"
+CLUSTER_KUSTOMIZE_DIR="../config/manifests/cluster-scope/"
+NAMESPACE_KUSTOMIZE_DIR="../config/manifests/namespace-scope/"
 
 CLUSTER_TEMPLATE="$TEMPLATES_DIR/cluster-controller-deployment.yaml"
 

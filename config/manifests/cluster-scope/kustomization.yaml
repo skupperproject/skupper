@@ -1,0 +1,8 @@
+resources:
+- bases/manager.yaml
+- bases/service_account.yaml
+- bases/namespace.yaml
+- ../../crd
+- ../../rbac/cluster
+
+namespace: skupper
