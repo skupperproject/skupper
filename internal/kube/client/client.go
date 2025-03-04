@@ -1,3 +1,5 @@
+// Package client provides access to various APIS used to interact
+// with the Kubernetes API server.
 package client
 
 import (
@@ -18,6 +20,9 @@ import (
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
 )
 
+// The Clients interface defines acess to different types of client
+// interface required for interactions withe the Kubernetes API
+// server.
 type Clients interface {
 	GetKubeClient() kubernetes.Interface
 	GetDynamicClient() dynamic.Interface

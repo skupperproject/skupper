@@ -12,6 +12,7 @@ import (
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/client/fake"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	fakev2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1/fake"
 )
@@ -201,7 +202,7 @@ func Test_newAutoconfigure(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			controller := internalclient.NewController("Controller", client)
+			controller := watchers.NewEventProcessor("Controller", client)
 
 			config := &GrantConfig{
 				Port:     9090,

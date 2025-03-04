@@ -23,6 +23,7 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/site"
 	"github.com/skupperproject/skupper/internal/kube/site/labels"
 	"github.com/skupperproject/skupper/internal/kube/site/sizing"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	"github.com/skupperproject/skupper/internal/network"
 	"github.com/skupperproject/skupper/internal/version"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -32,22 +33,22 @@ type Controller struct {
 	self                 skupperv2alpha1.Controller
 	deploymentName       string
 	deploymentUid        string
-	controller           *internalclient.Controller
+	eventProcessor       *watchers.EventProcessor
 	stopCh               <-chan struct{}
-	siteWatcher          *internalclient.SiteWatcher
-	listenerWatcher      *internalclient.ListenerWatcher
-	connectorWatcher     *internalclient.ConnectorWatcher
-	linkAccessWatcher    *internalclient.RouterAccessWatcher
-	grantWatcher         *internalclient.AccessGrantWatcher
+	siteWatcher          *watchers.SiteWatcher
+	listenerWatcher      *watchers.ListenerWatcher
+	connectorWatcher     *watchers.ConnectorWatcher
+	linkAccessWatcher    *watchers.RouterAccessWatcher
+	grantWatcher         *watchers.AccessGrantWatcher
 	sites                map[string]*site.Site
 	startGrantServer     func()
 	accessMgr            *securedaccess.SecuredAccessManager
 	accessRecovery       *securedaccess.SecuredAccessResourceWatcher
 	certMgr              *certificates.CertificateManagerImpl
 	siteSizing           *sizing.Registry
-	siteSizingWatcher    *internalclient.ConfigMapWatcher
+	siteSizingWatcher    *watchers.ConfigMapWatcher
 	labelling            *labels.LabelsAndAnnotations
-	labellingWatcher     *internalclient.ConfigMapWatcher
+	labellingWatcher     *watchers.ConfigMapWatcher
 	attachableConnectors map[string]*skupperv2alpha1.AttachedConnector
 	log                  *slog.Logger
 	namespaces           *NamespaceConfig
@@ -79,7 +80,7 @@ func labelling() internalinterfaces.TweakListOptionsFunc {
 
 func NewController(cli internalclient.Clients, config *Config) (*Controller, error) {
 	controller := &Controller{
-		controller:           internalclient.NewController("Controller", cli),
+		eventProcessor:       watchers.NewEventProcessor("Controller", cli),
 		sites:                map[string]*site.Site{},
 		siteSizing:           sizing.NewRegistry(),
 		labelling:            labels.NewLabelsAndAnnotations(config.Namespace),
@@ -111,34 +112,34 @@ func NewController(cli internalclient.Clients, config *Config) (*Controller, err
 	controller.self.Namespace = config.Namespace
 	controller.self.Version = version.Version
 
-	controller.siteWatcher = controller.controller.WatchSites(config.WatchNamespace, filter(controller, controller.checkSite))
-	controller.listenerWatcher = controller.controller.WatchListeners(config.WatchNamespace, filter(controller, controller.checkListener))
-	controller.controller.WatchServices(listenerServices(), config.WatchNamespace, filter(controller, controller.checkListenerService))
-	controller.connectorWatcher = controller.controller.WatchConnectors(config.WatchNamespace, filter(controller, controller.checkConnector))
-	controller.linkAccessWatcher = controller.controller.WatchRouterAccesses(config.WatchNamespace, filter(controller, controller.checkRouterAccess))
-	controller.controller.WatchAttachedConnectors(config.WatchNamespace, filter(controller, controller.checkAttachedConnector))
-	controller.controller.WatchAttachedConnectorBindings(config.WatchNamespace, filter(controller, controller.checkAttachedConnectorBinding))
-	controller.controller.WatchLinks(config.WatchNamespace, filter(controller, controller.checkLink))
-	controller.controller.WatchConfigMaps(skupperNetworkStatus(), config.WatchNamespace, filter(controller, controller.networkStatusUpdate))
-	controller.controller.WatchAccessTokens(config.WatchNamespace, filter(controller, controller.checkAccessToken))
-	controller.controller.WatchPods("skupper.io/component=router,skupper.io/type=site", config.WatchNamespace, filter(controller, controller.routerPodEvent))
-	controller.siteSizingWatcher = controller.controller.WatchConfigMaps(skupperSiteSizingConfig(), config.Namespace, filter(controller, controller.siteSizing.Update))
-	controller.namespaces.watch(controller.controller, config.WatchNamespace)
-	controller.labellingWatcher = controller.controller.WatchConfigMaps(labelling(), config.WatchNamespace, controller.labelling.Update)
+	controller.siteWatcher = controller.eventProcessor.WatchSites(config.WatchNamespace, filter(controller, controller.checkSite))
+	controller.listenerWatcher = controller.eventProcessor.WatchListeners(config.WatchNamespace, filter(controller, controller.checkListener))
+	controller.eventProcessor.WatchServices(listenerServices(), config.WatchNamespace, filter(controller, controller.checkListenerService))
+	controller.connectorWatcher = controller.eventProcessor.WatchConnectors(config.WatchNamespace, filter(controller, controller.checkConnector))
+	controller.linkAccessWatcher = controller.eventProcessor.WatchRouterAccesses(config.WatchNamespace, filter(controller, controller.checkRouterAccess))
+	controller.eventProcessor.WatchAttachedConnectors(config.WatchNamespace, filter(controller, controller.checkAttachedConnector))
+	controller.eventProcessor.WatchAttachedConnectorBindings(config.WatchNamespace, filter(controller, controller.checkAttachedConnectorBinding))
+	controller.eventProcessor.WatchLinks(config.WatchNamespace, filter(controller, controller.checkLink))
+	controller.eventProcessor.WatchConfigMaps(skupperNetworkStatus(), config.WatchNamespace, filter(controller, controller.networkStatusUpdate))
+	controller.eventProcessor.WatchAccessTokens(config.WatchNamespace, filter(controller, controller.checkAccessToken))
+	controller.eventProcessor.WatchPods("skupper.io/component=router,skupper.io/type=site", config.WatchNamespace, filter(controller, controller.routerPodEvent))
+	controller.siteSizingWatcher = controller.eventProcessor.WatchConfigMaps(skupperSiteSizingConfig(), config.Namespace, filter(controller, controller.siteSizing.Update))
+	controller.namespaces.watch(controller.eventProcessor, config.WatchNamespace)
+	controller.labellingWatcher = controller.eventProcessor.WatchConfigMaps(labelling(), config.WatchNamespace, controller.labelling.Update)
 
-	controller.certMgr = certificates.NewCertificateManager(controller.controller)
+	controller.certMgr = certificates.NewCertificateManager(controller.eventProcessor)
 	controller.certMgr.SetControllerContext(controller)
 	controller.certMgr.Watch(config.WatchNamespace)
 
-	controller.accessMgr = securedaccess.NewSecuredAccessManager(controller.controller, controller.certMgr, config.SecuredAccessConfig, controller)
+	controller.accessMgr = securedaccess.NewSecuredAccessManager(controller.eventProcessor, controller.certMgr, config.SecuredAccessConfig, controller)
 	controller.accessRecovery = securedaccess.NewSecuredAccessResourceWatcher(controller.accessMgr)
-	controller.accessRecovery.WatchResources(controller.controller, config.WatchNamespace)
-	controller.accessRecovery.WatchSecuredAccesses(controller.controller, config.WatchNamespace, controller.checkSecuredAccess)
-	controller.accessRecovery.WatchGateway(controller.controller, config.Namespace)
+	controller.accessRecovery.WatchResources(controller.eventProcessor, config.WatchNamespace)
+	controller.accessRecovery.WatchSecuredAccesses(controller.eventProcessor, config.WatchNamespace, controller.checkSecuredAccess)
+	controller.accessRecovery.WatchGateway(controller.eventProcessor, config.Namespace)
 
-	controller.startGrantServer = grants.Initialise(controller.controller, config.Namespace, config.WatchNamespace, config.GrantConfig, controller.generateLinkConfig, controller.IsControlled)
+	controller.startGrantServer = grants.Initialise(controller.eventProcessor, config.Namespace, config.WatchNamespace, config.GrantConfig, controller.generateLinkConfig, controller.IsControlled)
 
-	controller.controller.WatchConfigMaps(skupperLogConfig(), config.Namespace, controller.logConfigUpdate)
+	controller.eventProcessor.WatchConfigMaps(skupperLogConfig(), config.Namespace, controller.logConfigUpdate)
 
 	return controller, nil
 }
@@ -174,7 +175,7 @@ func (c *Controller) getDeploymentForPod(podName string, namespace string) (*app
 		return nil, fmt.Errorf("Could not determine deployment name from %s", podName)
 	}
 	deploymentName := matches[1]
-	deployment, err := c.controller.GetKubeClient().AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
+	deployment, err := c.eventProcessor.GetKubeClient().AppsV1().Deployments(namespace).Get(context.TODO(), deploymentName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("Failed to retrieve controller deployment for %s/%s: %s", namespace, deploymentName, err)
 	}
@@ -190,11 +191,11 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 
 func (c *Controller) init(stopCh <-chan struct{}) error {
 	c.log.Info("Starting informers")
-	c.controller.StartWatchers(stopCh)
+	c.eventProcessor.StartWatchers(stopCh)
 	c.stopCh = stopCh
 
 	c.log.Info("Waiting for informer caches to sync")
-	if ok := c.controller.WaitForCacheSync(stopCh); !ok {
+	if ok := c.eventProcessor.WaitForCacheSync(stopCh); !ok {
 		return fmt.Errorf("Failed to wait for caches to sync")
 	}
 	c.namespaces.recover()
@@ -214,7 +215,7 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		c.labelling.Update(config.Namespace+"/"+config.Name, config)
 	}
 	//recover existing sites & bindings
-	siteRecovery := site.NewSiteRecovery(c.controller.GetKubeClient())
+	siteRecovery := site.NewSiteRecovery(c.eventProcessor.GetKubeClient())
 	for _, site := range c.siteWatcher.List() {
 		if !c.namespaces.isControlled(site.Namespace) {
 			continue
@@ -301,7 +302,7 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 
 func (c *Controller) start(stopCh <-chan struct{}) error {
 	c.log.Info("Starting event loop")
-	c.controller.Start(stopCh)
+	c.eventProcessor.Start(stopCh)
 	<-stopCh
 	c.log.Info("Shutting down")
 	return nil
@@ -311,7 +312,7 @@ func (c *Controller) getSite(namespace string) *site.Site {
 	if existing, ok := c.sites[namespace]; ok {
 		return existing
 	}
-	site := site.NewSite(namespace, c.controller, c.certMgr, c.accessMgr, c.siteSizing, c)
+	site := site.NewSite(namespace, c.eventProcessor, c.certMgr, c.accessMgr, c.siteSizing, c)
 	c.sites[namespace] = site
 	return site
 }
@@ -387,7 +388,7 @@ func (c *Controller) checkAccessToken(key string, token *skupperv2alpha1.AccessT
 	if site == nil {
 		return nil
 	}
-	return grants.RedeemAccessToken(token, site, c.controller)
+	return grants.RedeemAccessToken(token, site, c.eventProcessor)
 }
 
 func (c *Controller) routerPodEvent(key string, pod *corev1.Pod) error {
@@ -403,7 +404,7 @@ func (c *Controller) generateLinkConfig(namespace string, name string, subject s
 	if site == nil {
 		return fmt.Errorf("Site not yet defined for %s", namespace)
 	}
-	generator, err := grants.NewTokenGenerator(site, c.controller)
+	generator, err := grants.NewTokenGenerator(site, c.eventProcessor)
 	if err != nil {
 		return err
 	}
@@ -536,5 +537,5 @@ func extractSiteRecords(status network.NetworkStatusInfo) []skupperv2alpha1.Site
 }
 
 func filter[V any](controller *Controller, handler func(string, V) error) func(string, V) error {
-	return internalclient.FilterByNamespace(controller.IsControlled, handler)
+	return watchers.FilterByNamespace(controller.IsControlled, handler)
 }

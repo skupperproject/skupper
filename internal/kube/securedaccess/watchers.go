@@ -7,18 +7,18 @@ import (
 
 	routev1interfaces "github.com/openshift/client-go/route/informers/externalversions/internalinterfaces"
 
-	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 type SecuredAccessResourceWatcher struct {
 	accessMgr            *SecuredAccessManager
-	serviceWatcher       *internalclient.ServiceWatcher
-	routeWatcher         *internalclient.RouteWatcher
-	ingressWatcher       *internalclient.IngressWatcher
-	httpProxyWatcher     *internalclient.DynamicWatcher
-	tlsRouteWatcher      *internalclient.DynamicWatcher
-	securedAccessWatcher *internalclient.SecuredAccessWatcher
+	serviceWatcher       *watchers.ServiceWatcher
+	routeWatcher         *watchers.RouteWatcher
+	ingressWatcher       *watchers.IngressWatcher
+	httpProxyWatcher     *watchers.DynamicWatcher
+	tlsRouteWatcher      *watchers.DynamicWatcher
+	securedAccessWatcher *watchers.SecuredAccessWatcher
 }
 
 func NewSecuredAccessResourceWatcher(accessMgr *SecuredAccessManager) *SecuredAccessResourceWatcher {
@@ -27,19 +27,19 @@ func NewSecuredAccessResourceWatcher(accessMgr *SecuredAccessManager) *SecuredAc
 	}
 }
 
-func (m *SecuredAccessResourceWatcher) WatchResources(controller *internalclient.Controller, namespace string) {
-	m.serviceWatcher = controller.WatchServices(coreSecuredAccess(), namespace, internalclient.FilterByNamespace(m.isControlledResource, m.accessMgr.CheckService))
-	m.ingressWatcher = controller.WatchIngresses(coreSecuredAccess(), namespace, internalclient.FilterByNamespace(m.isControlledResource, m.accessMgr.CheckIngress))
-	m.routeWatcher = controller.WatchRoutes(routeSecuredAccess(), namespace, internalclient.FilterByNamespace(m.isControlledResource, m.accessMgr.CheckRoute))
-	m.httpProxyWatcher = controller.WatchContourHttpProxies(dynamicSecuredAccess(), namespace, internalclient.FilterByNamespace(m.isControlledResource, m.accessMgr.CheckHttpProxy))
-	m.tlsRouteWatcher = controller.WatchTlsRoutes(dynamicSecuredAccess(), namespace, internalclient.FilterByNamespace(m.isControlledResource, m.accessMgr.CheckTlsRoute))
+func (m *SecuredAccessResourceWatcher) WatchResources(processor *watchers.EventProcessor, namespace string) {
+	m.serviceWatcher = processor.WatchServices(coreSecuredAccess(), namespace, watchers.FilterByNamespace(m.isControlledResource, m.accessMgr.CheckService))
+	m.ingressWatcher = processor.WatchIngresses(coreSecuredAccess(), namespace, watchers.FilterByNamespace(m.isControlledResource, m.accessMgr.CheckIngress))
+	m.routeWatcher = processor.WatchRoutes(routeSecuredAccess(), namespace, watchers.FilterByNamespace(m.isControlledResource, m.accessMgr.CheckRoute))
+	m.httpProxyWatcher = processor.WatchContourHttpProxies(dynamicSecuredAccess(), namespace, watchers.FilterByNamespace(m.isControlledResource, m.accessMgr.CheckHttpProxy))
+	m.tlsRouteWatcher = processor.WatchTlsRoutes(dynamicSecuredAccess(), namespace, watchers.FilterByNamespace(m.isControlledResource, m.accessMgr.CheckTlsRoute))
 }
 
-func (m *SecuredAccessResourceWatcher) WatchGateway(controller *internalclient.Controller, namespace string) {
-	controller.WatchGateways(dynamicByName("skupper"), namespace, internalclient.FilterByNamespace(m.isControlledResource, m.accessMgr.CheckGateway))
+func (m *SecuredAccessResourceWatcher) WatchGateway(processor *watchers.EventProcessor, namespace string) {
+	processor.WatchGateways(dynamicByName("skupper"), namespace, watchers.FilterByNamespace(m.isControlledResource, m.accessMgr.CheckGateway))
 }
 
-func (m *SecuredAccessResourceWatcher) WatchSecuredAccesses(controller *internalclient.Controller, namespace string, handler internalclient.SecuredAccessHandler) {
+func (m *SecuredAccessResourceWatcher) WatchSecuredAccesses(processor *watchers.EventProcessor, namespace string, handler watchers.SecuredAccessHandler) {
 	f := func(key string, sa *skupperv2alpha1.SecuredAccess) error {
 		if sa == nil {
 			return m.accessMgr.SecuredAccessDeleted(key)
@@ -49,7 +49,7 @@ func (m *SecuredAccessResourceWatcher) WatchSecuredAccesses(controller *internal
 		}
 		return m.accessMgr.SecuredAccessChanged(key, sa)
 	}
-	m.securedAccessWatcher = controller.WatchSecuredAccesses(namespace, internalclient.FilterByNamespace(m.isControlledResource, f))
+	m.securedAccessWatcher = processor.WatchSecuredAccesses(namespace, watchers.FilterByNamespace(m.isControlledResource, f))
 }
 
 func (m *SecuredAccessResourceWatcher) Recover() {

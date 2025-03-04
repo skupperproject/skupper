@@ -1,14 +1,14 @@
 package grants
 
 import (
-	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 )
 
-func Initialise(controller *internalclient.Controller, currentNamespace string, watchNamespace string, config *GrantConfig, generator GrantResponse, filter NamespaceFilter) func() {
+func Initialise(events *watchers.EventProcessor, currentNamespace string, watchNamespace string, config *GrantConfig, generator GrantResponse, filter NamespaceFilter) func() {
 	if !config.Enabled {
-		disabled(controller, watchNamespace)
+		disabled(events, watchNamespace)
 		return nil
 	}
-	ge := enabled(controller, currentNamespace, watchNamespace, config, generator, filter)
+	ge := enabled(events, currentNamespace, watchNamespace, config, generator, filter)
 	return ge.Start
 }
