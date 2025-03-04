@@ -502,11 +502,14 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 				Kind:       "Service",
 			},
 			ObjectMeta: metav1.ObjectMeta{
-				Name:   exposed.Host,
-				Labels: map[string]string{},
+				Name: exposed.Host,
+				Labels: map[string]string{
+					"internal.skupper.io/listener": "true",
+				},
 				Annotations: map[string]string{
 					"internal.skupper.io/controlled": "true",
 				},
+				OwnerReferences: s.ownerReferences(),
 			},
 			Spec: corev1.ServiceSpec{
 				Selector: getLabelsForRouter(), //TODO: handle external bridges
@@ -840,6 +843,36 @@ func (s *Site) updateListenerStatus(listener *skupperv2alpha1.Listener, err erro
 			return err
 		}
 		s.bindings.UpdateListener(updated.Name, updated)
+	}
+	return nil
+}
+
+func isListenerService(svc *corev1.Service) bool {
+	if svc.Annotations == nil || svc.Labels == nil {
+		return false
+	}
+	if _, ok := svc.Annotations["internal.skupper.io/controlled"]; !ok {
+		return false
+	}
+	if _, ok := svc.Labels["internal.skupper.io/listener"]; !ok {
+		return false
+	}
+	return true
+}
+
+func (s *Site) CheckListenerService(svc *corev1.Service) error {
+	if isListenerService(svc) && !s.bindings.isHostExposed(svc.Name) {
+		if err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Delete(context.Background(), svc.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+			s.logger.Info("Could not delete stale listener service",
+				slog.String("namespace", svc.Namespace),
+				slog.String("name", svc.Name),
+				slog.String("reason", err.Error()),
+			)
+		}
+		s.logger.Info("Deleted stale listener service",
+			slog.String("namespace", svc.Namespace),
+			slog.String("name", svc.Name),
+		)
 	}
 	return nil
 }
