@@ -1,0 +1,90 @@
+- name: Hello World Test
+  hosts: all
+  roles:
+    - rhsiqe.skupper.skupper_test_images
+  tasks:
+    - name: Main task block
+      block:
+        - name: Setting the temporary directory path
+          ansible.builtin.set_fact:
+            temp_dir_path: "/tmp/ansible.{{ inventory_hostname }}"
+
+        - name: Creating the temporary directory
+          ansible.builtin.file:
+            path: "{{ temp_dir_path }}"
+            state: directory
+            mode: '0700'
+
+        - name: Environment shakeout
+          ansible.builtin.include_role:
+            name: rhsiqe.skupper.env_shakeout
+
+        - name: Generating the namespaces
+          ansible.builtin.include_role:
+            name: rhsiqe.skupper.generate_namespaces
+
+        - name: Deploying backend and frontend
+          ansible.builtin.include_role:
+            name: rhsiqe.skupper.deploy_workload
+          vars:
+            deploy_workload_output_path: "{{ temp_dir_path }}"
+
+        - name: Creating Skupper sites
+          ansible.builtin.include_role:
+            name: rhsiqe.skupper.skupper_site
+          vars:
+            skupper_site_output_path: "{{ temp_dir_path }}"
+
+        - name: Creating connector at east site
+          ansible.builtin.include_role:
+            name: rhsiqe.skupper.create_connector
+          when:
+            - "'east' in inventory_hostname"
+          vars:
+            create_connector_output_path: "{{ temp_dir_path }}"
+
+        - name: Creating listener at the west site
+          ansible.builtin.include_role:
+            name: rhsiqe.skupper.create_listener
+          when:
+            - "'west' in inventory_hostname"
+          vars:
+            create_listener_output_path: "{{ temp_dir_path }}"
+
+        - name: Generating grant access at the west site
+          ansible.builtin.include_role:
+            name: rhsiqe.skupper.access_grant
+          when:
+            - "'west' in inventory_hostname"
+          vars:
+            access_grant_output_path: "{{ temp_dir_path }}"
+
+        - name: Consuming grant access at the east site
+          ansible.builtin.include_role:
+            name: rhsiqe.skupper.link_site
+          when:
+            - "'east' in inventory_hostname"
+
+        - name: Exposing the service at the frontend at west site
+          ansible.builtin.include_role:
+            name: rhsiqe.skupper.expose_service
+          when:
+            - "'west' in inventory_hostname"
+
+        - name: Testing the connectivity between the sites
+          ansible.builtin.include_role:
+            name: rhsiqe.skupper.run_curl
+          vars:
+            test_connectivity_output_path: "{{ temp_dir_path }}"
+          when:
+            - "'west' in inventory_hostname"
+      rescue:
+        - name: Handling failure
+          ansible.builtin.debug:
+            msg: "Task failed, proceeding to teardown."
+      always:
+        - name: Deleting the test resources
+          ansible.builtin.include_role:
+            name: rhsiqe.skupper.teardown_test
+          when:
+            - not skip_teardown | default(false) | bool

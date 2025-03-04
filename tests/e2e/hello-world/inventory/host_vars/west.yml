@@ -1,0 +1,46 @@
+---
+# Kubeconfig path for west site
+west_kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
+kubeconfig: "{{ west_kubeconfig }}"
+
+# Namespace configuration
+namespace_name: hello-world-west
+
+# Deployment configuration for workload
+deploy_workload_workload_image: "{{ skupper_test_image_hello_world_frontend }}"
+deploy_workload_deployment_name: "frontend"
+
+# Skupper site configuration
+skupper_site_include_spec: true
+skupper_site_link_access: default
+skupper_site_manifest_template: "skupper-site.yml.j2"
+
+# Consume service configuration
+create_listener_metadata_name: "backend"
+create_listener_routing_key: "backend"
+create_listener_port: 8080
+create_listener_host: "backend"
+create_listener_state: present
+
+# Access grant configuration
+access_grant_name: hello-world-grant
+access_grant_redemptions_allowed: 10
+access_grant_expiration_window: 1h
+access_grant_state: present
+
+# Expose service configuration
+expose_service_name: frontend
+expose_service_port: 8080
+expose_service_target_port: 8080
+expose_service_type: LoadBalancer
+
+# Default variables for the link_site role
+link_site_skip_connector_check: true
+
+# Run curl configuration
+run_curl_namespace: default
+run_curl_address: "backend:8080/api/hello"
+run_curl_image: "{{ skupper_test_image_lanyard }}"
+run_curl_pod_name: curl-test
+run_curl_retries: 10
+run_curl_delay: 10

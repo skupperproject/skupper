@@ -1,0 +1,2 @@
+kubernetes>=24.2.0
+PyYAML>=3.11
