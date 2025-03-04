@@ -1,3 +1,6 @@
+// Package certificates provides the ability to create or update
+// instances of the v2alpha1 Certificate resource, and esnure that a
+// corresponding Secret resource is maintained for each.
 package certificates
 
 import (
@@ -14,16 +17,20 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/skupperproject/skupper/internal/certs"
-	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
+// The ControllerContext interface defines the invocations the Certificatemanager needs to make. 
 type ControllerContext interface {
 	IsControlled(namespace string) bool
 	SetLabels(namespace string, name string, kind string, labels map[string]string) bool
 	SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool
 }
 
+// The CertificateManager interface defines the methods through which
+// the existence of a particular Certificate resource can be
+// ensured. It is currently used by package internal/kube/site.
 type CertificateManager interface {
 	EnsureCA(namespace string, name string, subject string, refs []metav1.OwnerReference) error
 	Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error
@@ -32,13 +39,13 @@ type CertificateManager interface {
 type CertificateManagerImpl struct {
 	definitions        map[string]*skupperv2alpha1.Certificate
 	secrets            map[string]*corev1.Secret
-	certificateWatcher *internalclient.CertificateWatcher
-	secretWatcher      *internalclient.SecretWatcher
-	controller         *internalclient.Controller
+	certificateWatcher *watchers.CertificateWatcher
+	secretWatcher      *watchers.SecretWatcher
+	controller         *watchers.EventProcessor
 	context            ControllerContext
 }
 
-func NewCertificateManager(controller *internalclient.Controller) *CertificateManagerImpl {
+func NewCertificateManager(controller *watchers.EventProcessor) *CertificateManagerImpl {
 	return &CertificateManagerImpl{
 		definitions: map[string]*skupperv2alpha1.Certificate{},
 		secrets:     map[string]*corev1.Secret{},
@@ -51,8 +58,8 @@ func (m *CertificateManagerImpl) SetControllerContext(context ControllerContext)
 }
 
 func (m *CertificateManagerImpl) Watch(watchNamespace string) {
-	m.certificateWatcher = m.controller.WatchCertificates(watchNamespace, internalclient.FilterByNamespace(m.isControlled, m.checkCertificate))
-	m.secretWatcher = m.controller.WatchAllSecrets(watchNamespace, internalclient.FilterByNamespace(m.isControlled, m.checkSecret))
+	m.certificateWatcher = m.controller.WatchCertificates(watchNamespace, watchers.FilterByNamespace(m.isControlled, m.checkCertificate))
+	m.secretWatcher = m.controller.WatchAllSecrets(watchNamespace, watchers.FilterByNamespace(m.isControlled, m.checkSecret))
 }
 
 func (m *CertificateManagerImpl) isControlled(namespace string) bool {
