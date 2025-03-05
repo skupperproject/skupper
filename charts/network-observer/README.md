@@ -54,10 +54,15 @@ kubectl patch secret skupper-network-observer-auth \
 kubectl port-forward services/skupper-network-observer 8443:443
 ```
 
+**skupper-network-observer-openshift.yaml**
+
+An OpenShift ready deployment manifest accessible by route.
+
 ## Configuration
 
 By default, deploys the network-observer with skupper-issued TLS certificates,
-HTTP Basic authentication (username and password are `skupper`) and no ingress.
+no ingress, and HTTP Basic authentication with a randomly generated
+credentials.
 
 ### Ingress
 
@@ -107,7 +112,7 @@ The network observer pod contains a reverse proxy that handles authentication
 and TLS termination for the read only application that binds only to localhost.
 When authentication strategy is "basic", nginx is configured as the proxy, and
 can be configured with user-provided htpasswd file contents or a secret name.
-When authentication strategy is "OpenShift" an oauth2 proxy is used instead, and
+When authentication strategy is "openshift" an oauth2 proxy is used instead, and
 is configured to use the cluster identity provider for authentication. OpenShift
 auth only works with ingress type Route.
 
@@ -125,4 +130,10 @@ kubectl create secret generic my-custom-auth \
 helm install ... \
     --set auth.basic.create=false \
     --set auth.basic.secretName=my-custom-auth
+
+# Rotate the credentials with a new htpasswd file by patching
+# the existing secret with updated credentials in ./passwords
+kubectl patch secrets \
+    my-custom-auth -p '{"data":{"htpasswd":"'$(base64 -w0 ./passwords)'"}}'
+
 ```

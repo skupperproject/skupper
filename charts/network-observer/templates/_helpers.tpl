@@ -86,3 +86,11 @@ Create the nginx configmap name
 {{- define "network-observer.basicAuthSecretName" -}}
 {{- .Values.auth.basic.secretName | default (printf "%s-auth" (include "network-observer.fullname" .)) }}
 {{- end }}
+
+{{- define "network-observer.sessionCookieSecretName" -}}
+{{- .Values.auth.openshift.secretName | default (printf "%s-session" (include "network-observer.fullname" .)) }}
+{{- end }}
+
+{{- define "network-observer.setupJobName" -}}
+{{- printf "%s-setup" (include "network-observer.fullname" .) }}
+{{- end }}

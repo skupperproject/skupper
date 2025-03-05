@@ -160,8 +160,16 @@ generate-network-observer-httpbasic:
 	helm template skupper-network-observer ./charts/network-observer/ \
 		--set skipManagementLabels=true \
 		--set auth.strategy=basic \
-		--set auth.basic.htpasswd="" \
 		> skupper-network-observer-httpbasic.yaml
+
+generate-network-observer-openshift:
+	helm template skupper-network-observer ./charts/network-observer/ \
+		--set skipManagementLabels=true \
+		--set auth.strategy=openshift \
+		--set tls.openshiftIssued=true \
+		--set tls.skupperIssued=false \
+		--set route.enabled=true \
+		> skupper-network-observer-openshift.yaml
 
 generate-network-observer-devel:
 	helm template skupper-network-observer ./charts/network-observer/ \
