@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/api"
+	"github.com/skupperproject/skupper/cmd/network-observer/internal/cmd"
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/collector"
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/flowlog"
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/server"
@@ -222,6 +223,17 @@ func main() {
 	if *isVersion {
 		fmt.Println(version.Version)
 		os.Exit(0)
+	}
+
+	args := flags.Args()
+	if len(args) > 0 {
+		// Handle internal subcommands
+		if args[0] == "help" {
+			flags.Usage()
+			os.Exit(0)
+		}
+		cmd.Run(args)
+		return
 	}
 
 	if err := run(cfg); err != nil {
