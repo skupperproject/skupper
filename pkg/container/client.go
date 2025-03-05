@@ -8,11 +8,10 @@ import (
 	"path"
 	"strings"
 	"time"
-
-	"github.com/skupperproject/skupper/api/types"
 )
 
 const (
+	AppName              = "skupper-v2"
 	ContainerNetworkName = "skupper"
 )
 
@@ -316,5 +315,5 @@ func IsOwnedBySkupper(labels map[string]string) bool {
 		return false
 	}
 	owner, ok := labels["application"]
-	return ok && owner == types.AppName
+	return ok && owner == AppName
 }
