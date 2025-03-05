@@ -4,7 +4,13 @@
 {{- if not (has .Values.auth.strategy $authStrategies) }}
   {{- fail (printf "auth.strategy must be one of %s" $authStrategies) }}
 {{- end }}
-{{- if not (eq .Values.auth.strategy "openshift") }}
+
+{{- if eq .Values.auth.strategy "openshift" }}
+- name: session-cookie-secret
+  secret:
+    defaultMode: 420
+    secretName: {{ include "network-observer.sessionCookieSecretName" . }}
+{{- else }}
 - name: nginx-config
   configMap:
     defaultMode: 420
@@ -54,7 +60,7 @@ args:
   - --upstream=http://127.0.0.1:8080
   - -tls-cert=/etc/certificates/tls.crt
   - -tls-key=/etc/certificates/tls.key
-  - --cookie-secret={{ (randAlphaNum 32 | nospace) }}
+  - -cookie-secret-file=/etc/session-secrets/secret
 ports:
   - name: https
     containerPort: 8443
@@ -62,5 +68,7 @@ ports:
 volumeMounts:
   - mountPath: /etc/certificates/
     name: {{ include "network-observer.tlsSecretName" . }}
+  - mountPath: /etc/session-secrets/
+    name: session-cookie-secret
 {{- end -}}
 
