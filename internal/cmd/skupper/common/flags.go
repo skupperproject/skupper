@@ -82,8 +82,9 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagDescDeleteWait = "Wait for deletion to complete before exiting"
 
 	FlagNameAll       = "all"
-	FlagDescAll       = "delete all skupper resources in current namespace"
 	FlagDescDeleteAll = "delete all skupper resources associated with site in current namespace"
+
+	FlagDescUninstallForce = "option to override even with sites present"
 )
 
 type CommandSiteCreateFlags struct {
@@ -252,4 +253,8 @@ type CommandVersionFlags struct {
 }
 
 type CommandDebugFlags struct {
+}
+
+type CommandSystemUninstallFlags struct {
+	Force bool
 }
