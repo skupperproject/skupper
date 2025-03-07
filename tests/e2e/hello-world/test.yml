@@ -1,7 +1,7 @@
 - name: Hello World Test
   hosts: all
   roles:
-    - rhsiqe.skupper.skupper_test_images
+    - e2e.tests.skupper_test_images
   tasks:
     - name: Main task block
       block:
@@ -17,74 +17,65 @@
 
         - name: Environment shakeout
           ansible.builtin.include_role:
-            name: rhsiqe.skupper.env_shakeout
+            name: e2e.tests.env_shakeout
 
         - name: Generating the namespaces
           ansible.builtin.include_role:
-            name: rhsiqe.skupper.generate_namespaces
+            name: e2e.tests.generate_namespaces
 
-        - name: Deploying backend and frontend
-          ansible.builtin.include_role:
-            name: rhsiqe.skupper.deploy_workload
-          vars:
-            deploy_workload_output_path: "{{ temp_dir_path }}"
-
-        - name: Creating Skupper sites
-          ansible.builtin.include_role:
-            name: rhsiqe.skupper.skupper_site
-          vars:
-            skupper_site_output_path: "{{ temp_dir_path }}"
-
-        - name: Creating connector at east site
-          ansible.builtin.include_role:
-            name: rhsiqe.skupper.create_connector
-          when:
-            - "'east' in inventory_hostname"
-          vars:
-            create_connector_output_path: "{{ temp_dir_path }}"
-
-        - name: Creating listener at the west site
-          ansible.builtin.include_role:
-            name: rhsiqe.skupper.create_listener
+        - name: Creating Skupper resources on west namespace
+          skupper.v2.resource:
+            path: "{{ item }}"
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          with_items:
+            - - "{{ playbook_dir }}/resources/west/frontend.yml"
+            - - "{{ playbook_dir }}/resources/west/site.yml"
+            - - "{{ playbook_dir }}/resources/west/listener.yml"
           when:
             - "'west' in inventory_hostname"
-          vars:
-            create_listener_output_path: "{{ temp_dir_path }}"
 
-        - name: Generating grant access at the west site
-          ansible.builtin.include_role:
-            name: rhsiqe.skupper.access_grant
-          when:
-            - "'west' in inventory_hostname"
-          vars:
-            access_grant_output_path: "{{ temp_dir_path }}"
-
-        - name: Consuming grant access at the east site
-          ansible.builtin.include_role:
-            name: rhsiqe.skupper.link_site
+        - name: Creating Skupper resources on east namespace
+          skupper.v2.resource:
+            path: "{{ item }}"
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          with_items:
+            - - "{{ playbook_dir }}/resources/east/backend.yml"
+            - - "{{ playbook_dir }}/resources/east/site.yml"
+            - - "{{ playbook_dir }}/resources/east/connector.yml"
           when:
             - "'east' in inventory_hostname"
 
-        - name: Exposing the service at the frontend at west site
-          ansible.builtin.include_role:
-            name: rhsiqe.skupper.expose_service
+        - name: Issue a Skupper access token from west namespace
+          skupper.v2.token:
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            name: west-grant
+            redemptions_allowed: 1
+            kubeconfig: "{{ kubeconfig }}"
+          register: west
           when:
             - "'west' in inventory_hostname"
+
+        - name: Apply token to east site
+          skupper.v2.resource:
+            def: "{{ hostvars['west']['west']['token'] }}"
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          when:
+            - "'east' in inventory_hostname"
 
         - name: Testing the connectivity between the sites
           ansible.builtin.include_role:
-            name: rhsiqe.skupper.run_curl
+            name: e2e.tests.run_curl
           vars:
             test_connectivity_output_path: "{{ temp_dir_path }}"
           when:
             - "'west' in inventory_hostname"
-      rescue:
-        - name: Handling failure
-          ansible.builtin.debug:
-            msg: "Task failed, proceeding to teardown."
+
       always:
         - name: Deleting the test resources
           ansible.builtin.include_role:
-            name: rhsiqe.skupper.teardown_test
+            name: e2e.tests.teardown_test
           when:
             - not skip_teardown | default(false) | bool
