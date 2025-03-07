@@ -44,8 +44,8 @@
       '
   register: curl_result
   until: curl_result is success
-  retries: 5
-  delay: 5
+  retries: "{{ run_curl_retries }}"
+  delay: "{{ run_curl_delay }}"
 
 - name: Debug the curl command output
   ansible.builtin.debug:
