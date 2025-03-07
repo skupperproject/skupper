@@ -1,7 +1,7 @@
 - name: Iperf3 Test AttachedConnector
   hosts: all
   roles:
-    - rhsiqe.skupper.skupper_test_images
+    - e2e.tests.skupper_test_images
   tasks:
     - name: Main test block
       block:

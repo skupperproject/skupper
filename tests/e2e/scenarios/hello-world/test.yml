@@ -5,16 +5,6 @@
   tasks:
     - name: Main task block
       block:
-        - name: Setting the temporary directory path
-          ansible.builtin.set_fact:
-            temp_dir_path: "/tmp/ansible.{{ inventory_hostname }}"
-
-        - name: Creating the temporary directory
-          ansible.builtin.file:
-            path: "{{ temp_dir_path }}"
-            state: directory
-            mode: '0700'
-
         - name: Environment shakeout
           ansible.builtin.include_role:
             name: e2e.tests.env_shakeout
@@ -68,8 +58,6 @@
         - name: Testing the connectivity between the sites
           ansible.builtin.include_role:
             name: e2e.tests.run_curl
-          vars:
-            test_connectivity_output_path: "{{ temp_dir_path }}"
           when:
             - "'west' in inventory_hostname"
 

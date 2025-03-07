@@ -1,3 +1,4 @@
 ---
-kubeconfig_1: /home/rzago/.kube/config
-kubeconfig_2: /home/rzago/.kube/config
+#kubeconfig_1: /home/user/.kube/config
+#kubeconfig_2: /home/user/.kube/config
+debug: true

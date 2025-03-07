@@ -17,9 +17,10 @@ pip install -r requirements.txt
 
 ```
 tests/
-├── e2e/                      # End-to-end tests directory
-│   ├── hello-world/          # Basic Skupper functionality test
-│   └── iperf3-attached/      # Network performance test with attached connectors
+├── e2e/  
+├── scenarios/                 # End-to-end tests directory
+│    ├── hello-world/          # Basic Skupper functionality test
+│     ── iperf3-attached/      # Network performance test with attached connectors
 └── README.md                 # This file
 ```
 
@@ -77,6 +78,46 @@ ansible-galaxy collection install -r collections/requirements.yml
 ansible-playbook test.yml -i inventory
 ```
 
+## Running Tests with Make
+
+The repository includes a Makefile that simplifies running tests. The Makefile uses a virtual environment at `/tmp/e2e-venv` to ensure a consistent testing environment.
+
+### Setup and Configuration
+
+1. **vars.yml file**: Create a `vars.yml` file in the repository root to set extra variables for the tests.
+
+2. **Available Make Commands**:
+
+```bash
+# Create or refresh the virtual environment
+make create-venv FORCE=true
+
+# Run a specific test
+make test TEST="test_directory_name"
+
+# Run all tests (all directories in e2e/ that start with test_)
+make e2e-tests
+```
+
+The Makefile will automatically:
+- Create a Python virtual environment if needed
+- Install all required dependencies
+- Install necessary Ansible collections
+- Run the test with the proper configuration
+
+### Example Usage
+
+```bash
+# Create a new virtual environment
+make create-venv FORCE=true
+
+# Run a specific test
+make test TEST="hello_world"
+
+# Run all tests in sequence
+make e2e-tests
+```
+
 ## Core Ansible Collections
 
 The tests rely on the following Ansible collections:
@@ -100,7 +141,7 @@ When adding new tests to this repository, please follow these guidelines:
 A standard test directory should include:
 
 ```
-e2e/your-test/
+e2e/scenarios/your-test/
 ├── ansible.cfg           # Ansible configuration
 ├── collections/          # Ansible collections
 │   └── requirements.yml  # Collection dependencies

@@ -1,8 +1,8 @@
 ROOT_PATH := $(shell pwd)
 EXTRA_VARS := --extra-vars "@$(ROOT_PATH)/vars.yml"
 
-# Find all test directories that start with test_ in the e2e folder
-E2E_TEST_DIRS := $(sort $(wildcard $(ROOT_PATH)/e2e/test_*))
+# E2E Test directories
+E2E_TEST_DIRS := $(sort $(wildcard $(ROOT_PATH)/e2e/scenarios/*))
 
 # Creating a python virtual environment
 # Creating a python virtual environment
@@ -43,9 +43,9 @@ test-role: create-venv
 test: FORCE=false
 test: create-venv
 	@echo "Running the test for directory: $(TEST)"
-	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg ansible-playbook $(ROOT_PATH)/e2e/$(TEST)/test.yml -i $(ROOT_PATH)/e2e/$(TEST)/inventory $(EXTRA_VARS)
+	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg ansible-playbook $(ROOT_PATH)/e2e/scenarios/$(TEST)/test.yml -i $(ROOT_PATH)/e2e/scenarios/$(TEST)/inventory $(EXTRA_VARS)
 
-# Run all tests in directories starting with test_ in alphabetical order
+# Run all tests in sequence
 e2e-tests:
 	@echo "Running all tests in sequence..."
 	@for test_dir in $(E2E_TEST_DIRS); do \

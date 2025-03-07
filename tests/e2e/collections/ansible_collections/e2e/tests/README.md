@@ -22,19 +22,9 @@ Some modules and plugins require external libraries. Refer to the documentation 
 
 The collection includes the following roles:
 
-1. **`deploy_workload`**: Deploys workloads in Kubernetes namespaces.
-2. **`env_shakeout`**: Validates the Kubernetes environment for Skupper.
-3. **`generate_namespaces`**: Creates namespaces with defined naming conventions.
-4. **`install_skupper`**: Installs Skupper by applying CRDs and its controller.
-5. **`skupper_site`**: Configures Skupper sites with advanced settings.
-6. **`create_connector`**: Deploys connectors for application routing.
-7. **`access_grant`**: Manages access tokens for Skupper endpoints.
-8. **`create_listener`**: Configures listeners for consuming services via Skupper.
-9. **`link_site`**: Establishes site links between Skupper instances.
-10. **`host_setup`**: Prepares hosts for Skupper deployment.
-11. **`teardown_test`**: Cleans up Skupper resources and namespaces after testing.
-12. **`expose_service`**: Exposes services in Kubernetes namespaces.
-13. **`run_curl_test`**: Runs a test to validate Skupper connectivity.
+1. **`env_shakeout`**: Validates the Kubernetes environment for Skupper.
+2. **`generate_namespaces`**: Creates namespaces with defined naming conventions.
+3. **`run_curl_test`**: Runs a test to validate Skupper connectivity.
 
 For a detailed list of all content, visit the [Ansible Galaxy page for this collection](https://galaxy.ansible.com/rhsiqe/skupper).
 
@@ -47,7 +37,7 @@ For a detailed list of all content, visit the [Ansible Galaxy page for this coll
 To install the collection from Ansible Galaxy, run:
 
 ```bash
-ansible-galaxy collection install skupper.tests
+ansible-galaxy collection install e2e.tests
 ```
 
 ### Using `requirements.yml`
@@ -56,7 +46,7 @@ You can include the collection in a `requirements.yml` file:
 
 ```yaml
 collections:
-  - name: skupper.tests
+  - name: e2e.tests
 ```
 
 Install it via:
@@ -70,7 +60,7 @@ ansible-galaxy collection install -r requirements.yml
 To upgrade the collection to the latest available version:
 
 ```bash
-ansible-galaxy collection install skupper.tests --upgrade
+ansible-galaxy collection install e2e.tests --upgrade
 ```
 
 ### Installing Specific Versions
@@ -78,7 +68,7 @@ ansible-galaxy collection install skupper.tests --upgrade
 To install a specific version (e.g., for compatibility or bug fixes):
 
 ```bash
-ansible-galaxy collection install skupper.tests:==X.Y.Z
+ansible-galaxy collection install e2e.tests:==X.Y.Z
 ```
 
 Replace `X.Y.Z` with any [available version](https://galaxy.ansible.com/rhsiqe/skupper).
