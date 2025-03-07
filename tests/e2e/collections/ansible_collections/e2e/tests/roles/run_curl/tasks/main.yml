@@ -9,6 +9,7 @@
     kind: Pod
     name: curl
     namespace: "{{ namespace }}"
+    kubeconfig: "{{ kubeconfig }}"
     state: present
     definition:
       metadata:
@@ -23,12 +24,13 @@
               - "3600"
   register: pod_deploy
   until: pod_deploy is success
-  retries: 10
-  delay: 10
+  retries: "{{ run_curl_retries }}"
+  delay: "{{ run_curl_delay }}"
 
 - name: Run curl command
   kubernetes.core.k8s_exec:
     namespace: "{{ namespace }}"
+    kubeconfig: "{{ kubeconfig }}"
     pod: curl
     command: >-
       sh -c '
