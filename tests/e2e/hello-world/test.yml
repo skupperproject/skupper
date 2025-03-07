@@ -74,8 +74,13 @@
             - "'west' in inventory_hostname"
 
       always:
-        - name: Deleting the test resources
-          ansible.builtin.include_role:
-            name: e2e.tests.teardown_test
+        - name: Deleting the namespaces
+          kubernetes.core.k8s:
+            state: absent
+            api_version: v1
+            kind: Namespace
+            label_selectors:
+              - "e2e.id={{ generate_namespaces_namespace_label }}"
+            kubeconfig: "{{ kubeconfig }}"
           when:
             - not skip_teardown | default(false) | bool

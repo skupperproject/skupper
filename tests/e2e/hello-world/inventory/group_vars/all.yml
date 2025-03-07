@@ -4,5 +4,4 @@ ansible_user: "{{ lookup('env', 'USER') }}"
 debug: false
 namespace_prefix: "e2e"
 generate_namespaces_namespace_label: "e2e"
-teardown_test_namespace_label: generate_namespaces_namespace_label
 site_access_token_path: ""

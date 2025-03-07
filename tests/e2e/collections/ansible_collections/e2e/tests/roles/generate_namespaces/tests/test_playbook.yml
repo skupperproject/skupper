@@ -11,7 +11,11 @@
         name: e2e.tests.generate_namespaces
       register: generate_namespaces_result
 
-    - name: Include role to delete test artifacts
-      ansible.builtin.include_role:
-        name: rhsiqe.skupper.teardown_test
-      register: teardown_result
+    - name: Deleting the namespaces
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Namespace
+        label_selectors:
+          - "e2e.id={{ generate_namespaces_namespace_label }}"
+        kubeconfig: "{{ kubeconfig }}"
