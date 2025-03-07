@@ -1,0 +1,7 @@
+---
+# Kubeconfig path for east site
+kubeconfig_2: "{{ ansible_env.HOME }}/.kube/config"
+kubeconfig: "{{ kubeconfig_2 }}"
+
+# Namespace configuration
+namespace_name: hello-world-east

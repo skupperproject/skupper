@@ -1,0 +1,8 @@
+---
+# Kubeconfig path for west site
+client_kubeconfig: "{{ ansible_env.HOME }}/.kube/config"
+kubeconfig: "{{ client_kubeconfig }}"
+
+# Namespace configuration
+namespace_name: "{{ namespace_prefix }}-iperf3-client"
+
