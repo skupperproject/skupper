@@ -1,16 +1,11 @@
 ---
 collections:
   - name: ansible.posix
-    version: 1.4.0
 
   - name: ansible.scm
-    version: 2.0.0
 
   - name: ansible.utils
-    version: 4.0.0
 
   - name: kubernetes.core
-    version: 3.2.0
 
-  - name: e2e.tests
-    version: 0.1.11
+  - name: skupper.v2
