@@ -42,3 +42,7 @@ network-observer-*.tgz
 
 # Python venv folder
 **/venv/
+
+# E2E Collection exclude list
+
+**/collections/**/ansible*
