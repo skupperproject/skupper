@@ -1,0 +1,6 @@
+# Default variables for run_curl role
+run_curl_namespace: default
+run_curl_address: "http://example.com"
+run_curl_image: "{{ skupper_test_images_curl }}"
+run_curl_retries: 10
+run_curl_delay: 10
