@@ -16,7 +16,6 @@ import (
 
 	"github.com/go-openapi/runtime"
 	"github.com/skupperproject/skupper-libpod/v4/client/containers_compat"
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/images"
 	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/container"
@@ -79,7 +78,7 @@ func TestContainer(t *testing.T) {
 		assert.Equal(t, false, network.DNS)
 		assert.Equal(t, true, network.Internal)
 		ValidateMaps(t, labels, network.Labels)
-		assert.Assert(t, network.Labels["application"] == types.AppName)
+		assert.Assert(t, network.Labels["application"] == container.AppName)
 	})
 	t.Run("network-remove", func(t *testing.T) {
 		assert.Assert(t, cli.NetworkRemove(name), "error removing network")
@@ -97,7 +96,7 @@ func TestContainer(t *testing.T) {
 		assert.Equal(t, true, network.DNS)
 		assert.Equal(t, false, network.Internal)
 		ValidateMaps(t, labels, network.Labels)
-		assert.Assert(t, network.Labels["application"] == types.AppName)
+		assert.Assert(t, network.Labels["application"] == container.AppName)
 	})
 
 	// Creating volume
@@ -109,7 +108,7 @@ func TestContainer(t *testing.T) {
 		assert.Assert(t, err)
 		assert.Equal(t, name, vol.Name)
 		ValidateMaps(t, labels, vol.Labels)
-		assert.Assert(t, vol.Labels["application"] == types.AppName)
+		assert.Assert(t, vol.Labels["application"] == container.AppName)
 
 		_, err = vol.CreateFile(testFile, []byte("test content"), false)
 		assert.Assert(t, err, "error creating file test.txt inside volume")
@@ -165,7 +164,7 @@ func TestContainer(t *testing.T) {
 		assert.Equal(t, image, c.Image)
 		ValidateMaps(t, env, c.Env)
 		ValidateMaps(t, labels, c.Labels)
-		assert.Assert(t, c.Labels["application"] == types.AppName)
+		assert.Assert(t, c.Labels["application"] == container.AppName)
 		ValidateStrings(t, aliases, c.NetworkAliases()[name])
 		assert.Equal(t, 1, len(c.Mounts))
 		mount := c.Mounts[0]

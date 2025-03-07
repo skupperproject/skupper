@@ -452,7 +452,7 @@ func (r *RestClientMock) HandleContainerCreate(operation *runtime.ClientOperatio
 	if c.Labels == nil {
 		c.Labels = make(map[string]string)
 	}
-	c.Labels["application"] = types.AppName
+	c.Labels["application"] = container.AppName
 	c.FromEnv(spec.Env)
 	c.MaxCpus = int(spec.HostConfig.CPUCount)
 	c.MaxMemoryBytes = spec.HostConfig.Memory
@@ -825,7 +825,7 @@ func mockContainers(image string) []*container.Container {
 		Image: image,
 		Env:   map[string]string{"var1": "val1", "var2": "val2"},
 		Labels: map[string]string{
-			"application": types.AppName,
+			"application": container.AppName,
 		},
 		Networks: map[string]container.ContainerNetworkInfo{
 			"skupper": container.ContainerNetworkInfo{

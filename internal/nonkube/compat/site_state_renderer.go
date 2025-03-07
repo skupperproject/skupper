@@ -214,8 +214,8 @@ func (s *SiteStateRenderer) prepareContainers() error {
 			"SSL_PROFILE_BASE_PATH": "/etc/skupper-router",
 		},
 		Labels: map[string]string{
-			types.ComponentAnnotation: types.TransportDeploymentName,
-			types.SiteId:              s.configRenderer.RouterConfig.GetSiteMetadata().Id,
+			"skupper.io/v2-component": "router",
+			"skupper.io/site-id":      s.configRenderer.RouterConfig.GetSiteMetadata().Id,
 		},
 		FileMounts: []container.FileMount{
 			{

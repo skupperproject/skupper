@@ -8,7 +8,6 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/skupperproject/skupper-libpod/v4/client/volumes_compat"
 	"github.com/skupperproject/skupper-libpod/v4/models"
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/container"
 )
 
@@ -16,7 +15,7 @@ func (c *CompatClient) VolumeCreate(volume *container.Volume) (*container.Volume
 	if volume.Labels == nil {
 		volume.Labels = map[string]string{}
 	}
-	volume.Labels["application"] = types.AppName
+	volume.Labels["application"] = container.AppName
 	cli := volumes_compat.New(c.RestClient, formats)
 	params := volumes_compat.NewVolumeCreateParams()
 	params.Create = ToVolumeCreate(volume)
