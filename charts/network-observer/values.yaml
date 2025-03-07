@@ -77,12 +77,17 @@ auth:
   # strategy is one of none, basic, or openshift
   strategy: "basic"
   basic:
+    # create basic auth secret automatically. A Job will be added to generate a
+    # htpasswd secret containing a skupper user and a random plaintext user
+    # (not recommended.)
     create: true
     secretName: ""
-    htpasswd: |
-      # skupper: skupper
-      skupper:$2y$05$Fz95zqZnAapAe5BqmRjx3.vCOzepI6h/UCdDQfP5cdsLoaef2HMaq
   openshift:
+    # createCookieSecret - include a Job to generate a session cookie secret
+    # for the openshift oauth2 proxy.
+    createCookieSecret: true
+    # cookieSecretName configures the name of the session cookie secret.
+    cookieSecretName: ""
     # Service account for openshift auth
     serviceAccount:
       create: true

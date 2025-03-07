@@ -37,8 +37,16 @@ Accessing the console:
   Basic Authentication is enabled.
 
   Users are configured in the {{ include "network-observer.basicAuthSecretName" . }} secret.
-  By default this chart includes placeholder credentials username="skupper" password="skupper".
-  This secret should be replaced to include user-provided credentials.
+  {{- if .Values.auth.basic.create }}
+  This secret has been prepopulated with a single user "skupper" and a randomly
+  generated password stored in plaintext. It is recommended that these
+  credentials be rotated and replaced with a secure password hash (bcrypt.)
+
+  Retrieve the password with this command:
+  kubectl --namespace {{ .Release.Namespace }} \
+	get secret {{ include "network-observer.basicAuthSecretName" . }} \
+	-o jsonpath='{.data.htpasswd}' | base64 -d | sed 's/\(.*\):{PLAIN}\(.*\)/\1 \2\n/'
+  {{- end }}
 
 {{- else if eq "openshift" .Values.auth.strategy }}
 
