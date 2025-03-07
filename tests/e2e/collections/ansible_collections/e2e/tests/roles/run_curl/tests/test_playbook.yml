@@ -1,0 +1,20 @@
+- name: Hello World test playbook
+  hosts: all
+  roles:
+    - e2e.tests.skupper_test_images
+  tasks:
+    - name: Calling the role to check the environment
+      ansible.builtin.include_role:
+        name: e2e.tests.env_shakeout
+
+    - name: Calling the role to generate the namespaces
+      ansible.builtin.include_role:
+        name: e2e.tests.generate_namespaces
+
+    - name: Testing the connectivity between the sites
+      ansible.builtin.include_role:
+        name: e2e.tests.run_curl
+
+    - name: Deleting the test resources
+      ansible.builtin.include_role:
+        name: e2e.tests.teardown_test

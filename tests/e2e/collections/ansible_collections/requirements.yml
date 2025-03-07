@@ -1,0 +1,11 @@
+---
+collections:
+  - name: ansible.posix
+
+  - name: ansible.scm
+
+  - name: ansible.utils
+
+  - name: kubernetes.core
+
+  - name: skupper.v2

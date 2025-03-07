@@ -1,0 +1,21 @@
+---
+- name: Test skupper images
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - e2e.tests.skupper_test_images
+  tasks:
+    - name: Show value of frontend image
+      ansible.builtin.debug:
+        var: skupper_test_images_hello_world_frontend
+
+    - name: Check skupper_test_images_hello_world_frontend
+      ansible.builtin.fail:
+        msg: >-
+          Value of skupper_test_images_hello_world_frontend
+          ("{{ skupper_test_images_hello_world_frontend }}") unexpected
+      when: >-
+        (lookup('ansible.builtin.env', 'SKUPPER_TEST_IMAGE_HELLO_WORLD_FRONTEND') == '' and
+         skupper_test_images_hello_world_frontend != 'quay.io/skupper/hello-world-frontend:latest') or
+        (lookup('ansible.builtin.env', 'SKUPPER_TEST_IMAGE_HELLO_WORLD_FRONTEND') != '' and
+         skupper_test_images_hello_world_frontend != lookup('ansible.builtin.env', 'SKUPPER_TEST_IMAGE_HELLO_WORLD_FRONTEND'))
