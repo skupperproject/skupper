@@ -17,12 +17,12 @@ Accessing the console:
 {{- else if contains "NodePort" .Values.service.type }}
   export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "network-observer.fullname" . }})
   export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
-  echo http://$NODE_IP:$NODE_PORT
+  echo https://$NODE_IP:$NODE_PORT
 {{- else if contains "LoadBalancer" .Values.service.type }}
      NOTE: It may take a few minutes for the LoadBalancer IP to be available.
            You can watch its status by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "network-observer.fullname" . }}'
   export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "network-observer.fullname" . }} --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
-  echo http://$SERVICE_IP:{{ .Values.service.port }}
+  echo https://$SERVICE_IP:{{ .Values.service.port }}
 {{- else if contains "ClusterIP" .Values.service.type }}
   The network-observer application is exposed as a service inside of your
   cluster. To access the application externally you must either enable an
@@ -37,8 +37,16 @@ Accessing the console:
   Basic Authentication is enabled.
 
   Users are configured in the {{ include "network-observer.basicAuthSecretName" . }} secret.
-  By default this chart includes placeholder credentials username="skupper" password="skupper".
-  This secret should be replaced to include user-provided credentials.
+  {{- if .Values.auth.basic.create }}
+  This secret has been prepopulated with a single user "skupper" and a randomly
+  generated password stored in plaintext. It is recommended that these
+  credentials be rotated and replaced with a secure password hash (bcrypt.)
+
+  Retrieve the password with this command:
+  kubectl --namespace {{ .Release.Namespace }} \
+	get secret {{ include "network-observer.basicAuthSecretName" . }} \
+	-o jsonpath='{.data.htpasswd}' | base64 -d | sed 's/\(.*\):{PLAIN}\(.*\)/\1 \2\n/'
+  {{- end }}
 
 {{- else if eq "openshift" .Values.auth.strategy }}
 

@@ -446,7 +446,7 @@ func (c *FileSystemConfigurationRenderer) connectJson(siteState *api.SiteState) 
 		for _, role := range la.Spec.Roles {
 			if role.Name == "normal" {
 				port = role.Port
-				host = getOption(la.Spec.Options, la.Spec.BindHost, "127.0.0.1")
+				host = getOption(la.Spec.Settings, la.Spec.BindHost, "127.0.0.1")
 			}
 		}
 		if port > 0 {

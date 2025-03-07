@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/pkg/container"
 	"gotest.tools/v3/assert"
 )
@@ -38,7 +37,7 @@ func TestVolume(t *testing.T) {
 
 		assert.Equal(t, name, vol.Name)
 		ValidateMaps(t, labels, vol.Labels)
-		assert.Assert(t, vol.Labels["application"] == types.AppName)
+		assert.Assert(t, vol.Labels["application"] == container.AppName)
 
 		// create file
 		fileName := "test.txt"

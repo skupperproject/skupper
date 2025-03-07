@@ -1019,13 +1019,6 @@ func (in *RouterAccessSpec) DeepCopyInto(out *RouterAccessSpec) {
 		*out = make([]RouterAccessRole, len(*in))
 		copy(*out, *in)
 	}
-	if in.Options != nil {
-		in, out := &in.Options, &out.Options
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
-	}
 	if in.SubjectAlternativeNames != nil {
 		in, out := &in.SubjectAlternativeNames, &out.SubjectAlternativeNames
 		*out = make([]string, len(*in))
@@ -1164,13 +1157,6 @@ func (in *SecuredAccessSpec) DeepCopyInto(out *SecuredAccessSpec) {
 		in, out := &in.Ports, &out.Ports
 		*out = make([]SecuredAccessPort, len(*in))
 		copy(*out, *in)
-	}
-	if in.Options != nil {
-		in, out := &in.Options, &out.Options
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
 	}
 	if in.Settings != nil {
 		in, out := &in.Settings, &out.Settings
@@ -1384,7 +1370,11 @@ func (in *SiteStatus) DeepCopyInto(out *SiteStatus) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	out.Controller = in.Controller
+	if in.Controller != nil {
+		in, out := &in.Controller, &out.Controller
+		*out = new(Controller)
+		**out = **in
+	}
 	return
 }
 

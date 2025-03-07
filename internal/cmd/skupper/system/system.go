@@ -41,6 +41,10 @@ links should be able to reconnect.
 To produce a bundle, instead of rendering a site, the bundle strategy (-b)
 flag must be set to "bundle" or "tarball".
 `
+	systemInstallDescription = `
+Checks the local environment for required resources and configuration.
+In some instances, configures the local environment. It starts the Podman/Docker API 
+service if it is not already available.`
 )
 
 func NewCmdSystem() *cobra.Command {
@@ -58,6 +62,8 @@ approach, which is based on the new set of Custom Resource Definitions (CRDs).`,
 	cmd.AddCommand(CmdSystemStartFactory(platform))
 	cmd.AddCommand(CmdSystemStopFactory(platform))
 	cmd.AddCommand(CmdSystemTeardownFactory(platform))
+	cmd.AddCommand(CmdSystemInstallFactory(platform))
+	cmd.AddCommand(CmdSystemUnInstallFactory(platform))
 
 	return cmd
 }
@@ -161,6 +167,52 @@ func CmdSystemTeardownFactory(configuredPlatform common.Platform) *cobra.Command
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSystemTeardownDesc, kubeCommand, nonKubeCommand)
+
+	return cmd
+}
+
+func CmdSystemInstallFactory(configuredPlatform common.Platform) *cobra.Command {
+
+	//This implementation will warn the user that the command is not available for Kubernetes environments.
+	kubeCommand := kube.NewCmdSystemInstall()
+	nonKubeCommand := nonkube.NewCmdSystemInstall()
+
+	cmdSystemInstallDesc := common.SkupperCmdDescription{
+		Use:   "install",
+		Short: "Install local system infrastructure and configure the environment",
+		Long:  systemInstallDescription,
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSystemInstallDesc, kubeCommand, nonKubeCommand)
+
+	kubeCommand.CobraCmd = cmd
+	nonKubeCommand.CobraCmd = cmd
+
+	return cmd
+}
+
+func CmdSystemUnInstallFactory(configuredPlatform common.Platform) *cobra.Command {
+
+	//This implementation will warn the user that the command is not available for Kubernetes environments.
+	kubeCommand := kube.NewCmdSystemUnInstall()
+	nonKubeCommand := nonkube.NewCmdSystemUninstall()
+
+	cmdSystemUninstallDesc := common.SkupperCmdDescription{
+		Use:   "uninstall",
+		Short: "Remove local system infrastructure",
+		Long:  "Remove local system infrastructure, undoing the configuration changes made by skupper system install, by disabling the Podman/Docker API.",
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSystemUninstallDesc, kubeCommand, nonKubeCommand)
+
+	cmdFlags := common.CommandSystemUninstallFlags{}
+
+	cmd.Flags().BoolVarP(&cmdFlags.Force, common.FlagNameForce, "f", false, common.FlagDescUninstallForce)
+
+	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
+	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
 
 	return cmd
 }

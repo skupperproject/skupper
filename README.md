@@ -38,7 +38,7 @@ Skupper v1 will continue to be maintained but no new significant features are pl
 # Useful Links
 Using Skupper v2
 
-* [Simple Example](https://github.com/skupperproject/skupper/blob/main/cmd/controller/example/README.md)
+* [Simple Declarative Example](https://github.com/skupperproject/skupper/blob/main/cmd/controller/example/README.md)
 * [Network Observer Deployment](https://github.com/skupperproject/skupper/blob/main/cmd/network-observer/README.md)
 * [Redis Example](https://github.com/skupperproject/skupper-example-redis/tree/v2)
 * [CLI Example](https://github.com/skupperproject/skupper/blob/main/cmd/skupper/README.md)

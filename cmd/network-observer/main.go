@@ -18,6 +18,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/api"
+	"github.com/skupperproject/skupper/cmd/network-observer/internal/cmd"
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/collector"
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/flowlog"
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/server"
@@ -210,7 +211,7 @@ func main() {
 
 	flags.BoolVar(&cfg.EnableConsole, "enable-console", true, "Enables the web console")
 	flags.StringVar(&cfg.ConsoleLocation, "console-location", "/app/console", "Location where the console assets are installed")
-	flags.StringVar(&cfg.PrometheusAPI, "prometheus-api", "http://network-observer-prometheus:9090", "Prometheus API HTTP endpoint for console")
+	flags.StringVar(&cfg.PrometheusAPI, "prometheus-api", "http://127.0.0.1:9090", "Prometheus API HTTP endpoint for console")
 
 	flags.DurationVar(&cfg.FlowRecordTTL, "flow-record-ttl", 15*time.Minute, "How long to retain flow records in memory")
 	flags.BoolVar(&cfg.CORSAllowAll, "cors-allow-all", false, "Development option to allow all origins")
@@ -222,6 +223,17 @@ func main() {
 	if *isVersion {
 		fmt.Println(version.Version)
 		os.Exit(0)
+	}
+
+	args := flags.Args()
+	if len(args) > 0 {
+		// Handle internal subcommands
+		if args[0] == "help" {
+			flags.Usage()
+			os.Exit(0)
+		}
+		cmd.Run(args)
+		return
 	}
 
 	if err := run(cfg); err != nil {

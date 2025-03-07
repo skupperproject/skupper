@@ -68,10 +68,25 @@ func (o *ContourHttpProxyAccessType) ensureHttpProxy(namespace string, desired H
 		actual := HttpProxy{
 			Name: desired.Name,
 		}
-		if err := actual.readFromContourProxy(existing); err == nil && desired == actual {
-			return existing, nil
+		changed := false
+		if err := actual.readFromContourProxy(existing); err != nil {
+			return nil, errors.New("Unexpected structure for HTTPProxy")
 		}
 		modified := existing.DeepCopy()
+		if desired != actual {
+			changed = true
+		}
+		if o.manager.context != nil {
+			if o.manager.context.SetLabels(namespace, modified.GetName(), "HttpProxy", modified.GetLabels()) {
+				changed = true
+			}
+			if o.manager.context.SetAnnotations(namespace, modified.GetName(), "HttpProxy", modified.GetAnnotations()) {
+				changed = true
+			}
+		}
+		if !changed {
+			return existing, nil
+		}
 		if err := desired.writeToContourProxy(modified); err != nil {
 			return nil, errors.New("Unexpected structure for HTTPProxy")
 		}
@@ -89,6 +104,10 @@ func (o *ContourHttpProxyAccessType) ensureHttpProxy(namespace string, desired H
 		"internal.skupper.io/controlled": "true",
 	}
 	log.Printf("Creating contour httpproxy")
+	if o.manager.context != nil {
+		o.manager.context.SetLabels(namespace, desired.Name, "HttpProxy", labels)
+		o.manager.context.SetAnnotations(namespace, desired.Name, "HttpProxy", annotations)
+	}
 	created, err := createContourProxy(o.manager.clients.GetDynamicClient(), namespace, desired, labels, annotations, ownerRefs)
 	if err != nil {
 		return nil, err

@@ -313,8 +313,8 @@ func (a *Endpoint) Url() string {
 }
 
 type SiteRecord struct {
-	Id        string          `json:"id"`
-	Name      string          `json:"name"`
+	Id        string          `json:"id,omitempty"`
+	Name      string          `json:"name,omitempty"`
 	Namespace string          `json:"namespace,omitempty"`
 	Platform  string          `json:"platform,omitempty"`
 	Version   string          `json:"version,omitempty"`
@@ -323,16 +323,16 @@ type SiteRecord struct {
 }
 
 type ServiceRecord struct {
-	RoutingKey string   `json:"routingKey"`
-	Connectors []string `json:"connectors"`
-	Listeners  []string `json:"listeners"`
+	RoutingKey string   `json:"routingKey,omitempty"`
+	Connectors []string `json:"connectors,omitempty"`
+	Listeners  []string `json:"listeners,omitempty"`
 }
 
 type LinkRecord struct {
-	Name           string `json:"name"`
-	RemoteSiteId   string `json:"remoteSiteId"`
-	RemoteSiteName string `json:"remoteSiteName"`
-	Operational    bool   `json:"operational"`
+	Name           string `json:"name,omitempty"`
+	RemoteSiteId   string `json:"remoteSiteId,omitempty"`
+	RemoteSiteName string `json:"remoteSiteName,omitempty"`
+	Operational    bool   `json:"operational,omitempty"`
 }
 
 // +genclient
@@ -504,8 +504,8 @@ type ConnectorSpec struct {
 
 type PodDetails struct {
 	UID  string `json:"-"`
-	Name string `json:"name"`
-	IP   string `json:"ip"`
+	Name string `json:"name,omitempty"`
+	IP   string `json:"ip,omitempty"`
 }
 
 type ConnectorStatus struct {
@@ -576,7 +576,7 @@ type LinkList struct {
 }
 
 type LinkSpec struct {
-	Endpoints      []Endpoint        `json:"endpoints,omitempty"`
+	Endpoints      []Endpoint        `json:"endpoints"`
 	TlsCredentials string            `json:"tlsCredentials,omitempty"`
 	Cost           int               `json:"cost,omitempty"`
 	Settings       map[string]string `json:"settings,omitempty"`
@@ -701,9 +701,9 @@ type AccessGrantSpec struct {
 
 type AccessGrantStatus struct {
 	Status         `json:",inline"`
-	Url            string `json:"url"`
-	Code           string `json:"code"`
-	Ca             string `json:"ca"`
+	Url            string `json:"url,omitempty"`
+	Code           string `json:"code,omitempty"`
+	Ca             string `json:"ca,omitempty"`
 	Redemptions    int    `json:"redemptions,omitempty"`
 	ExpirationTime string `json:"expirationTime,omitempty"`
 }
@@ -772,7 +772,6 @@ type SecuredAccessSpec struct {
 	Ports       []SecuredAccessPort `json:"ports"`
 	Certificate string              `json:"certificate,omitempty"`
 	Issuer      string              `json:"issuer,omitempty"`
-	Options     map[string]string   `json:"options,omitempty"`
 	Settings    map[string]string   `json:"settings,omitempty"`
 }
 
@@ -940,7 +939,7 @@ type RouterAccessList struct {
 
 type RouterAccessRole struct {
 	Name string `json:"name"`
-	Port int    `json:"port"`
+	Port int    `json:"port,omitempty"`
 }
 
 func (role RouterAccessRole) GetPort() int32 {
@@ -957,9 +956,8 @@ type RouterAccessSpec struct {
 	AccessType              string             `json:"accessType,omitempty"`
 	Roles                   []RouterAccessRole `json:"roles"`
 	TlsCredentials          string             `json:"tlsCredentials"`
-	GenerateTlsCredentials  bool               `json:"generateTlsCredentials"`
-	Issuer                  string             `json:"issuer"`
-	Options                 map[string]string  `json:"options,omitempty"`
+	GenerateTlsCredentials  bool               `json:"generateTlsCredentials,omitempty"`
+	Issuer                  string             `json:"issuer,omitempty"`
 	BindHost                string             `json:"bindHost,omitempty"`
 	SubjectAlternativeNames []string           `json:"subjectAlternativeNames,omitempty"`
 	Settings                map[string]string  `json:"settings,omitempty"`
@@ -1012,7 +1010,7 @@ type AttachedConnectorList struct {
 
 type AttachedConnectorSpec struct {
 	SiteNamespace       string            `json:"siteNamespace"`
-	Selector            string            `json:"selector,omitempty"`
+	Selector            string            `json:"selector"`
 	Port                int               `json:"port"`
 	TlsCredentials      string            `json:"tlsCredentials,omitempty"`
 	UseClientCert       bool              `json:"useClientCert,omitempty"`

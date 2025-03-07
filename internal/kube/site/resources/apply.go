@@ -5,8 +5,10 @@ import (
 	"crypto/sha256"
 	_ "embed"
 	"fmt"
+	"strconv"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/yaml"
 
 	skuppertypes "github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/images"
@@ -22,13 +24,17 @@ var routerDeploymentTemplate string
 //go:embed skupper-router-local-service.yaml
 var routerLocalServiceTemplate string
 
-func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Sizing) []resource.Template {
-	options := getCoreParams(site, group, size)
+type Labelling interface {
+	SetLabels(namespace string, name string, kind string, labels map[string]string) bool
+	SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool
+}
+
+func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Sizing, labelling Labelling) []resource.Template {
 	templates := []resource.Template{
 		{
 			Name:       "deployment",
 			Template:   routerDeploymentTemplate,
-			Parameters: options,
+			Parameters: getCoreParams(site, group, size).setLabelsAndAnnotations(labelling, site.Namespace, "skupper-router", "Deployment"),
 			Resource: schema.GroupVersionResource{
 				Group:    "apps",
 				Version:  "v1",
@@ -38,7 +44,7 @@ func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Siz
 		{
 			Name:       "localService",
 			Template:   routerLocalServiceTemplate,
-			Parameters: options,
+			Parameters: getCoreParams(site, group, size).setLabelsAndAnnotations(labelling, site.Namespace, "skupper-router-local", "Service"),
 			Resource: schema.GroupVersionResource{
 				Group:    "",
 				Version:  "v1",
@@ -50,15 +56,68 @@ func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Siz
 }
 
 type CoreParams struct {
-	SiteId         string
-	SiteName       string
-	Group          string
-	Replicas       int
-	ServiceAccount string
-	ConfigDigest   string
-	RouterImage    skuppertypes.ImageDetails
-	AdaptorImage   skuppertypes.ImageDetails
-	Sizing         sizing.Sizing
+	SiteId             string
+	SiteName           string
+	Group              string
+	Replicas           int
+	ServiceAccount     string
+	ConfigDigest       string
+	RouterImage        skuppertypes.ImageDetails
+	AdaptorImage       skuppertypes.ImageDetails
+	Sizing             sizing.Sizing
+	Labels             map[string]string
+	Annotations        map[string]string
+	EnableAntiAffinity bool
+}
+
+func (p *CoreParams) setLabelsAndAnnotations(labelling Labelling, namespace string, name string, kind string) *CoreParams {
+	if labelling == nil {
+		return p
+	}
+	p.Labels = map[string]string{}
+	p.Annotations = map[string]string{}
+	labelling.SetLabels(namespace, name, kind, p.Labels)
+	labelling.SetAnnotations(namespace, name, kind, p.Annotations)
+	quoteValues(p.Labels)
+	quoteValues(p.Annotations)
+	return p
+}
+
+func quoteValues(items map[string]string) {
+	for key, value := range items {
+		items[key] = quoted(value)
+	}
+}
+
+func quoted(in string) string {
+	if numeric(in) || boolean(in) {
+		return "\"" + in + "\""
+	}
+	if needsBlockQuote(in) {
+		return "|\n      " + in
+	}
+	return in
+}
+
+func numeric(s string) bool {
+	_, err := strconv.ParseFloat(s, 64)
+	return err == nil
+}
+
+func boolean(s string) bool {
+	_, err := strconv.ParseBool(s)
+	return err == nil
+}
+
+func needsBlockQuote(s string) bool {
+	// is there a better way to test if block quoting is required?
+	test := "x: " + s
+	o := map[string]string{}
+	err := yaml.Unmarshal([]byte(test), &o)
+	if err != nil {
+		return true
+	}
+	return false
 }
 
 type Resources struct {
@@ -90,26 +149,43 @@ func configDigest(config *skupperv2alpha1.SiteSpec) string {
 	return ""
 }
 
-func getCoreParams(site *skupperv2alpha1.Site, group string, size sizing.Sizing) CoreParams {
-	return CoreParams{
-		SiteId:         site.GetSiteId(),
-		SiteName:       site.Name,
-		Group:          group,
-		Replicas:       1,
-		ServiceAccount: site.Spec.GetServiceAccount(),
-		ConfigDigest:   configDigest(&site.Spec),
-		RouterImage:    images.GetRouterImageDetails(),
-		AdaptorImage:   images.GetKubeAdaptorImageDetails(),
-		Sizing:         size,
+func getCoreParams(site *skupperv2alpha1.Site, group string, size sizing.Sizing) *CoreParams {
+	return &CoreParams{
+		SiteId:             site.GetSiteId(),
+		SiteName:           site.Name,
+		Group:              group,
+		Replicas:           1,
+		ServiceAccount:     site.Spec.GetServiceAccount(),
+		ConfigDigest:       configDigest(&site.Spec),
+		RouterImage:        images.GetRouterImageDetails(),
+		AdaptorImage:       images.GetKubeAdaptorImageDetails(),
+		Sizing:             size,
+		Labels:             map[string]string{},
+		EnableAntiAffinity: enableAntiAffinity(site),
 	}
 }
 
-func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv2alpha1.Site, group string, size sizing.Sizing) error {
-	for _, t := range resourceTemplates(site, group, size) {
+func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv2alpha1.Site, group string, size sizing.Sizing, labelling Labelling) error {
+	for _, t := range resourceTemplates(site, group, size, labelling) {
 		_, err := t.Apply(clients.GetDynamicClient(), ctx, site.Namespace)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func enableAntiAffinity(site *skupperv2alpha1.Site) bool {
+	return site.Spec.HA && !getValueAsBool(site.Spec.Settings, "disable-anti-affinity")
+}
+
+func getValueAsBool(settings map[string]string, key string) bool {
+	if settings == nil {
+		return false
+	}
+	if sval, ok := settings[key]; ok {
+		bval, _ := strconv.ParseBool(sval)
+		return bval
+	}
+	return false
 }

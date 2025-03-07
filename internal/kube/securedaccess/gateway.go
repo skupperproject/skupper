@@ -37,6 +37,8 @@ type TlsRouteParameters struct {
 	ServiceName      string
 	ServiceNamespace string
 	ServicePort      int
+	Labels           map[string]string
+	Annotations      map[string]string
 }
 
 type GatewayAccessType struct {
@@ -52,14 +54,16 @@ type GatewayAccessType struct {
 
 func newGatewayAccess(manager *SecuredAccessManager, class string, domain string, port int, context ControllerContext) (AccessType, func() error, error) {
 	at := &GatewayAccessType{
-		manager:          manager,
-		class:            class,
-		domain:           domain,
-		port:             port,
-		gatewayNamespace: context.Namespace,
-		controllerName:   context.Name,
-		controllerUID:    context.UID,
-		unreconciled:     map[string]*skupperv2alpha1.SecuredAccess{},
+		manager:      manager,
+		class:        class,
+		domain:       domain,
+		port:         port,
+		unreconciled: map[string]*skupperv2alpha1.SecuredAccess{},
+	}
+	if context != nil {
+		at.gatewayNamespace = context.Namespace()
+		at.controllerName = context.Name()
+		at.controllerUID = context.UID()
 	}
 	if err := at.init(); err != nil {
 		return nil, nil, err
@@ -114,6 +118,14 @@ func (o *GatewayAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAcc
 	for _, port := range access.Spec.Ports {
 		name := fmt.Sprintf("%s-%s", access.Name, port.Name)
 		hostname := fmt.Sprintf("%s.%s.%s", name, access.Namespace, o.domain)
+		var labels map[string]string
+		var annotations map[string]string
+		if o.manager.context != nil {
+			labels = map[string]string{}
+			annotations = map[string]string{}
+			o.manager.context.SetLabels(access.Namespace, name, "TlsRoute", labels)
+			o.manager.context.SetAnnotations(access.Namespace, name, "TlsRoute", annotations)
+		}
 		template := resource.Template{
 			Name:     "tlsroute",
 			Template: tlsRouteTemplate,
@@ -126,6 +138,8 @@ func (o *GatewayAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAcc
 				ServiceName:      access.Name,
 				ServiceNamespace: access.Namespace,
 				ServicePort:      port.Port,
+				Labels:           labels,
+				Annotations:      annotations,
 			},
 			Resource: schema.GroupVersionResource{
 				Group:    "gateway.networking.k8s.io",
@@ -133,6 +147,7 @@ func (o *GatewayAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAcc
 				Resource: "tlsroutes",
 			},
 		}
+
 		if _, err := template.Apply(o.manager.clients.GetDynamicClient(), context.Background(), access.Namespace); err != nil {
 			return nil, err
 		}

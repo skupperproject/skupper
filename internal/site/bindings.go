@@ -1,7 +1,6 @@
 package site
 
 import (
-	"log"
 	"reflect"
 
 	"github.com/skupperproject/skupper/internal/qdr"
@@ -136,7 +135,6 @@ func (b *Bindings) UpdateListener(name string, listener *skupperv2alpha1.Listene
 }
 
 func (b *Bindings) updateListener(latest *skupperv2alpha1.Listener) qdr.ConfigUpdate {
-	log.Printf("updating listener %s/%s...", latest.Namespace, latest.Name)
 	name := latest.ObjectMeta.Name
 	existing, ok := b.listeners[name]
 	b.listeners[name] = latest

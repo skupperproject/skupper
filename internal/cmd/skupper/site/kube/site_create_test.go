@@ -42,7 +42,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			expectedError: "there is already a site created for this namespace",
+			expectedError: "There is already a site created for this namespace",
 		},
 		{
 			name:          "site name is not valid.",

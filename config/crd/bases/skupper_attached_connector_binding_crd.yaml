@@ -10,6 +10,7 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
+          description: "A binding to an attached connector in a peer namespace"
           type: object
           properties:
             spec:
@@ -32,6 +33,8 @@ spec:
               type: object
               properties:
                 status:
+                  type: string
+                message:
                   type: string
                 conditions:
                   type: array
@@ -61,7 +64,7 @@ spec:
                         type: string
                       type:
                         maxLength: 316
-                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][- A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                         type: string
                     required:
                     - lastTransitionTime
@@ -87,7 +90,7 @@ spec:
         description: The status of the connector
         jsonPath: .status.status
       - name: Has Matching Listener
-        type: integer
+        type: boolean
         description: Whether there is at least one listener in the network with a matching routing key.
         jsonPath: .status.hasMatchingListener
   scope: Namespaced
@@ -95,3 +98,5 @@ spec:
     plural: attachedconnectorbindings
     singular: attachedconnectorbinding
     kind: AttachedConnectorBinding
+    shortNames:
+    - acnrb

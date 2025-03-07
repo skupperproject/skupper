@@ -10,6 +10,7 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
+          description: "Configuration for secure access to the site router"
           type: object
           properties:
             spec:
@@ -24,6 +25,8 @@ spec:
                         type: string
                       port:
                         type: integer
+                    required:
+                      - name
                 generateTlsCredentials:
                   type: boolean
                 issuer:
@@ -80,7 +83,7 @@ spec:
                         type: string
                       type:
                         maxLength: 316
-                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][- A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                         type: string
                     required:
                     - lastTransitionTime

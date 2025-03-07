@@ -32,6 +32,11 @@ type SecuredAccessFactory interface {
 	IsValidAccessType(accessType string) bool
 }
 
+type Labelling interface {
+	SetLabels(namespace string, name string, kind string, labels map[string]string) bool
+	SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool
+}
+
 type Site struct {
 	initialised   bool
 	site          *skupperv2alpha1.Site
@@ -48,9 +53,10 @@ type Site struct {
 	routerPods    map[string]*corev1.Pod
 	logger        *slog.Logger
 	currentGroups []string
+	labelling     Labelling
 }
 
-func NewSite(namespace string, controller *internalclient.Controller, certs certificates.CertificateManager, access SecuredAccessFactory, sizes *sizing.Registry) *Site {
+func NewSite(namespace string, controller *internalclient.Controller, certs certificates.CertificateManager, access SecuredAccessFactory, sizes *sizing.Registry, labelling Labelling) *Site {
 	return &Site{
 		bindings:   NewExtendedBindings(controller, SSL_PROFILE_PATH),
 		namespace:  namespace,
@@ -64,6 +70,7 @@ func NewSite(namespace string, controller *internalclient.Controller, certs cert
 		logger: slog.New(slog.Default().Handler()).With(
 			slog.String("component", "kube.site.site"),
 		),
+		labelling: labelling,
 	}
 }
 
@@ -199,7 +206,7 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 		)
 	}
 	for _, group := range s.groups() {
-		if err := resources.Apply(s.controller, ctxt, s.site, group, size); err != nil {
+		if err := resources.Apply(s.controller, ctxt, s.site, group, size, s.labelling); err != nil {
 			return err
 		}
 	}
@@ -496,37 +503,38 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: exposed.Host,
+				Labels: map[string]string{
+					"internal.skupper.io/listener": "true",
+				},
 				Annotations: map[string]string{
 					"internal.skupper.io/controlled": "true",
 				},
+				OwnerReferences: s.ownerReferences(),
 			},
 			Spec: corev1.ServiceSpec{
 				Selector: getLabelsForRouter(), //TODO: handle external bridges
 			},
 		}
-		//TODO: add user specified labels and annotations
-		//for key, value := range desired.Labels {
-		//	service.ObjectMeta.Labels[key] = value
-		//}
-		//for key, value := range desired.Annotations {
-		//	service.ObjectMeta.Annotations[key] = value
-		//}
-		if updatePorts(&service.Spec, exposed.Ports) {
-			_, err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Create(ctxt, service, metav1.CreateOptions{})
-			if err != nil {
-				s.logger.Error("Error creating service",
-					slog.String("service", exposed.Host),
-					slog.String("namespace", s.namespace),
-					slog.Any("error", err))
-				return err
-			} else {
-				s.logger.Info("Created service",
-					slog.String("service", exposed.Host),
-					slog.String("namespace", s.namespace))
-				return nil
-			}
+		if s.labelling != nil {
+			s.labelling.SetLabels(s.namespace, service.Name, "Service", service.ObjectMeta.Labels)
+			s.labelling.SetAnnotations(s.namespace, service.Name, "Service", service.ObjectMeta.Annotations)
+		}
+		updatePorts(&service.Spec, exposed.Ports)
+		if len(service.Spec.Ports) == 0 {
+			s.logger.Warn("Did not create service as no ports were defined",
+				slog.String("service", exposed.Host),
+				slog.String("namespace", s.namespace))
+			return nil
+		}
+		_, err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Create(ctxt, service, metav1.CreateOptions{})
+		if err != nil {
+			s.logger.Error("Error creating service",
+				slog.String("service", exposed.Host),
+				slog.String("namespace", s.namespace),
+				slog.Any("error", err))
+			return err
 		} else {
-			s.logger.Info("Did not create service as ports were not updated",
+			s.logger.Info("Created service",
 				slog.String("service", exposed.Host),
 				slog.String("namespace", s.namespace))
 			return nil
@@ -545,7 +553,20 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 		if updatePorts(&current.Spec, exposed.Ports) {
 			updated = true
 		}
-		//TODO: update labels and annotations
+		if s.labelling != nil {
+			if current.ObjectMeta.Labels == nil {
+				current.ObjectMeta.Labels = map[string]string{}
+			}
+			if current.ObjectMeta.Annotations == nil {
+				current.ObjectMeta.Annotations = map[string]string{}
+			}
+			if s.labelling.SetLabels(s.namespace, current.Name, "Service", current.ObjectMeta.Labels) {
+				updated = true
+			}
+			if s.labelling.SetAnnotations(s.namespace, current.Name, "Service", current.ObjectMeta.Annotations) {
+				updated = true
+			}
+		}
 		if updated {
 			_, err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Update(ctxt, current, metav1.UpdateOptions{})
 			if err != nil {
@@ -640,7 +661,7 @@ func (s *Site) recoverRouterConfig(update bool) ([]*qdr.RouterConfig, error) {
 		if config, ok := byName[group]; ok {
 			if update {
 				op := ConfigUpdateList{s.bindings, s, s.linkAccess.DesiredConfig(groups[:i], SSL_PROFILE_PATH)}
-				if err := kubeqdr.UpdateRouterConfig(s.controller.GetKubeClient(), group, s.namespace, context.TODO(), op); err != nil {
+				if err := kubeqdr.UpdateRouterConfig(s.controller.GetKubeClient(), group, s.namespace, context.TODO(), op, s.labelling); err != nil {
 					s.logger.Error("Failed to update router config map",
 						slog.String("namespace", s.namespace),
 						slog.String("name", group),
@@ -719,12 +740,16 @@ func (s *Site) createRouterConfigForGroup(group string, config *qdr.RouterConfig
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            group,
 			OwnerReferences: s.ownerReferences(),
-			//TODO: Labels & Annotations?
 			Labels: map[string]string{
 				"internal.skupper.io/router-config": "",
 			},
+			Annotations: map[string]string{},
 		},
 		Data: data,
+	}
+	if s.labelling != nil {
+		s.labelling.SetLabels(s.namespace, group, "ConfigMap", cm.ObjectMeta.Labels)
+		s.labelling.SetAnnotations(s.namespace, group, "ConfigMap", cm.ObjectMeta.Annotations)
 	}
 	if _, err = s.controller.GetKubeClient().CoreV1().ConfigMaps(s.namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
 		s.logger.Error("Failed to create config map",
@@ -755,7 +780,7 @@ func (s *Site) updateRouterConfigForGroup(update qdr.ConfigUpdate, group string)
 	if !s.initialised {
 		return nil
 	}
-	if err := kubeqdr.UpdateRouterConfig(s.controller.GetKubeClient(), group, s.namespace, context.TODO(), update); err != nil {
+	if err := kubeqdr.UpdateRouterConfig(s.controller.GetKubeClient(), group, s.namespace, context.TODO(), update, s.labelling); err != nil {
 		return err
 	}
 	return nil
@@ -818,6 +843,36 @@ func (s *Site) updateListenerStatus(listener *skupperv2alpha1.Listener, err erro
 			return err
 		}
 		s.bindings.UpdateListener(updated.Name, updated)
+	}
+	return nil
+}
+
+func isListenerService(svc *corev1.Service) bool {
+	if svc.Annotations == nil || svc.Labels == nil {
+		return false
+	}
+	if _, ok := svc.Annotations["internal.skupper.io/controlled"]; !ok {
+		return false
+	}
+	if _, ok := svc.Labels["internal.skupper.io/listener"]; !ok {
+		return false
+	}
+	return true
+}
+
+func (s *Site) CheckListenerService(svc *corev1.Service) error {
+	if isListenerService(svc) && !s.bindings.isHostExposed(svc.Name) {
+		if err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Delete(context.Background(), svc.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+			s.logger.Info("Could not delete stale listener service",
+				slog.String("namespace", svc.Namespace),
+				slog.String("name", svc.Name),
+				slog.String("reason", err.Error()),
+			)
+		}
+		s.logger.Info("Deleted stale listener service",
+			slog.String("namespace", svc.Namespace),
+			slog.String("name", svc.Name),
+		)
 	}
 	return nil
 }
@@ -1118,7 +1173,7 @@ func asSecuredAccessSpec(la *skupperv2alpha1.RouterAccess, group string, default
 		},
 		Certificate: la.Spec.TlsCredentials,
 		Issuer:      issuer,
-		Options:     la.Spec.Options,
+		Settings:    la.Spec.Settings,
 	}
 	if group != "" {
 		//add extra label to allow for distinct sets of routers in HA
