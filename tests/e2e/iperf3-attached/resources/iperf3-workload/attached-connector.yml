@@ -1,8 +1,0 @@
-apiVersion: skupper.io/v2alpha1
-kind: AttachedConnector
-metadata:
-  name: iperf3
-spec:
-  siteNamespace: e2e-iperf3-hub
-  port: 5201
-  selector: app=iperf3-server

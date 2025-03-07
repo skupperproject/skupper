@@ -1,8 +1,0 @@
-apiVersion: skupper.io/v2alpha1
-kind: Listener
-metadata:
-  name: iperf3-client
-spec:
-  port: 5201
-  host: iperf3
-  routingKey: iperf3
