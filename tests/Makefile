@@ -1,5 +1,6 @@
 ROOT_PATH := $(shell pwd)
 EXTRA_VARS := --extra-vars "@$(ROOT_PATH)/vars.yml"
+COLLECTION_PATH := $(ROOT_PATH)/e2e/collections/ansible_collections/e2e/tests
 
 # E2E Test directories
 E2E_TEST_DIRS := $(sort $(wildcard $(ROOT_PATH)/e2e/scenarios/*))
@@ -37,7 +38,7 @@ create-venv:
 test-role: create-venv
 	@echo "Running the tests for the role: $(ROLE)"
 	@cd $(COLLECTION_PATH) && \
-	ansible-playbook roles/$(ROLE)/tests/test_playbook.yml -i roles/$(ROLE)/tests/inventory $(EXTRA_VARS)
+	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg ansible-playbook roles/$(ROLE)/tests/test_playbook.yml -i roles/$(ROLE)/tests/inventory $(EXTRA_VARS)
 
 # Run a specific test (use relative path from e2e/ directory)
 test: FORCE=false
