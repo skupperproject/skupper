@@ -43,6 +43,13 @@ network-observer-*.tgz
 # Python venv folder
 **/venv/
 
-# E2E Collection exclude list
+# First, ignore the redis scenario
+e2e/scenarios/redis/
 
-**/collections/**/ansible*
+# Ignore all ansible_collections content
+e2e/collections/ansible_collections/**
+
+# Then specifically allow only the e2e subfolder
+!e2e/collections/ansible_collections/e2e/
+!e2e/collections/ansible_collections/e2e/**
+
