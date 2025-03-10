@@ -16,11 +16,14 @@ import (
 )
 
 type CmdLinkGenerate struct {
-	CobraCmd    *cobra.Command
-	Namespace   string
-	siteName    string
-	siteHandler *fs.SiteHandler
-	siteState   *api.SiteState
+	CobraCmd     *cobra.Command
+	Namespace    string
+	siteName     string
+	tokenHandler *fs.TokenHandler
+	siteState    *api.SiteState
+	Flags        *common.CommandLinkGenerateFlags
+	linkName     string
+	endpointHost string
 }
 
 func NewCmdLinkGenerate() *CmdLinkGenerate {
@@ -32,6 +35,8 @@ func (cmd *CmdLinkGenerate) NewClient(cobraCommand *cobra.Command, args []string
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace) != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String() != "" {
 		cmd.Namespace = cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String()
 	}
+
+	cmd.tokenHandler = fs.NewTokenHandler(cmd.Namespace)
 }
 
 func (cmd *CmdLinkGenerate) ValidateInput(args []string) error {
@@ -62,7 +67,7 @@ func (cmd *CmdLinkGenerate) ValidateInput(args []string) error {
 			}
 		}
 		if !hasRouterAccess {
-			validationErrors = append(validationErrors, fmt.Errorf("this site is not enable for link access, there are no links created"))
+			validationErrors = append(validationErrors, fmt.Errorf("this site is not enabled for link access, there are no links created"))
 		}
 	}
 
@@ -72,24 +77,38 @@ func (cmd *CmdLinkGenerate) ValidateInput(args []string) error {
 
 }
 
-func (cmd *CmdLinkGenerate) InputToOptions() {}
+func (cmd *CmdLinkGenerate) InputToOptions() {
+	cmd.linkName = cmd.Flags.Name
+	cmd.endpointHost = cmd.Flags.Host
+}
 func (cmd *CmdLinkGenerate) Run() error {
 
 	hostTokenPath := api.GetHostSiteInternalPath(cmd.siteState.Site, api.RuntimeTokenPath)
 
-	links, _ := os.ReadDir(hostTokenPath)
-	if links == nil || len(links) == 0 {
-		return fmt.Errorf("there are no links created")
+	opts := fs.GetOptions{
+		LogWarning: false,
+		Attributes: map[string]string{
+			"linkName":     cmd.linkName,
+			"endpointHost": cmd.endpointHost,
+			"tokenPath":    hostTokenPath,
+		},
 	}
-	for _, link := range links {
-		if !link.IsDir() {
-			file, errFile := os.ReadFile(hostTokenPath + "/" + link.Name())
-			if errFile != nil {
-				return fmt.Errorf("error reading file %s: %s", hostTokenPath+"/"+link.Name(), errFile)
-			}
-			fmt.Println(string(file))
-			break
+	tokenFiles, err := cmd.tokenHandler.List(opts)
+	if err != nil {
+		return fmt.Errorf("Error searching for tokens: %s", err)
+	}
+
+	if tokenFiles == nil || len(tokenFiles) == 0 {
+		fmt.Println("no tokens found")
+		return nil
+	}
+
+	for _, tokenFile := range tokenFiles {
+		file, errFile := os.ReadFile(hostTokenPath + "/" + tokenFile)
+		if errFile != nil {
+			return fmt.Errorf("error reading file %s: %s", hostTokenPath+"/"+tokenFile, errFile)
 		}
+		fmt.Println(string(file))
 	}
 
 	return nil

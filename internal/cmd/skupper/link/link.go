@@ -47,10 +47,14 @@ output needs to be applied in the site in which we want to create the link.`,
 		cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "yaml", common.FlagDescOutput)
 		cmd.Flags().BoolVar(&cmdFlags.GenerateCredential, common.FlagNameGenerateCredential, true, common.FlagDescGenerateCredential)
 		cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
+	} else {
+		cmd.Flags().StringVar(&cmdFlags.Name, common.FlagNameLinkName, "", common.FlagDescNameLinkName)
+		cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameLinkHost, "", common.FlagDescNameLinkHost)
 	}
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
 
 	return cmd
 }
