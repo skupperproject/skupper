@@ -40,7 +40,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 			name:               "site was not enabled for link access",
 			createSite:         true,
 			createRouterAccess: false,
-			expectedError:      "this site is not enable for link access, there are no links created",
+			expectedError:      "this site is not enabled for link access, there are no links created",
 		},
 	}
 
@@ -78,7 +78,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 	testTable := []test{
 		{
 			name:         "it fails because link doesn't exist",
-			errorMessage: "there are no links created",
+			errorMessage: "Error searching for tokens: there are no links created",
 		},
 		{
 			name:       "runs ok",
@@ -89,6 +89,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 	// add two Links in runtime directory
 	command := &CmdLinkGenerate{}
 	command.Namespace = "test"
+	command.tokenHandler = fs.NewTokenHandler(command.Namespace)
 
 	for _, test := range testTable {
 
