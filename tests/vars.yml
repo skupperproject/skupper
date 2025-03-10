@@ -1,4 +1,4 @@
 ---
 #kubeconfig_1: /home/user/.kube/config
 #kubeconfig_2: /home/user/.kube/config
-debug: true
+debug: false
