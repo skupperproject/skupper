@@ -16,10 +16,10 @@ create-venv:
 		cd /tmp && python3 -m venv e2e-venv; \
 		if [ -d "/tmp/e2e-venv" ]; then \
 			echo "Virtual environment created successfully at /tmp/e2e-venv"; \
-			bash -c "source /tmp/e2e-venv/bin/activate && \
-			pip install --upgrade pip && \
-			pip install -r $(ROOT_PATH)/requirements.txt"; \
-			ansible-galaxy collection install -r $(ROOT_PATH)/e2e/collections/ansible_collections/requirements.yml; \
+			source /tmp/e2e-venv/bin/activate;  \
+			pip install --upgrade pip; \
+			pip install -r $(ROOT_PATH)/requirements.txt; \
+			ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg ansible-galaxy collection install -r $(ROOT_PATH)/e2e/collections/ansible_collections/requirements.yml --force; \
 		else \
 			echo "Failed to create virtual environment at /tmp/e2e-venv"; \
 			exit 1; \
