@@ -26,6 +26,12 @@ func updateRouterConfig(client kubernetes.Interface, name string, namespace stri
 	if err != nil {
 		return err
 	}
+	if current.ObjectMeta.Labels == nil {
+		current.ObjectMeta.Labels = map[string]string{}
+	}
+	if current.ObjectMeta.Annotations == nil {
+		current.ObjectMeta.Annotations = map[string]string{}
+	}
 
 	config, err := qdr.GetRouterConfigFromConfigMap(current)
 	if err != nil {
