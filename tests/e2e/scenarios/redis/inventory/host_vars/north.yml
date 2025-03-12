@@ -1,0 +1,13 @@
+---
+# Kubeconfig path for east site
+kubeconfig_3: "{{ ansible_env.HOME }}/.kube/config"
+kubeconfig: "{{ kubeconfig_3 }}"
+
+# Namespace configuration
+namespace_name: redis-north
+
+# North CRs
+site: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/north-crs/site-north.yaml"
+connector: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/north-crs/connector-north.yaml"
+listener: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/north-crs/listener-north.yaml"
+redis: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/north-crs/redis-north.yaml"
