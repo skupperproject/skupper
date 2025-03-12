@@ -13,6 +13,8 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+Note: If you are running the tests from the Makefile, this is not needed, as the Makefile will create a virtual environment for you.
+
 ## Repository Structure
 
 ```
@@ -20,8 +22,9 @@ tests/
 ├── e2e/  
 ├── scenarios/                 # End-to-end tests directory
 │    ├── hello-world/          # Basic Skupper functionality test
-│     ── iperf3-attached/      # Network performance test with attached connectors
-└── README.md                 # This file
+│    ├── iperf3-attached/      # Network performance test with attached connectors
+│    ├── redis/                # Redis test
+└── README.md                  # This file
 ```
 
 ## End-to-End (E2E) Tests
@@ -32,6 +35,7 @@ The `e2e` directory contains tests that validate Skupper functionality across di
 
 - **[hello-world](e2e/hello-world/)**: A simple test to verify basic Skupper functionality by deploying frontend and backend components across Skupper sites.
 - **[iperf3-attached](e2e/iperf3-attached/)**: Tests the attached connector functionality by measuring network performance using iperf3.
+- [redis](e2e/redis/): A test to validate Skupper connectivity using a Redis deployment.
 
 ## Test Requirements
 
@@ -44,45 +48,34 @@ To run the tests in this repository, you'll need:
 
 ## Getting Started
 
-Each test directory contains its own README with specific instructions, but here's the general process:
+Each test directory contains its own README with specific instructions, but here's the general process to run a E2E test:
 
 ### 1. Set Up Environment
 
 ```bash
-# Create a virtual environment
-python3 -m venv .venv
-
-# Activate the virtual environment
-source .venv/bin/activate  # On Linux/Mac
-# OR
-.venv\Scripts\activate     # On Windows
+# Create a Python virtual environment
+make create-venv FORCE=true
 ```
 
-### 2. Install Dependencies
+> This will create a virtual environment at `/tmp/e2e-venv` and install all required dependencies (python and ansible).
+
+The Makefile will automatically:
+- Create a Python virtual environment if needed
+- Install all required dependencies
+- Install necessary Ansible collections
+- Run the test with the proper configuration
+
+
+### 2. Run Test
 
 ```bash
-# Navigate to the specific test directory
-cd e2e/hello-world/  # Example
-
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Install Ansible collections
-ansible-galaxy collection install -r collections/requirements.yml
+# Run a specific test
+make test TEST="hello-world"
 ```
 
-### 3. Run Test
+- This will run the `hello-world` test located in the `e2e/hello-world` directory, activating the virtual environment and running the test playbook.
 
-```bash
-# Run the test playbook
-ansible-playbook test.yml -i inventory
-```
-
-## Running Tests with Make
-
-The repository includes a Makefile that simplifies running tests. The Makefile uses a virtual environment at `/tmp/e2e-venv` to ensure a consistent testing environment.
-
-### Setup and Configuration
+### Aditional Configuration
 
 1. **vars.yml file**: Create a `vars.yml` file in the repository root to set extra variables for the tests.
 
@@ -92,6 +85,9 @@ The repository includes a Makefile that simplifies running tests. The Makefile u
 # Create or refresh the virtual environment
 make create-venv FORCE=true
 
+# Testing a specific role
+make test-role ROLE="role_name"
+
 # Run a specific test
 make test TEST="test_directory_name"
 
@@ -99,13 +95,7 @@ make test TEST="test_directory_name"
 make e2e-tests
 ```
 
-The Makefile will automatically:
-- Create a Python virtual environment if needed
-- Install all required dependencies
-- Install necessary Ansible collections
-- Run the test with the proper configuration
-
-### Example Usage
+### Example summary
 
 ```bash
 # Create a new virtual environment
@@ -122,12 +112,13 @@ make e2e-tests
 
 The tests rely on the following Ansible collections:
 
-- **ansible.posix** (v1.4.0)
-- **ansible.scm** (v2.0.0)
-- **ansible.utils** (v4.0.0)
-- **kubernetes.core** (v3.2.0)
-- **skupper.v2** (v2.0.0-preview-1)
-- **rhsiqe.skupper** (from GitHub: rafaelvzago/skupper-tests)
+- **ansible.posix
+- **ansible.scm**
+- **ansible.utils**
+- **kubernetes.core**
+- **skupper.v2
+- **e2e.tests
+- containers.podman
 
 ## Contributing
 
