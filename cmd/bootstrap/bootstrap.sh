@@ -2,7 +2,7 @@
 
 set -Ceu
 
-IMAGE="quay.io/skupper/cli:v2-dev"
+IMAGE="${SKUPPER_CLI_IMAGE:-quay.io/skupper/cli:v2-dev}"
 export INPUT_PATH=""
 export NAMESPACE=""
 export FORCE_FLAG=""
@@ -223,7 +223,7 @@ main() {
     ENV_VARS="${ENV_VARS} -e 'SKUPPER_PLATFORM=${SKUPPER_PLATFORM}'"
 
     # Running the bootstrap
-    ${CONTAINER_ENGINE} pull ${IMAGE}
+    ${CONTAINER_ENGINE} pull "${IMAGE}"
     eval "${CONTAINER_ENGINE}" run --rm --name skupper-bootstrap \
         --network host --security-opt label=disable -u \""${RUNAS}"\" --userns=\""${USERNS}"\" \
         "${MOUNTS}" \
