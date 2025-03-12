@@ -181,5 +181,5 @@ clean:
 	rm -rf skupper controller kube-adaptor \
 		network-observer generate-doc \
 		cover.out oci-archives bundle bundle.Dockerfile \
-		charts/skupper skupper-*.tgz artifacthub-repo.yml \
+		skupper-*.tgz artifacthub-repo.yml \
 		network-observer-*.tgz  skupper-*-scope.yaml

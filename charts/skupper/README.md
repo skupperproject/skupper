@@ -4,8 +4,8 @@ Skupper is a layer 7 service interconnect. It enables secure communications
 across Kubernetes clusters with no VPNs or special firewall rules.
 
 This chart installs the [Skupper](https://skupper.io) version 2 controller for
-[Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh)
-package manager.
+[Kubernetes](https://kubernetes.io) using the [Helm](https://helm.sh) package
+manager.
 
 
 ## Prerequisites
