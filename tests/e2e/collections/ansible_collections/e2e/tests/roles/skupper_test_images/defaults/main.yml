@@ -11,7 +11,7 @@ skupper_test_images_hello_world_frontend: >-
 skupper_test_images_lanyard: >-
   {{ lookup('ansible.builtin.env',
      'SKUPPER_TEST_IMAGE_LANYARD',
-     default='quay.io/rzago/lanyard') }}
+     default='quay.io/skupper/lanyard') }}
 skupper_test_images_curl: >-
   {{ lookup('ansible.builtin.env',
      'SKUPPER_TEST_IMAGE_CURL',
