@@ -1,4 +1,6 @@
 ---
 #kubeconfig_1: /home/user/.kube/config
 #kubeconfig_2: /home/user/.kube/config
+kubeconfig: /home/rzago/.kube/config
 debug: false
+teardown_flag: true
