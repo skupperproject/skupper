@@ -33,16 +33,18 @@ create-venv:
 		fi; \
 	fi
 
+activate-venv:
+	source /tmp/e2e-venv/bin/activate;
 
 # Run tests for a specific role given as parameter
-test-role: create-venv
+test-role: create-venv activate-venv
 	@echo "Running the tests for the role: $(ROLE)"
 	@cd $(COLLECTION_PATH) && \
 	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg ansible-playbook roles/$(ROLE)/tests/test_playbook.yml -i roles/$(ROLE)/tests/inventory $(EXTRA_VARS)
 
 # Run a specific test (use relative path from e2e/ directory)
 test: FORCE=false
-test: create-venv
+test: create-venv activate-venv
 	@echo "Running the test for directory: $(TEST)"
 	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg ansible-playbook $(ROOT_PATH)/e2e/scenarios/$(TEST)/test.yml -i $(ROOT_PATH)/e2e/scenarios/$(TEST)/inventory $(EXTRA_VARS)
 
