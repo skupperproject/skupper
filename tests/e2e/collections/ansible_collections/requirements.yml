@@ -9,3 +9,5 @@ collections:
   - name: kubernetes.core
 
   - name: skupper.v2
+
+  - name: containers.podman
