@@ -177,11 +177,12 @@ func (c *EventProcessor) process() bool {
 	} else {
 		log.Printf("Invalid object on event queue for %q: %#v", c.errorKey, obj)
 	}
-	c.queue.Forget(obj)
 
 	if retry && c.queue.NumRequeues(obj) < 5 {
 		c.queue.AddRateLimited(obj)
+		return true
 	}
+	c.queue.Forget(obj)
 
 	return true
 }

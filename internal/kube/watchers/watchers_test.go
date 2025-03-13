@@ -3,11 +3,14 @@ package watchers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/workqueue"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"gotest.tools/v3/assert"
@@ -363,4 +366,32 @@ func node(name string) *corev1.Node {
 			Name: name,
 		},
 	}
+}
+
+type stubErrResourceChangeHandler struct {
+	CallCount int
+}
+
+func (s *stubErrResourceChangeHandler) Handle(e ResourceChange) error {
+	s.CallCount++
+	return fmt.Errorf("Handler failed %d", s.CallCount)
+}
+
+func (stubErrResourceChangeHandler) Describe(e ResourceChange) string {
+	return fmt.Sprintf("StubHandler:%s", e.Key)
+}
+
+func TestProcessRequeueLimit(t *testing.T) {
+	client, _ := fakeclient.NewFakeClient("test", nil, nil, "")
+	processor := NewEventProcessor("tester", client)
+	processor.queue = workqueue.NewNamedRateLimitingQueue(workqueue.NewItemFastSlowRateLimiter(0, time.Microsecond, 10), "testing")
+	stubHandler := stubErrResourceChangeHandler{}
+	eventsIn := processor.newEventHandler(&stubHandler)
+	eventsIn.AddFunc(node("test"))
+	callCount := 0 // set upper bound on how long test will run
+	for processor.queue.Len() > 0 && callCount < 1_000 {
+		processor.TestProcess()
+		callCount++
+	}
+	assert.Equal(t, stubHandler.CallCount, 6, "Should Requeue 5 times + 1 for the initial event")
 }
