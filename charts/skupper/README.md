@@ -15,10 +15,15 @@ manager.
 
 ## Using the chart
 
-Deploy a cluster-scoped Skupper controller
+Deploy a cluster-scoped Skupper controller in the current namespace:
+```
+helm install skupper oci://quay.io/skupper/helm/skupper
+```
+
+If you want to deploy the controller in a specific namespace:
 ```
 helm install skupper oci://quay.io/skupper/helm/skupper \
-    --namespace skupper \
+    --namespace <custom-ns> \
     --create-namespace
 ```
 
