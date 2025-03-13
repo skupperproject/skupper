@@ -1,0 +1,40 @@
+---
+- name: Teardown
+  hosts: all
+  tasks:
+    - name: Check Redis INFO status
+      block:
+        - name: Run redis-cli command to check INFO with retries
+          ansible.builtin.command:
+            cmd: podman run --network=host quay.io/skupper/lanyard:latest redis-cli -p 6379 INFO
+          register: redis_info_output
+          changed_when: false
+          failed_when: false
+          retries: 18  # Will retry for approximately 3 minutes (18 * 10 seconds)
+          delay: 10    # Wait 10 seconds between retries
+          until: redis_info_output.rc == 0 and 'connected_clients' in redis_info_output.stdout
+
+        - name: Display redis-cli INFO output
+          ansible.builtin.debug:
+            var: redis_info_output
+
+        - name: Extract Redis version and connected clients
+          ansible.builtin.set_fact:
+            redis_version: "{{ redis_info_output.stdout | regex_search('redis_version:([\\d\\.]+)', '\\1') | first }}"
+            connected_clients: "{{ redis_info_output.stdout | regex_search('connected_clients:(\\d+)', '\\1') | first }}"
+          when: redis_info_output.rc == 0 and redis_info_output.stdout | length > 0
+
+        - name: Display Redis version and connected clients
+          ansible.builtin.debug:
+            msg: "Redis version {{ redis_version }} has {{ connected_clients }} connected clients"
+          when: redis_version is defined and connected_clients is defined
+
+        - name: Verify Redis has expected connected clients
+          ansible.builtin.assert:
+            that:
+              - connected_clients | int >= 3
+            fail_msg: "Redis has fewer than expected connected clients ({{ connected_clients }})"
+            success_msg: "Redis verification successful. Found version {{ redis_version }} with {{ connected_clients }} connected clients"
+          when: connected_clients is defined
+      when:
+        - "'podman' in inventory_hostname"

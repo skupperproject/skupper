@@ -1,0 +1,8 @@
+namespace: e2e
+name: tests
+version: 0.1.11
+readme: README.md
+authors:
+  - Rafael Zago <rafaelvzago@gmail.com>
+description: This is a collection to test the skupper V2.
+repository: https://github.com/skupperproject/skupper

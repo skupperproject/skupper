@@ -1,0 +1,54 @@
+---
+- name: Setting namespace name with prefix
+  ansible.builtin.set_fact:
+    namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+
+- name: Deploy curl pod
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Pod
+    name: curl
+    namespace: "{{ namespace }}"
+    kubeconfig: "{{ kubeconfig }}"
+    state: present
+    definition:
+      metadata:
+        name: curl
+      spec:
+        restartPolicy: Never
+        containers:
+          - name: curl
+            image: "{{ run_curl_image }}"
+            command:
+              - /bin/sleep
+              - "3600"
+  register: pod_deploy
+  until: pod_deploy is success
+  retries: "{{ run_curl_retries }}"
+  delay: "{{ run_curl_delay }}"
+
+- name: Run curl command
+  kubernetes.core.k8s_exec:
+    namespace: "{{ namespace }}"
+    kubeconfig: "{{ kubeconfig }}"
+    pod: curl
+    command: >-
+      sh -c '
+        response=$(curl -s {{ run_curl_address }});
+        code=$(curl -s -w "%{http_code}" -o /dev/null {{ run_curl_address }});
+        if [ $code -eq 200 ]; then
+          echo "BODY: $response";
+          exit 0;
+        else
+          echo "BODY: $response";
+          exit 1;
+        fi
+      '
+  register: curl_result
+  until: curl_result is success
+  retries: "{{ run_curl_retries }}"
+  delay: "{{ run_curl_delay }}"
+
+- name: Debug the curl command output
+  ansible.builtin.debug:
+    msg: "{{ curl_result.stdout }}"

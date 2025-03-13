@@ -1,0 +1,8 @@
+---
+- name: Test playbook for the env_shakeout role
+  hosts: all
+  tasks:
+    - name: Include the role to shakeout the environment
+      ansible.builtin.include_role:
+        name: e2e.tests.env_shakeout
+      register: shakeout_result

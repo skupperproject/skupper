@@ -1,0 +1,33 @@
+---
+- name: Hello World test playbook
+  hosts: all
+  roles:
+    - e2e.tests.skupper_test_images
+  tasks:
+    - name: Calling the role to check the environment
+      ansible.builtin.include_role:
+        name: e2e.tests.env_shakeout
+
+    - name: Calling the role to generate the namespaces
+      ansible.builtin.include_role:
+        name: e2e.tests.generate_namespaces
+
+    - name: Calling the role to deploy Skupper resources
+      skupper.v2.resource:
+        path: "{{ item }}"
+        namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+      with_items:
+        - https://raw.githubusercontent.com/skupperproject/skupper-example-yaml/refs/heads/v2/east/backend.yaml
+
+    - name: Wait for all pods to be ready
+      ansible.builtin.include_role:
+        name: e2e.tests.pod_wait
+      vars:
+        pod_wait_label_selectors: "app=backend"
+
+    - name: Deleting test namespace
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ namespace_prefix }}-{{ namespace_name }}"
+        state: absent

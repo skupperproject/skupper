@@ -1,0 +1,13 @@
+---
+# Kubeconfig path for west site
+kubeconfig_1: "{{ ansible_env.HOME }}/.kube/config"
+kubeconfig: "{{ kubeconfig_1 }}"
+
+# Namespace configuration
+namespace_name: redis-west
+
+# West CRs
+site: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/west-crs/site-west.yaml"
+connector: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/west-crs/connector-west.yaml"
+listener: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/west-crs/listener-west.yaml"
+redis: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/west-crs/redis-west.yaml"

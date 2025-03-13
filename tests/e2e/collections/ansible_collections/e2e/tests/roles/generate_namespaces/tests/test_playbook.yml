@@ -1,0 +1,21 @@
+---
+- name: Test playbook for the generate_namespaces role
+  hosts: all
+  tasks:
+    - name: Environment shakeout
+      ansible.builtin.include_role:
+        name: e2e.tests.env_shakeout
+
+    - name: Include the role to generate the namespaces
+      ansible.builtin.include_role:
+        name: e2e.tests.generate_namespaces
+      register: generate_namespaces_result
+
+    - name: Deleting the namespaces
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Namespace
+        label_selectors:
+          - "e2e.id={{ generate_namespaces_namespace_label }}"
+        kubeconfig: "{{ kubeconfig }}"
