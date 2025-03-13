@@ -56,8 +56,5 @@ kubectl apply -f "https://github.com/skupperproject/skupper/releases/download/$S
 
 ## Development
 
-This Helm chart is generated from the Makefile at root of the [skupper
-repository.](https://github.com/skupperproject/skupper)
-```asciidoc
-make generate-skupper-helm-chart
-```
+This Helm Chart is generated. For instructions on working with this chart see
+[skupper/charts](https://github.com/skupperproject/skupper/tree/main/charts).
