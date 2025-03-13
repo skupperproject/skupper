@@ -1,7 +1,7 @@
 # Skupper
 
 Skupper is a layer 7 service interconnect. It enables secure communications
-across Kubernetes clusters with no VPNs or special firewall rules.
+across Kubernetes clusters and/or local systems with no VPNs or special firewall rules.
 
 This chart installs the [Skupper](https://skupper.io) version 2 controller for
 [Kubernetes](https://kubernetes.io) using the [Helm](https://helm.sh) package
@@ -13,16 +13,16 @@ manager.
 - Kubernetes 1.25+
 - Helm 3
 
-## Usage
+## Using the chart
 
-A cluster-scoped skupper controller can be deployed with
+Deploy a cluster-scoped Skupper controller
 ```
 helm install skupper oci://quay.io/skupper/helm/skupper \
     --namespace skupper \
     --create-namespace
 ```
 
-To install the controller at a namespace-scope use `--set scope=namespace`
+Deploy a controller with namespace-scope in the current namespace using  `--set scope=namespace`:
 ```
 helm install skupper oci://quay.io/skupper/helm/skupper \
     --set scope=namespace
@@ -30,8 +30,8 @@ helm install skupper oci://quay.io/skupper/helm/skupper \
 
 ### CRDs
 
-By default, the chart will install the Skupper CRDs required for the controller
-to properly function. To install CRDs independently from the Helm chart, use
+By default, the chart installs the Skupper CRDs required by the controller
+to properly function.  If you want to install CRDs separately from the Helm chart, use
 the `--skip-crds` flag with `helm install`.
 
 ### Image Overrides
