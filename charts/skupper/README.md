@@ -37,9 +37,13 @@ the `--skip-crds` flag with `helm install`.
 ### Image Overrides
 
 The chart exposes overrides for the three images required to run a skupper site.
-* `controllerImage`
-* `kubeAdaptorImage`
-* `routerImage`
+
+Example values.yaml file:
+```
+controllerImage:    examplemirror.acme.com/skupper/controller:2.0.0
+kubeAdaptorImage:   examplemirror.acme.com/skupper/kube-adaptor:2.0.0
+routerImage:        examplemirror.acme.com/skupper/skupper-router:3.3.0
+```
 
 ## Alternative Installation Methods
 
