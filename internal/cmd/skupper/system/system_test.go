@@ -33,16 +33,6 @@ func TestCmdSystemFactory(t *testing.T) {
 			command:                       CmdSystemReloadFactory(common.PlatformPodman),
 		},
 		{
-			name:                          "CmdSystemStopFactory",
-			expectedFlagsWithDefaultValue: map[string]interface{}{},
-			command:                       CmdSystemStopFactory(common.PlatformPodman),
-		},
-		{
-			name:                          "CmdSystemStartFactory",
-			expectedFlagsWithDefaultValue: map[string]interface{}{},
-			command:                       CmdSystemStartFactory(common.PlatformPodman),
-		},
-		{
 			name: "CmdSystemGenerateBundleFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameInput: "",

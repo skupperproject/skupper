@@ -59,8 +59,6 @@ approach, which is based on the new set of Custom Resource Definitions (CRDs).`,
 	platform := common.Platform(config.GetPlatform())
 	cmd.AddCommand(CmdSystemSetupFactory(platform))
 	cmd.AddCommand(CmdSystemReloadFactory(platform))
-	cmd.AddCommand(CmdSystemStartFactory(platform))
-	cmd.AddCommand(CmdSystemStopFactory(platform))
 	cmd.AddCommand(CmdSystemTeardownFactory(platform))
 	cmd.AddCommand(CmdSystemInstallFactory(platform))
 	cmd.AddCommand(CmdSystemUnInstallFactory(platform))
@@ -114,42 +112,6 @@ func CmdSystemReloadFactory(configuredPlatform common.Platform) *cobra.Command {
 
 	kubeCommand.CobraCmd = cmd
 	nonKubeCommand.CobraCmd = cmd
-
-	return cmd
-}
-
-func CmdSystemStartFactory(configuredPlatform common.Platform) *cobra.Command {
-
-	//This implementation will warn the user that the command is not available for Kubernetes environments.
-	kubeCommand := kube.NewCmdCmdSystemStart()
-	nonKubeCommand := nonkube.NewCmdCmdSystemStart()
-
-	cmdSystemStartDesc := common.SkupperCmdDescription{
-		Use:     "start",
-		Short:   "Start the Skupper components for the current site",
-		Long:    "Start down the Skupper components for the current site",
-		Example: "skupper system start -n my-namespace",
-	}
-
-	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSystemStartDesc, kubeCommand, nonKubeCommand)
-
-	return cmd
-}
-
-func CmdSystemStopFactory(configuredPlatform common.Platform) *cobra.Command {
-
-	//This implementation will warn the user that the command is not available for Kubernetes environments.
-	kubeCommand := kube.NewCmdSystemStop()
-	nonKubeCommand := nonkube.NewCmdSystemStop()
-
-	cmdSystemStopDesc := common.SkupperCmdDescription{
-		Use:     "stop",
-		Short:   "Shut down the Skupper components for the current site",
-		Long:    "Shut down the Skupper components for the current site",
-		Example: "skupper system stop -n my-namespace",
-	}
-
-	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSystemStopDesc, kubeCommand, nonKubeCommand)
 
 	return cmd
 }
