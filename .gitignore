@@ -35,6 +35,7 @@ skupper-namespace-scope.yaml
 skupper-network-observer*.yaml
 bundle.Dockerfile
 ./bundle/
+!charts/skupper/README.md
 charts/skupper/
 skupper-*.tgz
 artifacthub-repo.yml
