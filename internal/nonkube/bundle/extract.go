@@ -17,10 +17,15 @@ type SelfExtractingBundle struct {
 	SiteName   string
 	Namespace  string
 	OutputPath string
+	Filename   string
 }
 
 func (s *SelfExtractingBundle) InstallFile() string {
-	return path.Join(s.OutputPath, fmt.Sprintf("skupper-install-%s.sh", s.SiteName))
+	if s.Filename != "" {
+		return path.Join(s.OutputPath, fmt.Sprintf("%s.sh", s.Filename))
+	} else {
+		return path.Join(s.OutputPath, fmt.Sprintf("skupper-install-%s.sh", s.SiteName))
+	}
 }
 
 func (s *SelfExtractingBundle) Generate(tarBall *utils.Tarball, defaultPlatform string) error {

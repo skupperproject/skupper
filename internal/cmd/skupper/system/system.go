@@ -64,6 +64,7 @@ approach, which is based on the new set of Custom Resource Definitions (CRDs).`,
 	cmd.AddCommand(CmdSystemTeardownFactory(platform))
 	cmd.AddCommand(CmdSystemInstallFactory(platform))
 	cmd.AddCommand(CmdSystemUnInstallFactory(platform))
+	cmd.AddCommand(CmdSystemGenerateBundleFactory(platform))
 
 	return cmd
 }
@@ -208,6 +209,33 @@ func CmdSystemUnInstallFactory(configuredPlatform common.Platform) *cobra.Comman
 	cmdFlags := common.CommandSystemUninstallFlags{}
 
 	cmd.Flags().BoolVarP(&cmdFlags.Force, common.FlagNameForce, "f", false, common.FlagDescUninstallForce)
+
+	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
+	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
+
+	return cmd
+}
+
+func CmdSystemGenerateBundleFactory(configuredPlatform common.Platform) *cobra.Command {
+
+	//This implementation will warn the user that the command is not available for Kubernetes environments.
+	kubeCommand := kube.NewCmdCmdSystemGenerateBundle()
+	nonKubeCommand := nonkube.NewCmdCmdSystemGenerateBundle()
+
+	cmdSystemGenerateBundleDesc := common.SkupperCmdDescription{
+		Use:   "generate-bundle",
+		Short: "Generate a bundle",
+		Long:  "Generate a self-contained site bundle for use on another machine.",
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSystemGenerateBundleDesc, kubeCommand, nonKubeCommand)
+
+	cmdFlags := common.CommandSystemGenerateBundleFlags{}
+
+	cmd.Flags().StringVar(&cmdFlags.Input, common.FlagNameInput, "", common.FlagDescInput)
+	cmd.Flags().StringVarP(&cmdFlags.Type, common.FlagNameType, "", "tarball", common.FlagDescType)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags

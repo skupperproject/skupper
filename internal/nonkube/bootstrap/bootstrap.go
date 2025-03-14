@@ -20,6 +20,7 @@ type Config struct {
 	InputPath      string
 	Namespace      string
 	BundleStrategy string
+	BundleName     string
 	IsBundle       bool
 	Platform       types.Platform
 	Binary         string
@@ -124,6 +125,7 @@ func Bootstrap(config *Config) (*api.SiteState, error) {
 		siteStateRenderer = &internalbundle.SiteStateRenderer{
 			Strategy: internalbundle.BundleStrategy(config.BundleStrategy),
 			Platform: config.Platform,
+			FileName: config.BundleName,
 		}
 	} else if config.Platform == types.PlatformLinux {
 		siteStateRenderer = &linux.SiteStateRenderer{}
@@ -173,9 +175,9 @@ func PostBootstrap(config *Config, siteState *api.SiteState) {
 		fmt.Printf("Definition is available at: %s\n", sourcesPath)
 	} else {
 		siteHome := api.GetHostBundlesPath()
-		installationFile := path.Join(siteHome, fmt.Sprintf("skupper-install-%s.sh", siteState.Site.Name))
+		installationFile := path.Join(siteHome, fmt.Sprintf("%s.sh", config.BundleName))
 		if internalbundle.GetBundleStrategy(config.BundleStrategy) == string(internalbundle.BundleStrategyTarball) {
-			installationFile = path.Join(siteHome, fmt.Sprintf("skupper-install-%s.tar.gz", siteState.Site.Name))
+			installationFile = path.Join(siteHome, fmt.Sprintf("%s.tar.gz", config.BundleName))
 		}
 		fmt.Println("Installation bundle available at:", installationFile)
 		fmt.Println("Default namespace:", siteState.GetNamespace())
