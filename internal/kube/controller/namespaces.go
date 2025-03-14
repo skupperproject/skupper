@@ -7,7 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 )
 
 const (
@@ -17,7 +17,7 @@ const (
 
 type NamespaceConfig struct {
 	config                 map[string]*corev1.ConfigMap
-	watcher                *internalclient.ConfigMapWatcher
+	watcher                *watchers.ConfigMapWatcher
 	controllerName         string
 	requireExplicitControl bool
 	logging                ControlLogging
@@ -76,11 +76,11 @@ func (c *NamespaceConfig) get(namespace string, setting string) (string, bool) {
 	return value, ok
 }
 
-func (c *NamespaceConfig) watch(controller *internalclient.Controller, namespace string) {
+func (c *NamespaceConfig) watch(eventProcessor *watchers.EventProcessor, namespace string) {
 	options := func(options *metav1.ListOptions) {
 		options.FieldSelector = "metadata.name=" + namespaceConfigName
 	}
-	c.watcher = controller.WatchConfigMaps(options, namespace, c.update)
+	c.watcher = eventProcessor.WatchConfigMaps(options, namespace, c.update)
 }
 
 func (c *NamespaceConfig) recover() {
