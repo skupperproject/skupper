@@ -27,6 +27,7 @@ const (
 	SiteConfigRunAsUserKey           string = "run-as-user"
 	SiteConfigRunAsGroupKey          string = "run-as-group"
 	SiteConfigClusterPermissionsKey  string = "cluster-permissions"
+	SiteConfigAnnotationSeparator    string = "annotation-separator"
 
 	// console options
 	SiteConfigConsoleKey               string = "console"
@@ -132,6 +133,7 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 			SiteConfigConsoleUserKey:           "",
 			SiteConfigConsolePasswordKey:       "",
 			SiteConfigIngressKey:               types.IngressLoadBalancerString,
+			SiteConfigAnnotationSeparator:      ",",
 		},
 	}
 	if spec.SkupperName != "" {
@@ -173,12 +175,15 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 	if spec.Ingress != "" {
 		siteConfig.Data[SiteConfigIngressKey] = spec.Ingress
 	}
+	if spec.AnnotationSeparator != "" {
+		siteConfig.Data[SiteConfigAnnotationSeparator] = spec.AnnotationSeparator
+	}
 	if len(spec.IngressAnnotations) > 0 {
 		var annotations []string
 		for key, value := range spec.IngressAnnotations {
 			annotations = append(annotations, key+"="+value)
 		}
-		siteConfig.Data[SiteConfigIngressAnnotationsKey] = strings.Join(annotations, ",")
+		siteConfig.Data[SiteConfigIngressAnnotationsKey] = strings.Join(annotations, spec.AnnotationSeparator)
 	}
 	if spec.ConsoleIngress != "" {
 		siteConfig.Data[SiteConfigConsoleIngressKey] = spec.ConsoleIngress
@@ -255,14 +260,14 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 		for key, value := range spec.Router.ServiceAnnotations {
 			annotations = append(annotations, key+"="+value)
 		}
-		siteConfig.Data[SiteConfigRouterServiceAnnotationsKey] = strings.Join(annotations, ",")
+		siteConfig.Data[SiteConfigRouterServiceAnnotationsKey] = strings.Join(annotations, spec.AnnotationSeparator)
 	}
 	if len(spec.Router.PodAnnotations) > 0 {
 		var annotations []string
 		for key, value := range spec.Router.PodAnnotations {
 			annotations = append(annotations, key+"="+value)
 		}
-		siteConfig.Data[SiteConfigRouterPodAnnotationsKey] = strings.Join(annotations, ",")
+		siteConfig.Data[SiteConfigRouterPodAnnotationsKey] = strings.Join(annotations, spec.AnnotationSeparator)
 	}
 	if spec.Router.LoadBalancerIp != "" {
 		siteConfig.Data[SiteConfigRouterLoadBalancerIp] = spec.Router.LoadBalancerIp
@@ -318,14 +323,14 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 		for key, value := range spec.Controller.ServiceAnnotations {
 			annotations = append(annotations, key+"="+value)
 		}
-		siteConfig.Data[SiteConfigControllerServiceAnnotationsKey] = strings.Join(annotations, ",")
+		siteConfig.Data[SiteConfigControllerServiceAnnotationsKey] = strings.Join(annotations, spec.AnnotationSeparator)
 	}
 	if len(spec.Controller.PodAnnotations) > 0 {
 		var annotations []string
 		for key, value := range spec.Controller.PodAnnotations {
 			annotations = append(annotations, key+"="+value)
 		}
-		siteConfig.Data[SiteConfigControllerPodAnnotationsKey] = strings.Join(annotations, ",")
+		siteConfig.Data[SiteConfigControllerPodAnnotationsKey] = strings.Join(annotations, spec.AnnotationSeparator)
 	}
 	if spec.Controller.LoadBalancerIp != "" {
 		siteConfig.Data[SiteConfigControllerLoadBalancerIp] = spec.Controller.LoadBalancerIp
@@ -443,7 +448,7 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 		for key, value := range spec.PrometheusServer.PodAnnotations {
 			annotations = append(annotations, key+"="+value)
 		}
-		siteConfig.Data[SiteConfigPrometheusServerPodAnnotationsKey] = strings.Join(annotations, ",")
+		siteConfig.Data[SiteConfigPrometheusServerPodAnnotationsKey] = strings.Join(annotations, spec.AnnotationSeparator)
 	}
 
 	// TODO: allow Replicas to be set through skupper-site configmap?
@@ -475,6 +480,11 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 	var errs []string
 	var result types.SiteConfig
 	result.Spec.SkupperNamespace = siteConfig.Namespace
+
+	annotationSeparator := ","
+	if separator, ok := siteConfig.Data[SiteConfigAnnotationSeparator]; ok {
+		annotationSeparator = separator
+	}
 	// TODO: what should the defaults be for name, namespace
 	if skupperName, ok := siteConfig.Data[SiteConfigNameKey]; ok {
 		result.Spec.SkupperName = skupperName
@@ -573,7 +583,7 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 		}
 	}
 	if ingressAnnotations, ok := siteConfig.Data[SiteConfigIngressAnnotationsKey]; ok {
-		result.Spec.IngressAnnotations = asMap(splitWithEscaping(ingressAnnotations, ',', '\\'))
+		result.Spec.IngressAnnotations = asMap(ingressAnnotations, annotationSeparator)
 	}
 	if consoleIngress, ok := siteConfig.Data[SiteConfigConsoleIngressKey]; ok {
 		result.Spec.ConsoleIngress = consoleIngress
@@ -665,10 +675,10 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 	}
 
 	if routerServiceAnnotations, ok := siteConfig.Data[SiteConfigRouterServiceAnnotationsKey]; ok {
-		result.Spec.Router.ServiceAnnotations = asMap(splitWithEscaping(routerServiceAnnotations, ',', '\\'))
+		result.Spec.Router.ServiceAnnotations = asMap(routerServiceAnnotations, annotationSeparator)
 	}
 	if routerPodAnnotations, ok := siteConfig.Data[SiteConfigRouterPodAnnotationsKey]; ok {
-		result.Spec.Router.PodAnnotations = asMap(splitWithEscaping(routerPodAnnotations, ',', '\\'))
+		result.Spec.Router.PodAnnotations = asMap(routerPodAnnotations, annotationSeparator)
 	}
 	if routerServiceLoadBalancerIp, ok := siteConfig.Data[SiteConfigRouterLoadBalancerIp]; ok {
 		result.Spec.Router.LoadBalancerIp = routerServiceLoadBalancerIp
@@ -705,10 +715,10 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 		result.Spec.Controller.IngressHost = controllerIngressHost
 	}
 	if controllerServiceAnnotations, ok := siteConfig.Data[SiteConfigControllerServiceAnnotationsKey]; ok {
-		result.Spec.Controller.ServiceAnnotations = asMap(splitWithEscaping(controllerServiceAnnotations, ',', '\\'))
+		result.Spec.Controller.ServiceAnnotations = asMap(controllerServiceAnnotations, annotationSeparator)
 	}
 	if controllerPodAnnotations, ok := siteConfig.Data[SiteConfigControllerPodAnnotationsKey]; ok {
-		result.Spec.Controller.PodAnnotations = asMap(splitWithEscaping(controllerPodAnnotations, ',', '\\'))
+		result.Spec.Controller.PodAnnotations = asMap(controllerPodAnnotations, annotationSeparator)
 	}
 	if controllerServiceLoadBalancerIp, ok := siteConfig.Data[SiteConfigControllerLoadBalancerIp]; ok {
 		result.Spec.Controller.LoadBalancerIp = controllerServiceLoadBalancerIp
@@ -777,7 +787,7 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 		result.Spec.PrometheusServer.MemoryLimit = prometheusMemoryLimit
 	}
 	if prometheusPodAnnotations, ok := siteConfig.Data[SiteConfigPrometheusServerPodAnnotationsKey]; ok {
-		result.Spec.PrometheusServer.PodAnnotations = asMap(splitWithEscaping(prometheusPodAnnotations, ',', '\\'))
+		result.Spec.PrometheusServer.PodAnnotations = asMap(prometheusPodAnnotations, annotationSeparator)
 	}
 
 	annotations, labels := GetSiteAnnotationsAndLabels(siteConfig)
@@ -849,14 +859,17 @@ func splitWithEscaping(s string, separator, escape byte) []string {
 	return tokens
 }
 
-func asMap(entries []string) map[string]string {
+func asMap(entries string, separator string) map[string]string {
 	result := map[string]string{}
-	for _, entry := range entries {
-		parts := strings.Split(entry, "=")
-		if len(parts) > 1 {
-			result[parts[0]] = parts[1]
-		} else {
-			result[parts[0]] = ""
+	if entries != "" {
+		annotations := strings.SplitAfter(entries, separator)
+		for _, entry := range annotations {
+			parts := strings.SplitAfterN(entry, "=", 2)
+			if len(parts) > 1 {
+				result[strings.TrimSuffix(parts[0], "=")] = strings.TrimSuffix(parts[1], separator)
+			} else {
+				result[parts[0]] = ""
+			}
 		}
 	}
 	return result
