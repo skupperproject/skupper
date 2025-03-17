@@ -39,6 +39,11 @@ activate-venv:
 
 # Run tests for a specific role given as parameter
 test-role: create-venv activate-venv
+	# Returning if ROLE is not set
+	@if [ -z "$(ROLE)" ]; then \
+		echo "ROLE is not set. Please provide a ROLE to run the tests."; \
+		exit 1; \
+	fi
 	@echo "Running the tests for the role: $(ROLE)"
 	@cd $(COLLECTION_PATH) && \
 	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg ansible-playbook roles/$(ROLE)/tests/test_playbook.yml -i roles/$(ROLE)/tests/inventory $(EXTRA_VARS)
