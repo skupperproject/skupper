@@ -1,6 +1,9 @@
 ---
-#kubeconfig_1: /home/user/.kube/config
-#kubeconfig_2: /home/user/.kube/config
-kubeconfig: /home/"{{ ansible_user }}"/.kube/config
+# kubeconfig_1: /home/user/.kube/config
+# kubeconfig_2: /home/user/.kube/config
+kubeconfig: "/home/{{ ansible_user }}/.kube/config"
 debug: false
 teardown_flag: true
+
+# IPERF3 variables
+# iperf3_bandwidth: 10M
