@@ -76,10 +76,6 @@
     # Podman block
     - name: Podman Site
       block:
-        - name: Creating skupper podman network
-          containers.podman.podman_network:
-            name: skupper
-            state: present
 
         - name: Creating Skupper sites resources in the namespaces
           skupper.v2.resource:
