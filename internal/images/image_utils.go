@@ -2,12 +2,12 @@ package images
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/api/types"
+	corev1 "k8s.io/api/core/v1"
 	"os"
 	"os/exec"
 	"strings"
-
-	"github.com/skupperproject/skupper/api/types"
-	corev1 "k8s.io/api/core/v1"
+	"sync"
 )
 
 type SkupperImage struct {
@@ -152,11 +152,14 @@ func GetPrometheusImageRegistry() string {
 }
 
 func GetSha(imageName string) string {
-	// Pull the image
-	pullCmd := exec.Command("docker", "pull", imageName)
-	if err := pullCmd.Run(); err != nil {
-		fmt.Printf("Error pulling image: %v", err)
-		return err.Error()
+	checkCmd := exec.Command("docker", "inspect", imageName)
+	if err := checkCmd.Run(); err != nil {
+		// Pull the image only if it's not present locally
+		pullCmd := exec.Command("docker", "pull", imageName)
+		if err := pullCmd.Run(); err != nil {
+			fmt.Printf("Error pulling image: %v\n", err)
+			return err.Error()
+		}
 	}
 
 	// Get the image digest
@@ -206,23 +209,41 @@ func GetOauthProxyImageRegistry() string {
 }
 
 func GetImage(imageNames map[string]string, imageRegistry string, enableSHA bool) []SkupperImage {
-	var image SkupperImage
 	var skupperImage []SkupperImage
+	var waitGroup sync.WaitGroup
+	imageChannel := make(chan SkupperImage, len(imageNames))
 
 	for _, name := range imageNames {
-		imageName := name
-		if imageRegistry != "" {
-			imageName = strings.Join([]string{imageRegistry, name}, "/")
-		}
-		image.Name = imageName
+		waitGroup.Add(1)
 
-		if enableSHA {
-			image.Digest = GetSha(imageName)
-		}
+		go func(imageName string) {
+			defer waitGroup.Done()
+			var image SkupperImage
 
-		skupperImage = append(skupperImage, image)
+			if imageRegistry != "" {
+				imageName = strings.Join([]string{imageRegistry, imageName}, "/")
+			}
+			image.Name = imageName
+
+			if enableSHA {
+				image.Digest = GetSha(imageName)
+			}
+
+			imageChannel <- image
+		}(name)
 	}
+
+	go func() {
+		waitGroup.Wait()
+		close(imageChannel)
+	}()
+
+	for img := range imageChannel {
+		skupperImage = append(skupperImage, img)
+	}
+
 	return skupperImage
+
 }
 
 func GetImages(component string, enableSHA bool) []SkupperImage {
