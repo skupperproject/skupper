@@ -7,7 +7,7 @@ kubeconfig: "{{ kubeconfig_2 }}"
 namespace_name: redis-east
 
 # Wast CRs
-site: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/east-crs/site-east.yaml"
-connector: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/east-crs/connector-east.yaml"
-listener: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/east-crs/listener-east.yaml"
-redis: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/east-crs/redis-east.yaml"
+site: "{{ playbook_dir }}/resources/east/site-east.yml"
+connector: "{{ playbook_dir }}/resources/east/connector-east.yml"
+listener: "{{ playbook_dir }}/resources/east/listener-east.yml"
+redis: "{{ playbook_dir }}/resources/east/redis-east.yml"

@@ -7,7 +7,7 @@ kubeconfig: "{{ kubeconfig_3 }}"
 namespace_name: redis-north
 
 # North CRs
-site: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/north-crs/site-north.yaml"
-connector: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/north-crs/connector-north.yaml"
-listener: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/north-crs/listener-north.yaml"
-redis: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/north-crs/redis-north.yaml"
+site: "{{ playbook_dir }}/resources/north/site-north.yml"
+connector: "{{ playbook_dir }}/resources/north/connector-north.yml"
+listener: "{{ playbook_dir }}/resources/north/listener-north.yml"
+redis: "{{ playbook_dir }}/resources/north/redis-north.yml"

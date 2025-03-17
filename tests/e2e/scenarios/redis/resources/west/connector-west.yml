@@ -1,0 +1,18 @@
+---
+apiVersion: skupper.io/v2alpha1
+kind: Connector
+metadata:
+  name: redis-server-west
+spec:
+  routingKey: redis-server-west
+  port: 6379
+  selector: application=redis-server
+---
+apiVersion: skupper.io/v2alpha1
+kind: Connector
+metadata:
+  name: redis-sentinel-west
+spec:
+  routingKey: redis-sentinel-west
+  port: 26379
+  selector: application=redis-sentinel
