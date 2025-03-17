@@ -8,7 +8,8 @@ E2E_TEST_DIRS := $(sort $(wildcard $(ROOT_PATH)/e2e/scenarios/*))
 # Creating a python virtual environment
 # Creating a python virtual environment
 create-venv:
-	@if [ "$(FORCE)" = true ]; then \
+	# IF FORCE = true or /tmp/e2e-venv does not exist, create a new virtual environment
+	@if [ "$(FORCE)" = "true" ] || [ ! -d "/tmp/e2e-venv" ]; then \
 		bash -c "deactivate 2>/dev/null || true"; \
 		echo "Removing old environment if it exists..."; \
 		rm -rf /tmp/e2e-venv; \
