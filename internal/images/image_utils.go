@@ -1,6 +1,7 @@
 package images
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/skupperproject/skupper/api/types"
 	corev1 "k8s.io/api/core/v1"
@@ -152,7 +153,11 @@ func GetPrometheusImageRegistry() string {
 }
 
 func GetSha(imageName string) string {
-	checkCmd := exec.Command("docker", "inspect", imageName)
+	var output bytes.Buffer
+	checkCmd := exec.Command("docker", "inspect", "--format={{index .RepoDigests 0}}", imageName)
+	checkCmd.Stdout = &output
+	checkCmd.Stderr = &output
+
 	if err := checkCmd.Run(); err != nil {
 		// Pull the image only if it's not present locally
 		pullCmd := exec.Command("docker", "pull", imageName)
@@ -160,16 +165,16 @@ func GetSha(imageName string) string {
 			fmt.Printf("Error pulling image: %v\n", err)
 			return err.Error()
 		}
+
+		// Retry inspection after pulling
+		output.Reset()
+		if err := checkCmd.Run(); err != nil {
+			fmt.Printf("Error getting image digest: %v\n", err)
+			return err.Error()
+		}
 	}
 
-	// Get the image digest
-	digestCmd := exec.Command("docker", "inspect", "--format='{{index .RepoDigests 0}}'", imageName)
-	digestBytes, err := digestCmd.Output()
-	if err != nil {
-		fmt.Printf("Error getting image digest: %v", err)
-		return err.Error()
-	}
-
+	digestBytes := output.String()
 	imageWithoutTag := strings.Split(imageName, ":")[0]
 
 	// Extract and print the digest
