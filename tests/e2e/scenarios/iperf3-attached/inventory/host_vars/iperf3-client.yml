@@ -5,3 +5,6 @@ kubeconfig: "{{ kubeconfig2 }}"
 
 # Namespace configuration
 namespace_name: "{{ namespace_prefix }}-iperf3-client"
+
+# Iperf3 client pod configuration
+iper3_bandwidth: 1k

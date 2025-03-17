@@ -1,3 +1,4 @@
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -10,4 +11,4 @@ spec:
       containers:
         - name: iperf3
           image: quay.io/skupper/lanyard
-          command: ["iperf3", "-c", "iperf3", "-p", "5201", "-t", "1", "-b", "1k"]
+          command: ["iperf3", "-c", "iperf3", "-p", "5201", "-t", "1", "-b", "{{ iperf3_bandwidth }}"]
