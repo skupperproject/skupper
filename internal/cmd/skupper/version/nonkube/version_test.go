@@ -19,6 +19,7 @@ func TestCmdVersion_ValidateInput(t *testing.T) {
 		name           string
 		args           []string
 		flags          common.CommandVersionFlags
+		namespace      string
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedError  string
@@ -26,27 +27,36 @@ func TestCmdVersion_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:          "bad output",
+			name:          "incorrect output type",
 			args:          []string{""},
+			namespace:     "test",
 			flags:         common.CommandVersionFlags{Output: "not-supported"},
 			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
 		},
 		{
-			name:          "good output",
+			name:          "valid output type",
+			namespace:     "test",
 			flags:         common.CommandVersionFlags{Output: "json"},
 			expectedError: "",
 		},
 		{
-			name:          "ok no output",
+			name:          "unspecified output type",
+			namespace:     "test",
 			flags:         common.CommandVersionFlags{},
 			expectedError: "",
+		},
+		{
+			name:          "unknown namespace",
+			namespace:     "unknown",
+			flags:         common.CommandVersionFlags{},
+			expectedError: "there is no definition for namespace \"unknown\"",
 		},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			cmd, err := newCmdVersionWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			cmd, err := newCmdVersionWithMocks(test.namespace)
 			assert.Assert(t, err)
 
 			cmd.Flags = &test.flags
@@ -67,12 +77,12 @@ func TestCmdVersion_InputToOptions(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:     "good json",
+			name:     "output type selected is json",
 			output:   "json",
 			expected: true,
 		},
 		{
-			name:     "good defaul",
+			name:     "output type selected is the default one",
 			expected: false,
 		},
 	}
@@ -80,7 +90,7 @@ func TestCmdVersion_InputToOptions(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			cmd, err := newCmdVersionWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			cmd, err := newCmdVersionWithMocks("test")
 			assert.Assert(t, err)
 
 			cmd.output = test.output
@@ -119,7 +129,7 @@ func TestCmdVersion_Run(t *testing.T) {
 	}
 
 	for _, test := range testTable {
-		cmd, err := newCmdVersionWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
+		cmd, err := newCmdVersionWithMocks("test")
 		assert.Assert(t, err)
 		cmd.Flags = &test.flags
 		cmd.output = cmd.Flags.Output
@@ -140,7 +150,7 @@ func TestCmdVersion_Run(t *testing.T) {
 
 // --- helper methods
 
-func newCmdVersionWithMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*CmdVersion, error) {
+func newCmdVersionWithMocks(namespace string) (*CmdVersion, error) {
 
 	cmdVersion := &CmdVersion{
 		namespace: namespace,
