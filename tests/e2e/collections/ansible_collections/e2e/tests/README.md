@@ -26,8 +26,6 @@ The collection includes the following roles:
 2. **`generate_namespaces`**: Creates namespaces with defined naming conventions.
 3. **`run_curl_test`**: Runs a test to validate Skupper connectivity.
 
-For a detailed list of all content, visit the [Ansible Galaxy page for this collection](https://galaxy.ansible.com/rhsiqe/skupper).
-
 ---
 
 ## Using This Collection
