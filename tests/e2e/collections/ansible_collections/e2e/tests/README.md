@@ -90,14 +90,6 @@ ansible-playbook collections/ansible_collections/rhsiqe/skupper/roles/access_gra
   -i collections/ansible_collections/rhsiqe/skupper/roles/access_grant/tests/inventory/hosts.yml
 ```
 
-### Running All Tests
-
-To run all tests in a logical order, use the `run_all_tests.sh` script. The script ensures dependencies between roles are respected and logs results for review.
-
-```bash
-make tests
-```
-
 Test logs are stored in the `test_results/` directory.
 
 ---
