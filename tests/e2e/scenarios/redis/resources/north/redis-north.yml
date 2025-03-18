@@ -86,7 +86,7 @@ spec:
           mountPath: /etc/redis
       initContainers:
         - name: init-conf
-          image: alpine
+          image: mirror.gcr.io/alpine
           command: ['sh', '-c', "cp /config/sentinel.conf /data"]
           volumeMounts:
           - name: redis-data
@@ -94,13 +94,13 @@ spec:
           - name: redis-config
             mountPath: /config
         - name: init-waitforsvc-north
-          image: alpine
+          image: mirror.gcr.io/alpine
           command: ['sh', '-c', "until nslookup redis-server-north.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for redis a instance; sleep 2; done"]
         - name: init-waitforsvc-west
-          image: alpine
+          image: mirror.gcr.io/alpine
           command: ['sh', '-c', "until nslookup redis-server-west.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for redis b instance; sleep 2; done"]
         - name: init-waitforsvc-east
-          image: alpine
+          image: mirror.gcr.io/alpine
           command: ['sh', '-c', "until nslookup redis-server-east.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for redis c instance; sleep 2; done"]
       volumes:
         - name: redis-config
