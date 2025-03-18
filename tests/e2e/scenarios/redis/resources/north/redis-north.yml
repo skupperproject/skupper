@@ -20,7 +20,7 @@ spec:
       subdomain: primary
       containers:
       - name: redis
-        image: redis
+        image: mirror.gcr.io/redis
         command:
           - "redis-server"
         args:
@@ -72,7 +72,7 @@ spec:
     spec:
       containers:
       - name: redis-sentinel
-        image: redis
+        image: mirror.gcr.io/redis
         command:
           - "redis-server"
         args:
