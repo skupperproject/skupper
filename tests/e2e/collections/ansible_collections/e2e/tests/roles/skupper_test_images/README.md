@@ -32,7 +32,7 @@ None
 - name: Run tests with default images
   hosts: all
   roles:
-    - rhsiqe.skupper.skupper_test_images
+    - e2e.tests.skupper_test_images
   tasks:
     - name: Deploy hello world frontend
       kubernetes.core.k8s:
@@ -66,7 +66,7 @@ This role is designed to be included at the beginning of test playbooks to ensur
 - name: E2E Test Suite
   hosts: all
   roles:
-    - rhsiqe.skupper.skupper_test_images
+    - e2e.tests.skupper_test_images
   tasks:
     - name: Deploy test components
       # Your test tasks here, using the image variables

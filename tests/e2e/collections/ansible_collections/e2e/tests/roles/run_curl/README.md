@@ -32,7 +32,7 @@ This role deploys a temporary pod with curl capabilities in a Kubernetes namespa
 ```yaml
 - name: Test API connectivity
   ansible.builtin.include_role:
-    name: rhsiqe.skupper.run_curl
+    name: e2e.tests.run_curl
   vars:
     namespace_prefix: "e2e"
     namespace_name: "hello-world"

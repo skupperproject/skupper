@@ -13,7 +13,6 @@ The Redis Multicloud HA Test demonstrates a highly available Redis architecture 
 - Ansible with the following collections installed:
   - `e2e.tests`
   - `skupper.v2`
-  - `rhsiqe.skupper`
   - `kubernetes.core`
   - `containers.podman`
 - Appropriate kubeconfig files with access to all clusters
