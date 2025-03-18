@@ -125,7 +125,7 @@ The tests rely on the following Ansible collections:
 
 When adding new tests to this repository, please follow these guidelines:
 
-1. **Directory Structure**: Create a new directory under `e2e/` with a descriptive name
+1. **Directory Structure**: Create a new directory under `e2e/scenario` with a descriptive name
 2. **Documentation**: Include a comprehensive README.md
 3. **Requirements**: List all dependencies in requirements.txt
 4. **Testing**: Ensure tests have proper validation and cleanup
