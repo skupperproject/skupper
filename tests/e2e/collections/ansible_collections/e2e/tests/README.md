@@ -79,21 +79,6 @@ Refer to the [changelog](https://github.com/ansible-collections/REPONAMEHERE/tre
 
 ---
 
-## Running Tests
-
-### Role-Specific Testing
-
-Each role includes its own dedicated test playbook. You can manually test a specific role. For example, to test the `access_grant` role:
-
-```bash
-ansible-playbook collections/ansible_collections/rhsiqe/skupper/roles/access_grant/tests/test_playbook.yml \
-  -i collections/ansible_collections/rhsiqe/skupper/roles/access_grant/tests/inventory/hosts.yml
-```
-
-Test logs are stored in the `test_results/` directory.
-
----
-
 ## Roadmap
 
 - Further integration with advanced Skupper features.
