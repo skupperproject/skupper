@@ -68,4 +68,4 @@ e2e-tests:
 		echo "\n=== Running test: $$test_name ==="; \
 		$(MAKE) test TEST="$$test_name" || exit 1; \
 	done
-	@echo "\n=== All tests completed successfully ==="
+	@echo -e "\n=== All tests completed successfully ==="
