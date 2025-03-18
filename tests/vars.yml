@@ -20,6 +20,7 @@ teardown_flag: true
 
 # Enable debug output for shakeout tests
 # env_shakeout_debug: false
+# namespace_prefix: "skupper-e2e-"
 
 ##################################################
 # generate_namespaces Role Variables
