@@ -6,4 +6,4 @@ namespace_prefix: e2e
 
 # Generate variables for the namespace
 generate_namespaces_namespace_label: "test"
-teteardown_test_namespace_label: "test"
+teardown_test_namespace_label: "test"
