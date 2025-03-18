@@ -69,8 +69,6 @@ To install a specific version (e.g., for compatibility or bug fixes):
 ansible-galaxy collection install e2e.tests:==X.Y.Z
 ```
 
-Replace `X.Y.Z` with any [available version](https://galaxy.ansible.com/rhsiqe/skupper).
-
 For detailed information, refer to [Ansible Using Collections](https://docs.ansible.com/ansible/latest/user_guide/collections_using.html).
 
 ---
