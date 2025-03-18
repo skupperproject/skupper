@@ -10,7 +10,7 @@ The Hello World Test demonstrates a basic Skupper setup between two Kubernetes c
 
 - Two Kubernetes clusters (identified as "west" and "east" in your inventory)
 - Ansible with the following collections installed:
-  - `e2e.skupper`
+  - `e2e.tests`
   - `skupper.v2`
   - Required e2e test roles
 - Appropriate kubeconfig files with access to both clusters
@@ -22,7 +22,7 @@ The playbook executes the following sequence of operations:
 1. **Setup**
    - Sets up a temporary directory for test artifacts
    - Performs an environment check via the `e2e.tests.env_shakeout` role
-   - Generates namespaces using the `e2e.skupper.generate_namespaces` role
+   - Generates namespaces using the `e2e.tests.generate_namespaces` role
 
 2. **West Cluster Configuration**
    - Creates Skupper resources on the west cluster:
