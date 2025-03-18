@@ -44,7 +44,7 @@ To run the tests in this repository, you'll need:
 1. **Skupper V2**: Installed on the target cluster(s)
 2. **Kubernetes Access**: Valid kubeconfig with appropriate permissions
 3. **Ansible**: Core Ansible packages and required collections
-4. **Python**: 3.7+ with required dependencies
+4. **Python**: 3.9+ with required dependencies
 
 ## Getting Started
 
