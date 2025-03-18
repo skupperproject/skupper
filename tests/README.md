@@ -57,13 +57,14 @@ Each test directory contains its own README with specific instructions, but here
 make create-venv FORCE=true
 ```
 
-> This will create a virtual environment at `/tmp/e2e-venv` and install all required dependencies (python and ansible).
+> This will create a virtual environment at `/tmp/e2e-venv` and install all required dependencies (python and ansible). If the directory does not exist, it will be created and the virtual environment will be installed.
 
 The Makefile will automatically:
 - Create a Python virtual environment if needed
 - Install all required dependencies
 - Install necessary Ansible collections
 - Run the test with the proper configuration
+- When you trigger a test it will create a namespace_prefix to avoid conflicts with other tests
 
 
 ### 2. Run Test
