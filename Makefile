@@ -148,7 +148,7 @@ pack-network-observer-helm-chart:
 	helm package ./charts/network-observer
 
 generate-bundle:
-	./scripts/generate-bundle.sh
+	./scripts/render_bundle.sh
 
 generate-network-observer:
 	helm template skupper-network-observer ./charts/network-observer/ \

@@ -4,6 +4,3 @@ resources:
 - bases/skupper-operator.clusterserviceversion.yaml
 - ../default/cluster
 - ../samples
-
-patches:
-  - path: patch-add-env-var-related-images.yaml

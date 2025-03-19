@@ -5,14 +5,13 @@ metadata:
     capabilities: Seamless Upgrades
     categories: Integration & Delivery, Networking, Streaming & Messaging
     certified: 'false'
-    containerImage: quay.io/skupper/controller:v2-latest
-    createdAt: '2024-11-01T15:29:32Z'
+    containerImage: quay.io/skupper/controller@${CONTROLLER_SHA}
     description: Skupper Operator provides the ability to create a service network
-    operators.operatorframework.io/builder: operator-sdk-v1.17.0+git
-    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+    operators.operatorframework.io/builder: operator-sdk-v1.39.0+git
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     repository: https://github.com/skuppproject/skupper-operator
     support: Skupper Project
-  name: skupper-operator.v2.0.0
+  name: skupper-operator.v${FULL_VERSION}
   namespace: placeholder
   labels:
     operatorframework.io/arch.amd64: supported
@@ -44,10 +43,10 @@ spec:
   maintainers:
   - email: skupper@googlegroups.com
     name: Skupper Community
-  maturity: stable
-  minKubeVersion: 1.25.0
+  maturity: ${OPERATOR_MATURITY}
+  minKubeVersion: ${MIN_KUBE_VERSION}
   provider:
     name: Skupper Project
     url: https://skupper.io
   selector: {}
-  version: 2.0.0
+  version: ${FULL_VERSION}
