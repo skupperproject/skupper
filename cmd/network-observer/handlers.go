@@ -29,8 +29,9 @@ func handleSecuredConsoleAssets(consoleLocation string) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Frame-Options", "SAMEORIGIN")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'")
-		assetHandler.ServeHTTP(w, r) 
+		w.Header().Set("Content-Security-Policy", "default-src 'self';")
+
+		assetHandler.ServeHTTP(w, r)
 	})
 }
 
