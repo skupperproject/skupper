@@ -1,7 +1,7 @@
 ---
 # Kubeconfig path for west site
-kubeconfig1: "{{ ansible_env.HOME }}/.kube/config"
-kubeconfig: "{{ kubeconfig1 }}"
+kubeconfig_1: "{{ ansible_env.HOME }}/.kube/config"
+kubeconfig: "{{ kubeconfig_1 }}"
 
 # Namespace configuration
 namespace_name: "{{ namespace_prefix }}-iperf3-workload"
