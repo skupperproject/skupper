@@ -70,7 +70,7 @@
         - name: Creating Skupper resources on iperf3-hub namespace
           template:
             src: "{{ playbook_dir }}/resources/iperf3-hub/attached-connector-binding.j2"
-            dest: "{{ playbook_dir }}/resources/iperf3-hub/attached-connector-binding.yml"
+            dest: "/tmp/attached-connector-binding.yml"
           when:
             - "'iperf3-hub' in inventory_hostname"
 
@@ -81,7 +81,7 @@
             namespace: "{{ namespace_name }}"
           with_items:
             - "{{ playbook_dir }}/resources/iperf3-hub/site.yml"
-            - "{{ playbook_dir }}/resources/iperf3-hub/attached-connector-binding.yml"
+            - "/tmp/attached-connector-binding.yml"
           when:
             - "'iperf3-hub' in inventory_hostname"
 
@@ -99,7 +99,7 @@
         - name: Creating Skupper resources on iperf3-workload namespace
           template:
             src: "{{ playbook_dir }}/resources/iperf3-workload/attached-connector.j2"
-            dest: "{{ playbook_dir }}/resources/iperf3-workload/attached-connector.yml"
+            dest: "/tmp/attached-connector.yml"
           vars:
             namespace_prefix: "{{ namespace_prefix }}"
           when:
@@ -107,7 +107,7 @@
 
         - name: Applying the iperf3-workload service to the iperf3-workload namespace
           skupper.v2.resource:
-            path: "{{ playbook_dir }}/resources/iperf3-workload/attached-connector.yml"
+            path: "/tmp/attached-connector.yml"
             kubeconfig: "{{ kubeconfig }}"
             namespace: "{{ namespace_name }}"
           when:
