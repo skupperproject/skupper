@@ -3,13 +3,14 @@ package nonkube
 import (
 	"errors"
 	"fmt"
+	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"os"
 	"text/tabwriter"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/images"
-	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/utils/configs"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
@@ -35,10 +36,8 @@ func NewCmdVersion() *CmdVersion {
 }
 
 func (cmd *CmdVersion) NewClient(cobraCommand *cobra.Command, args []string) {
-	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
-
-	if err == nil {
-		cmd.namespace = cli.Namespace
+	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace) != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String() != "" {
+		cmd.namespace = cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String()
 	}
 }
 
@@ -55,14 +54,35 @@ func (cmd *CmdVersion) ValidateInput(args []string) error {
 		}
 	}
 
+	_, err := os.Stat(api.GetHostNamespaceHome(cmd.namespace))
+	if err != nil {
+		validationErrors = append(validationErrors, fmt.Errorf("there is no definition for namespace %q", cmd.namespace))
+	}
+
 	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdVersion) InputToOptions() {
+
+	mapRunningPods := make(map[string]string)
+
+	if cmd.namespace == "" {
+		cmd.namespace = "default"
+	}
+
+	cli, err := internalclient.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
+
+	if err == nil {
+		containerName := cmd.namespace + "-skupper-router"
+		if container, err := cli.ContainerInspect(containerName); err == nil {
+			mapRunningPods[container.Name] = container.Image
+		}
+	}
+
 	if cmd.output != "" {
-		cmd.manifest = configs.ManifestManager{Components: images.NonKubeComponents, EnableSHA: true}
+		cmd.manifest = configs.ManifestManager{Components: images.NonKubeComponents, EnableSHA: true, RunningPods: mapRunningPods}
 	} else {
-		cmd.manifest = configs.ManifestManager{Components: images.NonKubeComponents, EnableSHA: false}
+		cmd.manifest = configs.ManifestManager{Components: images.NonKubeComponents, EnableSHA: false, RunningPods: mapRunningPods}
 	}
 
 }
