@@ -6,9 +6,7 @@ COLLECTION_PATH := $(ROOT_PATH)/e2e/collections/ansible_collections/e2e/tests
 E2E_TEST_DIRS := $(sort $(wildcard $(ROOT_PATH)/e2e/scenarios/*))
 
 # Creating a python virtual environment
-# Creating a python virtual environment
 create-venv:
-	# IF FORCE = true or /tmp/e2e-venv does not exist, create a new virtual environment
 	@if [ "$(FORCE)" = "true" ] || [ ! -d "/tmp/e2e-venv" ]; then \
 		bash -c "deactivate 2>/dev/null || true"; \
 		echo "Removing old environment if it exists..."; \
@@ -34,11 +32,8 @@ create-venv:
 		fi; \
 	fi
 
-activate-venv:
-	source /tmp/e2e-venv/bin/activate;
-
 # Run tests for a specific role given as parameter
-test-role: create-venv activate-venv
+test-role: create-venv
 	# Returning if ROLE is not set
 	@if [ -z "$(ROLE)" ]; then \
 		echo "ROLE is not set. Please provide a ROLE to run the tests."; \
@@ -46,11 +41,12 @@ test-role: create-venv activate-venv
 	fi
 	@echo "Running the tests for the role: $(ROLE)"
 	@cd $(COLLECTION_PATH) && \
+	source /tmp/e2e-venv/bin/activate && \
 	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg ansible-playbook roles/$(ROLE)/tests/test_playbook.yml -i roles/$(ROLE)/tests/inventory $(EXTRA_VARS)
 
 # Run a specific test (use relative path from e2e/ directory)
 test: FORCE=false
-test: create-venv activate-venv
+test: create-venv
 	@if [ -z "$(TEST)" ]; then \
 		echo "TEST is not set. Please provide a TEST to run the tests."; \
 		exit 1; \
@@ -58,6 +54,7 @@ test: create-venv activate-venv
 
 	@export TEST_PREFIX=$$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 5 | head -n 1); \
 	echo "Running the test for directory: $(TEST) with prefix: $$TEST_PREFIX"; \
+	source /tmp/e2e-venv/bin/activate && \
 	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg ansible-playbook $(ROOT_PATH)/e2e/scenarios/$(TEST)/test.yml -i $(ROOT_PATH)/e2e/scenarios/$(TEST)/inventory $(EXTRA_VARS) -e namespace_prefix=$$TEST_PREFIX
 
 # Run all tests in sequence
