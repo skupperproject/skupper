@@ -19,8 +19,20 @@ func handleMetrics(reg *prometheus.Registry) http.Handler {
 func handleSwagger(prefix string, content fs.FS) http.Handler {
 	return http.StripPrefix(prefix, http.FileServer(http.FS(content)))
 }
+
 func handleConsoleAssets(consoleDir string) http.Handler {
 	return http.FileServer(http.Dir(consoleDir))
+}
+
+func handleSecuredConsoleAssets(consoleLocation string) http.Handler {
+	assetHandler := handleConsoleAssets(consoleLocation)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+		w.Header().Set("Content-Security-Policy", "default-src 'self';")
+
+		assetHandler.ServeHTTP(w, r)
+	})
 }
 
 func handleNoContent() http.Handler {

@@ -97,7 +97,7 @@ func run(cfg Config) error {
 		apiMux.Path("/api/v2alpha1/logout").Handler(handleUserLogout())
 		promSubrouter.Handler(handleProxyPrometheusAPI("/api/v2alpha1/internal/prom", promAPI))
 
-		apiMux.PathPrefix("/").Handler(handleConsoleAssets(cfg.ConsoleLocation))
+		apiMux.PathPrefix("/").Handler(handleSecuredConsoleAssets(cfg.ConsoleLocation))
 	}
 
 	if cfg.APIEnableAccessLogs {
