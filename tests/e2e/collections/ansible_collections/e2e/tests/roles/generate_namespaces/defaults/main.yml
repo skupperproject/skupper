@@ -1,0 +1,3 @@
+---
+# defaults file for roles/generate_namespaces
+generate_namespaces_namespace_label: "test"

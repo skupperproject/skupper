@@ -1,0 +1,6 @@
+---
+# Default variables for pod_wait role
+pod_wait_namespace: default
+pod_wait_label_selectors: ""
+pod_wait_retries: 30
+pod_wait_delay: 6

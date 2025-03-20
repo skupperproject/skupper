@@ -1,0 +1,13 @@
+---
+# Kubeconfig path for west site
+kubeconfig_1: "{{ ansible_env.HOME }}/.kube/config"
+kubeconfig: "{{ kubeconfig_1 }}"
+
+# Namespace configuration
+namespace_name: redis-west
+
+# West CRs
+site: "{{ playbook_dir }}/resources/west/site-west.yml"
+connector: "{{ playbook_dir }}/resources/west/connector-west.yml"
+listener: "{{ playbook_dir }}/resources/west/listener-west.yml"
+redis: "{{ playbook_dir }}/resources/west/redis-west.yml"

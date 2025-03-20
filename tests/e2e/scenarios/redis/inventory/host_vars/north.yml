@@ -1,0 +1,13 @@
+---
+# Kubeconfig path for east site
+kubeconfig_3: "{{ ansible_env.HOME }}/.kube/config"
+kubeconfig: "{{ kubeconfig_3 }}"
+
+# Namespace configuration
+namespace_name: redis-north
+
+# North CRs
+site: "{{ playbook_dir }}/resources/north/site-north.yml"
+connector: "{{ playbook_dir }}/resources/north/connector-north.yml"
+listener: "{{ playbook_dir }}/resources/north/listener-north.yml"
+redis: "{{ playbook_dir }}/resources/north/redis-north.yml"

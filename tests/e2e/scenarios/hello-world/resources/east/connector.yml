@@ -1,0 +1,8 @@
+apiVersion: skupper.io/v2alpha1
+kind: Connector
+metadata:
+  name: backend
+spec:
+  routingKey: e2e-backend
+  port: 8080
+  selector: app=backend

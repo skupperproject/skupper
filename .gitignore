@@ -40,3 +40,14 @@ charts/skupper/
 skupper-*.tgz
 artifacthub-repo.yml
 network-observer-*.tgz
+
+# Python venv folder
+**/venv/
+
+# Ignore all ansible_collections content
+tests/e2e/collections/ansible_collections/**
+
+# Then specifically allow only the e2e subfolder
+!tests/e2e/collections/ansible_collections/e2e/
+!tests/e2e/collections/ansible_collections/e2e/**
+

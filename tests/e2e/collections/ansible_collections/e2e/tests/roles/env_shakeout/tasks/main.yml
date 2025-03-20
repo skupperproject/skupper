@@ -1,0 +1,16 @@
+# roles/env_shakeout/tasks/main.yml
+---
+- name: Printing kubeconfigs
+  ansible.builtin.debug:
+    var: kubeconfig
+
+- name: Check cluster connection
+  kubernetes.core.k8s_info:
+    kind: Node
+    kubeconfig: "{{ kubeconfig }}"
+  register: cluster_check
+
+- name: Show cluster info
+  ansible.builtin.debug:
+    var: cluster_check
+  when: env_shakeout_debug | bool

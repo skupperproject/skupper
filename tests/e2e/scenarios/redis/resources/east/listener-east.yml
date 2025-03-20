@@ -1,0 +1,54 @@
+---
+apiVersion: skupper.io/v2alpha1
+kind: Listener
+metadata:
+  name: redis-server-east
+spec:
+  routingKey: redis-server-east
+  port: 6379
+  host: redis-server-east
+---
+apiVersion: skupper.io/v2alpha1
+kind: Listener
+metadata:
+  name: redis-sentinel-east
+spec:
+  routingKey: redis-sentinel-east
+  port: 26379
+  host: redis-sentinel-east
+---
+apiVersion: skupper.io/v2alpha1
+kind: Listener
+metadata:
+  name: redis-server-westst
+spec:
+  routingKey: redis-server-west
+  port: 6379
+  host: redis-server-west
+---
+apiVersion: skupper.io/v2alpha1
+kind: Listener
+metadata:
+  name: redis-sentinel-west
+spec:
+  routingKey: redis-sentinel-west
+  port: 26379
+  host: redis-sentinel-west
+---
+apiVersion: skupper.io/v2alpha1
+kind: Listener
+metadata:
+  name: redis-server-north
+spec:
+  routingKey: redis-server-north
+  port: 6379
+  host: redis-server-north
+---
+apiVersion: skupper.io/v2alpha1
+kind: Listener
+metadata:
+  name: redis-sentinel-north
+spec:
+  routingKey: redis-sentinel-north
+  port: 26379
+  host: redis-sentinel-north

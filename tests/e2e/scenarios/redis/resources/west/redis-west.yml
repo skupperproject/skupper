@@ -1,0 +1,113 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-server
+  labels:
+    name: redis-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: redis-server
+  template:
+    metadata:
+      labels:
+        name: redis-server
+        application: redis-server
+        app.kubernetes.io/part-of: redis
+    spec:
+      subdomain: replica
+      containers:
+      - name: redis
+        image: mirror.gcr.io/redis
+        command:
+          - "redis-server"
+        args:
+          - "--replica-announce-ip"
+          - "redis-server-west"        
+          - "--slaveof"
+          - "redis-server-north"
+          - "6379"
+          - "--protected-mode"
+          - "no"   
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - mountPath: /data
+          name: redis-data
+      volumes:
+        - name: redis-data
+          emptyDir: {}
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: redis
+data:
+  sentinel.conf: |-
+    sentinel resolve-hostnames yes
+    sentinel announce-hostnames yes    
+    sentinel monitor redis-skupper redis-server-north 6379 2
+    sentinel down-after-milliseconds redis-skupper 5000
+    sentinel failover-timeout redis-skupper 10000
+    sentinel parallel-syncs redis-skupper 1
+    sentinel announce-ip redis-sentinel-west
+    sentinel announce-port 26379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-sentinel
+  labels:
+    name: redis-sentinal
+spec:
+  replicas: 1 
+  selector:
+    matchLabels:
+      name: redis-sentinal
+  template:
+    metadata:
+      labels:
+        name: redis-sentinal
+        application: redis-sentinel
+        app.kubernetes.io/part-of: redis-sentinel
+    spec:
+      containers:
+      - name: redis-sentinel
+        image: mirror.gcr.io/redis
+        command:
+          - "redis-server"
+        args:
+          - "/etc/redis/sentinel.conf"
+          - "--sentinel"
+        ports:
+        - containerPort: 26379
+          name: redis-sentinel
+        volumeMounts:
+        - name: redis-data
+          mountPath: /etc/redis
+      initContainers:
+        - name: init-conf
+          image: mirror.gcr.io/alpine
+          command: ['sh', '-c', "cp /config/sentinel.conf /data"]
+          volumeMounts:
+          - name: redis-data
+            mountPath: /data
+          - name: redis-config
+            mountPath: /config
+        - name: init-waitforsvc-north
+          image: mirror.gcr.io/alpine
+          command: ['sh', '-c', "until nslookup redis-server-north.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for redis a instance; sleep 2; done"]
+        - name: init-waitforsvc-west
+          image: mirror.gcr.io/alpine
+          command: ['sh', '-c', "until nslookup redis-server-west.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for redis b instance; sleep 2; done"]
+        - name: init-waitforsvc-east
+          image: mirror.gcr.io/alpine
+          command: ['sh', '-c', "until nslookup redis-server-east.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for redis c instance; sleep 2; done"]
+      volumes:
+        - name: redis-config
+          configMap:
+            name: redis
+        - name: redis-data
+          emptyDir: {}

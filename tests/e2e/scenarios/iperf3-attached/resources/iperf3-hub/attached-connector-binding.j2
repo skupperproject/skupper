@@ -1,0 +1,8 @@
+---
+apiVersion: skupper.io/v2alpha1
+kind: AttachedConnectorBinding
+metadata:
+  name: iperf3
+spec:
+  connectorNamespace: {{ namespace_prefix }}-iperf3-workload
+  routingKey: iperf3

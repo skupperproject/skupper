@@ -1,0 +1,65 @@
+---
+# kubeconfig_1: /home/user/.kube/config
+# kubeconfig_2: /home/user/.kube/config
+kubeconfig: "/home/{{ ansible_user }}/.kube/config"
+debug: false
+teardown_flag: true
+
+##################################################
+# IPERF3 variables
+##################################################
+# iperf3_bandwidth: 10M
+
+# SKUPPER E2E TESTS - Configuration Variables
+# This file contains all the available variables from the Skupper E2E test roles
+# Uncomment and modify values as needed
+
+##################################################
+# Environment Settings
+##################################################
+
+# Enable debug output for shakeout tests
+# env_shakeout_debug: false
+# namespace_prefix: "skupper-e2e-"
+
+##################################################
+# generate_namespaces Role Variables
+##################################################
+
+# Label to apply to generated namespaces
+# generate_namespaces_namespace_label: "test"
+
+##################################################
+# pod_wait Role Variables
+##################################################
+
+# Namespace where pods should be waited for
+# pod_wait_namespace: default
+
+# Label selectors to identify pods (e.g., "app=myapp")
+# pod_wait_label_selectors: ""
+
+# Number of retry attempts when waiting for pods
+# pod_wait_retries: 30
+
+# Delay in seconds between retry attempts
+# pod_wait_delay: 6
+
+##################################################
+# run_curl Role Variables
+##################################################
+
+# Namespace where curl pod will be deployed
+# run_curl_namespace: default
+
+# Target URL/address for curl request
+# run_curl_address: "http://example.com"
+
+# Container image to use for curl operation
+# run_curl_image: "{{ skupper_test_images_curl }}"
+
+# Number of retry attempts for curl operation
+# run_curl_retries: 10
+
+# Delay in seconds between retry attempts
+# run_curl_delay: 10

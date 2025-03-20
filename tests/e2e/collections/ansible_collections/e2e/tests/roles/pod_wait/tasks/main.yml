@@ -1,0 +1,25 @@
+---
+- name: Printing values for degugging
+  debug:
+    msg:
+      - "{{ kubeconfig }}"
+      - "{{ namespace_prefix }}"
+      - "{{ namespace_name }}"
+      - "{{ pod_wait_label_selectors }}"
+      - "{{ pod_wait_retries }}"
+      - "{{ pod_wait_delay }}"
+  when: debug
+
+- name: Wait for all pods in the namespace to be in Running state
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig }}"
+    kind: Pod
+    namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+    label_selectors:
+      - "{{ pod_wait_label_selectors }}"
+  register: pods
+  until: >
+    (pods.resources | length > 0) and
+    (pods.resources | map(attribute='status.phase') | select('equalto', 'Running') | list | length == pods.resources | length)
+  retries: "{{pod_wait_retries }}"
+  delay: "{{ pod_wait_delay }}"
