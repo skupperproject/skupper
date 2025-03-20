@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
@@ -138,7 +139,7 @@ func (s *AutoConfigure) configure(clients internalclient.Clients, namespace stri
 	return nil
 }
 
-func newAutoConfigure(handler internalclient.SecuredAccessHandler, controller *internalclient.Controller, currentNamespace string, config *GrantConfig) (*AutoConfigure, error) {
+func newAutoConfigure(handler watchers.SecuredAccessHandler, eventProcessor *watchers.EventProcessor, currentNamespace string, config *GrantConfig) (*AutoConfigure, error) {
 	ac := &AutoConfigure{
 		port:                 config.Port,
 		tlsCredentialsSecret: config.TlsCredentialsSecret,
@@ -148,9 +149,9 @@ func newAutoConfigure(handler internalclient.SecuredAccessHandler, controller *i
 		//TODO: should setting TlsCredentialsSecret be allowed when auto configure is enabled?
 		ac.tlsCredentialsSecret = "skupper-grant-server"
 	}
-	if err := ac.configure(controller, currentNamespace); err != nil {
+	if err := ac.configure(eventProcessor, currentNamespace); err != nil {
 		return nil, fmt.Errorf("Error creating resources for grant server: %s", err)
 	}
-	controller.WatchSecuredAccessesWithOptions(internalclient.SkupperResourceByName("skupper-grant-server"), currentNamespace, handler)
+	eventProcessor.WatchSecuredAccessesWithOptions(watchers.SkupperResourceByName("skupper-grant-server"), currentNamespace, handler)
 	return ac, nil
 }
