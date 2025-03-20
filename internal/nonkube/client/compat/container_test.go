@@ -285,6 +285,7 @@ func NewClientOrSkip(t *testing.T, endpoint string, ctx context.Context) (*Compa
 }
 
 func ValidateMaps(t *testing.T, originalMap map[string]string, finalMap map[string]string) {
+	t.Helper()
 	for k, v := range originalMap {
 		assert.Equal(t, finalMap[k], v)
 	}

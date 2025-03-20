@@ -11,6 +11,7 @@ type inputValidatingCommand interface {
 }
 
 func CheckValidateInput(t *testing.T, command inputValidatingCommand, expectedError string, args []string) {
+	t.Helper()
 	actualError := command.ValidateInput(args)
 
 	if expectedError == "" {

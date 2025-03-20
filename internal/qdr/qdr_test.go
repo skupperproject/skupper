@@ -390,6 +390,7 @@ func TestUnmarshalErrorInvalidLogValue(t *testing.T) {
 }
 
 func checkLevel(t *testing.T, config *RouterConfig, mod string, level string) {
+	t.Helper()
 	entry, ok := config.LogConfig[mod]
 	if ok && entry.Module != mod {
 		t.Errorf("Inconsistent log config for %s. Expected %q got %q", mod, mod, entry.Module)
