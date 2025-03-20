@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"github.com/skupperproject/skupper/api/types"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/strings/slices"
 	"log"
 	"os"
 	"os/exec"
@@ -162,6 +163,10 @@ func AddShaToImages(imageList []SkupperImage) []SkupperImage {
 		waitGroup.Add(1)
 
 		go func(skImage SkupperImage) {
+
+			tag := strings.Split(skImage.Name, ":")[1]
+			isDevImageTag := slices.Contains(DevelopmentImageTags, tag)
+
 			defer waitGroup.Done()
 
 			var output bytes.Buffer
@@ -169,8 +174,8 @@ func AddShaToImages(imageList []SkupperImage) []SkupperImage {
 			checkCmd.Stdout = &output
 			checkCmd.Stderr = &output
 
-			if err := checkCmd.Run(); err != nil {
-				// Pull the image only if it's not present locally
+			if err := checkCmd.Run(); err != nil || isDevImageTag {
+				// Pull the image only if it's not present locally or if it's an image that could be overwritten.
 				pullCmd := exec.Command("docker", "pull", skImage.Name)
 				if err := pullCmd.Run(); err != nil {
 					log.Printf("Error pulling image: %v\n", err)
