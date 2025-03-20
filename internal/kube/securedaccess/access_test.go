@@ -3029,6 +3029,7 @@ func newMockCertificateManager() *MockCertificateManager {
 }
 
 func (m *MockCertificateManager) checkCertificates(t *testing.T, expected []MockCertificate) {
+	t.Helper()
 	for _, desired := range expected {
 		key := desired.namespace + "/" + desired.name
 		assert.Equal(t, desired.namespace, m.certs[key].namespace)
