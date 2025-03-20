@@ -15,7 +15,8 @@ const (
 )
 
 var (
-	KubeComponents    = []string{"router", "controller", "network-observer", "cli", "prometheus", "origin-oauth-proxy"}
-	NonKubeComponents = []string{"router", "network-observer", "cli", "prometheus", "origin-oauth-proxy"}
-	DefaultComponents = []string{"router", "prometheus", "origin-oauth-proxy"}
+	KubeComponents       = []string{"router", "controller", "network-observer", "cli", "prometheus", "origin-oauth-proxy"}
+	NonKubeComponents    = []string{"router", "network-observer", "cli", "prometheus", "origin-oauth-proxy"}
+	DefaultComponents    = []string{"router", "prometheus", "origin-oauth-proxy"}
+	DevelopmentImageTags = []string{"main", "v2-dev"}
 )
