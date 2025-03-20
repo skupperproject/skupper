@@ -9,27 +9,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type CmdSystemTeardown struct {
+type CmdSystemStop struct {
 	CobraCmd  *cobra.Command
 	TearDown  func(namespace string) error
 	Namespace string
 	Platform  string
 }
 
-func NewCmdSystemTeardown() *CmdSystemTeardown {
+func NewCmdSystemStop() *CmdSystemStop {
 
-	skupperCmd := CmdSystemTeardown{}
+	skupperCmd := CmdSystemStop{}
 
 	return &skupperCmd
 }
 
-func (cmd *CmdSystemTeardown) NewClient(cobraCommand *cobra.Command, args []string) {
+func (cmd *CmdSystemStop) NewClient(cobraCommand *cobra.Command, args []string) {
 	cmd.TearDown = bootstrap.Teardown
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
 	cmd.Platform = string(config.GetPlatform())
 }
 
-func (cmd *CmdSystemTeardown) ValidateInput(args []string) error {
+func (cmd *CmdSystemStop) ValidateInput(args []string) error {
 	if len(args) > 0 {
 		return errors.New("this command does not accept arguments")
 	}
@@ -37,13 +37,13 @@ func (cmd *CmdSystemTeardown) ValidateInput(args []string) error {
 	return nil
 }
 
-func (cmd *CmdSystemTeardown) InputToOptions() {
+func (cmd *CmdSystemStop) InputToOptions() {
 	if cmd.Namespace == "" {
 		cmd.Namespace = "default"
 	}
 }
 
-func (cmd *CmdSystemTeardown) Run() error {
+func (cmd *CmdSystemStop) Run() error {
 
 	err := cmd.TearDown(cmd.Namespace)
 
@@ -54,4 +54,4 @@ func (cmd *CmdSystemTeardown) Run() error {
 	return nil
 }
 
-func (cmd *CmdSystemTeardown) WaitUntil() error { return nil }
+func (cmd *CmdSystemStop) WaitUntil() error { return nil }

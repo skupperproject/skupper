@@ -27,7 +27,7 @@ func TestCmdSystemTearDown_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command := &CmdSystemTeardown{}
+			command := &CmdSystemStop{}
 			command.CobraCmd = common.ConfigureCobraCommand(common.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
 
 			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
@@ -107,9 +107,9 @@ func TestCmdSystemTeardown_Run(t *testing.T) {
 
 // --- helper methods
 
-func newCmdSystemTeardownWithMocks(systemTeardDownFails bool) *CmdSystemTeardown {
+func newCmdSystemTeardownWithMocks(systemTeardDownFails bool) *CmdSystemStop {
 
-	cmdMock := &CmdSystemTeardown{
+	cmdMock := &CmdSystemStop{
 		TearDown: mockCmdSystemTeardown,
 	}
 	if systemTeardDownFails {

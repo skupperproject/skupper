@@ -239,12 +239,6 @@ type CommandListenerDeleteFlags struct {
 	Wait    bool
 }
 
-type CommandSystemSetupFlags struct {
-	Path     string
-	Strategy string
-	Force    bool
-}
-
 type CommandListenerGenerateFlags struct {
 	RoutingKey     string
 	Host           string

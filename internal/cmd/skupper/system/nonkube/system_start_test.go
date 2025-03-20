@@ -2,8 +2,8 @@ package nonkube
 
 import (
 	"fmt"
+	"github.com/skupperproject/skupper/internal/utils"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -18,7 +18,7 @@ func TestCmdSystemSetup_ValidateInput(t *testing.T) {
 	type test struct {
 		name          string
 		args          []string
-		flags         *common.CommandSystemSetupFlags
+		namespace     string
 		expectedError string
 	}
 
@@ -26,26 +26,17 @@ func TestCmdSystemSetup_ValidateInput(t *testing.T) {
 		{
 			name:          "args-are-not-accepted",
 			args:          []string{"something"},
+			namespace:     utils.RandomId(4),
 			expectedError: "this command does not accept arguments",
-		},
-		{
-			name: "invalid-bundle-strategy",
-			flags: &common.CommandSystemSetupFlags{
-				Strategy: "not-valid",
-			},
-			expectedError: "invalid bundle strategy: not-valid",
 		},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command := &CmdSystemSetup{}
+			command := &CmdSystemStart{}
 			command.CobraCmd = common.ConfigureCobraCommand(common.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
-
-			if test.flags != nil {
-				command.Flags = test.flags
-			}
+			command.Namespace = test.namespace
 
 			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
@@ -57,7 +48,6 @@ func TestCmdSystemSetup_InputToOptions(t *testing.T) {
 	type test struct {
 		name                   string
 		args                   []string
-		flags                  common.CommandSystemSetupFlags
 		platform               string
 		namespace              string
 		expectedBinary         string
@@ -69,42 +59,22 @@ func TestCmdSystemSetup_InputToOptions(t *testing.T) {
 	testTable := []test{
 		{
 			name:              "options-by-default",
-			flags:             common.CommandSystemSetupFlags{},
 			expectedBinary:    "podman",
 			expectedNamespace: "default",
 		},
 		{
-			name: "linux",
-			flags: common.CommandSystemSetupFlags{
-				Path: "input-path",
-			},
+			name:              "linux",
 			namespace:         "east",
 			platform:          "linux",
 			expectedBinary:    "skrouterd",
 			expectedNamespace: "east",
 		},
 		{
-			name: "docker",
-			flags: common.CommandSystemSetupFlags{
-				Path: "input-path",
-			},
+			name:              "docker",
 			namespace:         "east",
 			platform:          "docker",
 			expectedBinary:    "docker",
 			expectedNamespace: "east",
-		},
-		{
-			name: "bundle-default",
-			flags: common.CommandSystemSetupFlags{
-				Path:     "input-path",
-				Strategy: "bundle",
-			},
-			namespace:              "east",
-			platform:               "podman",
-			expectedBinary:         "",
-			expectedNamespace:      "east",
-			expectedIsBundle:       true,
-			expectedBundleStrategy: "bundle",
 		},
 	}
 
@@ -114,7 +84,6 @@ func TestCmdSystemSetup_InputToOptions(t *testing.T) {
 			config.ClearPlatform()
 
 			cmd := newCmdSystemSetupWithMocks(false, false)
-			cmd.Flags = &test.flags
 			cmd.Namespace = test.namespace
 
 			cmd.InputToOptions()
@@ -123,7 +92,6 @@ func TestCmdSystemSetup_InputToOptions(t *testing.T) {
 			assert.Check(t, cmd.ConfigBootstrap.BundleStrategy == test.expectedBundleStrategy)
 			assert.Check(t, cmd.ConfigBootstrap.Namespace == test.expectedNamespace)
 			assert.Check(t, cmd.ConfigBootstrap.IsBundle == test.expectedIsBundle)
-			assert.Check(t, strings.Contains(cmd.ConfigBootstrap.InputPath, cmd.Flags.Path))
 		})
 	}
 }
@@ -174,9 +142,9 @@ func TestCmdSystemSetup_Run(t *testing.T) {
 
 // --- helper methods
 
-func newCmdSystemSetupWithMocks(precheckFails bool, bootstrapFails bool) *CmdSystemSetup {
+func newCmdSystemSetupWithMocks(precheckFails bool, bootstrapFails bool) *CmdSystemStart {
 
-	cmdMock := &CmdSystemSetup{
+	cmdMock := &CmdSystemStart{
 		PreCheck:  mockCmdSystemSetupPreCheck,
 		Bootstrap: mockCmdSystemSetupBootStrap,
 		PostExec:  mockCmdSystemSetupPostExec,

@@ -19,13 +19,14 @@ func TestCmdSystemFactory(t *testing.T) {
 
 	testTable := []test{
 		{
-			name: "CmdSystemSetupFactory",
-			expectedFlagsWithDefaultValue: map[string]interface{}{
-				common.FlagNamePath:     "",
-				common.FlagNameStrategy: "",
-				common.FlagNameForce:    "false",
-			},
-			command: CmdSystemSetupFactory(common.PlatformPodman),
+			name:                          "CmdSystemStartFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{},
+			command:                       CmdSystemStartFactory(common.PlatformPodman),
+		},
+		{
+			name:                          "CmdSystemStopFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{},
+			command:                       CmdSystemStopFactory(common.PlatformPodman),
 		},
 		{
 			name:                          "CmdSystemReloadFactory",

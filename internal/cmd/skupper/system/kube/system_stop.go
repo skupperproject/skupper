@@ -8,29 +8,29 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type CmdSystemTeardown struct {
+type CmdSystemStop struct {
 	Client     skupperv2alpha1.SkupperV2alpha1Interface
 	KubeClient kubernetes.Interface
 	CobraCmd   *cobra.Command
 	Namespace  string
 }
 
-func NewCmdSystemTeardown() *CmdSystemTeardown {
+func NewCmdSystemStop() *CmdSystemStop {
 
-	skupperCmd := CmdSystemTeardown{}
+	skupperCmd := CmdSystemStop{}
 
 	return &skupperCmd
 }
 
-func (cmd *CmdSystemTeardown) NewClient(cobraCommand *cobra.Command, args []string) {}
+func (cmd *CmdSystemStop) NewClient(cobraCommand *cobra.Command, args []string) {}
 
-func (cmd *CmdSystemTeardown) ValidateInput(args []string) error { return nil }
+func (cmd *CmdSystemStop) ValidateInput(args []string) error { return nil }
 
-func (cmd *CmdSystemTeardown) InputToOptions() {}
+func (cmd *CmdSystemStop) InputToOptions() {}
 
-func (cmd *CmdSystemTeardown) Run() error {
+func (cmd *CmdSystemStop) Run() error {
 	fmt.Println("This command does not support kubernetes platforms.")
 	return nil
 }
 
-func (cmd *CmdSystemTeardown) WaitUntil() error { return nil }
+func (cmd *CmdSystemStop) WaitUntil() error { return nil }
