@@ -7,6 +7,7 @@ var (
 	ConnectorTypes  = []string{"tcp"}
 	WorkloadTypes   = []string{"deployment", "service", "daemonset", "statefulset"}
 	WaitStatusTypes = []string{"ready", "configured", "none"}
+	BundleTypes     = []string{"tarball", "shell-script"}
 )
 
 const (

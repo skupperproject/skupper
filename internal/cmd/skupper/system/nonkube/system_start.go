@@ -3,18 +3,24 @@ package nonkube
 import (
 	"errors"
 	"fmt"
-
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 type CmdSystemStart struct {
-	CobraCmd    *cobra.Command
-	Namespace   string
-	SystemStart func(service string) error
+	PreCheck        func(config *bootstrap.Config) error
+	Bootstrap       func(config *bootstrap.Config) (*api.SiteState, error)
+	PostExec        func(config *bootstrap.Config, siteState *api.SiteState)
+	CobraCmd        *cobra.Command
+	Namespace       string
+	ConfigBootstrap bootstrap.Config
 }
 
-func NewCmdCmdSystemStart() *CmdSystemStart {
+func NewCmdSystemStart() *CmdSystemStart {
 
 	skupperCmd := CmdSystemStart{}
 
@@ -22,33 +28,74 @@ func NewCmdCmdSystemStart() *CmdSystemStart {
 }
 
 func (cmd *CmdSystemStart) NewClient(cobraCommand *cobra.Command, args []string) {
-	cmd.SystemStart = bootstrap.Start
+	cmd.PreCheck = bootstrap.PreBootstrap
+	cmd.Bootstrap = bootstrap.Bootstrap
+	cmd.PostExec = bootstrap.PostBootstrap
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
 }
 
 func (cmd *CmdSystemStart) ValidateInput(args []string) error {
-	if len(args) > 0 {
-		return errors.New("this command does not accept arguments")
+	var validationErrors []error
+
+	if args != nil && len(args) > 0 {
+		validationErrors = append(validationErrors, fmt.Errorf("this command does not accept arguments"))
 	}
 
-	return nil
+	selectedNamespace := "default"
+	if cmd.Namespace != "" {
+		selectedNamespace = cmd.Namespace
+	}
+
+	_, err := os.Stat(api.GetInternalOutputPath(selectedNamespace, api.RuntimeSiteStatePath))
+	if err == nil {
+		validationErrors = append(validationErrors, fmt.Errorf("namespace already exists: %s", selectedNamespace))
+	}
+
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdSystemStart) InputToOptions() {
 
-	if cmd.Namespace == "" {
-		cmd.Namespace = "default"
+	namespace := "default"
+	if cmd.Namespace != "" {
+		namespace = cmd.Namespace
 	}
+
+	var binary string
+	selectedPlatform := config.GetPlatform()
+
+	switch common.Platform(selectedPlatform) {
+	case common.PlatformLinux:
+		binary = "skrouterd"
+	case common.PlatformDocker:
+		binary = "docker"
+	default:
+		binary = "podman"
+	}
+
+	configBootStrap := bootstrap.Config{
+		Namespace: namespace,
+		IsBundle:  false,
+		Platform:  selectedPlatform,
+		Binary:    binary,
+	}
+
+	cmd.ConfigBootstrap = configBootStrap
 }
 
 func (cmd *CmdSystemStart) Run() error {
-	err := cmd.SystemStart(cmd.Namespace)
 
+	err := cmd.PreCheck(&cmd.ConfigBootstrap)
 	if err != nil {
-		return fmt.Errorf("failed to start router: %s", err)
+		return err
 	}
 
-	fmt.Printf("%s-skupper-router is now started\n", cmd.Namespace)
+	siteState, err := cmd.Bootstrap(&cmd.ConfigBootstrap)
+	if err != nil {
+		return fmt.Errorf("Failed to bootstrap: %s", err)
+	}
+
+	cmd.PostExec(&cmd.ConfigBootstrap, siteState)
 
 	return nil
 }

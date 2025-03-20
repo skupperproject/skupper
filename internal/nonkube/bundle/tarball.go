@@ -17,10 +17,15 @@ type TarballBundle struct {
 	SiteName   string
 	OutputPath string
 	Namespace  string
+	Filename   string
 }
 
 func (s *TarballBundle) InstallFile() string {
-	return path.Join(s.OutputPath, fmt.Sprintf("skupper-install-%s.tar.gz", s.SiteName))
+	if s.Filename != "" {
+		return path.Join(s.OutputPath, fmt.Sprintf("%s.tar.gz", s.Filename))
+	} else {
+		return path.Join(s.OutputPath, fmt.Sprintf("skupper-install-%s.tar.gz", s.SiteName))
+	}
 }
 
 func (s *TarballBundle) Generate(tarBall *utils.Tarball, defaultPlatform string) error {
