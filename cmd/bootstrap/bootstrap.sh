@@ -3,6 +3,7 @@
 set -Ceu
 
 IMAGE="${SKUPPER_CLI_IMAGE:-quay.io/skupper/cli:v2-dev}"
+ROUTER_IMAGE="${SKUPPER_ROUTER_IMAGE:-quay.io/skupper/skupper-router:main}"
 export INPUT_PATH=""
 export NAMESPACE=""
 export FORCE_FLAG=""
@@ -221,6 +222,7 @@ main() {
     fi
     ENV_VARS="${ENV_VARS} -e 'SKUPPER_OUTPUT_PATH=${SKUPPER_OUTPUT_PATH}'"
     ENV_VARS="${ENV_VARS} -e 'SKUPPER_PLATFORM=${SKUPPER_PLATFORM}'"
+    ENV_VARS="${ENV_VARS} -e 'SKUPPER_ROUTER_IMAGE=${ROUTER_IMAGE}'"
 
     # Running the bootstrap
     ${CONTAINER_ENGINE} pull "${IMAGE}"
