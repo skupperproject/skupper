@@ -8,8 +8,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/client/fake"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
@@ -75,7 +75,7 @@ func Test_Initialise(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			controller := internalclient.NewController("Controller", client)
+			controller := watchers.NewEventProcessor("Controller", client)
 
 			start := Initialise(controller, "test", metav1.NamespaceAll, &tt.config, nil, nil)
 			if tt.endpoint != nil {
@@ -111,7 +111,7 @@ func Test_Initialise(t *testing.T) {
 
 }
 
-func updateSecuredAccessEndpoint(controller *internalclient.Controller, name string, namespace string, endpoint *v2alpha1.Endpoint) error {
+func updateSecuredAccessEndpoint(controller *watchers.EventProcessor, name string, namespace string, endpoint *v2alpha1.Endpoint) error {
 	sa, err := controller.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return err
