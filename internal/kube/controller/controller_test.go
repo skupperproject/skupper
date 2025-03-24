@@ -651,6 +651,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func verifyStatus(t *testing.T, expected skupperv2alpha1.Status, actual skupperv2alpha1.Status) {
+	t.Helper()
 	assert.Equal(t, expected.StatusType, actual.StatusType, actual.Message)
 	assert.Equal(t, expected.Message, actual.Message)
 	for _, condition := range expected.Conditions {
