@@ -228,13 +228,14 @@ func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv2
 			return errors.New("Secret exists but is not controlled by skupper")
 		}
 
-		var err error
-		secret, err = m.generateSecret(certificate)
+		regenerated, err := m.generateSecret(certificate)
 		if err != nil {
 			log.Printf("Error generating Secret %s/%s for Certificate %s", certificate.Namespace, secret.Name, key)
 			return err
 		}
 		changed = true
+		secret.Data = regenerated.Data
+		secret.Annotations["internal.skupper.io/hosts"] = strings.Join(certificate.Spec.Hosts, ",")
 	}
 	if m.context != nil && controlled {
 		if secret.Labels == nil {
