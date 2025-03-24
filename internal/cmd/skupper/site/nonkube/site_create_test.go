@@ -109,7 +109,6 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 		args                            []string
 		namespace                       string
 		flags                           common.CommandSiteCreateFlags
-		expectedSettings                map[string]string
 		expectedLinkAccess              bool
 		expectedNamespace               string
 		expectedSubjectAlternativeNames []string
@@ -119,12 +118,9 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:  "options without link access disabled",
-			args:  []string{"my-site"},
-			flags: common.CommandSiteCreateFlags{BindHost: "test"},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:                            "options without link access disabled",
+			args:                            []string{"my-site"},
+			flags:                           common.CommandSiteCreateFlags{BindHost: "test"},
 			expectedLinkAccess:              false,
 			expectedNamespace:               "default",
 			expectedBindHost:                "",
@@ -132,12 +128,9 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedSubjectAlternativeNames: nil,
 		},
 		{
-			name:  "options with link access enabled",
-			args:  []string{"my-site"},
-			flags: common.CommandSiteCreateFlags{EnableLinkAccess: true, BindHost: "test"},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:                            "options with link access enabled",
+			args:                            []string{"my-site"},
+			flags:                           common.CommandSiteCreateFlags{EnableLinkAccess: true, BindHost: "test"},
 			expectedLinkAccess:              true,
 			expectedNamespace:               "default",
 			expectedBindHost:                "test",
@@ -145,13 +138,10 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedSubjectAlternativeNames: nil,
 		},
 		{
-			name:      "options with subject alternative names",
-			args:      []string{"my-site"},
-			namespace: "test",
-			flags:     common.CommandSiteCreateFlags{BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:                            "options with subject alternative names",
+			args:                            []string{"my-site"},
+			namespace:                       "test",
+			flags:                           common.CommandSiteCreateFlags{BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
 			expectedLinkAccess:              false,
 			expectedNamespace:               "test",
 			expectedBindHost:                "",
@@ -159,13 +149,10 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedRouterAccessName:        "",
 		},
 		{
-			name:      "options with enable link access and subject alternative names",
-			args:      []string{"my-site"},
-			namespace: "test",
-			flags:     common.CommandSiteCreateFlags{EnableLinkAccess: true, BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:                            "options with enable link access and subject alternative names",
+			args:                            []string{"my-site"},
+			namespace:                       "test",
+			flags:                           common.CommandSiteCreateFlags{EnableLinkAccess: true, BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
 			expectedLinkAccess:              true,
 			expectedNamespace:               "test",
 			expectedSubjectAlternativeNames: []string{"test"},
@@ -185,7 +172,6 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 
 			cmd.InputToOptions()
 
-			assert.DeepEqual(t, cmd.options, test.expectedSettings)
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
 			assert.Check(t, cmd.bindHost == test.expectedBindHost)
 			assert.Check(t, cmd.linkAccessEnabled == test.expectedLinkAccess)
@@ -203,7 +189,6 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 		skupperError      string
 		siteName          string
 		host              string
-		options           map[string]string
 		errorMessage      string
 		routerAccessName  string
 		linkAccessEnabled bool
@@ -218,7 +203,6 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 			host:              "bindhost",
 			routerAccessName:  "ra-test",
 			linkAccessEnabled: true,
-			options:           map[string]string{"name": "my-site"},
 		},
 		{
 			name:           "runs ok without create site",
@@ -226,7 +210,6 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 			skupperObjects: nil,
 			siteName:       "test",
 			host:           "bindhost",
-			options:        map[string]string{"name": "my-site"},
 			skupperError:   "",
 		},
 	}
@@ -235,7 +218,6 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 		command := &CmdSiteCreate{}
 
 		command.siteName = test.siteName
-		command.options = test.options
 		command.routerAccessName = test.routerAccessName
 		command.linkAccessEnabled = test.linkAccessEnabled
 		command.siteHandler = fs.NewSiteHandler(command.namespace)

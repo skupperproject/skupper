@@ -16,7 +16,6 @@ import (
 type SiteUpdates struct {
 	subjectAlternativeNames []string
 	bindHost                string
-	options                 map[string]string
 }
 
 type CmdSiteUpdate struct {
@@ -24,7 +23,6 @@ type CmdSiteUpdate struct {
 	routerAccessHandler     *fs.RouterAccessHandler
 	CobraCmd                *cobra.Command
 	Flags                   *common.CommandSiteUpdateFlags
-	options                 map[string]string
 	siteName                string
 	namespace               string
 	linkAccessEnabled       bool
@@ -142,10 +140,7 @@ func (cmd *CmdSiteUpdate) InputToOptions() {
 			cmd.subjectAlternativeNames = cmd.newSettings.subjectAlternativeNames
 		}
 	}
-	options := make(map[string]string)
-	options[common.SiteConfigNameKey] = cmd.siteName
 
-	cmd.options = options
 	cmd.routerAccessName = "router-access-" + cmd.siteName
 
 	if cmd.namespace == "" {
@@ -163,9 +158,6 @@ func (cmd *CmdSiteUpdate) Run() error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmd.siteName,
 			Namespace: cmd.namespace,
-		},
-		Spec: v2alpha1.SiteSpec{
-			Settings: cmd.options,
 		},
 	}
 
