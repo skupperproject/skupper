@@ -7,7 +7,7 @@ orbs:
 executors:
   go_cimg:
     docker:
-      - image: cimg/go:1.21
+      - image: cimg/go:1.22
     environment:
       CGO_ENABLED: 0
 
@@ -112,7 +112,7 @@ commands:
           command: sudo rm -rf /usr/local/go
       - docker/install-docker
       - go/install:
-          version: "1.21.9"
+          version: "1.22.0"
       - kube-orb/install-kubectl
       - run: make
 
