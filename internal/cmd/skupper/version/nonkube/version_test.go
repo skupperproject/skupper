@@ -1,6 +1,8 @@
 package nonkube
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -55,6 +57,15 @@ func TestCmdVersion_ValidateInput(t *testing.T) {
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
+
+			tmpDir := filepath.Join(t.TempDir(), "/skupper")
+			err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
+
+			nestedDir := filepath.Join(tmpDir, "namespaces", "test")
+			err = os.MkdirAll(nestedDir, os.ModePerm)
+			if err != nil {
+				t.Fatalf("failed to create directories: %v", err)
+			}
 
 			cmd, err := newCmdVersionWithMocks(test.namespace)
 			assert.Assert(t, err)
