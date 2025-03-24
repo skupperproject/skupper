@@ -41,7 +41,7 @@ func PreBootstrap(config *Config) error {
 			config.InputPath = existingPath
 			fmt.Printf("Sources will be consumed from namespace %q\n", config.Namespace)
 		} else {
-			fmt.Printf("Input path has not been provided and namespace %s does not exist\n", config.Namespace)
+			fmt.Printf("Namespace %q does not exist\n", config.Namespace)
 			return fmt.Errorf("No sources found at: %s\n", path.Join(api.GetHostNamespaceHome(config.Namespace), string(api.InputSiteStatePath)))
 		}
 	} else if inputSourcesDefined && !api.IsRunningInContainer() {

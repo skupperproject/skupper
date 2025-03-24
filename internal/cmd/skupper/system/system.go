@@ -149,7 +149,7 @@ func CmdSystemGenerateBundleFactory(configuredPlatform common.Platform) *cobra.C
 	nonKubeCommand := nonkube.NewCmdCmdSystemGenerateBundle()
 
 	cmdSystemGenerateBundleDesc := common.SkupperCmdDescription{
-		Use:   "generate-bundle",
+		Use:   "generate-bundle <bundle-file>",
 		Short: "Generate a bundle",
 		Long:  "Generate a self-contained site bundle for use on another machine.",
 	}
