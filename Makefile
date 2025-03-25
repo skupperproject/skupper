@@ -57,6 +57,10 @@ build-doc-generator: generate-doc
 generate-doc: $(call pkgdeps,./internal/cmd/generate-doc)
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o $@ ./internal/cmd/generate-doc
 
+build-user-controller: controller
+user-controller: $(call pkgdeps,./cmd/user-controller)
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o $@ ./cmd/user-controller
+
 ## native/default container image builds
 docker-build: $(patsubst Dockerfile.%,docker-build-%,$(CONTAINERFILES))
 docker-build-%: Dockerfile.%
