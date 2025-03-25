@@ -100,7 +100,7 @@ func RunScenario(scenario TestScenario) (string, string, error) {
 				if cli != nil {
 					configMap, _ := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(context.TODO(), "skupper-network-status", v1.GetOptions{})
 					if configMap != nil {
-						log.Printf("skupper-network-status:\n%s\n", configMap.Data["skupper-network-status"])
+						log.Printf("skupper-network-status:\n%s\n", configMap.String())
 					}
 				}
 				return stdout, stderr, err
