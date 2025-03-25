@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
 	"os/exec"
 	"regexp"
@@ -95,6 +96,12 @@ func RunScenario(scenario TestScenario) (string, string, error) {
 			if err != nil {
 				if scenario.ErrorHook != nil {
 					scenario.ErrorHook()
+				}
+				if cli != nil {
+					configMap, _ := cli.KubeClient.CoreV1().ConfigMaps(cli.Namespace).Get(context.TODO(), "skupper-network-status", v1.GetOptions{})
+					if configMap != nil {
+						log.Printf("skupper-network-status:\n%s\n", configMap.Data["skupper-network-status"])
+					}
 				}
 				return stdout, stderr, err
 			}
