@@ -46,6 +46,9 @@ func (w *FileWatcher) filterHandlers(name string) []FSChangeHandler {
 			handlers = append(handlers, handler)
 		} else {
 			for _, f := range filters {
+				if f == nil {
+					continue
+				}
 				if f.MatchString(name) {
 					handlers = append(handlers, handler)
 					break
