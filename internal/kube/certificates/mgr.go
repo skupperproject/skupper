@@ -357,11 +357,24 @@ func isSecretCorrect(certificate *skupperv2alpha1.Certificate, secret *corev1.Se
 }
 
 func isSecretControlled(secret *corev1.Secret) bool {
+	return hasControlledAnnotation(secret) || hasCertificateOwner(secret)
+}
+
+func hasControlledAnnotation(secret *corev1.Secret) bool {
 	if secret.Annotations == nil {
 		return false
 	}
 	_, ok := secret.Annotations["internal.skupper.io/controlled"]
 	return ok
+}
+
+func hasCertificateOwner(secret *corev1.Secret) bool {
+	for _, owner := range secret.ObjectMeta.OwnerReferences {
+		if owner.Kind == "Certificate" && owner.APIVersion == "skupper.io/v2alpha1" {
+			return true
+		}
+	}
+	return false
 }
 
 func secretKey(secret *corev1.Secret) string {
