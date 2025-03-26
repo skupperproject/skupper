@@ -629,7 +629,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 					},
 				}
 			},
-			errorMessage: "output format has not been specified",
+			errorMessage: "Output format has not been specified",
 		},
 		{
 			name: "runs fails because the output format is not supported",
@@ -707,7 +707,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 					},
 				}
 			},
-			errorMessage: "the active site has not configured endpoints yet",
+			errorMessage: "A link cannot be generated because link access is not enabled. \n Use \"skupper site update --enable-link-access\" to enable it.",
 		},
 		{
 			name: "runs fails because there are no active site",
@@ -719,7 +719,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 				command.generateCredential = false
 				command.activeSite = nil
 			},
-			errorMessage: "there is no active site to generate the link resource file",
+			errorMessage: "There is no active site to generate the link resource file",
 		},
 		{
 			name: "runs fails because certificate could not be created",
