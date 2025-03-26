@@ -41,11 +41,11 @@ func (n *NamespacesHandler) Start(stop chan struct{}) error {
 		return err
 	}
 	w.Start(stop)
-	go n.start(stop)
+	go n.wait(stop)
 	return nil
 }
 
-func (n *NamespacesHandler) start(stop chan struct{}) {
+func (n *NamespacesHandler) wait(stop chan struct{}) {
 	<-stop
 	log.Println("Stopping namespaces watcher")
 	for _, nsh := range n.namespaces {
