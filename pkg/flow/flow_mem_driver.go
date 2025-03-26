@@ -753,10 +753,10 @@ func (fc *FlowCollector) updateRecord(record interface{}) error {
 					if site.Policy != nil {
 						current.Policy = site.Policy
 					}
-					if current.Platform != site.Platform {
+					if site.Platform != nil && current.Platform != site.Platform {
 						current.Platform = site.Platform
 					}
-					if current.Version != site.Version {
+					if site.Version != nil && current.Version != site.Version {
 						current.Version = site.Version
 					}
 				}
