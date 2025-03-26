@@ -2,15 +2,14 @@ package nonkube
 
 import (
 	"fmt"
+	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"gotest.tools/v3/assert"
-
-	"testing"
 )
 
-func TestCmdSystemStop_ValidateInput(t *testing.T) {
+func TestCmdSystemTearDown_ValidateInput(t *testing.T) {
 	type test struct {
 		name          string
 		args          []string
@@ -36,7 +35,7 @@ func TestCmdSystemStop_ValidateInput(t *testing.T) {
 	}
 }
 
-func TestCmdSystemStop_InputToOptions(t *testing.T) {
+func TestCmdSystemTearDown_InputToOptions(t *testing.T) {
 
 	type test struct {
 		name              string
@@ -61,10 +60,8 @@ func TestCmdSystemStop_InputToOptions(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			cmd := newCmdSystemStopWithMocks(false)
+			cmd := newCmdSystemTeardownWithMocks(false)
 			cmd.Namespace = test.namespace
-
-			cmd.ValidateInput(test.args)
 			cmd.InputToOptions()
 
 			assert.Check(t, cmd.Namespace == test.expectedNamespace)
@@ -73,34 +70,34 @@ func TestCmdSystemStop_InputToOptions(t *testing.T) {
 	}
 }
 
-func TestCmdSystemStop_Run(t *testing.T) {
+func TestCmdSystemTeardown_Run(t *testing.T) {
 	type test struct {
-		name           string
-		systemCtlFails bool
-		errorMessage   string
+		name          string
+		teardownFails bool
+		errorMessage  string
 	}
 
 	testTable := []test{
 		{
-			name:           "runs ok",
-			systemCtlFails: false,
-			errorMessage:   "",
+			name:          "runs ok",
+			teardownFails: false,
+			errorMessage:  "",
 		},
 		{
-			name:           "stop router fails",
-			systemCtlFails: true,
-			errorMessage:   "failed to stop router: fail",
+			name:          "teardown fails",
+			teardownFails: true,
+			errorMessage:  "System teardown has failed: fail",
 		},
 	}
 
 	for _, test := range testTable {
-		command := newCmdSystemStopWithMocks(test.systemCtlFails)
+		command := newCmdSystemTeardownWithMocks(test.teardownFails)
 
 		t.Run(test.name, func(t *testing.T) {
 
 			err := command.Run()
 			if err != nil {
-				assert.Check(t, test.errorMessage == err.Error(), err.Error())
+				assert.Check(t, test.errorMessage == err.Error())
 			} else {
 				assert.Check(t, err == nil)
 			}
@@ -110,19 +107,19 @@ func TestCmdSystemStop_Run(t *testing.T) {
 
 // --- helper methods
 
-func newCmdSystemStopWithMocks(systemCtlStopFails bool) *CmdSystemStop {
+func newCmdSystemTeardownWithMocks(systemTeardDownFails bool) *CmdSystemStop {
 
 	cmdMock := &CmdSystemStop{
-		SystemStop: mockCmdSystemStopSystemCtl,
+		TearDown: mockCmdSystemTeardown,
 	}
-	if systemCtlStopFails {
-		cmdMock.SystemStop = mockCmdSystemStopSystemCtlFails
+	if systemTeardDownFails {
+		cmdMock.TearDown = mockCmdSystemTeardownFails
 	}
 
 	return cmdMock
 }
 
-func mockCmdSystemStopSystemCtl(namespace string) error { return nil }
-func mockCmdSystemStopSystemCtlFails(namespace string) error {
+func mockCmdSystemTeardown(namespace string) error { return nil }
+func mockCmdSystemTeardownFails(namespace string) error {
 	return fmt.Errorf("fail")
 }

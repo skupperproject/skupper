@@ -84,6 +84,11 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagNameAll       = "all"
 	FlagDescDeleteAll = "delete all skupper resources associated with site in current namespace"
 
+	FlagNameInput = "input"
+	FlagDescInput = "The location of the Skupper resources defining the site."
+	FlagNameType  = "type"
+	FlagDescType  = "The bundle type to be produced. Choices: tarball, shell-script"
+
 	FlagDescUninstallForce = "option to override even with sites present"
 )
 
@@ -234,12 +239,6 @@ type CommandListenerDeleteFlags struct {
 	Wait    bool
 }
 
-type CommandSystemSetupFlags struct {
-	Path     string
-	Strategy string
-	Force    bool
-}
-
 type CommandListenerGenerateFlags struct {
 	RoutingKey     string
 	Host           string
@@ -257,4 +256,9 @@ type CommandDebugFlags struct {
 
 type CommandSystemUninstallFlags struct {
 	Force bool
+}
+
+type CommandSystemGenerateBundleFlags struct {
+	Input string
+	Type  string
 }

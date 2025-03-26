@@ -4,14 +4,16 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
 	"github.com/spf13/cobra"
 )
 
 type CmdSystemStop struct {
-	CobraCmd   *cobra.Command
-	Namespace  string
-	SystemStop func(service string) error
+	CobraCmd  *cobra.Command
+	TearDown  func(namespace string) error
+	Namespace string
+	Platform  string
 }
 
 func NewCmdSystemStop() *CmdSystemStop {
@@ -22,8 +24,9 @@ func NewCmdSystemStop() *CmdSystemStop {
 }
 
 func (cmd *CmdSystemStop) NewClient(cobraCommand *cobra.Command, args []string) {
-	cmd.SystemStop = bootstrap.Stop
+	cmd.TearDown = bootstrap.Teardown
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
+	cmd.Platform = string(config.GetPlatform())
 }
 
 func (cmd *CmdSystemStop) ValidateInput(args []string) error {
@@ -35,22 +38,18 @@ func (cmd *CmdSystemStop) ValidateInput(args []string) error {
 }
 
 func (cmd *CmdSystemStop) InputToOptions() {
-
 	if cmd.Namespace == "" {
 		cmd.Namespace = "default"
 	}
-
 }
 
 func (cmd *CmdSystemStop) Run() error {
 
-	err := cmd.SystemStop(cmd.Namespace)
+	err := cmd.TearDown(cmd.Namespace)
 
 	if err != nil {
-		return fmt.Errorf("failed to stop router: %s", err)
+		return fmt.Errorf("System teardown has failed: %s", err)
 	}
-
-	fmt.Printf("%s-skupper-router is now stopped \n", cmd.Namespace)
 
 	return nil
 }
