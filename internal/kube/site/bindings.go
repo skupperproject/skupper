@@ -65,7 +65,8 @@ func (w *TargetSelectionImpl) Updated(pods []skupperv2alpha1.PodDetails) error {
 	err := w.site.updateRouterConfig(w.site.bindings)
 	connector := w.site.bindings.GetConnector(w.name)
 	if connector == nil {
-		return fmt.Errorf("Error looking up connector for %s/%s", w.namespace, w.name)
+		bindings_logger.Error("Error looking up connector for pod event", w.Attr())
+		return nil
 	}
 	if err != nil {
 		return w.site.updateConnectorConfiguredStatus(connector, err)
