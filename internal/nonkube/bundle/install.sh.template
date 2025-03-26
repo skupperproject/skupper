@@ -306,6 +306,16 @@ sanity_check() {
             exit 1
         fi
     fi
+
+    if [ ! -d "${NAMESPACES_PATH:?}/${NAMESPACE:?}/runtime" ]; then
+        if [ "${SKUPPER_PLATFORM}" != "linux" ]; then
+            router_container="${NAMESPACE}-skupper-router"
+            if ${PLATFORM_COMMAND} container inspect "${router_container}" > /dev/null 2>&1; then
+                echo "Failed: container ${router_container} already exists"
+                exit 1
+            fi
+        fi
+    fi
 }
 
 list_valid_certificates() {
