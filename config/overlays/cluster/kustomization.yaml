@@ -1,7 +1,0 @@
-# Reference the base deployment
-resources:
-  - ../../base
-  - ../../rbac
-
-namespace: skupper
-
