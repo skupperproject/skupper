@@ -7,11 +7,14 @@ TESTFLAGS := -v -race -short
 GOOS ?= linux
 GOARCH ?= amd64
 
-REGISTRY := quay.io/skupper
+REGISTRY := quay.io/fgiorgetti
+#REGISTRY := quay.io/skupper
 IMAGE_TAG := v2-dev
 ROUTER_IMAGE_TAG := main
-PLATFORMS ?= linux/amd64,linux/arm64
-CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer
+PLATFORMS ?= linux/amd64
+#PLATFORMS ?= linux/amd64,linux/arm64
+CONTAINERFILES := Dockerfile.user-controller
+#CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer Dockerfile.user-controller
 SHARED_IMAGE_LABELS = \
     --label "org.opencontainers.image.created=$(shell TZ=GMT date --iso-8601=seconds)" \
 	--label "org.opencontainers.image.url=https://skupper.io/" \

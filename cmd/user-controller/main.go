@@ -17,10 +17,12 @@ import (
 
 func main() {
 	parseFlags()
-
 	log.Printf("Version: %s", version.Version)
-	namespacesPath := api.GetHostNamespacesPath()
+	namespacesPath := api.GetDefaultOutputNamespacesPath()
 	log.Printf("Skupper User Controller watching %s", namespacesPath)
+	if api.IsRunningInContainer() {
+		log.Printf("Host path %s", api.GetHostNamespacesPath())
+	}
 	if err := os.MkdirAll(namespacesPath, 0755); err != nil {
 		log.Fatalf("Error creating skupper namespaces directory %q: %v", namespacesPath, err)
 	}
@@ -47,17 +49,17 @@ func handleShutdown(stop chan struct{}, wait *sync.WaitGroup) {
 		close(graceful)
 	}()
 
-	force := time.NewTicker(6 * time.Second)
+	gracefulTimeout := time.NewTicker(10 * time.Second)
 	for {
 		select {
 		case <-sigs:
 			log.Println("Second interrupt, forcing user controller shutdown")
 			os.Exit(1)
-		case <-force.C:
+		case <-gracefulTimeout.C:
 			log.Println("Graceful shutdown timed out, exiting now")
 			os.Exit(1)
 		case <-graceful:
-			log.Println("Exiting user controller gracefully")
+			log.Println("User controller shutdown completed")
 			os.Exit(0)
 		}
 	}
