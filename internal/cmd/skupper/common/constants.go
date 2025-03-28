@@ -18,6 +18,7 @@ const (
 	Links          string = "Link"
 	AccessTokens   string = "AccessToken"
 	Secrets        string = "Secret"
+	ConfigMaps     string = "ConfigMap"
 )
 
 const (

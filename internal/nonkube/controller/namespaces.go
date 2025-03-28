@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 	"path"
-	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/skupperproject/skupper/pkg/fs"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
@@ -18,9 +18,12 @@ type NamespacesHandler struct {
 	namespaces map[string]*NamespaceWatcher
 }
 
+func (n *NamespacesHandler) OnAdd(basePath string) {
+}
+
 func NewNamespacesHandler() (*NamespacesHandler, error) {
 	var err error
-	basePath := api.GetHostNamespacesPath()
+	basePath := api.GetDefaultOutputNamespacesPath()
 	basePath = strings.TrimRight(basePath, string(os.PathSeparator))
 	nsh := &NamespacesHandler{
 		basePath:   basePath,
@@ -33,24 +36,25 @@ func NewNamespacesHandler() (*NamespacesHandler, error) {
 	return nsh, nil
 }
 
-func (n *NamespacesHandler) Start(stop chan struct{}) error {
+func (n *NamespacesHandler) Start(stop chan struct{}, wg *sync.WaitGroup) error {
 	w := n.watcher
-	w.Add(n.basePath, n, regexp.MustCompile(`.*`))
+	w.Add(n.basePath, n)
 	err := n.loadExistingNamespaces()
 	if err != nil {
 		return err
 	}
 	w.Start(stop)
-	go n.wait(stop)
+	go n.wait(stop, wg)
 	return nil
 }
 
-func (n *NamespacesHandler) wait(stop chan struct{}) {
+func (n *NamespacesHandler) wait(stop chan struct{}, wg *sync.WaitGroup) {
 	<-stop
 	log.Println("Stopping namespaces watcher")
 	for _, nsh := range n.namespaces {
 		nsh.Stop()
 	}
+	wg.Done()
 }
 
 func (n *NamespacesHandler) loadExistingNamespaces() error {
@@ -90,7 +94,10 @@ func (n *NamespacesHandler) OnCreate(name string) {
 	}
 	if _, ok := n.namespaces[ns]; !ok {
 		log.Println("Start watching namespace", ns)
-		nsw := NewNamespaceWatcher(ns)
+		nsw, err := NewNamespaceWatcher(ns)
+		if err != nil {
+			log.Printf("Unable to watch namespace: %s", err)
+		}
 		n.namespaces[ns] = nsw
 		nsw.Start()
 	}
@@ -111,6 +118,10 @@ func (n *NamespacesHandler) OnRemove(name string) {
 		nsw.Stop()
 		delete(n.namespaces, ns)
 	}
+}
+
+func (n *NamespacesHandler) Filter(name string) bool {
+	return true
 }
 
 func (n *NamespacesHandler) OnUpdate(name string) {
