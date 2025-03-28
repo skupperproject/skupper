@@ -387,14 +387,18 @@ func NewClientHandleError(namespace string, context string, kubeConfigPath strin
 var routerCreateOpts types.SiteConfigSpec
 var routerLogging string
 
-func asMap(entries []string) map[string]string {
+func asMap(entries string) map[string]string {
 	result := map[string]string{}
-	for _, entry := range entries {
-		parts := strings.Split(entry, "=")
-		if len(parts) > 1 {
-			result[parts[0]] = parts[1]
-		} else {
-			result[parts[0]] = ""
+	if entries != "" {
+		separator := routerCreateOpts.AnnotationSeparator
+		annotations := strings.SplitAfter(entries, separator)
+		for _, entry := range annotations {
+			parts := strings.SplitAfterN(entry, "=", 2)
+			if len(parts) > 1 {
+				result[strings.TrimSuffix(parts[0], "=")] = strings.TrimSuffix(parts[1], separator)
+			} else {
+				result[parts[0]] = ""
+			}
 		}
 	}
 	return result
@@ -404,7 +408,7 @@ var LoadBalancerTimeout time.Duration
 
 type InitFlags struct {
 	routerMode string
-	labels     []string
+	labels     string
 }
 
 var initFlags InitFlags
@@ -474,7 +478,7 @@ installation that can then be connected to other skupper installations`,
 	cmd.Flags().StringVarP(&routerCreateOpts.Ingress, "ingress", "", "", "Setup Skupper ingress to one of: ["+strings.Join(types.ValidIngressOptions(platform), "|")+"].")
 	cmd.Flags().StringVarP(&initFlags.routerMode, "router-mode", "", string(types.TransportModeInterior), "Skupper router-mode")
 
-	cmd.Flags().StringSliceVar(&initFlags.labels, "labels", []string{}, "Labels to add to resources created by skupper")
+	cmd.Flags().StringVar(&initFlags.labels, "labels", "", "Labels to add to resources created by skupper")
 	cmd.Flags().StringVarP(&routerLogging, "router-logging", "", "", "Logging settings for router. 'trace', 'debug', 'info' (default), 'notice', 'warning', and 'error' are valid values.")
 
 	cmd.Flags().StringVarP(&routerCreateOpts.PrometheusServer.ExternalServer, "external-prometheus-server", "", "", "External prometheus server for metric aggregation. Valid only when --enable-flow-collector")

@@ -126,13 +126,6 @@ func (s *SkupperKubeSite) Create(cmd *cobra.Command, args []string) error {
 
 func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	s.kubeInit = kubeInit{}
-	s.kubeInit.ingressAnnotations = []string{}
-	s.kubeInit.annotations = []string{}
-	s.kubeInit.routerServiceAnnotations = []string{}
-	s.kubeInit.routerPodAnnotations = []string{}
-	s.kubeInit.controllerServiceAnnotations = []string{}
-	s.kubeInit.controllerPodAnnotations = []string{}
-	s.kubeInit.prometheusServerPodAnnotations = []string{}
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableConsole, "enable-console", "", false, "Enable skupper console must be used in conjunction with '--enable-flow-collector' flag")
 	cmd.Flag("ingress").Usage += " If not specified route is used when available, otherwise loadbalancer is used."
 	cmd.Flags().StringVarP(&routerCreateOpts.IngressHost, "ingress-host", "", "", "Hostname or alias by which the ingress route or proxy can be reached")
@@ -142,13 +135,13 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&routerCreateOpts.Password, "console-password", "", "", "Skupper console password. Valid only when --console-auth=internal")
 	cmd.Flags().StringVarP(&routerCreateOpts.ConsoleIngress, "console-ingress", "", "", "Determines if/how console is exposed outside cluster. If not specified uses value of --ingress. One of: ["+strings.Join(types.ValidIngressOptions(s.kube.Platform()), "|")+"].")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableRestAPI, "enable-rest-api", "", false, "Enable REST API")
-	cmd.Flags().StringSliceVar(&s.kubeInit.ingressAnnotations, "ingress-annotations", []string{}, "Annotations to add to skupper ingress")
-	cmd.Flags().StringSliceVar(&s.kubeInit.annotations, "annotations", []string{}, "Annotations to add to skupper pods")
-	cmd.Flags().StringSliceVar(&s.kubeInit.routerServiceAnnotations, "router-service-annotations", []string{}, "Annotations to add to skupper router service")
-	cmd.Flags().StringSliceVar(&s.kubeInit.routerPodAnnotations, "router-pod-annotations", []string{}, "Annotations to add to skupper router pod")
-	cmd.Flags().StringSliceVar(&s.kubeInit.controllerServiceAnnotations, "controller-service-annotation", []string{}, "Annotations to add to skupper controller service")
-	cmd.Flags().StringSliceVar(&s.kubeInit.controllerPodAnnotations, "controller-pod-annotation", []string{}, "Annotations to add to skupper controller pod")
-	cmd.Flags().StringSliceVar(&s.kubeInit.prometheusServerPodAnnotations, "prometheus-server-pod-annotation", []string{}, "Annotations to add to skupper prometheus pod")
+	cmd.Flags().StringVar(&routerCreateOpts.AnnotationSeparator, "annotation-separator", ",", "String used to separate multiple annotations")
+	cmd.Flags().StringVar(&s.kubeInit.annotations, "annotations", "", "Annotations to add to skupper pods")
+	cmd.Flags().StringVar(&s.kubeInit.routerServiceAnnotations, "router-service-annotations", "", "Annotations to add to skupper router service")
+	cmd.Flags().StringVar(&s.kubeInit.routerPodAnnotations, "router-pod-annotations", "", "Annotations to add to skupper router pod")
+	cmd.Flags().StringVar(&s.kubeInit.controllerServiceAnnotations, "controller-service-annotation", "", "Annotations to add to skupper controller service")
+	cmd.Flags().StringVar(&s.kubeInit.controllerPodAnnotations, "controller-pod-annotation", "", "Annotations to add to skupper controller pod")
+	cmd.Flags().StringVar(&s.kubeInit.prometheusServerPodAnnotations, "prometheus-server-pod-annotation", "", "Annotations to add to skupper prometheus pod")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableServiceSync, "enable-service-sync", "", true, "Participate in cross-site service synchronization")
 	cmd.Flags().DurationVar(&routerCreateOpts.SiteTtl, "service-sync-site-ttl", 0, "Time after which stale services, i.e. those whose site has not been heard from, created through service-sync are removed.")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableFlowCollector, "enable-flow-collector", "", false, "Enable cross-site flow collection for the application network")
