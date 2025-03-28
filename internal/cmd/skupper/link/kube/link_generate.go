@@ -148,7 +148,7 @@ func (cmd *CmdLinkGenerate) Run() error {
 	}
 
 	if cmd.output == "" {
-		return fmt.Errorf("Output format has not been specified")
+		return fmt.Errorf("Output format is not specified")
 	}
 
 	resource := v2alpha1.Link{
