@@ -142,13 +142,13 @@ func (cmd *CmdLinkGenerate) InputToOptions() {
 func (cmd *CmdLinkGenerate) Run() error {
 
 	if cmd.activeSite == nil {
-		return fmt.Errorf("there is no active site to generate the link resource file")
+		return fmt.Errorf("There is no active site to generate the link resource file")
 	} else if len(cmd.activeSite.Status.Endpoints) == 0 {
-		return fmt.Errorf("the active site has not configured endpoints yet")
+		return fmt.Errorf("A link cannot be generated because link access is not enabled. \n Use \"skupper site update --enable-link-access\" to enable it.")
 	}
 
 	if cmd.output == "" {
-		return fmt.Errorf("output format has not been specified")
+		return fmt.Errorf("Output format is not specified")
 	}
 
 	resource := v2alpha1.Link{
