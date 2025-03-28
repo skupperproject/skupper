@@ -17,6 +17,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	types "k8s.io/apimachinery/pkg/types"
 )
 
 var (
@@ -217,6 +218,7 @@ func (c *FileSystemConfigurationRenderer) MarshalSiteStates(loadedSiteState, run
 	outputPath := c.GetOutputPath(runtimeSiteState)
 	runtimeStatePath := path.Join(outputPath, string(api.RuntimeSiteStatePath))
 	logger.Debug("saving runtime state", slog.String("path", runtimeStatePath))
+	runtimeSiteState.Site.ObjectMeta.UID = types.UID(runtimeSiteState.SiteId)
 	if err := api.MarshalSiteState(*runtimeSiteState, runtimeStatePath); err != nil {
 		return err
 	}

@@ -52,6 +52,7 @@ func (f *FileSystemSiteStateLoader) Load() (*api.SiteState, error) {
 	if siteState.Site == nil || siteState.Site.Name == "" {
 		return nil, fmt.Errorf("no valid site definition has been found")
 	}
+	siteState.SiteId = string(siteState.Site.ObjectMeta.UID)
 	namespacesFound := GetNamespacesFound(siteState)
 	if len(namespacesFound) > 1 {
 		return nil, fmt.Errorf("multiple namespaces found, but only a unique namespace must be used across all "+

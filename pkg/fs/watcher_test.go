@@ -61,7 +61,7 @@ func TestFileWatcher(t *testing.T) {
 			// defining watchers
 			w, err := NewWatcher()
 			assert.Assert(t, err)
-			w.Add(os.TempDir(), watcher, fileNamesFilters(fileIdMap)...)
+			w.Add(os.TempDir(), watcher)
 			w.Start(stopCh)
 
 			// process actions
@@ -71,6 +71,8 @@ func TestFileWatcher(t *testing.T) {
 			watcher.waitDone(test.expected)
 			watcher.mutex.Lock()
 			defer watcher.mutex.Unlock()
+			assert.Equal(t, watcher.basePath, os.TempDir())
+			assert.Equal(t, watcher.onAddCalls, 1)
 			assert.DeepEqual(t, test.expected.created, watcher.results.created)
 			assert.DeepEqual(t, test.expected.updated, watcher.results.updated)
 			assert.DeepEqual(t, test.expected.deleted, watcher.results.deleted)
@@ -122,9 +124,25 @@ type idAction struct {
 }
 
 type ModificationHandler struct {
-	fileMap idMap
-	results modificationResult
-	mutex   sync.Mutex
+	fileMap    idMap
+	results    modificationResult
+	mutex      sync.Mutex
+	basePath   string
+	onAddCalls int
+}
+
+func (m *ModificationHandler) OnAdd(basePath string) {
+	m.basePath = basePath
+	m.onAddCalls++
+}
+
+func (m *ModificationHandler) Filter(name string) bool {
+	for _, r := range fileNamesFilters(m.fileMap) {
+		if r.MatchString(name) {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *ModificationHandler) OnCreate(s string) {

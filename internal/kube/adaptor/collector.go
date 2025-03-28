@@ -10,6 +10,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/config"
+	"github.com/skupperproject/skupper/internal/flow"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	kubeflow "github.com/skupperproject/skupper/internal/kube/flow"
 	"github.com/skupperproject/skupper/internal/version"
@@ -20,10 +21,32 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1informer "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
+
+type StatusSyncClient struct {
+	client typedcorev1.ConfigMapInterface
+}
+
+func (s *StatusSyncClient) Logger() *slog.Logger {
+	// TODO ignore local sources and use their stores
+	logger := slog.New(slog.Default().Handler()).With(
+		slog.String("component", "kube.flow.statusSync"),
+	)
+	return logger
+}
+
+func (s *StatusSyncClient) Get(ctx context.Context) (*corev1.ConfigMap, error) {
+	return s.client.Get(ctx, types.NetworkStatusConfigMapName, metav1.GetOptions{})
+}
+
+func (s *StatusSyncClient) Update(ctx context.Context, latest *corev1.ConfigMap) error {
+	_, err := s.client.Update(ctx, latest, metav1.UpdateOptions{})
+	return err
+}
 
 func updateLockOwner(lockname, namespace string, owner *metav1.OwnerReference, cli *internalclient.KubeClient) error {
 	current, err := cli.Kube.CoordinationV1().Leases(namespace).Get(context.TODO(), lockname, metav1.GetOptions{})
@@ -68,7 +91,10 @@ func siteCollector(ctx context.Context, cli *internalclient.KubeClient) {
 	}
 
 	factory := session.NewContainerFactory("amqp://localhost:5672", session.ContainerConfig{ContainerID: "kube-flow-collector"})
-	statusSync := kubeflow.NewStatusSync(factory, nil, cli.Kube.CoreV1().ConfigMaps(cli.Namespace), types.NetworkStatusConfigMapName)
+	statusSyncClient := &StatusSyncClient{
+		client: cli.Kube.CoreV1().ConfigMaps(cli.Namespace),
+	}
+	statusSync := flow.NewStatusSync(factory, nil, statusSyncClient, types.NetworkStatusConfigMapName)
 	go statusSync.Run(ctx)
 
 }

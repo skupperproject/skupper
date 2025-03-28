@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 
 	"sigs.k8s.io/yaml"
 )
@@ -71,7 +72,11 @@ func (b *BaseCustomResourceHandler) WriteFile(path string, name string, content 
 
 	defer file.Sync()
 
-	fmt.Println("File written to", completeFilePath)
+	writtenPath := completeFilePath
+	if api.IsRunningInContainer() {
+		writtenPath = strings.Replace(completeFilePath, "/output", api.GetHostDataHome(), 1)
+	}
+	fmt.Println("File written to", writtenPath)
 
 	return nil
 }
