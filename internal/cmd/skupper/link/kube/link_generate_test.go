@@ -496,7 +496,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 
 	testTable := []test{
 		{
-			name: "runs ok without generating credentials",
+			name: "The function runs correctly without generating credentials",
 			setUpMock: func(command *CmdLinkGenerate) {
 				command.linkName = "my-link"
 				command.cost = 1
@@ -541,7 +541,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 			},
 		},
 		{
-			name: "runs ok generating credentials",
+			name: "The function runs correctly generating credentials",
 			setUpMock: func(command *CmdLinkGenerate) {
 				command.linkName = "my-link"
 				command.cost = 1
@@ -586,7 +586,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 			},
 		},
 		{
-			name: "runs fails because the output format is not supported",
+			name: "The function fails because the output format is not supported",
 			setUpMock: func(command *CmdLinkGenerate) {
 				command.linkName = "my-link"
 				command.cost = 1
@@ -629,10 +629,10 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 					},
 				}
 			},
-			errorMessage: "output format has not been specified",
+			errorMessage: "Output format is not specified",
 		},
 		{
-			name: "runs fails because the output format is not supported",
+			name: "The function fails because the output format is not supported",
 			setUpMock: func(command *CmdLinkGenerate) {
 				command.linkName = "my-link"
 				command.cost = 1
@@ -678,7 +678,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 			errorMessage: "format unsupported not supported",
 		},
 		{
-			name: "runs fails because active site has not endpoints configured",
+			name: "The function fails because active site has not endpoints configured",
 			setUpMock: func(command *CmdLinkGenerate) {
 				command.linkName = "my-link"
 				command.cost = 1
@@ -707,10 +707,10 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 					},
 				}
 			},
-			errorMessage: "the active site has not configured endpoints yet",
+			errorMessage: "A link cannot be generated because link access is not enabled. \n Use \"skupper site update --enable-link-access\" to enable it.",
 		},
 		{
-			name: "runs fails because there are no active site",
+			name: "The function fails because there are no active site",
 			setUpMock: func(command *CmdLinkGenerate) {
 				command.linkName = "my-link"
 				command.cost = 1
@@ -719,10 +719,10 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 				command.generateCredential = false
 				command.activeSite = nil
 			},
-			errorMessage: "there is no active site to generate the link resource file",
+			errorMessage: "There is no active site to generate the link resource file",
 		},
 		{
-			name: "runs fails because certificate could not be created",
+			name: "The function fails because certificate could not be created",
 			setUpMock: func(command *CmdLinkGenerate) {
 				command.linkName = "my-link"
 				command.cost = 1
