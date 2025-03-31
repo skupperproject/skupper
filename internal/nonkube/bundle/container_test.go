@@ -49,7 +49,7 @@ func TestContainerToShell(t *testing.T) {
 			expectedParts: []string{
 				`#!/bin/sh`,
 				`{{.ContainerEngine}} run -d --name=container1 --user={{.RunAs}} --userns={{.UserNamespace}}`,
-				`--label=application=skupper --restart=always --network=host image1`,
+				`--label=application=skupper-v2 --restart=always --network=host image1`,
 			},
 		},
 		{
@@ -83,7 +83,7 @@ func TestContainerToShell(t *testing.T) {
 				`#!/bin/sh`,
 				`{{.ContainerEngine}} run -d --name=container1 --user={{.RunAs}} --userns={{.UserNamespace}} `,
 				` --env=ENV_VAR1=VALUE_1 `, ` --env=ENV_VAR2=VALUE_2 `, ` --env=ENV_VAR3=VALUE_3 `, ` --env=ENV_VAR4=VALUE_4 `,
-				` --label=application=skupper `, ` --label=label1=value1 `, ` --label=label2=value2 `, ` --label=label3=value3 `,
+				` --label=application=skupper-v2 `, ` --label=label1=value1 `, ` --label=label2=value2 `, ` --label=label3=value3 `,
 				` --label=label4=value4 `, ` --restart=always `, `--network=host `, ` image1`,
 			},
 		},
@@ -118,7 +118,7 @@ func TestContainerToShell(t *testing.T) {
 				`#!/bin/sh`,
 				`{{.ContainerEngine}} run -d --name=container1 --user={{.RunAs}} --userns={{.UserNamespace}} `,
 				` --env=ENV_VAR1=VALUE_1 `, ` --env=ENV_VAR2=VALUE_2 `, ` --env=ENV_VAR3=VALUE_3 `, ` --env=ENV_VAR4=VALUE_4 `,
-				` --label=application=skupper `, ` --label=label1=value1 `, ` --label=label2=value2 `, ` --label=label3=value3 `,
+				` --label=application=skupper-v2 `, ` --label=label1=value1 `, ` --label=label2=value2 `, ` --label=label3=value3 `,
 				` --label=label4=value4 `, ` --restart=always `, `--network=host `, ` image1`,
 			},
 		},
