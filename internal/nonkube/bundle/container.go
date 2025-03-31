@@ -42,7 +42,7 @@ func containersToShell(containers map[string]container.Container) []byte {
 		for envName, envVal := range c.Env {
 			createCmd = append(createCmd, fmt.Sprintf("--env=%s=%s", envName, escapeArgument(envVal)))
 		}
-		createCmd = append(createCmd, "--label=application=skupper")
+		createCmd = append(createCmd, "--label=application=skupper-v2")
 		for labelName, labelVal := range c.Labels {
 			createCmd = append(createCmd, fmt.Sprintf("--label=%s=%s", labelName, escapeArgument(labelVal)))
 		}
