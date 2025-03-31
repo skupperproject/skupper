@@ -20,6 +20,7 @@ import (
 	kubeqdr "github.com/skupperproject/skupper/internal/kube/qdr"
 	"github.com/skupperproject/skupper/internal/kube/site/resources"
 	"github.com/skupperproject/skupper/internal/kube/site/sizing"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	"github.com/skupperproject/skupper/internal/qdr"
 	"github.com/skupperproject/skupper/internal/site"
 	"github.com/skupperproject/skupper/internal/version"
@@ -42,7 +43,7 @@ type Site struct {
 	site          *skupperv2alpha1.Site
 	name          string
 	namespace     string
-	controller    *internalclient.Controller
+	clients       *watchers.EventProcessor
 	bindings      *ExtendedBindings
 	links         map[string]*site.Link
 	errors        map[string]string
@@ -56,11 +57,11 @@ type Site struct {
 	labelling     Labelling
 }
 
-func NewSite(namespace string, controller *internalclient.Controller, certs certificates.CertificateManager, access SecuredAccessFactory, sizes *sizing.Registry, labelling Labelling) *Site {
+func NewSite(namespace string, eventProcessor *watchers.EventProcessor, certs certificates.CertificateManager, access SecuredAccessFactory, sizes *sizing.Registry, labelling Labelling) *Site {
 	return &Site{
-		bindings:   NewExtendedBindings(controller, SSL_PROFILE_PATH),
+		bindings:   NewExtendedBindings(eventProcessor, SSL_PROFILE_PATH),
 		namespace:  namespace,
-		controller: controller,
+		clients:    eventProcessor,
 		links:      map[string]*site.Link{},
 		linkAccess: site.RouterAccessMap{},
 		certs:      certs,
@@ -206,7 +207,7 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 		)
 	}
 	for _, group := range s.groups() {
-		if err := resources.Apply(s.controller, ctxt, s.site, group, size, s.labelling); err != nil {
+		if err := resources.Apply(s.clients, ctxt, s.site, group, size, s.labelling); err != nil {
 			return err
 		}
 	}
@@ -288,14 +289,14 @@ func (s *Site) checkDefaultRouterAccess(ctxt context.Context, site *skupperv2alp
 			return nil
 		}
 		current.Spec = desired.Spec
-		updated, err := s.controller.GetSkupperClient().SkupperV2alpha1().RouterAccesses(s.namespace).Update(context.Background(), current, metav1.UpdateOptions{})
+		updated, err := s.clients.GetSkupperClient().SkupperV2alpha1().RouterAccesses(s.namespace).Update(context.Background(), current, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 		s.linkAccess[name] = updated
 		return nil
 	} else {
-		created, err := s.controller.GetSkupperClient().SkupperV2alpha1().RouterAccesses(s.namespace).Create(context.Background(), desired, metav1.CreateOptions{})
+		created, err := s.clients.GetSkupperClient().SkupperV2alpha1().RouterAccesses(s.namespace).Create(context.Background(), desired, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -315,7 +316,7 @@ func (s *Site) checkServiceAccount(ctxt context.Context) error {
 			OwnerReferences: s.ownerReferences(),
 		},
 	}
-	_, err := s.controller.GetKubeClient().CoreV1().ServiceAccounts(s.namespace).Create(ctxt, sa, metav1.CreateOptions{})
+	_, err := s.clients.GetKubeClient().CoreV1().ServiceAccounts(s.namespace).Create(ctxt, sa, metav1.CreateOptions{})
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return err
 	}
@@ -324,7 +325,7 @@ func (s *Site) checkServiceAccount(ctxt context.Context) error {
 
 func (s *Site) checkRoleBinding(ctxt context.Context) error {
 	name := "skupper-router"
-	existing, err := s.controller.GetKubeClient().RbacV1().RoleBindings(s.namespace).Get(ctxt, name, metav1.GetOptions{})
+	existing, err := s.clients.GetKubeClient().RbacV1().RoleBindings(s.namespace).Get(ctxt, name, metav1.GetOptions{})
 	desired := &rbacv1.RoleBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "rbac.authorization.k8s.io/v1",
@@ -344,14 +345,14 @@ func (s *Site) checkRoleBinding(ctxt context.Context) error {
 		},
 	}
 	if errors.IsNotFound(err) {
-		_, err := s.controller.GetKubeClient().RbacV1().RoleBindings(s.namespace).Create(ctxt, desired, metav1.CreateOptions{})
+		_, err := s.clients.GetKubeClient().RbacV1().RoleBindings(s.namespace).Create(ctxt, desired, metav1.CreateOptions{})
 		return err
 	} else if err != nil {
 		return err
 	} else if !reflect.DeepEqual(existing.Subjects, desired.Subjects) || !reflect.DeepEqual(existing.RoleRef, desired.RoleRef) {
 		existing.Subjects = desired.Subjects
 		existing.RoleRef = desired.RoleRef
-		_, err := s.controller.GetKubeClient().RbacV1().RoleBindings(s.namespace).Update(ctxt, existing, metav1.UpdateOptions{})
+		_, err := s.clients.GetKubeClient().RbacV1().RoleBindings(s.namespace).Update(ctxt, existing, metav1.UpdateOptions{})
 		return err
 	}
 	return nil
@@ -404,7 +405,7 @@ func (s *Site) checkRole(ctxt context.Context) error {
 		},
 		Rules: rules,
 	}
-	roles := s.controller.GetKubeClient().RbacV1().Roles(s.namespace)
+	roles := s.clients.GetKubeClient().RbacV1().Roles(s.namespace)
 	existing, err := roles.Get(ctxt, desired.ObjectMeta.Name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		_, err := roles.Create(ctxt, desired, metav1.CreateOptions{})
@@ -487,14 +488,14 @@ func (s *Site) WatchPods(context PodWatchingContext, namespace string) *PodWatch
 		stopCh:  make(chan struct{}),
 		context: context,
 	}
-	w.watcher = s.controller.WatchPods(context.Selector(), namespace, w.handle)
+	w.watcher = s.clients.WatchPods(context.Selector(), namespace, w.handle)
 	w.watcher.Start(w.stopCh)
 	return w
 }
 
 func (s *Site) Expose(exposed *ExposedPortSet) error {
 	ctxt := context.TODO()
-	current, err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Get(ctxt, exposed.Host, metav1.GetOptions{})
+	current, err := s.clients.GetKubeClient().CoreV1().Services(s.namespace).Get(ctxt, exposed.Host, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		service := &corev1.Service{
 			TypeMeta: metav1.TypeMeta{
@@ -526,7 +527,7 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 				slog.String("namespace", s.namespace))
 			return nil
 		}
-		_, err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Create(ctxt, service, metav1.CreateOptions{})
+		_, err := s.clients.GetKubeClient().CoreV1().Services(s.namespace).Create(ctxt, service, metav1.CreateOptions{})
 		if err != nil {
 			s.logger.Error("Error creating service",
 				slog.String("service", exposed.Host),
@@ -568,7 +569,7 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 			}
 		}
 		if updated {
-			_, err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Update(ctxt, current, metav1.UpdateOptions{})
+			_, err := s.clients.GetKubeClient().CoreV1().Services(s.namespace).Update(ctxt, current, metav1.UpdateOptions{})
 			if err != nil {
 				s.logger.Error("Error creating service",
 					slog.String("service", exposed.Host),
@@ -587,7 +588,7 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 
 func (s *Site) Unexpose(name string) error {
 	ctxt := context.TODO()
-	current, err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Get(ctxt, name, metav1.GetOptions{})
+	current, err := s.clients.GetKubeClient().CoreV1().Services(s.namespace).Get(ctxt, name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			s.logger.Error("Error checking service to be deleted",
@@ -597,7 +598,7 @@ func (s *Site) Unexpose(name string) error {
 		}
 		return err
 	} else if isOwned(current) {
-		err = s.controller.GetKubeClient().CoreV1().Services(s.namespace).Delete(ctxt, name, metav1.DeleteOptions{})
+		err = s.clients.GetKubeClient().CoreV1().Services(s.namespace).Delete(ctxt, name, metav1.DeleteOptions{})
 		if err != nil {
 			s.logger.Error("Error deleting service",
 				slog.String("service", name),
@@ -636,7 +637,7 @@ func (s *Site) ownerReferences() []metav1.OwnerReference {
 }
 
 func (s *Site) recoverRouterConfig(update bool) ([]*qdr.RouterConfig, error) {
-	list, err := s.controller.GetKubeClient().CoreV1().ConfigMaps(s.namespace).List(context.TODO(), metav1.ListOptions{
+	list, err := s.clients.GetKubeClient().CoreV1().ConfigMaps(s.namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: "internal.skupper.io/router-config",
 	})
 	if err != nil {
@@ -661,7 +662,7 @@ func (s *Site) recoverRouterConfig(update bool) ([]*qdr.RouterConfig, error) {
 		if config, ok := byName[group]; ok {
 			if update {
 				op := ConfigUpdateList{s.bindings, s, s.linkAccess.DesiredConfig(groups[:i], SSL_PROFILE_PATH)}
-				if err := kubeqdr.UpdateRouterConfig(s.controller.GetKubeClient(), group, s.namespace, context.TODO(), op, s.labelling); err != nil {
+				if err := kubeqdr.UpdateRouterConfig(s.clients.GetKubeClient(), group, s.namespace, context.TODO(), op, s.labelling); err != nil {
 					s.logger.Error("Failed to update router config map",
 						slog.String("namespace", s.namespace),
 						slog.String("name", group),
@@ -695,14 +696,14 @@ func (s *Site) recoverRouterConfig(update bool) ([]*qdr.RouterConfig, error) {
 
 func (s *Site) deleteRouterResources(group string) error {
 	var errs []error
-	if err := s.controller.GetKubeClient().CoreV1().ConfigMaps(s.namespace).Delete(context.TODO(), group, metav1.DeleteOptions{}); err != nil {
+	if err := s.clients.GetKubeClient().CoreV1().ConfigMaps(s.namespace).Delete(context.TODO(), group, metav1.DeleteOptions{}); err != nil {
 		s.logger.Error("Failed to delete router config map",
 			slog.String("namespace", s.namespace),
 			slog.String("name", group),
 			slog.Any("error", err))
 		errs = append(errs, err)
 	}
-	if err := s.controller.GetKubeClient().AppsV1().Deployments(s.namespace).Delete(context.TODO(), group, metav1.DeleteOptions{}); err != nil {
+	if err := s.clients.GetKubeClient().AppsV1().Deployments(s.namespace).Delete(context.TODO(), group, metav1.DeleteOptions{}); err != nil {
 		s.logger.Error("Failed to delete router deployment",
 			slog.String("namespace", s.namespace),
 			slog.String("name", group),
@@ -751,7 +752,7 @@ func (s *Site) createRouterConfigForGroup(group string, config *qdr.RouterConfig
 		s.labelling.SetLabels(s.namespace, group, "ConfigMap", cm.ObjectMeta.Labels)
 		s.labelling.SetAnnotations(s.namespace, group, "ConfigMap", cm.ObjectMeta.Annotations)
 	}
-	if _, err = s.controller.GetKubeClient().CoreV1().ConfigMaps(s.namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
+	if _, err = s.clients.GetKubeClient().CoreV1().ConfigMaps(s.namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
 		s.logger.Error("Failed to create config map",
 			slog.String("namespace", s.namespace),
 			slog.String("name", group),
@@ -780,14 +781,14 @@ func (s *Site) updateRouterConfigForGroup(update qdr.ConfigUpdate, group string)
 	if !s.initialised {
 		return nil
 	}
-	if err := kubeqdr.UpdateRouterConfig(s.controller.GetKubeClient(), group, s.namespace, context.TODO(), update, s.labelling); err != nil {
+	if err := kubeqdr.UpdateRouterConfig(s.clients.GetKubeClient(), group, s.namespace, context.TODO(), update, s.labelling); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (s *Site) updateConnectorStatus(connector *skupperv2alpha1.Connector) error {
-	updated, err := updateConnectorStatus(s.controller, connector)
+	updated, err := updateConnectorStatus(s.clients, connector)
 	if err != nil {
 		return err
 	}
@@ -838,7 +839,7 @@ func (s *Site) CheckConnector(name string, connector *skupperv2alpha1.Connector)
 
 func (s *Site) updateListenerStatus(listener *skupperv2alpha1.Listener, err error) error {
 	if listener.SetConfigured(err) {
-		updated, err := s.controller.GetSkupperClient().SkupperV2alpha1().Listeners(listener.ObjectMeta.Namespace).UpdateStatus(context.TODO(), listener, metav1.UpdateOptions{})
+		updated, err := s.clients.GetSkupperClient().SkupperV2alpha1().Listeners(listener.ObjectMeta.Namespace).UpdateStatus(context.TODO(), listener, metav1.UpdateOptions{})
 		if err == nil {
 			return err
 		}
@@ -862,7 +863,7 @@ func isListenerService(svc *corev1.Service) bool {
 
 func (s *Site) CheckListenerService(svc *corev1.Service) error {
 	if isListenerService(svc) && !s.bindings.isHostExposed(svc.Name) {
-		if err := s.controller.GetKubeClient().CoreV1().Services(s.namespace).Delete(context.Background(), svc.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+		if err := s.clients.GetKubeClient().CoreV1().Services(s.namespace).Delete(context.Background(), svc.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
 			s.logger.Info("Could not delete stale listener service",
 				slog.String("namespace", svc.Namespace),
 				slog.String("name", svc.Name),
@@ -898,7 +899,7 @@ func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener) er
 func (s *Site) setBindingsConfiguredStatus(err error) {
 	lf := func(listener *skupperv2alpha1.Listener) *skupperv2alpha1.Listener {
 		if listener.SetConfigured(nil) {
-			updated, err := s.controller.GetSkupperClient().SkupperV2alpha1().Listeners(listener.ObjectMeta.Namespace).UpdateStatus(context.TODO(), listener, metav1.UpdateOptions{})
+			updated, err := s.clients.GetSkupperClient().SkupperV2alpha1().Listeners(listener.ObjectMeta.Namespace).UpdateStatus(context.TODO(), listener, metav1.UpdateOptions{})
 			if err == nil {
 				return updated
 			} else {
@@ -912,7 +913,7 @@ func (s *Site) setBindingsConfiguredStatus(err error) {
 	}
 	cf := func(connector *skupperv2alpha1.Connector) *skupperv2alpha1.Connector {
 		if connector.SetConfigured(nil) {
-			updated, err := s.controller.GetSkupperClient().SkupperV2alpha1().Connectors(connector.ObjectMeta.Namespace).UpdateStatus(context.TODO(), connector, metav1.UpdateOptions{})
+			updated, err := s.clients.GetSkupperClient().SkupperV2alpha1().Connectors(connector.ObjectMeta.Namespace).UpdateStatus(context.TODO(), connector, metav1.UpdateOptions{})
 			if err == nil {
 				return updated
 			} else {
@@ -997,7 +998,7 @@ func (s *Site) updateLinkConfiguredCondition(link *skupperv2alpha1.Link, err err
 }
 
 func (s *Site) updateLinkStatus(link *skupperv2alpha1.Link) error {
-	updated, err := s.controller.GetSkupperClient().SkupperV2alpha1().Links(link.ObjectMeta.Namespace).UpdateStatus(context.TODO(), link, metav1.UpdateOptions{})
+	updated, err := s.clients.GetSkupperClient().SkupperV2alpha1().Links(link.ObjectMeta.Namespace).UpdateStatus(context.TODO(), link, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -1050,7 +1051,7 @@ func (s *Site) updateResolved() error {
 }
 
 func (s *Site) updateSiteStatus() error {
-	updated, err := s.controller.GetSkupperClient().SkupperV2alpha1().Sites(s.site.ObjectMeta.Namespace).UpdateStatus(context.TODO(), s.site, metav1.UpdateOptions{})
+	updated, err := s.clients.GetSkupperClient().SkupperV2alpha1().Sites(s.site.ObjectMeta.Namespace).UpdateStatus(context.TODO(), s.site, metav1.UpdateOptions{})
 	if err != nil {
 		return err
 	}
@@ -1104,7 +1105,7 @@ func (s *Site) NetworkStatusUpdated(network []skupperv2alpha1.SiteRecord) error 
 		}
 	}
 
-	bindingStatus := newBindingStatus(s.controller, network)
+	bindingStatus := newBindingStatus(s.clients, network)
 	s.bindings.Map(bindingStatus.updateMatchingListenerCount, bindingStatus.updateMatchingConnectorCount)
 	s.logger.Debug("Updating matching listeners for attached connectors")
 	s.bindings.MapOverAttachedConnectors(bindingStatus.updateMatchingListenerCountForAttachedConnector)
@@ -1127,7 +1128,7 @@ func (s *Site) markSiteInactive(site *skupperv2alpha1.Site, err error) error {
 }
 
 func (s *Site) UpdateSiteStatus(site *skupperv2alpha1.Site) (*skupperv2alpha1.Site, error) {
-	updated, err := s.controller.GetSkupperClient().SkupperV2alpha1().Sites(site.ObjectMeta.Namespace).UpdateStatus(context.TODO(), site, metav1.UpdateOptions{})
+	updated, err := s.clients.GetSkupperClient().SkupperV2alpha1().Sites(site.ObjectMeta.Namespace).UpdateStatus(context.TODO(), site, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -1149,7 +1150,7 @@ func (s *Site) CheckSecuredAccess(sa *skupperv2alpha1.SecuredAccess) {
 }
 
 func (s *Site) updateRouterAccessStatus(la *skupperv2alpha1.RouterAccess) {
-	updated, err := s.controller.GetSkupperClient().SkupperV2alpha1().RouterAccesses(la.Namespace).UpdateStatus(context.TODO(), la, metav1.UpdateOptions{})
+	updated, err := s.clients.GetSkupperClient().SkupperV2alpha1().RouterAccesses(la.Namespace).UpdateStatus(context.TODO(), la, metav1.UpdateOptions{})
 
 	if err != nil {
 		s.logger.Error("Error updating RouterAccess status",
@@ -1301,7 +1302,7 @@ func (s *Site) RouterPodEvent(key string, pod *corev1.Pod) error {
 func (s *Site) isRouterPodRunning() skupperv2alpha1.ConditionState {
 	state := skupperv2alpha1.PendingCondition("No router pod is ready")
 	for _, pod := range s.routerPods {
-		if internalclient.IsPodRunning(pod) && internalclient.IsPodReady(pod) {
+		if isPodRunning(pod) && isPodReady(pod) {
 			return skupperv2alpha1.ReadyCondition()
 		} else {
 			state = podState(pod)
