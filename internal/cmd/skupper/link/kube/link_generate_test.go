@@ -491,6 +491,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 		name              string
 		setUpMock         func(command *CmdLinkGenerate)
 		errorMessage      string
+		skupperObjects    []runtime.Object
 		skCliErrorMessage string
 	}
 
@@ -583,6 +584,63 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 						},
 					},
 				}
+			},
+		},
+		{
+			name: "The function runs correctly without generating credentials because they already exist.",
+			setUpMock: func(command *CmdLinkGenerate) {
+				command.linkName = "my-link"
+				command.cost = 1
+				command.tlsCredentials = "secret"
+				command.output = "yaml"
+				command.generateCredential = true
+				command.activeSite = &v2alpha1.Site{
+
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "the-site",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
+							Conditions: []v1.Condition{
+								{
+									Message:            "OK",
+									ObservedGeneration: 1,
+									Reason:             "OK",
+									Status:             "True",
+									Type:               "Configured",
+								},
+							},
+						},
+						Endpoints: []v2alpha1.Endpoint{
+							{
+								Name:  "inter-router",
+								Host:  "127.0.0.1",
+								Port:  "8080",
+								Group: "skupper-router-1",
+							},
+							{
+								Name:  "edge",
+								Host:  "127.0.0.1",
+								Port:  "8080",
+								Group: "skupper-router-1",
+							},
+						},
+					},
+				}
+			},
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Certificate{
+					TypeMeta: v1.TypeMeta{
+						APIVersion: "skupper.io/v2alpha1",
+						Kind:       "Certificate",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "secret",
+						Namespace: "test",
+					},
+				},
 			},
 		},
 		{
@@ -771,7 +829,7 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 	}
 
 	for _, test := range testTable {
-		cmd, err := newCmdLinkGenerateWithMocks("test", nil, nil, test.skCliErrorMessage)
+		cmd, err := newCmdLinkGenerateWithMocks("test", nil, test.skupperObjects, test.skCliErrorMessage)
 		assert.Assert(t, err)
 
 		test.setUpMock(cmd)
