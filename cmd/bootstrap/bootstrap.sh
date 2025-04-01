@@ -195,6 +195,8 @@ main() {
     # Must be mounted into the container
     MOUNTS=""
     ENV_VARS=""
+
+    CONTAINER_COMMAND="system start"
     
     # Mounts
     if is_sock_endpoint && is_container_platform; then
@@ -225,24 +227,16 @@ main() {
     ${CONTAINER_ENGINE} pull "${IMAGE}"
 
     if [ -n "${BUNDLE_STRATEGY}" ]; then
-      eval "${CONTAINER_ENGINE}" run --rm --name skupper-bootstrap \
-              --network host --security-opt label=disable -u \""${RUNAS}"\" --userns=\""${USERNS}"\" \
-              "${MOUNTS}" \
-              "${ENV_VARS}" \
-              --entrypoint /app/skupper \
-              "${IMAGE}" \
-              system generate-bundle skupper-install --input="${INPUT_PATH_ARG}" ${BUNDLE_STRATEGY} "${NAMESPACE_ARG}" 2>&1
-    else
-      eval "${CONTAINER_ENGINE}" run --rm --name skupper-bootstrap \
-              --network host --security-opt label=disable -u \""${RUNAS}"\" --userns=\""${USERNS}"\" \
-              "${MOUNTS}" \
-              "${ENV_VARS}" \
-              --entrypoint /app/skupper \
-              "${IMAGE}" \
-              system start "${NAMESPACE_ARG}" 2>&1
+      CONTAINER_COMMAND="system generate-bundle skupper-install --input=\"${INPUT_PATH_ARG}\" ${BUNDLE_STRATEGY}"
     fi
 
-
+    eval "${CONTAINER_ENGINE}" run --rm --name skupper-bootstrap \
+            --network host --security-opt label=disable -u \""${RUNAS}"\" --userns=\""${USERNS}"\" \
+            "${MOUNTS}" \
+            "${ENV_VARS}" \
+            --entrypoint /app/skupper \
+            "${IMAGE}" \
+            "${CONTAINER_COMMAND}" "${NAMESPACE_ARG}" 2>&1
 
     create_service
 }
