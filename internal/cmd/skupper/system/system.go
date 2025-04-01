@@ -23,7 +23,7 @@ func NewCmdSystem() *cobra.Command {
 		Short: "non-kubernetes sites are static and Custom Resources need to be provided.",
 		Long: `Non-kubernetes sites can be created using the standard V2 site declaration 
 approach, which is based on the new set of Custom Resource Definitions (CRDs).`,
-		Example: "system setup --path ./my-config-path -n my-namespace",
+		Example: "system start -n my-namespace",
 	}
 
 	platform := common.Platform(config.GetPlatform())
