@@ -34,8 +34,8 @@ func CmdLinkGenerateFactory(configuredPlatform common.Platform) *cobra.Command {
 
 	cmdLinkGenerateDesc := common.SkupperCmdDescription{
 		Use:   "generate",
-		Short: "Generate a new link resource in a yaml file",
-		Long: `Generate a new link resource with the data needed from the target site. The resultant
+		Short: "Generate a new link resource and save it as a YAML file, unless explicitly specified otherwise using the `--output` flag.",
+		Long: `Generate a new link resource and save it as a YAML file, unless explicitly specified otherwise using the --output flag. The resultant
 output needs to be applied in the site in which we want to create the link.`,
 	}
 
@@ -43,7 +43,7 @@ output needs to be applied in the site in which we want to create the link.`,
 	cmdFlags := common.CommandLinkGenerateFlags{}
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.Cost, common.FlagNameCost, "1", common.FlagDescCost)
-	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "yaml", common.FlagDescOutput)
+	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
 	cmd.Flags().BoolVar(&cmdFlags.GenerateCredential, common.FlagNameGenerateCredential, true, common.FlagDescGenerateCredential)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 

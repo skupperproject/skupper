@@ -121,6 +121,9 @@ func (cmd *CmdLinkGenerate) InputToOptions() {
 
 	cmd.cost, _ = strconv.Atoi(cmd.Flags.Cost)
 	cmd.output = cmd.Flags.Output
+	if cmd.output == "" {
+		cmd.output = "yaml"
+	}
 	cmd.generateCredential = cmd.Flags.GenerateCredential
 	cmd.timeout = cmd.Flags.Timeout
 
