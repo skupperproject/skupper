@@ -24,7 +24,7 @@ func TestCmdLinkFactory(t *testing.T) {
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameTlsCredentials:     "",
 				common.FlagNameCost:               "1",
-				common.FlagNameOutput:             "yaml",
+				common.FlagNameOutput:             "",
 				common.FlagNameGenerateCredential: "true",
 				common.FlagNameTimeout:            "1m0s",
 			},
