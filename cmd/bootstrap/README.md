@@ -309,7 +309,7 @@ Note the CLI takes care of the creation of the RouterAccess resource.
 Considering all your CRs have been saved to the namespace named `west`, use:
 
 ```shell
-./bootstrap -n west
+./cmd/bootstrap/bootstrap.sh -n west
 ```
 or 
 
@@ -393,7 +393,7 @@ spec:
 Considering all your CRs have been saved to a namespace named `east`, use:
 
 ```shell
-./bootstrap -n east
+./cmd/bootstrap/bootstrap.sh -n east
 ```
 
 or 
@@ -439,7 +439,7 @@ As an alternative, you can also produce site bundles to try this example.
 #### Creating the west bundle
 
 ```shell
-$ bootstrap -p ./west/ -b bundle
+$ ./cmd/bootstrap/bootstrap.sh -p ./west/ -b bundle
 Skupper nonkube bootstrap (version: main-release-161-g7c5100a2-modified)
 Site "west" has been created (as a distributable bundle)
 Installation bundle available at: /home/user/.local/share/skupper/bundles/skupper-install-west.sh
@@ -475,7 +475,7 @@ cp /tmp/west/link-go-west-127.0.0.1.yaml ./east/link-go-west.yaml
 #### Creating the east bundle
 
 ```shell
-$ bootstrap -p ./east -b bundle
+$./cmd/bootstrap/bootstrap.sh -p ./east -b bundle
 Skupper nonkube bootstrap (version: main-release-161-g7c5100a2-modified)
 Site "east" has been created (as a distributable bundle)
 Installation bundle available at: /home/user/.local/share/skupper/bundles/skupper-install-east.sh
