@@ -84,15 +84,15 @@ func (w *FileWatcher) Start(stopCh <-chan struct{}) {
 				switch {
 				case event.Has(fsnotify.Create):
 					for _, handler := range handlers {
-						handler.OnCreate(event.Name)
+						go handler.OnCreate(event.Name)
 					}
 				case event.Has(fsnotify.Write):
 					for _, handler := range handlers {
-						handler.OnUpdate(event.Name)
+						go handler.OnUpdate(event.Name)
 					}
 				case event.Has(fsnotify.Remove):
 					for _, handler := range handlers {
-						handler.OnRemove(event.Name)
+						go handler.OnRemove(event.Name)
 					}
 					// if object being watched is removed, watch for it to show up again
 					w.prepareRemoved(event)
@@ -140,6 +140,6 @@ func (w *FileWatcher) Add(name string, handler FSChangeHandler) {
 		w.watchCreated(name)
 	} else {
 		_ = w.watcher.Add(name)
-		handler.OnAdd(name)
+		go handler.OnAdd(name)
 	}
 }

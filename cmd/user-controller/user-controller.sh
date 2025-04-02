@@ -83,7 +83,7 @@ main() {
     fi
     ENV_VARS="${ENV_VARS} -e 'SKUPPER_OUTPUT_PATH=${SKUPPER_OUTPUT_PATH}'"
 
-    # Running the bootstrap
+    # Running the user-controller
     ${CONTAINER_ENGINE} pull "${IMAGE}"
     eval "${CONTAINER_ENGINE}" run --rm --name "${USER}-skupper-controller" \
         --network host --security-opt label=disable -u \""${RUNAS}"\" --userns=\""${USERNS}"\" \

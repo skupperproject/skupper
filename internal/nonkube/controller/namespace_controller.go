@@ -10,7 +10,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
-type NamespaceWatcher struct {
+type NamespaceController struct {
 	ns             string
 	stopCh         chan struct{}
 	logger         *slog.Logger
@@ -18,8 +18,8 @@ type NamespaceWatcher struct {
 	watcher        *fs.FileWatcher
 }
 
-func NewNamespaceWatcher(namespace string) (*NamespaceWatcher, error) {
-	nsw := &NamespaceWatcher{
+func NewNamespaceController(namespace string) (*NamespaceController, error) {
+	nsw := &NamespaceController{
 		ns:     namespace,
 		stopCh: make(chan struct{}),
 	}
@@ -34,13 +34,19 @@ func NewNamespaceWatcher(namespace string) (*NamespaceWatcher, error) {
 	return nsw, nil
 }
 
-func (w *NamespaceWatcher) Start() {
-	w.watcher.Add(api.GetInternalOutputPath(w.ns, api.InternalBasePath), NewCollectorLifecycleHandler(w.ns))
+func (w *NamespaceController) Start() {
+	routerConfigHandler := NewRouterConfigHandler(w.stopCh, w.ns)
+	routerStateHandler := NewRouterStateHandler(w.ns)
+	routerConfigHandler.AddCallback(routerStateHandler)
+	collectorLifecycleHandler := NewCollectorLifecycleHandler(w.ns)
+	routerStateHandler.SetCallback(collectorLifecycleHandler)
+	w.watcher.Add(api.GetInternalOutputPath(w.ns, api.RouterConfigPath), routerConfigHandler)
+	w.watcher.Add(api.GetInternalOutputPath(w.ns, api.RuntimeSiteStatePath), NewNetworkStatusHandler(w.ns))
 	w.watcher.Start(w.stopCh)
 	go w.run()
 }
 
-func (w *NamespaceWatcher) run() {
+func (w *NamespaceController) run() {
 	<-w.stopCh
 	w.logger.Info("stopped namespace watcher")
 	return
@@ -48,15 +54,15 @@ func (w *NamespaceWatcher) run() {
 
 // collectorControl controls the lifecycle of the collector based on
 // where a given namespace is actually initialized or not
-func (w *NamespaceWatcher) collectorControl() {
+func (w *NamespaceController) collectorControl() {
 	ctx, cn := context.WithCancel(context.Background())
 	defer cn()
 	err := flow.StartCollector(ctx, w.ns)
 	if err != nil {
-		w.logger.Error("error starting flow collector: %w", err.Error())
+		w.logger.Error("error starting flow collector", slog.Any("error", err.Error()))
 		return
 	}
 }
-func (w *NamespaceWatcher) Stop() {
+func (w *NamespaceController) Stop() {
 	close(w.stopCh)
 }

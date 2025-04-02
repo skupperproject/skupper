@@ -15,7 +15,7 @@ import (
 type NamespacesHandler struct {
 	basePath   string
 	watcher    *fs.FileWatcher
-	namespaces map[string]*NamespaceWatcher
+	namespaces map[string]*NamespaceController
 }
 
 func (n *NamespacesHandler) OnAdd(basePath string) {
@@ -27,7 +27,7 @@ func NewNamespacesHandler() (*NamespacesHandler, error) {
 	basePath = strings.TrimRight(basePath, string(os.PathSeparator))
 	nsh := &NamespacesHandler{
 		basePath:   basePath,
-		namespaces: make(map[string]*NamespaceWatcher),
+		namespaces: make(map[string]*NamespaceController),
 	}
 	nsh.watcher, err = fs.NewWatcher()
 	if err != nil {
@@ -94,7 +94,7 @@ func (n *NamespacesHandler) OnCreate(name string) {
 	}
 	if _, ok := n.namespaces[ns]; !ok {
 		log.Println("Start watching namespace", ns)
-		nsw, err := NewNamespaceWatcher(ns)
+		nsw, err := NewNamespaceController(ns)
 		if err != nil {
 			log.Printf("Unable to watch namespace: %s", err)
 		}
