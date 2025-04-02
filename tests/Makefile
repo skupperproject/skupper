@@ -83,6 +83,6 @@ test-subset: create-venv
 	@echo -e "\n=== All specified tests completed successfully ==="
 
 
-# Run a subset of tests (comma-separated list)
+# Run a subset of tests (comma-separated list) for CI
 ci-tests: TESTS=hello-world,iperf3-attached
 ci-tests: test-subset
