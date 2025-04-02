@@ -259,7 +259,7 @@ jobs:
           name: Running E2E Tests
           command: |
             set -x
-            cd test
+            cd tests
             make ci-tests
 
   generate-manifest:
