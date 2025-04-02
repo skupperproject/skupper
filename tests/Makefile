@@ -66,3 +66,18 @@ e2e-tests:
 		$(MAKE) test TEST="$$test_name" || exit 1; \
 	done
 	@echo -e "\n=== All tests completed successfully ==="
+
+# Run a subset of tests (comma-separated list)
+test-subset: FORCE=false
+test-subset: create-venv
+	@if [ -z "$(TESTS)" ]; then \
+		echo "TESTS is not set. Please provide a comma-separated list of tests with TESTS=test1,test2,..."; \
+		exit 1; \
+	fi
+
+	@echo "Running the following tests: $(TESTS)"
+	@for test_name in $$(echo $(TESTS) | tr ',' ' '); do \
+		echo "\n=== Running test: $$test_name ==="; \
+		$(MAKE) test TEST="$$test_name" || exit 1; \
+	done
+	@echo -e "\n=== All specified tests completed successfully ==="
