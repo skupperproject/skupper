@@ -179,7 +179,6 @@ workflows:
           <<: *run_for_all_branches
           requires:
             - build-oci-images
-            - build-all
       - publish-oci-images:
           <<: *run_for_v2_branch
           <<: *v2_release_requires
@@ -251,62 +250,17 @@ jobs:
           background: true
           command: cloud-provider-kind
       - run:
-          name: Cluster East
+          name: Cluster E2E
           command: |
             set -x
-            KUBECONFIG=~/kc.east ./scripts/kind-dev-cluster -n east \
+            KUBECONFIG=~/.kube/config ./scripts/kind-dev-cluster -n e2e-tests \
               --images ociarchive
       - run:
-          name: Cluster West
+          name: Running E2E Tests
           command: |
             set -x
-            KUBECONFIG=~/kc.west ./scripts/kind-dev-cluster -n west  \
-              --images ociarchive
-      - run:
-          name: Initalize Sites
-          command: |
-            set -x
-
-            skupper=./dist/linux-amd64/skupper
-
-            # Start sites
-            kubectl apply \
-              --kubeconfig="$HOME/kc.west" \
-              -f ./cmd/controller/example/site1.yaml
-            kubectl apply \
-              --kubeconfig="$HOME/kc.east" \
-              -f ./cmd/controller/example/site2.yaml
-
-            # West setup
-            export KUBECONFIG="$HOME/kc.west"
-            kubectl apply \
-              -f ./cmd/controller/example/connector.yaml
-            kubectl create \
-              deployment backend --image quay.io/skupper/hello-world-backend
-            kubectl wait --for=condition=ready \
-              --timeout=90s \
-              site/west
-            $skupper token issue \
-              accesstoken.west.yaml
-
-            # East setup
-            export KUBECONFIG="$HOME/kc.east"
-            kubectl apply \
-              -f ./cmd/controller/example/site2.yaml
-            kubectl apply \
-              -f ./cmd/controller/example/listener.yaml
-            kubectl create \
-              deployment frontend --image quay.io/skupper/hello-world-frontend
-            kubectl wait --for=condition=ready \
-              --timeout=90s \
-              site/east
-            $skupper token redeem \
-              accesstoken.west.yaml
-            # assert that backend listener in west is attached to
-            # the connector in east
-            kubectl wait listener/backend \
-              --timeout=60s \
-              '--for=jsonpath={.status.hasMatchingConnector}=true'
+            cd test
+            make ci-tests
 
   generate-manifest:
     executor:
