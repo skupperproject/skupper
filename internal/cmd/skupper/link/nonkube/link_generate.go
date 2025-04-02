@@ -12,7 +12,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
 	"os"
-	"strings"
 )
 
 type CmdLinkGenerate struct {
@@ -57,16 +56,7 @@ func (cmd *CmdLinkGenerate) ValidateInput(args []string) error {
 		validationErrors = append(validationErrors, fmt.Errorf("there is no active site in this namespace"))
 	} else {
 
-		hasRouterAccess := false
-		if siteState.RouterAccesses != nil && len(siteState.RouterAccesses) > 0 {
-			for _, access := range siteState.RouterAccesses {
-				if strings.HasPrefix(access.Name, "router-access") {
-					hasRouterAccess = true
-					break
-				}
-			}
-		}
-		if !hasRouterAccess {
+		if !siteState.HasLinkAccess() {
 			validationErrors = append(validationErrors, fmt.Errorf("this site is not enabled for link access, there are no links created"))
 		}
 	}
@@ -109,6 +99,7 @@ func (cmd *CmdLinkGenerate) Run() error {
 			return fmt.Errorf("error reading file %s: %s", hostTokenPath+"/"+tokenFile, errFile)
 		}
 		fmt.Println(string(file))
+		break
 	}
 
 	return nil
