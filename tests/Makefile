@@ -81,3 +81,8 @@ test-subset: create-venv
 		$(MAKE) test TEST="$$test_name" || exit 1; \
 	done
 	@echo -e "\n=== All specified tests completed successfully ==="
+
+
+# Run a subset of tests (comma-separated list)
+ci-tests: TESTS=hello-world,iperf3-attached
+ci-tests: test-subset
