@@ -1,4 +1,4 @@
-# iPerf3 Attached Connector E2E Test
+# Attached Connector E2E Test With iPerf3
 
 This test evaluates network connectivity and performance between different components using iPerf3 and Skupper Attached Connectors.
 

@@ -83,5 +83,5 @@ test-subset: create-venv
 
 
 # Run a subset of tests (comma-separated list) for CI
-ci-tests: TESTS=hello-world,iperf3-attached
+ci-tests: TESTS=hello-world,attached-connector
 ci-tests: test-subset

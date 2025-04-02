@@ -22,7 +22,7 @@ tests/
 ├── e2e/  
 ├── scenarios/                 # End-to-end tests directory
 │    ├── hello-world/          # Basic Skupper functionality test
-│    ├── iperf3-attached/      # Network performance test with attached connectors
+│    ├── attached-connector/   # Network performance test with attached connectors
 │    ├── redis/                # Redis test
 └── README.md                  # This file
 ```
@@ -34,8 +34,8 @@ The `e2e` directory contains tests that validate Skupper functionality across di
 ### Available E2E Tests
 
 - **[hello-world](e2e/hello-world/)**: A simple test to verify basic Skupper functionality by deploying frontend and backend components across Skupper sites.
-- **[iperf3-attached](e2e/iperf3-attached/)**: Tests the attached connector functionality by measuring network performance using iperf3.
-- [redis](e2e/redis/): A test to validate Skupper connectivity using a Redis deployment.
+- **[attached-connector](e2e/attached-connector/)**: A test to validate Skupper connectivity using attached connectors, including network performance testing with iperf3.
+- **[redis](e2e/redis/)**: A test to validate Skupper functionality with Redis, including data persistence and replication.
 
 ## Adding a new E2E test to be run on CI
 
@@ -45,7 +45,7 @@ To add a new E2E test to be run on CI, follow these steps:
 2. Edit the `Makefile` in the tests directory to include your test in the `ci-tests` target.
 ```bash
 # Run a subset of tests (comma-separated list) for CI
-ci-tests: TESTS=hello-world,iperf3-attached,NAME_OF_YOUR_TEST
+ci-tests: TESTS=hello-world,attached-connector,YOUR_TEST
 ```
 3. Ensure your test has a README.md file with instructions on how to run it.
 
@@ -127,7 +127,7 @@ make test TEST="hello_world"
 make e2e-tests
 
 # Running a subset of tests
-make test-subset TESTS=hello-world,iperf3-attached
+make test-subset TESTS=hello-world,attached-connector
 
 # Running CI tests
 make ci-tests
