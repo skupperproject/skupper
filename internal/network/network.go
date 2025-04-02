@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 const MINIMUM_VERSION string = "1.5.0"
@@ -177,4 +179,75 @@ func sliceContainsSite(sites []SiteStatusInfo, site SiteStatusInfo) bool {
 	}
 
 	return false
+}
+
+func ExtractSiteRecords(status NetworkStatusInfo) []v2alpha1.SiteRecord {
+	var records []v2alpha1.SiteRecord
+	routerAPs := map[string]string{} // router access point ID -> site ID
+	siteNames := map[string]string{} // site ID -> site name
+	for _, site := range status.SiteStatus {
+		siteNames[site.Site.Identity] = site.Site.Name
+		for _, router := range site.RouterStatus {
+			for _, ap := range router.AccessPoints {
+				routerAPs[ap.Identity] = site.Site.Identity
+			}
+		}
+	}
+	for _, site := range status.SiteStatus {
+		record := v2alpha1.SiteRecord{
+			Id:        site.Site.Identity,
+			Name:      site.Site.Name,
+			Platform:  site.Site.Platform,
+			Namespace: site.Site.Namespace,
+			Version:   site.Site.Version,
+		}
+		services := map[string]*v2alpha1.ServiceRecord{}
+		for _, router := range site.RouterStatus {
+			for _, link := range router.Links {
+				if link.Name == "" || link.Peer == "" {
+					continue
+				}
+
+				if site, ok := routerAPs[link.Peer]; ok {
+					record.Links = append(record.Links, v2alpha1.LinkRecord{
+						Name:           link.Name,
+						RemoteSiteId:   site,
+						RemoteSiteName: siteNames[site],
+						Operational:    strings.EqualFold(link.Status, "up"),
+					})
+				}
+			}
+			for _, connector := range router.Connectors {
+				if connector.Address != "" && connector.DestHost != "" {
+					address := connector.Address
+					service, ok := services[address]
+					if !ok {
+						service = &v2alpha1.ServiceRecord{
+							RoutingKey: address,
+						}
+						services[address] = service
+					}
+					service.Connectors = append(service.Connectors, connector.DestHost)
+				}
+			}
+			for _, listener := range router.Listeners {
+				if listener.Address != "" && listener.Name != "" {
+					address := listener.Address
+					service, ok := services[address]
+					if !ok {
+						service = &v2alpha1.ServiceRecord{
+							RoutingKey: address,
+						}
+						services[address] = service
+					}
+					service.Listeners = append(service.Listeners, listener.Name)
+				}
+			}
+		}
+		for _, service := range services {
+			record.Services = append(record.Services, *service)
+		}
+		records = append(records, record)
+	}
+	return records
 }

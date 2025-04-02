@@ -1,19 +1,17 @@
 package controller
 
 import (
-	"errors"
-	"fmt"
 	"log"
-	"net"
 	"os"
 	"path"
 	"sync"
+	"syscall"
 
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
 const (
-	socketFileName = "controller.sock"
+	lockFileName = "controller.lock"
 )
 
 type Controller struct {
@@ -36,29 +34,23 @@ func (c *Controller) Start() (chan struct{}, *sync.WaitGroup) {
 	if err := c.nsHandler.Start(stop, wg); err != nil {
 		log.Fatalf("error starting controller: %v", err)
 	}
+	log.Println("Controller started")
 	return stop, wg
 }
 
-// ensureSingleInstance listens to a unix socket to prevent concurrent executions across processes or containers
 func (c *Controller) ensureSingleInstance(stop chan struct{}) {
-	internalSocketFile := path.Join(api.GetDefaultOutputNamespacesPath(), socketFileName)
-	if _, err := net.Dial("unix", internalSocketFile); err == nil {
+	internalLockFile := path.Join(api.GetDefaultOutputNamespacesPath(), lockFileName)
+	lock, err := os.OpenFile(internalLockFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+	if err != nil {
+		log.Fatalf("Unable to create lock file: %v", err)
+	}
+	if err = syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		log.Fatalf("User controller is already running, exiting")
 	}
-	if err := os.Remove(internalSocketFile); err != nil && !errors.Is(err, os.ErrNotExist) {
-		hostSocketFile := ""
-		if api.IsRunningInContainer() {
-			hostSocketFile = fmt.Sprintf(" (host path: %q)", path.Join(api.GetHostNamespacesPath(), socketFileName))
-		}
-		log.Fatalf("unable to remove socket %s%s: %s", internalSocketFile, hostSocketFile, err)
-	}
-	socket, err := net.Listen("unix", internalSocketFile)
-	if err != nil {
-		log.Fatalf("error listening on socket %q: %v", internalSocketFile, err.Error())
-	}
 	go func() {
-		// unix socket remains open to prevent concurrent controllers from running
-		defer socket.Close()
 		<-stop
+		if err = syscall.Flock(int(lock.Fd()), syscall.LOCK_UN); err != nil {
+			log.Fatalf("Error releasing lock file: %v", err)
+		}
 	}()
 }
