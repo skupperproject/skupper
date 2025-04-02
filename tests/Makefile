@@ -15,7 +15,7 @@ create-venv:
 		cd /tmp && python3 -m venv e2e-venv; \
 		if [ -d "/tmp/e2e-venv" ]; then \
 			echo "Virtual environment created successfully at /tmp/e2e-venv"; \
-			source /tmp/e2e-venv/bin/activate;  \
+			. /tmp/e2e-venv/bin/activate && \
 			pip3 install --upgrade pip; \
 			pip3 install -r $(ROOT_PATH)/requirements.txt; \
 			ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg ansible-galaxy collection install -r $(ROOT_PATH)/e2e/collections/ansible_collections/requirements.yml --force; \
@@ -41,7 +41,7 @@ test-role: create-venv
 	fi
 	@echo "Running the tests for the role: $(ROLE)"
 	@cd $(COLLECTION_PATH) && \
-	source /tmp/e2e-venv/bin/activate && \
+	. /tmp/e2e-venv/bin/activate && \
 	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg ansible-playbook roles/$(ROLE)/tests/test_playbook.yml -i roles/$(ROLE)/tests/inventory $(EXTRA_VARS)
 
 # Run a specific test (use relative path from e2e/ directory)
@@ -54,7 +54,7 @@ test: create-venv
 
 	@export TEST_PREFIX=$$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 5 | head -n 1); \
 	echo "Running the test for directory: $(TEST) with prefix: $$TEST_PREFIX"; \
-	source /tmp/e2e-venv/bin/activate && \
+	. /tmp/e2e-venv/bin/activate && \
 	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg ansible-playbook $(ROOT_PATH)/e2e/scenarios/$(TEST)/test.yml -i $(ROOT_PATH)/e2e/scenarios/$(TEST)/inventory $(EXTRA_VARS) -e namespace_prefix=$$TEST_PREFIX
 
 # Run all tests in sequence
@@ -74,7 +74,6 @@ test-subset: create-venv
 		echo "TESTS is not set. Please provide a comma-separated list of tests with TESTS=test1,test2,..."; \
 		exit 1; \
 	fi
-
 	@echo "Running the following tests: $(TESTS)"
 	@for test_name in $$(echo $(TESTS) | tr ',' ' '); do \
 		echo "\n=== Running test: $$test_name ==="; \
