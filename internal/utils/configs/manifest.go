@@ -2,6 +2,7 @@ package configs
 
 import (
 	"os"
+	"os/exec"
 
 	"github.com/skupperproject/skupper/internal/images"
 )
@@ -45,6 +46,12 @@ func (manager *ManifestManager) GetDefaultManifestWithEnv() Manifest {
 
 func getSkupperImages(components []string, enableSHA bool, runningPods map[string]string) SkupperManifest {
 	var manifest SkupperManifest
+
+	// if Docker is not installed we can not inspect digests from images.
+	_, err := exec.LookPath("docker")
+	if err != nil {
+		enableSHA = false
+	}
 
 	for _, component := range components {
 		var image SkupperComponent
