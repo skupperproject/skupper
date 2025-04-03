@@ -15,7 +15,7 @@ type CmdSystemStart struct {
 	Namespace  string
 }
 
-func NewCmdCmdSystemStart() *CmdSystemStart {
+func NewCmdSystemStart() *CmdSystemStart {
 
 	skupperCmd := CmdSystemStart{}
 

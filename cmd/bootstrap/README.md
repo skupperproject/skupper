@@ -69,17 +69,19 @@ for regular users when XDG_DATA_HOME environment variable is set, or under
 ${HOME}/.local/share/skupper/namespaces when it is not set.
 As the root user, namespaces are stored under: /var/lib/skupper/namespaces.
 
-In case the path (-p) flag is omitted, Skupper will try to process
-custom resources stored at the input/resources directory of the default namespace,
-or from the namespace provided through the namespace (-n) flag.
+Skupper will process custom resources stored at the input/resources directory 
+of the default namespace, or from the namespace provided through the namespace (-n) flag.
 
-If the respective namespace already exists and you want to bootstrap it
-over, you must provide the force (-f) flag. When you do that, the existing
-Certificate Authorities (CAs) are preserved, so eventual existing incoming
-links should be able to reconnect.
 
 To produce a bundle, instead of rendering a site, the bundle strategy (-b)
 flag must be set to "bundle" or "tarball".
+
+This action needs the path (-p) flag is provided, that it will be used as the source
+directory containing the Skupper custom resources to be processed,
+generating a local Skupper site using the "default" namespace, unless
+a namespace is set in the custom resources, or if the namespace (-n)
+flag is provided.
+
 
 Usage:
   bootstrap [options...]
@@ -87,11 +89,10 @@ Usage:
 Flags:
   -b string
     	The bundle strategy to be produced: bundle or tarball
-  -f	Forces to overwrite an existing namespace
   -n string
     	The target namespace used for installation
   -p string
-    	Custom resources location on the file system
+    	Custom resources location on the file system for the bundle
   -v	Report the version of the Skupper bootstrap command
 ```
 
@@ -121,7 +122,7 @@ Now that you have all your CRs placed on a local directory, just run:
 ```shell
 # To bootstrap your site using Skupper
 export SKUPPER_PLATFORM=podman
-skupper system setup --path ./
+skupper system start
 ```
 
 You can also use `-n=<name>` to override the namespace specified in the CRs.
@@ -131,7 +132,7 @@ Alternatively you can also run the `bootstrap.sh` script:
 ```shell
 # To bootstrap your site using the shell script
 export SKUPPER_PLATFORM=podman
-./cmd/bootstrap/bootstrap.sh -p ./
+./cmd/bootstrap/bootstrap.sh 
 ```
 
 Similarly to the binary, you can also use `-n <namespace>` to override the namespace
@@ -178,11 +179,11 @@ The bundle installation script accepts the following flags:
 
 #### Removing
 
-To remove your site, you can run  the `system teardown` command, providing a namespace as a flag.
+To remove your site, you can run  the `system stop` command, providing a namespace as a flag.
 If the namespace is omitted, the "default" namespace is used. 
 
 ```shell
-skupper system teardown -n [namespace]
+skupper system stop -n [namespace]
 ```
 Or you can run a local script, that takes the namespace
 as an argument. The platform is identified by the script so you don't need
@@ -295,17 +296,25 @@ spec:
   bindHost: 127.0.0.1
 ```
 
+Equivalent in CLI commands: 
+```
+skupper site create west --enable-link-access -n west
+skupper listener create backend 8080 -n west
+```
+Note the CLI takes care of the creation of the RouterAccess resource.
+
+
 ##### Bootstrap the west site
 
-Considering all your CRs have been saved to a directory named `west`, use:
+Considering all your CRs have been saved to the namespace named `west`, use:
 
 ```shell
-./bootstrap -p ./west -n west
+./cmd/bootstrap/bootstrap.sh -n west
 ```
 or 
 
 ```shell
-skupper system setup --path ./west -n west
+skupper system start -n west
 ```
 
 The CRs are defined without a namespace, that is why we have the `-n west` flag,
@@ -344,6 +353,12 @@ spec:
   routingKey: backend-8080
 ```
 
+Equivalent in CLI commands:
+```
+skupper site create east -n east
+skupper connector create backend 9090 --host 127.0.0.1 --routing-key backend-8080 -n east
+```
+
 **Link**
 ```yaml
 ---
@@ -375,16 +390,16 @@ spec:
 
 ##### Bootstrap the east site
 
-Considering all your CRs have been saved to a directory named `east`, use:
+Considering all your CRs have been saved to a namespace named `east`, use:
 
 ```shell
-./bootstrap -p ./east -n east
+./cmd/bootstrap/bootstrap.sh -n east
 ```
 
 or 
 
 ```shell
-skupper system setup --path ./east -n east
+skupper system start -n east
 ```
 
 ### Testing the scenario
@@ -400,18 +415,6 @@ namespace directory (i.e: ${HOME}/.local/share/skupper/namespaces/west/input/res
 To re-initialize the west site, run:
 
 ```shell
-bootstrap -n west -f
-```
-
-or 
-
-```shell
-system setup -n west -f
-```
-
-or 
-
-```shell
 system reload -n west 
 ```
 
@@ -425,8 +428,8 @@ therefore eventual incoming links must still work.
 To remove both namespaces, run:
 
 ```shell
-skupper system teardown -n west
-skupper system teardown -n east
+skupper system stop -n west
+skupper system stop -n east
 ```
 
 ### Producing site bundles
@@ -436,7 +439,7 @@ As an alternative, you can also produce site bundles to try this example.
 #### Creating the west bundle
 
 ```shell
-$ bootstrap -p ./west/ -b bundle
+$ ./cmd/bootstrap/bootstrap.sh -p ./west/ -b bundle
 Skupper nonkube bootstrap (version: main-release-161-g7c5100a2-modified)
 Site "west" has been created (as a distributable bundle)
 Installation bundle available at: /home/user/.local/share/skupper/bundles/skupper-install-west.sh
@@ -446,10 +449,10 @@ Default platform: podman
 or 
 
 ```shell
-skupper system setup --path ./west  -b bundle                                       
+skupper system generate-bundle my-bundle --input ./west  --type shell-script                                       
 2024/11/18 12:17:56 updating listener /backend...
 Site "west" has been created (as a distributable bundle)
-Installation bundle available at: {HOME}/.local/share/skupper/bundles/skupper-install-west.sh
+Installation bundle available at: {HOME}/.local/share/skupper/bundles/my-bundle.sh
 Default namespace: default
 Default platform: podman
 ```
@@ -472,7 +475,7 @@ cp /tmp/west/link-go-west-127.0.0.1.yaml ./east/link-go-west.yaml
 #### Creating the east bundle
 
 ```shell
-$ bootstrap -p ./east -b bundle
+$./cmd/bootstrap/bootstrap.sh -p ./east -b bundle
 Skupper nonkube bootstrap (version: main-release-161-g7c5100a2-modified)
 Site "east" has been created (as a distributable bundle)
 Installation bundle available at: /home/user/.local/share/skupper/bundles/skupper-install-east.sh

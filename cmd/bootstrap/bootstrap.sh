@@ -131,10 +131,9 @@ create_service() {
 
 usage() {
     echo "Use: bootstrap.sh [-p <path>] [-n <namespace>] [-b strategy] [-f]"
-    echo "     -p Custom resources location on the file system"
-    echo "     -n The target namespace used for installation (overrides the namespace from custom resources when -p is provided)"
+    echo "     -p Custom resources location on the file system for the bundle"
+    echo "     -n The target namespace used for installation"
     echo "     -b The bundle strategy to be produced: bundle or tarball"
-    echo "     -f Forces to overwrite an existing namespace"
     exit 1
 }
 
@@ -158,10 +157,10 @@ parse_opts() {
                 bundle="${OPTARG}"
                 case "${bundle}" in
                 "bundle")
-                    export BUNDLE_STRATEGY="-b=bundle"
+                    export BUNDLE_STRATEGY="--type=shell-script"
                     ;;
                 "tarball")
-                    export BUNDLE_STRATEGY="-b=tarball"
+                    export BUNDLE_STRATEGY="--type=tarball"
                     ;;
                 esac
                 ;;
@@ -197,6 +196,8 @@ main() {
     # Must be mounted into the container
     MOUNTS=""
     ENV_VARS=""
+
+    CONTAINER_COMMAND="system start"
     
     # Mounts
     if is_sock_endpoint && is_container_platform; then
@@ -226,13 +227,19 @@ main() {
 
     # Running the bootstrap
     ${CONTAINER_ENGINE} pull "${IMAGE}"
+
+    if [ -n "${BUNDLE_STRATEGY}" ]; then
+      CONTAINER_COMMAND="system generate-bundle skupper-install --input=\"${INPUT_PATH_ARG}\" ${BUNDLE_STRATEGY}"
+    fi
+
     eval "${CONTAINER_ENGINE}" run --rm --name skupper-bootstrap \
-        --network host --security-opt label=disable -u \""${RUNAS}"\" --userns=\""${USERNS}"\" \
-        "${MOUNTS}" \
-        "${ENV_VARS}" \
-        --entrypoint /app/skupper \
-        "${IMAGE}" \
-        system setup --path="${INPUT_PATH_ARG}" "${NAMESPACE_ARG}" ${BUNDLE_STRATEGY} ${FORCE_FLAG} 2>&1
+            --network host --security-opt label=disable -u \""${RUNAS}"\" --userns=\""${USERNS}"\" \
+            "${MOUNTS}" \
+            "${ENV_VARS}" \
+            --entrypoint /app/skupper \
+            "${IMAGE}" \
+            "${CONTAINER_COMMAND}" "${NAMESPACE_ARG}" 2>&1
+
     create_service
 }
 
