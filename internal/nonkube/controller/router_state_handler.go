@@ -17,7 +17,7 @@ type RouterStateHandler struct {
 	namespace string
 	siteId    string
 	logger    *slog.Logger
-	running   chan bool
+	runningCh chan bool
 	callback  ActivationCallback
 }
 
@@ -34,18 +34,21 @@ func (h *RouterStateHandler) SetCallback(callback ActivationCallback) {
 }
 
 func (h *RouterStateHandler) Start(stopCh <-chan struct{}) {
-	if h.running != nil {
+	if h.runningCh != nil {
 		return
 	}
 	h.logger.Info("Starting router state handler")
-	h.running = make(chan bool)
+	h.runningCh = make(chan bool)
 	h.stopCh = stopCh
 	go h.run()
 }
 
 func (h *RouterStateHandler) Stop() {
 	h.logger.Info("Stopping router state handler")
-	close(h.running)
+	if h.runningCh != nil {
+		close(h.runningCh)
+		h.runningCh = nil
+	}
 }
 
 func (h *RouterStateHandler) Id() string {
@@ -59,7 +62,7 @@ func (h *RouterStateHandler) run() {
 	case <-h.stopCh:
 		fmt.Println("exiting router state handler (parent stopped)")
 		return
-	case <-h.running:
+	case <-h.runningCh:
 		fmt.Println("exiting router state handler (user request)")
 		return
 	}
@@ -76,6 +79,9 @@ func newHeartBeatsClient(namespace string) *heartBeatsClient {
 type heartBeatsClient struct {
 	Namespace  string
 	logger     *slog.Logger
+	siteId     string
+	url        string
+	address    string
 	running    bool
 	isRouterUp bool
 	callback   ActivationCallback
@@ -158,11 +164,21 @@ func (h *heartBeatsClient) handleShutdown(stopCh <-chan struct{}) {
 	<-stopCh
 	if h.receiver != nil {
 		_ = h.receiver.Close()
-		h.running = false
+		h.reset()
 	}
 }
 
+func (h *heartBeatsClient) reset() {
+	h.running = false
+	h.siteId = ""
+	h.url = ""
+	h.address = ""
+}
+
 func (h *heartBeatsClient) getSiteId() (string, error) {
+	if h.siteId != "" {
+		return h.siteId, nil
+	}
 	// Loading runtime state
 	siteStateLoader := &common.FileSystemSiteStateLoader{
 		Path: api.GetInternalOutputPath(h.Namespace, api.RuntimeSiteStatePath),
@@ -171,15 +187,21 @@ func (h *heartBeatsClient) getSiteId() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unable to load site state: %w", err)
 	}
-	return siteState.SiteId, nil
+	h.siteId = siteState.SiteId
+	return h.siteId, nil
 }
 
 func (h *heartBeatsClient) getUrl() (string, error) {
+	if h.url != "" {
+		return h.url, nil
+	}
 	port, err := runtime.GetLocalRouterPort(h.Namespace)
 	if err != nil {
 		return "", fmt.Errorf("unable to determine local router url: %w", err)
 	}
-	return fmt.Sprintf("amqps://127.0.0.1:%d", port), nil
+	h.url = fmt.Sprintf("amqps://127.0.0.1:%d", port)
+	return h.url, nil
+
 }
 
 func (h *heartBeatsClient) getAddress() (string, error) {

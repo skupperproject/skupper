@@ -251,3 +251,12 @@ func ExtractSiteRecords(status NetworkStatusInfo) []v2alpha1.SiteRecord {
 	}
 	return records
 }
+
+func GetLinkRecordsForSite(siteId string, network []v2alpha1.SiteRecord) []v2alpha1.LinkRecord {
+	for _, siteRecord := range network {
+		if siteRecord.Id == siteId {
+			return siteRecord.Links
+		}
+	}
+	return nil
+}
