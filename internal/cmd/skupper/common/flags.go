@@ -38,6 +38,10 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagDescGenerateCredential = "generate the necessary credentials to create the link"
 	FlagNameTimeout            = "timeout"
 	FlagDescTimeout            = "raise an error if the operation does not complete in the given period of time (expressed in seconds)."
+	FlagNameLinkName           = "name"
+	FlagDescNameLinkName       = "Router Access Name"
+	FlagNameLinkHost           = "host"
+	FlagDescNameLinkHost       = "Endpoint Host"
 
 	FlagNameRedemptionsAllowed = "redemptions-allowed"
 	FlagDescRedemptionsAllowed = "The number of times an access token for this grant can be redeemed."
@@ -132,6 +136,8 @@ type CommandLinkGenerateFlags struct {
 	Output             string
 	GenerateCredential bool
 	Timeout            time.Duration
+	Name               string
+	Host               string
 }
 type CommandLinkUpdateFlags struct {
 	TlsCredentials string

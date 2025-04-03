@@ -428,7 +428,7 @@ func TestCmdLinkGenerate_InputToOptions(t *testing.T) {
 	testTable := []test{
 		{
 			name:                        "check options",
-			flags:                       common.CommandLinkGenerateFlags{"secret", "1", "json", false, time.Minute},
+			flags:                       common.CommandLinkGenerateFlags{TlsCredentials: "secret", Cost: "1", Output: "json", GenerateCredential: false, Timeout: time.Minute},
 			expectedCost:                1,
 			expectedTlsCredentials:      "secret",
 			expectedOutput:              "json",
@@ -436,7 +436,7 @@ func TestCmdLinkGenerate_InputToOptions(t *testing.T) {
 		},
 		{
 			name:  "credentials are not needed",
-			flags: common.CommandLinkGenerateFlags{"", "1", "json", true, time.Minute},
+			flags: common.CommandLinkGenerateFlags{TlsCredentials: "", Cost: "1", Output: "json", GenerateCredential: true, Timeout: time.Minute},
 			activeSite: &v2alpha1.Site{
 
 				ObjectMeta: v1.ObjectMeta{

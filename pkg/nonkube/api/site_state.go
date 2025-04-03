@@ -82,6 +82,17 @@ func (s *SiteState) HasRouterAccess() bool {
 	return false
 }
 
+func (s *SiteState) HasLinkAccess() bool {
+	for _, la := range s.RouterAccesses {
+		for _, role := range la.Spec.Roles {
+			if role.Name == "edge" || role.Name == "inter-router" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (s *SiteState) CreateRouterAccess(name string, port int) {
 	tlsCaName := fmt.Sprintf("%s-ca", name)
 	tlsServerName := fmt.Sprintf("%s-server", name)
