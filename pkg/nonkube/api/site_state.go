@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"reflect"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/skupperproject/skupper/internal/network"
 	"github.com/skupperproject/skupper/internal/qdr"
 	"github.com/skupperproject/skupper/internal/site"
 	"github.com/skupperproject/skupper/internal/utils"
@@ -336,6 +338,50 @@ func (s *SiteState) SetNamespace(namespace string) {
 	setNamespaceOnMap(s.Claims, namespace)
 	setNamespaceOnMap(s.Certificates, namespace)
 	setNamespaceOnMap(s.SecuredAccesses, namespace)
+}
+
+func (s *SiteState) UpdateStatus(networkStatus network.NetworkStatusInfo) {
+	siteRecords := network.ExtractSiteRecords(networkStatus)
+	if reflect.DeepEqual(s.Site.Status.Network, siteRecords) {
+		return
+	}
+	s.Site.Status.Network = siteRecords
+	s.Site.Status.SitesInNetwork = len(siteRecords)
+	linkRecords := network.GetLinkRecordsForSite(s.SiteId, siteRecords)
+
+	for _, linkRecord := range linkRecords {
+		if link, ok := s.Links[linkRecord.Name]; ok {
+			link.SetOperational(linkRecord.Operational, linkRecord.RemoteSiteId, linkRecord.RemoteSiteName)
+		}
+	}
+
+	// mapping connectors and listeners
+	connectorsFound := map[string]bool{}
+	listenersFound := map[string]bool{}
+
+	for _, siteRecord := range siteRecords {
+		if s.SiteId == siteRecord.Id {
+			continue
+		}
+		for _, service := range siteRecord.Services {
+			for _, _ = range service.Listeners {
+				listenersFound[service.RoutingKey] = true
+			}
+			for _, _ = range service.Connectors {
+				connectorsFound[service.RoutingKey] = true
+			}
+		}
+	}
+
+	// updating listeners and connectors
+	for _, listener := range s.Listeners {
+		_, hasMatchingConnector := connectorsFound[listener.Spec.RoutingKey]
+		listener.SetHasMatchingConnector(hasMatchingConnector)
+	}
+	for _, connector := range s.Connectors {
+		_, hasMatchingListener := listenersFound[connector.Spec.RoutingKey]
+		connector.SetHasMatchingListener(hasMatchingListener)
+	}
 }
 
 func marshal(outputDirectory, resourceType, resourceName string, resource interface{}) error {

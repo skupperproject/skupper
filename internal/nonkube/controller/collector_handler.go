@@ -56,28 +56,6 @@ func (c *CollectorLifecycleHandler) Id() string {
 }
 
 func (c *CollectorLifecycleHandler) startCollectorLite() {
-	//c.logger.Info("waiting for router local port to be available")
-	//err := utils.RetryErrorWithContext(c.ctx, time.Second*5, func() error {
-	//	port, err := runtime.GetLocalRouterPort(c.namespace)
-	//	if err != nil {
-	//		c.logger.Error("unable to determine local router port", slog.Any("error", err.Error()))
-	//		return fmt.Errorf("unable to determine local router port: %w", err)
-	//	}
-	//	address := fmt.Sprintf("127.0.0.1:%d", port)
-	//	conn, err := net.DialTimeout("tcp", address, time.Second)
-	//	if err != nil {
-	//		c.logger.Error("router is not yet available...",
-	//			slog.Any("address", address),
-	//			slog.Any("error", err.Error()))
-	//		return fmt.Errorf("router is not yet available: %w", err)
-	//	}
-	//	_ = conn.Close()
-	//	return nil
-	//})
-	//// context has been closed
-	//if err != nil {
-	//	return
-	//}
 	err := flow.StartCollector(c.ctx, c.namespace)
 	if err != nil {
 		c.logger.Error("error starting collector", slog.Any("error", err.Error()))

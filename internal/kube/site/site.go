@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 
+	internalnetwork "github.com/skupperproject/skupper/internal/network"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -1066,15 +1067,6 @@ func (s *Site) updateLinkOperationalCondition(link *skupperv2alpha1.Link, operat
 	return nil
 }
 
-func getLinkRecordsForSite(siteId string, network []skupperv2alpha1.SiteRecord) []skupperv2alpha1.LinkRecord {
-	for _, siteRecord := range network {
-		if siteRecord.Id == siteId {
-			return siteRecord.Links
-		}
-	}
-	return nil
-}
-
 func (s *Site) NetworkStatusUpdated(network []skupperv2alpha1.SiteRecord) error {
 	if s.site == nil || reflect.DeepEqual(s.site.Status.Network, network) {
 		return nil
@@ -1088,7 +1080,7 @@ func (s *Site) NetworkStatusUpdated(network []skupperv2alpha1.SiteRecord) error 
 	s.site = updated
 
 	// find the site record for this site, then process the link records it contains
-	linkRecords := getLinkRecordsForSite(s.site.GetSiteId(), network)
+	linkRecords := internalnetwork.GetLinkRecordsForSite(s.site.GetSiteId(), network)
 	for _, linkRecord := range linkRecords {
 		if link, ok := s.links[linkRecord.Name]; ok {
 			if err := s.updateLinkOperationalCondition(link.Definition(), linkRecord.Operational, linkRecord.RemoteSiteId, linkRecord.RemoteSiteName); err != nil {
