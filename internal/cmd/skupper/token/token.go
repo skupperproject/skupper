@@ -45,9 +45,9 @@ func CmdTokenIssueFactory(configuredPlatform common.Platform) *cobra.Command {
 
 	cmdFlags := common.CommandTokenIssueFlags{}
 
-	cmd.Flags().IntVarP(&cmdFlags.RedemptionsAllowed, common.FlagNameRedemptionsAllowed, "r", 1, common.FlagDescRedemptionsAllowed)
-	cmd.Flags().DurationVarP(&cmdFlags.ExpirationWindow, common.FlagNameExpirationWindow, "e", 15*time.Minute, common.FlagDescExpirationWindow)
-	cmd.Flags().DurationVarP(&cmdFlags.Timeout, common.FlagNameTimeout, "t", 60*time.Second, common.FlagDescTimeout)
+	cmd.Flags().IntVar(&cmdFlags.RedemptionsAllowed, common.FlagNameRedemptionsAllowed, 1, common.FlagDescRedemptionsAllowed)
+	cmd.Flags().DurationVar(&cmdFlags.ExpirationWindow, common.FlagNameExpirationWindow, 15*time.Minute, common.FlagDescExpirationWindow)
+	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 	cmd.Flags().StringVar(&cmdFlags.Cost, common.FlagNameCost, "1", common.FlagDescCost)
 
 	kubeCommand.CobraCmd = cmd
@@ -73,7 +73,7 @@ func CmdTokenRedeemFactory(configuredPlatform common.Platform) *cobra.Command {
 
 	cmdFlags := common.CommandTokenRedeemFlags{}
 
-	cmd.Flags().DurationVarP(&cmdFlags.Timeout, common.FlagNameTimeout, "t", 60*time.Second, common.FlagDescTimeout)
+	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
