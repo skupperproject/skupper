@@ -355,32 +355,12 @@ func (s *SiteState) UpdateStatus(networkStatus network.NetworkStatusInfo) {
 		}
 	}
 
-	// mapping connectors and listeners
-	connectorsFound := map[string]bool{}
-	listenersFound := map[string]bool{}
-
-	for _, siteRecord := range siteRecords {
-		if s.SiteId == siteRecord.Id {
-			continue
-		}
-		for _, service := range siteRecord.Services {
-			for _, _ = range service.Listeners {
-				listenersFound[service.RoutingKey] = true
-			}
-			for _, _ = range service.Connectors {
-				connectorsFound[service.RoutingKey] = true
-			}
-		}
-	}
-
 	// updating listeners and connectors
 	for _, listener := range s.Listeners {
-		_, hasMatchingConnector := connectorsFound[listener.Spec.RoutingKey]
-		listener.SetHasMatchingConnector(hasMatchingConnector)
+		listener.SetHasMatchingConnector(network.HasMatchingPair(networkStatus, listener.Spec.RoutingKey))
 	}
 	for _, connector := range s.Connectors {
-		_, hasMatchingListener := listenersFound[connector.Spec.RoutingKey]
-		connector.SetHasMatchingListener(hasMatchingListener)
+		connector.SetHasMatchingListener(network.HasMatchingPair(networkStatus, connector.Spec.RoutingKey))
 	}
 }
 
