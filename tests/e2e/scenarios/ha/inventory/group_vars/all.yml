@@ -1,0 +1,9 @@
+---
+ansible_connection: local
+ansible_user: "{{ lookup('env', 'USER') }}"
+debug: false
+locust_runtime: "2m"
+namespace_prefix: "e2e"
+generate_namespaces_namespace_label: "e2e"
+remove_namespaces: true
+

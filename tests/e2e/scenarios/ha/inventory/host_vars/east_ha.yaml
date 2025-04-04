@@ -1,0 +1,5 @@
+---
+# Kubeconfig path for east-ha site
+kubeconfig_2: "{{ ansible_env.HOME }}/.kube/config"
+kubeconfig: "{{ kubeconfig_2 }}"
+namespace_name: "east-ha"
