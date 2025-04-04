@@ -324,6 +324,9 @@ func (s *StatusSync) publish(info network.NetworkStatusInfo) error {
 		}
 		current.Data = data
 		err = s.client.Update(ctx, current)
+		if err != nil {
+			s.logger.Error("updating network status", slog.Any("error", err))
+		}
 		return err
 	})
 	if err != nil {

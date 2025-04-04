@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/skupperproject/skupper/internal/messaging"
@@ -25,7 +26,9 @@ func NewRouterStateHandler(namespace string) *RouterStateHandler {
 	handler := &RouterStateHandler{
 		namespace: namespace,
 	}
-	handler.logger = slog.Default().With("component", handler.Id(), "namespace", namespace)
+	handler.logger = slog.Default().
+		With("namespace", namespace).
+		With("component", handler.Id())
 	return handler
 }
 
@@ -71,8 +74,11 @@ func (h *RouterStateHandler) run() {
 func newHeartBeatsClient(namespace string) *heartBeatsClient {
 	c := &heartBeatsClient{
 		Namespace: namespace,
+		mutex:     &sync.Mutex{},
 	}
-	c.logger = slog.Default().With("component", "heartbeat.client", "namespace", namespace)
+	c.logger = slog.Default().
+		With("namespace", namespace).
+		With("component", "heartbeat.client")
 	return c
 }
 
@@ -82,6 +88,7 @@ type heartBeatsClient struct {
 	siteId     string
 	url        string
 	address    string
+	mutex      *sync.Mutex
 	running    bool
 	isRouterUp bool
 	callback   ActivationCallback
@@ -89,9 +96,13 @@ type heartBeatsClient struct {
 }
 
 func (h *heartBeatsClient) Start(stopCh <-chan struct{}, callback ActivationCallback) {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+
 	if h.running {
 		return
 	}
+
 	h.running = true
 	h.callback = callback
 	go h.run(stopCh)
@@ -99,26 +110,31 @@ func (h *heartBeatsClient) Start(stopCh <-chan struct{}, callback ActivationCall
 }
 
 func (h *heartBeatsClient) routerDown(reason string) {
-	h.isRouterUp = false
-	h.callback.Stop()
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 	if h.isRouterUp {
-		h.logger.Warn("router is down", slog.Any("reason", reason))
-	} else {
-		time.Sleep(5 * time.Second)
+		h.logger.Warn("Router is DOWN", slog.Any("reason", reason))
+		h.isRouterUp = false
+		h.callback.Stop()
 	}
 }
 
 func (h *heartBeatsClient) routerUp(stopCh <-chan struct{}) {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
 	if !h.isRouterUp {
-		h.logger.Warn("router is up")
+		h.logger.Warn("Router is UP")
+		h.isRouterUp = true
+		h.callback.Start(stopCh)
 	}
-	h.isRouterUp = true
-	h.callback.Start(stopCh)
 }
 
 func (h *heartBeatsClient) run(stopCh <-chan struct{}) {
 	h.logger.Info("watching for router availability")
+	ticker := time.NewTicker(5 * time.Second)
 	for h.running {
+		<-ticker.C
+
 		// connection info
 		url, err := h.getUrl()
 		if err != nil {

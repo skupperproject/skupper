@@ -39,8 +39,10 @@ func main() {
 func handleShutdown(stop chan struct{}, wait *sync.WaitGroup) {
 	sigs := make(chan os.Signal, 2)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
 	<-sigs
 	log.Println("Shutting down user controller")
+
 	close(stop)
 
 	graceful := make(chan struct{})

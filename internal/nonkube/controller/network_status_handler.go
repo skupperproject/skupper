@@ -38,9 +38,11 @@ func NewNetworkStatusHandler(namespace string) *NetworkStatusHandler {
 }
 
 func (n *NetworkStatusHandler) OnUpdate(name string) {
-	n.mutex.Lock()
-	defer n.mutex.Unlock()
+	n.startProcessingEvents()
+	n.processConfigMapUpdate(name)
+}
 
+func (n *NetworkStatusHandler) processConfigMapUpdate(name string) {
 	networkStatusInfo, err := n.loadNetworkStatusInfo(name)
 	if err != nil {
 		n.logger.Warn("ignoring network status update", slog.Any("error", err))
@@ -51,28 +53,38 @@ func (n *NetworkStatusHandler) OnUpdate(name string) {
 }
 
 func (n *NetworkStatusHandler) processEvents() {
+	n.resetStatus()
 	for {
 		select {
 		case networkStatusInfo := <-n.events:
 			n.logger.Debug("Processing network status event", slog.Any("event", networkStatusInfo))
-			runtimeSiteStatePath := api.GetInternalOutputPath(n.Namespace, api.RuntimeSiteStatePath)
-			siteStateLoader := &common.FileSystemSiteStateLoader{
-				Path: runtimeSiteStatePath,
-			}
-			siteState, err := siteStateLoader.Load()
-			if err != nil {
-				n.logger.Warn("Error loading runtime site state", slog.Any("error", err))
-			}
-			siteState.UpdateStatus(networkStatusInfo)
-			if err = api.MarshalSiteState(*siteState, runtimeSiteStatePath); err != nil {
-				n.logger.Error("Error marshaling runtime site state", slog.Any("error", err))
-			}
-			n.logger.Info("Runtime site state updated")
+			n.updateRuntimeSiteState(networkStatusInfo)
 		case <-n.doneCh:
+			n.resetStatus()
 			n.logger.Info("Stopping processing events")
 			return
 		}
 	}
+}
+
+func (n *NetworkStatusHandler) updateRuntimeSiteState(networkStatusInfo network.NetworkStatusInfo) {
+	runtimeSiteStatePath := api.GetInternalOutputPath(n.Namespace, api.RuntimeSiteStatePath)
+	siteStateLoader := &common.FileSystemSiteStateLoader{
+		Path: runtimeSiteStatePath,
+	}
+	siteState, err := siteStateLoader.Load()
+	if err != nil {
+		n.logger.Warn("Error loading runtime site state", slog.Any("error", err))
+	}
+	siteState.UpdateStatus(networkStatusInfo)
+	if err = api.MarshalSiteState(*siteState, runtimeSiteStatePath); err != nil {
+		n.logger.Error("Error marshaling runtime site state", slog.Any("error", err))
+	}
+	n.logger.Debug("Runtime site state updated")
+}
+
+func (n *NetworkStatusHandler) resetStatus() {
+	n.updateRuntimeSiteState(network.NetworkStatusInfo{})
 }
 
 func (n *NetworkStatusHandler) loadNetworkStatusInfo(name string) (*network.NetworkStatusInfo, error) {
@@ -111,19 +123,28 @@ func (n *NetworkStatusHandler) loadCm(name string) (*corev1.ConfigMap, error) {
 }
 
 func (n *NetworkStatusHandler) OnAdd(basePath string) {
+	n.startProcessingEvents()
+}
+
+func (n *NetworkStatusHandler) startProcessingEvents() {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
-
 	if n.doneCh != nil {
 		return
 	}
+	n.logger.Debug("Starting processing events")
 	n.doneCh = make(chan struct{})
 	go n.processEvents()
 }
 
 func (n *NetworkStatusHandler) OnRemove(name string) {
-	close(n.doneCh)
-	n.doneCh = nil
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
+
+	if n.doneCh != nil {
+		close(n.doneCh)
+		n.doneCh = nil
+	}
 }
 
 func (n *NetworkStatusHandler) Filter(name string) bool {

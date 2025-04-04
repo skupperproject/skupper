@@ -94,7 +94,10 @@ func siteCollector(ctx context.Context, namespace string) error {
 	}
 	statusSync := flow.NewStatusSync(factory, nil, statusSyncClient, types.NetworkStatusConfigMapName)
 	go statusSync.Run(ctx)
-
+	go func() {
+		<-ctx.Done()
+		_ = client.Delete(cm.Name, true)
+	}()
 	return nil
 }
 

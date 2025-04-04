@@ -29,8 +29,8 @@ func NewNamespaceController(namespace string) (*NamespaceController, error) {
 	}
 	nsw.watcher = watcher
 	nsw.logger = slog.New(slog.Default().Handler()).
-		With("component", "namespace.watcher").
-		With("namespace", namespace)
+		With("namespace", namespace).
+		With("component", "namespace.watcher")
 	return nsw, nil
 }
 

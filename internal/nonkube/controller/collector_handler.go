@@ -12,8 +12,8 @@ func NewCollectorLifecycleHandler(namespace string) *CollectorLifecycleHandler {
 		namespace: namespace,
 	}
 	c.logger = slog.New(slog.Default().Handler()).
-		With("component", "collector.lifecycle.handler").
-		With("namespace", namespace)
+		With("namespace", namespace).
+		With("component", "collector.lifecycle.handler")
 	return c
 }
 
