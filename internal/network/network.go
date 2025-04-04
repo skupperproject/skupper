@@ -260,3 +260,12 @@ func GetLinkRecordsForSite(siteId string, network []v2alpha1.SiteRecord) []v2alp
 	}
 	return nil
 }
+
+func HasMatchingPair(networkStatus NetworkStatusInfo, address string) bool {
+	for _, addressInfo := range networkStatus.Addresses {
+		if addressInfo.Name == address {
+			return addressInfo.ListenerCount > 0 && addressInfo.ConnectorCount > 0
+		}
+	}
+	return false
+}
