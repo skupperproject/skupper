@@ -121,6 +121,9 @@ func (cmd *CmdLinkGenerate) InputToOptions() {
 
 	cmd.cost, _ = strconv.Atoi(cmd.Flags.Cost)
 	cmd.output = cmd.Flags.Output
+	if cmd.output == "" {
+		cmd.output = "yaml"
+	}
 	cmd.generateCredential = cmd.Flags.GenerateCredential
 	cmd.timeout = cmd.Flags.Timeout
 
@@ -169,24 +172,28 @@ func (cmd *CmdLinkGenerate) Run() error {
 	cmd.generatedLink = resource
 
 	if cmd.generateCredential {
-		certificate := v2alpha1.Certificate{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "skupper.io/v2alpha1",
-				Kind:       "Certificate",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: cmd.tlsCredentials,
-			},
-			Spec: v2alpha1.CertificateSpec{
-				Ca:      cmd.activeSite.Status.DefaultIssuer,
-				Client:  true,
-				Subject: getSubjectsFromEndpoints(cmd.activeSite.Status.Endpoints),
-			},
-		}
-
-		_, err := cmd.Client.Certificates(cmd.Namespace).Create(context.TODO(), &certificate, metav1.CreateOptions{})
+		//Check if the certificate was previously created
+		_, err := cmd.Client.Certificates(cmd.Namespace).Get(context.TODO(), cmd.tlsCredentials, metav1.GetOptions{})
 		if err != nil {
-			return err
+			certificate := v2alpha1.Certificate{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "skupper.io/v2alpha1",
+					Kind:       "Certificate",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: cmd.tlsCredentials,
+				},
+				Spec: v2alpha1.CertificateSpec{
+					Ca:      cmd.activeSite.Status.DefaultIssuer,
+					Client:  true,
+					Subject: getSubjectsFromEndpoints(cmd.activeSite.Status.Endpoints),
+				},
+			}
+
+			_, err := cmd.Client.Certificates(cmd.Namespace).Create(context.TODO(), &certificate, metav1.CreateOptions{})
+			if err != nil {
+				return err
+			}
 		}
 
 	}
@@ -269,9 +276,9 @@ func getSubjectsFromEndpoints(endpointList []v2alpha1.Endpoint) string {
 
 func printResources(resources []string, outputFormat string) {
 
-	for _, resource := range resources {
+	for index, resource := range resources {
 		fmt.Println(resource)
-		if outputFormat == "yaml" {
+		if outputFormat == "yaml" && index < len(resources)-1 {
 			fmt.Println("---")
 		}
 	}
