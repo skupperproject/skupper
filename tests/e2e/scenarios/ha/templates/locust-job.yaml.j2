@@ -1,0 +1,37 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: locust-cm
+data:
+  locustfile.py: |
+    from locust import HttpUser, task
+
+    class HelloWorldUser(HttpUser):
+        @task
+        def hello_world(self):
+            self.client.post("/api/hello", json={"name":"skupper", "text":"user"})
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: locust-job
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+      - image: mirror.gcr.io/locustio/locust
+        imagePullPolicy: Always
+        name: locust-job
+        command: ["locust",  "--headless", "-t", "{{ locust_runtime }}", "-u", "10", "--only-summary", "--json", "-H", "http://backend:8080"]
+        volumeMounts:
+        - mountPath: /home/locust
+          name: locust-volume
+      dnsPolicy: ClusterFirst
+      restartPolicy: Never
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: locust-cm
+        name: locust-volume

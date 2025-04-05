@@ -63,3 +63,14 @@ teardown_flag: true
 
 # Delay in seconds between retry attempts
 # run_curl_delay: 10
+
+
+##################################################
+# HA variables
+##################################################
+# How long the Locust job should run
+# locust_runtime: "2m"
+
+# Remove the namespaces
+# remove_namespaces: true
+

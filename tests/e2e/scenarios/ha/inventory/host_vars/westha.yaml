@@ -1,0 +1,5 @@
+---
+# Kubeconfig path for westha site
+kubeconfig_1: "{{ ansible_env.HOME }}/.kube/config"
+kubeconfig: "{{ kubeconfig_1 }}"
+namespace_name: "westha"
