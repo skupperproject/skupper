@@ -15,30 +15,30 @@
           ansible.builtin.include_role:
             name: e2e.tests.generate_namespaces
 
-        - name: "[ HATest - Setup ] Creating Skupper resources on east_ha namespace"
+        - name: "[ HATest - Setup ] Creating Skupper resources on eastha namespace"
           skupper.v2.resource:
             kubeconfig: "{{ kubeconfig }}"
             path: "{{ item }}"
             namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
           with_items:
-            - "{{ playbook_dir }}/resources/east_ha/backend.yaml"
-            - "{{ playbook_dir }}/resources/east_ha/site.yaml"
-            - "{{ playbook_dir }}/resources/east_ha/connector.yaml"
+            - "{{ playbook_dir }}/resources/eastha/backend.yaml"
+            - "{{ playbook_dir }}/resources/eastha/site.yaml"
+            - "{{ playbook_dir }}/resources/eastha/connector.yaml"
           when:
             - "'east' in inventory_hostname"
 
-        - name: "[ HATest - Setup ] Creating Skupper resources on west_ha namespace"
+        - name: "[ HATest - Setup ] Creating Skupper resources on westha namespace"
           skupper.v2.resource:
             kubeconfig: "{{ kubeconfig }}"
             path: "{{ item }}"
             namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
           with_items:
-            - "{{ playbook_dir }}/resources/west_ha/site.yaml"
-            - "{{ playbook_dir }}/resources/west_ha/listener.yaml"
+            - "{{ playbook_dir }}/resources/westha/site.yaml"
+            - "{{ playbook_dir }}/resources/westha/listener.yaml"
           when:
             - "'west' in inventory_hostname"
 
-        - name: "[ HATest - Setup ] Issue a Skupper access token from west_ha namespace"
+        - name: "[ HATest - Setup ] Issue a Skupper access token from westha namespace"
           skupper.v2.token:
             kubeconfig: "{{ kubeconfig }}"
             namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
@@ -48,10 +48,10 @@
           when:
             - "'west' in inventory_hostname"
 
-        - name: "[ HATest - Setup ] Apply token to east site"
+        - name: "[ HATest - Setup ] Apply token to eastha site"
           skupper.v2.resource:
             kubeconfig: "{{ kubeconfig }}"
-            def: "{{ hostvars['west_ha']['west']['token'] }}"
+            def: "{{ hostvars['westha']['west']['token'] }}"
             namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
           when:
             - "'east' in inventory_hostname"
@@ -74,17 +74,25 @@
           when:
             - "'east' in inventory_hostname"
 
+        - name: "Create temporary build directory"
+          ansible.builtin.tempfile:
+            state: directory
+            suffix: hatemp
+          register: ha_temp_dir
+          when:
+            - "'west' in inventory_hostname"
+
         - name: "[ HATest - RunTest ] Create the job yaml, based on template, setting the runtime to {{ locust_runtime }}"
           template:
             src: "{{ playbook_dir }}/templates/locust-job.yaml.j2"
-            dest: "{{ playbook_dir }}/resources/west_ha/locust-job.yaml"
+            dest: "{{ ha_temp_dir.path }}/locust-job.yaml"
           when:
             - "'west' in inventory_hostname"
 
         - name: "[ HATest - RunTest ] Create the kill-pods script, based on template"
           template:
             src: "{{ playbook_dir }}/templates/kill-router-pods.sh.j2"
-            dest: "{{ playbook_dir }}/resources/kill-router-pods.sh"
+            dest: "{{ ha_temp_dir.path }}/kill-router-pods.sh"
             mode: '0755'
           when:
             - "'west' in inventory_hostname"
@@ -95,12 +103,12 @@
             path: "{{ item }}"
             namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
           with_items:
-            - "{{ playbook_dir }}/resources/west_ha/locust-job.yaml"
+            - "{{ ha_temp_dir.path }}/locust-job.yaml"
           when:
             - "'west' in inventory_hostname"
 
         - name: "[ HATest - RunTest ] Execute script on control machine to kill the router pods"
-          command: "{{ playbook_dir }}/resources/kill-router-pods.sh"
+          command: "{{ ha_temp_dir.path }}/kill-router-pods.sh"
           register: kill_router_pod_output
           delegate_to: localhost
           when:
@@ -173,9 +181,9 @@
             namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
             state: "absent"
           with_items:
-            - "{{ playbook_dir }}/resources/west_ha/locust-job.yaml"
+            - "{{ ha_temp_dir.path }}/locust-job.yaml"
           when:
-            - "'west_ha' in inventory_hostname"
+            - "'west' in inventory_hostname"
 
         - name: "[ HATest - Teardown ] Remove the locust ConfigMap"
           kubernetes.core.k8s:
@@ -185,53 +193,53 @@
             namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
             name: locust-cm
           when:
-            - "'west_ha' in inventory_hostname"
+            - "'west' in inventory_hostname"
 
-        - name: "[ HATest - Teardown ] Removing Skupper resources from east namespace"
+        - name: "[ HATest - Teardown ] Removing Skupper resources from eastha namespace"
           skupper.v2.resource:
             kubeconfig: "{{ kubeconfig }}"
             path: "{{ item }}"
             namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
             state: absent
           with_items:
-            - "{{ playbook_dir }}/resources/east_ha/backend.yaml"
-            - "{{ playbook_dir }}/resources/east_ha/site.yaml"
-            - "{{ playbook_dir }}/resources/east_ha/connector.yaml"
+            - "{{ playbook_dir }}/resources/eastha/backend.yaml"
+            - "{{ playbook_dir }}/resources/eastha/site.yaml"
+            - "{{ playbook_dir }}/resources/eastha/connector.yaml"
           when:
-            - "'east_ha' in inventory_hostname"
+            - "'east' in inventory_hostname"
 
-        - name: "[ HATest - Teardown ] Removing Skupper resources from west namespace"
+        - name: "[ HATest - Teardown ] Removing Skupper resources from westha namespace"
           skupper.v2.resource:
             kubeconfig: "{{ kubeconfig }}"
             path: "{{ item }}"
             namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
             state: absent
           with_items:
-            - "{{ playbook_dir }}/resources/west_ha/site.yaml"
-            - "{{ playbook_dir }}/resources/west_ha/listener.yaml"
+            - "{{ playbook_dir }}/resources/westha/site.yaml"
+            - "{{ playbook_dir }}/resources/westha/listener.yaml"
           when:
-            - "'west_ha' in inventory_hostname"
+            - "'west' in inventory_hostname"
 
-        - name: "[ HATest - Teardown ] Removing the AccessGrant west-ha-grant in namespace west_ha"
+        - name: "[ HATest - Teardown ] Removing the AccessGrant west-ha-grant in namespace westha"
           command: "kubectl -n {{ namespace_prefix }}-{{ namespace_name }} delete AccessGrant west-ha-grant --kubeconfig {{ kubeconfig }}"
           register: out
           failed_when: out.failed and 'not exists' not in out.stderr_lines[0]
           when:
-            - "'west_ha' in inventory_hostname"
+            - "'west' in inventory_hostname"
 
-        - name: "[ HATest - Teardown ] Removing the AccessToken token-west-ha-grant in namespace east_ha"
+        - name: "[ HATest - Teardown ] Removing the AccessToken token-west-ha-grant in namespace eastha"
           command: "kubectl -n {{ namespace_prefix }}-{{ namespace_name }} delete AccessToken token-west-ha-grant --kubeconfig {{ kubeconfig }}"
           register: out
           failed_when: out.failed and 'not exists' not in out.stderr_lines[0]
           when:
-            - "'east_ha' in inventory_hostname"
+            - "'east' in inventory_hostname"
 
         - name: "[ HATest - Teardown ] Removing the namespaces"
           command: "kubectl delete namespace {{ item }} --kubeconfig {{ kubeconfig }}"
           with_items:
-            - "east_ha"
-            - "west_ha"
+            - "{{ namespace_prefix }}-eastha"
+            - "{{ namespace_prefix }}-westha"
           register: out
-          failed_when: out.failed and not exists' not in out.stderr_lines[0]
+          failed_when: out.failed and 'not exists' not in out.stderr_lines
           when:
            - remove_namespaces | default(false) | bool
