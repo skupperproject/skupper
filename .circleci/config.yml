@@ -263,6 +263,15 @@ jobs:
             KUBECONFIG=~/kc.west ./scripts/kind-dev-cluster -n west  \
               --images ociarchive
       - run:
+          name: Cluster E2E
+          command: |
+            set -x
+            mkdir -p ~/.kube
+            touch ~/.kube/config
+            KUBECONFIG=~/.kube/config ./scripts/kind-dev-cluster -n west  \
+              --images ociarchive   
+
+      - run:
           name: Initalize Sites
           command: |
             set -x
@@ -307,11 +316,6 @@ jobs:
             kubectl wait listener/backend \
               --timeout=60s \
               '--for=jsonpath={.status.hasMatchingConnector}=true' 
-      - run:
-          name: Cluster E2E
-          command: |
-            set -x
-            cp ~/kc.east KUBECONFIG=~/.kube/config
       - run:
           name: Running E2E Tests
           command: |
