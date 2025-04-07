@@ -62,7 +62,7 @@
           when:
             - "'east' in inventory_hostname"
 
-        - name: "[ HATest - Setup ] Display the output of wait"
+        - name: "[ HATest - Setup ] Display the output of links"
           ansible.builtin.debug:
             var: links_status
           when:
