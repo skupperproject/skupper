@@ -437,6 +437,65 @@ func TestCmdInit(t *testing.T) {
 			assert.Assert(t, len(lcli.routerCreateCalledWith) == 1)
 		})
 }
+func clearAnnotations() {
+	routerCreateOpts = types.SiteConfigSpec{}
+}
+
+func TestCmdInitAnnotations(t *testing.T) {
+	tests := []struct {
+		name                 string
+		args                 []string
+		expectedAnnotations1 map[string]string
+		expectedAnnotations2 map[string]string
+		expectedAnnotations3 map[string]string
+		expectedSeparator    string
+	}{
+		{
+			"routerAddsAnnotations",
+			[]string{"--annotations", "Name=xyz@@test=value=abc",
+				"--annotation-separator", "@@",
+				"--router-service-annotations", "foo=1,2,3@@test=abc",
+				"--router-pod-annotations", "test=abc",
+				"--controller-service-annotation", "foo=1,2,3@@test=abc",
+				"--controller-pod-annotation", "test=abc",
+				"--prometheus-server-pod-annotation", "Name=xyz@@test=value=abc"},
+			map[string]string{"Name": "xyz", "test": "value=abc"},
+			map[string]string{"foo": "1,2,3", "test": "abc"},
+			map[string]string{"test": "abc"},
+			"@@",
+		},
+		{
+			"defaultAnnotations",
+			[]string{},
+			map[string]string{},
+			map[string]string{},
+			map[string]string{},
+			",",
+		},
+	}
+	for _, tc := range tests {
+		skupperCli := NewSkupperTestClient()
+		skupperCli.Cli = &vanClientMock{}
+		cmd := NewCmdInit(skupperCli.Site())
+		lcli := &vanClientMock{}
+		skupperCli.Cli = lcli
+		lcli.injectedReturns.siteConfigInspect.siteConfig = &types.SiteConfig{}
+		defer clearAnnotations()
+
+		t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
+			cmd.ParseFlags(tc.args)
+			err := cmd.RunE(cmd, tc.args)
+			assert.Assert(t, err)
+			assert.Equal(t, routerCreateOpts.AnnotationSeparator, tc.expectedSeparator)
+			assert.Assert(t, reflect.DeepEqual(routerCreateOpts.Annotations, tc.expectedAnnotations1))
+			assert.Assert(t, reflect.DeepEqual(routerCreateOpts.Router.ServiceAnnotations, tc.expectedAnnotations2))
+			assert.Assert(t, reflect.DeepEqual(routerCreateOpts.Router.PodAnnotations, tc.expectedAnnotations3))
+			assert.Assert(t, reflect.DeepEqual(routerCreateOpts.Controller.PodAnnotations, tc.expectedAnnotations3))
+			assert.Assert(t, reflect.DeepEqual(routerCreateOpts.Controller.ServiceAnnotations, tc.expectedAnnotations2))
+			assert.Assert(t, reflect.DeepEqual(routerCreateOpts.PrometheusServer.PodAnnotations, tc.expectedAnnotations1))
+		})
+	}
+}
 
 func TestExpose_NotBinding(t *testing.T) {
 	var err error

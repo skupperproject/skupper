@@ -138,6 +138,7 @@ type SiteConfigSpec struct {
 	RunAsGroup               int64
 	EnableClusterPermissions bool
 	EnableSkupperEvents      bool
+	AnnotationSeparator      string
 }
 
 const (
