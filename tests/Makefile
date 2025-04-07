@@ -55,7 +55,12 @@ test: create-venv
 	@export TEST_PREFIX=$$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 5 | head -n 1); \
 	echo "Running the test for directory: $(TEST) with prefix: $$TEST_PREFIX"; \
 	. /tmp/e2e-venv/bin/activate && \
-	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg ansible-playbook $(ROOT_PATH)/e2e/scenarios/$(TEST)/test.yml -i $(ROOT_PATH)/e2e/scenarios/$(TEST)/inventory $(EXTRA_VARS) -e namespace_prefix=$$TEST_PREFIX
+	mkdir -p /tmp/e2e/$(TEST) && \
+	ANSIBLE_LOG_PATH=/tmp/e2e/$(TEST)/ansible_$$(date +%Y%m%d_%H%M%S).log \
+	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg \
+	ansible-playbook $(ROOT_PATH)/e2e/scenarios/$(TEST)/test.yml \
+	-i $(ROOT_PATH)/e2e/scenarios/$(TEST)/inventory $(EXTRA_VARS) \
+	-e namespace_prefix=$$TEST_PREFIX
 
 # Run all tests in sequence
 e2e-tests:
@@ -67,20 +72,19 @@ e2e-tests:
 	done
 	@echo -e "\n=== All tests completed successfully ==="
 
-# Run a subset of tests (comma-separated list)
+# Run a subset of tests in parallel (comma-separated list)
 test-subset: FORCE=false
 test-subset: create-venv
 	@if [ -z "$(TESTS)" ]; then \
 		echo "TESTS is not set. Please provide a comma-separated list of tests with TESTS=test1,test2,..."; \
 		exit 1; \
 	fi
-	@echo "Running the following tests: $(TESTS)"
-	@for test_name in $$(echo $(TESTS) | tr ',' ' '); do \
-		echo "\n=== Running test: $$test_name ==="; \
-		$(MAKE) test TEST="$$test_name" || exit 1; \
-	done
-	@echo -e "\n=== All specified tests completed successfully ==="
-
+	@echo "Running the following tests in parallel: $(TESTS)"
+	@for test in `echo $(TESTS) | tr ',' ' '`; do \
+		$(MAKE) -j1 test TEST="$$test" & \
+	done; \
+	wait; \
+	echo -e "\n=== All specified tests completed successfully ==="
 
 # Run a subset of tests (comma-separated list) for CI
 ci-tests: TESTS=hello-world,attached-connector
