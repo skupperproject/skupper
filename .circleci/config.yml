@@ -266,8 +266,6 @@ jobs:
           name: Cluster E2E
           command: |
             set -x
-            mkdir -p ~/.kube
-            touch ~/.kube/config
             KUBECONFIG=~/.kube/config ./scripts/kind-dev-cluster -n west  \
               --images ociarchive   
 
