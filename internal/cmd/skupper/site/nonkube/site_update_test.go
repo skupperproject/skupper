@@ -176,7 +176,6 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 		args                            []string
 		namespace                       string
 		flags                           common.CommandSiteUpdateFlags
-		expectedSettings                map[string]string
 		expectedLinkAccess              bool
 		expectedNamespace               string
 		expectedSubjectAlternativeNames []string
@@ -186,12 +185,9 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:  "options without link access disabled",
-			args:  []string{"my-site"},
-			flags: common.CommandSiteUpdateFlags{BindHost: "test"},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:                            "options without link access disabled",
+			args:                            []string{"my-site"},
+			flags:                           common.CommandSiteUpdateFlags{BindHost: "test"},
 			expectedLinkAccess:              false,
 			expectedNamespace:               "default",
 			expectedBindHost:                "",
@@ -199,12 +195,9 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 			expectedSubjectAlternativeNames: nil,
 		},
 		{
-			name:  "options with link access enabled",
-			args:  []string{"my-site"},
-			flags: common.CommandSiteUpdateFlags{EnableLinkAccess: true, BindHost: "test"},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:                            "options with link access enabled",
+			args:                            []string{"my-site"},
+			flags:                           common.CommandSiteUpdateFlags{EnableLinkAccess: true, BindHost: "test"},
 			expectedLinkAccess:              true,
 			expectedNamespace:               "default",
 			expectedBindHost:                "test",
@@ -212,13 +205,10 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 			expectedSubjectAlternativeNames: nil,
 		},
 		{
-			name:      "options without enable link access and subject alternative names",
-			args:      []string{"my-site"},
-			namespace: "test4",
-			flags:     common.CommandSiteUpdateFlags{EnableLinkAccess: false, BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:                            "options without enable link access and subject alternative names",
+			args:                            []string{"my-site"},
+			namespace:                       "test4",
+			flags:                           common.CommandSiteUpdateFlags{EnableLinkAccess: false, BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
 			expectedLinkAccess:              false,
 			expectedNamespace:               "test4",
 			expectedBindHost:                "",
@@ -226,13 +216,10 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 			expectedRouterAccessName:        "router-access-my-site",
 		},
 		{
-			name:      "options with enable link access and subject alternative names",
-			args:      []string{"my-site"},
-			namespace: "test4",
-			flags:     common.CommandSiteUpdateFlags{EnableLinkAccess: true, BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:                            "options with enable link access and subject alternative names",
+			args:                            []string{"my-site"},
+			namespace:                       "test4",
+			flags:                           common.CommandSiteUpdateFlags{EnableLinkAccess: true, BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
 			expectedLinkAccess:              true,
 			expectedNamespace:               "test4",
 			expectedSubjectAlternativeNames: []string{"test"},
@@ -254,7 +241,6 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 
 			cmd.InputToOptions()
 
-			assert.DeepEqual(t, cmd.options, test.expectedSettings)
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
 			assert.Check(t, cmd.bindHost == test.expectedBindHost)
 			assert.Check(t, cmd.linkAccessEnabled == test.expectedLinkAccess)

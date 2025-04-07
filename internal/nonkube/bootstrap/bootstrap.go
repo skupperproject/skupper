@@ -20,6 +20,7 @@ type Config struct {
 	InputPath      string
 	Namespace      string
 	BundleStrategy string
+	BundleName     string
 	IsBundle       bool
 	Platform       types.Platform
 	Binary         string
@@ -40,7 +41,7 @@ func PreBootstrap(config *Config) error {
 			config.InputPath = existingPath
 			fmt.Printf("Sources will be consumed from namespace %q\n", config.Namespace)
 		} else {
-			fmt.Printf("Input path has not been provided and namespace %s does not exist\n", config.Namespace)
+			fmt.Printf("Namespace %q does not exist\n", config.Namespace)
 			return fmt.Errorf("No sources found at: %s\n", path.Join(api.GetHostNamespaceHome(config.Namespace), string(api.InputSiteStatePath)))
 		}
 	} else if inputSourcesDefined && !api.IsRunningInContainer() {
@@ -124,6 +125,7 @@ func Bootstrap(config *Config) (*api.SiteState, error) {
 		siteStateRenderer = &internalbundle.SiteStateRenderer{
 			Strategy: internalbundle.BundleStrategy(config.BundleStrategy),
 			Platform: config.Platform,
+			FileName: config.BundleName,
 		}
 	} else if config.Platform == types.PlatformLinux {
 		siteStateRenderer = &linux.SiteStateRenderer{}
@@ -173,9 +175,9 @@ func PostBootstrap(config *Config, siteState *api.SiteState) {
 		fmt.Printf("Definition is available at: %s\n", sourcesPath)
 	} else {
 		siteHome := api.GetHostBundlesPath()
-		installationFile := path.Join(siteHome, fmt.Sprintf("skupper-install-%s.sh", siteState.Site.Name))
+		installationFile := path.Join(siteHome, fmt.Sprintf("%s.sh", config.BundleName))
 		if internalbundle.GetBundleStrategy(config.BundleStrategy) == string(internalbundle.BundleStrategyTarball) {
-			installationFile = path.Join(siteHome, fmt.Sprintf("skupper-install-%s.tar.gz", siteState.Site.Name))
+			installationFile = path.Join(siteHome, fmt.Sprintf("%s.tar.gz", config.BundleName))
 		}
 		fmt.Println("Installation bundle available at:", installationFile)
 		fmt.Println("Default namespace:", siteState.GetNamespace())

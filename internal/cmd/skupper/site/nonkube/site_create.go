@@ -21,7 +21,6 @@ type CmdSiteCreate struct {
 	routerAccessHandler     *fs.RouterAccessHandler
 	CobraCmd                *cobra.Command
 	Flags                   *common.CommandSiteCreateFlags
-	options                 map[string]string
 	siteName                string
 	linkAccessEnabled       bool
 	namespace               string
@@ -101,10 +100,6 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 		cmd.routerAccessName = "router-access-" + cmd.siteName
 		cmd.subjectAlternativeNames = cmd.Flags.SubjectAlternativeNames
 	}
-	options := make(map[string]string)
-	options[common.SiteConfigNameKey] = cmd.siteName
-
-	cmd.options = options
 
 	if cmd.namespace == "" {
 		cmd.namespace = "default"
@@ -121,9 +116,6 @@ func (cmd *CmdSiteCreate) Run() error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmd.siteName,
 			Namespace: cmd.namespace,
-		},
-		Spec: v2alpha1.SiteSpec{
-			Settings: cmd.options,
 		},
 	}
 

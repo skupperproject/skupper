@@ -28,6 +28,7 @@ type SiteStateRenderer struct {
 	containers      map[string]container.Container
 	Strategy        BundleStrategy
 	Platform        types.Platform
+	FileName        string
 }
 
 func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) error {
@@ -168,12 +169,14 @@ func (s *SiteStateRenderer) createBundle() error {
 			SiteName:   s.siteState.Site.Name,
 			Namespace:  s.siteState.GetNamespace(),
 			OutputPath: bundlesHomeDir,
+			Filename:   s.FileName,
 		}
 	default:
 		generator = &SelfExtractingBundle{
 			SiteName:   s.siteState.Site.Name,
 			Namespace:  s.siteState.GetNamespace(),
 			OutputPath: bundlesHomeDir,
+			Filename:   s.FileName,
 		}
 	}
 	logger.Debug("generating bundle:", slog.String("path", bundlesHomeDir), slog.String("site", s.siteState.Site.Name))

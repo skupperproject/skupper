@@ -19,23 +19,27 @@ func TestCmdSystemFactory(t *testing.T) {
 
 	testTable := []test{
 		{
-			name: "CmdSystemSetupFactory",
-			expectedFlagsWithDefaultValue: map[string]interface{}{
-				common.FlagNamePath:     "",
-				common.FlagNameStrategy: "",
-				common.FlagNameForce:    "false",
-			},
-			command: CmdSystemSetupFactory(common.PlatformKubernetes),
-		},
-		{
-			name:                          "CmdSystemReloadFactory",
+			name:                          "CmdSystemStartFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{},
-			command:                       CmdSystemReloadFactory(common.PlatformKubernetes),
+			command:                       CmdSystemStartFactory(common.PlatformPodman),
 		},
 		{
 			name:                          "CmdSystemStopFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{},
-			command:                       CmdSystemStopFactory(common.PlatformKubernetes),
+			command:                       CmdSystemStopFactory(common.PlatformPodman),
+		},
+		{
+			name:                          "CmdSystemReloadFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{},
+			command:                       CmdSystemReloadFactory(common.PlatformPodman),
+		},
+		{
+			name: "CmdSystemGenerateBundleFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameInput: "",
+				common.FlagNameType:  "tarball",
+			},
+			command: CmdSystemGenerateBundleFactory(common.PlatformPodman),
 		},
 		{
 			name:                          "CmdSystemInstallFactory",
