@@ -3,17 +3,17 @@ if [ -f "/tmp/stop-killing-router-pod" ]; then
     rm "/tmp/stop-killing-router-pod"
 fi
 
-JOBSTATUS=$(oc --kubeconfig {{ kubeconfig_1 }} -n {{ namespace_prefix }}-westha get job locust-job  -o custom-columns=COMPLETED:.status.succeeded,ERROR:.status.failed --no-headers | grep -c "1")
+JOBSTATUS=$(kubectl --kubeconfig {{ kubeconfig_1 }} -n {{ namespace_prefix }}-westha get job locust-job  -o custom-columns=COMPLETED:.status.succeeded,ERROR:.status.failed --no-headers | grep -c "1")
 if [ "${JOBSTATUS}" == "1" ]; then
     echo "[**********] The Locust Job has already ended, No need to kill any router pod [**********]"
     exit 0 
 fi
 
 while [ ! -f /tmp/stop-killing-router-pod ]; do
-    POD1KILL=$(oc --kubeconfig {{ kubeconfig_1 }} -n {{ namespace_prefix }}-westha get pods -l application=skupper-router --no-headers=true | grep "Running" | grep "2/2" | grep -v "2-" | cut -d " " -f 1)
+    POD1KILL=$(kubectl --kubeconfig {{ kubeconfig_1 }} -n {{ namespace_prefix }}-westha get pods -l application=skupper-router --no-headers=true | grep "Running" | grep "2/2" | grep -v "2-" | cut -d " " -f 1)
     if [ ! -z "${POD1KILL}" ]; then
         echo "killing router pod-1 ${POD1KILL}"
-        oc --kubeconfig {{ kubeconfig_1 }} -n {{ namespace_prefix }}-westha delete pod ${POD1KILL}
+        kubectl --kubeconfig {{ kubeconfig_1 }} -n {{ namespace_prefix }}-westha delete pod ${POD1KILL}
     fi	
 
     echo "Waiting for a new POD1 instance to be Ready"
@@ -22,10 +22,10 @@ while [ ! -f /tmp/stop-killing-router-pod ]; do
     echo "Waiting for links in Ready state"
     kubectl --kubeconfig {{ hostvars.eastha.kubeconfig_2 }} wait --for=condition=Ready=true links --all -n {{ namespace_prefix }}-eastha
 
-    POD2KILL=$(oc --kubeconfig {{ kubeconfig_1 }} -n {{ namespace_prefix }}-westha get pods -l application=skupper-router --no-headers=true | grep "Running" | grep "2/2" | grep "2-" | cut -d " " -f 1)
+    POD2KILL=$(kubectl --kubeconfig {{ kubeconfig_1 }} -n {{ namespace_prefix }}-westha get pods -l application=skupper-router --no-headers=true | grep "Running" | grep "2/2" | grep "2-" | cut -d " " -f 1)
     if [ ! -z "${POD2KILL}" ]; then
         echo "killing router pod-2 ${POD2KILL}"
-        oc --kubeconfig {{ kubeconfig_1 }} -n {{ namespace_prefix }}-westha delete pod ${POD2KILL}
+        kubectl --kubeconfig {{ kubeconfig_1 }} -n {{ namespace_prefix }}-westha delete pod ${POD2KILL}
     fi	
 
     echo "Waiting for a new POD2 instance to be Ready"
@@ -34,7 +34,7 @@ while [ ! -f /tmp/stop-killing-router-pod ]; do
     echo "Waiting for links in Ready state"
     kubectl --kubeconfig {{ hostvars.eastha.kubeconfig_2 }} wait --for=condition=Ready=true links --all -n {{ namespace_prefix }}-eastha
 
-    JOBSTATUS=$(oc --kubeconfig {{ kubeconfig_1 }} -n {{ namespace_prefix }}-westha get job locust-job  -o custom-columns=COMPLETED:.status.succeeded,ERROR:.status.failed --no-headers | grep -c "1")
+    JOBSTATUS=$(kubectl --kubeconfig {{ kubeconfig_1 }} -n {{ namespace_prefix }}-westha get job locust-job  -o custom-columns=COMPLETED:.status.succeeded,ERROR:.status.failed --no-headers | grep -c "1")
     if [ "${JOBSTATUS}" == "1" ]; then
         echo "The Locust Job has ended, we can stop killing the router pod"
         touch "/tmp/stop-killing-router-pod"
