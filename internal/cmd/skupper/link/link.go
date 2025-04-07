@@ -34,8 +34,8 @@ func CmdLinkGenerateFactory(configuredPlatform common.Platform) *cobra.Command {
 
 	cmdLinkGenerateDesc := common.SkupperCmdDescription{
 		Use:   "generate",
-		Short: "Generate a new link resource and save it as a YAML file, unless explicitly specified otherwise using the `--output` flag.",
-		Long: `Generate a new link resource and save it as a YAML file, unless explicitly specified otherwise using the --output flag. The resultant
+		Short: "Generate a new link resource as a YAML output, unless explicitly specified otherwise using the `--output` flag.",
+		Long: `Generate a new link resource as a YAML output, unless explicitly specified otherwise using the --output flag. The resultant
 output needs to be applied in the site in which we want to create the link.`,
 	}
 
