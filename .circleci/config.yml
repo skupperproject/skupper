@@ -180,11 +180,6 @@ workflows:
           requires:
             - build-oci-images
             - build-all
-      - e2e-ansile:
-          <<: *run_for_all_branches
-          requires:
-            - build-oci-images
-            - build-all            
       - publish-oci-images:
           <<: *run_for_v2_branch
           <<: *v2_release_requires
@@ -312,23 +307,11 @@ jobs:
             kubectl wait listener/backend \
               --timeout=60s \
               '--for=jsonpath={.status.hasMatchingConnector}=true' 
-  e2e-ansible:
-    executor: local_cluster_test_executor
-    steps:
-      - checkout
-      - kubectl-install
-      - kind-install
-      - attach_workspace:
-          at: .
-      - run:
-          name: Cloud Provider Kind
-          background: true
-          command: cloud-provider-kind
       - run:
           name: Cluster E2E
           command: |
             set -x
-            KUBECONFIG=~/.kube/config ./scripts/kind-dev-cluster -n e2e-tests \
+            KUBECONFIG=~/.kube/config ./scripts/kind-dev-cluster -r -n e2e-tests \
               --images ociarchive
       - run:
           name: Running E2E Tests
