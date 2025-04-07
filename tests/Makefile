@@ -1,6 +1,7 @@
 ROOT_PATH := $(shell pwd)
 EXTRA_VARS := --extra-vars "@$(ROOT_PATH)/vars.yml"
 COLLECTION_PATH := $(ROOT_PATH)/e2e/collections/ansible_collections/e2e/tests
+TESTS_CI := hello-world,attached-connector
 
 # E2E Test directories
 E2E_TEST_DIRS := $(sort $(wildcard $(ROOT_PATH)/e2e/scenarios/*))
@@ -87,5 +88,5 @@ test-subset: create-venv
 	echo -e "\n=== All specified tests completed successfully ==="
 
 # Run a subset of tests (comma-separated list) for CI
-ci-tests: TESTS=hello-world,attached-connector
+ci-tests: TESTS=$(TESTS_CI)
 ci-tests: test-subset
