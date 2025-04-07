@@ -10,4 +10,4 @@ kubectl apply -f "https://github.com/skupperproject/skupper/releases/download/$S
 kubectl apply -f "https://github.com/skupperproject/skupper/releases/download/$SKUPPER_VERSION/skupper-namespace-scope.yaml"
 ```
 
-You can also install 
+You can also install using [Helm charts](../../charts/README.md).
