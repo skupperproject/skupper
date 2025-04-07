@@ -31,6 +31,14 @@ func TestCmdLinkFactory(t *testing.T) {
 			command: CmdLinkGenerateFactory(common.PlatformKubernetes),
 		},
 		{
+			name: "CmdLinkGenerateFactory_non_kube",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameLinkName: "",
+				common.FlagNameLinkHost: "",
+			},
+			command: CmdLinkGenerateFactory(common.PlatformDocker),
+		},
+		{
 			name: "CmdLinkUpdateFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameTlsCredentials: "",
