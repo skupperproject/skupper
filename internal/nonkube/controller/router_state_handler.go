@@ -63,10 +63,10 @@ func (h *RouterStateHandler) run() {
 	hbClient.Start(h.stopCh, h.callback)
 	select {
 	case <-h.stopCh:
-		fmt.Println("exiting router state handler (parent stopped)")
+		h.logger.Debug("exiting router state handler (parent stopped)")
 		return
 	case <-h.runningCh:
-		fmt.Println("exiting router state handler (user request)")
+		h.logger.Debug("exiting router state handler (user request)")
 		return
 	}
 }

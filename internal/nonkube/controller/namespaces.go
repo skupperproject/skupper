@@ -2,7 +2,7 @@ package controller
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path"
 	"strings"
@@ -13,12 +13,15 @@ import (
 )
 
 type NamespacesHandler struct {
+	logger     *slog.Logger
 	basePath   string
 	watcher    *fs.FileWatcher
 	namespaces map[string]*NamespaceController
+	mutex      *sync.Mutex
 }
 
 func (n *NamespacesHandler) OnAdd(basePath string) {
+	slog.Info("Adding namespace", slog.String("path", basePath))
 }
 
 func NewNamespacesHandler() (*NamespacesHandler, error) {
@@ -28,6 +31,9 @@ func NewNamespacesHandler() (*NamespacesHandler, error) {
 	nsh := &NamespacesHandler{
 		basePath:   basePath,
 		namespaces: make(map[string]*NamespaceController),
+		mutex:      &sync.Mutex{},
+		logger: slog.Default().
+			With("component", "namespaces.handler"),
 	}
 	nsh.watcher, err = fs.NewWatcher()
 	if err != nil {
@@ -50,7 +56,7 @@ func (n *NamespacesHandler) Start(stop chan struct{}, wg *sync.WaitGroup) error 
 
 func (n *NamespacesHandler) wait(stop chan struct{}, wg *sync.WaitGroup) {
 	<-stop
-	log.Println("Stopping namespaces watcher")
+	slog.Info("Stopping namespaces watcher")
 	for _, nsh := range n.namespaces {
 		nsh.Stop()
 	}
@@ -81,32 +87,39 @@ func (n *NamespacesHandler) namespace(name string) (string, bool) {
 }
 
 func (n *NamespacesHandler) OnCreate(name string) {
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
 	if name == n.basePath {
-		log.Println("Base path created, starting namespaces watcher")
+		slog.Info("Base path created, starting namespaces watcher")
 		if err := n.loadExistingNamespaces(); err != nil {
-			log.Printf("failed to create watchers for existing namespaces: %v", err)
+			slog.Info("failed to create watchers for existing namespaces", slog.Any("error", err))
 		}
 		return
 	}
 	ns, isDir := n.namespace(name)
 	if !isDir {
+		slog.Debug("ignoring non-namespace file", slog.Any("name", name))
 		return
 	}
 	if _, ok := n.namespaces[ns]; !ok {
-		log.Println("Start watching namespace", ns)
-		nsw, err := NewNamespaceController(ns)
+		slog.Info("Starting namespace controller", slog.String("namespace", ns))
+		nsc, err := NewNamespaceController(ns)
 		if err != nil {
-			log.Printf("Unable to watch namespace: %s", err)
+			slog.Error("Unable to start namespace controller",
+				slog.String("namespace", ns),
+				slog.Any("error", err))
 		}
-		n.namespaces[ns] = nsw
-		nsw.Start()
+		n.namespaces[ns] = nsc
+		nsc.Start()
 	}
 
 }
 
 func (n *NamespacesHandler) OnRemove(name string) {
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
 	if n.basePath == name {
-		log.Printf("Base namespace path removed, stopping all namespace watchers: %q", n.basePath)
+		slog.Info("Base namespace path removed, stopping all namespace watchers", slog.String("path", n.basePath))
 		return
 	}
 	ns, _ := n.namespace(name)
@@ -114,13 +127,14 @@ func (n *NamespacesHandler) OnRemove(name string) {
 		return
 	}
 	if nsw, ok := n.namespaces[ns]; ok {
-		log.Println("Stopping namespace watcher", ns)
+		slog.Info("Stopping namespace watcher", slog.Any("namespace", ns))
 		nsw.Stop()
 		delete(n.namespaces, ns)
 	}
 }
 
 func (n *NamespacesHandler) Filter(name string) bool {
+	slog.Info("Filtering namespace", slog.String("name", name))
 	return true
 }
 
