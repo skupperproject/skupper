@@ -311,8 +311,7 @@ jobs:
           name: Cluster E2E
           command: |
             set -x
-            KUBECONFIG=~/.kube/config ./scripts/kind-dev-cluster -n e2e-tests \
-              --images ociarchive
+            cp ~/kc.east KUBECONFIG=~/.kube/config
       - run:
           name: Running E2E Tests
           command: |
