@@ -12,9 +12,17 @@ RUN go mod download
 COPY . .
 RUN make GOOS=$TARGETOS GOARCH=$TARGETARCH
 
-FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
+FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9:latest AS packager
 
-RUN microdnf -y install openssl && microdnf clean all
+RUN dnf -y --setopt=install_weak_deps=0 --nodocs \
+    --installroot /output install \
+    coreutils-single \
+    openssl \
+ && dnf clean all --installroot /output
+
+FROM scratch
+
+COPY --from=packager /output /
 
 WORKDIR /app
 COPY --from=builder /go/src/app/test/integration/bin ./

@@ -11,11 +11,19 @@ COPY . .
 
 RUN make GOOS=$TARGETOS GOARCH=$TARGETARCH
 
-FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
+FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9:latest AS packager
 
 # Create user and group and switch to user's context
-RUN microdnf -y install shadow-utils \
-&& microdnf clean all
+RUN dnf -y --setopt=install_weak_deps=0 --nodocs \
+    --installroot /output install \
+    coreutils-single \
+    shadow-utils \
+ && dnf clean all --installroot /output
+
+FROM scratch
+
+COPY --from=packager /output /
+
 RUN useradd --uid 10000 runner
 USER 10000
 
