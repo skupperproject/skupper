@@ -4,8 +4,10 @@ This example demonstrates how to connect two sites declaratively, without relyin
 
 ## Installing the skupper controller
 
-The controller can be installed using the Helm chart, with detailed instructions provided
- [here](https://github.com/skupperproject/skupper/blob/main/charts/README.md)  
+The controller can be installed using:
+
+* [YAML](../README.md)
+* [Helm chart](../../../charts/README.md)  
 
 ## Deploy application in two namespaces (or contexts)
 
