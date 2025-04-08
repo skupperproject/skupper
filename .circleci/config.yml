@@ -312,8 +312,8 @@ jobs:
           command: |
             set -x
             cd tests
-            export kubeconfig_1=~/kc.west
-            export kubeconfig_2=~/kc.east
+            mkdir ~/.kube
+            cp ~/kc.west ~/.kube/config
             make ci-tests
 
   generate-manifest:
