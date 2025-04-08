@@ -43,14 +43,18 @@ type FileWatcher struct {
 	handlerMap  map[string][]FSChangeHandler
 }
 
-func NewWatcher() (*FileWatcher, error) {
+func NewWatcher(attrs ...slog.Attr) (*FileWatcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
 	}
+	logger := slog.Default().With(slog.String("component", "pkg.fs.FileWatcher"))
+	for _, attr := range attrs {
+		logger = logger.With(slog.Any(attr.Key, attr.Value))
+	}
 	return &FileWatcher{
 		watcher:    watcher,
-		logger:     slog.Default().With(slog.String("component", "pkg.fs.FileWatcher")),
+		logger:     logger,
 		refresh:    make(chan bool),
 		triggerCh:  make(chan eventTrigger),
 		handlerMap: map[string][]FSChangeHandler{},
@@ -96,6 +100,7 @@ func (w *FileWatcher) processEvents(stopCh <-chan struct{}) {
 			case event.Has(fsnotify.Create):
 				for _, handler := range handlers {
 					//go handler.OnCreate(event.Name)
+					w.logger.Debug("OnCreate", slog.String("name", event.Name))
 					w.triggerCh <- eventTrigger{
 						operation: handler.OnCreate,
 						name:      event.Name,
@@ -103,7 +108,7 @@ func (w *FileWatcher) processEvents(stopCh <-chan struct{}) {
 				}
 			case event.Has(fsnotify.Write):
 				for _, handler := range handlers {
-					w.logger.Info("OnUpdate", slog.String("name", event.Name))
+					w.logger.Debug("OnUpdate", slog.String("name", event.Name))
 					//go handler.OnUpdate(event.Name)
 					w.triggerCh <- eventTrigger{
 						operation: handler.OnUpdate,
@@ -112,7 +117,7 @@ func (w *FileWatcher) processEvents(stopCh <-chan struct{}) {
 				}
 			case event.Has(fsnotify.Remove):
 				for _, handler := range handlers {
-					w.logger.Info("OnRemove", slog.String("name", event.Name))
+					w.logger.Debug("OnRemove", slog.String("name", event.Name))
 					//go handler.OnRemove(event.Name)
 					w.triggerCh <- eventTrigger{
 						operation: handler.OnRemove,
@@ -135,10 +140,27 @@ func (w *FileWatcher) processEvents(stopCh <-chan struct{}) {
 }
 
 func (w *FileWatcher) dispatchTriggers(stopCh <-chan struct{}) {
+	triggerTimeout := time.Millisecond * 100
+	var timeoutTicker *time.Ticker
+
 	for {
 		select {
 		case event := <-w.triggerCh:
-			go event.operation(event.name)
+			done := make(chan bool)
+			go func() {
+				event.operation(event.name)
+				close(done)
+			}()
+			timeoutTicker = time.NewTicker(triggerTimeout)
+			select {
+			case <-done:
+				timeoutTicker.Stop()
+				continue
+			case <-timeoutTicker.C:
+				w.logger.Warn("event trigger timed out",
+					slog.String("name", event.name),
+					slog.Any("handler", event.operation))
+			}
 		case <-stopCh:
 			return
 		}
@@ -191,7 +213,7 @@ func (w *FileWatcher) manageWatchers() {
 						slog.String("path", path),
 						slog.String("error", err.Error()))
 				}
-				w.logger.Info("monitored path removed",
+				w.logger.Info("Monitored path removed",
 					slog.String("path", path))
 			}
 			continue
@@ -223,10 +245,16 @@ func (w *FileWatcher) manageWatchers() {
 			existingFilesAndDirectories = append(existingFilesAndDirectories, path)
 		}
 		for _, handler := range handlers {
-			go handler.OnBasePathAdded(path)
+			w.triggerCh <- eventTrigger{
+				operation: handler.OnBasePathAdded,
+				name:      path,
+			}
 			for _, existingPath := range existingFilesAndDirectories {
 				if handler.Filter(existingPath) {
-					go handler.OnCreate(existingPath)
+					w.triggerCh <- eventTrigger{
+						operation: handler.OnCreate,
+						name:      existingPath,
+					}
 				}
 			}
 		}
@@ -244,6 +272,7 @@ func (w *FileWatcher) Add(name string, handler FSChangeHandler) {
 	}
 	w.logger.Info("Adding new handler",
 		slog.String("path", name))
+
 	w.handlerMap[name] = append(handlers, handler)
 	if w.started {
 		w.refresh <- true

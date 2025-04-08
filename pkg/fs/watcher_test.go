@@ -3,10 +3,9 @@ package fs
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -19,7 +18,10 @@ import (
 	"k8s.io/utils/strings/slices"
 )
 
-const tempDirPattern = "test.filewatcher.*"
+const (
+	tempDirPattern        = "test.filewatcher.*"
+	counterHandlerTimeout = 101 * time.Millisecond
+)
 
 type operation int
 
@@ -38,7 +40,7 @@ func TestFileWatcher(t *testing.T) {
 	}
 	var pathBefore = &pathTester{handler: newCounterHandler(filterTxt)}
 	var pathAfter = &pathTester{handler: newCounterHandler(filterTxt)}
-	//var pathAfterClone *pathTester
+	var pathAfterClone = &pathTester{handler: newCounterHandler(filterTxt)}
 
 	defer func() {
 		var err error
@@ -52,7 +54,7 @@ func TestFileWatcher(t *testing.T) {
 	}()
 
 	t.Run("create-watcher", func(t *testing.T) {
-		w, err = NewWatcher()
+		w, err = NewWatcher(slog.String("owner", "test.watcher"))
 		assert.Assert(t, err)
 	})
 
@@ -96,12 +98,74 @@ func TestFileWatcher(t *testing.T) {
 		validateOperation(t, pathAfter, updated, 2)
 	})
 
+	t.Run("delete-files-path-after", func(t *testing.T) {
+		assert.Assert(t, pathAfter.remove())
+		validateOperation(t, pathAfter, removed, 1)
+	})
+
+	t.Run("add-second-handler-to-path-after", func(t *testing.T) {
+		pathAfterClone.path = pathAfter.path
+		pathAfterClone.files = pathAfter.files
+		w.Add(pathAfterClone.path, pathAfterClone.handler)
+		assert.Assert(t, pathAfter.create())
+		assert.Assert(t, pathAfter.update())
+	})
+
+	t.Run("validate-path-after-handlers", func(t *testing.T) {
+		validateOperation(t, pathAfterClone, created, 1)
+		validateOperation(t, pathAfter, created, 2)
+		validateOperation(t, pathAfterClone, updated, 1)
+		validateOperation(t, pathAfter, updated, 3)
+	})
+
+	t.Run("remove-files-path-after", func(t *testing.T) {
+		assert.Assert(t, pathAfter.remove())
+		validateOperation(t, pathAfter, removed, 2)
+		validateOperation(t, pathAfterClone, removed, 1)
+	})
+
+	t.Run("multi-add-delete-path-after", func(t *testing.T) {
+		pathAfter.handler.reset()
+		pathAfterClone.handler.reset()
+		expectedCalled := 100
+		for i := 0; i < expectedCalled; i++ {
+			assert.Assert(t, pathAfter.create())
+			assert.Assert(t, pathAfter.remove())
+		}
+		validateOperation(t, pathAfter, created, expectedCalled)
+		validateOperation(t, pathAfterClone, created, expectedCalled)
+		validateOperation(t, pathAfter, removed, expectedCalled)
+		validateOperation(t, pathAfterClone, removed, expectedCalled)
+	})
+
+	t.Run("remove-path-before-basedir", func(t *testing.T) {
+		assert.Assert(t, pathBefore.remove())
+		validateOperation(t, pathBefore, removed, 1)
+		// removing basedir and adding
+		assert.Assert(t, pathBefore.rmBasePath())
+		validateOperation(t, pathBefore, removed, 1)
+	})
+
+	t.Run("add-path-before-basedir", func(t *testing.T) {
+		pathBefore.handler.reset()
+		assert.Assert(t, pathBefore.mkBasePath())
+		assert.Assert(t, pathBefore.create())
+		validateOperation(t, pathBefore, created, 1)
+	})
+
+	t.Run("path-before-timeout", func(t *testing.T) {
+		pathBefore.handler.setTimeout(true)
+		assert.Assert(t, pathBefore.remove())
+		validateOperation(t, pathBefore, removed, 1)
+	})
+
 	t.Run("stop-watcher", func(t *testing.T) {
 		close(stop)
 	})
 }
 
 func validateOperation(t *testing.T, pt *pathTester, op operation, expectCalled int) {
+	t.Helper()
 	var m func(string) int
 	var method string
 	var verb string
@@ -119,7 +183,7 @@ func validateOperation(t *testing.T, pt *pathTester, op operation, expectCalled 
 		method = "OnRemove"
 		verb = "removed"
 	}
-	assert.Assert(t, utils.RetryError(time.Millisecond*200, 10, func() error {
+	assert.Assert(t, utils.RetryError(time.Millisecond*100, 10, func() error {
 		totalFiltered := 0
 		expectedFiles := slices.Filter(nil, pt.files, pt.handler.filter)
 		for _, fileName := range expectedFiles {
@@ -185,6 +249,9 @@ func (p *pathTester) rmBasePath() error {
 
 func (p *pathTester) create() error {
 	for _, file := range p.files {
+		if _, err := os.Stat(file); err == nil {
+			return fmt.Errorf("file %q already exists and cannot be created", file)
+		}
 		f, err := os.Create(file)
 		if err != nil {
 			return err
@@ -220,7 +287,7 @@ func (p *pathTester) update() error {
 
 func (p *pathTester) remove() error {
 	for _, filePath := range p.files {
-		if err := os.Remove(filePath); err != nil {
+		if err := os.RemoveAll(filePath); err != nil {
 			return err
 		}
 	}
@@ -234,6 +301,7 @@ type counterHandler struct {
 	removeMap   map[string]int
 	filter      func(string) bool
 	m           sync.RWMutex
+	timeout     bool
 }
 
 func newCounterHandler(filter func(string) bool) *counterHandler {
@@ -246,10 +314,28 @@ func newCounterHandler(filter func(string) bool) *counterHandler {
 	}
 }
 
+func (t *counterHandler) setTimeout(timeout bool) {
+	t.m.Lock()
+	defer t.m.Unlock()
+	t.timeout = timeout
+}
+
+func (t *counterHandler) reset() {
+	t.m.Lock()
+	defer t.m.Unlock()
+	t.basePathMap = map[string]int{}
+	t.createMap = map[string]int{}
+	t.updateMap = map[string]int{}
+	t.removeMap = map[string]int{}
+}
+
 func (t *counterHandler) OnBasePathAdded(basePath string) {
 	t.m.Lock()
 	defer t.m.Unlock()
 	t.basePathMap[basePath] += 1
+	if t.timeout {
+		time.Sleep(counterHandlerTimeout)
+	}
 }
 
 func (t *counterHandler) GetBasePathAddedCount(basePath string) int {
@@ -262,6 +348,9 @@ func (t *counterHandler) OnCreate(name string) {
 	t.m.Lock()
 	defer t.m.Unlock()
 	t.createMap[name] += 1
+	if t.timeout {
+		time.Sleep(counterHandlerTimeout)
+	}
 }
 
 func (t *counterHandler) GetCreatedCount(basePath string) int {
@@ -274,6 +363,9 @@ func (t *counterHandler) OnUpdate(name string) {
 	t.m.Lock()
 	defer t.m.Unlock()
 	t.updateMap[name] += 1
+	if t.timeout {
+		time.Sleep(counterHandlerTimeout)
+	}
 }
 
 func (t *counterHandler) GetUpdatedCount(basePath string) int {
@@ -286,6 +378,9 @@ func (t *counterHandler) OnRemove(name string) {
 	t.m.Lock()
 	defer t.m.Unlock()
 	t.removeMap[name] += 1
+	if t.timeout {
+		time.Sleep(counterHandlerTimeout)
+	}
 }
 
 func (t *counterHandler) GetRemovedCount(basePath string) int {
@@ -296,255 +391,4 @@ func (t *counterHandler) GetRemovedCount(basePath string) int {
 
 func (t *counterHandler) Filter(name string) bool {
 	return t.filter(name)
-}
-
-func TestFileWatcherOld(t *testing.T) {
-	tests := []struct {
-		name      string
-		addFirst  bool
-		fileCount int
-		actions   []idAction
-		expected  modificationResult
-	}{
-		{
-			name:      "watch-existing-files",
-			fileCount: 10,
-			actions: []idAction{
-				{
-					create: []int{5, 6, 7, 8, 9},
-					delete: []int{5, 6, 7, 8, 9},
-				},
-				{
-					create: []int{5, 6, 7, 8, 9},
-					update: []int{5, 6, 7, 8, 9},
-				},
-				{
-					create: []int{0, 1, 2, 3, 4},
-					update: []int{0, 1, 2, 3, 4},
-				},
-				{
-					update: []int{5, 6, 7, 8, 9},
-					delete: []int{5, 6, 7, 8, 9},
-				},
-			},
-			expected: modificationResult{
-				created: map[int]int{0: 1, 1: 1, 2: 1, 3: 1, 4: 1, 5: 2, 6: 2, 7: 2, 8: 2, 9: 2},
-				updated: map[int]int{0: 1, 1: 1, 2: 1, 3: 1, 4: 1, 5: 2, 6: 2, 7: 2, 8: 2, 9: 2},
-				deleted: map[int]int{5: 2, 6: 2, 7: 2, 8: 2, 9: 2},
-			},
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			stopCh := make(chan struct{})
-			defer close(stopCh)
-
-			// create the files first
-			fileIdMap, err := createTempFiles(test.fileCount)
-			assert.Assert(t, err)
-			defer func() {
-				assert.Assert(t, cleanupTemp(fileIdMap))
-			}()
-			t.Logf("Created %d files", len(fileIdMap))
-			t.Logf("fileIdMap: %v", fileIdMap)
-
-			watcher := &ModificationHandler{
-				fileMap: fileIdMap,
-				results: modificationResult{},
-			}
-
-			// defining watchers
-			w, err := NewWatcher()
-			assert.Assert(t, err)
-			if test.addFirst {
-				w.Add(os.TempDir(), watcher)
-			}
-			w.Start(stopCh)
-			if !test.addFirst {
-				w.Add(os.TempDir(), watcher)
-			}
-
-			// process actions
-			assert.Assert(t, processActions(fileIdMap, os.TempDir(), test.actions))
-
-			// validate results
-			watcher.waitDone(test.expected)
-			watcher.mutex.Lock()
-			defer watcher.mutex.Unlock()
-			assert.Equal(t, watcher.basePath, os.TempDir())
-			assert.Equal(t, watcher.onAddCalls, 1)
-			t.Log(watcher.onCreateCalls, watcher.onUpdateCalls, watcher.onRemoveCalls)
-			t.Log(test.expected.created, watcher.results.created)
-			t.Log(test.expected.updated, watcher.results.updated)
-			t.Log(test.expected.deleted, watcher.results.deleted)
-			//assert.DeepEqual(t, test.expected.created, watcher.results.created)
-			//assert.DeepEqual(t, test.expected.updated, watcher.results.updated)
-			//assert.DeepEqual(t, test.expected.deleted, watcher.results.deleted)
-		})
-	}
-}
-
-func createTempFiles(count int) (idMap, error) {
-	fileNames := idMap{}
-	for i := 0; i < count; i++ {
-		f, err := os.CreateTemp(os.TempDir(), "test-file.*")
-		if err != nil {
-			return nil, err
-		}
-		_ = f.Close()
-		fileNames[i] = f.Name()
-		_ = os.Remove(f.Name())
-	}
-	return fileNames, nil
-}
-
-func getFileId(fileMap idMap, fileName string) int {
-	for id, name := range fileMap {
-		if name == fileName {
-			return id
-		}
-	}
-	return -1
-}
-
-type idMap map[int]string
-
-type modificationResult struct {
-	created map[int]int
-	updated map[int]int
-	deleted map[int]int
-}
-type idAction struct {
-	create []int
-	update []int
-	delete []int
-}
-
-type ModificationHandler struct {
-	fileMap       idMap
-	results       modificationResult
-	mutex         sync.Mutex
-	basePath      string
-	onAddCalls    int
-	onCreateCalls int
-	onUpdateCalls int
-	onRemoveCalls int
-}
-
-func (m *ModificationHandler) OnBasePathAdded(basePath string) {
-	log.Println("Base Path:", basePath)
-	m.basePath = basePath
-	m.onAddCalls++
-}
-
-func (m *ModificationHandler) Filter(name string) bool {
-	for _, fileName := range m.fileMap {
-		if fileName == name {
-			return true
-		}
-	}
-	return false
-}
-
-func (m *ModificationHandler) OnCreate(s string) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	log.Println("Create:", s)
-	m.onCreateCalls++
-	if m.results.created == nil {
-		m.results.created = map[int]int{}
-	}
-	m.results.created[getFileId(m.fileMap, s)] += 1
-}
-
-func (m *ModificationHandler) OnUpdate(s string) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	log.Println("Update:", s)
-	m.onUpdateCalls++
-	if m.results.updated == nil {
-		m.results.updated = map[int]int{}
-	}
-	m.results.updated[getFileId(m.fileMap, s)] += 1
-}
-
-func (m *ModificationHandler) OnRemove(s string) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-	log.Println("Remove:", s)
-	m.onRemoveCalls++
-	if m.results.deleted == nil {
-		m.results.deleted = map[int]int{}
-	}
-	m.results.deleted[getFileId(m.fileMap, s)] += 1
-}
-
-func (m *ModificationHandler) waitDone(expected modificationResult) {
-	_ = utils.RetryError(time.Millisecond*200, 10, func() error {
-		m.mutex.Lock()
-		defer m.mutex.Unlock()
-		if reflect.DeepEqual(m.results.created, expected.created) &&
-			reflect.DeepEqual(m.results.updated, expected.updated) &&
-			reflect.DeepEqual(m.results.deleted, expected.deleted) {
-			return nil
-		}
-		return fmt.Errorf("results to not match")
-	})
-}
-
-func processActions(fileIdMap idMap, baseDir string, actions []idAction) error {
-	var err error
-	var f *os.File
-
-	for _, action := range actions {
-		// creating files
-		for _, id := range action.create {
-			name := fileIdMap[id]
-			f, err = os.Create(name)
-			if err != nil {
-				return err
-			}
-			if err = f.Close(); err != nil {
-				return err
-			}
-			fmt.Println("Created file:", name)
-		}
-		// updating files
-		for _, id := range action.update {
-			name := fileIdMap[id]
-			f, err = os.OpenFile(name, os.O_APPEND|os.O_WRONLY, 0644)
-			if err != nil {
-				return err
-			}
-			if _, err = f.WriteString("sample-content\n"); err != nil {
-				return err
-			}
-			if err := f.Sync(); err != nil {
-				return err
-			}
-			if err = f.Close(); err != nil {
-				return err
-			}
-			fmt.Println("Updated file:", name)
-		}
-		// deleting files
-		for _, id := range action.delete {
-			name := fileIdMap[id]
-			if err = os.Remove(name); err != nil {
-				return err
-			}
-			fmt.Println("Deleted file:", name)
-		}
-	}
-	return nil
-}
-
-func cleanupTemp(fileIdMap idMap) error {
-	for _, fileName := range fileIdMap {
-		if err := os.RemoveAll(fileName); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-	}
-	return nil
 }
