@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -619,6 +620,26 @@ func TestUpdate(t *testing.T) {
 				serviceCheck("adifferentsvc", "test").check,
 				negativeServiceCheck("mysvc", "test"),
 			},
+		}, {
+			name: "exposePodsByName handles pod delete",
+			k8sObjects: []runtime.Object{
+				f.skupperNetworkStatus("test", f.networkStatusInfo("mysite", "test", map[string]string{"mysvc": "mysvc", "mysvc.mypod-1": "mysvc@mypod-1", "mysvc.mypod-2": "mysvc@mypod-2"}, map[string]string{"mysvc": "mysvc", "mysvc.mypod-1": "10.1.1.10", "mysvc.mypod-2": "10.1.1.11"}).info()),
+				f.pod("mypod-1", "test", map[string]string{"app": "foo"}, nil, f.podStatus("10.1.1.10", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue))),
+				f.pod("mypod-2", "test", map[string]string{"app": "foo"}, nil, f.podStatus("10.1.1.11", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue))),
+			},
+			skupperObjects: []runtime.Object{
+				f.site("mysite", "test", "", false, false),
+				f.connectorWithExposePodsByName("myconnector", "test", "mysvc", "app=foo", 8080),
+				f.listenerWithExposePodsByName("mylistener", "test", "mysvc", "mysvc", 8080),
+			},
+			functions: []WaitFunction{
+				isConnectorStatusConditionTrue("myconnector", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED),
+				isListenerStatusConditionTrue("mylistener", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED),
+				serviceCheck("mysvc", "test").check,
+				serviceCheck("mypod-1", "test").check,
+				deleteTargetPod("mypod-1", "test"),
+				serviceCheck("mypod-1", "test").checkAbsent,
+			},
 		},
 	}
 	for _, tt := range testTable {
@@ -641,6 +662,7 @@ func TestUpdate(t *testing.T) {
 			for i := 0; i < len(tt.k8sObjects)+len(tt.skupperObjects); i++ {
 				controller.controller.TestProcess()
 			}
+
 			for _, f := range tt.functions {
 				for !f(t, clients) {
 					controller.controller.TestProcess()
@@ -1645,26 +1667,6 @@ func serviceCheck(name string, namespace string) *ServiceCheck {
 	}
 }
 
-func (s *ServiceCheck) selector(selector map[string]string) *ServiceCheck {
-	s.selector_ = selector
-	return s
-}
-
-func (s *ServiceCheck) ports(ports ...corev1.ServicePort) *ServiceCheck {
-	s.ports_ = ports
-	return s
-}
-
-func (s *ServiceCheck) labels(labels map[string]string) *ServiceCheck {
-	s.labels_ = labels
-	return s
-}
-
-func (s *ServiceCheck) annotations(annotations map[string]string) *ServiceCheck {
-	s.annotations_ = annotations
-	return s
-}
-
 func (s *ServiceCheck) check(t *testing.T, clients internalclient.Clients) bool {
 	actual, err := clients.GetKubeClient().CoreV1().Services(s.namespace).Get(context.Background(), s.name, metav1.GetOptions{})
 	assert.Assert(t, err)
@@ -1692,6 +1694,18 @@ func (s *ServiceCheck) check(t *testing.T, clients internalclient.Clients) bool 
 	return true
 }
 
+func (s *ServiceCheck) checkAbsent(t *testing.T, clients internalclient.Clients) bool {
+	_, err := clients.GetKubeClient().CoreV1().Services(s.namespace).Get(context.Background(), s.name, metav1.GetOptions{})
+	if err == nil {
+		return false
+	}
+	if errors.IsNotFound(err) {
+		return true
+	}
+	assert.Assert(t, err)
+	return false
+}
+
 func updateListener(name string, namespace string, host string, port int) WaitFunction {
 	return func(t *testing.T, clients internalclient.Clients) bool {
 		ctxt := context.Background()
@@ -1710,6 +1724,37 @@ func negativeServiceCheck(name string, namespace string) WaitFunction {
 	return func(t *testing.T, clients internalclient.Clients) bool {
 		_, err := clients.GetKubeClient().CoreV1().Services(namespace).Get(context.Background(), name, metav1.GetOptions{})
 		assert.Assert(t, errors.IsNotFound(err))
+		return true
+	}
+}
+
+func deleteTargetPod(name string, namespace string) WaitFunction {
+	return func(t *testing.T, clients internalclient.Clients) bool {
+		ctxt := context.Background()
+		err := clients.GetKubeClient().CoreV1().Pods(namespace).Delete(ctxt, name, metav1.DeleteOptions{})
+		assert.Assert(t, err)
+		cm, err := clients.GetKubeClient().CoreV1().ConfigMaps(namespace).Get(ctxt, "skupper-network-status", metav1.GetOptions{})
+		assert.Assert(t, err)
+		cm = cm.DeepCopy()
+		var status network.NetworkStatusInfo
+		assert.Assert(t, json.Unmarshal([]byte(cm.Data["NetworkStatus"]), &status))
+		suffix := "." + name
+		for sIdx := range status.SiteStatus {
+			for rIdx, rs := range status.SiteStatus[sIdx].RouterStatus {
+				connectors := rs.Connectors[:0]
+				for _, c := range rs.Connectors {
+					if !strings.HasSuffix(c.Address, suffix) {
+						connectors = append(connectors, c)
+					}
+				}
+				status.SiteStatus[sIdx].RouterStatus[rIdx].Connectors = connectors
+			}
+		}
+		sb, err := json.Marshal(status)
+		assert.Assert(t, err)
+		cm.Data["NetworkStatus"] = string(sb)
+		_, err = clients.GetKubeClient().CoreV1().ConfigMaps(namespace).Update(ctxt, cm, metav1.UpdateOptions{})
+		assert.Assert(t, err)
 		return true
 	}
 }
