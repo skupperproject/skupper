@@ -85,6 +85,10 @@ test-subset: create-venv
 		$(MAKE) -j1 test TEST="$$test" & \
 	done; \
 	wait; \
+	if [ $$? -ne 0 ]; then \
+		echo "One or more tests failed."; \
+		exit 1; \
+	fi
 	echo -e "\n=== All specified tests completed successfully ==="
 
 # Run a subset of tests (comma-separated list) for CI
