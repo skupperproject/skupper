@@ -74,7 +74,6 @@ func (h *RouterStateHandler) run() {
 func newHeartBeatsClient(namespace string) *heartBeatsClient {
 	c := &heartBeatsClient{
 		Namespace: namespace,
-		mutex:     &sync.Mutex{},
 	}
 	c.logger = slog.Default().
 		With("namespace", namespace).
@@ -88,7 +87,7 @@ type heartBeatsClient struct {
 	siteId     string
 	url        string
 	address    string
-	mutex      *sync.Mutex
+	mutex      sync.Mutex
 	running    bool
 	isRouterUp bool
 	callback   ActivationCallback
