@@ -112,7 +112,7 @@ func (h *heartBeatsClient) routerDown(reason string) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 	if h.isRouterUp {
-		h.logger.Warn("Router is DOWN", slog.Any("reason", reason))
+		h.logger.Info("Router is DOWN", slog.Any("reason", reason))
 		h.isRouterUp = false
 		h.callback.Stop()
 	}
@@ -122,7 +122,7 @@ func (h *heartBeatsClient) routerUp(stopCh <-chan struct{}) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 	if !h.isRouterUp {
-		h.logger.Warn("Router is UP")
+		h.logger.Info("Router is UP")
 		h.isRouterUp = true
 		h.callback.Start(stopCh)
 	}
