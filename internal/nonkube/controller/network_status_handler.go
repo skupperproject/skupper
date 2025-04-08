@@ -21,7 +21,7 @@ type NetworkStatusHandler struct {
 	logger    *slog.Logger
 	doneCh    chan struct{}
 	events    chan network.NetworkStatusInfo
-	mutex     *sync.Mutex
+	mutex     sync.Mutex
 }
 
 func NewNetworkStatusHandler(namespace string) *NetworkStatusHandler {
@@ -33,7 +33,6 @@ func NewNetworkStatusHandler(namespace string) *NetworkStatusHandler {
 		Namespace: namespace,
 		logger:    logger,
 		events:    make(chan network.NetworkStatusInfo),
-		mutex:     &sync.Mutex{},
 	}
 }
 
@@ -75,10 +74,12 @@ func (n *NetworkStatusHandler) updateRuntimeSiteState(networkStatusInfo network.
 	siteState, err := siteStateLoader.Load()
 	if err != nil {
 		n.logger.Warn("Error loading runtime site state", slog.Any("error", err))
+		return
 	}
 	siteState.UpdateStatus(networkStatusInfo)
 	if err = api.MarshalSiteState(*siteState, runtimeSiteStatePath); err != nil {
 		n.logger.Error("Error marshaling runtime site state", slog.Any("error", err))
+		return
 	}
 	n.logger.Debug("Runtime site state updated")
 }
@@ -122,7 +123,7 @@ func (n *NetworkStatusHandler) loadCm(name string) (*corev1.ConfigMap, error) {
 
 }
 
-func (n *NetworkStatusHandler) OnAdd(basePath string) {
+func (n *NetworkStatusHandler) OnBasePathAdded(basePath string) {
 	n.startProcessingEvents()
 }
 

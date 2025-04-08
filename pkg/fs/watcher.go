@@ -1,8 +1,12 @@
 package fs
 
 import (
+	"log/slog"
 	"os"
+	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -11,11 +15,16 @@ import (
 // FSChangeHandler provides a callback mechanism used by the FileWatcher
 // to notify about changes to monitored directory or file.
 type FSChangeHandler interface {
-	OnAdd(basePath string)
+	OnBasePathAdded(basePath string)
 	OnCreate(string)
 	OnUpdate(string)
 	OnRemove(string)
 	Filter(string) bool
+}
+
+type eventTrigger struct {
+	operation func(string)
+	name      string
 }
 
 // FileWatcher uses fsnotify to watch file system changes done to
@@ -23,9 +32,15 @@ type FSChangeHandler interface {
 // recommended to watch directories over files (you can add filters
 // to limit the scope of files to be observed by your handler).
 type FileWatcher struct {
-	started    bool
-	watcher    *fsnotify.Watcher
-	handlerMap map[string][]FSChangeHandler
+	runningLock sync.Mutex
+	handlerLock sync.RWMutex
+	watcherLock sync.Mutex
+	logger      *slog.Logger
+	started     bool
+	watcher     *fsnotify.Watcher
+	refresh     chan bool
+	triggerCh   chan eventTrigger
+	handlerMap  map[string][]FSChangeHandler
 }
 
 func NewWatcher() (*FileWatcher, error) {
@@ -35,11 +50,16 @@ func NewWatcher() (*FileWatcher, error) {
 	}
 	return &FileWatcher{
 		watcher:    watcher,
+		logger:     slog.Default().With(slog.String("component", "pkg.fs.FileWatcher")),
+		refresh:    make(chan bool),
+		triggerCh:  make(chan eventTrigger),
 		handlerMap: map[string][]FSChangeHandler{},
 	}, nil
 }
 
 func (w *FileWatcher) filterHandlers(name string) []FSChangeHandler {
+	w.handlerLock.RLock()
+	defer w.handlerLock.RUnlock()
 	var filteredHandlers []FSChangeHandler
 
 	for baseName, handlers := range w.handlerMap {
@@ -55,91 +75,177 @@ func (w *FileWatcher) filterHandlers(name string) []FSChangeHandler {
 	return filteredHandlers
 }
 
-func (w *FileWatcher) prepareRemoved(event fsnotify.Event) {
-	if !event.Has(fsnotify.Remove) {
-		return
-	}
-	// When the specific event name being watched is removed,
-	// stop fsnotify and wait for it to show up again
-	if _, ok := w.handlerMap[event.Name]; ok {
-		_ = w.watcher.Remove(event.Name)
-		w.watchCreated(event.Name)
-	}
-}
-
 func (w *FileWatcher) Start(stopCh <-chan struct{}) {
+	w.runningLock.Lock()
+	defer w.runningLock.Unlock()
 	if w.started {
 		return
 	}
 	w.started = true
-	go func() {
-		for {
-			select {
-			case event := <-w.watcher.Events:
-				handlers := w.filterHandlers(event.Name)
-				if len(handlers) == 0 {
-					w.prepareRemoved(event)
-					continue
-				}
-				switch {
-				case event.Has(fsnotify.Create):
-					for _, handler := range handlers {
-						go handler.OnCreate(event.Name)
-					}
-				case event.Has(fsnotify.Write):
-					for _, handler := range handlers {
-						go handler.OnUpdate(event.Name)
-					}
-				case event.Has(fsnotify.Remove):
-					for _, handler := range handlers {
-						go handler.OnRemove(event.Name)
-					}
-					// if object being watched is removed, watch for it to show up again
-					w.prepareRemoved(event)
-				}
-			case <-stopCh:
-				_ = w.watcher.Close()
-				return
-			}
-		}
-	}()
+	go w.monitorPaths(stopCh)
+	go w.processEvents(stopCh)
+	go w.dispatchTriggers(stopCh)
 }
 
-// watchCreated waits for a file or directory to exist, then it
-// start watching the respective resource. It is recommended to
-// watch directories and filter the desired files, as watching
-// non-existing files directly might lead to missing events.
-func (w *FileWatcher) watchCreated(name string) {
-	go func() {
-		ticker := time.Tick(time.Second)
-		for {
-			select {
-			case <-ticker:
-				if err := w.watcher.Add(name); err == nil {
-					for _, handler := range w.handlerMap[name] {
-						handler.OnAdd(name)
-						if handler.Filter(name) {
-							handler.OnCreate(name)
-						}
+func (w *FileWatcher) processEvents(stopCh <-chan struct{}) {
+	for {
+		select {
+		case event := <-w.watcher.Events:
+			handlers := w.filterHandlers(event.Name)
+			switch {
+			case event.Has(fsnotify.Create):
+				for _, handler := range handlers {
+					//go handler.OnCreate(event.Name)
+					w.triggerCh <- eventTrigger{
+						operation: handler.OnCreate,
+						name:      event.Name,
 					}
-					return
+				}
+			case event.Has(fsnotify.Write):
+				for _, handler := range handlers {
+					w.logger.Info("OnUpdate", slog.String("name", event.Name))
+					//go handler.OnUpdate(event.Name)
+					w.triggerCh <- eventTrigger{
+						operation: handler.OnUpdate,
+						name:      event.Name,
+					}
+				}
+			case event.Has(fsnotify.Remove):
+				for _, handler := range handlers {
+					w.logger.Info("OnRemove", slog.String("name", event.Name))
+					//go handler.OnRemove(event.Name)
+					w.triggerCh <- eventTrigger{
+						operation: handler.OnRemove,
+						name:      event.Name,
+					}
+				}
+				// if object being watched is removed, watch for it to show up again
+				w.handlerLock.RLock()
+				if _, ok := w.handlerMap[event.Name]; ok {
+					w.refresh <- true
+				}
+				w.handlerLock.RUnlock()
+			}
+		case <-stopCh:
+			_ = w.watcher.Close()
+			w.started = false
+			return
+		}
+	}
+}
+
+func (w *FileWatcher) dispatchTriggers(stopCh <-chan struct{}) {
+	for {
+		select {
+		case event := <-w.triggerCh:
+			go event.operation(event.name)
+		case <-stopCh:
+			return
+		}
+	}
+}
+
+// monitorPaths monitors paths added to the handlers map, adding watchers
+// when those paths exist (fsNotify does not accept non-existing paths)
+// and removing them from fsNotify, if they no longer exist.
+func (w *FileWatcher) monitorPaths(stopCh <-chan struct{}) {
+	w.logger.Info("Start monitoring paths")
+	interval := time.Second
+	ticker := time.NewTicker(interval)
+	w.handlerLock.RLock()
+	if len(w.handlerMap) > 0 {
+		w.manageWatchers()
+	}
+	w.handlerLock.RUnlock()
+	for {
+		select {
+		case <-w.refresh:
+			w.manageWatchers()
+		case <-ticker.C:
+			w.manageWatchers()
+		case <-stopCh:
+			w.logger.Info("Stop monitoring paths")
+			return
+		}
+	}
+}
+
+func (w *FileWatcher) manageWatchers() {
+	w.watcherLock.Lock()
+	defer w.watcherLock.Unlock()
+	w.handlerLock.RLock()
+	defer w.handlerLock.RUnlock()
+	w.logger.Debug("entering manageWatchers()")
+	for path, handlers := range w.handlerMap {
+		stat, err := os.Stat(path)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				w.logger.Error("error verifying monitored path",
+					slog.String("path", path),
+					slog.String("error", err.Error()))
+				continue
+			}
+			if slices.Contains(w.watcher.WatchList(), path) {
+				if err := w.watcher.Remove(path); err != nil {
+					w.logger.Error("error removing monitored path",
+						slog.String("path", path),
+						slog.String("error", err.Error()))
+				}
+				w.logger.Info("monitored path removed",
+					slog.String("path", path))
+			}
+			continue
+		}
+		if slices.Contains(w.watcher.WatchList(), path) {
+			continue
+		}
+		w.logger.Debug("Monitored path added",
+			slog.String("path", path))
+		if err = w.watcher.Add(path); err != nil {
+			w.logger.Error("error adding monitored path",
+				slog.String("path", path),
+				slog.String("error", err.Error()))
+			continue
+		}
+		var existingFilesAndDirectories []string
+		if stat.IsDir() {
+			pathEntries, err := os.ReadDir(path)
+			if err != nil {
+				w.logger.Error("error reading monitored path",
+					slog.String("path", path),
+					slog.String("error", err.Error()))
+			}
+			for _, entry := range pathEntries {
+				entryName := filepath.Join(path, entry.Name())
+				existingFilesAndDirectories = append(existingFilesAndDirectories, entryName)
+			}
+		} else {
+			existingFilesAndDirectories = append(existingFilesAndDirectories, path)
+		}
+		for _, handler := range handlers {
+			go handler.OnBasePathAdded(path)
+			for _, existingPath := range existingFilesAndDirectories {
+				if handler.Filter(existingPath) {
+					go handler.OnCreate(existingPath)
 				}
 			}
 		}
-	}()
-	return
+	}
 }
 
 func (w *FileWatcher) Add(name string, handler FSChangeHandler) {
+	w.runningLock.Lock()
+	defer w.runningLock.Unlock()
+	w.handlerLock.Lock()
+	defer w.handlerLock.Unlock()
 	handlers, ok := w.handlerMap[name]
 	if !ok {
 		w.handlerMap[name] = []FSChangeHandler{handler}
 	}
+	w.logger.Info("Adding new handler",
+		slog.String("path", name))
 	w.handlerMap[name] = append(handlers, handler)
-	if _, err := os.Stat(name); err != nil && os.IsNotExist(err) {
-		w.watchCreated(name)
-	} else {
-		_ = w.watcher.Add(name)
-		go handler.OnAdd(name)
+	if w.started {
+		w.refresh <- true
 	}
 }

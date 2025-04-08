@@ -41,7 +41,7 @@ func (r *RouterConfigHandler) OnRemove(name string) {
 	}
 }
 
-func (r *RouterConfigHandler) OnAdd(basePath string) {
+func (r *RouterConfigHandler) OnBasePathAdded(basePath string) {
 	routerConfigFile := path.Join(basePath, "skrouterd.json")
 	if _, err := os.Stat(routerConfigFile); err == nil {
 		r.OnCreate(routerConfigFile)

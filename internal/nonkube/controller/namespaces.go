@@ -17,10 +17,10 @@ type NamespacesHandler struct {
 	basePath   string
 	watcher    *fs.FileWatcher
 	namespaces map[string]*NamespaceController
-	mutex      *sync.Mutex
+	mutex      sync.Mutex
 }
 
-func (n *NamespacesHandler) OnAdd(basePath string) {
+func (n *NamespacesHandler) OnBasePathAdded(basePath string) {
 	slog.Info("Adding namespace", slog.String("path", basePath))
 }
 
@@ -31,7 +31,6 @@ func NewNamespacesHandler() (*NamespacesHandler, error) {
 	nsh := &NamespacesHandler{
 		basePath:   basePath,
 		namespaces: make(map[string]*NamespaceController),
-		mutex:      &sync.Mutex{},
 		logger: slog.Default().
 			With("component", "namespaces.handler"),
 	}
@@ -134,8 +133,11 @@ func (n *NamespacesHandler) OnRemove(name string) {
 }
 
 func (n *NamespacesHandler) Filter(name string) bool {
-	slog.Info("Filtering namespace", slog.String("name", name))
-	return true
+	stat, err := os.Stat(name)
+	if err == nil && stat.IsDir() {
+		return true
+	}
+	return false
 }
 
 func (n *NamespacesHandler) OnUpdate(name string) {
