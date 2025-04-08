@@ -312,7 +312,9 @@ jobs:
           command: |
             set -x
             cd tests
-            make ci-tests -e kubeconfig_1=~/kc.west -e kubeconfig_2=~/kc.east
+            export kubeconfig_1=~/kc.west
+            export kubeconfig_2=~/kc.east
+            make ci-tests
 
   generate-manifest:
     executor:
