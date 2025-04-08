@@ -312,7 +312,6 @@ jobs:
           command: |
             set -x
             cd tests
-            mkdir ~/.kube
             cp ~/kc.west ~/.kube/config
             make ci-tests
 
