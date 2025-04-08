@@ -21,15 +21,11 @@ RUN tar -zxf v1.tar.gz
 WORKDIR ./skupper-console-1
 RUN yarn install && yarn build
 
-FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9:latest AS packager
+FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
 
 # Create user and group and switch to user's context
-RUN dnf -y --setopt=install_weak_deps=0 --nodocs --installroot /output install coreutils-single shadow-utils && dnf clean all --installroot /output
-
-
-FROM scratch
-
-COPY --from=packager /output /
+RUN microdnf -y install shadow-utils \
+&& microdnf clean all
 
 RUN useradd --uid 10000 runner
 USER 10000
