@@ -81,22 +81,15 @@ test-subset: create-venv
 		exit 1; \
 	fi
 	@echo "Running the following tests in parallel: $(TESTS)"
-	@pids=""; \
-	for test in `echo $(TESTS) | tr ',' ' '`; do \
-		$(MAKE) -j1 test TEST="$test" & \
-		pids="$pids $!"; \
+	@for test in `echo $(TESTS) | tr ',' ' '`; do \
+		$(MAKE) -j1 test TEST="$$test" & \
 	done; \
-	\
-	failed=0; \
-	for pid in $pids; do \
-		wait "$pid" || failed=1; \
-	done; \
-	\
-	if [ $failed -eq 1 ]; then \
+	wait; \
+	if [ $$? -ne 0 ]; then \
 		echo "One or more tests failed."; \
 		exit 1; \
 	fi
-	@echo -e "\n=== All specified tests completed successfully ==="
+	echo -e "\n=== All specified tests completed successfully ==="
 
 # Run a subset of tests (comma-separated list) for CI
 ci-tests: TESTS=$(TESTS_CI)
