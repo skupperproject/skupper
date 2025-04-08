@@ -23,7 +23,7 @@ func NewNamespaceController(namespace string) (*NamespaceController, error) {
 		ns:     namespace,
 		stopCh: make(chan struct{}),
 	}
-	watcher, err := fs.NewWatcher()
+	watcher, err := fs.NewWatcher(slog.String("namespace", namespace))
 	if err != nil {
 		return nil, fmt.Errorf("error creating watcher on namespace %s: %v", namespace, err)
 	}

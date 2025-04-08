@@ -28,13 +28,14 @@ func NewNamespacesHandler() (*NamespacesHandler, error) {
 	var err error
 	basePath := api.GetDefaultOutputNamespacesPath()
 	basePath = strings.TrimRight(basePath, string(os.PathSeparator))
+	componentName := "namespaces.handler"
 	nsh := &NamespacesHandler{
 		basePath:   basePath,
 		namespaces: make(map[string]*NamespaceController),
 		logger: slog.Default().
-			With("component", "namespaces.handler"),
+			With("component", componentName),
 	}
-	nsh.watcher, err = fs.NewWatcher()
+	nsh.watcher, err = fs.NewWatcher(slog.String("owner", componentName))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create namespaces watcher: %v", err)
 	}
@@ -122,6 +123,11 @@ func (n *NamespacesHandler) OnRemove(name string) {
 		return
 	}
 	ns, _ := n.namespace(name)
+
+	n.logger.Info("Namespace removed",
+		slog.String("ns", ns),
+		slog.String("name", name))
+
 	if ns == "" {
 		return
 	}
@@ -135,6 +141,8 @@ func (n *NamespacesHandler) OnRemove(name string) {
 func (n *NamespacesHandler) Filter(name string) bool {
 	stat, err := os.Stat(name)
 	if err == nil && stat.IsDir() {
+		return true
+	} else if os.IsNotExist(err) {
 		return true
 	}
 	return false
