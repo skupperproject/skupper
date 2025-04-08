@@ -263,13 +263,6 @@ jobs:
             KUBECONFIG=~/kc.west ./scripts/kind-dev-cluster -n west  \
               --images ociarchive
       - run:
-          name: Cluster E2E
-          command: |
-            set -x
-            KUBECONFIG=~/.kube/config ./scripts/kind-dev-cluster -n west  \
-              --images ociarchive   
-
-      - run:
           name: Initalize Sites
           command: |
             set -x
@@ -319,7 +312,7 @@ jobs:
           command: |
             set -x
             cd tests
-            make ci-tests
+            make ci-tests -e kubeconfig1=~/kc.west -e kubeconfig2=~/kc.east
 
   generate-manifest:
     executor:
