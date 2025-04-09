@@ -3,5 +3,5 @@ ansible_connection: local
 ansible_user: "{{ lookup('env', 'USER') }}"
 debug: false
 namespace_prefix: "e2e"
-generate_namespaces_namespace_label: "e2e"
+generate_namespaces_namespace_label: "hello-world"
 site_access_token_path: ""

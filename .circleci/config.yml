@@ -306,7 +306,14 @@ jobs:
             # the connector in east
             kubectl wait listener/backend \
               --timeout=60s \
-              '--for=jsonpath={.status.hasMatchingConnector}=true'
+              '--for=jsonpath={.status.hasMatchingConnector}=true' 
+      - run:
+          name: Running E2E Tests
+          command: |
+            set -x
+            cd tests
+            cp ~/kc.west ~/.kube/config
+            make ci-tests
 
   generate-manifest:
     executor:
