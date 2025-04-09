@@ -183,3 +183,19 @@ clean:
 		cover.out oci-archives bundle bundle.Dockerfile \
 		skupper-*.tgz artifacthub-repo.yml \
 		network-observer-*.tgz  skupper-*-scope.yaml
+
+# Run a specific test
+test:
+	$(MAKE) -C tests/ test TEST="$(TEST)"
+
+# Run all e2e tests
+test-e2e:
+	$(MAKE) -C tests/ e2e-tests
+
+# Run a subset of tests in parallel
+test-subset:
+	$(MAKE) -C tests/ test-subset TESTS="$(TESTS)"
+
+# Run CI tests
+test-ci:
+	$(MAKE) -C tests/ ci-tests
