@@ -114,6 +114,9 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	}
 	// active (runtime) SiteState
 	s.siteState = common.CopySiteState(s.loadedSiteState)
+	if err = s.preventContainersConflict(); err != nil {
+		return err
+	}
 	err = common.RedeemClaims(s.siteState)
 	if err != nil {
 		return fmt.Errorf("failed to redeem claims: %v", err)
@@ -200,11 +203,15 @@ func (s *SiteStateRenderer) cleanupExistingNamespace(siteState *api.SiteState) e
 	return common.CleanupNamespaceForReload(siteState.GetNamespace())
 }
 
+func (s *SiteStateRenderer) routerContainerName() string {
+	return fmt.Sprintf("%s-skupper-router", s.siteState.GetNamespace())
+}
+
 func (s *SiteStateRenderer) prepareContainers() error {
 	siteConfigPath := api.GetHostSiteHome(s.siteState.Site)
 	s.containers = make(map[string]container.Container)
 	s.containers[types.RouterComponent] = container.Container{
-		Name:  fmt.Sprintf("%s-skupper-router", s.siteState.GetNamespace()),
+		Name:  s.routerContainerName(),
 		Image: images.GetRouterImageName(),
 		Env: map[string]string{
 			"APPLICATION_NAME":      "skupper-router",
@@ -352,5 +359,18 @@ func (s *SiteStateRenderer) createSystemdService() error {
 		}
 	}
 
+	return nil
+}
+
+func (s *SiteStateRenderer) preventContainersConflict() error {
+	runtimeStatePath := api.GetInternalOutputPath(s.loadedSiteState.GetNamespace(), api.RuntimeSiteStatePath)
+	_, err := os.Stat(runtimeStatePath)
+	// no runtime state and container exists
+	if err != nil && os.IsNotExist(err) {
+		containerName := s.routerContainerName()
+		if _, err = s.cli.ContainerInspect(containerName); err == nil {
+			return fmt.Errorf("container %q already exists", containerName)
+		}
+	}
 	return nil
 }
