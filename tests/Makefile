@@ -61,7 +61,12 @@ test: create-venv
 	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg \
 	ansible-playbook $(ROOT_PATH)/e2e/scenarios/$(TEST)/test.yml \
 	-i $(ROOT_PATH)/e2e/scenarios/$(TEST)/inventory $(EXTRA_VARS) \
-	-e namespace_prefix=$$TEST_PREFIX
+	-e namespace_prefix=$$TEST_PREFIX; \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -ne 0 ]; then \
+		echo "Test $(TEST) failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
 
 # Run all tests in sequence
 e2e-tests:
@@ -81,14 +86,18 @@ test-subset: create-venv
 		exit 1; \
 	fi
 	@echo "Running the following tests in parallel: $(TESTS)"
-	@for test in `echo $(TESTS) | tr ',' ' '`; do \
+	@FAILED_TESTS=""; \
+	for test in `echo $(TESTS) | tr ',' ' '`; do \
 		$(MAKE) -j1 test TEST="$$test" & \
+		TEST_PIDS="$$TEST_PIDS $$!"; \
 	done; \
-	wait; \
-	if [ $$? -ne 0 ]; then \
-		echo "One or more tests failed."; \
+	for pid in $$TEST_PIDS; do \
+		wait $$pid || FAILED_TESTS="$$FAILED_TESTS $$pid"; \
+	done; \
+	if [ -n "$$FAILED_TESTS" ]; then \
+		echo "The following test processes failed: $$FAILED_TESTS"; \
 		exit 1; \
-	fi
+	fi; \
 	echo -e "\n=== All specified tests completed successfully ==="
 
 # Run a subset of tests (comma-separated list) for CI
