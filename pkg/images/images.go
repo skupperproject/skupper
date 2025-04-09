@@ -2,7 +2,7 @@ package images
 
 const (
 	DefaultImageRegistry       string = "quay.io/skupper"
-	RouterImageName            string = "skupper-router:2.7.3"
+	RouterImageName            string = "skupper-router:2.7.5"
 	ServiceControllerImageName string = "service-controller:v1-dev"
 	ControllerPodmanImageName  string = "controller-podman:v1-dev"
 	ConfigSyncImageName        string = "config-sync:v1-dev"
