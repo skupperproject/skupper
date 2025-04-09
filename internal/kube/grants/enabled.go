@@ -6,20 +6,20 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
 type NamespaceFilter func(string) bool
 
-func enabled(controller *internalclient.Controller, currentNamespace string, watchNamespace string, config *GrantConfig, generator GrantResponse, filter NamespaceFilter) *GrantsEnabled {
+func enabled(controller *watchers.EventProcessor, currentNamespace string, watchNamespace string, config *GrantConfig, generator GrantResponse, filter NamespaceFilter) *GrantsEnabled {
 	gc := &GrantsEnabled{
 		grants: newGrants(controller, generator, config.scheme(), config.BaseUrl),
 	}
 	gc.server = newServer(config.addr(), config.tlsEnabled(), gc.grants)
 
-	gc.grantWatcher = controller.WatchAccessGrants(watchNamespace, internalclient.FilterByNamespace(filter, gc.grants.checkGrant))
-	gc.secretWatcher = controller.WatchSecrets(internalclient.ByName(config.TlsCredentialsSecret), watchNamespace, internalclient.FilterByNamespace(filter, gc.tlsCredentialsUpdated))
+	gc.grantWatcher = controller.WatchAccessGrants(watchNamespace, watchers.FilterByNamespace(filter, gc.grants.checkGrant))
+	gc.secretWatcher = controller.WatchSecrets(watchers.ByName(config.TlsCredentialsSecret), watchNamespace, watchers.FilterByNamespace(filter, gc.tlsCredentialsUpdated))
 
 	if config.AutoConfigure {
 		ac, err := newAutoConfigure(gc.securedAccessChanged, controller, currentNamespace, config)
@@ -34,8 +34,8 @@ func enabled(controller *internalclient.Controller, currentNamespace string, wat
 type GrantsEnabled struct {
 	grants        *Grants
 	server        *Server
-	grantWatcher  *internalclient.AccessGrantWatcher
-	secretWatcher *internalclient.SecretWatcher
+	grantWatcher  *watchers.AccessGrantWatcher
+	secretWatcher *watchers.SecretWatcher
 	autoConfigure *AutoConfigure
 	started       bool
 	filter        NamespaceFilter
