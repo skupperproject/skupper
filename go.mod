@@ -2,6 +2,8 @@ module github.com/skupperproject/skupper
 
 go 1.22
 
+toolchain go1.22.12
+
 require (
 	github.com/briandowns/spinner v1.23.0
 	github.com/davecgh/go-spew v1.1.1
