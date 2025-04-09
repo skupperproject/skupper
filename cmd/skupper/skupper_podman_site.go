@@ -292,6 +292,10 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 	statusOutput.EnabledIn = formatter.PlatformSupport{"podman", podman.Username}
 
 	var currentSite = statusManager.GetSiteById(site.Id)
+	if currentSite == nil {
+		fmt.Println("Site information is not yet available")
+		return nil
+	}
 
 	err, index := statusManager.GetRouterIndex(currentSite)
 	if err != nil {
