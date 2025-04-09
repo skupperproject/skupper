@@ -36,6 +36,8 @@ func NewSkupperRootCommand() *cobra.Command {
 	rootCmd.AddCommand(debug.NewCmdDebug())
 	rootCmd.AddCommand(system.NewCmdSystem())
 
+	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
+
 	return rootCmd
 }
 
