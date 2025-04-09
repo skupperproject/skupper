@@ -77,7 +77,7 @@ ansible_user: "{{ lookup('env', 'USER') }}"
 debug: false
 locust_runtime: "2m"
 namespace_prefix: "e2e"
-generate_namespaces_namespace_label: "e2e"
+generate_namespaces_namespace_label: "ha"
 remove_namespaces: true
 ```
 
