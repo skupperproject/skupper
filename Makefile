@@ -13,7 +13,7 @@ IMAGE_TAG := v2-dev
 ROUTER_IMAGE_TAG := main
 PLATFORMS ?= linux/amd64
 #PLATFORMS ?= linux/amd64,linux/arm64
-CONTAINERFILES := Dockerfile.user-controller
+CONTAINERFILES := Dockerfile.user-controller Dockerfile.cli
 #CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer Dockerfile.user-controller
 SHARED_IMAGE_LABELS = \
     --label "org.opencontainers.image.created=$(shell TZ=GMT date --iso-8601=seconds)" \

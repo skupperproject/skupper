@@ -76,6 +76,7 @@ func (n *NetworkStatusHandler) updateRuntimeSiteState(networkStatusInfo network.
 		n.logger.Warn("Error loading runtime site state", slog.Any("error", err))
 		return
 	}
+	delete(siteState.ConfigMaps, "skupper-network-status")
 	siteState.UpdateStatus(networkStatusInfo)
 	if err = api.MarshalSiteState(*siteState, runtimeSiteStatePath); err != nil {
 		n.logger.Error("Error marshaling runtime site state", slog.Any("error", err))
