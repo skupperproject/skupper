@@ -100,7 +100,7 @@ func (w *FileWatcher) processEvents(stopCh <-chan struct{}) {
 			case event.Has(fsnotify.Create):
 				for _, handler := range handlers {
 					//go handler.OnCreate(event.Name)
-					w.logger.Debug("OnCreate", slog.String("name", event.Name))
+					w.logger.Info("OnCreate", slog.String("name", event.Name))
 					w.triggerCh <- eventTrigger{
 						operation: handler.OnCreate,
 						name:      event.Name,
@@ -108,7 +108,7 @@ func (w *FileWatcher) processEvents(stopCh <-chan struct{}) {
 				}
 			case event.Has(fsnotify.Write):
 				for _, handler := range handlers {
-					w.logger.Debug("OnUpdate", slog.String("name", event.Name))
+					w.logger.Info("OnUpdate", slog.String("name", event.Name))
 					//go handler.OnUpdate(event.Name)
 					w.triggerCh <- eventTrigger{
 						operation: handler.OnUpdate,
@@ -117,7 +117,7 @@ func (w *FileWatcher) processEvents(stopCh <-chan struct{}) {
 				}
 			case event.Has(fsnotify.Remove):
 				for _, handler := range handlers {
-					w.logger.Debug("OnRemove", slog.String("name", event.Name))
+					w.logger.Info("OnRemove", slog.String("name", event.Name))
 					//go handler.OnRemove(event.Name)
 					w.triggerCh <- eventTrigger{
 						operation: handler.OnRemove,
