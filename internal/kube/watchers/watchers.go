@@ -1,21 +1,8 @@
-/*
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-package client
+// Package watchers provides a means of watching changes in different
+// Kubernetes resources.
+package watchers
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"time"
@@ -43,6 +30,7 @@ import (
 	routev1interfaces "github.com/openshift/client-go/route/informers/externalversions/internalinterfaces"
 	routev1informer "github.com/openshift/client-go/route/informers/externalversions/route/v1"
 
+	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/resource"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
@@ -50,32 +38,41 @@ import (
 	skupperv2alpha1informer "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/skupper/v2alpha1"
 )
 
+// ResourceChange is the form in which events are added to the
+// EventProcessor's work queue. Each ResourceChange event has a key
+// that identifies the resource along with an implementation of the
+// ResourceChangeHandler interface that will be used when processing
+// the event.
 type ResourceChange struct {
 	Handler ResourceChangeHandler
 	Key     string
 }
 
+// The ResourceChangeHandler interface allows the event processing
+// loop to handle events from different resource types in a general
+// way.
 type ResourceChangeHandler interface {
+	// The Handle method is used to process the event.
 	Handle(event ResourceChange) error
+	// The Describe method is used to log information about the
+	// event when an error is returned by the Handle method.
 	Describe(event ResourceChange) string
 }
 
-func ListByLabelSelector(selector string) internalinterfaces.TweakListOptionsFunc {
-	return func(options *metav1.ListOptions) {
-		options.LabelSelector = selector
-	}
-}
-
+// The Watcher interface allows the EventProcessor to interact with
+// different informers on startup.
 type Watcher interface {
 	HasSynced() func() bool
 	Start(stopCh <-chan struct{})
 }
 
-type Controller struct {
-	eventKey string
-	errorKey string
-	client   kubernetes.Interface
-	//routeClient     *routev1client.RouteV1Client
+// A EventProcessor provides a way to handle events from multiple
+// different informers on the same go routine. It does this using a
+// single work queue into which the events are added as instances of the
+// ResourceChange struct.
+type EventProcessor struct {
+	errorKey        string
+	client          kubernetes.Interface
 	routeClient     openshiftroute.Interface
 	dynamicClient   dynamic.Interface
 	discoveryClient discovery.DiscoveryInterface
@@ -85,9 +82,9 @@ type Controller struct {
 	watchers        []Watcher
 }
 
-func NewController(name string, clients Clients) *Controller {
-	return &Controller{
-		eventKey:        name + "Event",
+// Creates a properly initialised EventProcessor instance.
+func NewEventProcessor(name string, clients internalclient.Clients) *EventProcessor {
+	return &EventProcessor{
 		errorKey:        name + "Error",
 		client:          clients.GetKubeClient(),
 		routeClient:     clients.GetRouteInterface(),
@@ -98,73 +95,71 @@ func NewController(name string, clients Clients) *Controller {
 		resync:          time.Minute * 5,
 	}
 }
-func (c *Controller) GetKubeClient() kubernetes.Interface {
+
+func (c *EventProcessor) GetKubeClient() kubernetes.Interface {
 	return c.client
 }
 
-func (c *Controller) GetDynamicClient() dynamic.Interface {
+func (c *EventProcessor) GetDynamicClient() dynamic.Interface {
 	return c.dynamicClient
 }
 
-func (c *Controller) GetDiscoveryClient() discovery.DiscoveryInterface {
+func (c *EventProcessor) GetDiscoveryClient() discovery.DiscoveryInterface {
 	return c.discoveryClient
 }
 
-func (c *Controller) HasRoute() bool {
-	return c.routeClient != nil
-}
-
-func (c *Controller) HasContourHttpProxy() bool {
+func (c *EventProcessor) HasContourHttpProxy() bool {
 	return resource.IsResourceAvailable(c.discoveryClient, resource.ContourHttpProxyResource())
 }
 
-func (c *Controller) HasGateway() bool {
+func (c *EventProcessor) HasGateway() bool {
 	return resource.IsResourceAvailable(c.discoveryClient, resource.GatewayResource())
 }
 
-func (c *Controller) HasTlsRoute() bool {
+func (c *EventProcessor) HasTlsRoute() bool {
 	return resource.IsResourceAvailable(c.discoveryClient, resource.TlsRouteResource())
 }
 
-func (c *Controller) GetRouteInterface() openshiftroute.Interface {
+func (c *EventProcessor) GetRouteInterface() openshiftroute.Interface {
 	return c.routeClient
 }
 
-func (c *Controller) GetRouteClient() routev1client.RouteV1Interface {
+func (c *EventProcessor) GetRouteClient() routev1client.RouteV1Interface {
 	if c.routeClient == nil {
 		return nil
 	}
 	return c.routeClient.RouteV1()
 }
 
-func (c *Controller) GetSkupperClient() skupperclient.Interface {
+func (c *EventProcessor) GetSkupperClient() skupperclient.Interface {
 	return c.skupperClient
 }
 
-func (c *Controller) AddEvent(o interface{}) {
-	c.queue.Add(o)
-}
-
-func (c *Controller) Start(stopCh <-chan struct{}) {
+// Starts the event processing loop in a new go routine.
+func (c *EventProcessor) Start(stopCh <-chan struct{}) {
 	go wait.Until(c.run, time.Second, stopCh)
 }
 
-func (c *Controller) run() {
+func (c *EventProcessor) run() {
 	for c.process() {
 	}
 }
 
-func (c *Controller) TestProcess() bool {
+// This is a convenience function for tests that use the EventProcessor,
+// which may wish to process events more granularly.
+func (c *EventProcessor) TestProcess() bool {
 	return c.process()
 }
 
-func (c *Controller) TestProcessAll() {
+// This is a convenience function for tests that use the EventProcessor.
+func (c *EventProcessor) TestProcessAll() {
 	for c.queue.Len() > 0 {
 		c.process()
 	}
 }
 
-func (c *Controller) process() bool {
+// The process method is the heart of the event processing loop.
+func (c *EventProcessor) process() bool {
 	obj, shutdown := c.queue.Get()
 
 	if shutdown {
@@ -191,15 +186,15 @@ func (c *Controller) process() bool {
 	return true
 }
 
-func (c *Controller) Stop() {
+// Stops event processing.
+func (c *EventProcessor) Stop() {
 	c.queue.ShutDown()
 }
 
-func (c *Controller) Empty() bool {
-	return c.queue.Len() == 0
-}
-
-func (c *Controller) newEventHandler(handler ResourceChangeHandler) *cache.ResourceEventHandlerFuncs {
+// Creates an event handler that will take handle events from an
+// informer by contructing an appropriate ResourceChange instance and
+// adding it to the EventProcessor's work queue.
+func (c *EventProcessor) newEventHandler(handler ResourceChangeHandler) *cache.ResourceEventHandlerFuncs {
 	evt := ResourceChange{
 		Handler: handler,
 	}
@@ -234,21 +229,23 @@ func (c *Controller) newEventHandler(handler ResourceChangeHandler) *cache.Resou
 	}
 }
 
-func (c *Controller) addWatcher(watcher Watcher) {
+func (c *EventProcessor) addWatcher(watcher Watcher) {
 	c.watchers = append(c.watchers, watcher)
 }
 
-func (c *Controller) StartWatchers(stopCh <-chan struct{}) {
+// Starts all the configured informers.
+func (c *EventProcessor) StartWatchers(stopCh <-chan struct{}) {
 	for _, watcher := range c.watchers {
 		watcher.Start(stopCh)
 	}
 }
 
-func (c *Controller) WaitForCacheSync(stopCh <-chan struct{}) bool {
-	return cache.WaitForCacheSync(stopCh, c.HaveWatchersSynced()...)
+// Wait for all the configured informers to sync.
+func (c *EventProcessor) WaitForCacheSync(stopCh <-chan struct{}) bool {
+	return cache.WaitForCacheSync(stopCh, c.haveWatchersSynced()...)
 }
 
-func (c *Controller) HaveWatchersSynced() []cache.InformerSynced {
+func (c *EventProcessor) haveWatchersSynced() []cache.InformerSynced {
 	var combined []cache.InformerSynced
 	for _, watcher := range c.watchers {
 		combined = append(combined, watcher.HasSynced())
@@ -256,7 +253,8 @@ func (c *Controller) HaveWatchersSynced() []cache.InformerSynced {
 	return combined
 }
 
-func (c *Controller) WatchConfigMaps(options internalinterfaces.TweakListOptionsFunc, namespace string, handler ConfigMapHandler) *ConfigMapWatcher {
+// Watches for ConfigMap related events matching options and invokes the handler function accordingly.
+func (c *EventProcessor) WatchConfigMaps(options internalinterfaces.TweakListOptionsFunc, namespace string, handler ConfigMapHandler) *ConfigMapWatcher {
 	watcher := &ConfigMapWatcher{
 		handler: handler,
 		informer: corev1informer.NewFilteredConfigMapInformer(
@@ -305,6 +303,8 @@ func (w *ConfigMapWatcher) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
 
+// Provides access to the latest ConfigMap resource with the specified
+// key as seen by this watcher.
 func (w *ConfigMapWatcher) Get(key string) (*corev1.ConfigMap, error) {
 	entity, exists, err := w.informer.GetStore().GetByKey(key)
 	if err != nil {
@@ -316,6 +316,7 @@ func (w *ConfigMapWatcher) Get(key string) (*corev1.ConfigMap, error) {
 	return entity.(*corev1.ConfigMap), nil
 }
 
+// Provides a list of all current ConfigMap resources seen by this watcher.
 func (w *ConfigMapWatcher) List() []*corev1.ConfigMap {
 	list := w.informer.GetStore().List()
 	results := []*corev1.ConfigMap{}
@@ -325,7 +326,7 @@ func (w *ConfigMapWatcher) List() []*corev1.ConfigMap {
 	return results
 }
 
-func (c *Controller) WatchSecrets(options internalinterfaces.TweakListOptionsFunc, namespace string, handler SecretHandler) *SecretWatcher {
+func (c *EventProcessor) WatchSecrets(options internalinterfaces.TweakListOptionsFunc, namespace string, handler SecretHandler) *SecretWatcher {
 	watcher := &SecretWatcher{
 		handler: handler,
 		informer: corev1informer.NewFilteredSecretInformer(
@@ -342,7 +343,7 @@ func (c *Controller) WatchSecrets(options internalinterfaces.TweakListOptionsFun
 	return watcher
 }
 
-func (c *Controller) WatchAllSecrets(namespace string, handler SecretHandler) *SecretWatcher {
+func (c *EventProcessor) WatchAllSecrets(namespace string, handler SecretHandler) *SecretWatcher {
 	watcher := &SecretWatcher{
 		handler: handler,
 		informer: corev1informer.NewSecretInformer(
@@ -413,7 +414,7 @@ func (w *SecretWatcher) List() []*corev1.Secret {
 
 type ServiceHandler func(string, *corev1.Service) error
 
-func (c *Controller) WatchServices(options internalinterfaces.TweakListOptionsFunc, namespace string, handler ServiceHandler) *ServiceWatcher {
+func (c *EventProcessor) WatchServices(options internalinterfaces.TweakListOptionsFunc, namespace string, handler ServiceHandler) *ServiceWatcher {
 	watcher := &ServiceWatcher{
 		client:  c.client,
 		handler: handler,
@@ -474,18 +475,6 @@ func (w *ServiceWatcher) Get(key string) (*corev1.Service, error) {
 	return entity.(*corev1.Service), nil
 }
 
-func (w *ServiceWatcher) CreateService(svc *corev1.Service) (*corev1.Service, error) {
-	return w.client.CoreV1().Services(w.namespace).Create(context.TODO(), svc, metav1.CreateOptions{})
-}
-
-func (w *ServiceWatcher) UpdateService(svc *corev1.Service) (*corev1.Service, error) {
-	return w.client.CoreV1().Services(w.namespace).Update(context.TODO(), svc, metav1.UpdateOptions{})
-}
-
-func (w *ServiceWatcher) GetService(name string) (*corev1.Service, error) {
-	return w.Get(name)
-}
-
 func (w *ServiceWatcher) List() []*corev1.Service {
 	list := w.informer.GetStore().List()
 	results := []*corev1.Service{}
@@ -497,25 +486,10 @@ func (w *ServiceWatcher) List() []*corev1.Service {
 
 type PodHandler func(string, *corev1.Pod) error
 
-func (c *Controller) WatchAllPods(namespace string, handler PodHandler) *PodWatcher {
-	watcher := &PodWatcher{
-		handler: handler,
-		informer: corev1informer.NewPodInformer(
-			c.client,
-			namespace,
-			c.resync,
-			cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
-		),
-		namespace: namespace,
+func (c *EventProcessor) WatchPods(selector string, namespace string, handler PodHandler) *PodWatcher {
+	options := func(options *metav1.ListOptions) {
+		options.LabelSelector = selector
 	}
-
-	watcher.informer.AddEventHandler(c.newEventHandler(watcher))
-	c.addWatcher(watcher)
-	return watcher
-}
-
-func (c *Controller) WatchPods(selector string, namespace string, handler PodHandler) *PodWatcher {
-	options := ListByLabelSelector(selector)
 	watcher := &PodWatcher{
 		handler: handler,
 		informer: corev1informer.NewFilteredPodInformer(
@@ -583,7 +557,7 @@ func (w *PodWatcher) List() []*corev1.Pod {
 	return pods
 }
 
-func (c *Controller) WatchContourHttpProxies(options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
+func (c *EventProcessor) WatchContourHttpProxies(options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
 	if !c.HasContourHttpProxy() {
 		log.Println("Cannot watch HttpProxies; resource not installed")
 		return nil
@@ -591,7 +565,7 @@ func (c *Controller) WatchContourHttpProxies(options dynamicinformer.TweakListOp
 	return c.WatchDynamic(resource.ContourHttpProxyResource(), options, namespace, handler)
 }
 
-func (c *Controller) WatchGateways(options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
+func (c *EventProcessor) WatchGateways(options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
 	if !c.HasGateway() {
 		log.Println("Cannot watch Gateways; resource not installed")
 		return nil
@@ -599,7 +573,7 @@ func (c *Controller) WatchGateways(options dynamicinformer.TweakListOptionsFunc,
 	return c.WatchDynamic(resource.GatewayResource(), options, namespace, handler)
 }
 
-func (c *Controller) WatchTlsRoutes(options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
+func (c *EventProcessor) WatchTlsRoutes(options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
 	if !c.HasTlsRoute() {
 		log.Println("Cannot watch TLSRoutes; resource not installed")
 		return nil
@@ -607,7 +581,7 @@ func (c *Controller) WatchTlsRoutes(options dynamicinformer.TweakListOptionsFunc
 	return c.WatchDynamic(resource.TlsRouteResource(), options, namespace, handler)
 }
 
-func (c *Controller) WatchDynamic(resource schema.GroupVersionResource, options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
+func (c *EventProcessor) WatchDynamic(resource schema.GroupVersionResource, options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
 	watcher := &DynamicWatcher{
 		handler: handler,
 		informer: dynamicinformer.NewFilteredDynamicInformer(
@@ -698,7 +672,9 @@ func (c *CallbackHandler) Describe(event ResourceChange) string {
 	return fmt.Sprintf("Callback %v(%s)", c.callback, c.context)
 }
 
-func (c *Controller) CallbackAfter(delay time.Duration, callback Callback, context string) {
+// Allows triggering of a callback on the event processing
+// thread. This method call be called on any thread/goroutine.
+func (c *EventProcessor) CallbackAfter(delay time.Duration, callback Callback, context string) {
 	evt := ResourceChange{
 		Handler: &CallbackHandler{
 			callback: callback,
@@ -708,7 +684,7 @@ func (c *Controller) CallbackAfter(delay time.Duration, callback Callback, conte
 	c.queue.AddAfter(evt, delay)
 }
 
-func (c *Controller) WatchNamespaces(options internalinterfaces.TweakListOptionsFunc, handler NamespaceHandler) *NamespaceWatcher {
+func (c *EventProcessor) WatchNamespaces(options internalinterfaces.TweakListOptionsFunc, handler NamespaceHandler) *NamespaceWatcher {
 	watcher := &NamespaceWatcher{
 		handler: handler,
 		informer: corev1informer.NewFilteredNamespaceInformer(
@@ -774,7 +750,7 @@ func (w *NamespaceWatcher) List() []*corev1.Namespace {
 	return results
 }
 
-func (c *Controller) WatchNodes(handler NodeHandler) *NodeWatcher {
+func (c *EventProcessor) WatchNodes(handler NodeHandler) *NodeWatcher {
 	watcher := &NodeWatcher{
 		handler: handler,
 		informer: corev1informer.NewNodeInformer(
@@ -839,7 +815,7 @@ func (w *NodeWatcher) List() []*corev1.Node {
 	return results
 }
 
-func (c *Controller) WatchSites(namespace string, handler SiteHandler) *SiteWatcher {
+func (c *EventProcessor) WatchSites(namespace string, handler SiteHandler) *SiteWatcher {
 	watcher := &SiteWatcher{
 		handler: handler,
 		informer: skupperv2alpha1informer.NewSiteInformer(
@@ -906,7 +882,7 @@ func (w *SiteWatcher) List() []*skupperv2alpha1.Site {
 	return results
 }
 
-func (c *Controller) WatchListeners(namespace string, handler ListenerHandler) *ListenerWatcher {
+func (c *EventProcessor) WatchListeners(namespace string, handler ListenerHandler) *ListenerWatcher {
 	watcher := &ListenerWatcher{
 		handler: handler,
 		informer: skupperv2alpha1informer.NewListenerInformer(
@@ -973,7 +949,7 @@ func (w *ListenerWatcher) List() []*skupperv2alpha1.Listener {
 	return results
 }
 
-func (c *Controller) WatchConnectors(namespace string, handler ConnectorHandler) *ConnectorWatcher {
+func (c *EventProcessor) WatchConnectors(namespace string, handler ConnectorHandler) *ConnectorWatcher {
 	watcher := &ConnectorWatcher{
 		handler: handler,
 		informer: skupperv2alpha1informer.NewConnectorInformer(
@@ -1040,7 +1016,7 @@ func (w *ConnectorWatcher) List() []*skupperv2alpha1.Connector {
 	return results
 }
 
-func (c *Controller) WatchLinks(namespace string, handler LinkHandler) *LinkWatcher {
+func (c *EventProcessor) WatchLinks(namespace string, handler LinkHandler) *LinkWatcher {
 	watcher := &LinkWatcher{
 		handler: handler,
 		informer: skupperv2alpha1informer.NewLinkInformer(
@@ -1107,7 +1083,7 @@ func (w *LinkWatcher) List() []*skupperv2alpha1.Link {
 	return results
 }
 
-func (c *Controller) WatchAccessTokens(namespace string, handler AccessTokenHandler) *AccessTokenWatcher {
+func (c *EventProcessor) WatchAccessTokens(namespace string, handler AccessTokenHandler) *AccessTokenWatcher {
 	watcher := &AccessTokenWatcher{
 		handler: handler,
 		informer: skupperv2alpha1informer.NewAccessTokenInformer(
@@ -1174,7 +1150,7 @@ func (w *AccessTokenWatcher) List() []*skupperv2alpha1.AccessToken {
 	return results
 }
 
-func (c *Controller) WatchAccessGrants(namespace string, handler AccessGrantHandler) *AccessGrantWatcher {
+func (c *EventProcessor) WatchAccessGrants(namespace string, handler AccessGrantHandler) *AccessGrantWatcher {
 	watcher := &AccessGrantWatcher{
 		handler: handler,
 		informer: skupperv2alpha1informer.NewAccessGrantInformer(
@@ -1241,7 +1217,7 @@ func (w *AccessGrantWatcher) List() []*skupperv2alpha1.AccessGrant {
 	return results
 }
 
-func (c *Controller) WatchSecuredAccesses(namespace string, handler SecuredAccessHandler) *SecuredAccessWatcher {
+func (c *EventProcessor) WatchSecuredAccesses(namespace string, handler SecuredAccessHandler) *SecuredAccessWatcher {
 	watcher := &SecuredAccessWatcher{
 		handler: handler,
 		informer: skupperv2alpha1informer.NewSecuredAccessInformer(
@@ -1256,7 +1232,7 @@ func (c *Controller) WatchSecuredAccesses(namespace string, handler SecuredAcces
 	return watcher
 }
 
-func (c *Controller) WatchSecuredAccessesWithOptions(options skupperv2alpha1interfaces.TweakListOptionsFunc, namespace string, handler SecuredAccessHandler) *SecuredAccessWatcher {
+func (c *EventProcessor) WatchSecuredAccessesWithOptions(options skupperv2alpha1interfaces.TweakListOptionsFunc, namespace string, handler SecuredAccessHandler) *SecuredAccessWatcher {
 	watcher := &SecuredAccessWatcher{
 		handler: handler,
 		informer: skupperv2alpha1informer.NewFilteredSecuredAccessInformer(
@@ -1324,7 +1300,7 @@ func (w *SecuredAccessWatcher) List() []*skupperv2alpha1.SecuredAccess {
 	return results
 }
 
-func (c *Controller) WatchIngresses(options internalinterfaces.TweakListOptionsFunc, namespace string, handler IngressHandler) *IngressWatcher {
+func (c *EventProcessor) WatchIngresses(options internalinterfaces.TweakListOptionsFunc, namespace string, handler IngressHandler) *IngressWatcher {
 	watcher := &IngressWatcher{
 		handler: handler,
 		informer: networkingv1informer.NewFilteredIngressInformer(
@@ -1393,7 +1369,7 @@ func (w *IngressWatcher) List() []*networkingv1.Ingress {
 	return results
 }
 
-func (c *Controller) WatchRoutes(options routev1interfaces.TweakListOptionsFunc, namespace string, handler RouteHandler) *RouteWatcher {
+func (c *EventProcessor) WatchRoutes(options routev1interfaces.TweakListOptionsFunc, namespace string, handler RouteHandler) *RouteWatcher {
 	if c.routeClient == nil {
 		return nil
 	}
@@ -1465,7 +1441,7 @@ func (w *RouteWatcher) List() []*routev1.Route {
 	return results
 }
 
-func (c *Controller) WatchCertificates(namespace string, handler CertificateHandler) *CertificateWatcher {
+func (c *EventProcessor) WatchCertificates(namespace string, handler CertificateHandler) *CertificateWatcher {
 	watcher := &CertificateWatcher{
 		handler: handler,
 		informer: skupperv2alpha1informer.NewCertificateInformer(
@@ -1532,7 +1508,7 @@ func (w *CertificateWatcher) List() []*skupperv2alpha1.Certificate {
 	return results
 }
 
-func (c *Controller) WatchRouterAccesses(namespace string, handler RouterAccessHandler) *RouterAccessWatcher {
+func (c *EventProcessor) WatchRouterAccesses(namespace string, handler RouterAccessHandler) *RouterAccessWatcher {
 	watcher := &RouterAccessWatcher{
 		handler: handler,
 		informer: skupperv2alpha1informer.NewRouterAccessInformer(
@@ -1611,7 +1587,7 @@ func SkupperResourceByName(name string) skupperv2alpha1interfaces.TweakListOptio
 	}
 }
 
-func (c *Controller) WatchAttachedConnectorBindings(namespace string, handler AttachedConnectorBindingHandler) *AttachedConnectorBindingWatcher {
+func (c *EventProcessor) WatchAttachedConnectorBindings(namespace string, handler AttachedConnectorBindingHandler) *AttachedConnectorBindingWatcher {
 	watcher := &AttachedConnectorBindingWatcher{
 		handler: handler,
 		informer: skupperv2alpha1informer.NewAttachedConnectorBindingInformer(
@@ -1678,7 +1654,7 @@ func (w *AttachedConnectorBindingWatcher) List() []*skupperv2alpha1.AttachedConn
 	return results
 }
 
-func (c *Controller) WatchAttachedConnectors(namespace string, handler AttachedConnectorHandler) *AttachedConnectorWatcher {
+func (c *EventProcessor) WatchAttachedConnectors(namespace string, handler AttachedConnectorHandler) *AttachedConnectorWatcher {
 	watcher := &AttachedConnectorWatcher{
 		handler: handler,
 		informer: skupperv2alpha1informer.NewAttachedConnectorInformer(

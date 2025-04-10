@@ -6,7 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
@@ -85,7 +85,7 @@ type PodWatchingContext interface {
 }
 
 type PodWatcher struct {
-	watcher *internalclient.PodWatcher
+	watcher *watchers.PodWatcher
 	stopCh  chan struct{}
 	context PodWatchingContext
 }
@@ -93,8 +93,8 @@ type PodWatcher struct {
 func (w *PodWatcher) pods() []skupperv2alpha1.PodDetails {
 	var targets []skupperv2alpha1.PodDetails
 	for _, pod := range w.watcher.List() {
-		if internalclient.IsPodReady(pod) || w.context.IncludeNotReadyPods() {
-			if internalclient.IsPodRunning(pod) && pod.DeletionTimestamp == nil {
+		if isPodReady(pod) || w.context.IncludeNotReadyPods() {
+			if isPodRunning(pod) && pod.DeletionTimestamp == nil {
 				bindings_logger.Debug("Pod selected for connector",
 					slog.String("pod", pod.ObjectMeta.Name),
 					w.context.Attr())
