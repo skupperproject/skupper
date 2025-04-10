@@ -34,10 +34,11 @@ type SiteState struct {
 	RouterAccesses  map[string]*v2alpha1.RouterAccess
 	Grants          map[string]*v2alpha1.AccessGrant
 	Links           map[string]*v2alpha1.Link
-	Secrets         map[string]*corev1.Secret
 	Claims          map[string]*v2alpha1.AccessToken
 	Certificates    map[string]*v2alpha1.Certificate
 	SecuredAccesses map[string]*v2alpha1.SecuredAccess
+	Secrets         map[string]*corev1.Secret
+	ConfigMaps      map[string]*corev1.ConfigMap
 	bundle          bool
 }
 
@@ -46,13 +47,14 @@ func NewSiteState(bundle bool) *SiteState {
 		Site:            &v2alpha1.Site{},
 		Listeners:       make(map[string]*v2alpha1.Listener),
 		Connectors:      make(map[string]*v2alpha1.Connector),
-		RouterAccesses:  map[string]*v2alpha1.RouterAccess{},
+		RouterAccesses:  make(map[string]*v2alpha1.RouterAccess),
 		Grants:          make(map[string]*v2alpha1.AccessGrant),
 		Links:           make(map[string]*v2alpha1.Link),
-		Secrets:         make(map[string]*corev1.Secret),
 		Claims:          make(map[string]*v2alpha1.AccessToken),
-		Certificates:    map[string]*v2alpha1.Certificate{},
-		SecuredAccesses: map[string]*v2alpha1.SecuredAccess{},
+		Certificates:    make(map[string]*v2alpha1.Certificate),
+		SecuredAccesses: make(map[string]*v2alpha1.SecuredAccess),
+		Secrets:         make(map[string]*corev1.Secret),
+		ConfigMaps:      make(map[string]*corev1.ConfigMap),
 		bundle:          bundle,
 	}
 }
@@ -338,6 +340,7 @@ func (s *SiteState) SetNamespace(namespace string) {
 	setNamespaceOnMap(s.Claims, namespace)
 	setNamespaceOnMap(s.Certificates, namespace)
 	setNamespaceOnMap(s.SecuredAccesses, namespace)
+	setNamespaceOnMap(s.ConfigMaps, namespace)
 }
 
 func (s *SiteState) UpdateStatus(networkStatus network.NetworkStatusInfo) {
@@ -424,6 +427,9 @@ func MarshalSiteState(siteState SiteState, outputDirectory string) error {
 		return err
 	}
 	if err = marshalMap(outputDirectory, "Secret", siteState.Secrets); err != nil {
+		return err
+	}
+	if err = marshalMap(outputDirectory, "ConfigMap", siteState.ConfigMaps); err != nil {
 		return err
 	}
 	return nil

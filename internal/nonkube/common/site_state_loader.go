@@ -85,6 +85,7 @@ func GetNamespacesFound(s *api.SiteState) []string {
 	addNamespacesFromMap(s.Claims, nsMap)
 	addNamespacesFromMap(s.Certificates, nsMap)
 	addNamespacesFromMap(s.SecuredAccesses, nsMap)
+	addNamespacesFromMap(s.ConfigMaps, nsMap)
 	for ns := range nsMap {
 		namespaces = append(namespaces, ns)
 	}
@@ -162,6 +163,10 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 				var secret corev1.Secret
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &secret)
 				siteState.Secrets[secret.Name] = &secret
+			case "ConfigMap":
+				var configMap corev1.ConfigMap
+				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &configMap)
+				siteState.ConfigMaps[configMap.Name] = &configMap
 			default:
 				logInvalidResource(gvk)
 			}
