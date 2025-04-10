@@ -143,7 +143,7 @@ func extractTargets(prefix string, network []skupperv2alpha1.SiteRecord) []strin
 	var results []string
 	for _, site := range network {
 		for _, service := range site.Services {
-			if strings.HasPrefix(service.RoutingKey, prefix) {
+			if strings.HasPrefix(service.RoutingKey, prefix) && len(service.Connectors) > 0 {
 				results = append(results, strings.TrimPrefix(service.RoutingKey, prefix))
 			}
 		}
