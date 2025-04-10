@@ -26,6 +26,10 @@ DOCKER := docker
 SKOPEO := skopeo
 PODMAN := podman
 
+# The default e2e test type is set to "ci-tests" if not provided
+TEST_TYPE ?= ci-tests
+TEST_OPTIONS ?= ""
+
 all: skupper controller kube-adaptor network-observer
 
 basepkg = github.com/skupperproject/skupper
@@ -184,18 +188,5 @@ clean:
 		skupper-*.tgz artifacthub-repo.yml \
 		network-observer-*.tgz  skupper-*-scope.yaml
 
-# Run a specific test
-test:
-	$(MAKE) -C tests/ test TEST="$(TEST)"
-
-# Run all e2e tests
 test-e2e:
-	$(MAKE) -C tests/ e2e-tests
-
-# Run a subset of tests in parallel
-test-subset:
-	$(MAKE) -C tests/ test-subset TESTS="$(TESTS)"
-
-# Run CI tests
-test-ci:
-	$(MAKE) -C tests/ ci-tests
+	$(MAKE) -C tests/ $(TEST_TYPE) $(TEST_OPTIONS)

@@ -24,6 +24,7 @@ tests/
 │    ├── hello-world/          # Basic Skupper functionality test
 │    ├── attached-connector/   # Network performance test with attached connectors
 │    ├── redis/                # Redis test
+│    ├── ha/                   # High availability test
 └── README.md                  # This file
 ```
 
@@ -36,6 +37,7 @@ The `e2e` directory contains tests that validate Skupper functionality across di
 - **[hello-world](e2e/hello-world/)**: A simple test to verify basic Skupper functionality by deploying frontend and backend components across Skupper sites.
 - **[attached-connector](e2e/attached-connector/)**: A test to validate Skupper connectivity using attached connectors, including network performance testing with iperf3.
 - **[redis](e2e/redis/)**: A test to validate Skupper functionality with Redis, including data persistence and replication.
+- **[ha](e2e/ha/)**: A test to validate Skupper high availability features, including automatic failover and recovery.
 
 ## Adding a new E2E test to be run on CI
 
@@ -94,6 +96,8 @@ make test TEST="hello-world"
 
 2. **Available Make Commands**:
 
+This works for the command being used INSIDE the `/tests` directory. The Makefile will automatically create a virtual environment and install all required dependencies.
+
 ```bash
 # Create or refresh the virtual environment
 make create-venv FORCE=true
@@ -116,6 +120,8 @@ make ci-tests
 
 ### Example summary
 
+This works for the command being used INSIDE the `/tests` directory. The Makefile will automatically create a virtual environment and install all required dependencies.
+
 ```bash
 # Create a new virtual environment
 make create-venv FORCE=true
@@ -132,6 +138,36 @@ make test-subset TESTS=hello-world,attached-connector
 # Running CI tests
 make ci-tests
 ```
+
+## Running Tests from the ROOT of the Repository
+
+The root of the repository contains a main Makefile that abstracts and simplifies the process of running tests. This Makefile acts as a wrapper, delegating specific commands to the Makefile located in the `tests` directory. By using the main Makefile, you can execute test-related commands from the root of the repository without needing to navigate into the `tests` directory manually. It ensures that all necessary dependencies and configurations are properly handled before invoking the corresponding commands in the `tests` Makefile.
+
+### Variables explained
+
+- **TEST_TYPE**: The type of test to run (e.g., `ci-tests`, `e2e-tests`, `test-subset`, `test`).
+- **TEST_OPTIONS**: Additional options to pass to the test command (e.g., `TEST=hello-world`) or `TESTS=hello-world,attached-connector`).
+- **FORCE**: Force the creation of a new virtual environment, even if one already exists.
+
+### Available Commands
+
+For example:
+
+```bash
+# Run the ci-tests subset from the root
+make tests-e2e ci-tests
+
+# Run all E2E tests from the root
+make tests-e2e e2e-tests
+
+# Run a specific test from the root
+make test-e2e TEST_TYPE=test TEST_OPTIONS="TEST=hello-world"
+
+# Run a specific test with a subset of tests from the root
+make test-e2e TEST_TYPE=test-subset TEST_OPTIONS="TESTS=hello-world,attached-connector"
+```
+
+This abstraction ensures a consistent and streamlined workflow for running tests across the repository.
 
 ## Core Ansible Collections
 
