@@ -312,7 +312,8 @@ jobs:
           command: |
             set -x
             cp ~/kc.west ~/.kube/config
-            make test-e2e ci-tests
+            cd tests
+            make ci-tests
 
   generate-manifest:
     executor:
