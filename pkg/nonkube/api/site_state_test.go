@@ -294,6 +294,7 @@ func fakeSiteState() *SiteState {
 		Claims:          make(map[string]*v2alpha1.AccessToken),
 		Certificates:    make(map[string]*v2alpha1.Certificate),
 		SecuredAccesses: make(map[string]*v2alpha1.SecuredAccess),
+		ConfigMaps:      make(map[string]*corev1.ConfigMap),
 	}
 }
 
@@ -361,6 +362,7 @@ func assertNamespaceOnSiteState(t *testing.T, ss *SiteState, namespace string) {
 	assert.Assert(t, assertNamespaceOnMap(ss.Claims, namespace))
 	assert.Assert(t, assertNamespaceOnMap(ss.Certificates, namespace))
 	assert.Assert(t, assertNamespaceOnMap(ss.SecuredAccesses, namespace))
+	assert.Assert(t, assertNamespaceOnMap(ss.ConfigMaps, namespace))
 }
 
 func assertNamespaceOnMap[T metav1.Object](objMap map[string]T, namespace string) bool {
