@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/skupperproject/skupper/internal/fs"
 	"github.com/skupperproject/skupper/internal/nonkube/flow"
-	"github.com/skupperproject/skupper/pkg/fs"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 

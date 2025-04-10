@@ -178,6 +178,7 @@ func (h *heartBeatsClient) run(stopCh <-chan struct{}) {
 func (h *heartBeatsClient) handleShutdown(stopCh <-chan struct{}) {
 	<-stopCh
 	if h.receiver != nil {
+		h.logger.Info("stopped watching for router availability")
 		_ = h.receiver.Close()
 		h.reset()
 	}

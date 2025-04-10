@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/skupperproject/skupper/pkg/fs"
+	"github.com/skupperproject/skupper/internal/fs"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
@@ -21,7 +21,6 @@ type NamespacesHandler struct {
 }
 
 func (n *NamespacesHandler) OnBasePathAdded(basePath string) {
-	slog.Info("Adding namespace", slog.String("path", basePath))
 }
 
 func NewNamespacesHandler() (*NamespacesHandler, error) {
@@ -56,7 +55,7 @@ func (n *NamespacesHandler) Start(stop chan struct{}, wg *sync.WaitGroup) error 
 
 func (n *NamespacesHandler) wait(stop chan struct{}, wg *sync.WaitGroup) {
 	<-stop
-	slog.Info("Stopping namespaces watcher")
+	n.logger.Info("Stopping namespaces watcher")
 	for _, nsh := range n.namespaces {
 		nsh.Stop()
 	}
@@ -90,9 +89,9 @@ func (n *NamespacesHandler) OnCreate(name string) {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 	if name == n.basePath {
-		slog.Info("Base path created, starting namespaces watcher")
+		n.logger.Info("Base path created, starting namespaces watcher")
 		if err := n.loadExistingNamespaces(); err != nil {
-			slog.Info("failed to create watchers for existing namespaces", slog.Any("error", err))
+			n.logger.Info("failed to create watchers for existing namespaces", slog.Any("error", err))
 		}
 		return
 	}
@@ -102,10 +101,10 @@ func (n *NamespacesHandler) OnCreate(name string) {
 		return
 	}
 	if _, ok := n.namespaces[ns]; !ok {
-		slog.Info("Starting namespace controller", slog.String("namespace", ns))
+		n.logger.Info("Starting namespace controller", slog.String("namespace", ns))
 		nsc, err := NewNamespaceController(ns)
 		if err != nil {
-			slog.Error("Unable to start namespace controller",
+			n.logger.Error("Unable to start namespace controller",
 				slog.String("namespace", ns),
 				slog.Any("error", err))
 		}
@@ -119,20 +118,21 @@ func (n *NamespacesHandler) OnRemove(name string) {
 	n.mutex.Lock()
 	defer n.mutex.Unlock()
 	if n.basePath == name {
-		slog.Info("Base namespace path removed, stopping all namespace watchers", slog.String("path", n.basePath))
+		n.logger.Info("Base namespace path removed, stopping all namespace watchers", slog.String("path", n.basePath))
 		return
 	}
 	ns, _ := n.namespace(name)
 
-	n.logger.Info("Namespace removed",
-		slog.String("ns", ns),
-		slog.String("name", name))
-
 	if ns == "" {
 		return
 	}
+
 	if nsw, ok := n.namespaces[ns]; ok {
-		slog.Info("Stopping namespace watcher", slog.Any("namespace", ns))
+		n.logger.Info("Namespace removed",
+			slog.String("ns", ns),
+			slog.String("name", name))
+
+		n.logger.Info("Stopping namespace watcher", slog.Any("namespace", ns))
 		nsw.Stop()
 		delete(n.namespaces, ns)
 	}
