@@ -86,6 +86,9 @@ for other Kubernetes flavors, loadbalancer is the default.`
 
 	FlagNameHA = "enable-ha"
 	FlagDescHA = "Configure the site for high availability (EnableHA). EnableHA sites have two active routers"
+
+	FlagNameFileName = "filename"
+	FlagDescFileName = "The name of the file to be applied"
 )
 
 type CommandSiteCreateFlags struct {
@@ -253,4 +256,12 @@ type CommandSystemUninstallFlags struct {
 type CommandSystemGenerateBundleFlags struct {
 	Input string
 	Type  string
+}
+
+type CommandSystemApplyFlags struct {
+	Filename string
+}
+
+type CommandSystemDeleteFlags struct {
+	Filename string
 }

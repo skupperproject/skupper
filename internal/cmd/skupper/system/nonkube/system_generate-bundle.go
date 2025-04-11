@@ -25,7 +25,7 @@ type CmdSystemGenerateBundle struct {
 	BundleName      string
 }
 
-func NewCmdCmdSystemGenerateBundle() *CmdSystemGenerateBundle {
+func NewCmdSystemGenerateBundle() *CmdSystemGenerateBundle {
 
 	skupperCmd := CmdSystemGenerateBundle{}
 
