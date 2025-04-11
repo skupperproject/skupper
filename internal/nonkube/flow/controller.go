@@ -45,7 +45,7 @@ func NewController(cfg ControllerConfig) *Controller {
 		UpdateBatchSize:              10,
 	})
 	manager.SetLoggerArgs(map[string]interface{}{
-		"namespace": cfg.Site.Namespace,
+		"namespace": *cfg.Site.Namespace,
 	})
 
 	ctrlr := &Controller{
