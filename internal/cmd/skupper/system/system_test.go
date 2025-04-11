@@ -53,6 +53,20 @@ func TestCmdSystemFactory(t *testing.T) {
 			},
 			command: CmdSystemUnInstallFactory(common.PlatformKubernetes),
 		},
+		{
+			name: "CmdSystemApplyFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameFileName: "",
+			},
+			command: CmdSystemApplyFactory(common.PlatformKubernetes),
+		},
+		{
+			name: "CmdSystemDeleteFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameFileName: "",
+			},
+			command: CmdSystemDeleteFactory(common.PlatformKubernetes),
+		},
 	}
 
 	for _, test := range testTable {
