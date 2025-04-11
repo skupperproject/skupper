@@ -119,7 +119,7 @@ func TestLink_Apply(t *testing.T) {
 			l := NewLink(tt.fields.name, tt.fields.profilePath)
 			l.definition = tt.fields.definition
 			if got := l.Apply(&tt.args.current); got != tt.want {
-				t.Errorf("Link.Apply() = %v, want %v", got, tt.want)
+				t.Errorf("Link.SystemApply() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -306,7 +306,7 @@ func TestLinkMap_Apply(t *testing.T) {
 				assert.Assert(t, ok)
 			}
 			if got := linkMap.Apply(&routerConfig); got != tt.want {
-				t.Errorf("LinkMap.Apply() = %v, want %v", got, tt.want)
+				t.Errorf("LinkMap.SystemApply() = %v, want %v", got, tt.want)
 			}
 			fmt.Println("config expected connectors", len(routerConfig.Connectors), tt.expectedConnectors)
 			assert.Assert(t, len(routerConfig.Connectors) == tt.expectedConnectors)
@@ -475,7 +475,7 @@ func TestRemoveConnector_Apply(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewRemoveConnector(tt.fields.name).Apply(&tt.args.current); got != tt.want {
-				t.Errorf("Link.Apply() = %v, want %v", got, tt.want)
+				t.Errorf("Link.SystemApply() = %v, want %v", got, tt.want)
 			}
 		})
 	}

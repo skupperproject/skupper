@@ -33,6 +33,8 @@ approach, which is based on the new set of Custom Resource Definitions (CRDs).`,
 	cmd.AddCommand(CmdSystemInstallFactory(platform))
 	cmd.AddCommand(CmdSystemUnInstallFactory(platform))
 	cmd.AddCommand(CmdSystemGenerateBundleFactory(platform))
+	cmd.AddCommand(CmdSystemApplyFactory(platform))
+	cmd.AddCommand(CmdSystemDeleteFactory(platform))
 
 	return cmd
 }
@@ -146,7 +148,7 @@ func CmdSystemGenerateBundleFactory(configuredPlatform common.Platform) *cobra.C
 
 	//This implementation will warn the user that the command is not available for Kubernetes environments.
 	kubeCommand := kube.NewCmdCmdSystemGenerateBundle()
-	nonKubeCommand := nonkube.NewCmdCmdSystemGenerateBundle()
+	nonKubeCommand := nonkube.NewCmdSystemGenerateBundle()
 
 	cmdSystemGenerateBundleDesc := common.SkupperCmdDescription{
 		Use:   "generate-bundle <bundle-file>",
@@ -160,6 +162,58 @@ func CmdSystemGenerateBundleFactory(configuredPlatform common.Platform) *cobra.C
 
 	cmd.Flags().StringVar(&cmdFlags.Input, common.FlagNameInput, "", common.FlagDescInput)
 	cmd.Flags().StringVarP(&cmdFlags.Type, common.FlagNameType, "", "tarball", common.FlagDescType)
+
+	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
+	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
+
+	return cmd
+}
+
+func CmdSystemApplyFactory(configuredPlatform common.Platform) *cobra.Command {
+
+	//This implementation will warn the user that the command is not available for Kubernetes environments.
+	kubeCommand := kube.NewCmdSystemApply()
+	nonKubeCommand := nonkube.NewCmdSystemApply()
+
+	cmdSystemApplyDesc := common.SkupperCmdDescription{
+		Use:   "apply",
+		Short: "Create or update resources using files or standard input.",
+		Long:  "Create or update resources using files or standard input.",
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSystemApplyDesc, kubeCommand, nonKubeCommand)
+
+	cmdFlags := common.CommandSystemApplyFlags{}
+
+	cmd.Flags().StringVarP(&cmdFlags.Filename, common.FlagNameFileName, "f", "", common.FlagDescFileName)
+
+	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
+	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
+
+	return cmd
+}
+
+func CmdSystemDeleteFactory(configuredPlatform common.Platform) *cobra.Command {
+
+	//This implementation will warn the user that the command is not available for Kubernetes environments.
+	kubeCommand := kube.NewCmdSystemDelete()
+	nonKubeCommand := nonkube.NewCmdSystemDelete()
+
+	cmdSystemDeleteDesc := common.SkupperCmdDescription{
+		Use:   "delete",
+		Short: "Delete resources using files or standard input.",
+		Long:  "Delete resources using files or standard input.",
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSystemDeleteDesc, kubeCommand, nonKubeCommand)
+
+	cmdFlags := common.CommandSystemDeleteFlags{}
+
+	cmd.Flags().StringVarP(&cmdFlags.Filename, common.FlagNameFileName, "f", "", common.FlagDescFileName)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
