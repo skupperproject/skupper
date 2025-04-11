@@ -44,6 +44,9 @@ func NewController(cfg ControllerConfig) *Controller {
 		UpdateBufferTime:             time.Millisecond * 1000,
 		UpdateBatchSize:              10,
 	})
+	manager.SetLoggerArgs(map[string]interface{}{
+		"namespace": cfg.Site.Namespace,
+	})
 
 	ctrlr := &Controller{
 		container: container,
