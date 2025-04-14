@@ -123,9 +123,9 @@ func compareCertificates(t *testing.T, customOutputPath string) {
 func createInputCertificates(t *testing.T, customOutputPath string) {
 	// preparing certificates
 	fakeHosts := "10.0.0.1,10.0.0.2,fake.domain"
-	ca := certs.GenerateCASecret("fake-ca", "fake-ca")
-	server := certs.GenerateSecret("fake-server-cert", "fake-server-cert", fakeHosts, &ca)
-	client := certs.GenerateSecret("fake-client-cert", "fake-client-cert", "", &ca)
+	ca := certs.GenerateSecret("fake-ca", "fake-ca", "", 0, nil)
+	server := certs.GenerateSecret("fake-server-cert", "fake-server-cert", fakeHosts, 0, &ca)
+	client := certs.GenerateSecret("fake-client-cert", "fake-client-cert", "", 0, &ca)
 
 	// paths for each provided certificate
 	caPath := path.Join(customOutputPath, "namespaces/default", string(api.InputIssuersPath), "skupper-site-ca")

@@ -89,7 +89,7 @@ func (g *TokenGenerator) setValidHostsFromSite(site *skupperv2alpha1.Site) bool 
 }
 
 func (g *TokenGenerator) NewCertToken(name string, subject string) Token {
-	cert := certs.GenerateSecret(name, subject, strings.Join(g.hosts, ","), g.ca)
+	cert := certs.GenerateSecret(name, subject, strings.Join(g.hosts, ","), 0, g.ca)
 	token := &CertToken{
 		tlsCredentials: &cert,
 	}

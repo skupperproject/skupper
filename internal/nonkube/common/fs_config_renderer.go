@@ -371,7 +371,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 		if certificate.Spec.Signing == false {
 			continue
 		}
-		secret := certs.GenerateCASecret(name, certificate.Spec.Subject)
+		secret := certs.GenerateSecret(name, certificate.Spec.Subject, "", 0, nil)
 
 		ignoreExisting := true
 		userCaSecret, err := c.loadUserCertAsSecret(siteState, "ca", name)
@@ -400,14 +400,14 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 		}
 		if certificate.Spec.Client {
 			purpose = "client"
-			secret = certs.GenerateSecret(name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), caSecret)
+			secret = certs.GenerateSecret(name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), 0, caSecret)
 			// TODO Not sure if connect.json is needed (probably need to get rid of it)
 			if connectJson := c.connectJson(siteState); connectJson != nil {
 				secret.Data["connect.json"] = []byte(*connectJson)
 			}
 		} else if certificate.Spec.Server {
 			purpose = "server"
-			secret = certs.GenerateSecret(name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), caSecret)
+			secret = certs.GenerateSecret(name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), 0, caSecret)
 		} else {
 			continue
 		}

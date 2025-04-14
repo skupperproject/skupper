@@ -133,7 +133,7 @@ func (*factory) grant(name string, namespace string, uid string) *v2alpha1.Acces
 }
 
 func (*factory) secret(name string, namespace string, subject string, hosts []string) *corev1.Secret {
-	secret := certs.GenerateSecret(name, subject, strings.Join(hosts, ","), nil)
+	secret := certs.GenerateSecret(name, subject, strings.Join(hosts, ","), 0, nil)
 	secret.ObjectMeta.Namespace = namespace
 	return &secret
 }
