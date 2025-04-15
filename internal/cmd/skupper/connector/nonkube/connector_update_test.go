@@ -34,43 +34,43 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name:          "connector is not updated because get connector returned error",
 			args:          []string{"no-connector"},
-			flags:         &common.CommandConnectorUpdateFlags{},
+			flags:         &common.CommandConnectorUpdateFlags{Host: "1.2.3.4"},
 			expectedError: "connector no-connector must exist in namespace test to be updated",
 		},
 		{
 			name:          "connector name is not specified",
 			args:          []string{},
-			flags:         &common.CommandConnectorUpdateFlags{},
+			flags:         &common.CommandConnectorUpdateFlags{Host: "localhost"},
 			expectedError: "connector name must be configured",
 		},
 		{
 			name:          "connector name is nil",
 			args:          []string{""},
-			flags:         &common.CommandConnectorUpdateFlags{},
+			flags:         &common.CommandConnectorUpdateFlags{Host: "localhost"},
 			expectedError: "connector name must not be empty",
 		},
 		{
 			name:          "more than one argument is specified",
 			args:          []string{"my", "connector"},
-			flags:         &common.CommandConnectorUpdateFlags{},
+			flags:         &common.CommandConnectorUpdateFlags{Host: "localhost"},
 			expectedError: "only one argument is allowed for this command",
 		},
 		{
 			name:          "connector name is not valid.",
 			args:          []string{"my new connector"},
-			flags:         &common.CommandConnectorUpdateFlags{},
+			flags:         &common.CommandConnectorUpdateFlags{Host: "localhost"},
 			expectedError: "connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name:          "connector type is not valid",
 			args:          []string{"my-connector"},
-			flags:         &common.CommandConnectorUpdateFlags{ConnectorType: "not-valid"},
+			flags:         &common.CommandConnectorUpdateFlags{ConnectorType: "not-valid", Host: "localhost"},
 			expectedError: "connector type is not valid: value not-valid not allowed. It should be one of this options: [tcp]",
 		},
 		{
 			name:          "routing key is not valid",
 			args:          []string{"my-connector"},
-			flags:         &common.CommandConnectorUpdateFlags{RoutingKey: "not-valid$"},
+			flags:         &common.CommandConnectorUpdateFlags{RoutingKey: "not-valid$", Host: "localhost"},
 			expectedError: "routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
@@ -88,13 +88,13 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		{
 			name:          "port is not valid",
 			args:          []string{"my-connector"},
-			flags:         &common.CommandConnectorUpdateFlags{Port: -1},
+			flags:         &common.CommandConnectorUpdateFlags{Port: -1, Host: "localhost"},
 			expectedError: "connector port is not valid: value is not positive",
 		},
 		{
 			name:  "kubernetes flags are not valid on this platform",
 			args:  []string{"my-connector"},
-			flags: &common.CommandConnectorUpdateFlags{},
+			flags: &common.CommandConnectorUpdateFlags{Host: "localhost"},
 			cobraGenericFlags: map[string]string{
 				common.FlagNameContext:    "test",
 				common.FlagNameKubeconfig: "test",
@@ -124,6 +124,11 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-connector",
 			Namespace: "test",
+		},
+		Spec: v2alpha1.ConnectorSpec{
+			Host:       "localhost",
+			Port:       8080,
+			RoutingKey: "backend-8080",
 		},
 	}
 
@@ -179,7 +184,7 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 			connectorName:  "my-connector",
 			port:           8080,
 			connectorType:  "tcp",
-			host:           "hostname",
+			host:           "1.2.3.4",
 			routingKey:     "keyname",
 			tlsCredentials: "secretname",
 		},
@@ -188,7 +193,7 @@ func TestCmdConnectorUpdate_Run(t *testing.T) {
 			connectorName:  "my-connector",
 			port:           8080,
 			connectorType:  "tcp",
-			host:           "hostname",
+			host:           "localhost",
 			routingKey:     "keyname",
 			tlsCredentials: "secretname",
 		},

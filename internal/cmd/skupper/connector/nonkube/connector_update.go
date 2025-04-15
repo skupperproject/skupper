@@ -113,7 +113,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) error {
 			cmd.newSettings.port = cmd.Flags.Port
 		}
 	}
-	if cmd.Flags.Host != "" {
+	if cmd.Flags.Host != "localhost" {
 		ip := net.ParseIP(cmd.Flags.Host)
 		ok, _ := hostStringValidator.Evaluate(cmd.Flags.Host)
 		if !ok && ip == nil {

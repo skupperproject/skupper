@@ -47,7 +47,6 @@ skupper connector create backend 8080 --workload deployment/backend`,
 	cmdFlags := common.CommandConnectorCreateFlags{}
 
 	cmd.Flags().StringVarP(&cmdFlags.RoutingKey, common.FlagNameRoutingKey, "r", "", common.FlagDescRoutingKey)
-	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
 	if configuredPlatform == common.PlatformKubernetes {
@@ -56,6 +55,9 @@ skupper connector create backend 8080 --workload deployment/backend`,
 		cmd.Flags().StringVar(&cmdFlags.Workload, common.FlagNameWorkload, "", common.FlagDescWorkload)
 		cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 		cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "configured", common.FlagDescWait)
+		cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
+	} else {
+		cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "localhost", common.FlagDescHost)
 	}
 
 	kubeCommand.CobraCmd = cmd
@@ -107,7 +109,6 @@ func CmdConnectorUpdateFactory(configuredPlatform common.Platform) *cobra.Comman
 	cmdFlags := common.CommandConnectorUpdateFlags{}
 
 	cmd.Flags().StringVarP(&cmdFlags.RoutingKey, common.FlagNameRoutingKey, "r", "", common.FlagDescRoutingKey)
-	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
 	cmd.Flags().IntVar(&cmdFlags.Port, common.FlagNameConnectorPort, 0, common.FlagDescConnectorPort)
@@ -117,6 +118,9 @@ func CmdConnectorUpdateFactory(configuredPlatform common.Platform) *cobra.Comman
 		cmd.Flags().StringVar(&cmdFlags.Workload, common.FlagNameWorkload, "", common.FlagDescWorkload)
 		cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 		cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "configured", common.FlagDescWait)
+		cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
+	} else {
+		cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "localhost", common.FlagDescHost)
 	}
 
 	kubeCommand.CobraCmd = cmd
@@ -169,7 +173,6 @@ skupper connector generate backend 8080 --workload deployment/backend`,
 	cmdFlags := common.CommandConnectorGenerateFlags{}
 
 	cmd.Flags().StringVar(&cmdFlags.RoutingKey, common.FlagNameRoutingKey, "", common.FlagDescRoutingKey)
-	cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
 	cmd.Flags().StringVar(&cmdFlags.TlsCredentials, common.FlagNameTlsCredentials, "", common.FlagDescTlsCredentials)
 	cmd.Flags().StringVar(&cmdFlags.ConnectorType, common.FlagNameConnectorType, "tcp", common.FlagDescConnectorType)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "yaml", common.FlagDescOutput)
@@ -177,6 +180,9 @@ skupper connector generate backend 8080 --workload deployment/backend`,
 		cmd.Flags().BoolVar(&cmdFlags.IncludeNotReadyPods, common.FlagNameIncludeNotReadyPods, false, common.FlagDescIncludeNotRead)
 		cmd.Flags().StringVar(&cmdFlags.Selector, common.FlagNameSelector, "", common.FlagDescSelector)
 		cmd.Flags().StringVar(&cmdFlags.Workload, common.FlagNameWorkload, "", common.FlagDescWorkload)
+		cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "", common.FlagDescHost)
+	} else {
+		cmd.Flags().StringVar(&cmdFlags.Host, common.FlagNameHost, "localhost", common.FlagDescHost)
 	}
 
 	kubeCommand.CobraCmd = cmd

@@ -91,10 +91,9 @@ func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
 			expectedError: "host is not valid: a valid IP address or hostname is expected",
 		},
 		{
-			name:          "host is not configued",
-			args:          []string{"my-connector-host", "8080"},
-			flags:         &common.CommandConnectorCreateFlags{},
-			expectedError: "host name must be configured: an IP address or hostname is expected",
+			name:  "host is not configued default",
+			args:  []string{"my-connector-host", "8080"},
+			flags: &common.CommandConnectorCreateFlags{},
 		},
 		{
 
@@ -199,7 +198,7 @@ func TestNonKubeCmdConnectorCreate_InputToOptions(t *testing.T) {
 			namespace: "test",
 			flags: common.CommandConnectorCreateFlags{
 				RoutingKey:          "",
-				Host:                "",
+				Host:                "localhost",
 				Selector:            "",
 				TlsCredentials:      "secret",
 				ConnectorType:       "tcp",
@@ -209,7 +208,7 @@ func TestNonKubeCmdConnectorCreate_InputToOptions(t *testing.T) {
 				Wait:                "ready",
 			},
 			expectedTlsCredentials: "secret",
-			expectedHost:           "",
+			expectedHost:           "localhost",
 			expectedRoutingKey:     "my-Connector",
 			expectedConnectorType:  "tcp",
 			expectedNamespace:      "test",
