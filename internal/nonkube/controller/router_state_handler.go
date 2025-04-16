@@ -19,6 +19,7 @@ type RouterStateHandler struct {
 	siteId    string
 	logger    *slog.Logger
 	runningCh chan bool
+	mux       sync.Mutex
 	callback  ActivationCallback
 }
 
@@ -27,8 +28,8 @@ func NewRouterStateHandler(namespace string) *RouterStateHandler {
 		namespace: namespace,
 	}
 	handler.logger = slog.Default().
-		With("namespace", namespace).
-		With("component", handler.Id())
+		With("component", handler.Id()).
+		With("namespace", namespace)
 	return handler
 }
 
@@ -37,6 +38,8 @@ func (h *RouterStateHandler) SetCallback(callback ActivationCallback) {
 }
 
 func (h *RouterStateHandler) Start(stopCh <-chan struct{}) {
+	h.mux.Lock()
+	defer h.mux.Unlock()
 	if h.runningCh != nil {
 		return
 	}
@@ -47,8 +50,10 @@ func (h *RouterStateHandler) Start(stopCh <-chan struct{}) {
 }
 
 func (h *RouterStateHandler) Stop() {
-	h.logger.Info("Stopping router state handler")
+	h.mux.Lock()
+	defer h.mux.Unlock()
 	if h.runningCh != nil {
+		h.logger.Info("Stopping router state handler")
 		close(h.runningCh)
 		h.runningCh = nil
 	}
@@ -67,6 +72,7 @@ func (h *RouterStateHandler) run() {
 		return
 	case <-h.runningCh:
 		h.logger.Debug("exiting router state handler (user request)")
+		hbClient.Stop()
 		return
 	}
 }
@@ -76,8 +82,8 @@ func newHeartBeatsClient(namespace string) *heartBeatsClient {
 		Namespace: namespace,
 	}
 	c.logger = slog.Default().
-		With("namespace", namespace).
-		With("component", "heartbeat.client")
+		With("component", "heartbeat.client").
+		With("namespace", namespace)
 	return c
 }
 
@@ -88,7 +94,7 @@ type heartBeatsClient struct {
 	url        string
 	address    string
 	mutex      sync.Mutex
-	running    bool
+	running    chan bool
 	isRouterUp bool
 	callback   ActivationCallback
 	receiver   messaging.Receiver
@@ -98,14 +104,21 @@ func (h *heartBeatsClient) Start(stopCh <-chan struct{}, callback ActivationCall
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
-	if h.running {
+	if h.running != nil {
 		return
 	}
 
-	h.running = true
+	h.logger.Info("Starting heartBeatsClient")
+	h.running = make(chan bool)
 	h.callback = callback
 	go h.run(stopCh)
 	go h.handleShutdown(stopCh)
+}
+
+func (h *heartBeatsClient) Stop() {
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	close(h.running)
 }
 
 func (h *heartBeatsClient) routerDown(reason string) {
@@ -129,9 +142,9 @@ func (h *heartBeatsClient) routerUp(stopCh <-chan struct{}) {
 }
 
 func (h *heartBeatsClient) run(stopCh <-chan struct{}) {
-	h.logger.Info("watching for router availability")
+	h.logger.Debug("watching for router availability")
 	ticker := time.NewTicker(5 * time.Second)
-	for h.running {
+	for h.running != nil {
 		<-ticker.C
 
 		// connection info
@@ -157,7 +170,7 @@ func (h *heartBeatsClient) run(stopCh <-chan struct{}) {
 		h.receiver, err = conn.Receiver(address, 1)
 		if err != nil {
 			h.logger.Error(err.Error())
-			h.callback.Stop()
+			h.routerDown("unable to create receiver")
 			continue
 		}
 		h.routerUp(stopCh)
@@ -173,19 +186,29 @@ func (h *heartBeatsClient) run(stopCh <-chan struct{}) {
 			break
 		}
 	}
+	h.logger.Debug("heartbeat exiting now")
 }
 
 func (h *heartBeatsClient) handleShutdown(stopCh <-chan struct{}) {
-	<-stopCh
-	if h.receiver != nil {
-		h.logger.Info("stopped watching for router availability")
-		_ = h.receiver.Close()
+	select {
+	case <-stopCh:
+		h.reset()
+	case <-h.running:
 		h.reset()
 	}
 }
 
 func (h *heartBeatsClient) reset() {
-	h.running = false
+	h.mutex.Lock()
+	defer h.mutex.Unlock()
+	if h.running == nil {
+		return
+	}
+	h.logger.Info("Stopping heartBeatsClient")
+	if h.receiver != nil {
+		_ = h.receiver.Close()
+	}
+	h.running = nil
 	h.siteId = ""
 	h.url = ""
 	h.address = ""

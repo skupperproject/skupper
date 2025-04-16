@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 
@@ -29,8 +28,8 @@ func NewNamespaceController(namespace string) (*NamespaceController, error) {
 	}
 	nsw.watcher = watcher
 	nsw.logger = slog.New(slog.Default().Handler()).
-		With("namespace", namespace).
-		With("component", "namespace.watcher")
+		With("component", "namespace.watcher").
+		With("namespace", namespace)
 	return nsw, nil
 }
 
@@ -52,17 +51,6 @@ func (w *NamespaceController) run() {
 	return
 }
 
-// collectorControl controls the lifecycle of the collector based on
-// where a given namespace is actually initialized or not
-func (w *NamespaceController) collectorControl() {
-	ctx, cn := context.WithCancel(context.Background())
-	defer cn()
-	err := flow.StartCollector(ctx, w.ns)
-	if err != nil {
-		w.logger.Error("error starting flow collector", slog.Any("error", err.Error()))
-		return
-	}
-}
 func (w *NamespaceController) Stop() {
 	close(w.stopCh)
 }

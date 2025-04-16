@@ -33,8 +33,8 @@ type StatusSyncClient struct {
 
 func (s *StatusSyncClient) Logger() *slog.Logger {
 	logger := slog.New(slog.Default().Handler()).With(
-		slog.String("namespace", s.namespace),
 		slog.String("component", "nonkube.flow.statusSync"),
+		slog.String("namespace", s.namespace),
 	)
 	return logger
 }
