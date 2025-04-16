@@ -153,54 +153,72 @@ func GetPrometheusImageRegistry() string {
 	return imageRegistry
 }
 
-func AddShaToImages(imageList []SkupperImage) []SkupperImage {
-	var completedImages []SkupperImage
-	var waitGroup sync.WaitGroup
-	imageChannel := make(chan SkupperImage, len(imageList))
+func CreateMapImageDigest(runningPods map[string]string) map[string]string {
+	imagesToRetrieve := map[string]string{
+		"router":             GetRouterImageName(),
+		"controller":         GetControllerImageName(),
+		"kube-adaptor":       GetKubeAdaptorImageName(),
+		"network-observer":   GetNetworkObserverImageName(),
+		"cli":                GetCliImageName(),
+		"prometheus":         GetPrometheusServerImageName(),
+		"origin-oauth-proxy": GetOauthProxyImageName(),
+	}
 
-	for _, image := range imageList {
+	//update the list of images to retrieve with the running containers
+	for podName, podImage := range runningPods {
+		imagesToRetrieve[podName] = podImage
+	}
+
+	completedImages := make(map[string]string)
+	var waitGroup sync.WaitGroup
+	imageChannel := make(chan SkupperImage, len(imagesToRetrieve))
+
+	for _, image := range imagesToRetrieve {
 
 		waitGroup.Add(1)
 
-		go func(skImage SkupperImage) {
+		go func(skImage string) {
 
-			tag := strings.Split(skImage.Name, ":")[1]
+			tag := strings.Split(skImage, ":")[1]
 			isDevImageTag := slices.Contains(DevelopmentImageTags, tag)
 
 			defer waitGroup.Done()
 
 			var output bytes.Buffer
-			checkCmd := exec.Command("docker", "inspect", "--format={{index .RepoDigests 0}}", skImage.Name)
+			checkCmd := exec.Command("docker", "inspect", "--format={{index .RepoDigests 0}}", skImage)
 			checkCmd.Stdout = &output
 			checkCmd.Stderr = &output
 
+			var pullErr error
+			var inspectErr error
+
 			if err := checkCmd.Run(); err != nil || isDevImageTag {
 				// Pull the image only if it's not present locally or if it's an image that could be overwritten.
-				pullCmd := exec.Command("docker", "pull", skImage.Name)
-				if err := pullCmd.Run(); err != nil {
-					log.Printf("Error pulling image: %v\n", err)
+				pullCmd := exec.Command("docker", "pull", skImage)
+				if pullErr = pullCmd.Run(); pullErr != nil {
+					log.Printf("Error pulling image: %v\n", output.String())
 				}
 
 				// Retry inspection after pulling
 				output.Reset()
-				checkCmd = exec.Command("docker", "inspect", "--format={{index .RepoDigests 0}}", skImage.Name)
+				checkCmd = exec.Command("docker", "inspect", "--format={{index .RepoDigests 0}}", skImage)
 				checkCmd.Stdout = &output
 				checkCmd.Stderr = &output
-				if err := checkCmd.Run(); err != nil {
-					log.Printf("Error getting image digest: %v\n", err)
+				if inspectErr = checkCmd.Run(); inspectErr != nil {
+					log.Printf("Error getting image digest: %v\n", output.String())
 				}
 			}
 
-			digestBytes := output.String()
-			imageWithoutTag := strings.Split(skImage.Name, ":")[0]
+			if pullErr == nil && inspectErr == nil {
+				digestBytes := output.String()
+				imageWithoutTag := strings.Split(skImage, ":")[0]
 
-			// Extract and print the digest
-			parsedDigest := strings.ReplaceAll(strings.ReplaceAll(digestBytes, "'", ""), "\n", "")
-			digest := strings.TrimPrefix(strings.Trim(parsedDigest, "'"), imageWithoutTag+"@")
+				// Extract and print the digest
+				parsedDigest := strings.ReplaceAll(strings.ReplaceAll(digestBytes, "'", ""), "\n", "")
+				digest := strings.TrimPrefix(strings.Trim(parsedDigest, "'"), imageWithoutTag+"@")
 
-			skImage.Digest = digest
-
-			imageChannel <- skImage
+				imageChannel <- SkupperImage{Name: skImage, Digest: digest}
+			}
 		}(image)
 	}
 
@@ -210,7 +228,7 @@ func AddShaToImages(imageList []SkupperImage) []SkupperImage {
 	}()
 
 	for img := range imageChannel {
-		completedImages = append(completedImages, img)
+		completedImages[img.Name] = img.Digest
 	}
 
 	return completedImages
@@ -245,7 +263,7 @@ func GetOauthProxyImageRegistry() string {
 	return imageRegistry
 }
 
-func GetImage(imageNames map[string]string, imageRegistry string, enableSHA bool) []SkupperImage {
+func GetImage(imageNames map[string]string, imageRegistry string, digestMap map[string]string) []SkupperImage {
 	var skupperImage []SkupperImage
 
 	for _, name := range imageNames {
@@ -257,18 +275,18 @@ func GetImage(imageNames map[string]string, imageRegistry string, enableSHA bool
 		}
 		image.Name = name
 
-		skupperImage = append(skupperImage, image)
-	}
+		if digestMap != nil {
+			image.Digest = digestMap[name]
+		}
 
-	if enableSHA {
-		skupperImage = AddShaToImages(skupperImage)
+		skupperImage = append(skupperImage, image)
 	}
 
 	return skupperImage
 
 }
 
-func GetImages(component string, enableSHA bool) []SkupperImage {
+func GetImages(component string, digestMap map[string]string) []SkupperImage {
 	//var names map[string]string
 	var registry string
 
@@ -325,7 +343,7 @@ func GetImages(component string, enableSHA bool) []SkupperImage {
 	}
 
 	if names != nil {
-		return GetImage(names, registry, enableSHA)
+		return GetImage(names, registry, digestMap)
 	} else {
 		return nil
 	}
