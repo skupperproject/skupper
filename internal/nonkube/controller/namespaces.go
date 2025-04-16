@@ -48,6 +48,7 @@ func (n *NamespacesHandler) Start(stop chan struct{}, wg *sync.WaitGroup) error 
 	if err != nil {
 		return err
 	}
+	wg.Add(1)
 	w.Start(stop)
 	go n.wait(stop, wg)
 	return nil
@@ -127,13 +128,13 @@ func (n *NamespacesHandler) OnRemove(name string) {
 		return
 	}
 
-	if nsw, ok := n.namespaces[ns]; ok {
+	if nsc, ok := n.namespaces[ns]; ok {
 		n.logger.Info("Namespace removed",
 			slog.String("ns", ns),
 			slog.String("name", name))
 
-		n.logger.Info("Stopping namespace watcher", slog.Any("namespace", ns))
-		nsw.Stop()
+		n.logger.Info("Stopping namespace controller", slog.Any("namespace", ns))
+		nsc.Stop()
 		delete(n.namespaces, ns)
 	}
 }

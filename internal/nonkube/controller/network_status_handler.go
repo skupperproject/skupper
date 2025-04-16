@@ -26,8 +26,8 @@ type NetworkStatusHandler struct {
 
 func NewNetworkStatusHandler(namespace string) *NetworkStatusHandler {
 	logger := slog.Default().
-		With("namespace", namespace).
-		With("component", "network.status.handler")
+		With("component", "network.status.handler").
+		With("namespace", namespace)
 
 	return &NetworkStatusHandler{
 		Namespace: namespace,
@@ -60,7 +60,7 @@ func (n *NetworkStatusHandler) processEvents() {
 			n.updateRuntimeSiteState(networkStatusInfo)
 		case <-n.doneCh:
 			n.resetStatus()
-			n.logger.Info("Stopping processing events")
+			n.logger.Info("Stop event processing")
 			return
 		}
 	}
@@ -125,7 +125,6 @@ func (n *NetworkStatusHandler) loadCm(name string) (*corev1.ConfigMap, error) {
 }
 
 func (n *NetworkStatusHandler) OnBasePathAdded(basePath string) {
-	n.startProcessingEvents()
 }
 
 func (n *NetworkStatusHandler) startProcessingEvents() {
@@ -134,7 +133,7 @@ func (n *NetworkStatusHandler) startProcessingEvents() {
 	if n.doneCh != nil {
 		return
 	}
-	n.logger.Debug("Starting processing events")
+	n.logger.Info("Start event processing")
 	n.doneCh = make(chan struct{})
 	go n.processEvents()
 }

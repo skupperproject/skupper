@@ -29,7 +29,6 @@ func (c *Controller) Start() (chan struct{}, *sync.WaitGroup) {
 	log.Println("Starting controller")
 	wg := &sync.WaitGroup{}
 	stop := make(chan struct{})
-	wg.Add(1)
 	c.ensureSingleInstance(stop)
 	if err := c.nsHandler.Start(stop, wg); err != nil {
 		log.Fatalf("error starting controller: %v", err)

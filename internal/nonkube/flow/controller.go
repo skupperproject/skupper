@@ -53,8 +53,8 @@ func NewController(cfg ControllerConfig) *Controller {
 		source:    source,
 		manager:   manager,
 		logger: slog.New(slog.Default().Handler()).With(
-			slog.String("namespace", *cfg.Site.Namespace),
 			slog.String("component", "nonkube.flow.controller"),
+			slog.String("namespace", *cfg.Site.Namespace),
 		),
 	}
 	return ctrlr
