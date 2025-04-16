@@ -6,8 +6,6 @@ package nonkube
 import (
 	"errors"
 	"fmt"
-	"net"
-
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/internal/utils/validator"
@@ -45,12 +43,7 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 
 func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 	var validationErrors []error
-	hostStringValidator := validator.NewHostStringValidator()
 	resourceStringValidator := validator.NewResourceStringValidator()
-
-	if cmd.Flags.ServiceAccount != "" {
-		fmt.Println("Warning: --service-account flag is not supported on this platform")
-	}
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
 		fmt.Println("Warning: --context flag is not supported on this platform")
@@ -72,23 +65,6 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 		cmd.siteName = args[0]
 	}
 
-	if cmd.Flags != nil && cmd.Flags.BindHost != "" {
-		ip := net.ParseIP(cmd.Flags.BindHost)
-		ok, _ := hostStringValidator.Evaluate(cmd.Flags.BindHost)
-		if !ok && ip == nil {
-			validationErrors = append(validationErrors, fmt.Errorf("bindhost is not valid: a valid IP address or hostname is expected"))
-		}
-	}
-	if cmd.Flags != nil && len(cmd.Flags.SubjectAlternativeNames) != 0 {
-		for _, name := range cmd.Flags.SubjectAlternativeNames {
-			ip := net.ParseIP(name)
-			ok, _ := hostStringValidator.Evaluate(name)
-			if !ok && ip == nil {
-				validationErrors = append(validationErrors, fmt.Errorf("SubjectAlternativeNames is not valid: a valid IP address or hostname is expected"))
-			}
-		}
-	}
-
 	return errors.Join(validationErrors...)
 }
 
@@ -96,9 +72,9 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 
 	if cmd.Flags.EnableLinkAccess {
 		cmd.linkAccessEnabled = true
-		cmd.bindHost = cmd.Flags.BindHost
+		cmd.bindHost = "0.0.0.0"
 		cmd.routerAccessName = "router-access-" + cmd.siteName
-		cmd.subjectAlternativeNames = cmd.Flags.SubjectAlternativeNames
+		cmd.subjectAlternativeNames = []string{}
 	}
 
 	if cmd.namespace == "" {

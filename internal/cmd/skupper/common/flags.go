@@ -20,15 +20,9 @@ const (
 	FlagDescLinkAccessType   = `configure external access for links from remote sites.
 Choices: [route|loadbalancer]. Default: On OpenShift, route is the default; 
 for other Kubernetes flavors, loadbalancer is the default.`
-	FlagNameOutput                  = "output"
-	FlagDescOutput                  = "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml"
-	FlagVerboseOutput               = "print verbose output to the console. Choices: json, yaml"
-	FlagNameServiceAccount          = "service-account"
-	FlagDescServiceAccount          = "the Kubernetes service account under which to run the Skupper controller"
-	FlagNameBindHost                = "bind-host"
-	FlagDescBindHost                = "A valid host or ip that can be used to bind a local port"
-	FlagNameSubjectAlternativeNames = "subject-alternative-names"
-	FlagDescSubjectAlternativeNames = "Add subject alternative names for the router access in non kubernetes environments"
+	FlagNameOutput    = "output"
+	FlagDescOutput    = "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml"
+	FlagVerboseOutput = "print verbose output to the console. Choices: json, yaml"
 
 	FlagNameTlsCredentials     = "tls-credentials"
 	FlagDescTlsCredentials     = "the name of a Kubernetes secret containing the generated or externally-supplied TLS credentials."
@@ -97,23 +91,17 @@ for other Kubernetes flavors, loadbalancer is the default.`
 )
 
 type CommandSiteCreateFlags struct {
-	EnableLinkAccess        bool
-	LinkAccessType          string
-	ServiceAccount          string
-	Timeout                 time.Duration
-	BindHost                string
-	SubjectAlternativeNames []string
-	Wait                    string
+	EnableLinkAccess bool
+	LinkAccessType   string
+	Timeout          time.Duration
+	Wait             string
 }
 
 type CommandSiteUpdateFlags struct {
-	EnableLinkAccess        bool
-	LinkAccessType          string
-	ServiceAccount          string
-	Timeout                 time.Duration
-	BindHost                string
-	SubjectAlternativeNames []string
-	Wait                    string
+	EnableLinkAccess bool
+	LinkAccessType   string
+	Timeout          time.Duration
+	Wait             string
 }
 
 type CommandSiteDeleteFlags struct {

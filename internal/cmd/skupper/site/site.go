@@ -51,10 +51,7 @@ There can be only one site definition per namespace.`,
 
 	cmd.Flags().BoolVar(&cmdFlags.EnableLinkAccess, common.FlagNameEnableLinkAccess, false, common.FlagDescEnableLinkAccess)
 	cmd.Flags().StringVar(&cmdFlags.LinkAccessType, common.FlagNameLinkAccessType, "", common.FlagDescLinkAccessType)
-	cmd.Flags().StringVar(&cmdFlags.ServiceAccount, common.FlagNameServiceAccount, "", common.FlagDescServiceAccount)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 3*time.Minute, common.FlagDescTimeout)
-	cmd.Flags().StringVar(&cmdFlags.BindHost, common.FlagNameBindHost, "0.0.0.0", common.FlagDescBindHost)
-	cmd.Flags().StringSliceVar(&cmdFlags.SubjectAlternativeNames, common.FlagNameSubjectAlternativeNames, []string{}, common.FlagDescSubjectAlternativeNames)
 	cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "ready", common.FlagDescWait)
 
 	kubeCommand.CobraCmd = cmd
@@ -62,11 +59,7 @@ There can be only one site definition per namespace.`,
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
 
-	if configuredPlatform == common.PlatformKubernetes {
-		cmd.Flags().MarkHidden(common.FlagNameBindHost)
-		cmd.Flags().MarkHidden(common.FlagNameSubjectAlternativeNames)
-	} else {
-		cmd.Flags().MarkHidden(common.FlagNameServiceAccount)
+	if configuredPlatform != common.PlatformKubernetes {
 		cmd.Flags().MarkHidden(common.FlagNameWait)
 	}
 
@@ -90,10 +83,7 @@ func CmdSiteUpdateFactory(configuredPlatform common.Platform) *cobra.Command {
 
 	cmd.Flags().BoolVar(&cmdFlags.EnableLinkAccess, common.FlagNameEnableLinkAccess, false, common.FlagDescEnableLinkAccess)
 	cmd.Flags().StringVar(&cmdFlags.LinkAccessType, common.FlagNameLinkAccessType, "", common.FlagDescLinkAccessType)
-	cmd.Flags().StringVar(&cmdFlags.ServiceAccount, common.FlagNameServiceAccount, "", common.FlagDescServiceAccount)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 30*time.Second, common.FlagDescTimeout)
-	cmd.Flags().StringVar(&cmdFlags.BindHost, common.FlagNameBindHost, "", common.FlagDescBindHost)
-	cmd.Flags().StringSliceVar(&cmdFlags.SubjectAlternativeNames, common.FlagNameSubjectAlternativeNames, []string{}, common.FlagDescSubjectAlternativeNames)
 	cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "ready", common.FlagDescWait)
 
 	kubeCommand.CobraCmd = cmd
@@ -101,11 +91,7 @@ func CmdSiteUpdateFactory(configuredPlatform common.Platform) *cobra.Command {
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
 
-	if configuredPlatform == common.PlatformKubernetes {
-		cmd.Flags().MarkHidden(common.FlagNameBindHost)
-		cmd.Flags().MarkHidden(common.FlagNameSubjectAlternativeNames)
-	} else {
-		cmd.Flags().MarkHidden(common.FlagNameServiceAccount)
+	if configuredPlatform != common.PlatformKubernetes {
 		cmd.Flags().MarkHidden(common.FlagNameWait)
 	}
 
@@ -187,22 +173,11 @@ Generate a site resource to evaluate what will be created with the site create c
 	cmd.Flags().BoolVar(&cmdFlags.EnableLinkAccess, common.FlagNameEnableLinkAccess, false, common.FlagDescEnableLinkAccess)
 	cmd.Flags().StringVar(&cmdFlags.LinkAccessType, common.FlagNameLinkAccessType, "", common.FlagDescLinkAccessType)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "yaml", common.FlagDescOutput)
-	cmd.Flags().StringVar(&cmdFlags.ServiceAccount, common.FlagNameServiceAccount, "", common.FlagDescServiceAccount)
-	cmd.Flags().StringVar(&cmdFlags.BindHost, common.FlagNameBindHost, "0.0.0.0", common.FlagDescBindHost)
-	cmd.Flags().StringSliceVar(&cmdFlags.SubjectAlternativeNames, common.FlagNameSubjectAlternativeNames, []string{}, common.FlagDescSubjectAlternativeNames)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
 	nonKubeCommand.Flags = &cmdFlags
-
-	if configuredPlatform == common.PlatformKubernetes {
-		cmd.Flags().MarkHidden(common.FlagNameServiceAccount)
-	} else {
-		cmd.Flags().MarkHidden(common.FlagNameBindHost)
-		cmd.Flags().MarkHidden(common.FlagNameSubjectAlternativeNames)
-
-	}
 
 	return cmd
 

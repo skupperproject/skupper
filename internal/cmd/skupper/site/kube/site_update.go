@@ -84,10 +84,6 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) error {
 		}
 	}
 
-	if cmd.Flags != nil && cmd.Flags.BindHost != "" {
-		validationErrors = append(validationErrors, fmt.Errorf("--bind-host flag is not supported on this platform"))
-	}
-
 	if cmd.Flags.LinkAccessType != "" {
 		ok, err := linkAccessTypeValidator.Evaluate(cmd.Flags.LinkAccessType)
 		if !ok {
@@ -97,13 +93,6 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) error {
 
 	if !cmd.Flags.EnableLinkAccess && len(cmd.Flags.LinkAccessType) > 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("for the site to work with this type of linkAccess, the --enable-link-access option must be set to true"))
-	}
-
-	if cmd.Flags.ServiceAccount != "" {
-		svcAccount, err := cmd.KubeClient.CoreV1().ServiceAccounts(cmd.Namespace).Get(context.TODO(), cmd.Flags.ServiceAccount, metav1.GetOptions{})
-		if err != nil || svcAccount == nil {
-			validationErrors = append(validationErrors, fmt.Errorf("service account name is not valid: %s", err))
-		}
 	}
 
 	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
@@ -123,7 +112,6 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) error {
 	return errors.Join(validationErrors...)
 }
 func (cmd *CmdSiteUpdate) InputToOptions() {
-	cmd.serviceAccountName = cmd.Flags.ServiceAccount
 
 	if cmd.Flags.EnableLinkAccess {
 		if cmd.Flags.LinkAccessType == "" {
