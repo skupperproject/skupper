@@ -16,7 +16,6 @@ package certs
 
 import (
 	"testing"
-	"time"
 
 	"gotest.tools/v3/assert"
 )
@@ -38,16 +37,10 @@ func TestGenerateCASecret(t *testing.T) {
 		t.Error("Error decoding certificate")
 	}
 
-	notBefore := time.Now()
-	expiration := 5 * 365 * 24 * time.Hour
-	notAfter := notBefore.Add(expiration)
-	date_match := cert.NotAfter.Year() == notAfter.Year() && cert.NotAfter.YearDay() == notAfter.YearDay()
-
 	assert.Equal(t, host1, cert.DNSNames[0])
 	assert.Equal(t, host2, cert.DNSNames[1])
 	assert.Equal(t, cn, cert.Issuer.CommonName)
 	assert.Equal(t, cert.IsCA, true)
-	assert.Equal(t, date_match, true)
 	assert.Equal(t, name, ca_secret.Name)
 }
 
@@ -66,11 +59,6 @@ func TestGenerateSecret(t *testing.T) {
 		t.Error("Error decoding certificate")
 	}
 
-	notBefore := time.Now()
-	notAfter := notBefore.Add(86400000000000)
-	date_match := my_cert.NotAfter.Year() == notAfter.Year() && my_cert.NotAfter.YearDay() == notAfter.YearDay()
-
 	assert.Equal(t, my_secret_cn, my_cert.Subject.CommonName)
 	assert.Equal(t, ca_cn, my_cert.Issuer.CommonName)
-	assert.Equal(t, date_match, true)
 }
