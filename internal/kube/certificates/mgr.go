@@ -268,7 +268,7 @@ func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv2
 func (m *CertificateManagerImpl) generateSecret(certificate *skupperv2alpha1.Certificate) (*corev1.Secret, error) {
 	var secret corev1.Secret
 	if certificate.Spec.Signing {
-		secret = certs.GenerateCASecret(certificate.Name, certificate.Spec.Subject)
+		secret = certs.GenerateSecret(certificate.Name, certificate.Spec.Subject, "", 0, nil)
 	} else {
 		expiration := time.Hour * 24 * 365 * 5 // TODO: make this configurable (through controller setting or field on certificate?)
 		caKey := fmt.Sprintf("%s/%s", certificate.Namespace, certificate.Spec.Ca)
@@ -278,7 +278,7 @@ func (m *CertificateManagerImpl) generateSecret(certificate *skupperv2alpha1.Cer
 			return nil, fmt.Errorf("CA %q not found", caKey)
 		}
 		// TODO: handle server and client roles properly
-		secret = certs.GenerateSecretWithExpiration(certificate.Name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), expiration, ca)
+		secret = certs.GenerateSecret(certificate.Name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), expiration, ca)
 	}
 	//TODO: add labels and annotations from certificate to secret
 	secret.ObjectMeta.OwnerReferences = ownerReferences(certificate)

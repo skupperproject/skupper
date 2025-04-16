@@ -206,15 +206,15 @@ func fakeRouterAccessWithSANs(sans ...string) v2alpha1.RouterAccess {
 }
 
 func fakeServerSecretBad() v1.Secret {
-	ca := certs.GenerateCASecret("fake-ca", "fake-ca")
-	server := certs.GenerateSecret("fake-server-cert", "fake-server-cert", "", &ca)
+	ca := certs.GenerateSecret("fake-ca", "fake-ca", "", 0, nil)
+	server := certs.GenerateSecret("fake-server-cert", "fake-server-cert", "", 0, &ca)
 	delete(server.Data, "tls.crt")
 	return server
 }
 
 func fakeServerSecret(hosts []string) v1.Secret {
 	hostsCsv := strings.Join(hosts, ",")
-	ca := certs.GenerateCASecret("fake-ca", "fake-ca")
-	server := certs.GenerateSecret("fake-server-cert", "fake-server-cert", hostsCsv, &ca)
+	ca := certs.GenerateSecret("fake-ca", "fake-ca", "", 0, nil)
+	server := certs.GenerateSecret("fake-server-cert", "fake-server-cert", hostsCsv, 0, &ca)
 	return server
 }
