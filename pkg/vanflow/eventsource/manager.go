@@ -267,6 +267,11 @@ func (m *Manager) sendKeepalives(ctx context.Context) {
 	for {
 		if err := sendWithTimeout(ctx, beaconInterval, beaconSender, beaconMessage.Encode()); err != nil {
 			m.logger.Error("error sending initial beacon message", slog.Any("error", err))
+			if ctx.Err() != nil {
+				m.logger.Error("gave up on sending initial beacon message as context has been closed",
+					slog.Any("error", err))
+				return
+			}
 			continue
 		}
 		break
