@@ -2,9 +2,11 @@ package runtime
 
 import (
 	"crypto/tls"
+	"crypto/x509"
+	"log"
+	"os"
 	"path"
 
-	"github.com/skupperproject/skupper/internal/certs"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
@@ -29,7 +31,7 @@ func (t *TlsCert) GetTlsConfig() (*tls.Config, error) {
 }
 
 func (t *TlsCert) LoadTlsConfig() error {
-	retriever := &certs.TlsConfigRetriever{
+	retriever := &TlsConfigRetriever{
 		Cert:   t.CertPath,
 		Key:    t.KeyPath,
 		Ca:     t.CaPath,
@@ -56,4 +58,47 @@ func GetRuntimeTlsCert(namespace, certificateName string) *TlsCert {
 		Verify:   true,
 	}
 	return tlsCert
+}
+
+type TlsConfigRetriever struct {
+	Cert   string
+	Key    string
+	Ca     string
+	Verify bool
+}
+
+func (paths *TlsConfigRetriever) GetTlsConfig() (*tls.Config, error) {
+	tlsConfig, err := getTlsConfig(paths.Verify, paths.Cert, paths.Key, paths.Ca)
+	if err != nil {
+		return nil, err
+	}
+	return tlsConfig, nil
+}
+
+func getTlsConfig(verify bool, cert, key, ca string) (*tls.Config, error) {
+	var config tls.Config
+	config.InsecureSkipVerify = true
+	if verify {
+		certPool := x509.NewCertPool()
+		file, err := os.ReadFile(ca)
+		if err != nil {
+			return nil, err
+		}
+		certPool.AppendCertsFromPEM(file)
+		config.RootCAs = certPool
+		config.InsecureSkipVerify = false
+	}
+
+	_, errCert := os.Stat(cert)
+	_, errKey := os.Stat(key)
+	if errCert == nil || errKey == nil {
+		tlsCert, err := tls.LoadX509KeyPair(cert, key)
+		if err != nil {
+			log.Fatal("Could not load x509 key pair", err.Error())
+		}
+		config.Certificates = []tls.Certificate{tlsCert}
+	}
+	config.MinVersion = tls.VersionTLS10
+
+	return &config, nil
 }
