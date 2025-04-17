@@ -28,6 +28,7 @@ type CmdSiteUpdate struct {
 	serviceAccountName string
 	Namespace          string
 	linkAccessType     string
+	HA                 bool
 	timeout            time.Duration
 	status             string
 }
@@ -123,6 +124,7 @@ func (cmd *CmdSiteUpdate) InputToOptions() {
 
 	cmd.timeout = cmd.Flags.Timeout
 	cmd.status = cmd.Flags.Wait
+	cmd.HA = cmd.Flags.EnableHA
 
 }
 func (cmd *CmdSiteUpdate) Run() error {
@@ -133,17 +135,12 @@ func (cmd *CmdSiteUpdate) Run() error {
 		return err
 	}
 
-	updatedSettings := currentSite.Spec.Settings
-
-	updatedServiceAccount := currentSite.Spec.ServiceAccount
-	if cmd.serviceAccountName != "" {
-		updatedServiceAccount = cmd.serviceAccountName
-	}
-
 	updatedLinkAccessType := currentSite.Spec.LinkAccess
 	if cmd.linkAccessType != "" {
 		updatedLinkAccessType = cmd.linkAccessType
 	}
+
+	updatedHA := cmd.HA
 
 	resource := v2alpha1.Site{
 		TypeMeta: metav1.TypeMeta{
@@ -157,9 +154,8 @@ func (cmd *CmdSiteUpdate) Run() error {
 			ResourceVersion:   currentSite.ResourceVersion,
 		},
 		Spec: v2alpha1.SiteSpec{
-			Settings:       updatedSettings,
-			ServiceAccount: updatedServiceAccount,
-			LinkAccess:     updatedLinkAccessType,
+			LinkAccess: updatedLinkAccessType,
+			HA:         updatedHA,
 		},
 		Status: currentSite.Status,
 	}

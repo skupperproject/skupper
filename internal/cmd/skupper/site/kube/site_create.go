@@ -23,16 +23,16 @@ import (
 )
 
 type CmdSiteCreate struct {
-	Client             skupperv2alpha1.SkupperV2alpha1Interface
-	KubeClient         kubernetes.Interface
-	CobraCmd           *cobra.Command
-	Flags              *common.CommandSiteCreateFlags
-	siteName           string
-	serviceAccountName string
-	Namespace          string
-	linkAccessType     string
-	timeout            time.Duration
-	status             string
+	Client         skupperv2alpha1.SkupperV2alpha1Interface
+	KubeClient     kubernetes.Interface
+	CobraCmd       *cobra.Command
+	Flags          *common.CommandSiteCreateFlags
+	siteName       string
+	Namespace      string
+	linkAccessType string
+	HA             bool
+	timeout        time.Duration
+	status         string
 }
 
 func NewCmdSiteCreate() *CmdSiteCreate {
@@ -118,6 +118,7 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 
 	cmd.timeout = cmd.Flags.Timeout
 	cmd.status = cmd.Flags.Wait
+	cmd.HA = cmd.Flags.EnableHA
 
 }
 
@@ -133,8 +134,8 @@ func (cmd *CmdSiteCreate) Run() error {
 			Namespace: cmd.Namespace,
 		},
 		Spec: v2alpha1.SiteSpec{
-			ServiceAccount: cmd.serviceAccountName,
-			LinkAccess:     cmd.linkAccessType,
+			LinkAccess: cmd.linkAccessType,
+			HA:         cmd.HA,
 		},
 	}
 

@@ -309,6 +309,7 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 		args               []string
 		flags              common.CommandSiteUpdateFlags
 		expectedLinkAccess string
+		expectedHA         bool
 		expectedTimeout    time.Duration
 		expectedStatus     string
 	}
@@ -351,6 +352,12 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 			flags:          common.CommandSiteUpdateFlags{Wait: "configured"},
 			expectedStatus: "configured",
 		},
+		{
+			name:       "options with EnableHA enabled",
+			args:       []string{"my-site"},
+			flags:      common.CommandSiteUpdateFlags{EnableHA: true},
+			expectedHA: true,
+		},
 	}
 
 	for _, test := range testTable {
@@ -370,6 +377,7 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 			assert.Check(t, command.status == test.expectedStatus)
 			assert.Check(t, command.linkAccessType == test.expectedLinkAccess)
 			assert.Check(t, command.timeout == test.expectedTimeout)
+			assert.Check(t, command.HA == test.expectedHA)
 		})
 	}
 }

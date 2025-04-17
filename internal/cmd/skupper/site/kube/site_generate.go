@@ -18,15 +18,15 @@ import (
 )
 
 type CmdSiteGenerate struct {
-	Client             skupperv2alpha1.SkupperV2alpha1Interface
-	KubeClient         kubernetes.Interface
-	CobraCmd           *cobra.Command
-	Flags              *common.CommandSiteGenerateFlags
-	siteName           string
-	serviceAccountName string
-	Namespace          string
-	linkAccessType     string
-	output             string
+	Client         skupperv2alpha1.SkupperV2alpha1Interface
+	KubeClient     kubernetes.Interface
+	CobraCmd       *cobra.Command
+	Flags          *common.CommandSiteGenerateFlags
+	siteName       string
+	Namespace      string
+	linkAccessType string
+	output         string
+	HA             bool
 }
 
 func NewCmdSiteGenerate() *CmdSiteGenerate {
@@ -97,6 +97,8 @@ func (cmd *CmdSiteGenerate) InputToOptions() {
 	} else {
 		cmd.output = "yaml"
 	}
+
+	cmd.HA = cmd.Flags.EnableHA
 }
 
 func (cmd *CmdSiteGenerate) Run() error {
@@ -111,8 +113,8 @@ func (cmd *CmdSiteGenerate) Run() error {
 			Namespace: cmd.Namespace,
 		},
 		Spec: v2alpha1.SiteSpec{
-			ServiceAccount: cmd.serviceAccountName,
-			LinkAccess:     cmd.linkAccessType,
+			LinkAccess: cmd.linkAccessType,
+			HA:         cmd.HA,
 		},
 	}
 

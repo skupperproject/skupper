@@ -51,6 +51,7 @@ There can be only one site definition per namespace.`,
 
 	cmd.Flags().BoolVar(&cmdFlags.EnableLinkAccess, common.FlagNameEnableLinkAccess, false, common.FlagDescEnableLinkAccess)
 	cmd.Flags().StringVar(&cmdFlags.LinkAccessType, common.FlagNameLinkAccessType, "", common.FlagDescLinkAccessType)
+	cmd.Flags().BoolVar(&cmdFlags.EnableHA, common.FlagNameHA, false, common.FlagDescHA)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 3*time.Minute, common.FlagDescTimeout)
 	cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "ready", common.FlagDescWait)
 
@@ -83,6 +84,7 @@ func CmdSiteUpdateFactory(configuredPlatform common.Platform) *cobra.Command {
 
 	cmd.Flags().BoolVar(&cmdFlags.EnableLinkAccess, common.FlagNameEnableLinkAccess, false, common.FlagDescEnableLinkAccess)
 	cmd.Flags().StringVar(&cmdFlags.LinkAccessType, common.FlagNameLinkAccessType, "", common.FlagDescLinkAccessType)
+	cmd.Flags().BoolVar(&cmdFlags.EnableHA, common.FlagNameHA, false, common.FlagDescHA)
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 30*time.Second, common.FlagDescTimeout)
 	cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "ready", common.FlagDescWait)
 
@@ -172,6 +174,7 @@ Generate a site resource to evaluate what will be created with the site create c
 
 	cmd.Flags().BoolVar(&cmdFlags.EnableLinkAccess, common.FlagNameEnableLinkAccess, false, common.FlagDescEnableLinkAccess)
 	cmd.Flags().StringVar(&cmdFlags.LinkAccessType, common.FlagNameLinkAccessType, "", common.FlagDescLinkAccessType)
+	cmd.Flags().BoolVar(&cmdFlags.EnableHA, common.FlagNameHA, false, common.FlagDescHA)
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "yaml", common.FlagDescOutput)
 
 	kubeCommand.CobraCmd = cmd

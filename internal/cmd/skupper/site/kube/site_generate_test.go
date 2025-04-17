@@ -79,6 +79,7 @@ func TestCmdSiteGenerate_InputToOptions(t *testing.T) {
 		args               []string
 		flags              common.CommandSiteGenerateFlags
 		expectedLinkAccess string
+		expectedHA         bool
 		expectedOutput     string
 	}
 
@@ -89,6 +90,7 @@ func TestCmdSiteGenerate_InputToOptions(t *testing.T) {
 			flags:              common.CommandSiteGenerateFlags{},
 			expectedLinkAccess: "",
 			expectedOutput:     "yaml",
+			expectedHA:         false,
 		},
 		{
 			name:               "options with link access enabled but using a type by default",
@@ -96,6 +98,7 @@ func TestCmdSiteGenerate_InputToOptions(t *testing.T) {
 			flags:              common.CommandSiteGenerateFlags{EnableLinkAccess: true},
 			expectedLinkAccess: "default",
 			expectedOutput:     "yaml",
+			expectedHA:         false,
 		},
 		{
 			name:               "options with link access enabled using the nodeport type",
@@ -103,6 +106,7 @@ func TestCmdSiteGenerate_InputToOptions(t *testing.T) {
 			flags:              common.CommandSiteGenerateFlags{EnableLinkAccess: true, LinkAccessType: "nodeport"},
 			expectedLinkAccess: "nodeport",
 			expectedOutput:     "yaml",
+			expectedHA:         false,
 		},
 		{
 			name:               "options with link access options not well specified",
@@ -110,6 +114,7 @@ func TestCmdSiteGenerate_InputToOptions(t *testing.T) {
 			flags:              common.CommandSiteGenerateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport"},
 			expectedLinkAccess: "",
 			expectedOutput:     "yaml",
+			expectedHA:         false,
 		},
 		{
 			name:               "options output type",
@@ -117,6 +122,15 @@ func TestCmdSiteGenerate_InputToOptions(t *testing.T) {
 			flags:              common.CommandSiteGenerateFlags{EnableLinkAccess: false, LinkAccessType: "nodeport", Output: "json"},
 			expectedLinkAccess: "",
 			expectedOutput:     "json",
+			expectedHA:         false,
+		},
+		{
+			name:               "options with HA enabled",
+			args:               []string{"my-site"},
+			flags:              common.CommandSiteGenerateFlags{EnableHA: true},
+			expectedLinkAccess: "",
+			expectedOutput:     "yaml",
+			expectedHA:         true,
 		},
 	}
 
@@ -131,6 +145,7 @@ func TestCmdSiteGenerate_InputToOptions(t *testing.T) {
 
 			assert.Check(t, cmd.output == test.expectedOutput)
 			assert.Check(t, cmd.linkAccessType == test.expectedLinkAccess)
+			assert.Check(t, cmd.HA == test.expectedHA)
 		})
 	}
 }

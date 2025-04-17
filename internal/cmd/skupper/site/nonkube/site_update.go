@@ -22,6 +22,7 @@ type CmdSiteUpdate struct {
 	bindHost                string
 	routerAccessName        string
 	subjectAlternativeNames []string
+	HA                      bool
 }
 
 func NewCmdSiteUpdate() *CmdSiteUpdate {
@@ -102,6 +103,8 @@ func (cmd *CmdSiteUpdate) InputToOptions() {
 	if cmd.namespace == "" {
 		cmd.namespace = "default"
 	}
+
+	cmd.HA = cmd.Flags.EnableHA
 }
 
 func (cmd *CmdSiteUpdate) Run() error {
@@ -114,6 +117,9 @@ func (cmd *CmdSiteUpdate) Run() error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmd.siteName,
 			Namespace: cmd.namespace,
+		},
+		Spec: v2alpha1.SiteSpec{
+			HA: cmd.HA,
 		},
 	}
 

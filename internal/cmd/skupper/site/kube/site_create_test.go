@@ -111,6 +111,7 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 		args               []string
 		flags              common.CommandSiteCreateFlags
 		expectedLinkAccess string
+		expectedHA         bool
 		expectedTimeout    time.Duration
 		expectedStatus     string
 	}
@@ -153,6 +154,12 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 			flags:          common.CommandSiteCreateFlags{Wait: "configured"},
 			expectedStatus: "configured",
 		},
+		{
+			name:       "options with EnableHA enabled",
+			args:       []string{"my-site"},
+			flags:      common.CommandSiteCreateFlags{EnableHA: true},
+			expectedHA: true,
+		},
 	}
 
 	for _, test := range testTable {
@@ -167,31 +174,28 @@ func TestCmdSiteCreate_InputToOptions(t *testing.T) {
 			assert.Check(t, cmd.linkAccessType == test.expectedLinkAccess)
 			assert.Check(t, cmd.timeout == test.expectedTimeout)
 			assert.Check(t, cmd.status == test.expectedStatus)
+			assert.Check(t, cmd.HA == test.expectedHA)
 		})
 	}
 }
 
 func TestCmdSiteCreate_Run(t *testing.T) {
 	type test struct {
-		name               string
-		k8sObjects         []runtime.Object
-		skupperObjects     []runtime.Object
-		skupperError       string
-		siteName           string
-		serviceAccountName string
-		options            map[string]string
-		errorMessage       string
+		name           string
+		k8sObjects     []runtime.Object
+		skupperObjects []runtime.Object
+		skupperError   string
+		siteName       string
+		errorMessage   string
 	}
 
 	testTable := []test{
 		{
-			name:               "runs ok",
-			k8sObjects:         nil,
-			skupperObjects:     nil,
-			siteName:           "my-site",
-			serviceAccountName: "my-service-account",
-			options:            map[string]string{"name": "my-site"},
-			skupperError:       "",
+			name:           "runs ok",
+			k8sObjects:     nil,
+			skupperObjects: nil,
+			siteName:       "my-site",
+			skupperError:   "",
 		},
 		{
 			name:       "run fails",
@@ -207,20 +211,16 @@ func TestCmdSiteCreate_Run(t *testing.T) {
 					},
 				},
 			},
-			siteName:           "my-site",
-			serviceAccountName: "my-service-account",
-			options:            map[string]string{"ingress": "none"},
-			skupperError:       "",
-			errorMessage:       "sites.skupper.io \"my-site\" already exists",
+			siteName:     "my-site",
+			skupperError: "",
+			errorMessage: "sites.skupper.io \"my-site\" already exists",
 		},
 		{
-			name:               "runs ok but it does not create the site",
-			k8sObjects:         nil,
-			skupperObjects:     nil,
-			siteName:           "test",
-			serviceAccountName: "my-service-account",
-			options:            map[string]string{"name": "my-site"},
-			skupperError:       "",
+			name:           "runs ok but it does not create the site",
+			k8sObjects:     nil,
+			skupperObjects: nil,
+			siteName:       "test",
+			skupperError:   "",
 		},
 	}
 
@@ -234,7 +234,6 @@ func TestCmdSiteCreate_Run(t *testing.T) {
 		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 
 		command.siteName = test.siteName
-		command.serviceAccountName = test.serviceAccountName
 
 		t.Run(test.name, func(t *testing.T) {
 

@@ -43,11 +43,6 @@ func TestNonKubeCmdSiteGenerate_ValidateInput(t *testing.T) {
 			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:  "bindHost was not specified ok",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteGenerateFlags{EnableLinkAccess: true},
-		},
-		{
 			name:          "output format is not valid",
 			args:          []string{"my-site"},
 			flags:         &common.CommandSiteGenerateFlags{Output: "not-valid"},
@@ -104,66 +99,46 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 		expectedOutput           string
 		expectedNamespace        string
 		expectedRouterAccessName string
+		expectedHA               bool
 	}
 
 	testTable := []test{
 		{
-			name:  "options without link access enabled",
-			args:  []string{"my-site"},
-			flags: common.CommandSiteGenerateFlags{},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:                     "options without link access enabled",
+			args:                     []string{"my-site"},
+			flags:                    common.CommandSiteGenerateFlags{},
 			expectedLinkAccess:       false,
 			expectedOutput:           "",
 			expectedRouterAccessName: "",
 			expectedNamespace:        "default",
+			expectedHA:               false,
 		},
 		{
-			name:  "options with link access enabled",
-			args:  []string{"my-site"},
-			flags: common.CommandSiteGenerateFlags{EnableLinkAccess: true},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:                     "options with link access enabled",
+			args:                     []string{"my-site"},
+			flags:                    common.CommandSiteGenerateFlags{EnableLinkAccess: true},
 			expectedLinkAccess:       true,
 			expectedNamespace:        "default",
 			expectedRouterAccessName: "router-access-my-site",
+			expectedHA:               false,
 		},
 		{
-			name:      "options with subject alternative names",
-			args:      []string{"my-site"},
-			namespace: "test",
-			flags:     common.CommandSiteGenerateFlags{},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
-			expectedLinkAccess:       false,
-			expectedNamespace:        "test",
-			expectedRouterAccessName: "",
-		},
-		{
-			name:      "options with enable link access and subject alternative names",
-			args:      []string{"my-site"},
-			namespace: "test",
-			flags:     common.CommandSiteGenerateFlags{EnableLinkAccess: true},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
-			expectedLinkAccess:       true,
-			expectedNamespace:        "test",
-			expectedRouterAccessName: "router-access-my-site",
-		},
-		{
-			name:  "options output type",
-			args:  []string{"my-site"},
-			flags: common.CommandSiteGenerateFlags{EnableLinkAccess: false, Output: "yaml"},
-			expectedSettings: map[string]string{
-				"name": "my-site",
-			},
+			name:               "options output type",
+			args:               []string{"my-site"},
+			flags:              common.CommandSiteGenerateFlags{EnableLinkAccess: false, Output: "yaml"},
 			expectedLinkAccess: false,
 			expectedOutput:     "yaml",
 			expectedNamespace:  "default",
+			expectedHA:         false,
+		},
+		{
+			name:               "options with enabled HA",
+			args:               []string{"my-site"},
+			flags:              common.CommandSiteGenerateFlags{EnableHA: true},
+			expectedLinkAccess: false,
+			expectedOutput:     "",
+			expectedNamespace:  "default",
+			expectedHA:         true,
 		},
 	}
 
@@ -178,13 +153,11 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 
 			cmd.InputToOptions()
 
-			assert.DeepEqual(t, cmd.options, test.expectedSettings)
-
 			assert.Check(t, cmd.output == test.expectedOutput)
-			assert.DeepEqual(t, cmd.options, test.expectedSettings)
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
 			assert.Check(t, cmd.linkAccessEnabled == test.expectedLinkAccess)
 			assert.Check(t, cmd.routerAccessName == test.expectedRouterAccessName)
+			assert.Check(t, cmd.HA == test.expectedHA)
 		})
 	}
 }

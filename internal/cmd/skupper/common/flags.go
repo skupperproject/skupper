@@ -68,12 +68,7 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagNameListenerHost = "host"
 	FlagDescListenerHost = "The hostname or IP address of the local listener. Clients at this site use the listener host and port to establish connections to the remote service."
 
-	FlagNamePath     = "path"
-	FlagDescPath     = "Custom resources location on the file system"
-	FlagNameStrategy = "strategy"
-	FlagDescStrategy = "The bundle strategy to be produced. Choices: bundle, tarball"
-	FlagNameForce    = "force"
-	FlagDescForce    = "Forces to overwrite an existing namespace"
+	FlagNameForce = "force"
 
 	FlagNameWait       = "wait"
 	FlagDescWait       = "Wait for the given status before exiting. Choices: configured, ready, none"
@@ -88,11 +83,15 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagDescType  = "The bundle type to be produced. Choices: tarball, shell-script"
 
 	FlagDescUninstallForce = "option to override even with sites present"
+
+	FlagNameHA = "enable-ha"
+	FlagDescHA = "Configure the site for high availability (EnableHA). EnableHA sites have two active routers"
 )
 
 type CommandSiteCreateFlags struct {
 	EnableLinkAccess bool
 	LinkAccessType   string
+	EnableHA         bool
 	Timeout          time.Duration
 	Wait             string
 }
@@ -100,6 +99,7 @@ type CommandSiteCreateFlags struct {
 type CommandSiteUpdateFlags struct {
 	EnableLinkAccess bool
 	LinkAccessType   string
+	EnableHA         bool
 	Timeout          time.Duration
 	Wait             string
 }
@@ -117,6 +117,7 @@ type CommandSiteStatusFlags struct {
 type CommandSiteGenerateFlags struct {
 	EnableLinkAccess bool
 	LinkAccessType   string
+	EnableHA         bool
 	Output           string
 }
 

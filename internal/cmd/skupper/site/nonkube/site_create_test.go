@@ -98,6 +98,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 		expectedLinkAccess       bool
 		expectedNamespace        string
 		expectedRouterAccessName string
+		expectedHA               bool
 	}
 
 	testTable := []test{
@@ -108,6 +109,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedLinkAccess:       false,
 			expectedNamespace:        "default",
 			expectedRouterAccessName: "",
+			expectedHA:               false,
 		},
 		{
 			name:                     "options with link access enabled",
@@ -116,24 +118,15 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedLinkAccess:       true,
 			expectedNamespace:        "default",
 			expectedRouterAccessName: "router-access-my-site",
+			expectedHA:               false,
 		},
 		{
-			name:                     "options with subject alternative names",
-			args:                     []string{"my-site"},
-			namespace:                "test",
-			flags:                    common.CommandSiteCreateFlags{},
-			expectedLinkAccess:       false,
-			expectedNamespace:        "test",
-			expectedRouterAccessName: "",
-		},
-		{
-			name:                     "options with enable link access and subject alternative names",
-			args:                     []string{"my-site"},
-			namespace:                "test",
-			flags:                    common.CommandSiteCreateFlags{EnableLinkAccess: true},
-			expectedLinkAccess:       true,
-			expectedNamespace:        "test",
-			expectedRouterAccessName: "router-access-my-site",
+			name:              "options with enabled EnableHA",
+			args:              []string{"my-site"},
+			namespace:         "test",
+			flags:             common.CommandSiteCreateFlags{EnableHA: true},
+			expectedNamespace: "test",
+			expectedHA:        true,
 		},
 	}
 
@@ -151,6 +144,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
 			assert.Check(t, cmd.linkAccessEnabled == test.expectedLinkAccess)
 			assert.Check(t, cmd.routerAccessName == test.expectedRouterAccessName)
+			assert.Check(t, cmd.HA == test.expectedHA)
 		})
 	}
 }
@@ -179,7 +173,7 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 			linkAccessEnabled: true,
 		},
 		{
-			name:           "runs ok without create site",
+			name:           "runs ok without creating site",
 			k8sObjects:     nil,
 			skupperObjects: nil,
 			siteName:       "test",

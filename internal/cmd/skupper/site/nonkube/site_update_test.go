@@ -155,6 +155,7 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 		expectedLinkAccess       bool
 		expectedNamespace        string
 		expectedRouterAccessName string
+		expectedHA               bool
 	}
 
 	testTable := []test{
@@ -165,6 +166,7 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 			expectedLinkAccess:       false,
 			expectedNamespace:        "default",
 			expectedRouterAccessName: "router-access-my-site",
+			expectedHA:               false,
 		},
 		{
 			name:                     "options with link access enabled",
@@ -173,23 +175,15 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 			expectedLinkAccess:       true,
 			expectedNamespace:        "default",
 			expectedRouterAccessName: "router-access-my-site",
+			expectedHA:               false,
 		},
 		{
-			name:                     "options without enable link access and subject alternative names",
+			name:                     "options with enable HA",
 			args:                     []string{"my-site"},
 			namespace:                "test4",
-			flags:                    common.CommandSiteUpdateFlags{EnableLinkAccess: false},
-			expectedLinkAccess:       false,
+			flags:                    common.CommandSiteUpdateFlags{EnableHA: true},
 			expectedNamespace:        "test4",
-			expectedRouterAccessName: "router-access-my-site",
-		},
-		{
-			name:                     "options with enable link access and subject alternative names",
-			args:                     []string{"my-site"},
-			namespace:                "test4",
-			flags:                    common.CommandSiteUpdateFlags{EnableLinkAccess: true},
-			expectedLinkAccess:       true,
-			expectedNamespace:        "test4",
+			expectedHA:               true,
 			expectedRouterAccessName: "router-access-my-site",
 		},
 	}
