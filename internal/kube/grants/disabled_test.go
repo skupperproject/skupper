@@ -8,8 +8,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/client/fake"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
@@ -78,7 +78,7 @@ func Test_disabled(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	controller := internalclient.NewController("Controller", client)
+	controller := watchers.NewEventProcessor("Controller", client)
 	disabled(controller, "test")
 	stopCh := make(chan struct{})
 	defer close(stopCh)

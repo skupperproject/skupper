@@ -1,3 +1,6 @@
+// Package certificates provides the ability to create or update
+// instances of the v2alpha1 Certificate resource, and esnure that a
+// corresponding Secret resource is maintained for each.
 package certificates
 
 import (
@@ -14,16 +17,26 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/skupperproject/skupper/internal/certs"
-	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
+// The ControllerContext interface defines the invocations the
+// CertificateManager needs to make to correctly manage the resources
+// it is responsible for.
 type ControllerContext interface {
+	// Determines whether resources in a given namespace are in
+	// scope for control by the CertificateManager.
 	IsControlled(namespace string) bool
+	// Called to set any extra labels on resources managed by the CertificateManager.
 	SetLabels(namespace string, name string, kind string, labels map[string]string) bool
+	// Called to set any extra annotations on resources managed by the CertificateManager.
 	SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool
 }
 
+// The CertificateManager interface defines the methods through which
+// the existence of a particular Certificate resource can be
+// ensured. It is currently used by package internal/kube/site.
 type CertificateManager interface {
 	EnsureCA(namespace string, name string, subject string, refs []metav1.OwnerReference) error
 	Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error
@@ -32,27 +45,30 @@ type CertificateManager interface {
 type CertificateManagerImpl struct {
 	definitions        map[string]*skupperv2alpha1.Certificate
 	secrets            map[string]*corev1.Secret
-	certificateWatcher *internalclient.CertificateWatcher
-	secretWatcher      *internalclient.SecretWatcher
-	controller         *internalclient.Controller
+	certificateWatcher *watchers.CertificateWatcher
+	secretWatcher      *watchers.SecretWatcher
+	processor          *watchers.EventProcessor
 	context            ControllerContext
 }
 
-func NewCertificateManager(controller *internalclient.Controller) *CertificateManagerImpl {
+// Returns a correctly initialised CertificateManager.
+func NewCertificateManager(processor *watchers.EventProcessor) *CertificateManagerImpl {
 	return &CertificateManagerImpl{
 		definitions: map[string]*skupperv2alpha1.Certificate{},
 		secrets:     map[string]*corev1.Secret{},
-		controller:  controller,
+		processor:   processor,
 	}
 }
 
+// Allows a ControllerContext to be set for this CertificateManager.
 func (m *CertificateManagerImpl) SetControllerContext(context ControllerContext) {
 	m.context = context
 }
 
+// Causes the CertificateManager to start watching relevant resources.
 func (m *CertificateManagerImpl) Watch(watchNamespace string) {
-	m.certificateWatcher = m.controller.WatchCertificates(watchNamespace, internalclient.FilterByNamespace(m.isControlled, m.checkCertificate))
-	m.secretWatcher = m.controller.WatchAllSecrets(watchNamespace, internalclient.FilterByNamespace(m.isControlled, m.checkSecret))
+	m.certificateWatcher = m.processor.WatchCertificates(watchNamespace, watchers.FilterByNamespace(m.isControlled, m.checkCertificate))
+	m.secretWatcher = m.processor.WatchAllSecrets(watchNamespace, watchers.FilterByNamespace(m.isControlled, m.checkSecret))
 }
 
 func (m *CertificateManagerImpl) isControlled(namespace string) bool {
@@ -62,6 +78,9 @@ func (m *CertificateManagerImpl) isControlled(namespace string) bool {
 	return true
 }
 
+// This will iterate through the existing resources to recover the
+// correct internal state. This should only be called after Watch()
+// has been invoked.
 func (m *CertificateManagerImpl) Recover() {
 	for _, secret := range m.secretWatcher.List() {
 		if !m.isControlled(secret.Namespace) {
@@ -79,6 +98,9 @@ func (m *CertificateManagerImpl) Recover() {
 	}
 }
 
+// This method is called to ensure that a Certificate resource exists
+// to represent a CA (i.e. certificate issuer) with the properties
+// specified in the arguments.
 func (m *CertificateManagerImpl) EnsureCA(namespace string, name string, subject string, refs []metav1.OwnerReference) error {
 	spec := skupperv2alpha1.CertificateSpec{
 		Subject: subject,
@@ -87,6 +109,14 @@ func (m *CertificateManagerImpl) EnsureCA(namespace string, name string, subject
 	return m.ensure(namespace, name, spec, refs)
 }
 
+// This method is called to ensure that a Certificate resource exists
+// with the properties specified in the arguments. This can be called
+// with different owners, in which case the owenres are all merged
+// in. Hosts are tracked per owner, so if two different owners specify
+// different hosts, they will all be included in the certificate, but
+// if the same owner changes the hosts then they will be changed on
+// the certificate. This allows the same certificate to be used for
+// multiple resources such as Routes.
 func (m *CertificateManagerImpl) Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error {
 	spec := skupperv2alpha1.CertificateSpec{
 		Ca:      ca,
@@ -98,10 +128,8 @@ func (m *CertificateManagerImpl) Ensure(namespace string, name string, ca string
 	return m.ensure(namespace, name, spec, refs)
 }
 
-func (m *CertificateManagerImpl) definitionUpdated(key string, def *skupperv2alpha1.Certificate) {
-}
-
 func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skupperv2alpha1.CertificateSpec, refs []metav1.OwnerReference) error {
+	log.Printf("ensure(%s, %s)", namespace, name)
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
 		changed := false
@@ -116,6 +144,12 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 			changed = true
 		}
 		if m.context != nil {
+			if current.ObjectMeta.Labels == nil {
+				current.ObjectMeta.Labels = map[string]string{}
+			}
+			if current.ObjectMeta.Annotations == nil {
+				current.ObjectMeta.Annotations = map[string]string{}
+			}
 			if m.context.SetLabels(namespace, name, "Certificate", current.ObjectMeta.Labels) {
 				changed = true
 			}
@@ -126,10 +160,11 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 		if !changed {
 			return nil
 		}
-		updated, err := m.controller.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
+		updated, err := m.processor.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
+		log.Printf("Updated certificate %s/%s", updated.Namespace, updated.Name)
 		m.definitions[key] = updated
 		return nil
 	} else {
@@ -158,16 +193,19 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 			m.context.SetAnnotations(namespace, cert.Name, "Certificate", cert.ObjectMeta.Annotations)
 		}
 
-		created, err := m.controller.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Create(context.Background(), cert, metav1.CreateOptions{})
+		created, err := m.processor.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Create(context.Background(), cert, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
 		m.definitions[key] = created
+		log.Printf("certificate create %s/%s", namespace, name)
 		return nil
 	}
 }
 
+// Called by EventProcessor whenever there is a change to a Certificate reasource.
 func (m *CertificateManagerImpl) checkCertificate(key string, certificate *skupperv2alpha1.Certificate) error {
+	log.Printf("check certificate %s", key)
 	if certificate == nil {
 		return m.certificateDeleted(key)
 	}
@@ -178,6 +216,8 @@ func (m *CertificateManagerImpl) checkCertificate(key string, certificate *skupp
 	}
 }
 
+// This method does whatever is required to ensure that there is a
+// Secret resource corresponding to the supplied CertificateResource.
 func (m *CertificateManagerImpl) reconcile(key string, certificate *skupperv2alpha1.Certificate, secret *corev1.Secret) error {
 	if secret != nil {
 		if err := m.updateSecret(key, certificate, secret); err != nil {
@@ -188,14 +228,13 @@ func (m *CertificateManagerImpl) reconcile(key string, certificate *skupperv2alp
 			return m.updateStatus(certificate, err)
 		}
 	}
-	m.definitionUpdated(key, certificate)
 	return m.updateStatus(certificate, nil)
 }
 
 func (m *CertificateManagerImpl) certificateDeleted(key string) error {
 	delete(m.definitions, key)
 	if secret, ok := m.secrets[key]; ok {
-		err := m.controller.GetKubeClient().CoreV1().Secrets(secret.Namespace).Delete(context.Background(), secret.Name, metav1.DeleteOptions{})
+		err := m.processor.GetKubeClient().CoreV1().Secrets(secret.Namespace).Delete(context.Background(), secret.Name, metav1.DeleteOptions{})
 		if err != nil {
 			return err
 		}
@@ -211,12 +250,14 @@ func (m *CertificateManagerImpl) secretDeleted(key string) error {
 }
 
 func (m *CertificateManagerImpl) updateStatus(certificate *skupperv2alpha1.Certificate, err error) error {
-	certificate.SetReady(err)
-	latest, err := m.controller.GetSkupperClient().SkupperV2alpha1().Certificates(certificate.Namespace).UpdateStatus(context.TODO(), certificate, metav1.UpdateOptions{})
-	if err != nil {
-		return err
+	if certificate.SetReady(err) {
+		latest, err := m.processor.GetSkupperClient().SkupperV2alpha1().Certificates(certificate.Namespace).UpdateStatus(context.TODO(), certificate, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+		log.Printf("Updated certificate status %s/%s", certificate.Namespace, certificate.Name)
+		m.definitions[certificate.Key()] = latest
 	}
-	m.definitions[certificate.Key()] = latest
 	return nil
 }
 
@@ -255,7 +296,7 @@ func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv2
 		return nil
 	}
 
-	updated, err := m.controller.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
+	updated, err := m.processor.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
 	if err != nil {
 		log.Printf("Error updating Secret %s/%s for Certificate %s: %s", secret.Namespace, secret.Name, key, err)
 		return err
@@ -280,7 +321,6 @@ func (m *CertificateManagerImpl) generateSecret(certificate *skupperv2alpha1.Cer
 		// TODO: handle server and client roles properly
 		secret = certs.GenerateSecret(certificate.Name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), expiration, ca)
 	}
-	//TODO: add labels and annotations from certificate to secret
 	secret.ObjectMeta.OwnerReferences = ownerReferences(certificate)
 	return &secret, nil
 }
@@ -303,7 +343,7 @@ func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv2
 		m.context.SetAnnotations(certificate.Namespace, secret.Name, "Secret", secret.Annotations)
 	}
 	log.Printf("Creating Secret %s/%s for Certificate %s for hosts %v", certificate.Namespace, secret.Name, key, certificate.Spec.Hosts)
-	created, err := m.controller.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
+	created, err := m.processor.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
 		log.Printf("Error creating Secret %s/%s for Certificate %s: %s", certificate.Namespace, secret.Name, key, err)
 		return err
@@ -313,7 +353,10 @@ func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv2
 	return nil
 }
 
+// Called by EventProcessor whenever there is a change in a relevant
+// Secret resource.
 func (m *CertificateManagerImpl) checkSecret(key string, secret *corev1.Secret) error {
+	log.Printf("check secret %s", key)
 	if secret == nil {
 		return m.secretDeleted(key)
 	}
