@@ -508,11 +508,11 @@ func TestGeneral(t *testing.T) {
 			err = controller.init(stopCh)
 			assert.Assert(t, err)
 			for i := 0; i < len(tt.k8sObjects)+len(tt.skupperObjects); i++ {
-				controller.controller.TestProcess()
+				controller.eventProcessor.TestProcess()
 			}
 			for _, wf := range tt.waitFunctions {
 				for !wf(t, clients) {
-					controller.controller.TestProcess()
+					controller.eventProcessor.TestProcess()
 				}
 			}
 			for _, expected := range tt.expectedSiteStatuses {
@@ -660,12 +660,12 @@ func TestUpdate(t *testing.T) {
 			err = controller.init(stopCh)
 			assert.Assert(t, err)
 			for i := 0; i < len(tt.k8sObjects)+len(tt.skupperObjects); i++ {
-				controller.controller.TestProcess()
+				controller.eventProcessor.TestProcess()
 			}
 
 			for _, f := range tt.functions {
 				for !f(t, clients) {
-					controller.controller.TestProcess()
+					controller.eventProcessor.TestProcess()
 				}
 			}
 		})
