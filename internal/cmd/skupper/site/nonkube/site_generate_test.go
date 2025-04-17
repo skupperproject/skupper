@@ -27,7 +27,7 @@ func TestNonKubeCmdSiteGenerate_ValidateInput(t *testing.T) {
 		{
 			name:          "site name is not valid.",
 			args:          []string{"my new site"},
-			flags:         &common.CommandSiteGenerateFlags{BindHost: "bindhost"},
+			flags:         &common.CommandSiteGenerateFlags{},
 			expectedError: "site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
@@ -39,7 +39,7 @@ func TestNonKubeCmdSiteGenerate_ValidateInput(t *testing.T) {
 		{
 			name:          "more than one argument was specified",
 			args:          []string{"my", "site"},
-			flags:         &common.CommandSiteGenerateFlags{BindHost: "1.2.3.4"},
+			flags:         &common.CommandSiteGenerateFlags{},
 			expectedError: "only one argument is allowed for this command",
 		},
 		{
@@ -48,27 +48,10 @@ func TestNonKubeCmdSiteGenerate_ValidateInput(t *testing.T) {
 			flags: &common.CommandSiteGenerateFlags{EnableLinkAccess: true},
 		},
 		{
-			name:          "bindHost was not valid",
-			args:          []string{"my-site"},
-			flags:         &common.CommandSiteGenerateFlags{EnableLinkAccess: true, BindHost: "not-valid$"},
-			expectedError: "bindhost is not valid: a valid IP address or hostname is expected",
-		},
-		{
-			name:          "subjectAlternativeNames was not valid",
-			args:          []string{"my-site"},
-			flags:         &common.CommandSiteGenerateFlags{EnableLinkAccess: true, BindHost: "bindhost", SubjectAlternativeNames: []string{"not-valid$"}},
-			expectedError: "SubjectAlternativeNames is not valid: a valid IP address or hostname is expected",
-		},
-		{
 			name:          "output format is not valid",
 			args:          []string{"my-site"},
-			flags:         &common.CommandSiteGenerateFlags{BindHost: "bindhost", Output: "not-valid"},
+			flags:         &common.CommandSiteGenerateFlags{Output: "not-valid"},
 			expectedError: "output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
-		},
-		{
-			name:  "service-account is not valid on this platform",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteGenerateFlags{ServiceAccount: "service-account"},
 		},
 		{
 			name:  "kubernetes flags are not valid on this platform",
@@ -83,9 +66,7 @@ func TestNonKubeCmdSiteGenerate_ValidateInput(t *testing.T) {
 			name: "flags all valid",
 			args: []string{"my-site"},
 			flags: &common.CommandSiteGenerateFlags{
-				BindHost:                "1.2.3.4",
-				EnableLinkAccess:        true,
-				SubjectAlternativeNames: []string{"3.3.3.3"},
+				EnableLinkAccess: true,
 			},
 		},
 	}
@@ -114,17 +95,15 @@ func TestNonKubeCmdSiteGenerate_ValidateInput(t *testing.T) {
 func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 
 	type test struct {
-		name                            string
-		args                            []string
-		namespace                       string
-		flags                           common.CommandSiteGenerateFlags
-		expectedSettings                map[string]string
-		expectedLinkAccess              bool
-		expectedOutput                  string
-		expectedNamespace               string
-		expectedBindHost                string
-		expectedSubjectAlternativeNames []string
-		expectedRouterAccessName        string
+		name                     string
+		args                     []string
+		namespace                string
+		flags                    common.CommandSiteGenerateFlags
+		expectedSettings         map[string]string
+		expectedLinkAccess       bool
+		expectedOutput           string
+		expectedNamespace        string
+		expectedRouterAccessName string
 	}
 
 	testTable := []test{
@@ -137,50 +116,43 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 			},
 			expectedLinkAccess:       false,
 			expectedOutput:           "",
-			expectedBindHost:         "",
 			expectedRouterAccessName: "",
 			expectedNamespace:        "default",
 		},
 		{
 			name:  "options with link access enabled",
 			args:  []string{"my-site"},
-			flags: common.CommandSiteGenerateFlags{EnableLinkAccess: true, BindHost: "test"},
+			flags: common.CommandSiteGenerateFlags{EnableLinkAccess: true},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
-			expectedLinkAccess:              true,
-			expectedNamespace:               "default",
-			expectedBindHost:                "test",
-			expectedRouterAccessName:        "router-access-my-site",
-			expectedSubjectAlternativeNames: nil,
+			expectedLinkAccess:       true,
+			expectedNamespace:        "default",
+			expectedRouterAccessName: "router-access-my-site",
 		},
 		{
 			name:      "options with subject alternative names",
 			args:      []string{"my-site"},
 			namespace: "test",
-			flags:     common.CommandSiteGenerateFlags{BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
+			flags:     common.CommandSiteGenerateFlags{},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
-			expectedLinkAccess:              false,
-			expectedNamespace:               "test",
-			expectedBindHost:                "",
-			expectedSubjectAlternativeNames: nil,
-			expectedRouterAccessName:        "",
+			expectedLinkAccess:       false,
+			expectedNamespace:        "test",
+			expectedRouterAccessName: "",
 		},
 		{
 			name:      "options with enable link access and subject alternative names",
 			args:      []string{"my-site"},
 			namespace: "test",
-			flags:     common.CommandSiteGenerateFlags{EnableLinkAccess: true, BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
+			flags:     common.CommandSiteGenerateFlags{EnableLinkAccess: true},
 			expectedSettings: map[string]string{
 				"name": "my-site",
 			},
-			expectedLinkAccess:              true,
-			expectedNamespace:               "test",
-			expectedSubjectAlternativeNames: []string{"test"},
-			expectedBindHost:                "1.2.3.4",
-			expectedRouterAccessName:        "router-access-my-site",
+			expectedLinkAccess:       true,
+			expectedNamespace:        "test",
+			expectedRouterAccessName: "router-access-my-site",
 		},
 		{
 			name:  "options output type",
@@ -211,10 +183,8 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 			assert.Check(t, cmd.output == test.expectedOutput)
 			assert.DeepEqual(t, cmd.options, test.expectedSettings)
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
-			assert.Check(t, cmd.bindHost == test.expectedBindHost)
 			assert.Check(t, cmd.linkAccessEnabled == test.expectedLinkAccess)
 			assert.Check(t, cmd.routerAccessName == test.expectedRouterAccessName)
-			assert.DeepEqual(t, cmd.subjectAlternativeNames, test.expectedSubjectAlternativeNames)
 		})
 	}
 }
@@ -226,7 +196,6 @@ func TestNonKubeCmdSiteGenerate_Run(t *testing.T) {
 		skupperObjects    []runtime.Object
 		skupperError      string
 		siteName          string
-		host              string
 		options           map[string]string
 		output            string
 		errorMessage      string
@@ -240,7 +209,6 @@ func TestNonKubeCmdSiteGenerate_Run(t *testing.T) {
 			k8sObjects:        nil,
 			skupperObjects:    nil,
 			siteName:          "my-site",
-			host:              "bindHost",
 			routerAccessName:  "ra-test",
 			linkAccessEnabled: true,
 			options:           map[string]string{"name": "my-site"},
@@ -251,7 +219,6 @@ func TestNonKubeCmdSiteGenerate_Run(t *testing.T) {
 			k8sObjects:     nil,
 			skupperObjects: nil,
 			siteName:       "test",
-			host:           "bindhost",
 			options:        map[string]string{"name": "my-site"},
 			output:         "yaml",
 			skupperError:   "",
@@ -261,7 +228,6 @@ func TestNonKubeCmdSiteGenerate_Run(t *testing.T) {
 			k8sObjects:     nil,
 			skupperObjects: nil,
 			siteName:       "test",
-			host:           "bindhost",
 			options:        map[string]string{"name": "my-site"},
 			output:         "unsupported",
 			skupperError:   "",

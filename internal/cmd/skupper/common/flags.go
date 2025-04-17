@@ -115,12 +115,9 @@ type CommandSiteStatusFlags struct {
 }
 
 type CommandSiteGenerateFlags struct {
-	EnableLinkAccess        bool
-	LinkAccessType          string
-	ServiceAccount          string
-	BindHost                string
-	SubjectAlternativeNames []string
-	Output                  string
+	EnableLinkAccess bool
+	LinkAccessType   string
+	Output           string
 }
 
 type CommandLinkGenerateFlags struct {

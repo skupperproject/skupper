@@ -6,8 +6,6 @@ package nonkube
 import (
 	"errors"
 	"fmt"
-	"net"
-
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
@@ -50,12 +48,7 @@ func (cmd *CmdSiteGenerate) ValidateInput(args []string) error {
 
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
-	hostStringValidator := validator.NewHostStringValidator()
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
-
-	if cmd.Flags.ServiceAccount != "" {
-		fmt.Println("Warning: --service-account flag is not supported on this platform")
-	}
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
 		fmt.Println("Warning: --context flag is not supported on this platform")
@@ -78,23 +71,6 @@ func (cmd *CmdSiteGenerate) ValidateInput(args []string) error {
 
 	}
 
-	if cmd.Flags != nil && cmd.Flags.BindHost != "" {
-		ip := net.ParseIP(cmd.Flags.BindHost)
-		ok, _ := hostStringValidator.Evaluate(cmd.Flags.BindHost)
-		if !ok && ip == nil {
-			validationErrors = append(validationErrors, fmt.Errorf("bindhost is not valid: a valid IP address or hostname is expected"))
-		}
-	}
-	if cmd.Flags != nil && len(cmd.Flags.SubjectAlternativeNames) != 0 {
-		for _, name := range cmd.Flags.SubjectAlternativeNames {
-			ip := net.ParseIP(name)
-			ok, _ := hostStringValidator.Evaluate(name)
-			if !ok && ip == nil {
-				validationErrors = append(validationErrors, fmt.Errorf("SubjectAlternativeNames is not valid: a valid IP address or hostname is expected"))
-			}
-		}
-	}
-
 	if cmd.Flags.Output != "" {
 		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
@@ -108,9 +84,7 @@ func (cmd *CmdSiteGenerate) ValidateInput(args []string) error {
 func (cmd *CmdSiteGenerate) InputToOptions() {
 	if cmd.Flags.EnableLinkAccess {
 		cmd.linkAccessEnabled = true
-		cmd.bindHost = cmd.Flags.BindHost
 		cmd.routerAccessName = "router-access-" + cmd.siteName
-		cmd.subjectAlternativeNames = cmd.Flags.SubjectAlternativeNames
 	}
 	options := make(map[string]string)
 	options[common.SiteConfigNameKey] = cmd.siteName

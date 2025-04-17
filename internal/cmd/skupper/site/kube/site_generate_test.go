@@ -38,12 +38,6 @@ func TestCmdSiteGenerate_ValidateInput(t *testing.T) {
 			expectedError: "only one argument is allowed for this command.",
 		},
 		{
-			name:          "service account name is not valid.",
-			args:          []string{"my-site"},
-			flags:         &common.CommandSiteGenerateFlags{ServiceAccount: "not valid service account name"},
-			expectedError: "service account name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
-		},
-		{
 			name:  "link access type is not valid",
 			args:  []string{"my-site"},
 			flags: &common.CommandSiteGenerateFlags{LinkAccessType: "not-valid"},
@@ -55,16 +49,6 @@ func TestCmdSiteGenerate_ValidateInput(t *testing.T) {
 			args:          []string{"my-site"},
 			flags:         &common.CommandSiteGenerateFlags{Output: "not-valid"},
 			expectedError: "format value not-valid not allowed. It should be one of this options: [json yaml]",
-		},
-		{
-			name:  "bind-host flag is not valid for this platform",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteGenerateFlags{BindHost: "host"},
-		},
-		{
-			name:  "subject alternative names flag is not valid for this platform",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteGenerateFlags{SubjectAlternativeNames: []string{"test"}},
 		},
 	}
 
@@ -153,48 +137,44 @@ func TestCmdSiteGenerate_InputToOptions(t *testing.T) {
 
 func TestCmdSiteGenerate_Run(t *testing.T) {
 	type test struct {
-		name               string
-		k8sObjects         []runtime.Object
-		skupperObjects     []runtime.Object
-		skupperError       string
-		siteName           string
-		serviceAccountName string
-		options            map[string]string
-		output             string
-		errorMessage       string
+		name           string
+		k8sObjects     []runtime.Object
+		skupperObjects []runtime.Object
+		skupperError   string
+		siteName       string
+		options        map[string]string
+		output         string
+		errorMessage   string
 	}
 
 	testTable := []test{
 		{
-			name:               "runs ok",
-			k8sObjects:         nil,
-			skupperObjects:     nil,
-			siteName:           "my-site",
-			serviceAccountName: "my-service-account",
-			options:            map[string]string{"name": "my-site"},
-			skupperError:       "",
-			output:             "yaml",
+			name:           "runs ok",
+			k8sObjects:     nil,
+			skupperObjects: nil,
+			siteName:       "my-site",
+			options:        map[string]string{"name": "my-site"},
+			skupperError:   "",
+			output:         "yaml",
 		},
 		{
-			name:               "runs ok with yaml output",
-			k8sObjects:         nil,
-			skupperObjects:     nil,
-			siteName:           "test",
-			serviceAccountName: "my-service-account",
-			options:            map[string]string{"name": "my-site"},
-			output:             "json",
-			skupperError:       "",
+			name:           "runs ok with yaml output",
+			k8sObjects:     nil,
+			skupperObjects: nil,
+			siteName:       "test",
+			options:        map[string]string{"name": "my-site"},
+			output:         "json",
+			skupperError:   "",
 		},
 		{
-			name:               "runs fails because the output format is not supported",
-			k8sObjects:         nil,
-			skupperObjects:     nil,
-			siteName:           "test",
-			serviceAccountName: "my-service-account",
-			options:            map[string]string{"name": "my-site"},
-			output:             "unsupported",
-			skupperError:       "",
-			errorMessage:       "format unsupported not supported",
+			name:           "runs fails because the output format is not supported",
+			k8sObjects:     nil,
+			skupperObjects: nil,
+			siteName:       "test",
+			options:        map[string]string{"name": "my-site"},
+			output:         "unsupported",
+			skupperError:   "",
+			errorMessage:   "format unsupported not supported",
 		},
 	}
 
@@ -208,7 +188,6 @@ func TestCmdSiteGenerate_Run(t *testing.T) {
 		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 
 		command.siteName = test.siteName
-		command.serviceAccountName = test.serviceAccountName
 		command.output = test.output
 
 		t.Run(test.name, func(t *testing.T) {
