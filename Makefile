@@ -26,6 +26,10 @@ DOCKER := docker
 SKOPEO := skopeo
 PODMAN := podman
 
+# The default e2e test type is set to "ci-tests" if not provided
+TEST_TYPE ?= ci-tests
+TEST_OPTIONS ?= ""
+
 all: skupper controller kube-adaptor network-observer
 
 basepkg = github.com/skupperproject/skupper
@@ -183,3 +187,6 @@ clean:
 		cover.out oci-archives bundle bundle.Dockerfile \
 		skupper-*.tgz artifacthub-repo.yml \
 		network-observer-*.tgz  skupper-*-scope.yaml
+
+test-e2e:
+	$(MAKE) -C tests/ $(TEST_TYPE) $(TEST_OPTIONS)

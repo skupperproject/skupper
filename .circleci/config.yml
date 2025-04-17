@@ -311,8 +311,8 @@ jobs:
           name: Running E2E Tests
           command: |
             set -x
-            cd tests
             cp ~/kc.west ~/.kube/config
+            cd tests
             make ci-tests
 
   generate-manifest:
