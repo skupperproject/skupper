@@ -113,8 +113,8 @@ kind::imageload::podman() {
 	done
 }
 
-docker::network::subnet () {
-		${DOCKER} network inspect "$1" | jq -r '.[].IPAM.Config[0].Subnet'
+docker::network::subnetv4 () {
+		${DOCKER} network inspect "$1" | jq -r '.[].IPAM.Config[].Subnet | select(test("([0-9]{1,3}[.]){3}[0-9]{1,3}/[1-3]?[0-9]")?)'
 }
 
 metallb::l2::config() {
@@ -244,7 +244,7 @@ main () {
 		ensure::helm
 		ensure::python
 		echo "(skdev) deploying metallb to ${CLUSTER}"
-		kind_subnet=$(docker::network::subnet kind)
+		kind_subnet=$(docker::network::subnetv4 kind)
 		"${HELM}" repo add metallb https://metallb.github.io/metallb
 		"${HELM}" upgrade --install metallb metallb/metallb \
 			--namespace metallb-system --create-namespace \
