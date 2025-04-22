@@ -32,11 +32,23 @@ func CmdLinkGenerateFactory(configuredPlatform common.Platform) *cobra.Command {
 	kubeCommand := kube.NewCmdLinkGenerate()
 	nonKubeCommand := nonkube.NewCmdLinkGenerate()
 
-	cmdLinkGenerateDesc := common.SkupperCmdDescription{
+	cmdLinkGenerateKubeDesc := common.SkupperCmdDescription{
 		Use:   "generate",
-		Short: "Generate a new link resource in a yaml file",
-		Long: `Generate a new link resource with the data needed from the target site. The resultant
+		Short: "Generate a new link resource as a YAML output, unless explicitly specified otherwise using the `--output` flag.",
+		Long: `Generate a new link resource as a YAML output, unless explicitly specified otherwise using the --output flag. The resultant
 output needs to be applied in the site in which we want to create the link.`,
+	}
+
+	cmdLinkGenerateNonKubeDesc := common.SkupperCmdDescription{
+		Use:   "generate",
+		Short: "Generate a new link resource as a YAML output",
+		Long: `Generate a new link resource as a YAML output The resultant
+output needs to be applied in the site in which we want to create the link.`,
+	}
+
+	cmdLinkGenerateDesc := cmdLinkGenerateKubeDesc
+	if configuredPlatform != common.PlatformKubernetes {
+		cmdLinkGenerateDesc = cmdLinkGenerateNonKubeDesc
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdLinkGenerateDesc, kubeCommand, nonKubeCommand)
@@ -76,6 +88,10 @@ func CmdLinkUpdateFactory(configuredPlatform common.Platform) *cobra.Command {
 	cmd.Flags().DurationVar(&cmdFlags.Timeout, common.FlagNameTimeout, 60*time.Second, common.FlagDescTimeout)
 	if configuredPlatform == common.PlatformKubernetes {
 		cmd.Flags().StringVar(&cmdFlags.Wait, common.FlagNameWait, "ready", common.FlagDescWait)
+	}
+
+	if configuredPlatform != common.PlatformKubernetes {
+		cmd.Flags().MarkHidden(common.FlagNameOutput)
 	}
 
 	kubeCommand.CobraCmd = cmd
