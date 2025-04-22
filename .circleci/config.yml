@@ -338,7 +338,7 @@ jobs:
       - go/mod-download-cached
       - kubectl-install
       - operator-sdk-install
-      - run: make generate-bundle
+      - run: make generate-operator-bundle
       - run: mkdir operator-bundle
       - run: cp bundle.Dockerfile ./bundle  -rf operator-bundle
       - persist_to_workspace:
