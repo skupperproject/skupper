@@ -627,3 +627,44 @@ func TestSiteConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestRecordTypes_GH2081(t *testing.T) {
+	// assert Records do not contain floating point values
+	testCases := []recordType{
+		TcpEndpoint{
+			Name: "backend",
+		},
+		Connector{
+			Name:         "cnctr",
+			Cost:         10,
+			LinkCapacity: 256,
+		},
+		Listener{
+			Name:         "cnctr",
+			Cost:         10,
+			Port:         9931,
+			LinkCapacity: 256,
+		},
+		SslProfile{
+			Name: "myprofile",
+		},
+	}
+	for _, rt := range testCases {
+		t.Run("", func(t *testing.T) {
+			record := rt.toRecord()
+			for key, val := range record {
+				isFloat := false
+				switch val.(type) {
+				case float64:
+					isFloat = true
+				case float32:
+					isFloat = true
+				}
+
+				if isFloat {
+					t.Errorf("Record field %q contains floating point number", key)
+				}
+			}
+		})
+	}
+}
