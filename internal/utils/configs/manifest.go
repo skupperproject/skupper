@@ -2,6 +2,7 @@ package configs
 
 import (
 	"os"
+	"os/exec"
 
 	"github.com/skupperproject/skupper/internal/images"
 )
@@ -46,14 +47,27 @@ func (manager *ManifestManager) GetDefaultManifestWithEnv() Manifest {
 func getSkupperImages(components []string, enableSHA bool, runningPods map[string]string) SkupperManifest {
 	var manifest SkupperManifest
 
+	// if Docker is not installed we can not inspect digests from images.
+	_, err := exec.LookPath("docker")
+	if err != nil {
+		enableSHA = false
+		os.Stderr.WriteString("Warning: Docker is not installed. Skipping image digests search.\n")
+	}
+
+	//This map contains all the digests of the skupper images concurrently
+	var imageDigestMap map[string]string
+	if enableSHA {
+		imageDigestMap = images.CreateMapImageDigest(runningPods)
+	}
+
 	for _, component := range components {
 		var image SkupperComponent
 		image.Component = component
 		image.Version = images.GetImageVersion(component)
-		image.Images = images.GetImages(component, enableSHA)
+		image.Images = images.GetImages(component, imageDigestMap)
 		if runningPods[component] != "" {
 			image.Version = images.GetVersionFromTag(runningPods[component])
-			image.Images = GetRunningImages(component, enableSHA, runningPods)
+			image.Images = GetRunningImages(component, runningPods, imageDigestMap)
 		}
 
 		manifest.Components = append(manifest.Components, image)
@@ -69,7 +83,7 @@ func getSkupperDefaultImages() SkupperManifest {
 		var image SkupperComponent
 		image.Component = component
 		image.Version = images.GetImageVersion(component)
-		image.Images = images.GetImages(component, false)
+		image.Images = images.GetImages(component, nil)
 		manifest.Components = append(manifest.Components, image)
 	}
 
@@ -133,7 +147,7 @@ func getEnvironmentVariableMap() *map[string]string {
 	return &envVariables
 }
 
-func GetRunningImages(component string, enableSHA bool, runningPods map[string]string) []images.SkupperImage {
+func GetRunningImages(component string, runningPods map[string]string, digestMap map[string]string) []images.SkupperImage {
 
 	names := make(map[string]string)
 
@@ -152,7 +166,7 @@ func GetRunningImages(component string, enableSHA bool, runningPods map[string]s
 	}
 
 	if names != nil {
-		return images.GetImage(names, "", enableSHA)
+		return images.GetImage(names, "", digestMap)
 	}
 
 	return nil
