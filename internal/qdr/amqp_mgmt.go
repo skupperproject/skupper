@@ -82,6 +82,10 @@ func getSiteMetadataString(siteId string, version string) string {
 	return string(metadata)
 }
 
+type recordType interface {
+	toRecord() Record
+}
+
 type Record map[string]interface{}
 
 func (r Record) AsString(field string) string {
@@ -328,7 +332,7 @@ func GetRouterAddress(id string, edge bool) string {
 	}
 }
 
-func (a *Agent) request(operation string, typename string, name string, attributes *map[string]interface{}) error {
+func (a *Agent) request(operation string, typename string, name string, attributes map[string]interface{}) error {
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
 
@@ -362,14 +366,16 @@ func (a *Agent) request(operation string, typename string, name string, attribut
 	return nil
 }
 
-func (a *Agent) Create(typename string, name string, attributes map[string]interface{}) error {
+func (a *Agent) Create(typename string, name string, entity recordType) error {
+	attributes := entity.toRecord()
 	log.Println("CREATE", typename, name, attributes)
-	return a.request("CREATE", typename, name, &attributes)
+	return a.request("CREATE", typename, name, attributes)
 }
 
-func (a *Agent) Update(typename string, name string, attributes map[string]interface{}) error {
+func (a *Agent) Update(typename string, name string, entity recordType) error {
+	attributes := entity.toRecord()
 	log.Println("UPDATE", typename, name, attributes)
-	return a.request("UPDATE", typename, name, &attributes)
+	return a.request("UPDATE", typename, name, attributes)
 }
 
 func (a *Agent) Delete(typename string, name string) error {
@@ -882,18 +888,12 @@ func (a *Agent) UpdateLocalBridgeConfig(changes *BridgeConfigDifference) error {
 		}
 	}
 	for _, added := range changes.TcpConnectors.Added {
-		record := map[string]interface{}{}
-		if err := convert(added, &record); err != nil {
-			return fmt.Errorf("Failed to convert record: %s", err)
-		}
-		if err := a.Create("io.skupper.router.tcpConnector", added.Name, record); err != nil {
+		if err := a.Create("io.skupper.router.tcpConnector", added.Name, added); err != nil {
 			return fmt.Errorf("Error adding tcp connectors: %s", err)
 		}
 	}
 	for _, added := range changes.TcpListeners.Added {
-		record := map[string]interface{}{}
-		convert(added, &record)
-		if err := a.Create("io.skupper.router.tcpListener", added.Name, record); err != nil {
+		if err := a.Create("io.skupper.router.tcpListener", added.Name, added); err != nil {
 			return fmt.Errorf("Error adding tcp listeners: %s", err)
 		}
 	}
@@ -1141,29 +1141,6 @@ func asSslProfile(record Record) SslProfile {
 	}
 }
 
-func asRecord(connector Connector) Record {
-
-	record := map[string]interface{}{}
-	record["name"] = connector.Name
-	record["role"] = string(connector.Role)
-	record["host"] = connector.Host
-	record["port"] = connector.Port
-	if connector.Cost > 0 {
-		record["cost"] = connector.Cost
-	}
-	if len(connector.SslProfile) > 0 {
-		record["sslProfile"] = connector.SslProfile
-	}
-	if connector.MaxFrameSize > 0 {
-		record["maxFrameSize"] = connector.MaxFrameSize
-	}
-	if connector.MaxSessionFrames > 0 {
-		record["maxSessionFrames"] = connector.MaxSessionFrames
-	}
-
-	return record
-}
-
 func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference) error {
 	for _, deleted := range changes.Deleted {
 		if err := a.Delete("io.skupper.router.connector", deleted.Name); err != nil {
@@ -1209,7 +1186,7 @@ func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference) error {
 			}
 		}
 
-		if err := a.Create("io.skupper.router.connector", added.Name, asRecord(added)); err != nil {
+		if err := a.Create("io.skupper.router.connector", added.Name, added); err != nil {
 			return fmt.Errorf("Error adding connectors: %s", err)
 		}
 
@@ -1244,56 +1221,6 @@ func (a *Agent) GetLocalConnectors() (map[string]Connector, error) {
 	return connectors, nil
 }
 
-func asListenerRecord(listener Listener) Record {
-
-	record := map[string]interface{}{}
-	record["name"] = listener.Name
-	record["role"] = string(listener.Role)
-	record["host"] = listener.Host
-	record["port"] = strconv.Itoa(int(listener.Port))
-	if listener.Cost > 0 {
-		record["cost"] = listener.Cost
-	}
-	if listener.LinkCapacity > 0 {
-		record["linkCapacity"] = listener.LinkCapacity
-	}
-	if len(listener.SslProfile) > 0 {
-		record["sslProfile"] = listener.SslProfile
-	}
-	if listener.AuthenticatePeer {
-		record["authenticatePeer"] = listener.AuthenticatePeer
-	}
-	if len(listener.SaslMechanisms) > 0 {
-		record["saslMechanisms"] = listener.SaslMechanisms
-	}
-	if listener.MaxFrameSize > 0 {
-		record["maxFrameSize"] = listener.MaxFrameSize
-	}
-	if listener.MaxSessionFrames > 0 {
-		record["maxSessionFrames"] = listener.MaxSessionFrames
-	}
-	if listener.RouteContainer {
-		record["routeContainer"] = listener.RouteContainer
-	}
-	if listener.Http {
-		record["http"] = listener.Http
-	}
-	if len(listener.HttpRootDir) > 0 {
-		record["httpRootDir"] = listener.HttpRootDir
-	}
-	if listener.Websockets {
-		record["websockets"] = listener.Websockets
-	}
-	if listener.Healthz {
-		record["healthz"] = listener.Healthz
-	}
-	if listener.Metrics {
-		record["metrics"] = listener.Metrics
-	}
-
-	return record
-}
-
 func (a *Agent) UpdateListenerConfig(changes *ListenerDifference) error {
 	for _, deleted := range changes.Deleted {
 		if err := a.Delete("io.skupper.router.listener", deleted.Name); err != nil {
@@ -1302,7 +1229,7 @@ func (a *Agent) UpdateListenerConfig(changes *ListenerDifference) error {
 	}
 
 	for _, added := range changes.Added {
-		if err := a.Create("io.skupper.router.listener", added.Name, asListenerRecord(added)); err != nil {
+		if err := a.Create("io.skupper.router.listener", added.Name, added); err != nil {
 			return fmt.Errorf("Error adding listeners: %s", err)
 		}
 
@@ -1399,11 +1326,7 @@ func (a *Agent) CreateSslProfile(profile SslProfile) error {
 		return nil
 	}
 
-	record := map[string]interface{}{}
-	if err := convert(profile, &record); err != nil {
-		return fmt.Errorf("Failed to convert record: %s", err)
-	}
-	if err := a.Create("io.skupper.router.sslProfile", profile.Name, record); err != nil {
+	if err := a.Create("io.skupper.router.sslProfile", profile.Name, profile); err != nil {
 		return fmt.Errorf("Error adding SSL Profile: %s", err)
 	}
 
@@ -1422,11 +1345,7 @@ func (a *Agent) ReloadSslProfile(name string) error {
 		return fmt.Errorf("No SSL Profile with name %s found", name)
 	}
 
-	record := map[string]interface{}{}
-	if err := convert(profile, &record); err != nil {
-		return fmt.Errorf("Failed to convert record: %s", err)
-	}
-	if err := a.Update("io.skupper.router.sslProfile", profile.Name, record); err != nil {
+	if err := a.Update("io.skupper.router.sslProfile", profile.Name, profile); err != nil {
 		return fmt.Errorf("Error updating SSL Profile: %s", err)
 	}
 

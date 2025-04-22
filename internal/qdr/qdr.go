@@ -377,6 +377,23 @@ type SslProfile struct {
 	CaCertFile     string `json:"caCertFile,omitempty"`
 }
 
+func (p SslProfile) toRecord() Record {
+	result := make(map[string]any)
+	if p.Name != "" {
+		result["name"] = p.Name
+	}
+	if p.CertFile != "" {
+		result["certFile"] = p.CertFile
+	}
+	if p.PrivateKeyFile != "" {
+		result["privateKeyFile"] = p.PrivateKeyFile
+	}
+	if p.CaCertFile != "" {
+		result["caCertFile"] = p.CaCertFile
+	}
+	return result
+}
+
 type LogConfig struct {
 	Module string `json:"module"`
 	Enable string `json:"enable"`
@@ -402,6 +419,54 @@ type Listener struct {
 	MaxSessionFrames int    `json:"maxSessionFrames,omitempty" yaml:"max-session-frames,omitempty"`
 }
 
+func (listener Listener) toRecord() Record {
+	record := map[string]any{}
+	record["name"] = listener.Name
+	record["role"] = string(listener.Role)
+	record["host"] = listener.Host
+	record["port"] = strconv.Itoa(int(listener.Port))
+	if listener.Cost > 0 {
+		record["cost"] = listener.Cost
+	}
+	if listener.LinkCapacity > 0 {
+		record["linkCapacity"] = listener.LinkCapacity
+	}
+	if len(listener.SslProfile) > 0 {
+		record["sslProfile"] = listener.SslProfile
+	}
+	if listener.AuthenticatePeer {
+		record["authenticatePeer"] = listener.AuthenticatePeer
+	}
+	if len(listener.SaslMechanisms) > 0 {
+		record["saslMechanisms"] = listener.SaslMechanisms
+	}
+	if listener.MaxFrameSize > 0 {
+		record["maxFrameSize"] = listener.MaxFrameSize
+	}
+	if listener.MaxSessionFrames > 0 {
+		record["maxSessionFrames"] = listener.MaxSessionFrames
+	}
+	if listener.RouteContainer {
+		record["routeContainer"] = listener.RouteContainer
+	}
+	if listener.Http {
+		record["http"] = listener.Http
+	}
+	if len(listener.HttpRootDir) > 0 {
+		record["httpRootDir"] = listener.HttpRootDir
+	}
+	if listener.Websockets {
+		record["websockets"] = listener.Websockets
+	}
+	if listener.Healthz {
+		record["healthz"] = listener.Healthz
+	}
+	if listener.Metrics {
+		record["metrics"] = listener.Metrics
+	}
+
+	return record
+}
 func (l *Listener) SetMaxFrameSize(value int) {
 	l.MaxFrameSize = value
 }
@@ -422,6 +487,27 @@ type Connector struct {
 	LinkCapacity     int32  `json:"linkCapacity,omitempty"`
 	MaxFrameSize     int    `json:"maxFrameSize,omitempty"`
 	MaxSessionFrames int    `json:"maxSessionFrames,omitempty"`
+}
+
+func (connector Connector) toRecord() Record {
+	record := map[string]any{}
+	record["name"] = connector.Name
+	record["role"] = string(connector.Role)
+	record["host"] = connector.Host
+	record["port"] = connector.Port
+	if connector.Cost > 0 {
+		record["cost"] = connector.Cost
+	}
+	if len(connector.SslProfile) > 0 {
+		record["sslProfile"] = connector.SslProfile
+	}
+	if connector.MaxFrameSize > 0 {
+		record["maxFrameSize"] = connector.MaxFrameSize
+	}
+	if connector.MaxSessionFrames > 0 {
+		record["maxSessionFrames"] = connector.MaxSessionFrames
+	}
+	return record
 }
 
 func (c *Connector) SetMaxFrameSize(value int) {
@@ -454,6 +540,35 @@ type TcpEndpoint struct {
 	SslProfile     string `json:"sslProfile,omitempty"`
 	VerifyHostname *bool  `json:"verifyHostname,omitempty"`
 	ProcessID      string `json:"processId,omitempty"`
+}
+
+func (e TcpEndpoint) toRecord() Record {
+	result := make(map[string]any)
+	if e.Name != "" {
+		result["name"] = e.Name
+	}
+	if e.Host != "" {
+		result["host"] = e.Host
+	}
+	if e.Port != "" {
+		result["port"] = e.Port
+	}
+	if e.Address != "" {
+		result["address"] = e.Address
+	}
+	if e.SiteId != "" {
+		result["siteId"] = e.SiteId
+	}
+	if e.SslProfile != "" {
+		result["sslProfile"] = e.SslProfile
+	}
+	if e.VerifyHostname != nil {
+		result["verifyHostname"] = e.VerifyHostname
+	}
+	if e.ProcessID != "" {
+		result["processId"] = e.ProcessID
+	}
+	return result
 }
 
 type SiteConfig struct {
