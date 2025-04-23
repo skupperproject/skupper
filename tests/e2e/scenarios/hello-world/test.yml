@@ -13,29 +13,15 @@
           ansible.builtin.include_role:
             name: e2e.tests.generate_namespaces
 
-        - name: Creating Skupper resources on west namespace
-          skupper.v2.resource:
-            path: "{{ item }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            kubeconfig: "{{ kubeconfig }}"
-          with_items:
-            - - "{{ playbook_dir }}/resources/west/frontend.yml"
-            - - "{{ playbook_dir }}/resources/west/site.yml"
-            - - "{{ playbook_dir }}/resources/west/listener.yml"
-          when:
-            - "'west' in inventory_hostname"
+        - name: Create Skupper resources for west site
+          include_tasks: skupper-sites.yml
+          vars:
+            site_name: west
 
-        - name: Creating Skupper resources on east namespace
-          skupper.v2.resource:
-            path: "{{ item }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            kubeconfig: "{{ kubeconfig }}"
-          with_items:
-            - - "{{ playbook_dir }}/resources/east/backend.yml"
-            - - "{{ playbook_dir }}/resources/east/site.yml"
-            - - "{{ playbook_dir }}/resources/east/connector.yml"
-          when:
-            - "'east' in inventory_hostname"
+        - name: Create Skupper resources for east site
+          include_tasks: skupper-sites.yml
+          vars:
+            site_name: east
 
         - name: Issue a Skupper access token from west namespace
           skupper.v2.token:
