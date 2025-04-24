@@ -1,0 +1,20 @@
+apiVersion: skupper.io/v2alpha1
+kind: Site
+metadata:
+  name: public
+spec:
+  defaultIssuer: none
+---
+apiVersion: skupper.io/v2alpha1
+kind: RouterAccess
+metadata:
+  name: skupper
+spec:
+  issuer: none
+  tlsCredentials: public-server-tls
+  accessType: loadbalancer
+  roles:
+    - port: 55671
+      name: inter-router
+    - port: 45671
+      name: edge
