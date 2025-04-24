@@ -19,6 +19,8 @@ const (
 	AccessTokens   string = "AccessToken"
 	Secrets        string = "Secret"
 	ConfigMaps     string = "ConfigMap"
+	Certificates    string = "Certificate"
+	SecuredAccesses string = "SecuredAccess"
 )
 
 const (

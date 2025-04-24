@@ -1,23 +1,36 @@
 package nonkube
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
+	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
+	"log/slog"
+	"os"
+	"strings"
 )
 
 type CmdSystemApply struct {
-	Client      skupperv2alpha1.SkupperV2alpha1Interface
-	KubeClient  kubernetes.Interface
-	CobraCmd    *cobra.Command
-	Namespace   string
-	Flags       *common.CommandSystemApplyFlags
-	SystemApply func(string) error
-	file        string
+	Client               skupperv2alpha1.SkupperV2alpha1Interface
+	KubeClient           kubernetes.Interface
+	CobraCmd             *cobra.Command
+	Namespace            string
+	Flags                *common.CommandSystemApplyFlags
+	ParseInput           func(namespace string, reader *bufio.Reader, result *fs.InputFileResource) error
+	siteHandler          *fs.SiteHandler
+	connectorHandler     *fs.ConnectorHandler
+	listenerHandler      *fs.ListenerHandler
+	linkHandler          *fs.LinkHandler
+	routerAccessHandler  *fs.RouterAccessHandler
+	accessTokenHandler   *fs.AccessTokenHandler
+	certificateHandler   *fs.CertificateHandler
+	securedAccessHandler *fs.SecuredAccessHandler
+	secretHandler        *fs.SecretHandler
+	file                 string
 }
 
 func NewCmdSystemApply() *CmdSystemApply {
@@ -28,33 +41,157 @@ func NewCmdSystemApply() *CmdSystemApply {
 }
 
 func (cmd *CmdSystemApply) NewClient(cobraCommand *cobra.Command, args []string) {
-	cmd.SystemApply = bootstrap.Apply
+	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace) != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String() != "" {
+		cmd.Namespace = cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String()
+	}
+
+	cmd.connectorHandler = fs.NewConnectorHandler(cmd.Namespace)
+	cmd.listenerHandler = fs.NewListenerHandler(cmd.Namespace)
+	cmd.linkHandler = fs.NewLinkHandler(cmd.Namespace)
+	cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.Namespace)
+	cmd.accessTokenHandler = fs.NewAccessTokenHandler(cmd.Namespace)
+	cmd.siteHandler = fs.NewSiteHandler(cmd.Namespace)
+	cmd.secretHandler = fs.NewSecretHandler(cmd.Namespace)
+	cmd.certificateHandler = fs.NewCertificateHandler(cmd.Namespace)
+	cmd.securedAccessHandler = fs.NewSecuredAccessHandler(cmd.Namespace)
+	cmd.ParseInput = fs.ParseInput
 }
 
 func (cmd *CmdSystemApply) ValidateInput(args []string) error {
 	var validationErrors []error
 
 	if len(args) > 0 {
-		validationErrors = append(validationErrors, fmt.Errorf("this command does not accept arguments"))
+		validationErrors = append(validationErrors, fmt.Errorf("This command does not accept arguments"))
 	}
 
-	//TODO: CHECK IF THE FILE EXISTS
+	if cmd.Flags == nil || cmd.Flags.Filename == "" {
+		validationErrors = append(validationErrors, fmt.Errorf("You need to provide a file to apply or use standard input.\n Example: cat site.yaml | skupper system apply -f -"))
+	}
+
+	if cmd.Flags != nil && cmd.Flags.Filename != "" && cmd.Flags.Filename != "-" {
+
+		if !strings.HasSuffix(cmd.Flags.Filename, ".yaml") && !strings.HasSuffix(cmd.Flags.Filename, ".json") {
+			validationErrors = append(validationErrors, fmt.Errorf("The file has an unsupported extension, it should have one of the following: .yaml, .json"))
+		}
+
+		info, err := os.Stat(cmd.Flags.Filename)
+		if os.IsNotExist(err) {
+			validationErrors = append(validationErrors, fmt.Errorf("The file %q does not exist", cmd.Flags.Filename))
+		} else if err != nil {
+			validationErrors = append(validationErrors, fmt.Errorf("Error while accessing the file: %s", err))
+		}
+
+		if err == nil && info.IsDir() {
+			validationErrors = append(validationErrors, fmt.Errorf("The file %q is a directory", cmd.Flags.Filename))
+		}
+	}
 
 	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdSystemApply) InputToOptions() {
 	cmd.file = cmd.Flags.Filename
+	if cmd.Flags.Filename == "-" {
+		cmd.file = ""
+	}
+	if cmd.Namespace == "" {
+		cmd.Namespace = "default"
+	}
 }
 
 func (cmd *CmdSystemApply) Run() error {
-	err := cmd.SystemApply(cmd.file)
 
-	if err != nil {
-		return fmt.Errorf("failed parsing the custom resources: %s", err)
+	//read the file or the pipe stream
+	inputReader := cmd.CobraCmd.InOrStdin()
+
+	if cmd.file != "" {
+		file, err := os.Open(cmd.file)
+		if err != nil {
+			return fmt.Errorf("Error while opening the file: %s", err)
+		}
+		inputReader = file
 	}
 
-	fmt.Println("Custom resources applied successfully. You can now run `skupper reload` to make effective the changes.")
+	//get custom resources from the input
+	parsedInput := &fs.InputFileResource{}
+	err := cmd.ParseInput(cmd.Namespace, bufio.NewReader(inputReader), parsedInput)
+	if err != nil {
+		return fmt.Errorf("Failed parsing the custom resources: %s", err)
+	}
+
+	for _, site := range parsedInput.Site {
+		err := cmd.siteHandler.Add(site)
+		if err != nil {
+			slog.Error("Error while adding site %q: %s", site.Name, err)
+		}
+		fmt.Printf("Site %s added\n", site.Name)
+	}
+
+	for _, connector := range parsedInput.Connector {
+		err := cmd.connectorHandler.Add(connector)
+		if err != nil {
+			slog.Error("Error while adding connector %q: %s", connector.Name, err)
+		}
+		fmt.Printf("Connector %s added\n", connector.Name)
+	}
+
+	for _, listener := range parsedInput.Listener {
+		err := cmd.listenerHandler.Add(listener)
+		if err != nil {
+			slog.Error("Error while adding listener %q: %s", listener.Name, err)
+		}
+		fmt.Printf("Listener %s added\n", listener.Name)
+	}
+
+	for _, link := range parsedInput.Link {
+		err := cmd.linkHandler.Add(link)
+		if err != nil {
+			slog.Error("Error while adding link %q: %s", link.Name, err)
+		}
+		fmt.Printf("Link %s added\n", link.Name)
+	}
+
+	for _, routerAccess := range parsedInput.RouterAccess {
+		err := cmd.routerAccessHandler.Add(routerAccess)
+		if err != nil {
+			slog.Error("Error while adding router access %q: %s", routerAccess.Name, err)
+		}
+		fmt.Printf("RouterAccess %s added\n", routerAccess.Name)
+	}
+
+	for _, accessToken := range parsedInput.AccessToken {
+		err := cmd.accessTokenHandler.Add(accessToken)
+		if err != nil {
+			slog.Error("Error while adding access token %q: %s", accessToken.Name, err)
+		}
+		fmt.Printf("AccessToken %s added\n", accessToken.Name)
+	}
+
+	for _, secret := range parsedInput.Secret {
+		err := cmd.secretHandler.Add(secret)
+		if err != nil {
+			slog.Error("Error while adding secret %q: %s", secret.Name, err)
+		}
+		fmt.Printf("Secret %s added\n", secret.Name)
+	}
+
+	for _, securedAccess := range parsedInput.SecuredAccess {
+		err := cmd.securedAccessHandler.Add(securedAccess)
+		if err != nil {
+			slog.Error("Error while adding secured access %q: %s", securedAccess.Name, err)
+		}
+		fmt.Printf("SecuredAccess %s added\n", securedAccess.Name)
+	}
+
+	for _, certificate := range parsedInput.Certificate {
+		err := cmd.certificateHandler.Add(certificate)
+		if err != nil {
+			slog.Error("Error while adding certificate %q: %s", certificate.Name, err)
+		}
+		fmt.Printf("Certificate %s added\n", certificate.Name)
+	}
+
+	fmt.Println("Custom resources are applied. You can now run `skupper reload` to make effective the changes.")
 
 	return nil
 }
