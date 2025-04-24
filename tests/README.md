@@ -88,6 +88,12 @@ The Makefile will automatically:
 * A cluster with Skupper installed cluster-wide
 * Your kubeconfig is set to that cluster
 
+**Tip:** To quickly create a [kind](https://kind.sigs.k8s.io/) cluster:
+
+```bash
+KUBECONFIG=~/.kube/config ../scripts/kind-dev-cluster -r --metallb -i podman
+```
+
 **Note:** The scripts create and delete namespaces.
 
 ```bash
