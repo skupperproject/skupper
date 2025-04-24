@@ -88,7 +88,7 @@ The Makefile will automatically:
 * A cluster with Skupper installed cluster-wide
 * Your kubeconfig is set to that cluster
 
-**Note:** The scripts create and delete namespace 
+**Note:** The scripts create and delete namespaces.
 
 ```bash
 # Run a specific test
