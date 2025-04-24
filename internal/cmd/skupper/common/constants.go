@@ -11,11 +11,15 @@ var (
 )
 
 const (
-	Connectors     string = "Connector"
-	Listeners      string = "Listener"
-	Sites          string = "Site"
-	RouterAccesses string = "RouterAccess"
-	Links          string = "Link"
+	Connectors      string = "Connector"
+	Listeners       string = "Listener"
+	Sites           string = "Site"
+	RouterAccesses  string = "RouterAccess"
+	Links           string = "Link"
+	Secrets         string = "Secret"
+	AccessTokens    string = "AccessToken"
+	Certificates    string = "Certificate"
+	SecuredAccesses string = "SecuredAccess"
 )
 
 const (
