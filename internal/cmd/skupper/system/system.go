@@ -181,6 +181,8 @@ func CmdSystemApplyFactory(configuredPlatform common.Platform) *cobra.Command {
 		Use:   "apply",
 		Short: "Create or update resources using files or standard input.",
 		Long:  "Create or update resources using files or standard input.",
+		Example: `skupper system apply -f ~/my-site.yaml
+skupper link generate | skupper system apply -f -`,
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSystemApplyDesc, kubeCommand, nonKubeCommand)
