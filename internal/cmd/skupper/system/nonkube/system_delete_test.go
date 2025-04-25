@@ -29,7 +29,7 @@ func TestCmdSystemDelete_ValidateInput(t *testing.T) {
 		{
 			name:          "flag file is not provided",
 			args:          []string{},
-			expectedError: "You need to provide a file to apply or use standard input.\n Example: cat site.yaml | skupper system apply -f -",
+			expectedError: "You need to provide a file to delete custom resources or use standard input.\n Example: cat site.yaml | skupper system delete -f -",
 		},
 		{
 			name:          "file does not exist",
