@@ -99,7 +99,6 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 		expectedOutput           string
 		expectedNamespace        string
 		expectedRouterAccessName string
-		expectedHA               bool
 	}
 
 	testTable := []test{
@@ -111,7 +110,6 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 			expectedOutput:           "",
 			expectedRouterAccessName: "",
 			expectedNamespace:        "default",
-			expectedHA:               false,
 		},
 		{
 			name:                     "options with link access enabled",
@@ -120,7 +118,6 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 			expectedLinkAccess:       true,
 			expectedNamespace:        "default",
 			expectedRouterAccessName: "router-access-my-site",
-			expectedHA:               false,
 		},
 		{
 			name:               "options output type",
@@ -129,7 +126,6 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 			expectedLinkAccess: false,
 			expectedOutput:     "yaml",
 			expectedNamespace:  "default",
-			expectedHA:         false,
 		},
 		{
 			name:               "options with enabled HA",
@@ -138,7 +134,6 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 			expectedLinkAccess: false,
 			expectedOutput:     "",
 			expectedNamespace:  "default",
-			expectedHA:         true,
 		},
 	}
 
@@ -157,7 +152,6 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
 			assert.Check(t, cmd.linkAccessEnabled == test.expectedLinkAccess)
 			assert.Check(t, cmd.routerAccessName == test.expectedRouterAccessName)
-			assert.Check(t, cmd.HA == test.expectedHA)
 		})
 	}
 }

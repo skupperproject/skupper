@@ -25,7 +25,6 @@ type CmdSiteCreate struct {
 	bindHost                string
 	routerAccessName        string
 	subjectAlternativeNames []string
-	HA                      bool
 }
 
 func NewCmdSiteCreate() *CmdSiteCreate {
@@ -82,7 +81,6 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 		cmd.namespace = "default"
 	}
 
-	cmd.HA = cmd.Flags.EnableHA
 }
 
 func (cmd *CmdSiteCreate) Run() error {
@@ -95,9 +93,6 @@ func (cmd *CmdSiteCreate) Run() error {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmd.siteName,
 			Namespace: cmd.namespace,
-		},
-		Spec: v2alpha1.SiteSpec{
-			HA: cmd.HA,
 		},
 	}
 
