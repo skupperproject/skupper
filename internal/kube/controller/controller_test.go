@@ -705,7 +705,7 @@ func enableSSA(client dynamic.Interface) bool {
 				if pa.GetPatchType() != types.ApplyPatchType {
 					return false, nil, nil
 				}
-				// SystemApply patches are supposed to upsert, but fake client fails if the object doesn't exist,
+				// Apply patches are supposed to upsert, but fake client fails if the object doesn't exist,
 				// if an apply patch occurs for a deployment that doesn't yet exist, create it.
 				// However, we already hold the fakeclient lock, so we can't use the front door.
 				rfunc := k8stesting.ObjectReaction(fc.Tracker())
