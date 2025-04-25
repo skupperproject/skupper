@@ -65,7 +65,7 @@ func (cmd *CmdSystemDelete) ValidateInput(args []string) error {
 	}
 
 	if cmd.Flags == nil || cmd.Flags.Filename == "" {
-		validationErrors = append(validationErrors, fmt.Errorf("You need to provide a file to apply or use standard input.\n Example: cat site.yaml | skupper system apply -f -"))
+		validationErrors = append(validationErrors, fmt.Errorf("You need to provide a file to delete custom resources or use standard input.\n Example: cat site.yaml | skupper system delete -f -"))
 	}
 
 	if cmd.Flags != nil && cmd.Flags.Filename != "" && cmd.Flags.Filename != "-" {
