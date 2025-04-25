@@ -13,6 +13,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"log/slog"
 )
 
 type CmdSiteGenerate struct {
@@ -20,7 +21,6 @@ type CmdSiteGenerate struct {
 	routerAccessHandler     *fs.RouterAccessHandler
 	CobraCmd                *cobra.Command
 	Flags                   *common.CommandSiteGenerateFlags
-	options                 map[string]string
 	siteName                string
 	linkAccessEnabled       bool
 	output                  string
@@ -83,13 +83,16 @@ func (cmd *CmdSiteGenerate) ValidateInput(args []string) error {
 
 func (cmd *CmdSiteGenerate) InputToOptions() {
 	if cmd.Flags.EnableLinkAccess {
-		cmd.linkAccessEnabled = true
-		cmd.routerAccessName = "router-access-" + cmd.siteName
-	}
-	options := make(map[string]string)
-	options[common.SiteConfigNameKey] = cmd.siteName
+		sanByDefault, err := utils.GetSansByDefault()
+		if err != nil {
+			slog.Error("Error getting SANs by default")
+		}
 
-	cmd.options = options
+		cmd.linkAccessEnabled = true
+		cmd.bindHost = "0.0.0.0"
+		cmd.routerAccessName = "router-access-" + cmd.siteName
+		cmd.subjectAlternativeNames = sanByDefault
+	}
 
 	if cmd.namespace == "" {
 		cmd.namespace = "default"

@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"log/slog"
 )
 
 type CmdSiteCreate struct {
@@ -71,10 +73,15 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 func (cmd *CmdSiteCreate) InputToOptions() {
 
 	if cmd.Flags.EnableLinkAccess {
+		sanByDefault, err := utils.GetSansByDefault()
+		if err != nil {
+			slog.Error("Error getting SANs by default")
+		}
+
 		cmd.linkAccessEnabled = true
 		cmd.bindHost = "0.0.0.0"
 		cmd.routerAccessName = "router-access-" + cmd.siteName
-		cmd.subjectAlternativeNames = []string{}
+		cmd.subjectAlternativeNames = sanByDefault
 	}
 
 	if cmd.namespace == "" {

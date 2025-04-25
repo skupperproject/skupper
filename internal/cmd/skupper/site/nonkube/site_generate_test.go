@@ -94,11 +94,11 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 		args                     []string
 		namespace                string
 		flags                    common.CommandSiteGenerateFlags
-		expectedSettings         map[string]string
 		expectedLinkAccess       bool
 		expectedOutput           string
 		expectedNamespace        string
 		expectedRouterAccessName string
+		expectedSansByDefault    bool
 	}
 
 	testTable := []test{
@@ -110,6 +110,7 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 			expectedOutput:           "",
 			expectedRouterAccessName: "",
 			expectedNamespace:        "default",
+			expectedSansByDefault:    false,
 		},
 		{
 			name:                     "options with link access enabled",
@@ -118,22 +119,16 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 			expectedLinkAccess:       true,
 			expectedNamespace:        "default",
 			expectedRouterAccessName: "router-access-my-site",
+			expectedSansByDefault:    true,
 		},
 		{
-			name:               "options output type",
-			args:               []string{"my-site"},
-			flags:              common.CommandSiteGenerateFlags{EnableLinkAccess: false, Output: "yaml"},
-			expectedLinkAccess: false,
-			expectedOutput:     "yaml",
-			expectedNamespace:  "default",
-		},
-		{
-			name:               "options with enabled HA",
-			args:               []string{"my-site"},
-			flags:              common.CommandSiteGenerateFlags{EnableHA: true},
-			expectedLinkAccess: false,
-			expectedOutput:     "",
-			expectedNamespace:  "default",
+			name:                  "options output type",
+			args:                  []string{"my-site"},
+			flags:                 common.CommandSiteGenerateFlags{EnableLinkAccess: false, Output: "yaml"},
+			expectedLinkAccess:    false,
+			expectedOutput:        "yaml",
+			expectedNamespace:     "default",
+			expectedSansByDefault: false,
 		},
 	}
 
@@ -152,6 +147,7 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
 			assert.Check(t, cmd.linkAccessEnabled == test.expectedLinkAccess)
 			assert.Check(t, cmd.routerAccessName == test.expectedRouterAccessName)
+			assert.Equal(t, len(cmd.subjectAlternativeNames) > 0, test.expectedSansByDefault)
 		})
 	}
 }
@@ -163,7 +159,6 @@ func TestNonKubeCmdSiteGenerate_Run(t *testing.T) {
 		skupperObjects    []runtime.Object
 		skupperError      string
 		siteName          string
-		options           map[string]string
 		output            string
 		errorMessage      string
 		routerAccessName  string
@@ -178,7 +173,6 @@ func TestNonKubeCmdSiteGenerate_Run(t *testing.T) {
 			siteName:          "my-site",
 			routerAccessName:  "ra-test",
 			linkAccessEnabled: true,
-			options:           map[string]string{"name": "my-site"},
 			output:            "json",
 		},
 		{
@@ -186,7 +180,6 @@ func TestNonKubeCmdSiteGenerate_Run(t *testing.T) {
 			k8sObjects:     nil,
 			skupperObjects: nil,
 			siteName:       "test",
-			options:        map[string]string{"name": "my-site"},
 			output:         "yaml",
 			skupperError:   "",
 		},
@@ -195,7 +188,6 @@ func TestNonKubeCmdSiteGenerate_Run(t *testing.T) {
 			k8sObjects:     nil,
 			skupperObjects: nil,
 			siteName:       "test",
-			options:        map[string]string{"name": "my-site"},
 			output:         "unsupported",
 			skupperError:   "",
 			errorMessage:   "format unsupported not supported",
@@ -206,7 +198,6 @@ func TestNonKubeCmdSiteGenerate_Run(t *testing.T) {
 		command := &CmdSiteGenerate{}
 
 		command.siteName = test.siteName
-		command.options = test.options
 		command.output = test.output
 		command.routerAccessName = test.routerAccessName
 		command.linkAccessEnabled = test.linkAccessEnabled

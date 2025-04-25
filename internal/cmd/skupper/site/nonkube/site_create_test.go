@@ -98,6 +98,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 		expectedLinkAccess       bool
 		expectedNamespace        string
 		expectedRouterAccessName string
+		expectedSansByDefault    bool
 	}
 
 	testTable := []test{
@@ -108,6 +109,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedLinkAccess:       false,
 			expectedNamespace:        "default",
 			expectedRouterAccessName: "",
+			expectedSansByDefault:    false,
 		},
 		{
 			name:                     "options with link access enabled",
@@ -116,6 +118,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			expectedLinkAccess:       true,
 			expectedNamespace:        "default",
 			expectedRouterAccessName: "router-access-my-site",
+			expectedSansByDefault:    true,
 		},
 	}
 
@@ -133,6 +136,7 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
 			assert.Check(t, cmd.linkAccessEnabled == test.expectedLinkAccess)
 			assert.Check(t, cmd.routerAccessName == test.expectedRouterAccessName)
+			assert.Equal(t, len(cmd.subjectAlternativeNames) > 0, test.expectedSansByDefault)
 		})
 	}
 }
