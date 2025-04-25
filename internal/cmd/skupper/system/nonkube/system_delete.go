@@ -9,7 +9,9 @@ import (
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
+	"log/slog"
 	"os"
+	"strings"
 )
 
 type CmdSystemDelete struct {
@@ -62,14 +64,25 @@ func (cmd *CmdSystemDelete) ValidateInput(args []string) error {
 		validationErrors = append(validationErrors, fmt.Errorf("This command does not accept arguments"))
 	}
 
-	if cmd.Flags.Filename != "" {
+	if cmd.Flags == nil || cmd.Flags.Filename == "" {
+		validationErrors = append(validationErrors, fmt.Errorf("You need to provide a file to apply or use standard input.\n Example: cat site.yaml | skupper system apply -f -"))
+	}
+
+	if cmd.Flags != nil && cmd.Flags.Filename != "" && cmd.Flags.Filename != "-" {
+
+		if !strings.HasSuffix(cmd.Flags.Filename, ".yaml") && !strings.HasSuffix(cmd.Flags.Filename, ".json") {
+			validationErrors = append(validationErrors, fmt.Errorf("The file has an unsupported extension, it should have one of the following: .yaml, .json"))
+		}
+
 		info, err := os.Stat(cmd.Flags.Filename)
 		if os.IsNotExist(err) {
-			validationErrors = append(validationErrors, fmt.Errorf("The file %s does not exist", cmd.Flags.Filename))
+			validationErrors = append(validationErrors, fmt.Errorf("The file %q does not exist", cmd.Flags.Filename))
 		} else if err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("Error while accessing the file: %s", err))
-		} else if info.IsDir() {
-			validationErrors = append(validationErrors, fmt.Errorf("The file %s is a directory", cmd.Flags.Filename))
+		}
+
+		if err == nil && info.IsDir() {
+			validationErrors = append(validationErrors, fmt.Errorf("The file %q is a directory", cmd.Flags.Filename))
 		}
 	}
 
@@ -78,6 +91,12 @@ func (cmd *CmdSystemDelete) ValidateInput(args []string) error {
 
 func (cmd *CmdSystemDelete) InputToOptions() {
 	cmd.file = cmd.Flags.Filename
+	if cmd.Flags.Filename == "-" {
+		cmd.file = ""
+	}
+	if cmd.Namespace == "" {
+		cmd.Namespace = "default"
+	}
 }
 
 func (cmd *CmdSystemDelete) Run() error {
@@ -96,81 +115,98 @@ func (cmd *CmdSystemDelete) Run() error {
 	parsedInput := &fs.InputFileResource{}
 	err := cmd.ParseInput(cmd.Namespace, bufio.NewReader(inputReader), parsedInput)
 	if err != nil {
-		return fmt.Errorf("failed parsing the custom resources: %s", err)
+		return fmt.Errorf("Failed parsing the custom resources: %s", err)
 	}
 
-	//add input to the resources namespace
-
 	for _, site := range parsedInput.Site {
-		err := cmd.siteHandler.Delete(site.Name)
-		if err != nil {
-			return err
+		if site.Name != "" {
+			err := cmd.siteHandler.Delete(site.Name)
+			if err != nil {
+				slog.Error("Error while deleting site %q: %s", site.Name, err)
+			}
+			fmt.Printf("Site %s deleted\n", site.Name)
 		}
-		fmt.Printf("Site %s deleted\n", site.Name)
 	}
 
 	for _, connector := range parsedInput.Connector {
-		err := cmd.connectorHandler.Delete(connector.Name)
-		if err != nil {
-			return err
+		if connector.Name != "" {
+			err := cmd.connectorHandler.Delete(connector.Name)
+			if err != nil {
+				slog.Error("Error while deleting connector %q: %s", connector.Name, err)
+			}
+			fmt.Printf("Connector %s deleted\n", connector.Name)
 		}
-		fmt.Printf("Connector %s deleted\n", connector.Name)
 	}
 
 	for _, listener := range parsedInput.Listener {
-		err := cmd.listenerHandler.Delete(listener.Name)
-		if err != nil {
-			return err
+		if listener.Name != "" {
+			err := cmd.listenerHandler.Delete(listener.Name)
+			if err != nil {
+				slog.Error("Error while deleting listener %q: %s", listener.Name, err)
+			}
+			fmt.Printf("Listener %s deleted\n", listener.Name)
 		}
-		fmt.Printf("Listener %s deleted\n", listener.Name)
 	}
 
 	for _, link := range parsedInput.Link {
-		err := cmd.linkHandler.Delete(link.Name)
-		if err != nil {
-			return err
+		if link.Name != "" {
+			err := cmd.linkHandler.Delete(link.Name)
+			if err != nil {
+				slog.Error("Error while deleting link %q: %s", link.Name, err)
+			}
+			fmt.Printf("Link %s deleted\n", link.Name)
 		}
-		fmt.Printf("Link %s deleted\n", link.Name)
 	}
 
 	for _, routerAccess := range parsedInput.RouterAccess {
-		err := cmd.routerAccessHandler.Delete(routerAccess.Name)
-		if err != nil {
-			return err
+		if routerAccess.Name != "" {
+			err := cmd.routerAccessHandler.Delete(routerAccess.Name)
+			if err != nil {
+
+				slog.Error("Error while deleting router access %q: %s", routerAccess.Name, err)
+			}
+			fmt.Printf("RouterAccess %s deleted\n", routerAccess.Name)
 		}
-		fmt.Printf("RouterAccess %s deleted\n", routerAccess.Name)
 	}
 
 	for _, accessToken := range parsedInput.AccessToken {
-		err := cmd.accessTokenHandler.Delete(accessToken.Name)
-		if err != nil {
-			return err
+		if accessToken.Name != "" {
+			err := cmd.accessTokenHandler.Delete(accessToken.Name)
+			if err != nil {
+				slog.Error("Error while deleting access token %q: %s", accessToken.Name, err)
+			}
+			fmt.Printf("AccessToken %s deleted\n", accessToken.Name)
 		}
-		fmt.Printf("AccessToken %s deleted\n", accessToken.Name)
 	}
 
 	for _, secret := range parsedInput.Secret {
-		err := cmd.secretHandler.Delete(secret.Name)
-		if err != nil {
-			return err
+		if secret.Name != "" {
+			err := cmd.secretHandler.Delete(secret.Name)
+			if err != nil {
+				slog.Error("Error while deleting secret %q: %s", secret.Name, err)
+			}
+			fmt.Printf("Secret %s deleted\n", secret.Name)
 		}
-		fmt.Printf("Secret %s deleted\n", secret.Name)
 	}
 
 	for _, certificate := range parsedInput.Certificate {
-		err := cmd.certificateHandler.Delete(certificate.Name)
-		if err != nil {
-			return err
+		if certificate.Name != "" {
+			err := cmd.certificateHandler.Delete(certificate.Name)
+			if err != nil {
+				slog.Error("Error while deleting certificate %q: %s", certificate.Name, err)
+			}
+			fmt.Printf("Certificate %s deleted\n", certificate.Name)
 		}
-		fmt.Printf("Certificate %s deleted\n", certificate.Name)
 	}
 
 	for _, securedAccess := range parsedInput.SecuredAccess {
-		err := cmd.securedAccessHandler.Delete(securedAccess.Name)
-		if err != nil {
-			return err
+		if securedAccess.Name != "" {
+			err := cmd.securedAccessHandler.Delete(securedAccess.Name)
+			if err != nil {
+				slog.Error("Error while deleting secured access %q: %s", securedAccess.Name, err)
+			}
+			fmt.Printf("SecuredAccess %s deleted\n", securedAccess.Name)
 		}
-		fmt.Printf("SecuredAccess %s deleted\n", securedAccess.Name)
 	}
 
 	fmt.Println("Custom resources deleted. You can now run `skupper reload` to make effective the changes.")
