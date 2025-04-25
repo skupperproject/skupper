@@ -91,7 +91,7 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagDescUninstallForce = "option to override even with sites present"
 
 	FlagNameFileName = "filename"
-	FlagDescFileName = "The name of the file to be applied"
+	FlagDescFileName = "The name of the file with custom resources"
 )
 
 type CommandSiteCreateFlags struct {
