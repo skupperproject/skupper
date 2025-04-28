@@ -45,6 +45,13 @@ func (cmd *CmdListenerStatus) ValidateInput(args []string) error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
+	// Check if Listener CRD is installed
+	_, err := cmd.client.Listeners(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
+
 	// Validate arguments name if specified
 	if len(args) > 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
@@ -108,7 +115,7 @@ func (cmd *CmdListenerStatus) Run() error {
 		}
 	} else {
 		resource, err := cmd.client.Listeners(cmd.namespace).Get(context.TODO(), cmd.name, metav1.GetOptions{})
-		if resource == nil || k8serrs.IsNotFound(err) {
+		if err != nil || resource == nil || k8serrs.IsNotFound(err) {
 			fmt.Println("No listeners found")
 			return err
 		}

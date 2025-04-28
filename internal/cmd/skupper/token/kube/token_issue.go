@@ -51,6 +51,13 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) error {
 	expirationValidator := validator.NewExpirationInSecondsValidator()
 	numberValidator := validator.NewNumberValidator()
 
+	// Validate if AccessGrant CRD is installed
+	_, err := cmd.client.AccessGrants(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
+
 	// Validate token file name
 	if len(args) < 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("file name must be configured"))
@@ -71,8 +78,12 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) error {
 		}
 	}
 
-	// Validate there is already a site defined in the namespace before a token can be created
-	siteList, _ := cmd.client.Sites(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
+	// Validate Site CRD is installed and there is already a site defined in the namespace before a token can be created
+	siteList, err := cmd.client.Sites(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
 	if siteList == nil || len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a token can be created", cmd.namespace))
 	} else {

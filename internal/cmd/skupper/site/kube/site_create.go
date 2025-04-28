@@ -59,8 +59,12 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 
-	//Validate if there is already a site defined in the namespace
-	siteList, _ := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	//Validate if CRDs are installed and if there is already a site defined in the namespace
+	siteList, err := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
 	if siteList != nil && len(siteList.Items) > 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("There is already a site created for this namespace"))
 	}

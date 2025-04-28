@@ -43,9 +43,19 @@ func (cmd *CmdLinkStatus) ValidateInput(args []string) error {
 	var validationErrors []error
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
-	siteList, err := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	// Check if CRDs are installed
+	_, err := cmd.Client.Links(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
 
-	if siteList == nil || len(siteList.Items) == 0 || err != nil {
+	siteList, err := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
+	if siteList == nil || len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("there is no skupper site available"))
 	}
 

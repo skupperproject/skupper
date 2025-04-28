@@ -45,6 +45,13 @@ func (cmd *CmdConnectorStatus) ValidateInput(args []string) error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
+	// Check if Connector CRD is installed
+	_, err := cmd.client.Connectors(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
+
 	// Validate arguments name if specified
 	if len(args) > 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))

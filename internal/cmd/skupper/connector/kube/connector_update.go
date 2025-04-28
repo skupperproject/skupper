@@ -73,6 +73,13 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) error {
 	selectorStringValidator := validator.NewSelectorStringValidator()
 	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 
+	// Check if Connector CRD is installed
+	_, err := cmd.client.Connectors(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
+
 	// Validate arguments name
 	if len(args) < 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("connector name must be configured"))
