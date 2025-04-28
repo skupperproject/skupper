@@ -2,10 +2,11 @@
 
 Skupper uses TLS certificates to authenticate and secure communications between
 skupper routers in a network through channels called Links. The Skupper
-controller for Kubernetes will by default take care of issuing the TLS
-credentials used by Links. This document elaborates on the requirements for
-these TLS credentials, the default scheme used by the Skupper Kubernetes
-controller, and how other certificate infrastructure could be included.
+controller for Kubernetes will, by default, take care of issuing the self
+signed TLS credentials used by Links. This document elaborates on the
+requirements for these TLS credentials, the default scheme used by the Skupper
+Kubernetes controller, and how other certificate infrastructure could be
+included.
 
 ## TLS Credentials Requirements
 
@@ -20,31 +21,30 @@ either site from authenticating one another.
 
 A Link has its own set of TLS Credentials that includes a certificate and a
 database of trusted Certificate Authorities (CAs) that it will use to
-authenticate the server's Certificate. The Link Certificate has few specific
+authenticate the server's certificate. The Link certificate has few specific
 requirements. It must be valid and signed by a CA the peer RouterAccess trusts,
-and should have appropriate key usage attributes for client authentication.
+and it should have appropriate key usage attributes for client authentication.
 
 ### RouterAccess TLS Credentials
 
-Every Skupper Link is made to the endpoints from a Site's RouterAccess, the
-server side of the connection. Each RouterAccess has its own set of TLS
-Credentials that includes the serving certificate for authenticating itself
-with peer routers, and a database of trusted Certificate Authorities (CAs) it
-uses to authenticate client Certificates.
+Every Skupper Link is made from a Site, the linking Site, to the endpoints from
+the RouterAccess on a remote Site, the accepting Site. Each RouterAccess has
+its own set of TLS Credentials that includes the serving certificate for
+authenticating itself with peer routers, and a database of trusted Certificate
+Authorities (CAs) it uses to authenticate client certificates.
 
-The RouterAccess Certificate has the typical requirements for a TLS web server:
-usage for digital signature key encipherment and server auth. The Certificate
+The RouterAccess certificate has the typical requirements for a TLS web server:
+usage for digital signature, key encipherment and server auth. The certificate
 also must be valid for the host(s) in the Link/RouterAccess endpoints (depends
 on the ingress chosen) in order for peers to validate the connection.
 
 > ⚠️ Known Issue: The Skupper router ignores Subject Alternative Name IP entries
 > when doing hostname validation. The skupper controller works around this by
-> adding IPs as DNS entries. Not all PKI tools support this.
-> for example:
+> adding IPs as DNS entries. Not all PKI tools make this easy to configure. For
+> example, inpsecting a ceritificate with `openssl x509 -ext subjectAltName`.
 >
 > X509v3 Subject Alternative Name:
->
->   DNS:172.18.255.193, IP Address:172.18.255.193
+>   DNS:skupper-router, DNS:172.18.255.193, IP Address:172.18.255.193
 
 ### Certificate Secret Layout
 
@@ -67,6 +67,8 @@ site-scoped CA.
 ### Issuing Site Link Access Credentials
 
 When a Site with link access enabled is initialized:
+- Skupper automatically creates a RouterAccess resource for the Site named
+  `skupper-router`.
 - Skupper issues a self-signed CA named `skupper-site-ca`, valid for 5 years.
 - Skupper issues a `skupper-site-server` certificate, valid for 5 years, signed
   by `skupper-site-ca`.
@@ -78,20 +80,20 @@ When a Site with link access enabled is initialized:
 
 ### Issuing Link Credentials
 
-A link can be created in several ways, either manually with `skupper link
-generate` or when redeeming an AccessToken. Regardless, the issuance is done by
-the RouterAccess side Site.
+A Link can be created in several ways, either manually with `skupper link
+generate` or when redeeming an AccessToken. Regardless, the issuance of TLS
+credentials is done by the accepting Site.
 
 - The Skupper controller issues a new client TLS certificate signed by the
-  RouterAccess side `skupper-site-ca` CA, and embedds the CA public key into
-  the `ca.crt` field of the client certificate.
-- The new client certificate is transported to the Link-side Site, either
+  accepting Site's `skupper-site-ca` CA, and embedds the CA public key into the
+  `ca.crt` field of the client certificate.
+- The new client certificate is transported to the linking Site, either
   manually by the user or over https though the AccessToken redemption
   endpoint. It is saved as a Secret, often with a random name prefixed by the
-  RouterAccess Site name.
+  accepting site name.
 - This Secret is then referenced in the Link’s spec.tlsCredentials field.
-- The Link side routers are configured to initiate secure connections to the
-  peer Site using these new credentials.
+- The linking Site's routers are configured, and secure connections to
+  accepting Site routers using these new credentials are made.
 
 ## Manual TLS Certificate Management
 
@@ -109,7 +111,7 @@ CA in `skupper-site-ca`.
 
 ### Manually Managing Link and RouterAccess tlsCredentials
 
-Full manual control of TLS Certificates can be accomplished by manually
+Full manual control of TLS certificates can be accomplished by manually
 managing RouterAccess and Links.
 
 This example sets up the following:
@@ -141,7 +143,7 @@ Using the kube context for the private site: `kubectl apply -f private.yaml`
 
 #### Manually Issuing Certificates
 
-In order to issue a TLS Certificate for the public site, we first need the
+In order to issue a TLS certificate for the public site, we first need the
 address(es) that the RouterAccess will listen on. This is required for peers to
 validate the host.
 
@@ -273,25 +275,27 @@ connectivity before looking at TLS specific issues.
     Route, Gateway API TLSRoute, etc.
 - Check for connectivity problems to the Link endpoints.
   - Find the host:port combinations from the Link's endpoints
-  - Use a TCP client to test connectivity, ideally from the same namespace as
-    the Link's Site to catch any network policy issues.
-    - `echo "hello" | nc <host> <port>` Sends nonsense to the router. Expect a
+  - Use a TCP/TLS client to test connectivity, ideally from the same namespace
+    as the Link's Site to catch any network policy issues. Any of the following
+    common clients will work.
+    - TCP: `echo "hello" | nc <host> <port>` Sends nonsense to the router. Expect a
       router to respond with an AMQPS error. Same for `telnet`.
-    - `curl --insecure https://<host>:<port>` attempts to open a TLS connection
+    - TLS: `curl --insecure https://<host>:<port>` attempts to open a TLS connection
       (for an http request). Expect a router to refuse the connection due to
       missing client certificates. curl should print an SSL error.
-    - `openssl s_client -showcerts -connect <host>:<port>` Displays diagnostics
+    - TLS: `openssl s_client -showcerts -connect <host>:<port>` Displays diagnostics
       about an attempt to open a TLS connection. Expect a router to refuse the
       connection due to missing client certificates.
 
-When connectivity checks out, it can be helpful to look into validating TLS
-Certificates on either side of the connection.
+When connectivity can be verified, it can be helpful to look into validating
+TLS certificates on either side of the connection if the Link is still not
+operational.
 
-A quick test can be done using the Link side router deployment. The following
-command uses the openssl tool to attempt to open a TLS connection to a peer
-router, and displays detailed diagnostics. Substitute the name of the TLS
-Credentials secret used by the link, the Link endpoint host, and the relevant
-port (likely 55671.)
+A quick test can be done using the linking site's router deployment. The
+following command uses the openssl tool to attempt to open a TLS connection to
+a peer router, and displays detailed diagnostics. Substitute the name of the
+TLS Credentials secret used by the link, the Link endpoint host, and the
+relevant port (likely 55671.)
 ```
 TLS_SECRET_NAME=public-link-tls
 LINK_ENDPOINT_HOST=172.18.255.193
