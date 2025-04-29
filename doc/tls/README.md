@@ -3,10 +3,9 @@
 Skupper uses TLS certificates to authenticate and secure communications between
 skupper routers in a network through channels called Links. The Skupper
 controller for Kubernetes will, by default, take care of issuing the self
-signed TLS credentials used by Links. This document elaborates on the
-requirements for these TLS credentials, the default scheme used by the Skupper
-Kubernetes controller, and how other certificate infrastructure could be
-included.
+signed TLS credentials used by Links. This document describes the requirements
+for these TLS credentials, the default scheme used by the Skupper Kubernetes
+controller, and how other certificate infrastructure could be included.
 
 ## TLS Credentials Requirements
 
@@ -30,7 +29,7 @@ and it should have appropriate key usage attributes for client authentication.
 Every Skupper Link is made from a Site, the linking Site, to the endpoints from
 the RouterAccess on a remote Site, the accepting Site. Each RouterAccess has
 its own set of TLS Credentials that includes the serving certificate for
-authenticating itself with peer routers, and a database of trusted Certificate
+authenticating itself with peer routers, and a bundle of trusted Certificate
 Authorities (CAs) it uses to authenticate client certificates.
 
 The RouterAccess certificate has the typical requirements for a TLS web server:
@@ -41,7 +40,7 @@ on the ingress chosen) in order for peers to validate the connection.
 > ⚠️ Known Issue: The Skupper router ignores Subject Alternative Name IP entries
 > when doing hostname validation. The skupper controller works around this by
 > adding IPs as DNS entries. Not all PKI tools make this easy to configure. For
-> example, inpsecting a ceritificate with `openssl x509 -ext subjectAltName`.
+> example, inspecting a certificate with `openssl x509 -ext subjectAltName`.
 >
 > X509v3 Subject Alternative Name:
 >   DNS:skupper-router, DNS:172.18.255.193, IP Address:172.18.255.193
@@ -75,8 +74,8 @@ When a Site with link access enabled is initialized:
 - The `skupper-site-ca` certificate is embedded in the `ca.crt` field of
   `skupper-site-server`.
 - The RouterAccess is configured with the `skupper-site-server` TLS
-  credentials. Only clients with certificates signed by `skupper-site-ca` will
-  be authorized to connect.
+  credentials. Only clients presenting certificates signed by `skupper-site-ca`
+  will be authorized to connect.
 
 ### Issuing Link Credentials
 
@@ -85,11 +84,11 @@ generate` or when redeeming an AccessToken. Regardless, the issuance of TLS
 credentials is done by the accepting Site.
 
 - The Skupper controller issues a new client TLS certificate signed by the
-  accepting Site's `skupper-site-ca` CA, and embedds the CA public key into the
+  accepting Site's `skupper-site-ca` CA, and embeds the CA public key into the
   `ca.crt` field of the client certificate.
 - The new client certificate is transported to the linking Site, either
-  manually by the user or over https though the AccessToken redemption
-  endpoint. It is saved as a Secret, often with a random name prefixed by the
+  manually by the user or over https through the AccessToken redemption
+  endpoint. It is saved as a Secret, often with a random name based on the
   accepting site name.
 - This Secret is then referenced in the Link’s spec.tlsCredentials field.
 - The linking Site's routers are configured, and secure connections to
@@ -260,9 +259,9 @@ client certificates and Site CAs is an especially complicated exercise.
 
 TLS errors logged by Skupper routers are relatively common, and do not always
 indicate a problem on their own. Because Skupper routers use TLS connections
-for everything, ANY connectivity issue _becomes_ a TLS error. For example, any
-router in the network getting rescheduled or stopped will likely manifest a TLS
-error somewhere.
+for everything, ANY connectivity issue will surface as a TLS error. For
+example, any router in the network getting rescheduled or stopped will likely
+manifest a TLS error somewhere.
 
 When there is a Link in the network that appears broken, begin by verifying
 connectivity before looking at TLS specific issues.
@@ -275,9 +274,9 @@ connectivity before looking at TLS specific issues.
     Route, Gateway API TLSRoute, etc.
 - Check for connectivity problems to the Link endpoints.
   - Find the host:port combinations from the Link's endpoints
-  - Use a TCP/TLS client to test connectivity, ideally from the same namespace
-    as the Link's Site to catch any network policy issues. Any of the following
-    common clients will work.
+  - Use a TCP or TLS client to test connectivity, ideally from the same
+    namespace as the Link's Site to catch any network policy issues. Any of the
+    following common clients will work.
     - TCP: `echo "hello" | nc <host> <port>` Sends nonsense to the router. Expect a
       router to respond with an AMQPS error. Same for `telnet`.
     - TLS: `curl --insecure https://<host>:<port>` attempts to open a TLS connection
