@@ -10,13 +10,16 @@ controller, and how other certificate infrastructure could be included.
 ## TLS Credentials Requirements
 
 Skupper uses mutual TLS (mTLS) to establish Links between Sites. The Site that
-initiates the Link acts at the TLS client to the RouterAccess, which acts as
-the TLS server, The server side must present a valid server certificate and the
-client side must present its client certificate and both side validate each
-other's certificate (mTLS)  using a trusted CA``` CA. Any intermediate load
-balancers between Sites must use TLS passthrough (i.e. should not terminate
-TLS.) Terminating TLS will prevent the routers on either site from
-authenticating one another.
+initiates the Link, the linking site, acts as the TLS client. The Site with a
+RouterAccess, the accepting site, acts as the TLS server.
+
+The accepting site must present a valid server certificate, and will require
+incoming connections to present a valid client certificate, which it validates
+against its trusted CAs. The linking site will initiate TLS connections,
+validating the server certificate against its own trusted CAs and presenting
+its own client certificate to the server. Any intermediate load balancers
+between Sites must use TLS passthrough. Terminating TLS will prevent the
+routers on either site from authenticating one another.
 
 ### Link TLS Credentials (TLS client)
 
