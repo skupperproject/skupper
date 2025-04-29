@@ -213,7 +213,7 @@ func (g *Grants) checkGrant(key string, grant *skupperv2alpha1.AccessGrant) erro
 	var err error
 
 	if len(status) != 0 {
-		err = fmt.Errorf(strings.Join(status, ", "))
+		err = fmt.Errorf("%s", strings.Join(status, ", "))
 	}
 	if grant.SetProcessed(err) {
 		changed = true

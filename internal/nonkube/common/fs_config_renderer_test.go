@@ -34,7 +34,7 @@ func testFileSystemConfigurationRendererRender(t *testing.T, addInputCertificate
 		//assert.Assert(t, err)
 	}()
 	if addInputCertificates {
-		t.Logf(customOutputPath)
+		t.Log(customOutputPath)
 		createInputCertificates(t, customOutputPath)
 	}
 	fsConfigRenderer := new(FileSystemConfigurationRenderer)
