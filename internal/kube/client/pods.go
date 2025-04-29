@@ -15,7 +15,9 @@ limitations under the License.
 package client
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -69,4 +71,30 @@ func WaitForPodsSelectorStatus(namespace string, clientset kubernetes.Interface,
 	})
 
 	return pods, err
+}
+
+func GetPodContainerLogs(podName string, containerName string, namespace string, clientset kubernetes.Interface) (string, error) {
+	podLogOpts := corev1.PodLogOptions{}
+	return GetPodContainerLogsWithOpts(podName, containerName, namespace, clientset, podLogOpts)
+}
+
+func GetPodContainerLogsWithOpts(podName string, containerName string, namespace string, clientset kubernetes.Interface, podLogOpts corev1.PodLogOptions) (string, error) {
+	if containerName != "" {
+		podLogOpts.Container = containerName
+	}
+	req := clientset.CoreV1().Pods(namespace).GetLogs(podName, &podLogOpts)
+	podLogs, err := req.Stream(context.TODO())
+	if err != nil {
+		return "", err
+	}
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	if err != nil {
+		return "", err
+	}
+	str := buf.String()
+
+	return str, nil
 }
