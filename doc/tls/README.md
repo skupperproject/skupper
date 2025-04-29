@@ -9,10 +9,14 @@ controller, and how other certificate infrastructure could be included.
 
 ## TLS Credentials Requirements
 
-Skupper uses mutual TLS (mTLS) to establish Links between Sites. The Site that initiates the Link acts at the TLS client to the RouterAccess, which acts as the TLS server, The server side must present a valid server certificate and the client side must present its client certificate and both side validate each other's certificate (mTLS)  using a trusted CA```
-CA. Any intermediate load balancers between Sites should use TLS passthrough
-(i.e. should not terminate TLS.) Terminating TLS will prevent the routers on
-either site from authenticating one another.
+Skupper uses mutual TLS (mTLS) to establish Links between Sites. The Site that
+initiates the Link acts at the TLS client to the RouterAccess, which acts as
+the TLS server, The server side must present a valid server certificate and the
+client side must present its client certificate and both side validate each
+other's certificate (mTLS)  using a trusted CA``` CA. Any intermediate load
+balancers between Sites must use TLS passthrough (i.e. should not terminate
+TLS.) Terminating TLS will prevent the routers on either site from
+authenticating one another.
 
 ### Link TLS Credentials
 
@@ -20,7 +24,7 @@ A Link has its own set of TLS Credentials that includes a certificate and a
 database of trusted Certificate Authorities (CAs) that it will use to
 authenticate the server's certificate. The Link certificate has few specific
 requirements. It must be valid and signed by a CA the peer RouterAccess trusts,
-and it should have appropriate key usage attributes for client authentication.
+and it must have appropriate key usage attributes for client authentication.
 
 ### RouterAccess TLS Credentials
 
@@ -32,8 +36,8 @@ Authorities (CAs) it uses to authenticate client certificates.
 
 The RouterAccess certificate has the typical requirements for a TLS web server:
 usage for digital signature, key encipherment and server auth. The certificate
-also must be valid for the host(s) in the Link/RouterAccess endpoints (depends
-on the ingress chosen) in order for peers to validate the connection.
+also must be valid for the host(s) in the Link/RouterAccess endpoints in order
+for peers to validate the connection.
 
 > ⚠️ Known Issue: The Skupper router ignores Subject Alternative Name IP entries
 > when doing hostname validation. The skupper controller works around this by
@@ -53,7 +57,7 @@ format with the following fields.
 - **ca.crt** PEM encoded X.509 certificate(s), trusted Certificate Authorities
   "database". Multiple certificates can be concatenated in this field.
 
-## Controller-Managed TLS in Kubernetes
+## Default Controller-managed TLS in Kubernetes
 
 The Skupper controller for Kubernetes will automate the creation of the TLS
 Credentials for a Site's Links and RouterAccess. In this model, there is no
@@ -150,9 +154,10 @@ kubectl get routeraccesses.skupper.io skupper \
     -ojsonpath='{range .status.endpoints[*]}{.host}{"\n"}{end}'
 ```
 
-Assuming that a LoadBalancer service was created, there should be a document
-with endpoints. This will be important later, but for now we only need the
-hosts. In this example there was one unique address `172.18.255.193`.
+Assuming that a LoadBalancer service was created, the RouterAccess status
+should be populated with a list of endpoints. This will be important later, but
+for now we only need the hosts. In this example there was one unique address,
+`172.18.255.193`.
 
 Now we can issue a key pair for the public site and put it in the `public-server-tls` Secret.
 
@@ -249,7 +254,7 @@ and is not yet fully implemented.
 
 When considering rotating the TLS credentials used by Skupper, it is important
 to understand the trust model used for linking Skupper Sites. The default
-[trust model](#controller-managed-tls-in-kubernetes) used by Skupper is
+[trust model](#default-controller-managed-tls-in-kubernetes) used by Skupper is
 distributed: each Site having its own trust root. Because of this, rotating
 client certificates and Site CAs is an especially complicated exercise.
 
