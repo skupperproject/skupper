@@ -18,7 +18,7 @@ balancers between Sites must use TLS passthrough (i.e. should not terminate
 TLS.) Terminating TLS will prevent the routers on either site from
 authenticating one another.
 
-### Link TLS Credentials
+### Link TLS Credentials (TLS client)
 
 A Link has its own set of TLS Credentials that includes a certificate and a
 database of trusted Certificate Authorities (CAs) that it will use to
@@ -26,7 +26,7 @@ authenticate the server's certificate. The Link certificate has few specific
 requirements. It must be valid and signed by a CA the peer RouterAccess trusts,
 and it must have appropriate key usage attributes for client authentication.
 
-### RouterAccess TLS Credentials
+### RouterAccess TLS Credentials (TLS Server)
 
 Every Skupper Link is made from a Site, the linking Site, to the endpoints from
 the RouterAccess on a remote Site, the accepting Site. Each RouterAccess has
@@ -117,7 +117,7 @@ managing RouterAccess and Links.
 
 This example sets up the following:
 * A toy PKI using the `openssl` tool (written using `OpenSSL 3.2.4`)
-* A single network-scoped CA for simplicity - contrasts with the default site-scoped CA.
+* A single network-scoped self-signed CA for simplicity - contrasts with the default site-scoped CA.
 * Two Kubernetes sites in different clusters. One "public" Site that will use a
   LoadBalancer Service for ingress, and one "private" Site without ingress.
 
@@ -225,7 +225,7 @@ kubectl create secret generic public-link-tls \
 #### Link Sites
 
 At this point the public site should have a working RouterAccess and the
-private site should have TLS credentials that will allow it to authenticate.
+private site should have TLS credentials (client side) that will allow it to be authenticated by the public site (server side) and vice-versa.
 The private site needs a Link resource to complete the connection.
 
 The Link document needs to be populated with `tlsCredentials: public-link-tls`
