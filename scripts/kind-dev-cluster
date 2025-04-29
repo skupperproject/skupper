@@ -1,0 +1,234 @@
+#! /usr/bin/env bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+usage () {
+	cat << EOF
+USAGE: $0 [options...]
+ -r, --recreate		When set, the cluster will be destroyed and recreated if it already exists
+ --metallb		    When set, ensures metallb is installed in the cluster
+	Optional subnet number will configure the IPAddresPool to not conflict with other clusters (--metallb 8)
+ -n, --name		    Name of the cluster to create [default skupper-dev]
+ -i, --images	    Source of skupper images
+	One of docker, podman, ociarchive, none [default docker]
+EOF
+}
+
+readonly KIND=${KIND:-kind}
+readonly KUBECTL=${KUBECTL:-kubectl}
+readonly HELM=${HELM:-helm}
+readonly DOCKER=${DOCKER:-docker}
+readonly PYTHON=${PYTHON:-python3}
+readonly IMAGE_TAG=${IMAGE_TAG:-v2-dev}
+readonly ROUTER_IMAGE_TAG=${SKUPPER_ROUTER_IMAGE_TAG:-main}
+readonly REGISTRY=${REGISTRY:-quay.io/skupper}
+readonly SKUPPER_ROUTER_IMAGE=${SKUPPER_ROUTER_IMAGE:-${REGISTRY}/skupper-router:${ROUTER_IMAGE_TAG}}
+readonly SKUPPER_CONTROLLER_IMAGE=${SKUPPER_CONTROLLER_IMAGE:-${REGISTRY}/controller:${IMAGE_TAG}}
+readonly SKUPPER_KUBE_ADAPTOR_IMAGE=${SKUPPER_KUBE_ADAPTOR_IMAGE:-${REGISTRY}/kube-adaptor:${IMAGE_TAG}}
+readonly SKUPPER_NETWORK_OBSERVER_IMAGE=${SKUPPER_NETWORK_OBSERVER_IMAGE:-${REGISTRY}/network-observer:${IMAGE_TAG}}
+
+KIND_LOG_LEVEL="1"
+DEBUG=${DEBUG:=false}
+CLUSTER="skupper-dev"
+IMAGE_SOURCE="docker"
+FORCE_RECREATE="false"
+METALLB="false"
+SUBNET="1"
+
+if [ "${DEBUG}" == "true" ]; then
+  set -x
+  KIND_LOG_LEVEL="6"
+fi
+
+ensure::kind() {
+	if ! command -v "${KIND}" > /dev/null 2>&1; then
+		echo "${KIND} not found";
+		echo "See https://kind.sigs.k8s.io/ for installation and usage.";
+		exit 1
+	fi
+}
+ensure::docker() {
+	if ! command -v "${DOCKER}" > /dev/null 2>&1; then
+		echo "${DOCKER} not found";
+		echo "This tool assumes docker is used to run kind and does not support the experimental podman provider";
+		exit 1
+	fi
+}
+ensure::helm() {
+	if ! command -v "${HELM}" > /dev/null 2>&1; then
+		echo "${HELM} not found";
+		echo "This tool uses helm to enable some features. See https://helm.sh/ for installation.";
+		exit 1
+	fi
+}
+ensure::python() {
+	if ! command -v "${PYTHON}" > /dev/null 2>&1; then
+		echo "${PYTHON} not found";
+		echo "This tool uses python3 for munging subnet addresses for installing metallb.";
+		exit 1
+	fi
+}
+kind::cluster::list() {
+    ${KIND} get clusters
+}
+kind::cluster::delete() {
+    ${KIND} delete cluster \
+        --name "$1"
+}
+kind::cluster::create() {
+    ${KIND} create cluster \
+		--verbosity="${KIND_LOG_LEVEL}" \
+        --name "$1"
+}
+kind::imageload::docker() {
+	for image in "${SKUPPER_CONTROLLER_IMAGE}" \
+		"${SKUPPER_KUBE_ADAPTOR_IMAGE}" \
+		"${SKUPPER_ROUTER_IMAGE}" \
+		"${SKUPPER_NETWORK_OBSERVER_IMAGE}"; do
+		if ${DOCKER} image inspect "$image" > /dev/null 2>&1; then
+		    ${KIND} load docker-image --name="$1" "$image"
+		else
+			echo "(skdev) WARNING: skipped loading image $image"
+		fi
+	done
+}
+
+kind::imageload::ociarchive() {
+		for archive in ./oci-archives/*.tar; do
+			${KIND} load image-archive --name="$1" "$archive"
+		done
+}
+
+kind::imageload::podman() {
+	for image in "${SKUPPER_CONTROLLER_IMAGE}" \
+		"${SKUPPER_KUBE_ADAPTOR_IMAGE}" \
+		"${SKUPPER_ROUTER_IMAGE}" \
+		"${SKUPPER_NETWORK_OBSERVER_IMAGE}"; do
+		if podman image inspect "$image" > /dev/null 2>&1; then
+			${KIND} load image-archive --name="$1" <(podman image save "$image")
+		else
+			echo "(skdev) WARNING: skipped loading image $image"
+		fi
+	done
+}
+
+docker::network::subnet () {
+		${DOCKER} network inspect "$1" | jq -r '.[].IPAM.Config[0].Subnet'
+}
+
+metallb::l2::config() {
+		subnet=$(${PYTHON} -c "from ipaddress import ip_network; print(list(ip_network('$1').subnets(new_prefix=28))[-$2])")
+		cat << EOF
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: default
+  namespace: metallb-system
+spec:
+  addresses:
+  - ${subnet}
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: default
+  namespace: metallb-system
+EOF
+}
+
+skupper::cluster::controller() {
+	scripts/skupper-deployment-generator.sh cluster ${IMAGE_TAG} ${ROUTER_IMAGE_TAG} false
+}
+
+main () {
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+			-h|--help)
+				usage
+				exit;
+				;;
+			-r|--recreate)
+				FORCE_RECREATE="true"
+				shift;;
+			--metallb)
+				METALLB="true"
+				if [[ "${2-}" =~ ^[0-9]+$ ]]; then
+					SUBNET="$2"
+					shift
+				fi
+				shift;;
+			-n|--name)
+				CLUSTER="$2"
+				shift
+				shift
+				;;
+			-i|--images)
+				IMAGE_SOURCE="$2"
+				shift
+				shift
+				;;
+			*)
+				echo "Unknown argument $1"
+				usage
+				exit 1
+				;;
+		esac
+	done
+
+	ensure::kind
+	ensure::docker
+	if [ -z "${KUBECONFIG-}" ]; then
+		export KUBECONFIG="$HOME/.kube/skupperdev-config-$CLUSTER"
+		echo "(skdev) WARNING: KUBECONFIG not set. Defaulting to ${KUBECONFIG}"
+	fi
+
+	exists=$(kind::cluster::list | grep "^${CLUSTER}\$") || true
+	if [ "${FORCE_RECREATE}" == "true" ] && [ "$exists" ]; then
+		echo "(skdev) deleting kind cluster ${CLUSTER}"
+		kind::cluster::delete "${CLUSTER}"
+		exists=""
+	fi
+	if [ -z "$exists" ]; then
+		echo "(skdev) creating kind cluster ${CLUSTER}"
+		kind::cluster::create "${CLUSTER}"
+	fi
+	case "$IMAGE_SOURCE" in
+		none)
+			;;
+		docker)
+			echo "(skdev) loading dev images from host docker image storage"
+			kind::imageload::docker "${CLUSTER}"
+			;;
+		podman)
+			echo "(skdev) loading dev images from host podman image storage"
+			kind::imageload::podman "${CLUSTER}"
+			;;
+		ociarchive)
+			echo "(skdev) loading dev images from ./oci-archives"
+			kind::imageload::ociarchive "${CLUSTER}"
+			;;
+		*)
+			echo "(skdev) WARNING: Unknown image option ${IMAGE_SOURCE}. Images will not loaded!"
+			;;
+	esac
+
+	if [ "${METALLB}" == "true" ]; then
+		ensure::helm
+		ensure::python
+		echo "(skdev) deploying metallb to ${CLUSTER}"
+		kind_subnet=$(docker::network::subnet kind)
+		"${HELM}" repo add metallb https://metallb.github.io/metallb
+		"${HELM}" upgrade --install metallb metallb/metallb \
+			--namespace metallb-system --create-namespace \
+			--set speaker.ignoreExcludeLB=true \
+			--version 0.14.* \
+			--wait
+		"${KUBECTL}" apply -f <(metallb::l2::config "$kind_subnet" "$SUBNET")
+	fi
+
+	echo "(skdev) configuring controller deployment"
+	skupper::cluster::controller | "${KUBECTL}" apply -f -
+}
+main "$@"

@@ -136,10 +136,10 @@ generate-skupper-helm-chart:
 	./scripts/skupper-helm-chart-generator.sh ${IMAGE_TAG} ${ROUTER_IMAGE_TAG}
 
 generate-skupper-deployment-cluster-scoped:
-	kubectl kustomize ./config/default/cluster > skupper-cluster-scope.yaml
+	./scripts/skupper-deployment-generator.sh cluster ${IMAGE_TAG} ${ROUTER_IMAGE_TAG} false > skupper-cluster-scope.yaml
 
 generate-skupper-deployment-namespace-scoped:
-	kubectl kustomize ./config/default/namespace> skupper-namespace-scope.yaml
+	./scripts/skupper-deployment-generator.sh namespace ${IMAGE_TAG} ${ROUTER_IMAGE_TAG} false > skupper-namespace-scope.yaml
 
 pack-skupper-helm-chart: generate-skupper-helm-chart
 	helm package ./charts/skupper
@@ -147,8 +147,8 @@ pack-skupper-helm-chart: generate-skupper-helm-chart
 pack-network-observer-helm-chart:
 	helm package ./charts/network-observer
 
-generate-bundle:
-	./scripts/generate-bundle.sh
+generate-operator-bundle:
+	./scripts/skupper-operator-bundle-generator.sh ${IMAGE_TAG} ${ROUTER_IMAGE_TAG}
 
 generate-network-observer:
 	helm template skupper-network-observer ./charts/network-observer/ \

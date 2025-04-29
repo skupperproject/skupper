@@ -1,3 +1,172 @@
+#! /usr/bin/env bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+# Check if the script is executed with two arguments
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <controller-version> <router-version>"
+    exit 1
+fi
+
+readonly SKUPPER_IMAGE_TAG=${1-v2-dev}
+readonly SKUPPER_ROUTER_IMAGE_TAG=${2-main}
+
+
+readonly OPERATOR_SDK=${OPERATOR_SDK:-operator-sdk}
+readonly KUBECTL=${KUBECTL:-kubectl}
+readonly MIN_KUBE_VERSION=${MIN_KUBE_VERSION:-1.25.0}
+
+readonly SKUPPER_IMAGE_REGISTRY=${SKUPPER_IMAGE_REGISTRY:-quay.io/skupper}
+readonly PROMETHEUS_IMAGE_TAG=${PROMETHEUS_IMAGE_TAG:-v2.55.1}
+readonly OAUTH_PROXY_IMAGE_TAG=${OAUTH_PROXY_IMAGE_TAG:-4.18.0}
+
+readonly BUNDLE_VERSION=${BUNDLE_VERSION:-2.0.0}
+readonly BUNDLE_CHANNELS=${BUNDLE_CHANNELS:-"stable-2,stable-v2.0"}
+readonly BUNDLE_DEFAULT_CHANNEL=${BUNDLE_DEFAULT_CHANNEL:-stable-2}
+
+readonly SKUPPER_ROUTER_SHA=${SKUPPER_ROUTER_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${SKUPPER_IMAGE_REGISTRY}/skupper-router:${SKUPPER_ROUTER_IMAGE_TAG})}
+readonly SKUPPER_CONTROLLER_SHA=${SKUPPER_CONTROLLER_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${SKUPPER_IMAGE_REGISTRY}/controller:${SKUPPER_IMAGE_TAG})}
+readonly SKUPPER_KUBE_ADAPTOR_SHA=${SKUPPER_KUBE_ADAPTOR_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${SKUPPER_IMAGE_REGISTRY}/kube-adaptor:${SKUPPER_IMAGE_TAG})}
+readonly SKUPPER_CLI_SHA=${SKUPPER_CLI_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${SKUPPER_IMAGE_REGISTRY}/cli:${SKUPPER_IMAGE_TAG})}
+readonly SKUPPER_NETWORK_OBSERVER_SHA=${SKUPPER_NETWORK_OBSERVER_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${SKUPPER_IMAGE_REGISTRY}/network-observer:${SKUPPER_IMAGE_TAG})}
+readonly PROMETHEUS_SHA=${PROMETHEUS_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://quay.io/prometheus/prometheus:${PROMETHEUS_IMAGE_TAG})}
+readonly OAUTH_PROXY_SHA=${OAUTH_PROXY_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://quay.io/openshift/origin-oauth-proxy:${OAUTH_PROXY_IMAGE_TAG})}
+
+readonly SKUPPER_ROUTER_IMAGE=${SKUPPER_ROUTER_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/skupper-router@${SKUPPER_ROUTER_SHA}}
+readonly SKUPPER_CONTROLLER_IMAGE=${SKUPPER_CONTROLLER_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/controller@${SKUPPER_CONTROLLER_SHA}}
+readonly SKUPPER_KUBE_ADAPTOR_IMAGE=${SKUPPER_KUBE_ADAPTOR_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/kube-adaptor@${SKUPPER_KUBE_ADAPTOR_SHA}}
+readonly SKUPPER_CLI_IMAGE=${SKUPPER_CLI_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/cli@${SKUPPER_CLI_SHA}}
+readonly SKUPPER_NETWORK_OBSERVER_IMAGE=${SKUPPER_NETWORK_OBSERVER_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/network-observer@${SKUPPER_NETWORK_OBSERVER_SHA}}
+readonly PROMETHEUS_IMAGE=${PROMETHEUS_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/prometheus/prometheus@${PROMETHEUS_SHA}}
+readonly OAUTH_PROXY_IMAGE=${OAUTH_PROXY_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/openshift/origin-oauth-proxy@${OAUTH_PROXY_SHA}}
+
+DEBUG=${DEBUG:=false}
+
+ensure::operator-sdk() {
+	if ! command -v "${OPERATOR_SDK}" > /dev/null 2>&1; then
+		echo "${OPERATOR_SDK} not found";
+		echo "See https://sdk.operatorframework.io/ for installation and usage.";
+		exit 1
+	fi
+}
+
+skupper::bundle::kustomization-step1() {
+		cat << EOF
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- bases/skupper-operator.clusterserviceversion.yaml
+- ../../config/crd
+- manager.yaml
+- ../../config/rbac/cluster
+- ../../config/samples
+EOF
+}
+
+skupper::bundle::kustomization-step2() {
+		cat << EOF
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- bases/skupper-operator.clusterserviceversion.yaml
+
+patches:
+  - path: patch-related-images.yaml
+EOF
+}
+
+skupper::bundle::related-images() {
+		cat << EOF
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  name: skupper-operator.v${BUNDLE_VERSION}
+  namespace: placeholder
+spec:
+  relatedImages:
+    - image: ${SKUPPER_ROUTER_IMAGE}
+      name: skupper_router_image
+    - image: ${SKUPPER_KUBE_ADAPTOR_IMAGE}
+      name: skupper_kube_adaptor_image
+    - image: ${SKUPPER_CONTROLLER_IMAGE}
+      name: skupper_controller_image
+    - image: ${SKUPPER_CLI_IMAGE}
+      name: skupper_cli_image
+    - image: ${SKUPPER_NETWORK_OBSERVER_IMAGE}
+      name: skupper_network_observer_image    
+    - image: ${PROMETHEUS_IMAGE}
+      name: ose-prometheus
+    - image: ${OAUTH_PROXY_IMAGE}
+      name: ose-oauth-proxy
+EOF
+}
+
+skupper::bundle::deploy() {
+		cat << EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skupper-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      application: skupper-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: skupper
+        application: skupper-controller
+        app.kubernetes.io/name: skupper-controller
+        skupper.io/component: controller
+    spec:
+      serviceAccountName: skupper-controller
+      # Prevent kubernetes from injecting env vars for grant service
+      # as these then collide with those that actually configure the
+      # controller:
+      enableServiceLinks: false
+      # Please ensure that you can use SeccompProfile and do not use
+      # if your project must work on old Kubernetes
+      # versions < 1.19 or on vendors versions which
+      # do NOT support this field by default
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: controller
+          image: ${SKUPPER_CONTROLLER_IMAGE}
+          imagePullPolicy: Always
+          command: ["/app/controller"]
+          args: ["-enable-grants", "-grant-server-autoconfigure"]
+          env:
+            - name: SKUPPER_KUBE_ADAPTOR_IMAGE
+              value: ${SKUPPER_KUBE_ADAPTOR_IMAGE}
+            - name: SKUPPER_KUBE_ADAPTOR_IMAGE_PULL_POLICY
+              value: Always
+            - name: SKUPPER_ROUTER_IMAGE
+              value: ${SKUPPER_ROUTER_IMAGE}
+            - name: SKUPPER_ROUTER_IMAGE_PULL_POLICY
+              value: Always
+          securityContext:
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: tls-credentials
+              mountPath: /etc/controller
+      volumes:
+        - name: tls-credentials
+          emptyDir: {}
+EOF
+}
+
+skupper::bundle::clusterserviceversion() {
+		cat << EOF
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
@@ -5,18 +174,18 @@ metadata:
     capabilities: Seamless Upgrades
     categories: Integration & Delivery, Networking, Streaming & Messaging
     certified: 'false'
-    containerImage: quay.io/skupper/controller:v2-latest
-    createdAt: '2024-11-01T15:29:32Z'
+    containerImage: quay.io/skupper/controller:${SKUPPER_IMAGE_TAG}
     description: Skupper Operator provides the ability to create a service network
     operators.operatorframework.io/builder: operator-sdk-v1.17.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/skuppproject/skupper-operator
     support: Skupper Project
-  name: skupper-operator.v2.0.0
+  name: skupper-operator.v${BUNDLE_VERSION}
   namespace: placeholder
   labels:
+    operatorframework.io/os.linux: supported
     operatorframework.io/arch.amd64: supported
-    operatorframework.io/os.linux: supported  
+    operatorframework.io/arch.s390x: supported
 spec:
   apiservicedefinitions: {}
   description: Skupper enables communication between services running in different network locations.
@@ -45,9 +214,41 @@ spec:
   - email: skupper@googlegroups.com
     name: Skupper Community
   maturity: stable
-  minKubeVersion: 1.25.0
+  minKubeVersion: ${MIN_KUBE_VERSION}
   provider:
     name: Skupper Project
     url: https://skupper.io
   selector: {}
-  version: 2.0.0
+  version: ${BUNDLE_VERSION}
+EOF
+}
+
+main () {
+  ensure::operator-sdk
+  
+	ktempdir=$(mktemp -d --tmpdir=./)
+	if [ "${DEBUG}" != "true" ]; then
+		trap 'rm -rf $ktempdir' EXIT
+	fi
+  mkdir -p ${ktempdir}/manifests/bases    
+
+  # generate bundle inputs and kustomize 
+	skupper::bundle::clusterserviceversion > "${ktempdir}/manifests/bases/skupper-operator.clusterserviceversion.yaml"
+  skupper::bundle::deploy > ${ktempdir}/manifests/manager.yaml
+  skupper::bundle::kustomization-step1 > "${ktempdir}/manifests/kustomization.yaml"
+
+  # generate bundle
+  rm -rf bundle
+  "${KUBECTL}" kustomize "${ktempdir}/manifests" | "${OPERATOR_SDK}" generate bundle -q --overwrite --version ${BUNDLE_VERSION} --channels ${BUNDLE_CHANNELS} --default-channel ${BUNDLE_DEFAULT_CHANNEL}
+
+  # patch related images
+  mkdir -p ${ktempdir}/manifests/overlays/bases
+  mv bundle/manifests/skupper-operator.clusterserviceversion.yaml ${ktempdir}/manifests/overlays/bases
+  skupper::bundle::related-images > ${ktempdir}/manifests/overlays/patch-related-images.yaml
+  skupper::bundle::kustomization-step2 > ${ktempdir}/manifests/overlays/kustomization.yaml
+  kubectl kustomize ${ktempdir}/manifests/overlays > bundle/manifests/skupper-operator.v${BUNDLE_VERSION}.clusterserviceversion.yaml
+
+  # validate bundle
+  "${OPERATOR_SDK}" bundle validate ./bundle
+}
+main "$@"

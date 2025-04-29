@@ -1,9 +1,0 @@
-# These resources constitute the fully configured set of manifests
-# used to generate the 'manifests/' directory in a bundle.
-resources:
-- bases/skupper-operator.clusterserviceversion.yaml
-- ../default/cluster
-- ../samples
-
-patches:
-  - path: patch-add-env-var-related-images.yaml

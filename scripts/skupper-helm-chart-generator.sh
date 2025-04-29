@@ -16,6 +16,7 @@ CHART_NAME="skupper"
 CRD_DIR="$CHART_NAME/crds"
 TEMPLATES_DIR="$CHART_NAME/templates"
 DEST_DIR="./charts"
+CURRENT_DIR="$PWD"
 
 cd "$DEST_DIR" || exit
 
@@ -71,13 +72,12 @@ fi
 
 cp "$CRD_SOURCE_DIR"/* "$CRD_DIR"
 
-CLUSTER_KUSTOMIZE_DIR="../config/overlays/cluster/"
-NAMESPACE_KUSTOMIZE_DIR="../config/overlays/namespace/"
-
 CLUSTER_TEMPLATE="$TEMPLATES_DIR/cluster-controller-deployment.yaml"
 
 echo "{{ if eq .Values.scope \"cluster\" }}" > "$CLUSTER_TEMPLATE" # Add Helm conditional block
-kubectl kustomize "$CLUSTER_KUSTOMIZE_DIR" >> "$CLUSTER_TEMPLATE" # Append kustomize output
+pushd ${CURRENT_DIR}
+./scripts/skupper-deployment-generator.sh cluster ${APP_VERSION} ${ROUTER_VERSION} true >> ${DEST_DIR}/"$CLUSTER_TEMPLATE" # Append kustomize output
+popd
 if [ $? -eq 0 ]; then
     echo "{{ end }}" >> "$CLUSTER_TEMPLATE"
 else
@@ -88,7 +88,9 @@ fi
 # Generate namespace scope template
 NAMESPACE_TEMPLATE="$TEMPLATES_DIR/namespace-controller-deployment.yaml"
 echo "{{ if eq .Values.scope \"namespace\" }}" > "$NAMESPACE_TEMPLATE" # Add Helm conditional block
-kubectl kustomize "$NAMESPACE_KUSTOMIZE_DIR" >> "$NAMESPACE_TEMPLATE" # Append kustomize output
+pushd ${CURRENT_DIR}
+./scripts/skupper-deployment-generator.sh namespace ${APP_VERSION} ${ROUTER_VERSION} true >> ${DEST_DIR}/"$NAMESPACE_TEMPLATE" # Append kustomize output
+popd
 if [ $? -eq 0 ]; then
     echo "{{ end }}" >> "$NAMESPACE_TEMPLATE" # Close Helm conditional block
 else
