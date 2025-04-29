@@ -22,8 +22,9 @@ readonly HELM=${HELM:-helm}
 readonly DOCKER=${DOCKER:-docker}
 readonly PYTHON=${PYTHON:-python3}
 readonly IMAGE_TAG=${IMAGE_TAG:-v2-dev}
+readonly ROUTER_IMAGE_TAG=${SKUPPER_ROUTER_IMAGE_TAG:-main}
 readonly REGISTRY=${REGISTRY:-quay.io/skupper}
-readonly SKUPPER_ROUTER_IMAGE=${SKUPPER_ROUTER_IMAGE:-${REGISTRY}/skupper-router:main}
+readonly SKUPPER_ROUTER_IMAGE=${SKUPPER_ROUTER_IMAGE:-${REGISTRY}/skupper-router:${ROUTER_IMAGE_TAG}}
 readonly SKUPPER_CONTROLLER_IMAGE=${SKUPPER_CONTROLLER_IMAGE:-${REGISTRY}/controller:${IMAGE_TAG}}
 readonly SKUPPER_KUBE_ADAPTOR_IMAGE=${SKUPPER_KUBE_ADAPTOR_IMAGE:-${REGISTRY}/kube-adaptor:${IMAGE_TAG}}
 readonly SKUPPER_NETWORK_OBSERVER_IMAGE=${SKUPPER_NETWORK_OBSERVER_IMAGE:-${REGISTRY}/network-observer:${IMAGE_TAG}}
@@ -137,35 +138,8 @@ metadata:
 EOF
 }
 
-skupper::cluster::kustomize() {
-		cat << EOF
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-resources:
-- ../config/default/cluster
-patches:
-- patch: |
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
-      name: skupper-controller
-    spec:
-      template:
-        spec:
-          containers:
-            - name: controller
-              image: ${SKUPPER_CONTROLLER_IMAGE}
-              imagePullPolicy: Never
-              env:
-                - name: SKUPPER_KUBE_ADAPTOR_IMAGE
-                  value: ${SKUPPER_KUBE_ADAPTOR_IMAGE}
-                - name: SKUPPER_KUBE_ADAPTOR_IMAGE_PULL_POLICY
-                  value: Never
-                - name: SKUPPER_ROUTER_IMAGE
-                  value: ${SKUPPER_ROUTER_IMAGE}
-                - name: SKUPPER_ROUTER_IMAGE_PULL_POLICY
-                  value: IfNotPresent
-EOF
+skupper::cluster::controller() {
+	scripts/skupper-deployment-generator.sh cluster ${IMAGE_TAG} ${ROUTER_IMAGE_TAG} false
 }
 
 main () {
@@ -254,12 +228,7 @@ main () {
 		"${KUBECTL}" apply -f <(metallb::l2::config "$kind_subnet" "$SUBNET")
 	fi
 
-	ktempdir=$(mktemp -d --tmpdir=./)
-	if [ "${DEBUG}" != "true" ]; then
-		trap 'rm -rf $ktempdir' EXIT
-	fi
-	echo "(skdev) configuring controller deployment ${ktempdir}"
-	skupper::cluster::kustomize > "${ktempdir}/kustomization.yaml"
-	"${KUBECTL}" kustomize "${ktempdir}" | "${KUBECTL}" apply -f -
+	echo "(skdev) configuring controller deployment"
+	skupper::cluster::controller | "${KUBECTL}" apply -f -
 }
 main "$@"
