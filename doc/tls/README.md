@@ -1,7 +1,7 @@
 # TLS
 
 Skupper uses TLS certificates to authenticate and secure communications between
-skupper routers in a network through channels called Links. The Skupper
+Skupper routers in a network through channels called Links. The Skupper
 controller for Kubernetes will, by default, take care of issuing the self
 signed TLS credentials used by Links. This document describes the requirements
 for these TLS credentials, the default scheme used by the Skupper Kubernetes
@@ -9,9 +9,7 @@ controller, and how other certificate infrastructure could be included.
 
 ## TLS Credentials Requirements
 
-Skupper uses mutual TLS (mTLS) to establish Links between Sites. Each side of
-these connections, the Link and the RouterAccess that it connects to, must
-present a valid certificate and validate the peer's certificate using a trusted
+Skupper uses mutual TLS (mTLS) to establish Links between Sites. The Site that initiates the Link acts at the TLS client to the RouterAccess, which acts as the TLS server, The server side must present a valid server certificate and the client side must present its client certificate and both side validate each other's certificate (mTLS)  using a trusted CA```
 CA. Any intermediate load balancers between Sites should use TLS passthrough
 (i.e. should not terminate TLS.) Terminating TLS will prevent the routers on
 either site from authenticating one another.
@@ -158,7 +156,7 @@ hosts. In this example there was one unique address `172.18.255.193`.
 
 Now we can issue a key pair for the public site and put it in the `public-server-tls` Secret.
 
-> ⚠️ Do not forget: substitute in your RouterAccess host in for COMMON_NAME
+> ⚠️ Do not forget:  replace  COMMON_NAME with your RouterAccess host.
 
 ```
 COMMON_NAME=172.18.255.193
