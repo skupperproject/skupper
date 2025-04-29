@@ -18,7 +18,7 @@ readonly OPERATOR_SDK=${OPERATOR_SDK:-operator-sdk}
 readonly KUBECTL=${KUBECTL:-kubectl}
 readonly MIN_KUBE_VERSION=${MIN_KUBE_VERSION:-1.25.0}
 
-readonly REGISTRY=${REGISTRY:-quay.io/skupper}
+readonly SKUPPER_IMAGE_REGISTRY=${SKUPPER_IMAGE_REGISTRY:-quay.io/skupper}
 readonly PROMETHEUS_IMAGE_TAG=${PROMETHEUS_IMAGE_TAG:-v2.55.1}
 readonly OAUTH_PROXY_IMAGE_TAG=${OAUTH_PROXY_IMAGE_TAG:-4.18.0}
 
@@ -26,21 +26,21 @@ readonly BUNDLE_VERSION=${BUNDLE_VERSION:-2.0.0}
 readonly BUNDLE_CHANNELS=${BUNDLE_CHANNELS:-"stable-2,stable-v2.0"}
 readonly BUNDLE_DEFAULT_CHANNEL=${BUNDLE_DEFAULT_CHANNEL:-stable-2}
 
-readonly SKUPPER_ROUTER_SHA=${SKUPPER_ROUTER_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${REGISTRY}/skupper-router:${SKUPPER_ROUTER_IMAGE_TAG})}
-readonly SKUPPER_CONTROLLER_SHA=${SKUPPER_CONTROLLER_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${REGISTRY}/controller:${SKUPPER_IMAGE_TAG})}
-readonly SKUPPER_KUBE_ADAPTOR_SHA=${SKUPPER_KUBE_ADAPTOR_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${REGISTRY}/kube-adaptor:${SKUPPER_IMAGE_TAG})}
-readonly SKUPPER_CLI_SHA=${SKUPPER_CLI_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${REGISTRY}/cli:${SKUPPER_IMAGE_TAG})}
-readonly SKUPPER_NETWORK_OBSERVER_SHA=${SKUPPER_NETWORK_OBSERVER_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${REGISTRY}/network-observer:${SKUPPER_IMAGE_TAG})}
+readonly SKUPPER_ROUTER_SHA=${SKUPPER_ROUTER_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${SKUPPER_IMAGE_REGISTRY}/skupper-router:${SKUPPER_ROUTER_IMAGE_TAG})}
+readonly SKUPPER_CONTROLLER_SHA=${SKUPPER_CONTROLLER_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${SKUPPER_IMAGE_REGISTRY}/controller:${SKUPPER_IMAGE_TAG})}
+readonly SKUPPER_KUBE_ADAPTOR_SHA=${SKUPPER_KUBE_ADAPTOR_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${SKUPPER_IMAGE_REGISTRY}/kube-adaptor:${SKUPPER_IMAGE_TAG})}
+readonly SKUPPER_CLI_SHA=${SKUPPER_CLI_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${SKUPPER_IMAGE_REGISTRY}/cli:${SKUPPER_IMAGE_TAG})}
+readonly SKUPPER_NETWORK_OBSERVER_SHA=${SKUPPER_NETWORK_OBSERVER_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${SKUPPER_IMAGE_REGISTRY}/network-observer:${SKUPPER_IMAGE_TAG})}
 readonly PROMETHEUS_SHA=${PROMETHEUS_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://quay.io/prometheus/prometheus:${PROMETHEUS_IMAGE_TAG})}
 readonly OAUTH_PROXY_SHA=${OAUTH_PROXY_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://quay.io/openshift/origin-oauth-proxy:${OAUTH_PROXY_IMAGE_TAG})}
 
-readonly SKUPPER_ROUTER_IMAGE=${SKUPPER_ROUTER_IMAGE:-${REGISTRY}/skupper-router@${SKUPPER_ROUTER_SHA}}
-readonly SKUPPER_CONTROLLER_IMAGE=${SKUPPER_CONTROLLER_IMAGE:-${REGISTRY}/controller@${SKUPPER_CONTROLLER_SHA}}
-readonly SKUPPER_KUBE_ADAPTOR_IMAGE=${SKUPPER_KUBE_ADAPTOR_IMAGE:-${REGISTRY}/kube-adaptor@${SKUPPER_KUBE_ADAPTOR_SHA}}
-readonly SKUPPER_CLI_IMAGE=${SKUPPER_CLI_IMAGE:-${REGISTRY}/cli@${SKUPPER_CLI_SHA}}
-readonly SKUPPER_NETWORK_OBSERVER_IMAGE=${SKUPPER_NETWORK_OBSERVER_IMAGE:-${REGISTRY}/network-observer@${SKUPPER_NETWORK_OBSERVER_SHA}}
-readonly PROMETHEUS_IMAGE=${PROMETHEUS_IMAGE:-${REGISTRY}/prometheus/prometheus@${PROMETHEUS_SHA}}
-readonly OAUTH_PROXY_IMAGE=${OAUTH_PROXY_IMAGE:-${REGISTRY}/openshift/origin-oauth-proxy@${OAUTH_PROXY_SHA}}
+readonly SKUPPER_ROUTER_IMAGE=${SKUPPER_ROUTER_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/skupper-router@${SKUPPER_ROUTER_SHA}}
+readonly SKUPPER_CONTROLLER_IMAGE=${SKUPPER_CONTROLLER_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/controller@${SKUPPER_CONTROLLER_SHA}}
+readonly SKUPPER_KUBE_ADAPTOR_IMAGE=${SKUPPER_KUBE_ADAPTOR_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/kube-adaptor@${SKUPPER_KUBE_ADAPTOR_SHA}}
+readonly SKUPPER_CLI_IMAGE=${SKUPPER_CLI_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/cli@${SKUPPER_CLI_SHA}}
+readonly SKUPPER_NETWORK_OBSERVER_IMAGE=${SKUPPER_NETWORK_OBSERVER_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/network-observer@${SKUPPER_NETWORK_OBSERVER_SHA}}
+readonly PROMETHEUS_IMAGE=${PROMETHEUS_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/prometheus/prometheus@${PROMETHEUS_SHA}}
+readonly OAUTH_PROXY_IMAGE=${OAUTH_PROXY_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/openshift/origin-oauth-proxy@${OAUTH_PROXY_SHA}}
 
 DEBUG=${DEBUG:=false}
 
