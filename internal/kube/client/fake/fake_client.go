@@ -45,7 +45,7 @@ func NewFakeClient(namespace string, k8sObjects []runtime.Object, skupperObjects
 	// Note: brute force error return for any client access, we could make it more granular if needed
 	if fakeSkupperError != "" {
 		c.Skupper.SkupperV2alpha1().(*fakeskupperv2alpha1.FakeSkupperV2alpha1).PrependReactor("*", "*", func(action testing.Action) (handled bool, ret runtime.Object, err error) {
-			return true, nil, fmt.Errorf(fakeSkupperError)
+			return true, nil, fmt.Errorf("%s", fakeSkupperError)
 		})
 	}
 	scheme := runtime.NewScheme()
@@ -65,9 +65,7 @@ func NewFakeClient(namespace string, k8sObjects []runtime.Object, skupperObjects
 	}
 	c.Discovery = c.Skupper.Discovery()
 	if fakeDiscoveryClient, ok := c.Discovery.(*discoveryfake.FakeDiscovery); ok {
-		for _, resources := range fakedApiResources() {
-			fakeDiscoveryClient.Resources = append(fakeDiscoveryClient.Resources, resources)
-		}
+		fakeDiscoveryClient.Resources = append(fakeDiscoveryClient.Resources, fakedApiResources()...)
 	}
 	c.Route = routefake.NewSimpleClientset(routes...)
 

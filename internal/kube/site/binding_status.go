@@ -86,7 +86,7 @@ func (s *BindingStatus) updateMatchingListenerCountForAttachedConnector(connecto
 
 func (s *BindingStatus) error() error {
 	if len(s.errors) > 0 {
-		return fmt.Errorf(strings.Join(s.errors, ", "))
+		return fmt.Errorf("%s", strings.Join(s.errors, ", "))
 	}
 	return nil
 }

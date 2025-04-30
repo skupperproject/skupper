@@ -1258,7 +1258,7 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv2alpha1.RouterAccess) 
 		}
 		var err error
 		if len(errors) > 0 {
-			err = fmt.Errorf(strings.Join(errors, ", "))
+			err = fmt.Errorf("%s", strings.Join(errors, ", "))
 		}
 		if la != nil && la.SetConfigured(err) {
 			s.updateRouterAccessStatus(la)

@@ -148,8 +148,15 @@ func TestNonKubeCmdListenerCreate_InputToOptions(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:                   "test1",
-			flags:                  common.CommandListenerCreateFlags{"backend", "", "secret", "tcp", 0, "none"},
+			name: "test1",
+			flags: common.CommandListenerCreateFlags{
+				RoutingKey:     "backend",
+				Host:           "",
+				TlsCredentials: "secret",
+				ListenerType:   "tcp",
+				Timeout:        0,
+				Wait:           "none",
+			},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "0.0.0.0",
 			expectedRoutingKey:     "backend",
@@ -157,9 +164,16 @@ func TestNonKubeCmdListenerCreate_InputToOptions(t *testing.T) {
 			expectedNamespace:      "default",
 		},
 		{
-			name:                   "test2",
-			namespace:              "test",
-			flags:                  common.CommandListenerCreateFlags{"backend", "1.2.3.4", "secret", "tcp", 0, "configured"},
+			name:      "test2",
+			namespace: "test",
+			flags: common.CommandListenerCreateFlags{
+				RoutingKey:     "backend",
+				Host:           "1.2.3.4",
+				TlsCredentials: "secret",
+				ListenerType:   "tcp",
+				Timeout:        0,
+				Wait:           "configured",
+			},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "1.2.3.4",
 			expectedRoutingKey:     "backend",
@@ -167,9 +181,16 @@ func TestNonKubeCmdListenerCreate_InputToOptions(t *testing.T) {
 			expectedNamespace:      "test",
 		},
 		{
-			name:                   "test3",
-			namespace:              "default",
-			flags:                  common.CommandListenerCreateFlags{"", "", "secret", "tcp", 0, "ready"},
+			name:      "test3",
+			namespace: "default",
+			flags: common.CommandListenerCreateFlags{
+				RoutingKey:     "",
+				Host:           "",
+				TlsCredentials: "secret",
+				ListenerType:   "tcp",
+				Timeout:        0,
+				Wait:           "ready",
+			},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "0.0.0.0",
 			expectedRoutingKey:     "my-listener",

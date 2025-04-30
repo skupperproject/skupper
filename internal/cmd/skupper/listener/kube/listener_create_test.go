@@ -215,8 +215,15 @@ func TestCmdListenerCreate_InputToOptions(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:                   "test1",
-			flags:                  common.CommandListenerCreateFlags{"backend", "backend", "secret", "tcp", 20 * time.Second, "configured"},
+			name: "test1",
+			flags: common.CommandListenerCreateFlags{
+				RoutingKey:     "backend",
+				Host:           "backend",
+				TlsCredentials: "secret",
+				ListenerType:   "tcp",
+				Timeout:        20 * time.Second,
+				Wait:           "configured",
+			},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "backend",
 			expectedRoutingKey:     "backend",
@@ -225,8 +232,15 @@ func TestCmdListenerCreate_InputToOptions(t *testing.T) {
 			expectedStatus:         "configured",
 		},
 		{
-			name:                   "test2",
-			flags:                  common.CommandListenerCreateFlags{"", "", "secret", "tcp", 30 * time.Second, "ready"},
+			name: "test2",
+			flags: common.CommandListenerCreateFlags{
+				RoutingKey:     "",
+				Host:           "",
+				TlsCredentials: "secret",
+				ListenerType:   "tcp",
+				Timeout:        30 * time.Second,
+				Wait:           "ready",
+			},
 			expectedTlsCredentials: "secret",
 			expectedHost:           "test2",
 			expectedRoutingKey:     "test2",

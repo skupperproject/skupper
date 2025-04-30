@@ -449,11 +449,11 @@ func newCmdCreateAccessTokenFile(fileName string) error {
 	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 	out, err := os.Create(fileName)
 	if err != nil {
-		return fmt.Errorf("Could not write to file " + fileName + ": " + err.Error())
+		return fmt.Errorf("could not write to file %s:%s ", fileName, err.Error())
 	}
 	err = s.Encode(&resource, out)
 	if err != nil {
-		return fmt.Errorf("Could not write out generated token: " + err.Error())
+		return fmt.Errorf("could not write out generated token: %s", err.Error())
 	}
 
 	return nil
