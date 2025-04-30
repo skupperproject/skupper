@@ -35,16 +35,19 @@ func GetPlatform() types.Platform {
 	var platform types.Platform
 	for i, arg := range os.Args {
 		if slices.Contains([]string{"--platform", "-p"}, arg) && i+1 < len(os.Args) {
+			// Space separated command line - Example: --platform docker or -p docker
 			platformArg := os.Args[i+1]
 			platform = types.Platform(platformArg)
 			break
 		} else if strings.HasPrefix(arg, "--platform=") || strings.HasPrefix(arg, "-p=") {
+			// equal-to (=) command line - Example: --platform=podman or -p=podman
 			platformArg := strings.Split(arg, "=")[1]
 			platform = types.Platform(platformArg)
 			break
 		}
 	}
 	if platform == "" {
+		// return the first non-empty string from the list of params.
 		platform = types.Platform(utils.DefaultStr(Platform,
 			os.Getenv(types.ENV_PLATFORM),
 			string(types.PlatformKubernetes)))
