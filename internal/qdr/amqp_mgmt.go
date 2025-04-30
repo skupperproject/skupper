@@ -597,7 +597,7 @@ func (a *Agent) BatchQuery(queries []Query) ([][]Record, error) {
 		}
 	}
 	if len(errors) > 0 {
-		return nil, fmt.Errorf(strings.Join(errors, ", "))
+		return nil, fmt.Errorf("%s", strings.Join(errors, ", "))
 	}
 	return batchResults, nil
 }

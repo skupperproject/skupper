@@ -95,7 +95,7 @@ func (s *systemdServiceInfo) Create() error {
 		if s.getUid() != 0 {
 			msg += " at user level"
 		}
-		return fmt.Errorf(msg)
+		return fmt.Errorf("%s", msg)
 	}
 	var logger = NewLogger()
 	logger.Debug("creating systemd service")

@@ -179,12 +179,12 @@ func (cmd *CmdTokenIssue) WaitUntil() error {
 
 			encodedResource, err := utils.Encode("yaml", accessToken)
 			if err != nil {
-				return fmt.Errorf("Could not write out generated token: " + err.Error())
+				return fmt.Errorf("could not write out generated token: %s", err.Error())
 			}
 
 			err = os.WriteFile(cmd.fileName, []byte(encodedResource), 0644)
 			if err != nil {
-				return fmt.Errorf("Could not write to file " + cmd.fileName + ": " + err.Error())
+				return fmt.Errorf("could not write to file %s:%s", cmd.fileName, err.Error())
 			}
 
 			return nil
@@ -194,7 +194,7 @@ func (cmd *CmdTokenIssue) WaitUntil() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("Grant %q not ready yet, check the status for more information\n", cmd.grantName)
+		return fmt.Errorf("grant %q not ready yet, check the status for more information", cmd.grantName)
 	}
 
 	fmt.Printf("\nGrant %q is ready\n", cmd.grantName)
