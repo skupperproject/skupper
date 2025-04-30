@@ -83,6 +83,26 @@ The Makefile will automatically:
 
 ### 2. Run Test
 
+**Prerequisites**
+
+* A cluster with Skupper installed cluster-wide
+* Your kubeconfig is set to that cluster
+
+If you are testing changes to Skupper code, create the images you want to test by running the following command in the project root folder:
+
+```
+# Under the project root folder
+make podman-build
+```
+
+**Tip:** To quickly create a [kind](https://kind.sigs.k8s.io/) cluster:
+
+```bash
+KUBECONFIG=~/.kube/config ../scripts/kind-dev-cluster -r --metallb -i podman
+```
+
+**Note:** The scripts create and delete namespaces.
+
 ```bash
 # Run a specific test
 make test TEST="hello-world"
