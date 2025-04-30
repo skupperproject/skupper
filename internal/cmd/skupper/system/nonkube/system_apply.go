@@ -191,7 +191,7 @@ func (cmd *CmdSystemApply) Run() error {
 		fmt.Printf("Certificate %s added\n", certificate.Name)
 	}
 
-	fmt.Println("Custom resources are applied. You can now run `skupper reload` to make effective the changes.")
+	fmt.Println("Custom resources are applied. You can now run `skupper system reload` to make effective the changes.")
 
 	return nil
 }

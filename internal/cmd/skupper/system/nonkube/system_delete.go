@@ -209,7 +209,7 @@ func (cmd *CmdSystemDelete) Run() error {
 		}
 	}
 
-	fmt.Println("Custom resources deleted. You can now run `skupper reload` to make effective the changes.")
+	fmt.Println("Custom resources deleted. You can now run `skupper system reload` to make effective the changes.")
 
 	return nil
 }
