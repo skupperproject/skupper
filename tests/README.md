@@ -24,6 +24,7 @@ tests/
 │    ├── hello-world/          # Basic Skupper functionality test
 │    ├── attached-connector/   # Network performance test with attached connectors
 │    ├── redis/                # Redis test
+│    ├── ha/                   # High availability test using Skupper
 └── README.md                  # This file
 ```
 
@@ -36,6 +37,7 @@ The `e2e` directory contains tests that validate Skupper functionality across di
 - **[hello-world](e2e/hello-world/)**: A simple test to verify basic Skupper functionality by deploying frontend and backend components across Skupper sites.
 - **[attached-connector](e2e/attached-connector/)**: A test to validate Skupper connectivity using attached connectors, including network performance testing with iperf3.
 - **[redis](e2e/redis/)**: A test to validate Skupper functionality with Redis, including data persistence and replication.
+- **[ha](e2e/ha/)**: A test to validate Skupper's high availability mode.
 
 ## Adding a new E2E test to be run on CI
 
