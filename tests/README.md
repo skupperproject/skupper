@@ -167,6 +167,24 @@ e2e/scenarios/your-test/
 └── test.yml              # Main test playbook
 ```
 
+## Creating a New E2E Test
+
+To create a new end-to-end (E2E) test, it is recommended to use the `hello-world` test as a base. The `hello-world` test is the simplest and most basic test, making it an ideal starting point for new tests. Follow these steps:
+
+1. **Copy the Base Test**: Duplicate the `hello-world` directory located in `e2e/scenarios/`.
+
+   ```bash
+   cp -r tests/e2e/scenarios/hello-world tests/e2e/scenarios/your-new-test
+   ```
+
+2. **Modify the Test Name**: Rename the copied directory and update any references to `hello-world` within the test files to reflect the new test name.
+
+3. **Customize the Test**: Adjust the test logic, configuration, and any other necessary components to fit the new test scenario.
+
+4. **Document the Test**: Ensure that the new test directory includes a `README.md` file with instructions on how to run the test.
+
+By following these steps, you can efficiently create a new E2E test that integrates seamlessly with the existing test framework.
+
 ## License
 
 This project is licensed under the Apache License, Version 2.0. See the [LICENSE](../LICENSE) file for more details.
