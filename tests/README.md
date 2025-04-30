@@ -24,6 +24,7 @@ tests/
 │    ├── hello-world/          # Basic Skupper functionality test
 │    ├── attached-connector/   # Network performance test with attached connectors
 │    ├── redis/                # Redis test
+│    ├── ha/                   # High availability test using Skupper
 └── README.md                  # This file
 ```
 
@@ -33,9 +34,10 @@ The `e2e` directory contains tests that validate Skupper functionality across di
 
 ### Available E2E Tests
 
-- **[hello-world](e2e/hello-world/)**: A simple test to verify basic Skupper functionality by deploying frontend and backend components across Skupper sites.
-- **[attached-connector](e2e/attached-connector/)**: A test to validate Skupper connectivity using attached connectors, including network performance testing with iperf3.
-- **[redis](e2e/redis/)**: A test to validate Skupper functionality with Redis, including data persistence and replication.
+- **[hello-world](e2e/scenarios/hello-world/)**: A simple test to verify basic Skupper functionality by deploying frontend and backend components across Skupper sites.
+- **[attached-connector](e2e/scenarios/attached-connector/)**: A test to validate Skupper connectivity using attached connectors, including network performance testing with iperf3.
+- **[redis](e2e/scenarios/redis/)**: A test to validate Skupper functionality with Redis, including data persistence and replication.
+- **[ha](e2e/scenarios/ha/)**: A test to validate Skupper's high availability mode.
 
 ## Adding a new E2E test to be run on CI
 
@@ -166,6 +168,24 @@ e2e/scenarios/your-test/
 ├── requirements.txt      # Python dependencies
 └── test.yml              # Main test playbook
 ```
+
+## Creating a New E2E Test
+
+To create a new end-to-end (E2E) test, it is recommended to use the `hello-world` test as a base. The `hello-world` test is the simplest and most basic test, making it an ideal starting point for new tests. Follow these steps:
+
+1. **Copy the Base Test**: Duplicate the `hello-world` directory located in `e2e/scenarios/`.
+
+   ```bash
+   cp -r tests/e2e/scenarios/hello-world tests/e2e/scenarios/your-new-test
+   ```
+
+2. **Modify the Test Name**: Rename the copied directory and update any references to `hello-world` within the test files to reflect the new test name.
+
+3. **Customize the Test**: Adjust the test logic, configuration, and any other necessary components to fit the new test scenario.
+
+4. **Document the Test**: Ensure that the new test directory includes a `README.md` file with instructions on how to run the test.
+
+By following these steps, you can efficiently create a new E2E test that integrates seamlessly with the existing test framework.
 
 ## License
 
