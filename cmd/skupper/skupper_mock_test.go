@@ -482,7 +482,7 @@ func TestCmdInitAnnotations(t *testing.T) {
 		lcli.injectedReturns.siteConfigInspect.siteConfig = &types.SiteConfig{}
 		defer clearAnnotations()
 
-		t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			cmd.ParseFlags(tc.args)
 			err := cmd.RunE(cmd, tc.args)
 			assert.Assert(t, err)
@@ -527,7 +527,7 @@ func TestExpose_NotBinding(t *testing.T) {
 			options.Headless = true
 
 			_, err = expose(cli, ctx, "service", "name", options)
-			assert.Error(t, err, "The headless option is only supported for statefulsets")
+			assert.Error(t, err, "the headless option is only supported for statefulsets")
 		})
 
 	t.Run("service not existent, headless option set, and targetType == statefulset ",
@@ -665,7 +665,7 @@ func TestExpose_Binding(t *testing.T) {
 			cli := &vanClientMock{}
 			cli.injectedReturns.serviceInterfaceBind = errors.NewNotFound(schema.GroupResource{}, "name")
 			_, err := expose(cli, ctx, "any", "name", options)
-			assert.Error(t, err, "Skupper is not installed in Namespace: 'MockNamespace`")
+			assert.Error(t, err, "Skupper is not installed in Namespace: MockNamespace")
 			compare(&cli.serviceInterfaceBindCalledWith[0], &expectedBindCall)
 		})
 }
@@ -788,7 +788,7 @@ func TestConsoleAuthArgs(t *testing.T) {
 				skupperCli.Cli = lcli
 			}
 
-			t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
+			t.Run(tc.name, func(t *testing.T) {
 				cmd := NewCmdInit(skupperCli.Site())
 				b := bytes.NewBufferString("")
 				cmd.SetOut(b)

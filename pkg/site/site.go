@@ -471,7 +471,7 @@ func WriteSiteConfig(spec types.SiteConfigSpec, namespace string) (*corev1.Confi
 		}
 	}
 	if len(errs) > 0 {
-		return siteConfig, fmt.Errorf(strings.Join(errs, ", "))
+		return siteConfig, fmt.Errorf("%s", strings.Join(errs, ", "))
 	}
 	return siteConfig, nil
 }
@@ -794,7 +794,7 @@ func ReadSiteConfig(siteConfig *corev1.ConfigMap, namespace string, defaultIngre
 	result.Spec.Annotations = annotations
 	result.Spec.Labels = labels
 	if len(errs) > 0 {
-		return &result, fmt.Errorf(strings.Join(errs, ", "))
+		return &result, fmt.Errorf("%s", strings.Join(errs, ", "))
 	}
 	return &result, nil
 }

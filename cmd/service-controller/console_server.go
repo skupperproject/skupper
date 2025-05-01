@@ -127,7 +127,7 @@ func (server *ConsoleServer) version() http.Handler {
 				server.httpInternalError(w, fmt.Errorf("Error writing version: %s", err))
 				return
 			}
-			fmt.Fprintf(w, string(bytes)+"\n")
+			fmt.Fprintf(w, "%s\n", string(bytes))
 		} else {
 			tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
 			fmt.Fprintln(tw, "site\t"+v.SiteVersion)
@@ -183,24 +183,24 @@ func (server *ConsoleServer) serveEvents() http.Handler {
 				server.httpInternalError(w, fmt.Errorf("Error writing events: %s", err))
 				return
 			}
-			fmt.Fprintf(w, string(bytes)+"\n")
+			fmt.Fprintf(w, "%s\n", string(bytes))
 		} else {
 			tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
-			fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s", "NAME", "COUNT", " ", "AGE"))
+			fmt.Fprintf(tw, "%s\n", fmt.Sprintf("%s\t%s\t%s\t%s", "NAME", "COUNT", " ", "AGE"))
 			for _, group := range e {
-				fmt.Fprintln(tw, fmt.Sprintf("%s\t%d\t%s\t%s", group.Name, group.Total, " ", time.Since(group.LastOccurrence).Round(time.Second)))
+				fmt.Fprintf(tw, "%s\n", fmt.Sprintf("%s\t%d\t%s\t%s", group.Name, group.Total, " ", time.Since(group.LastOccurrence).Round(time.Second)))
 				for _, detail := range group.Counts {
 					if len(detail.Key) > MaxFieldLength {
 						lines := wrap(detail.Key, MaxFieldLength)
 						for i, line := range lines {
 							if i == 0 {
-								fmt.Fprintln(tw, fmt.Sprintf("%s\t%d\t%s\t%s", " ", detail.Count, line, time.Since(detail.LastOccurrence).Round(time.Second)))
+								fmt.Fprintf(tw, "%s\n", fmt.Sprintf("%s\t%d\t%s\t%s", " ", detail.Count, line, time.Since(detail.LastOccurrence).Round(time.Second)))
 							} else {
-								fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s", " ", " ", line, ""))
+								fmt.Fprintf(tw, "%s\n", fmt.Sprintf("%s\t%s\t%s\t%s", " ", " ", line, ""))
 							}
 						}
 					} else {
-						fmt.Fprintln(tw, fmt.Sprintf("%s\t%d\t%s\t%s", " ", detail.Count, detail.Key, time.Since(detail.LastOccurrence).Round(time.Second)))
+						fmt.Fprintf(tw, "%s\n", fmt.Sprintf("%s\t%d\t%s\t%s", " ", detail.Count, detail.Key, time.Since(detail.LastOccurrence).Round(time.Second)))
 					}
 				}
 			}
@@ -216,19 +216,19 @@ func (server *ConsoleServer) serveSites(jsonByDefault bool) http.Handler {
 			if jsonByDefault || wantsJsonOutput(r) {
 				bytes, err := json.MarshalIndent(d.Sites, "", "    ")
 				if err != nil {
-					server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
+					server.httpInternalError(w, fmt.Errorf("error writing json: %s", err))
 				} else {
-					fmt.Fprintf(w, string(bytes)+"\n")
+					fmt.Fprintf(w, "%s\n", string(bytes))
 				}
 			} else {
 				tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
-				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s", "ID", "NAME", "EDGE", "VERSION", "NAMESPACE", "URL", "CONNECTED TO"))
+				fmt.Fprintf(tw, "%s\n", fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s", "ID", "NAME", "EDGE", "VERSION", "NAMESPACE", "URL", "CONNECTED TO"))
 				for _, site := range d.Sites {
 					siteVersion := site.Version
 					if err := server.links.cli.VerifySiteCompatibility(site.Version); err != nil {
 						siteVersion += fmt.Sprintf(" (incompatible - %v)", err)
 					}
-					fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%t\t%s\t%s\t%s\t%s", site.SiteId, site.SiteName, site.Edge, siteVersion, site.Namespace, site.Url, strings.Join(site.Connected, " ")))
+					fmt.Fprintf(tw, "%s\n", fmt.Sprintf("%s\t%s\t%t\t%s\t%s\t%s\t%s", site.SiteId, site.SiteName, site.Edge, siteVersion, site.Namespace, site.Url, strings.Join(site.Connected, " ")))
 				}
 				tw.Flush()
 
@@ -244,13 +244,13 @@ func (server *ConsoleServer) serveServices() http.Handler {
 			if wantsJsonOutput(r) {
 				bytes, err := json.MarshalIndent(d.Services, "", "    ")
 				if err != nil {
-					server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
+					server.httpInternalError(w, fmt.Errorf("error writing json: %s", err))
 				} else {
-					fmt.Fprintf(w, string(bytes)+"\n")
+					fmt.Fprintf(w, "%s\n", string(bytes))
 				}
 			} else {
 				tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
-				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s", "ADDRESS", "PROTOCOL", "TARGET", "SITE"))
+				fmt.Fprintf(tw, "%s\n", fmt.Sprintf("%s\t%s\t%s\t%s", "ADDRESS", "PROTOCOL", "TARGET", "SITE"))
 				for _, s := range d.Services {
 					var service *data.Service
 					if hs, ok := s.(data.HttpService); ok {
@@ -260,9 +260,9 @@ func (server *ConsoleServer) serveServices() http.Handler {
 						service = &ts.Service
 					}
 					if service != nil {
-						fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s", service.Address, service.Protocol, "", ""))
+						fmt.Fprintf(tw, "%s\n", fmt.Sprintf("%s\t%s\t%s\t%s", service.Address, service.Protocol, "", ""))
 						for _, target := range service.Targets {
-							fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s", "", "", target.Name, target.SiteId))
+							fmt.Fprintf(tw, "%s\n", fmt.Sprintf("%s\t%s\t%s\t%s", "", "", target.Name, target.SiteId))
 						}
 					}
 				}
@@ -286,7 +286,7 @@ func (server *ConsoleServer) checkService() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		agent, err := server.agentPool.Get()
 		if err != nil {
-			server.httpInternalError(w, fmt.Errorf("Could not get management agent : %s", err))
+			server.httpInternalError(w, fmt.Errorf("could not get management agent : %s", err))
 		} else {
 			// what is the name of the service to check?
 			vars := mux.Vars(r)
@@ -299,9 +299,9 @@ func (server *ConsoleServer) checkService() http.Handler {
 					if wantsJsonOutput(r) {
 						bytes, err := json.MarshalIndent(data, "", "    ")
 						if err != nil {
-							server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
+							server.httpInternalError(w, fmt.Errorf("error writing json: %s", err))
 						} else {
-							fmt.Fprintf(w, string(bytes)+"\n")
+							fmt.Fprintf(w, "%s\n", string(bytes))
 						}
 					} else {
 						if len(data.Observations) > 0 {
@@ -316,9 +316,9 @@ func (server *ConsoleServer) checkService() http.Handler {
 								for _, site := range data.Details {
 									for i, observation := range site.Observations {
 										if i == 0 {
-											fmt.Fprintln(tw, fmt.Sprintf("%s\t%s", site.SiteId, observation))
+											fmt.Fprintf(tw, "%s\n", fmt.Sprintf("%s\t%s", site.SiteId, observation))
 										} else {
-											fmt.Fprintln(tw, fmt.Sprintf("%s\t%s", "", observation))
+											fmt.Fprintf(tw, "%s\n", fmt.Sprintf("%s\t%s", "", observation))
 										}
 									}
 								}
@@ -339,7 +339,7 @@ func (server *ConsoleServer) checkService() http.Handler {
 func (server *ConsoleServer) getData(w http.ResponseWriter) *data.ConsoleData {
 	agent, err := server.agentPool.Get()
 	if err != nil {
-		server.httpInternalError(w, fmt.Errorf("Could not get management agent : %s", err))
+		server.httpInternalError(w, fmt.Errorf("could not get management agent : %s", err))
 		return nil
 	}
 	data, err := getConsoleData(agent)
@@ -356,9 +356,9 @@ func (server *ConsoleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if data != nil {
 		bytes, err := json.MarshalIndent(data, "", "    ")
 		if err != nil {
-			server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
+			server.httpInternalError(w, fmt.Errorf("error writing json: %s", err))
 		} else {
-			fmt.Fprintf(w, string(bytes)+"\n")
+			fmt.Fprintf(w, "%s\n", string(bytes))
 		}
 	}
 }
@@ -366,9 +366,9 @@ func (server *ConsoleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (server *ConsoleServer) writeJson(obj interface{}, w http.ResponseWriter) {
 	bytes, err := json.MarshalIndent(obj, "", "    ")
 	if err != nil {
-		server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
+		server.httpInternalError(w, fmt.Errorf("error writing json: %s", err))
 	} else {
-		fmt.Fprintf(w, string(bytes)+"\n")
+		fmt.Fprintf(w, "%s\n", string(bytes))
 	}
 }
 
@@ -523,7 +523,7 @@ func getAllSites(routers []qdr.Router) []data.SiteQueryData {
 func getConsoleData(agent *qdr.Agent) (*data.ConsoleData, error) {
 	routers, err := agent.GetAllRouters()
 	if err != nil {
-		return nil, fmt.Errorf("Error retrieving routers: %s", err)
+		return nil, fmt.Errorf("error retrieving routers: %s", err)
 	}
 	sites := getAllSites(routers)
 	querySites(agent, sites)
@@ -534,7 +534,7 @@ func getConsoleData(agent *qdr.Agent) (*data.ConsoleData, error) {
 			// retrieved here separately
 			err = getServiceInfo(agent, routers, &sites[i], data.NewNullNameMapping())
 			if err != nil {
-				return nil, fmt.Errorf("Error retrieving service data from old site %s: %s", s.SiteId, err)
+				return nil, fmt.Errorf("error retrieving service data from old site %s: %s", s.SiteId, err)
 			}
 		}
 	}
@@ -549,7 +549,7 @@ func checkService(agent *qdr.Agent, address string) (*data.ServiceCheck, error) 
 	// get all routers of version 0.5 and up
 	routers, err := agent.GetAllRouters()
 	if err != nil {
-		return nil, fmt.Errorf("Error retrieving routers: %s", err)
+		return nil, fmt.Errorf("error retrieving routers: %s", err)
 	}
 	allSites := getAllSites(routers)
 	serviceCheck := data.ServiceCheck{}
@@ -569,7 +569,7 @@ func checkService(agent *qdr.Agent, address string) (*data.ServiceCheck, error) 
 	}
 	err = checkServiceForSites(agent, address, &serviceCheck)
 	if err != nil {
-		return nil, fmt.Errorf("Error retrieving service detail: %s", err)
+		return nil, fmt.Errorf("error retrieving service detail: %s", err)
 	}
 	return &serviceCheck, nil
 }

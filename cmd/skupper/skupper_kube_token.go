@@ -85,11 +85,11 @@ func (s *SkupperKubeToken) createFromTemplate(cmd *cobra.Command, args []string)
 		s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 		out, err := os.Create(filename)
 		if err != nil {
-			return fmt.Errorf("Could not write to file " + filename + ": " + err.Error())
+			return fmt.Errorf("could not write to file %s:%s", filename, err.Error())
 		}
 		err = s.Encode(secret, out)
 		if err != nil {
-			return fmt.Errorf("Could not write out generated secret: " + err.Error())
+			return fmt.Errorf("could not write out generated secret: %s", err.Error())
 		} else {
 			var extra string
 			if localOnly {
@@ -99,13 +99,11 @@ func (s *SkupperKubeToken) createFromTemplate(cmd *cobra.Command, args []string)
 			fmt.Println()
 			return nil
 		}
-		return nil
 	case "claim":
 		return fmt.Errorf("--template option cannot be used for a claim")
 	default:
-		return fmt.Errorf("invalid token type.")
+		return fmt.Errorf("invalid token type")
 	}
-	return nil
 }
 
 func (s *SkupperKubeToken) Status(cmd *cobra.Command, args []string) error {

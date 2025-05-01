@@ -98,7 +98,6 @@ func (c *sender) _send() error {
 			}
 		}
 	}
-	return nil
 }
 
 type receiver struct {
@@ -160,5 +159,4 @@ func (c *receiver) _receive() error {
 			c.updates <- update
 		}
 	}
-	return nil
 }
