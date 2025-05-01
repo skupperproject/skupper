@@ -8,7 +8,7 @@ orbs:
 executors:
   go_cimg:
     docker:
-      - image: cimg/go:1.24
+      - image: cimg/go:1.23
 
   local_cluster_test_executor:
     machine:
