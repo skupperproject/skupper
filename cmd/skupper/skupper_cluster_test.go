@@ -5,14 +5,15 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
-	k8stesting "k8s.io/client-go/testing"
 	"os"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
+	k8stesting "k8s.io/client-go/testing"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -947,7 +948,7 @@ func TestExposeWithCluster(t *testing.T) {
 			args:            []string{"deployment", "tcp-not-deployed", "--headless"},
 			expectedCapture: "",
 			expectedOutput:  "",
-			expectedError:   "The headless option is only supported for statefulsets",
+			expectedError:   "the headless option is only supported for statefulsets",
 			realCluster:     true,
 		},
 		{
