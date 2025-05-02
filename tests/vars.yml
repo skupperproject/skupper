@@ -1,7 +1,8 @@
 ---
-# kubeconfig_1: /home/user/.kube/config
-# kubeconfig_2: /home/user/.kube/config
 kubeconfig: "/home/{{ ansible_user }}/.kube/config"
+kubeconfig_1: "{{ kubeconfig }}"
+kubeconfig_2: "{{ kubeconfig }}"
+kubeconfig_3: "{{ kubeconfig }}"
 debug: false
 teardown_flag: true
 
