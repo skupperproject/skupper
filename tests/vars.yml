@@ -1,5 +1,5 @@
 ---
-kubeconfig: "/home/{{ ansible_user }}/.kube/config"
+kubeconfig: "{{ lookup('ansible.builtin.env', 'KUBECONFIG') | default('/home/' ~ ansible_user ~ '/.kube/config', true) }}"
 kubeconfig_1: "{{ kubeconfig }}"
 kubeconfig_2: "{{ kubeconfig }}"
 kubeconfig_3: "{{ kubeconfig }}"
