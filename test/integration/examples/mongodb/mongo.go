@@ -85,7 +85,7 @@ func RunTests(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) 
 	job, err := k8s.WaitForJob(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName, constants.ImagePullingAndResourceCreationTimeout)
 	jobLogs, _ := k8s.GetJobsLogs(pubCluster1.Namespace, pubCluster1.VanClient.KubeClient, jobName, true)
 	t.Logf("%s logs:", jobName)
-	t.Logf(jobLogs)
+	t.Logf("%s", jobLogs)
 	assert.Assert(t, err)
 
 	k8s.AssertJob(t, job)

@@ -237,7 +237,7 @@ func serveTokens(m *TokenManager) http.Handler {
 				} else if !ok {
 					http.Error(w, "No such token", http.StatusNotFound)
 				} else {
-					event.Recordf("Token %s deleted", name)
+					event.Recordf(TokenManagement, "Token %s deleted", name)
 				}
 			} else {
 				http.Error(w, "Invalid method", http.StatusMethodNotAllowed)
