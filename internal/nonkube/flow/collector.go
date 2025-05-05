@@ -51,7 +51,8 @@ func (s *StatusSyncClient) Update(ctx context.Context, latest *corev1.ConfigMap)
 }
 
 func siteCollector(ctx context.Context, namespace string) error {
-	platform, err := runtime.GetPlatform(namespace)
+	platformLoader := &common.NamespacePlatformLoader{}
+	platform, err := platformLoader.Load(namespace)
 	if err != nil {
 		return err
 	}
@@ -136,7 +137,8 @@ func startFlowController(ctx context.Context, namespace string) error {
 	siteID := siteState.SiteId
 	siteName := siteState.Site.Name
 
-	platform, err := runtime.GetPlatform(namespace)
+	platformLoader := &common.NamespacePlatformLoader{}
+	platform, err := platformLoader.Load(namespace)
 	if err != nil {
 		return err
 	}
