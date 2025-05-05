@@ -3,7 +3,7 @@ package runtime
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"log"
+	"fmt"
 	"os"
 	"path"
 
@@ -94,7 +94,7 @@ func getTlsConfig(verify bool, cert, key, ca string) (*tls.Config, error) {
 	if errCert == nil || errKey == nil {
 		tlsCert, err := tls.LoadX509KeyPair(cert, key)
 		if err != nil {
-			log.Fatal("Could not load x509 key pair", err.Error())
+			return nil, fmt.Errorf("could not load x509 key pair - %w", err)
 		}
 		config.Certificates = []tls.Certificate{tlsCert}
 	}

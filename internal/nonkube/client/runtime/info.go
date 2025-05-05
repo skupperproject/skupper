@@ -4,17 +4,7 @@ import (
 	"fmt"
 
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
-	"github.com/skupperproject/skupper/internal/nonkube/common"
 )
-
-func GetPlatform(namespace string) (string, error) {
-	platformLoader := &common.NamespacePlatformLoader{}
-	platform, err := platformLoader.Load(namespace)
-	if err != nil {
-		return "", err
-	}
-	return platform, err
-}
 
 func GetLocalRouterAddress(namespace string) (string, error) {
 	port, err := GetLocalRouterPort(namespace)
