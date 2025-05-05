@@ -32,7 +32,7 @@ func subStepLog(parent *log.Logger) *log.Logger {
 func RunPerformanceTest(perfTest PerformanceTest) error {
 	app := perfTest.App()
 	log.Printf("- Running performance test for: %s", app.Name)
-	stepLog.Printf(app.Description)
+	stepLog.Printf("%s", app.Description)
 
 	err, svc, skupperSvc := createService(app)
 	if err != nil {

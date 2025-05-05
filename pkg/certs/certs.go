@@ -240,11 +240,11 @@ func GenerateSecretFile(secretFile string, secret *corev1.Secret, localOnly bool
 	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 	out, err := os.Create(secretFile)
 	if err != nil {
-		return fmt.Errorf("Could not write to file " + secretFile + ": " + err.Error())
+		return fmt.Errorf("could not write to file %s:%s", secretFile, err.Error())
 	}
 	err = s.Encode(secret, out)
 	if err != nil {
-		return fmt.Errorf("Could not write out generated secret: " + err.Error())
+		return fmt.Errorf("could not write out generated secret: %s", err.Error())
 	}
 	var extra string
 	if localOnly {

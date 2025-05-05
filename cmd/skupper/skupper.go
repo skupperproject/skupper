@@ -140,7 +140,7 @@ type BindOptions struct {
 }
 
 func SkupperNotInstalledError(namespace string) error {
-	return fmt.Errorf("Skupper is not installed in Namespace: '" + namespace + "`")
+	return fmt.Errorf("Skupper is not installed in Namespace: %s", namespace)
 
 }
 
@@ -160,7 +160,7 @@ func parseTargetTypeAndName(args []string) (string, string) {
 }
 
 func configureHeadlessProxy(spec *types.Headless, options *types.Tuning) error {
-	var err error
+	var errOut error
 	if options.Affinity != "" {
 		spec.Affinity = utils.LabelToMap(options.Affinity)
 	}
@@ -175,7 +175,7 @@ func configureHeadlessProxy(spec *types.Headless, options *types.Tuning) error {
 		if err == nil {
 			spec.CpuRequest = &cpuQuantity
 		} else {
-			err = fmt.Errorf("Invalid value for cpu: %s", err)
+			errOut = fmt.Errorf("invalid value for cpu: %s", err)
 		}
 	}
 	if options.Memory != "" {
@@ -183,7 +183,7 @@ func configureHeadlessProxy(spec *types.Headless, options *types.Tuning) error {
 		if err == nil {
 			spec.MemoryRequest = &memoryQuantity
 		} else {
-			err = fmt.Errorf("Invalid value for memory: %s", err)
+			errOut = fmt.Errorf("invalid value for memory: %s", err)
 		}
 	}
 	if options.CpuLimit != "" {
@@ -191,7 +191,7 @@ func configureHeadlessProxy(spec *types.Headless, options *types.Tuning) error {
 		if err == nil {
 			spec.CpuLimit = &cpuQuantity
 		} else {
-			err = fmt.Errorf("Invalid value for cpu: %s", err)
+			errOut = fmt.Errorf("invalid value for cpu: %s", err)
 		}
 	}
 	if options.MemoryLimit != "" {
@@ -199,10 +199,10 @@ func configureHeadlessProxy(spec *types.Headless, options *types.Tuning) error {
 		if err == nil {
 			spec.MemoryLimit = &memoryQuantity
 		} else {
-			err = fmt.Errorf("Invalid value for memory: %s", err)
+			errOut = fmt.Errorf("invalid value for memory: %s", err)
 		}
 	}
-	return err
+	return errOut
 }
 
 func expose(cli types.VanClientInterface, ctx context.Context, targetType string, targetName string, options ExposeOptions) (string, error) {
@@ -228,7 +228,7 @@ func expose(cli types.VanClientInterface, ctx context.Context, targetType string
 	if service == nil {
 		if options.Headless {
 			if targetType != "statefulset" {
-				return "", fmt.Errorf("The headless option is only supported for statefulsets")
+				return "", fmt.Errorf("the headless option is only supported for statefulsets")
 			}
 			service, err = cli.GetHeadlessServiceConfiguration(targetName, options.Protocol, options.Address, options.Ports, options.PublishNotReadyAddresses, options.Namespace)
 			if err != nil {

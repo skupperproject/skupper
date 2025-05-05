@@ -170,7 +170,7 @@ Recommendation:
 	if isInitCmd {
 		// Validating if site is already initialized
 		if err == nil && currentSite != nil {
-			fmt.Fprintf(out, "Skupper has already been initialized for user '"+podman.Username+"'.")
+			fmt.Fprintf(out, "Skupper has already been initialized for user %s", podman.Username)
 			fmt.Fprintln(out)
 			s.exit(0)
 			return
