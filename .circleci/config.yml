@@ -9,6 +9,7 @@ executors:
   go_cimg:
     docker:
       - image: cimg/go:1.24
+    resource_class: large
 
   local_cluster_test_executor:
     machine:
