@@ -14,6 +14,25 @@ The plan is to produce a number of "previews" on the branch in order to get furt
 implementation of this major release. The v2 version is intended for evaluation purposes only and should not be used
 in production environments.
 
+## Resource Multipliers
+
+The test uses `RESOURCE_RETRY_MULTIPLIER` and `RESOURCE_DELAY_MULTIPLIER` to dynamically adjust the retry and delay behavior for Kubernetes operations. These multipliers are applied to the base values `resource_retry_value` and `resource_delay_value` defined in the inventory.
+
+- `RESOURCE_RETRY_MULTIPLIER`: Multiplies the base retry value, allowing more attempts for operations to succeed.
+- `RESOURCE_DELAY_MULTIPLIER`: Multiplies the base delay value, increasing the wait time between retries.
+
+This configuration helps in managing network latency and resource availability issues during the test execution.
+
+Example:
+```yaml
+resource_retry_value: 30
+resource_delay_value: 10
+RESOURCE_RETRY_MULTIPLIER: 2
+RESOURCE_DELAY_MULTIPLIER: 3
+```
+
+In this example, the retry attempts will be 60 (30 * 2) and the delay will be 30 seconds (10 * 3).
+
 # Highlights
 
 The objective of the next Skupper major release is to better support a full declarative model so that applications
