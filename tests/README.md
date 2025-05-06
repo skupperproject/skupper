@@ -51,6 +51,23 @@ ci-tests: TESTS=hello-world,attached-connector,YOUR_TEST
 ```
 3. Ensure your test has a README.md file with instructions on how to run it.
 
+## Resource Multipliers
+
+In the `vars.yml` file, you can configure the multipliers for resource retries and delays using the following variables:
+
+- `RESOURCE_RETRY_MULTIPLIER`: Multiplies the base retry value for resource operations.
+- `RESOURCE_DELAY_MULTIPLIER`: Multiplies the base delay value between retries.
+
+These multipliers allow you to adjust the retry and delay behavior dynamically based on your testing needs.
+
+Example usage in `vars.yml`:
+```yaml
+RESOURCE_RETRY_MULTIPLIER: 2
+RESOURCE_DELAY_MULTIPLIER: 3
+```
+
+This configuration will double the retry attempts and triple the delay duration for resource operations.
+
 ## Test Requirements
 
 To run the tests in this repository, you'll need:
