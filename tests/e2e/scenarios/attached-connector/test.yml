@@ -140,8 +140,8 @@
             kubeconfig: "{{ kubeconfig }}"
           register: acb
           until: acb.resources | length > 0 and acb.resources[0].status.status == "Ready"
-          retries: 10
-          delay: 10
+          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
           when: "'iperf3-hub' in inventory_hostname"
 
         - name: Creating a JOB to test the connection
@@ -165,8 +165,8 @@
             (job.resources[0].status.succeeded is defined and job.resources[0].status.succeeded == 1) or
             (job.resources[0].status.failed is defined and job.resources[0].status.failed > 0)
             )
-          retries: 10
-          delay: 10
+          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
           when: "'iperf3-client' in inventory_hostname"
 
         - name: Print the iperf test job logs
