@@ -6,4 +6,5 @@ locust_runtime: "2m"
 namespace_prefix: "e2e"
 generate_namespaces_namespace_label: "ha"
 remove_namespaces: true
-
+resource_retry_value: 30
+resource_delay_value: 10
