@@ -56,21 +56,16 @@
           when:
             - "'east' in inventory_hostname"
 
-        - name: "[ HATest - Setup ] Check the link status"
-          shell: kubectl get links -n  {{ namespace_prefix }}-{{ namespace_name }} --kubeconfig {{ kubeconfig }}
-          register: links_status
-          when:
-            - "'east' in inventory_hostname"
-
-        - name: "[ HATest - Setup ] Display the output of links"
-          ansible.builtin.debug:
-            var: links_status
-          when:
-            - "'east' in inventory_hostname"
-
         - name: "[ HATest - Setup ] Wait for links to get in Ready state"
-          shell: kubectl wait --kubeconfig {{ kubeconfig }} --for=condition=Ready=true links --all -n {{ namespace_prefix }}-{{ namespace_name }} --timeout=30s
-          register: links_status
+          kubernetes.core.k8s_info:
+            api_version: skupper.io/v2alpha1
+            kind: Link
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          register: link_list
+          until: link_list.resources | length > 1 and link_list.resources[0].status.status == "Ready" and link_list.resources[1].status.status == "Ready"
+          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
           when:
             - "'east' in inventory_hostname"
 
@@ -127,9 +122,9 @@
               If you want to rerun it, please run :
                 make reset-test
                 make run-test
-          when:  
+          when:
             - "'west' in inventory_hostname"
-            - "'already ended' in kill_router_pod_output.stdout" 
+            - "'already ended' in kill_router_pod_output.stdout"
 
         - name: "[ HATest - RunTest ] Get the locust job logs and save for validation"
           kubernetes.core.k8s_log:
