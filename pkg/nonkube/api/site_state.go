@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
@@ -357,6 +359,14 @@ func (s *SiteState) UpdateStatus(networkStatus network.NetworkStatusInfo) {
 			link.SetOperational(linkRecord.Operational, linkRecord.RemoteSiteId, linkRecord.RemoteSiteName)
 		}
 	}
+	for linkName, existingLink := range s.Links {
+		exists := slices.ContainsFunc(linkRecords, func(record v2alpha1.LinkRecord) bool {
+			return record.Name == linkName
+		})
+		if !exists {
+			existingLink.SetOperational(false, "", "")
+		}
+	}
 
 	// updating listeners and connectors
 	for _, listener := range s.Listeners {
@@ -399,6 +409,9 @@ func marshalMap[V any](outputDirectory, resourceType string, resourceMap map[str
 
 func MarshalSiteState(siteState SiteState, outputDirectory string) error {
 	var err error
+	if siteState.Site != nil && siteState.Site.ObjectMeta.UID == "" {
+		siteState.Site.ObjectMeta.UID = types.UID(siteState.SiteId)
+	}
 	if err = marshal(outputDirectory, "Site", siteState.Site.Name, siteState.Site); err != nil {
 		return err
 	}
