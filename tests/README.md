@@ -60,6 +60,17 @@ In the `vars.yml` file, you can configure the multipliers for resource retries a
 
 These multipliers allow you to adjust the retry and delay behavior dynamically based on your testing needs.
 
+### Usage in Tests
+
+In the `test.yml` file, these multipliers are used to control the retry and delay logic for Kubernetes operations. For example:
+
+```yaml
+retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
+```
+
+This configuration helps manage network latency and resource availability issues during test execution.
+
 Example usage in `vars.yml`:
 ```yaml
 RESOURCE_RETRY_MULTIPLIER: 2
