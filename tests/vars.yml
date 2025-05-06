@@ -7,6 +7,12 @@ debug: false
 teardown_flag: true
 
 ##################################################
+# Common variables
+##################################################
+RESOURCE_RETRY_MULTIPLIER:  1
+RESOURCE_DELAY_MULTIPLIER:  1
+
+##################################################
 # IPERF3 variables
 ##################################################
 # iperf3_bandwidth: 10M
