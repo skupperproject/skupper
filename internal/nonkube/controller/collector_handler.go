@@ -19,12 +19,13 @@ func NewCollectorLifecycleHandler(namespace string) *CollectorLifecycleHandler {
 }
 
 type CollectorLifecycleHandler struct {
-	ctx       context.Context
-	cancel    context.CancelFunc
-	namespace string
-	logger    *slog.Logger
-	running   bool
-	mux       sync.Mutex
+	ctx         context.Context
+	cancel      context.CancelFunc
+	namespace   string
+	logger      *slog.Logger
+	running     bool
+	mux         sync.Mutex
+	startMethod func()
 }
 
 func (c *CollectorLifecycleHandler) Start(stopCh <-chan struct{}) {
@@ -36,7 +37,10 @@ func (c *CollectorLifecycleHandler) Start(stopCh <-chan struct{}) {
 	c.logger.Info("Starting collector lifecycle handler")
 	c.ctx, c.cancel = context.WithCancel(context.Background())
 	c.running = true
-	go c.startCollectorLite()
+	if c.startMethod == nil {
+		c.startMethod = c.startCollectorLite
+	}
+	go c.startMethod()
 	go c.handleShutdown(stopCh)
 }
 
