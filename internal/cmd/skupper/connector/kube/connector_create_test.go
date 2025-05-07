@@ -25,9 +25,17 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedError  string
+		skupperError   string
 	}
 
 	testTable := []test{
+		{
+			name:          "missing CRD",
+			args:          []string{"my-connector", "8080"},
+			flags:         common.CommandConnectorCreateFlags{},
+			skupperError:  utils.CrdErr,
+			expectedError: utils.CrdHelpErr,
+		},
 		{
 			name: "connector is not created because there is already the same connector in the namespace",
 			args: []string{"my-connector", "8080"},
@@ -253,7 +261,7 @@ func TestCmdConnectorCreate_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command, err := newCmdConnectorCreateWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			command, err := newCmdConnectorCreateWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
 
 			command.Flags = &test.flags

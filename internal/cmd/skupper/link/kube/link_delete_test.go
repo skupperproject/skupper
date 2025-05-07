@@ -22,9 +22,17 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedError  string
+		skupperError   string
 	}
 
 	testTable := []test{
+		{
+			name:          "missing CRD",
+			args:          []string{"my-connector", "8080"},
+			flags:         common.CommandLinkDeleteFlags{},
+			skupperError:  utils.CrdErr,
+			expectedError: utils.CrdHelpErr,
+		},
 		{
 			name:  "there is no active skupper site in this namespace",
 			args:  []string{"my-link"},
@@ -139,7 +147,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command, err := newCmdLinkDeleteWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			command, err := newCmdLinkDeleteWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
 			command.Flags = &test.flags
 

@@ -24,9 +24,17 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedError  string
+		skupperError   string
 	}
 
 	testTable := []test{
+		{
+			name:          "missing CRD",
+			args:          []string{"filename"},
+			flags:         common.CommandTokenIssueFlags{},
+			skupperError:  utils.CrdErr,
+			expectedError: utils.CrdHelpErr,
+		},
 		{
 			name: "token no site",
 			args: []string{"filename"},
@@ -594,7 +602,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command, err := newCmdTokenIssueWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			command, err := newCmdTokenIssueWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
 
 			command.Flags = &test.flags

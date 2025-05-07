@@ -23,9 +23,16 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 		skupperObjects []runtime.Object
 		flags          *common.CommandSiteCreateFlags
 		expectedError  string
+		skupperError   string
 	}
 
 	testTable := []test{
+		{
+			name:          "missing CRD",
+			args:          []string{"my-site"},
+			skupperError:  utils.CrdErr,
+			expectedError: utils.CrdHelpErr,
+		},
 		{
 			name:       "site is not created because there is already a site in the namespace.",
 			args:       []string{"my-new-site"},
@@ -107,7 +114,7 @@ func TestCmdSiteCreate_ValidateInput(t *testing.T) {
 
 			command.CobraCmd = cmd
 
-			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, "")
+			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
 			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 			command.KubeClient = fakeSkupperClient.GetKubeClient()

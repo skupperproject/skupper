@@ -5,6 +5,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/v3/assert"
@@ -24,6 +25,13 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 	}
 
 	testTable := []test{
+		{
+			name:                "missing CRD",
+			args:                []string{"my-connector", "8080"},
+			flags:               common.CommandLinkStatusFlags{},
+			skupperErrorMessage: utils.CrdErr,
+			expectedError:       utils.CrdHelpErr,
+		},
 		{
 			name: "more than one argument was specified",
 			args: []string{"my-link", ""},

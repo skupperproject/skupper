@@ -23,9 +23,17 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedError  string
+		skupperError   string
 	}
 
 	testTable := []test{
+		{
+			name:          "missing CRD",
+			args:          []string{"my-connector", "8080"},
+			flags:         common.CommandLinkUpdateFlags{},
+			skupperError:  utils.CrdErr,
+			expectedError: utils.CrdHelpErr,
+		},
 		{
 			name:  "link is not updated because there is no site in the namespace.",
 			args:  []string{"my-link"},
@@ -264,7 +272,7 @@ func TestCmdLinkUpdate_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command, err := newCmdLinkUpdateWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			command, err := newCmdLinkUpdateWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
 
 			command.Flags = &test.flags

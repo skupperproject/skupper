@@ -28,6 +28,13 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
+			name:                "missing CRD",
+			args:                []string{"my-listener", "8080"},
+			flags:               common.CommandListenerDeleteFlags{},
+			skupperErrorMessage: utils.CrdErr,
+			expectedError:       utils.CrdHelpErr,
+		},
+		{
 			name:          "listener is not deleted because listener does not exist in the namespace",
 			args:          []string{"my-listener"},
 			flags:         common.CommandListenerDeleteFlags{Timeout: 1 * time.Minute},
@@ -78,16 +85,15 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			flags:               common.CommandListenerDeleteFlags{Timeout: 0 * time.Minute},
-			skupperErrorMessage: "timeout is not valid",
-			expectedError:       "timeout is not valid: duration must not be less than 10s; got 0s",
+			flags:         common.CommandListenerDeleteFlags{Timeout: 0 * time.Minute},
+			expectedError: "timeout is not valid: duration must not be less than 10s; got 0s",
 		},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command, err := newCmdListenerDeleteWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			command, err := newCmdListenerDeleteWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
 			assert.Assert(t, err)
 
 			command.Flags = &test.flags

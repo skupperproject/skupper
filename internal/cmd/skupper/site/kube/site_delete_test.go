@@ -29,6 +29,12 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
+			name:          "missing CRD",
+			args:          []string{"my-site"},
+			skupperError:  utils.CrdErr,
+			expectedError: utils.CrdHelpErr,
+		},
+		{
 			name:           "site is not deleted because it does not exist",
 			args:           []string{"my-site"},
 			k8sObjects:     nil,
