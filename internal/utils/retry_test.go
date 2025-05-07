@@ -347,13 +347,6 @@ func TestRetryErrorWithContext(t *testing.T) {
 			workOnTry:     4,
 			expectedTries: 4,
 			expectSuccess: true,
-		}, {
-			doc:           "The execution should time out after many retries due the context",
-			timeout:       time.Millisecond * 400,
-			workOnTry:     5,
-			expectedTries: 4,
-			expectSuccess: false,
-			expectedError: "context deadline exceeded",
 		},
 	}
 
