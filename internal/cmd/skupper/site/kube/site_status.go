@@ -52,6 +52,7 @@ func (cmd *CmdSiteStatus) Run() error {
 	siteList, err := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
 
 	if err != nil {
+		err = utils.HandleMissingCrds(err)
 		return err
 	}
 

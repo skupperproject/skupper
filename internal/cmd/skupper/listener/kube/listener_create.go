@@ -61,6 +61,13 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 
+	// Check if Listener CRD is installed
+	_, err := cmd.client.Listeners(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
+
 	// Validate arguments name and port
 	if len(args) < 2 {
 		validationErrors = append(validationErrors, fmt.Errorf("listener name and port must be configured"))

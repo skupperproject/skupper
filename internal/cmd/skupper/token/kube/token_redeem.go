@@ -45,6 +45,13 @@ func (cmd *CmdTokenRedeem) ValidateInput(args []string) error {
 	tokenStringValidator := validator.NewFilePathStringValidator()
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 
+	// Check if AccessToken CRD is installed
+	_, err := cmd.client.AccessTokens(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
+
 	// Validate token file name
 	if len(args) < 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("token file name must be configured"))
@@ -61,8 +68,12 @@ func (cmd *CmdTokenRedeem) ValidateInput(args []string) error {
 		}
 	}
 
-	// Validate there is already a site defined in the namespace before a token can be redeemed
-	siteList, _ := cmd.client.Sites(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
+	// Validate CRDs are installed and there is already a site defined in the namespace before a token can be redeemed
+	siteList, err := cmd.client.Sites(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
 	if siteList == nil || len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("A site must exist in namespace %s before a token can be redeemed", cmd.namespace))
 	} else {
@@ -107,6 +118,9 @@ func (cmd *CmdTokenRedeem) Run() error {
 	cmd.name = accessToken.Name
 
 	_, err = cmd.client.AccessTokens(cmd.namespace).Create(context.TODO(), &accessToken, metav1.CreateOptions{})
+	if err != nil {
+		err = utils.HandleMissingCrds(err)
+	}
 	return err
 }
 

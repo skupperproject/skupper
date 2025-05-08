@@ -23,9 +23,17 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedError  string
+		skupperError   string
 	}
 
 	testTable := []test{
+		{
+			name:          "missing CRD",
+			args:          []string{"my-connector"},
+			flags:         common.CommandConnectorDeleteFlags{},
+			skupperError:  utils.CrdErr,
+			expectedError: utils.CrdHelpErr,
+		},
 		{
 			name:          "connector is not Deleted because connector does not exist in the namespace",
 			args:          []string{"my-connector"},
@@ -85,7 +93,7 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command, err := newCmdConnectorDeleteWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			command, err := newCmdConnectorDeleteWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
 
 			command.Flags = &test.flags

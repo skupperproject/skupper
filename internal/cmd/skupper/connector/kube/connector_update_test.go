@@ -25,9 +25,17 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedError  string
+		skupperError   string
 	}
 
 	testTable := []test{
+		{
+			name:          "missing CRD",
+			args:          []string{"my-connector", "8080"},
+			flags:         common.CommandConnectorUpdateFlags{},
+			skupperError:  utils.CrdErr,
+			expectedError: utils.CrdHelpErr,
+		},
 		{
 			name:          "connector is not updated because get connector returned error",
 			args:          []string{"my-connector"},
@@ -392,7 +400,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command, err := newCmdConnectorUpdateWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			command, err := newCmdConnectorUpdateWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
 
 			command.Flags = &test.flags
@@ -411,7 +419,6 @@ func TestCmdConnectorUpdate_ValidateWorkload(t *testing.T) {
 		skupperObjects   []runtime.Object
 		expectedError    string
 		expectedSelector string
-		expectedStatus   string
 	}
 
 	testTable := []test{

@@ -42,6 +42,13 @@ func (cmd *CmdListenerDelete) ValidateInput(args []string) error {
 	resourceStringValidator := validator.NewResourceStringValidator()
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 
+	// Check if Listener CRD is installed
+	_, err := cmd.client.Listeners(cmd.namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
+
 	// Validate arguments name
 	if len(args) < 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("listener name must be specified"))

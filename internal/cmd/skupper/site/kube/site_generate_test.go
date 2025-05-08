@@ -5,8 +5,8 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
-	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 
+	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"gotest.tools/v3/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 )

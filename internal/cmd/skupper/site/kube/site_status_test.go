@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/v3/assert"
@@ -57,6 +58,13 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 	}
 
 	testTable := []test{
+		{
+			name:           "missing CRD",
+			k8sObjects:     nil,
+			skupperObjects: nil,
+			skupperError:   utils.CrdErr,
+			errorMessage:   utils.CrdHelpErr,
+		},
 		{
 			name:       "runs ok",
 			k8sObjects: nil,

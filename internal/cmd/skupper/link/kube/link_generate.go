@@ -64,8 +64,19 @@ func (cmd *CmdLinkGenerate) ValidateInput(args []string) error {
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
-	//Validate if there is already a site defined in the namespace
-	siteList, _ := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	// check if CRDs are installed
+	_, err := cmd.Client.Certificates(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
+
+	//Validate if Site CRD is installed and if there is already a site defined in the namespace
+	siteList, err := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
 	if siteList != nil && len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("there is no skupper site in this namespace"))
 	}

@@ -29,6 +29,12 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
+			name:          "missing CRD",
+			args:          []string{"my-site"},
+			skupperError:  utils.CrdErr,
+			expectedError: utils.CrdHelpErr,
+		},
+		{
 			name:       "site is updated because there is already a site in the namespace.",
 			args:       []string{"my-site"},
 			flags:      &common.CommandSiteUpdateFlags{Timeout: time.Minute},

@@ -29,6 +29,12 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
+			name:                "missing CRD",
+			flags:               common.CommandListenerCreateFlags{},
+			skupperErrorMessage: utils.CrdErr,
+			expectedError:       utils.CrdHelpErr,
+		},
+		{
 			name:  "listener is not created because there is already the same listener in the namespace",
 			args:  []string{"my-listener", "8080"},
 			flags: common.CommandListenerCreateFlags{Timeout: 1 * time.Minute},
@@ -50,8 +56,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 					},
 				},
 			},
-			skupperErrorMessage: "AllReadyExists",
-			expectedError:       "There is already a listener my-listener created for namespace test",
+			expectedError: "There is already a listener my-listener created for namespace test",
 		},
 		{
 			name:          "listener name and port are not specified",
@@ -189,7 +194,7 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command, err := newCmdListenerCreateWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			command, err := newCmdListenerCreateWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
 			assert.Assert(t, err)
 
 			command.Flags = &test.flags

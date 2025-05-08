@@ -56,7 +56,11 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) error {
 	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 
 	//Validate if there is already a site defined in the namespace
-	siteList, _ := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	siteList, err := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
 	if siteList != nil && len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("there is no existing Skupper site resource to update"))
 	} else {

@@ -28,6 +28,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedError  string
+		skupperError   string
 	}
 
 	// create temp token file for tests
@@ -37,6 +38,13 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 	defer os.Remove("/tmp/token-redeem.yaml") // clean up
 
 	testTable := []test{
+		{
+			name:          "missing CRD",
+			args:          []string{"filename"},
+			flags:         common.CommandTokenRedeemFlags{},
+			skupperError:  utils.CrdErr,
+			expectedError: utils.CrdHelpErr,
+		},
 		{
 			name:          "token no site",
 			args:          []string{"/tmp/token-redeem.yaml"},
@@ -282,7 +290,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command, err := newCmdTokenRedeemWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			command, err := newCmdTokenRedeemWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
 
 			command.Flags = &test.flags

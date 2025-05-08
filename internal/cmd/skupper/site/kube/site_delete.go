@@ -48,9 +48,9 @@ func (cmd *CmdSiteDelete) ValidateInput(args []string) error {
 
 	//Validate if there is already a site defined in the namespace
 	siteList, err := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
-
 	if err != nil {
-		validationErrors = append(validationErrors, err)
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
 	} else if siteList == nil || (siteList != nil && len(siteList.Items) == 0) {
 		validationErrors = append(validationErrors, fmt.Errorf("there is no existing Skupper site resource to delete"))
 	} else {

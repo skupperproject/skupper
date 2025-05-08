@@ -23,9 +23,17 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedError  string
+		skupperError   string
 	}
 
 	testTable := []test{
+		{
+			name:          "missing CRD",
+			args:          []string{"my-connector", "8080"},
+			flags:         common.CommandLinkGenerateFlags{},
+			skupperError:  utils.CrdErr,
+			expectedError: utils.CrdHelpErr,
+		},
 		{
 			name: "link yaml is not generated because there is no site in the namespace.",
 			expectedError: "there is no skupper site in this namespace\n" +
@@ -402,7 +410,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command, err := newCmdLinkGenerateWithMocks("test", nil, test.skupperObjects, "")
+			command, err := newCmdLinkGenerateWithMocks("test", nil, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
 			command.Flags = &test.flags
 

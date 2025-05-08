@@ -5,6 +5,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/v3/assert"
@@ -20,9 +21,16 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedError  string
+		skupperError   string
 	}
 
 	testTable := []test{
+		{
+			name:          "missing CRD",
+			args:          []string{"my-listener", "8080"},
+			skupperError:  utils.CrdErr,
+			expectedError: utils.CrdHelpErr,
+		},
 		{
 			name:          "listener is not shown because listener does not exist in the namespace",
 			args:          []string{"my-listener"},
@@ -90,7 +98,7 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			command, err := newCmdListenerStatusWithMocks("test", test.k8sObjects, test.skupperObjects, "")
+			command, err := newCmdListenerStatusWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
 
 			command.Flags = &test.flags

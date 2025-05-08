@@ -55,8 +55,19 @@ func (cmd *CmdLinkUpdate) ValidateInput(args []string) error {
 	timeoutValidator := validator.NewTimeoutInSecondsValidator()
 	statusValidator := validator.NewOptionValidator(common.WaitStatusTypes)
 
-	//Validate if there is already a site defined in the namespace
-	siteList, _ := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	// Check if Link CRD is installed
+	_, err := cmd.Client.Links(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
+
+	//Validate if Site CRD is installed and there is already a site defined in the namespace
+	siteList, err := cmd.Client.Sites(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		validationErrors = append(validationErrors, utils.HandleMissingCrds(err))
+		return errors.Join(validationErrors...)
+	}
 	if siteList != nil && len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("there is no skupper site in this namespace"))
 	}
