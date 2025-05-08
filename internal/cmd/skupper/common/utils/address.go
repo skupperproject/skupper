@@ -6,7 +6,7 @@ import (
 )
 
 func GetSansByDefault() ([]string, error) {
-	sans := []string{}
+	sans := []string{"0.0.0.0", "::"}
 
 	hostname, err := os.Hostname()
 	if err != nil {

@@ -15,8 +15,6 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
 		args              []string
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		flags             *common.CommandSiteCreateFlags
 		cobraGenericFlags map[string]string
 		expectedError     string
@@ -40,12 +38,6 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 			args:          []string{"my", "site"},
 			flags:         &common.CommandSiteCreateFlags{},
 			expectedError: "only one argument is allowed for this command",
-		},
-		{
-			name:          "bindHost was not specified ok",
-			args:          []string{"my-site"},
-			flags:         &common.CommandSiteCreateFlags{EnableLinkAccess: true},
-			expectedError: "",
 		},
 		{
 			name:          "kubernetes flags are not valid on this platform",
@@ -148,7 +140,6 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 		skupperObjects    []runtime.Object
 		skupperError      string
 		siteName          string
-		host              string
 		errorMessage      string
 		routerAccessName  string
 		linkAccessEnabled bool
@@ -160,7 +151,6 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 			k8sObjects:        nil,
 			skupperObjects:    nil,
 			siteName:          "my-site",
-			host:              "bindhost",
 			routerAccessName:  "ra-test",
 			linkAccessEnabled: true,
 		},
@@ -169,7 +159,6 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 			k8sObjects:     nil,
 			skupperObjects: nil,
 			siteName:       "test",
-			host:           "bindhost",
 			skupperError:   "",
 		},
 	}

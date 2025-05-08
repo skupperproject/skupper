@@ -24,7 +24,6 @@ type CmdSiteCreate struct {
 	siteName                string
 	linkAccessEnabled       bool
 	namespace               string
-	bindHost                string
 	routerAccessName        string
 	subjectAlternativeNames []string
 }
@@ -79,7 +78,6 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 		}
 
 		cmd.linkAccessEnabled = true
-		cmd.bindHost = "0.0.0.0"
 		cmd.routerAccessName = "router-access-" + cmd.siteName
 		cmd.subjectAlternativeNames = sanByDefault
 	}
@@ -123,7 +121,6 @@ func (cmd *CmdSiteCreate) Run() error {
 					Port: 45671,
 				},
 			},
-			BindHost:                cmd.bindHost,
 			SubjectAlternativeNames: cmd.subjectAlternativeNames,
 		},
 	}

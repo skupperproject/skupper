@@ -21,8 +21,6 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		name              string
 		args              []string
 		flags             *common.CommandSiteUpdateFlags
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		cobraGenericFlags map[string]string
 		expectedError     string
 	}
