@@ -102,6 +102,7 @@ func (cmd *CmdSystemDelete) InputToOptions() {
 func (cmd *CmdSystemDelete) Run() error {
 	//read the file or the pipe stream
 	inputReader := cmd.CobraCmd.InOrStdin()
+	crDeleted := false
 
 	if cmd.file != "" {
 		file, err := os.Open(cmd.file)
@@ -123,8 +124,10 @@ func (cmd *CmdSystemDelete) Run() error {
 			err := cmd.siteHandler.Delete(site.Name)
 			if err != nil {
 				slog.Error("Error while deleting site %q: %s", site.Name, err)
+			} else {
+				crDeleted = true
+				fmt.Printf("Site %s deleted\n", site.Name)
 			}
-			fmt.Printf("Site %s deleted\n", site.Name)
 		}
 	}
 
@@ -133,8 +136,11 @@ func (cmd *CmdSystemDelete) Run() error {
 			err := cmd.connectorHandler.Delete(connector.Name)
 			if err != nil {
 				slog.Error("Error while deleting connector %q: %s", connector.Name, err)
+
+			} else {
+				crDeleted = true
+				fmt.Printf("Connector %s deleted\n", connector.Name)
 			}
-			fmt.Printf("Connector %s deleted\n", connector.Name)
 		}
 	}
 
@@ -143,8 +149,10 @@ func (cmd *CmdSystemDelete) Run() error {
 			err := cmd.listenerHandler.Delete(listener.Name)
 			if err != nil {
 				slog.Error("Error while deleting listener %q: %s", listener.Name, err)
+			} else {
+				crDeleted = true
+				fmt.Printf("Listener %s deleted\n", listener.Name)
 			}
-			fmt.Printf("Listener %s deleted\n", listener.Name)
 		}
 	}
 
@@ -153,8 +161,12 @@ func (cmd *CmdSystemDelete) Run() error {
 			err := cmd.linkHandler.Delete(link.Name)
 			if err != nil {
 				slog.Error("Error while deleting link %q: %s", link.Name, err)
+
+			} else {
+				crDeleted = true
+				fmt.Printf("Link %s deleted\n", link.Name)
 			}
-			fmt.Printf("Link %s deleted\n", link.Name)
+
 		}
 	}
 
@@ -162,10 +174,12 @@ func (cmd *CmdSystemDelete) Run() error {
 		if routerAccess.Name != "" {
 			err := cmd.routerAccessHandler.Delete(routerAccess.Name)
 			if err != nil {
-
 				slog.Error("Error while deleting router access %q: %s", routerAccess.Name, err)
+			} else {
+				crDeleted = true
+				fmt.Printf("RouterAccess %s deleted\n", routerAccess.Name)
 			}
-			fmt.Printf("RouterAccess %s deleted\n", routerAccess.Name)
+
 		}
 	}
 
@@ -174,8 +188,10 @@ func (cmd *CmdSystemDelete) Run() error {
 			err := cmd.accessTokenHandler.Delete(accessToken.Name)
 			if err != nil {
 				slog.Error("Error while deleting access token %q: %s", accessToken.Name, err)
+			} else {
+				crDeleted = true
+				fmt.Printf("AccessToken %s deleted\n", accessToken.Name)
 			}
-			fmt.Printf("AccessToken %s deleted\n", accessToken.Name)
 		}
 	}
 
@@ -184,8 +200,11 @@ func (cmd *CmdSystemDelete) Run() error {
 			err := cmd.secretHandler.Delete(secret.Name)
 			if err != nil {
 				slog.Error("Error while deleting secret %q: %s", secret.Name, err)
+
+			} else {
+				crDeleted = true
+				fmt.Printf("Secret %s deleted\n", secret.Name)
 			}
-			fmt.Printf("Secret %s deleted\n", secret.Name)
 		}
 	}
 
@@ -194,8 +213,10 @@ func (cmd *CmdSystemDelete) Run() error {
 			err := cmd.certificateHandler.Delete(certificate.Name)
 			if err != nil {
 				slog.Error("Error while deleting certificate %q: %s", certificate.Name, err)
+			} else {
+				crDeleted = true
+				fmt.Printf("Certificate %s deleted\n", certificate.Name)
 			}
-			fmt.Printf("Certificate %s deleted\n", certificate.Name)
 		}
 	}
 
@@ -204,12 +225,16 @@ func (cmd *CmdSystemDelete) Run() error {
 			err := cmd.securedAccessHandler.Delete(securedAccess.Name)
 			if err != nil {
 				slog.Error("Error while deleting secured access %q: %s", securedAccess.Name, err)
+			} else {
+				crDeleted = true
+				fmt.Printf("SecuredAccess %s deleted\n", securedAccess.Name)
 			}
-			fmt.Printf("SecuredAccess %s deleted\n", securedAccess.Name)
 		}
 	}
 
-	fmt.Println("Custom resources deleted. You can now run `skupper system reload` to make effective the changes.")
+	if crDeleted {
+		fmt.Println("Custom resources deleted. You can now run `skupper system reload` to make effective the changes.")
+	}
 
 	return nil
 }

@@ -103,6 +103,7 @@ func (cmd *CmdSystemApply) Run() error {
 
 	//read the file or the pipe stream
 	inputReader := cmd.CobraCmd.InOrStdin()
+	crApplied := false
 
 	if cmd.file != "" {
 		file, err := os.Open(cmd.file)
@@ -123,75 +124,95 @@ func (cmd *CmdSystemApply) Run() error {
 		err := cmd.siteHandler.Add(site)
 		if err != nil {
 			slog.Error("Error while adding site %q: %s", site.Name, err)
+		} else {
+			crApplied = true
+			fmt.Printf("Site %s added\n", site.Name)
 		}
-		fmt.Printf("Site %s added\n", site.Name)
 	}
 
 	for _, connector := range parsedInput.Connector {
 		err := cmd.connectorHandler.Add(connector)
 		if err != nil {
 			slog.Error("Error while adding connector %q: %s", connector.Name, err)
+		} else {
+			crApplied = true
+			fmt.Printf("Connector %s added\n", connector.Name)
 		}
-		fmt.Printf("Connector %s added\n", connector.Name)
 	}
 
 	for _, listener := range parsedInput.Listener {
 		err := cmd.listenerHandler.Add(listener)
 		if err != nil {
 			slog.Error("Error while adding listener %q: %s", listener.Name, err)
+		} else {
+			crApplied = true
+			fmt.Printf("Listener %s added\n", listener.Name)
 		}
-		fmt.Printf("Listener %s added\n", listener.Name)
 	}
 
 	for _, link := range parsedInput.Link {
 		err := cmd.linkHandler.Add(link)
 		if err != nil {
 			slog.Error("Error while adding link %q: %s", link.Name, err)
+		} else {
+			crApplied = true
+			fmt.Printf("Link %s added\n", link.Name)
 		}
-		fmt.Printf("Link %s added\n", link.Name)
 	}
 
 	for _, routerAccess := range parsedInput.RouterAccess {
 		err := cmd.routerAccessHandler.Add(routerAccess)
 		if err != nil {
 			slog.Error("Error while adding router access %q: %s", routerAccess.Name, err)
+		} else {
+			crApplied = true
+			fmt.Printf("RouterAccess %s added\n", routerAccess.Name)
 		}
-		fmt.Printf("RouterAccess %s added\n", routerAccess.Name)
 	}
 
 	for _, accessToken := range parsedInput.AccessToken {
 		err := cmd.accessTokenHandler.Add(accessToken)
 		if err != nil {
 			slog.Error("Error while adding access token %q: %s", accessToken.Name, err)
+		} else {
+			crApplied = true
+			fmt.Printf("AccessToken %s added\n", accessToken.Name)
 		}
-		fmt.Printf("AccessToken %s added\n", accessToken.Name)
 	}
 
 	for _, secret := range parsedInput.Secret {
 		err := cmd.secretHandler.Add(secret)
 		if err != nil {
 			slog.Error("Error while adding secret %q: %s", secret.Name, err)
+		} else {
+			crApplied = true
+			fmt.Printf("Secret %s added\n", secret.Name)
 		}
-		fmt.Printf("Secret %s added\n", secret.Name)
 	}
 
 	for _, securedAccess := range parsedInput.SecuredAccess {
 		err := cmd.securedAccessHandler.Add(securedAccess)
 		if err != nil {
 			slog.Error("Error while adding secured access %q: %s", securedAccess.Name, err)
+		} else {
+			crApplied = true
+			fmt.Printf("SecuredAccess %s added\n", securedAccess.Name)
 		}
-		fmt.Printf("SecuredAccess %s added\n", securedAccess.Name)
 	}
 
 	for _, certificate := range parsedInput.Certificate {
 		err := cmd.certificateHandler.Add(certificate)
 		if err != nil {
 			slog.Error("Error while adding certificate %q: %s", certificate.Name, err)
+		} else {
+			crApplied = true
+			fmt.Printf("Certificate %s added\n", certificate.Name)
 		}
-		fmt.Printf("Certificate %s added\n", certificate.Name)
 	}
 
-	fmt.Println("Custom resources are applied. You can now run `skupper system reload` to make effective the changes.")
+	if crApplied {
+		fmt.Println("Custom resources are applied. You can now run `skupper system reload` to make effective the changes.")
+	}
 
 	return nil
 }
