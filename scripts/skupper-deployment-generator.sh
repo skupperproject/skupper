@@ -25,7 +25,7 @@ readonly SKUPPER_CONTROLLER_IMAGE=${SKUPPER_CONTROLLER_IMAGE:-${SKUPPER_IMAGE_RE
 readonly SKUPPER_KUBE_ADAPTOR_IMAGE=${SKUPPER_KUBE_ADAPTOR_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/kube-adaptor:${SKUPPER_IMAGE_TAG}}
 readonly SKUPPER_CLI_IMAGE=${SKUPPER_CLI_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/cli:${SKUPPER_IMAGE_TAG}}
 readonly SKUPPER_NETWORK_OBSERVER_IMAGE=${SKUPPER_NETWORK_OBSERVER_IMAGE:-${SKUPPER_IMAGE_REGISTRY}/network-observer:${SKUPPER_IMAGE_TAG}}
-
+readonly SKUPPER_TESTING=${SKUPPER_TESTING:-false}
 
 DEBUG=${DEBUG:=false}
 
@@ -244,6 +244,31 @@ resources:
 EOF
 }
 
+skupper::patch::imagePullPolicy() {
+		cat << EOF
+patches:
+- patch: |
+    apiVersion: apps/v1
+    kind: Deployment
+    spec:
+      template:
+        spec:
+          containers:
+            - name: controller
+              imagePullPolicy: Never
+              env:
+                - name: SKUPPER_KUBE_ADAPTOR_IMAGE_PULL_POLICY
+                  value: Never
+                - name: SKUPPER_ROUTER_IMAGE_PULL_POLICY
+                  value: IfNotPresent
+    metadata:
+      name: skupper-controller
+EOF
+	if [ ${SCOPE} == "cluster" ]; then
+		echo "      namespace: skupper"
+	fi
+}
+
 main () {
 	ktempdir=$(mktemp -d --tmpdir=./)
 	if [ "${DEBUG}" != "true" ]; then
@@ -273,6 +298,9 @@ main () {
 
   if [ ${FOR_CHART} != "true" ]; then
     skupper::deployment::add-crds >> "${ktempdir}/manifests/kustomization.yaml"
+  fi
+  if [ "${SKUPPER_TESTING}" == "true" ]; then
+	  skupper::patch::imagePullPolicy >> "${ktempdir}/manifests/kustomization.yaml"
   fi
   kubectl kustomize ${ktempdir}/manifests
 

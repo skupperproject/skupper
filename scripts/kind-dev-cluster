@@ -139,7 +139,7 @@ EOF
 }
 
 skupper::cluster::controller() {
-	scripts/skupper-deployment-generator.sh cluster ${IMAGE_TAG} ${ROUTER_IMAGE_TAG} false
+	SKUPPER_TESTING=true scripts/skupper-deployment-generator.sh cluster ${IMAGE_TAG} ${ROUTER_IMAGE_TAG} false
 }
 
 main () {
