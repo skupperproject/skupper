@@ -24,6 +24,18 @@ func NewLinkHandler(namespace string) *LinkHandler {
 }
 
 func (s *LinkHandler) Add(resource v2alpha1.Link) error {
+
+	fileName := resource.Name + ".yaml"
+	content, err := s.EncodeToYaml(resource)
+	if err != nil {
+		return err
+	}
+
+	err = s.WriteFile(s.pathProvider.GetNamespace(), fileName, content, common.Links)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -57,7 +69,7 @@ func (s *LinkHandler) Get(name string, opts GetOptions) (*v2alpha1.Link, error) 
 func (s *LinkHandler) Delete(name string) error {
 	fileName := name + ".yaml"
 
-	if err := s.DeleteFile(s.pathProvider.GetRuntimeNamespace(), fileName, "links"); err != nil {
+	if err := s.DeleteFile(s.pathProvider.GetNamespace(), fileName, common.Links); err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			return err
 		}
