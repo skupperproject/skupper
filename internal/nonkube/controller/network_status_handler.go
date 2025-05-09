@@ -21,7 +21,7 @@ type NetworkStatusHandler struct {
 	logger    *slog.Logger
 	doneCh    chan struct{}
 	events    chan network.NetworkStatusInfo
-	mutex     sync.Mutex
+	mutex     sync.RWMutex
 }
 
 func NewNetworkStatusHandler(namespace string) *NetworkStatusHandler {
@@ -51,14 +51,14 @@ func (n *NetworkStatusHandler) processConfigMapUpdate(name string) {
 	n.events <- *networkStatusInfo
 }
 
-func (n *NetworkStatusHandler) processEvents() {
+func (n *NetworkStatusHandler) processEvents(done chan struct{}) {
 	n.resetStatus()
 	for {
 		select {
 		case networkStatusInfo := <-n.events:
 			n.logger.Debug("Processing network status event", slog.Any("event", networkStatusInfo))
 			n.updateRuntimeSiteState(networkStatusInfo)
-		case <-n.doneCh:
+		case <-done:
 			n.resetStatus()
 			n.logger.Info("Stop event processing")
 			return
@@ -135,7 +135,7 @@ func (n *NetworkStatusHandler) startProcessingEvents() {
 	}
 	n.logger.Info("Start event processing")
 	n.doneCh = make(chan struct{})
-	go n.processEvents()
+	go n.processEvents(n.doneCh)
 }
 
 func (n *NetworkStatusHandler) OnRemove(name string) {

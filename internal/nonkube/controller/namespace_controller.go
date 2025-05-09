@@ -15,6 +15,7 @@ type NamespaceController struct {
 	logger         *slog.Logger
 	flowController *flow.Controller
 	watcher        *fs.FileWatcher
+	prepare        func()
 }
 
 func NewNamespaceController(namespace string) (*NamespaceController, error) {
@@ -34,13 +35,17 @@ func NewNamespaceController(namespace string) (*NamespaceController, error) {
 }
 
 func (w *NamespaceController) Start() {
-	routerConfigHandler := NewRouterConfigHandler(w.stopCh, w.ns)
-	routerStateHandler := NewRouterStateHandler(w.ns)
-	routerConfigHandler.AddCallback(routerStateHandler)
-	collectorLifecycleHandler := NewCollectorLifecycleHandler(w.ns)
-	routerStateHandler.SetCallback(collectorLifecycleHandler)
-	w.watcher.Add(api.GetInternalOutputPath(w.ns, api.RouterConfigPath), routerConfigHandler)
-	w.watcher.Add(api.GetInternalOutputPath(w.ns, api.RuntimeSiteStatePath), NewNetworkStatusHandler(w.ns))
+	if w.prepare == nil {
+		routerConfigHandler := NewRouterConfigHandler(w.stopCh, w.ns)
+		routerStateHandler := NewRouterStateHandler(w.ns)
+		routerConfigHandler.AddCallback(routerStateHandler)
+		collectorLifecycleHandler := NewCollectorLifecycleHandler(w.ns)
+		routerStateHandler.SetCallback(collectorLifecycleHandler)
+		w.watcher.Add(api.GetInternalOutputPath(w.ns, api.RouterConfigPath), routerConfigHandler)
+		w.watcher.Add(api.GetInternalOutputPath(w.ns, api.RuntimeSiteStatePath), NewNetworkStatusHandler(w.ns))
+	} else {
+		w.prepare()
+	}
 	w.watcher.Start(w.stopCh)
 	go w.run()
 }

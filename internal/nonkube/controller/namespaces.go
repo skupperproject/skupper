@@ -56,6 +56,8 @@ func (n *NamespacesHandler) Start(stop chan struct{}, wg *sync.WaitGroup) error 
 
 func (n *NamespacesHandler) wait(stop chan struct{}, wg *sync.WaitGroup) {
 	<-stop
+	n.mutex.Lock()
+	defer n.mutex.Unlock()
 	n.logger.Info("Stopping namespaces watcher")
 	for _, nsh := range n.namespaces {
 		nsh.Stop()
