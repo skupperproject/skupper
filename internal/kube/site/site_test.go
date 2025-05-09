@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/kube/certificates"
-	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/internal/kube/securedaccess"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	"github.com/skupperproject/skupper/internal/qdr"
 	site1 "github.com/skupperproject/skupper/internal/site"
 	"github.com/skupperproject/skupper/internal/version"
@@ -1037,9 +1037,9 @@ func newSiteMocks(namespace string, k8sObjects []runtime.Object, skupperObjects 
 		return nil, err
 	}
 
-	controller := internalclient.NewController("test", client)
+	controller := watchers.NewEventProcessor("test", client)
 	newSite := &Site{
-		controller: controller,
+		clients:    controller,
 		bindings:   NewExtendedBindings(controller, ""),
 		links:      make(map[string]*site1.Link),
 		errors:     make(map[string]string),

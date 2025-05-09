@@ -10,6 +10,7 @@ import (
 	fakeroute "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1/fake"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	fakev2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1/fake"
 	"gotest.tools/v3/assert"
@@ -696,7 +697,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			certs := newMockCertificateManager()
 			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: "test"})
 			w := NewSecuredAccessResourceWatcher(m)
-			controller := internalclient.NewController("Controller", client)
+			controller := watchers.NewEventProcessor("Controller", client)
 			w.WatchResources(controller, metav1.NamespaceAll)
 			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv2alpha1.SecuredAccess) error { return nil })
 			stopCh := make(chan struct{})
@@ -1199,7 +1200,7 @@ func TestGateway(t *testing.T) {
 			certs := newMockCertificateManager()
 			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: tt.namespace})
 			w := NewSecuredAccessResourceWatcher(m)
-			controller := internalclient.NewController("Controller", client)
+			controller := watchers.NewEventProcessor("Controller", client)
 			w.WatchResources(controller, metav1.NamespaceAll)
 			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv2alpha1.SecuredAccess) error { return nil })
 			w.WatchGateway(controller, tt.namespace)

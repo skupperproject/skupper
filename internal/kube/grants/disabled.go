@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
@@ -24,10 +25,10 @@ func (s *GrantsDisabled) markGrantNotEnabled(key string, grant *skupperv2alpha1.
 	return nil
 }
 
-func disabled(controller *internalclient.Controller, watchNamespace string) *GrantsDisabled {
+func disabled(eventProcessor *watchers.EventProcessor, watchNamespace string) *GrantsDisabled {
 	mgr := &GrantsDisabled{
-		clients: controller,
+		clients: eventProcessor,
 	}
-	controller.WatchAccessGrants(watchNamespace, mgr.markGrantNotEnabled)
+	eventProcessor.WatchAccessGrants(watchNamespace, mgr.markGrantNotEnabled)
 	return mgr
 }

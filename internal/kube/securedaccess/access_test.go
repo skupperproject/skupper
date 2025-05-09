@@ -11,6 +11,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -2460,7 +2461,7 @@ func TestSecuredAccessDeleted(t *testing.T) {
 			certs := newMockCertificateManager()
 			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: "test"})
 			w := NewSecuredAccessResourceWatcher(m)
-			controller := internalclient.NewController("Controller", client)
+			controller := watchers.NewEventProcessor("Controller", client)
 			w.WatchResources(controller, metav1.NamespaceAll)
 			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv2alpha1.SecuredAccess) error { return nil })
 			stopCh := make(chan struct{})
@@ -3534,7 +3535,7 @@ func TestRecreateOnDelete(t *testing.T) {
 			certs := newMockCertificateManager()
 			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: "test"})
 			w := NewSecuredAccessResourceWatcher(m)
-			controller := internalclient.NewController("Controller", client)
+			controller := watchers.NewEventProcessor("Controller", client)
 			w.WatchResources(controller, metav1.NamespaceAll)
 			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv2alpha1.SecuredAccess) error { return nil })
 			stopCh := make(chan struct{})
