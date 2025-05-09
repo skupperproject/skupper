@@ -3,8 +3,10 @@ package certificates
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/skupperproject/skupper/internal/certs"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/internal/kube/watchers"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -24,6 +26,7 @@ type FakeContext struct {
 }
 
 func TestCertificateManager(t *testing.T) {
+	myCaFixture := fixtureCASecret(t, "my-ca", "test")
 	testTable := []struct {
 		name                 string
 		k8sObjects           []runtime.Object
@@ -36,7 +39,7 @@ func TestCertificateManager(t *testing.T) {
 		{
 			name: "simple recovery",
 			k8sObjects: []runtime.Object{
-				secret("my-ca", "test", nil, nil, nil),
+				myCaFixture,
 			},
 			skupperObjects: []runtime.Object{
 				certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil),
@@ -52,7 +55,7 @@ func TestCertificateManager(t *testing.T) {
 		{
 			name: "recovery namespace not controlled",
 			k8sObjects: []runtime.Object{
-				secret("my-ca", "test", nil, nil, nil),
+				myCaFixture,
 			},
 			skupperObjects: []runtime.Object{
 				certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil),
@@ -68,7 +71,7 @@ func TestCertificateManager(t *testing.T) {
 		{
 			name: "recovery namespace is controlled",
 			k8sObjects: []runtime.Object{
-				secret("my-ca", "test", nil, nil, nil),
+				myCaFixture,
 			},
 			skupperObjects: []runtime.Object{
 				certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil),
@@ -85,7 +88,7 @@ func TestCertificateManager(t *testing.T) {
 		{
 			name: "update hosts for same owner",
 			k8sObjects: []runtime.Object{
-				secret("my-ca", "test", nil, nil, nil),
+				myCaFixture,
 			},
 			skupperObjects: []runtime.Object{},
 			context:        fakeContext().control("test").label("foo", "bar").annotate("x", "y"),
@@ -104,7 +107,7 @@ func TestCertificateManager(t *testing.T) {
 		{
 			name: "no change required",
 			k8sObjects: []runtime.Object{
-				secret("my-ca", "test", nil, nil, nil),
+				myCaFixture,
 			},
 			skupperObjects: []runtime.Object{},
 			context:        fakeContext().control("test"),
@@ -123,7 +126,7 @@ func TestCertificateManager(t *testing.T) {
 		{
 			name: "merge hosts for different owners",
 			k8sObjects: []runtime.Object{
-				secret("my-ca", "test", nil, nil, nil),
+				myCaFixture,
 			},
 			skupperObjects: []runtime.Object{},
 			context:        fakeContext().control("test"),
@@ -142,7 +145,7 @@ func TestCertificateManager(t *testing.T) {
 		{
 			name: "update subject",
 			k8sObjects: []runtime.Object{
-				secret("my-ca", "test", nil, nil, nil),
+				myCaFixture,
 			},
 			skupperObjects: []runtime.Object{},
 			context:        fakeContext().control("test").label("foo", "bar").annotate("x", "y"),
@@ -179,7 +182,7 @@ func TestCertificateManager(t *testing.T) {
 		{
 			name: "update hosts for recovered certificate",
 			k8sObjects: []runtime.Object{
-				secret("my-ca", "test", nil, nil, nil),
+				myCaFixture,
 			},
 			skupperObjects: []runtime.Object{
 				certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil),
@@ -199,7 +202,7 @@ func TestCertificateManager(t *testing.T) {
 		{
 			name: "attempted update of non-controlled secret",
 			k8sObjects: []runtime.Object{
-				secret("my-ca", "test", nil, nil, nil),
+				myCaFixture,
 			},
 			calls: []*Call{
 				call("my-ca", "test").ensureCa("my-subject"),
@@ -513,4 +516,11 @@ func (c *Call) owner(name string, uid string) *Call {
 func (c *Call) eventcount(events int) *Call {
 	c.events = events
 	return c
+}
+
+func fixtureCASecret(t *testing.T, name, namespace string) *corev1.Secret {
+	t.Helper()
+	secret := certs.GenerateSecret(name, "skupper test CA", "", time.Hour*8, nil)
+	secret.Namespace = namespace
+	return &secret
 }
