@@ -13,6 +13,8 @@ import (
 )
 
 func TestNamespacesHandler(t *testing.T) {
+	var m sync.Mutex
+
 	if os.Getuid() == 0 {
 		t.Logf("Test is running as root, /var/lib/skupper will be used instead of $XDG_DATA_HOME")
 	}
@@ -41,6 +43,8 @@ func TestNamespacesHandler(t *testing.T) {
 	t.Run("create-namespace", func(t *testing.T) {
 		assert.Assert(t, os.Mkdir(path.Join(namespacesPath, "after"), 0755))
 		assert.Assert(t, utils.Retry(time.Millisecond*100, 10, func() (bool, error) {
+			nsHandler.mutex.Lock()
+			defer nsHandler.mutex.Unlock()
 			return len(nsHandler.namespaces) == 2, nil
 		}), "namespace controller did not start for namespace 'after'")
 		nsCtrlAfter = nsHandler.namespaces["after"]
@@ -51,10 +55,16 @@ func TestNamespacesHandler(t *testing.T) {
 		nsCtrlAfterStopped := false
 		go func() {
 			<-nsCtrlAfter.stopCh
+			m.Lock()
+			defer m.Unlock()
 			nsCtrlAfterStopped = true
 		}()
 		assert.Assert(t, os.Remove(path.Join(namespacesPath, "after")))
 		assert.Assert(t, utils.Retry(time.Millisecond*100, 10, func() (bool, error) {
+			m.Lock()
+			defer m.Unlock()
+			nsHandler.mutex.Lock()
+			defer nsHandler.mutex.Unlock()
 			return nsCtrlAfterStopped && len(nsHandler.namespaces) == 1, nil
 		}), "namespace controller did not stop")
 	})
@@ -63,10 +73,14 @@ func TestNamespacesHandler(t *testing.T) {
 		stopped := false
 		go func() {
 			wg.Wait()
+			m.Lock()
+			defer m.Unlock()
 			stopped = true
 		}()
 		close(stopCh)
 		assert.Assert(t, utils.Retry(time.Millisecond*100, 10, func() (bool, error) {
+			m.Lock()
+			defer m.Unlock()
 			return stopped, nil
 		}), "controller did not stop")
 	})
