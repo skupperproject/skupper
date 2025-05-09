@@ -6,14 +6,14 @@ package nonkube
 import (
 	"errors"
 	"fmt"
-	"net"
-
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"log/slog"
 )
 
 type CmdSiteCreate struct {
@@ -24,7 +24,6 @@ type CmdSiteCreate struct {
 	siteName                string
 	linkAccessEnabled       bool
 	namespace               string
-	bindHost                string
 	routerAccessName        string
 	subjectAlternativeNames []string
 }
@@ -45,12 +44,7 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 
 func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 	var validationErrors []error
-	hostStringValidator := validator.NewHostStringValidator()
 	resourceStringValidator := validator.NewResourceStringValidator()
-
-	if cmd.Flags.ServiceAccount != "" {
-		fmt.Println("Warning: --service-account flag is not supported on this platform")
-	}
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
 		fmt.Println("Warning: --context flag is not supported on this platform")
@@ -72,38 +66,26 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 		cmd.siteName = args[0]
 	}
 
-	if cmd.Flags != nil && cmd.Flags.BindHost != "" {
-		ip := net.ParseIP(cmd.Flags.BindHost)
-		ok, _ := hostStringValidator.Evaluate(cmd.Flags.BindHost)
-		if !ok && ip == nil {
-			validationErrors = append(validationErrors, fmt.Errorf("bindhost is not valid: a valid IP address or hostname is expected"))
-		}
-	}
-	if cmd.Flags != nil && len(cmd.Flags.SubjectAlternativeNames) != 0 {
-		for _, name := range cmd.Flags.SubjectAlternativeNames {
-			ip := net.ParseIP(name)
-			ok, _ := hostStringValidator.Evaluate(name)
-			if !ok && ip == nil {
-				validationErrors = append(validationErrors, fmt.Errorf("SubjectAlternativeNames is not valid: a valid IP address or hostname is expected"))
-			}
-		}
-	}
-
 	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdSiteCreate) InputToOptions() {
 
 	if cmd.Flags.EnableLinkAccess {
+		sanByDefault, err := utils.GetSansByDefault()
+		if err != nil {
+			slog.Error("Error getting SANs by default")
+		}
+
 		cmd.linkAccessEnabled = true
-		cmd.bindHost = cmd.Flags.BindHost
 		cmd.routerAccessName = "router-access-" + cmd.siteName
-		cmd.subjectAlternativeNames = cmd.Flags.SubjectAlternativeNames
+		cmd.subjectAlternativeNames = sanByDefault
 	}
 
 	if cmd.namespace == "" {
 		cmd.namespace = "default"
 	}
+
 }
 
 func (cmd *CmdSiteCreate) Run() error {
@@ -139,7 +121,6 @@ func (cmd *CmdSiteCreate) Run() error {
 					Port: 45671,
 				},
 			},
-			BindHost:                cmd.bindHost,
 			SubjectAlternativeNames: cmd.subjectAlternativeNames,
 		},
 	}

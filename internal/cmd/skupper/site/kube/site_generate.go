@@ -18,15 +18,15 @@ import (
 )
 
 type CmdSiteGenerate struct {
-	Client             skupperv2alpha1.SkupperV2alpha1Interface
-	KubeClient         kubernetes.Interface
-	CobraCmd           *cobra.Command
-	Flags              *common.CommandSiteGenerateFlags
-	siteName           string
-	serviceAccountName string
-	Namespace          string
-	linkAccessType     string
-	output             string
+	Client         skupperv2alpha1.SkupperV2alpha1Interface
+	KubeClient     kubernetes.Interface
+	CobraCmd       *cobra.Command
+	Flags          *common.CommandSiteGenerateFlags
+	siteName       string
+	Namespace      string
+	linkAccessType string
+	output         string
+	HA             bool
 }
 
 func NewCmdSiteGenerate() *CmdSiteGenerate {
@@ -72,12 +72,6 @@ func (cmd *CmdSiteGenerate) ValidateInput(args []string) error {
 		validationErrors = append(validationErrors, fmt.Errorf("for the site to work with this type of linkAccess, the --enable-link-access option must be set to true"))
 	}
 
-	if cmd.Flags != nil && cmd.Flags.ServiceAccount != "" {
-		ok, err := resourceStringValidator.Evaluate(cmd.Flags.ServiceAccount)
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("service account name is not valid: %s", err))
-		}
-	}
 	if cmd.Flags != nil && cmd.Flags.Output != "" {
 		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
 		if !ok {
@@ -89,8 +83,6 @@ func (cmd *CmdSiteGenerate) ValidateInput(args []string) error {
 }
 
 func (cmd *CmdSiteGenerate) InputToOptions() {
-
-	cmd.serviceAccountName = cmd.Flags.ServiceAccount
 
 	if cmd.Flags.EnableLinkAccess {
 		if cmd.Flags.LinkAccessType == "" {
@@ -105,6 +97,8 @@ func (cmd *CmdSiteGenerate) InputToOptions() {
 	} else {
 		cmd.output = "yaml"
 	}
+
+	cmd.HA = cmd.Flags.EnableHA
 }
 
 func (cmd *CmdSiteGenerate) Run() error {
@@ -119,8 +113,8 @@ func (cmd *CmdSiteGenerate) Run() error {
 			Namespace: cmd.Namespace,
 		},
 		Spec: v2alpha1.SiteSpec{
-			ServiceAccount: cmd.serviceAccountName,
-			LinkAccess:     cmd.linkAccessType,
+			LinkAccess: cmd.linkAccessType,
+			HA:         cmd.HA,
 		},
 	}
 
