@@ -29,10 +29,11 @@ const (
 type IdGetter func() int
 
 var getUid IdGetter = os.Getuid
+var DefaultRootDataHome = "/var/lib/skupper"
 
 func GetDataHome() string {
 	if getUid() == 0 {
-		return "/var/lib/skupper"
+		return DefaultRootDataHome
 	}
 	dataHome, ok := os.LookupEnv("XDG_DATA_HOME")
 	if !ok {

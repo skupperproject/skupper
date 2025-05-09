@@ -11,11 +11,12 @@ import (
 )
 
 func TestGetLocalRouterAddress(t *testing.T) {
-	if os.Getuid() == 0 {
-		t.Logf("Test is running as root, /var/lib/skupper will be used instead of $XDG_DATA_HOME")
-	}
 	tempDir := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", tempDir)
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = tempDir
+	} else {
+		t.Setenv("XDG_DATA_HOME", tempDir)
+	}
 
 	namespace := "test-get-local-router-address"
 	var ss = api.NewSiteState(false)

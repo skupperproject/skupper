@@ -32,11 +32,12 @@ func TestNetworkStatusHandler(t *testing.T) {
 	var nsCtrl *NamespaceController
 	var nsHandler *NetworkStatusHandler
 
+	tempDir := t.TempDir()
 	if os.Getuid() == 0 {
-		t.Logf("Test is running as root, /var/lib/skupper will be used instead of $XDG_DATA_HOME")
+		api.DefaultRootDataHome = tempDir
+	} else {
+		t.Setenv("XDG_DATA_HOME", tempDir)
 	}
-	dir := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", dir)
 	namespacesPath := api.GetDefaultOutputNamespacesPath()
 	assert.Assert(t, os.MkdirAll(namespacesPath, 0755))
 	namespace := "test-network-status-handler"
