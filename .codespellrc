@@ -3,4 +3,4 @@
 skip = .git*,go.sum,.codespellrc
 check-hidden = true
 # ignore-regex = 
-# ignore-words-list =
+ignore-words-list = dne,haa
