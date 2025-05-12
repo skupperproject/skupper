@@ -16,6 +16,7 @@ const (
 	Sites          string = "Site"
 	RouterAccesses string = "RouterAccess"
 	Links          string = "Link"
+	AccessTokens   string = "AccessToken"
 )
 
 const (
