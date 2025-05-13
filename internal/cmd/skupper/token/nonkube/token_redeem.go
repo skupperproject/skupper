@@ -62,7 +62,7 @@ func (cmd *CmdTokenRedeem) ValidateInput(args []string) error {
 	if cmd.fileName != "" {
 		_, err := os.Stat(cmd.fileName)
 		if err != nil {
-			validationErrors = append(validationErrors, fmt.Errorf("token file does not exist: %s", err))
+			validationErrors = append(validationErrors, fmt.Errorf("cannot open token file: %s", err))
 		}
 	}
 
@@ -79,7 +79,10 @@ func (cmd *CmdTokenRedeem) Run() error {
 		return err
 	}
 	resource := json.NewSerializerWithOptions(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme, json.SerializerOptions{Yaml: true})
-	resource.Decode(tokenFile, nil, &accessToken)
+	_, _, err = resource.Decode(tokenFile, nil, &accessToken)
+	if err != nil {
+		return err
+	}
 
 	accessToken.Namespace = cmd.Namespace
 	cmd.name = accessToken.Name

@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -86,6 +87,7 @@ func TestCmdTokenRedeem_Run(t *testing.T) {
 	type test struct {
 		name         string
 		errorMessage string
+		errorType    string
 	}
 
 	tmpDir := filepath.Join(t.TempDir(), "/skupper")
@@ -103,6 +105,12 @@ func TestCmdTokenRedeem_Run(t *testing.T) {
 		{
 			name:         "token is not redeemed",
 			errorMessage: "resource name is required",
+			errorType:    "noResourceName",
+		},
+		{
+			name:         "malformed file is trying to be redeemed ",
+			errorMessage: "couldn't get version/kind; json parse error:",
+			errorType:    "malformedFile",
 		},
 	}
 
@@ -114,19 +122,21 @@ func TestCmdTokenRedeem_Run(t *testing.T) {
 		command.accessTokenHandler = fs.NewAccessTokenHandler(command.Namespace)
 		command.fileName = tokenFile
 
-		if test.errorMessage == "" {
-			err = newAccessTokenFile(tokenFile, false)
-		} else {
+		switch test.errorType {
+		case "malformedFile":
+			err = newMalformedTokenFile(tokenFile)
+		case "noResourceName":
 			err = newAccessTokenFile(tokenFile, true)
+		default:
+			err = newAccessTokenFile(tokenFile, false)
 		}
-
 		assert.Check(t, err == nil)
 
 		t.Run(test.name, func(t *testing.T) {
 
 			err := command.Run()
 			if err != nil {
-				assert.Check(t, test.errorMessage == err.Error())
+				assert.Check(t, strings.HasPrefix(err.Error(), test.errorMessage), fmt.Sprintf("Expected: %s, Found: %s", test.errorMessage, err.Error()))
 			} else {
 				assert.Check(t, err == nil)
 			}
@@ -135,6 +145,11 @@ func TestCmdTokenRedeem_Run(t *testing.T) {
 }
 
 // --- helper methods
+func newMalformedTokenFile(fileName string) error {
+	content := []byte("Not an AccessToken")
+	err := os.WriteFile(fileName, content, 0644)
+	return err
+}
 
 func newAccessTokenFile(fileName string, withErrors bool) error {
 
