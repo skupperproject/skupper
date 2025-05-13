@@ -415,13 +415,13 @@ func fakeSiteState() *api.SiteState {
 					},
 				},
 			},
-			"local-access-one": {
+			"skupper-local": {
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "RouterAccess",
 					APIVersion: "skupper.io/v2alpha1",
 				},
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "local-access-one",
+					Name: "skupper-local",
 				},
 				Spec: v2alpha1.RouterAccessSpec{
 					Roles: []v2alpha1.RouterAccessRole{
@@ -430,7 +430,7 @@ func fakeSiteState() *api.SiteState {
 							Port: 5671,
 						},
 					},
-					TlsCredentials: "local-access-one",
+					TlsCredentials: "skupper-local",
 					BindHost:       "127.0.0.1",
 					SubjectAlternativeNames: []string{
 						"localhost",

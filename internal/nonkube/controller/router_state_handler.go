@@ -75,12 +75,12 @@ func (h *RouterStateHandler) handleParentStop(stopCh <-chan struct{}) {
 		h.mux.Unlock()
 		select {
 		case <-stopCh:
-			h.logger.Debug("Parent channel closed")
+			h.logger.Info("Parent channel closed")
 			h.Stop()
 		case <-t.C:
 		}
 	}
-	h.logger.Debug("Stopped")
+	h.logger.Info("Stopped")
 }
 
 func newHeartBeatsClient(namespace string) *heartBeatsClient {
@@ -127,6 +127,7 @@ func (h *heartBeatsClient) Stop() {
 	h.running = false
 	if h.receiver != nil {
 		_ = h.receiver.Close()
+		h.receiver = nil
 	}
 }
 
@@ -218,7 +219,7 @@ func (h *heartBeatsClient) run(stopCh <-chan struct{}) {
 			break
 		}
 	}
-	h.logger.Debug("Exiting")
+	h.logger.Info("Exiting")
 }
 
 func (h *heartBeatsClient) getSiteId() (string, error) {
