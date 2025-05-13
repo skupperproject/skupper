@@ -98,9 +98,12 @@ func TestCmdLinkGenerate_Run(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
-			tmpDir := filepath.Join(t.TempDir(), "/skupper")
-			err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
-			assert.Check(t, err == nil)
+			if os.Getuid() == 0 {
+				api.DefaultRootDataHome = t.TempDir()
+			} else {
+				t.Setenv("XDG_DATA_HOME", t.TempDir())
+			}
+			tmpDir := api.GetDataHome()
 			sitePath := filepath.Join(tmpDir, "/namespaces/test/", string(api.RuntimeSiteStatePath))
 			linkPath := filepath.Join(tmpDir, "/namespaces/test", string(api.RuntimeTokenPath))
 

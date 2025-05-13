@@ -2,10 +2,13 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/util/jsonpath"
+	"k8s.io/utils/strings/slices"
 	"sigs.k8s.io/yaml"
 )
 
@@ -31,6 +35,7 @@ func TestNetworkStatusHandler(t *testing.T) {
 	var err error
 	var nsCtrl *NamespaceController
 	var nsHandler *NetworkStatusHandler
+	var logHandler *testLogHandler
 
 	tempDir := t.TempDir()
 	if os.Getuid() == 0 {
@@ -59,6 +64,13 @@ func TestNetworkStatusHandler(t *testing.T) {
 		nsCtrl.prepare = func() {
 			nsCtrl.watcher.Add(runtimePath, nsHandler)
 		}
+
+		// Custom Log Handler (intercept messages)
+		logHandler = &testLogHandler{
+			handler: nsHandler.logger.Handler(),
+		}
+		nsHandler.logger = slog.New(logHandler)
+
 		nsCtrl.Start()
 	})
 
@@ -95,6 +107,52 @@ func TestNetworkStatusHandler(t *testing.T) {
 		assert.Assert(t, verifyJsonPathExpected(namespace, "Link", "link-one", "{.status.conditions[?(@.type=='Operational')].status}", "False"))
 	})
 
+	t.Run("stop-network-status-handler", func(t *testing.T) {
+		nsCtrl.Stop()
+		err = utils.Retry(time.Second*delaySecs, attempts, func() (bool, error) {
+			t.Log(logHandler.messages)
+			return slices.Contains(logHandler.messages, "Stop event processing"), nil
+		})
+		assert.Assert(t, err)
+	})
+
+}
+
+type testLogHandler struct {
+	handler  slog.Handler
+	messages []string
+	mux      sync.Mutex
+}
+
+func (t *testLogHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return true
+}
+
+func (t *testLogHandler) Handle(ctx context.Context, record slog.Record) error {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	t.messages = append(t.messages, record.Message)
+	return t.handler.Handle(ctx, record)
+}
+
+func (t *testLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return t.handler.WithAttrs(attrs)
+}
+
+func (t *testLogHandler) WithGroup(name string) slog.Handler {
+	return t.handler.WithGroup(name)
+}
+
+func (t *testLogHandler) Count(message string) int {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	count := 0
+	for _, msg := range t.messages {
+		if msg == message {
+			count++
+		}
+	}
+	return count
 }
 
 func verifyJsonPathExpected(namespace, kind, name, jsonPath, expected string) error {

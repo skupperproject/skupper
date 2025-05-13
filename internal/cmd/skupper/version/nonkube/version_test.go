@@ -8,6 +8,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/utils/configs"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/v3/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -58,11 +59,15 @@ func TestCmdVersion_ValidateInput(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			tmpDir := filepath.Join(t.TempDir(), "/skupper")
-			err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
+			if os.Getuid() == 0 {
+				api.DefaultRootDataHome = t.TempDir()
+			} else {
+				t.Setenv("XDG_DATA_HOME", t.TempDir())
+			}
+			tmpDir := api.GetDataHome()
 
 			nestedDir := filepath.Join(tmpDir, "namespaces", "test")
-			err = os.MkdirAll(nestedDir, os.ModePerm)
+			err := os.MkdirAll(nestedDir, os.ModePerm)
 			if err != nil {
 				t.Fatalf("failed to create directories: %v", err)
 			}
