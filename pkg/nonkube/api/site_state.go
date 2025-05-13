@@ -80,7 +80,7 @@ func (s *SiteState) IsInterior() bool {
 func (s *SiteState) HasRouterAccess() bool {
 	for _, la := range s.RouterAccesses {
 		for _, role := range la.Spec.Roles {
-			if role.Name == "normal" {
+			if la.Name == "skupper-local" && role.Name == "normal" {
 				return true
 			}
 		}

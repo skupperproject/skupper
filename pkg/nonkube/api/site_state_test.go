@@ -115,7 +115,7 @@ func TestSiteState_ToRouterConfig(t *testing.T) {
 			assert.Equal(t, len(routerConfig.SslProfiles), 7)
 			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["link-access-one"].CaCertFile, sslProfileBasePath))
 			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["link-one-profile"].CaCertFile, sslProfileBasePath))
-			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["local-access-one"].CaCertFile, sslProfileBasePath))
+			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["skupper-local"].CaCertFile, sslProfileBasePath))
 			assert.Equal(t, len(routerConfig.Bridges.TcpListeners), 2)
 			assert.Equal(t, len(routerConfig.Bridges.TcpConnectors), 1)
 			assert.Assert(t, routerConfig.SiteConfig != nil)
@@ -344,9 +344,9 @@ func fakeSiteState() *SiteState {
 					},
 				},
 			},
-			"local-access-one": {
+			"skupper-local": {
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "local-access-one",
+					Name: "skupper-local",
 				},
 				Spec: v2alpha1.RouterAccessSpec{
 					Roles: []v2alpha1.RouterAccessRole{
@@ -355,7 +355,7 @@ func fakeSiteState() *SiteState {
 							Port: 5671,
 						},
 					},
-					TlsCredentials: "local-access-one",
+					TlsCredentials: "skupper-local",
 					BindHost:       "127.0.0.1",
 					SubjectAlternativeNames: []string{
 						"localhost",

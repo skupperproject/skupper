@@ -33,7 +33,7 @@ def usage():
     """
     Shows usage and exit with return code 1
     """
-    print("Usage: %s skrouterd.json" %(sys.argv[0]))
+    print("Usage: {} skrouterd.json".format(sys.argv[0]), file=sys.stderr)
     sys.exit(1)
 
 
@@ -45,7 +45,7 @@ def main():
         usage()
     config_file = sys.argv[1]
     if not os.path.isfile(config_file):
-        print("Invalid router config file: %s" %(config_file))
+        print("Invalid router config file: {}".format(config_file), file=sys.stderr)
         usage()
 
     data = {}
@@ -56,10 +56,11 @@ def main():
         if entry[0] != 'listener':
             continue
         listener = entry[1]
-        if listener['role'] == 'normal':
+        if listener['name'] == "skupper-local-normal" and listener['role'] == 'normal':
             free_port = next_free_port()
             listener['port'] = free_port
-
+            print("{}".format(free_port))
+            break
     f.close()
 
     with open(config_file, "w") as f:
