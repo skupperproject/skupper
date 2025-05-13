@@ -2,8 +2,6 @@ package controller
 
 import (
 	"log/slog"
-	"os"
-	"path"
 	"strings"
 )
 
@@ -42,10 +40,6 @@ func (r *RouterConfigHandler) OnRemove(name string) {
 }
 
 func (r *RouterConfigHandler) OnBasePathAdded(basePath string) {
-	routerConfigFile := path.Join(basePath, "skrouterd.json")
-	if _, err := os.Stat(routerConfigFile); err == nil {
-		r.OnCreate(routerConfigFile)
-	}
 }
 
 func (r *RouterConfigHandler) OnUpdate(name string) {

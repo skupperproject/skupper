@@ -6,12 +6,13 @@ package nonkube
 import (
 	"errors"
 	"fmt"
+	"os"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	nonkubecommon "github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 type CmdLinkGenerate struct {
@@ -73,7 +74,7 @@ func (cmd *CmdLinkGenerate) InputToOptions() {
 }
 func (cmd *CmdLinkGenerate) Run() error {
 
-	hostTokenPath := api.GetHostSiteInternalPath(cmd.siteState.Site, api.RuntimeTokenPath)
+	hostTokenPath := api.GetInternalOutputPath(cmd.siteState.Site.Namespace, api.RuntimeTokenPath)
 
 	opts := fs.GetOptions{
 		LogWarning: false,
