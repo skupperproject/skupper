@@ -221,32 +221,6 @@ func (h *heartBeatsClient) run(stopCh <-chan struct{}) {
 	h.logger.Debug("Exiting")
 }
 
-//func (h *heartBeatsClient) handleShutdown(stopCh <-chan struct{}) {
-//	select {
-//	case <-stopCh:
-//		h.reset()
-//	case <-h.running:
-//		h.reset()
-//	}
-//	h.logger.Debug("heartbeat client has shutdown")
-//}
-
-//func (h *heartBeatsClient) reset() {
-//	h.mutex.Lock()
-//	defer h.mutex.Unlock()
-//	if h.running == nil {
-//		return
-//	}
-//	h.logger.Info("Stopping heartBeatsClient")
-//	if h.receiver != nil {
-//		_ = h.receiver.Close()
-//	}
-//	h.running = nil
-//	h.siteId = ""
-//	h.url = ""
-//	h.address = ""
-//}
-
 func (h *heartBeatsClient) getSiteId() (string, error) {
 	if h.siteId != "" {
 		return h.siteId, nil
