@@ -1163,9 +1163,12 @@ func (s *Site) updateRouterAccessStatus(la *skupperv2alpha1.RouterAccess) {
 }
 
 func asSecuredAccessSpec(la *skupperv2alpha1.RouterAccess, group string, defaultIssuer string) skupperv2alpha1.SecuredAccessSpec {
-	issuer := la.Spec.Issuer
-	if issuer == "" {
-		issuer = defaultIssuer
+	issuer := ""
+	if la.Spec.GenerateTlsCredentials {
+		issuer = la.Spec.Issuer
+		if issuer == "" {
+			issuer = defaultIssuer
+		}
 	}
 	spec := skupperv2alpha1.SecuredAccessSpec{
 		AccessType: la.Spec.AccessType,
