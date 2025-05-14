@@ -1162,28 +1162,28 @@ func (s *Site) updateRouterAccessStatus(la *skupperv2alpha1.RouterAccess) {
 	}
 }
 
-func asSecuredAccessSpec(la *skupperv2alpha1.RouterAccess, group string, defaultIssuer string) skupperv2alpha1.SecuredAccessSpec {
+func asSecuredAccessSpec(routerAccess *skupperv2alpha1.RouterAccess, group string, defaultIssuer string) skupperv2alpha1.SecuredAccessSpec {
 	issuer := ""
-	if la.Spec.GenerateTlsCredentials {
-		issuer = la.Spec.Issuer
+	if routerAccess.Spec.GenerateTlsCredentials {
+		issuer = routerAccess.Spec.Issuer
 		if issuer == "" {
 			issuer = defaultIssuer
 		}
 	}
 	spec := skupperv2alpha1.SecuredAccessSpec{
-		AccessType: la.Spec.AccessType,
+		AccessType: routerAccess.Spec.AccessType,
 		Selector: map[string]string{
 			"skupper.io/component": "router",
 		},
-		Certificate: la.Spec.TlsCredentials,
+		Certificate: routerAccess.Spec.TlsCredentials,
 		Issuer:      issuer,
-		Settings:    la.Spec.Settings,
+		Settings:    routerAccess.Spec.Settings,
 	}
 	if group != "" {
 		//add extra label to allow for distinct sets of routers in HA
 		spec.Selector["skupper.io/group"] = group
 	}
-	for _, role := range la.Spec.Roles {
+	for _, role := range routerAccess.Spec.Roles {
 		spec.Ports = append(spec.Ports, skupperv2alpha1.SecuredAccessPort{
 			Name:       role.Name,
 			Port:       role.Port,
