@@ -94,7 +94,7 @@ func (n *NamespacesHandler) OnCreate(name string) {
 	if name == n.basePath {
 		n.logger.Info("Base path created, starting namespaces watcher")
 		if err := n.loadExistingNamespaces(); err != nil {
-			n.logger.Info("failed to create watchers for existing namespaces", slog.Any("error", err))
+			n.logger.Error("failed to create watchers for existing namespaces", slog.Any("error", err))
 		}
 		return
 	}
