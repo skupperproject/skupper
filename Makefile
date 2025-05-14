@@ -7,14 +7,11 @@ TESTFLAGS := -v -race -short
 GOOS ?= linux
 GOARCH ?= amd64
 
-REGISTRY := quay.io/fgiorgetti
-#REGISTRY := quay.io/skupper
+REGISTRY := quay.io/skupper
 IMAGE_TAG := v2-dev
 ROUTER_IMAGE_TAG := main
-PLATFORMS ?= linux/amd64
-#PLATFORMS ?= linux/amd64,linux/arm64
-CONTAINERFILES := Dockerfile.user-controller Dockerfile.cli
-#CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer Dockerfile.user-controller
+PLATFORMS ?= linux/amd64,linux/arm64
+CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer Dockerfile.system-controller
 SHARED_IMAGE_LABELS = \
     --label "org.opencontainers.image.created=$(shell TZ=GMT date --iso-8601=seconds)" \
 	--label "org.opencontainers.image.url=https://skupper.io/" \
@@ -60,9 +57,9 @@ build-doc-generator: generate-doc
 generate-doc: $(call pkgdeps,./internal/cmd/generate-doc)
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o $@ ./internal/cmd/generate-doc
 
-build-user-controller: controller
-user-controller: $(call pkgdeps,./cmd/user-controller)
-	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o $@ ./cmd/user-controller
+build-system-controller: system-controller
+system-controller: $(call pkgdeps,./cmd/system-controller)
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o $@ ./cmd/system-controller
 
 ## native/default container image builds
 docker-build: $(patsubst Dockerfile.%,docker-build-%,$(CONTAINERFILES))

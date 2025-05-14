@@ -44,7 +44,7 @@ func (c *Controller) ensureSingleInstance(stop chan struct{}) {
 		log.Fatalf("Unable to create lock file: %v", err)
 	}
 	if err = syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		log.Fatalf("User controller is already running, exiting")
+		log.Fatalf("System controller is already running, exiting")
 	}
 	go func() {
 		<-stop

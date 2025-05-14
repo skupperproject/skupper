@@ -19,7 +19,7 @@ func main() {
 	parseFlags()
 	log.Printf("Version: %s", version.Version)
 	namespacesPath := api.GetDefaultOutputNamespacesPath()
-	log.Printf("Skupper User Controller watching %s", namespacesPath)
+	log.Printf("Skupper System Controller watching %s", namespacesPath)
 	if api.IsRunningInContainer() {
 		log.Printf("Host path %s", api.GetHostNamespacesPath())
 	}
@@ -41,7 +41,7 @@ func handleShutdown(stop chan struct{}, wait *sync.WaitGroup) {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	<-sigs
-	log.Println("Shutting down user controller")
+	log.Println("Shutting down system controller")
 
 	close(stop)
 
@@ -55,13 +55,13 @@ func handleShutdown(stop chan struct{}, wait *sync.WaitGroup) {
 	for {
 		select {
 		case <-sigs:
-			log.Println("Second interrupt, forcing user controller shutdown")
+			log.Println("Second interrupt, forcing system controller shutdown")
 			os.Exit(1)
 		case <-gracefulTimeout.C:
 			log.Println("Graceful shutdown timed out, exiting now")
 			os.Exit(1)
 		case <-graceful:
-			log.Println("User controller shutdown completed")
+			log.Println("System controller shutdown completed")
 			os.Exit(0)
 		}
 	}
@@ -69,7 +69,7 @@ func handleShutdown(stop chan struct{}, wait *sync.WaitGroup) {
 
 func parseFlags() {
 	flags := flag.NewFlagSet("", flag.ExitOnError)
-	isVersion := flags.Bool("version", false, "Report the version of the Skupper User Controller")
+	isVersion := flags.Bool("version", false, "Report the version of the Skupper System Controller")
 	flags.Parse(os.Args[1:])
 	if *isVersion {
 		fmt.Println(version.Version)
