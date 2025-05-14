@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	nonkubecommon "github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"os"
 
@@ -15,14 +17,15 @@ import (
 )
 
 type CmdTokenRedeem struct {
-	CobraCmd           *cobra.Command
-	Flags              *common.CommandTokenRedeemFlags
-	Namespace          string
-	siteName           string
-	tokenHandler       *fs.TokenHandler
-	accessTokenHandler *fs.AccessTokenHandler
-	fileName           string
-	name               string
+	CobraCmd      *cobra.Command
+	Flags         *common.CommandTokenRedeemFlags
+	Namespace     string
+	siteName      string
+	linkHandler   *fs.LinkHandler
+	secretHandler *fs.SecretHandler
+	fileName      string
+	name          string
+	siteState     *api.SiteState
 }
 
 func NewCmdTokenRedeem() *CmdTokenRedeem {
@@ -34,8 +37,8 @@ func (cmd *CmdTokenRedeem) NewClient(cobraCommand *cobra.Command, args []string)
 		cmd.Namespace = cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String()
 	}
 
-	cmd.tokenHandler = fs.NewTokenHandler(cmd.Namespace)
-	cmd.accessTokenHandler = fs.NewAccessTokenHandler(cmd.Namespace)
+	cmd.linkHandler = fs.NewLinkHandler(cmd.Namespace)
+	cmd.secretHandler = fs.NewSecretHandler(cmd.Namespace)
 }
 
 func (cmd *CmdTokenRedeem) ValidateInput(args []string) error {
@@ -58,6 +61,19 @@ func (cmd *CmdTokenRedeem) ValidateInput(args []string) error {
 		}
 	}
 
+	// Validate there is already a site defined in the namespace before a token can be redeemed
+	pathProvider := fs.PathProvider{Namespace: cmd.Namespace}
+	siteStateLoader := &nonkubecommon.FileSystemSiteStateLoader{
+		Path: pathProvider.GetRuntimeNamespace(),
+	}
+
+	siteState, err := siteStateLoader.Load()
+	if err != nil {
+		validationErrors = append(validationErrors, fmt.Errorf("A site must be active in namespace %q before a token can be redeemed", cmd.Namespace))
+	}
+
+	cmd.siteState = siteState
+
 	// Validate if a token file exists
 	if cmd.fileName != "" {
 		_, err := os.Stat(cmd.fileName)
@@ -70,7 +86,7 @@ func (cmd *CmdTokenRedeem) ValidateInput(args []string) error {
 }
 func (cmd *CmdTokenRedeem) InputToOptions() {}
 func (cmd *CmdTokenRedeem) Run() error {
-	// get data from the token file
+	// get data from the access token file
 	var accessToken v2alpha1.AccessToken
 	var tokenFile []byte
 	tokenFile, err := os.ReadFile(cmd.fileName)
@@ -85,14 +101,32 @@ func (cmd *CmdTokenRedeem) Run() error {
 	}
 
 	accessToken.Namespace = cmd.Namespace
+	if accessToken.Name == "" {
+		return fmt.Errorf("token name is required")
+	}
 	cmd.name = accessToken.Name
 
-	err = cmd.accessTokenHandler.Add(accessToken)
+	// redeem the access token and store the secret and links into the input resources path
+	decoder, err := nonkubecommon.RedeemAccessToken(&accessToken, cmd.siteState)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Token %q has been created.\n", cmd.name)
+	decoder.Secret.Namespace = cmd.Namespace
+	err = cmd.secretHandler.Add(decoder.Secret)
+	if err != nil {
+		return err
+	}
+
+	for _, link := range decoder.Links {
+		link.Namespace = cmd.Namespace
+		err = cmd.linkHandler.Add(link)
+		if err != nil {
+			return err
+		}
+	}
+
+	fmt.Printf("Token %q has been redeemed. Run 'skupper system reload' to make efective the changes. \n", cmd.name)
 
 	return nil
 }
