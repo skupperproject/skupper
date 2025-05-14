@@ -129,7 +129,6 @@ func (m *CertificateManagerImpl) Ensure(namespace string, name string, ca string
 }
 
 func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skupperv2alpha1.CertificateSpec, refs []metav1.OwnerReference) error {
-	log.Printf("ensure(%s, %s)", namespace, name)
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
 		changed := false
@@ -198,14 +197,12 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 			return err
 		}
 		m.definitions[key] = created
-		log.Printf("certificate create %s/%s", namespace, name)
 		return nil
 	}
 }
 
 // Called by EventProcessor whenever there is a change to a Certificate reasource.
 func (m *CertificateManagerImpl) checkCertificate(key string, certificate *skupperv2alpha1.Certificate) error {
-	log.Printf("check certificate %s", key)
 	if certificate == nil {
 		return m.certificateDeleted(key)
 	}
@@ -255,9 +252,11 @@ func (m *CertificateManagerImpl) updateStatus(certificate *skupperv2alpha1.Certi
 		if err != nil {
 			return err
 		}
+		certificate = latest
 		log.Printf("Updated certificate status %s/%s", certificate.Namespace, certificate.Name)
 		m.definitions[certificate.Key()] = latest
 	}
+	m.definitions[certificate.Key()] = certificate
 	return nil
 }
 
@@ -356,7 +355,6 @@ func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv2
 // Called by EventProcessor whenever there is a change in a relevant
 // Secret resource.
 func (m *CertificateManagerImpl) checkSecret(key string, secret *corev1.Secret) error {
-	log.Printf("check secret %s", key)
 	if secret == nil {
 		return m.secretDeleted(key)
 	}
