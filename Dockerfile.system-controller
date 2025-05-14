@@ -14,7 +14,7 @@ RUN make system-controller GOARCH=$TARGETARCH
 FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
 LABEL \
   org.opencontainers.image.title="Skupper System Controller" \
-  org.opencontainers.image.description="Updates runtime resources for non-kubernetes user namespaces."
+  org.opencontainers.image.description="Updates runtime resources for all system sites under a given user."
 
 # Create user and group and switch to user's context
 RUN microdnf -y install shadow-utils \
