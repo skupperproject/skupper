@@ -213,7 +213,7 @@ func (w *FileWatcher) manageWatchers() {
 						slog.String("path", path),
 						slog.String("error", err.Error()))
 				}
-				w.logger.Info("Monitored path removed",
+				w.logger.Debug("Monitored path removed",
 					slog.String("path", path))
 			}
 			continue
