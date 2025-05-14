@@ -2,7 +2,7 @@
 
 set -Ceu
 
-IMAGE="${SKUPPER_USER_CONTROLLER_IMAGE:-quay.io/fgiorgetti/user-controller:v2-dev}"
+IMAGE="${SKUPPER_SYSTEM_CONTROLLER_IMAGE:-quay.io/skupper/system-controller:v2-dev}"
 SKUPPER_OUTPUT_PATH="${XDG_DATA_HOME:-${HOME}/.local/share}/skupper"
 if [ -z "${UID:-}" ]; then
     UID="$(id -u)"
@@ -83,7 +83,7 @@ main() {
     fi
     ENV_VARS="${ENV_VARS} -e 'SKUPPER_OUTPUT_PATH=${SKUPPER_OUTPUT_PATH}'"
 
-    # Running the user-controller
+    # Running the system-controller
     ${CONTAINER_ENGINE} pull "${IMAGE}"
     eval "${CONTAINER_ENGINE}" run --rm --name "${USER}-skupper-controller" \
         --network host --security-opt label=disable -u \""${RUNAS}"\" --userns=\""${USERNS}"\" \

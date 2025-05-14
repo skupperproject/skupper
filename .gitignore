@@ -11,7 +11,7 @@
 /bootstrap
 /controller
 /network-observer
-/user-controller
+/system-controller
 
 # Test binary, built with `go test -c`
 *.test

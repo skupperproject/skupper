@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.22 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.24 AS builder
 
 ARG TARGETARCH
 
@@ -9,11 +9,11 @@ RUN go mod download
 COPY . .
 
 ENV CGO_ENABLED=0
-RUN make user-controller GOARCH=$TARGETARCH
+RUN make system-controller GOARCH=$TARGETARCH
 
 FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
 LABEL \
-  org.opencontainers.image.title="Skupper User Controller" \
+  org.opencontainers.image.title="Skupper System Controller" \
   org.opencontainers.image.description="Updates runtime resources for non-kubernetes user namespaces."
 
 # Create user and group and switch to user's context
@@ -23,5 +23,5 @@ RUN useradd --uid 10000 runner
 USER 10000
 
 WORKDIR /app
-COPY --from=builder /go/src/app/user-controller .
-ENTRYPOINT ["/app/user-controller"]
+COPY --from=builder /go/src/app/system-controller .
+ENTRYPOINT ["/app/system-controller"]
