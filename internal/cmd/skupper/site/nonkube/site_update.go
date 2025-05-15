@@ -3,8 +3,6 @@ package nonkube
 import (
 	"errors"
 	"fmt"
-	"net"
-
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/internal/utils/validator"
@@ -12,11 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-type SiteUpdates struct {
-	subjectAlternativeNames []string
-	bindHost                string
-}
 
 type CmdSiteUpdate struct {
 	siteHandler             *fs.SiteHandler
@@ -29,7 +22,6 @@ type CmdSiteUpdate struct {
 	bindHost                string
 	routerAccessName        string
 	subjectAlternativeNames []string
-	newSettings             SiteUpdates
 }
 
 func NewCmdSiteUpdate() *CmdSiteUpdate {
@@ -49,11 +41,6 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) error {
 	var validationErrors []error
 	opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
 	resourceStringValidator := validator.NewResourceStringValidator()
-	hostStringValidator := validator.NewHostStringValidator()
-
-	if cmd.Flags.ServiceAccount != "" {
-		fmt.Println("Warning: --service-account flag is not supported on this platform")
-	}
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
 		fmt.Println("Warning: --context flag is not supported on this platform")
@@ -96,33 +83,11 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) error {
 		}
 	}
 
-	// Validate flags
-	if cmd.Flags != nil && cmd.Flags.BindHost != "" {
-		ip := net.ParseIP(cmd.Flags.BindHost)
-		ok, _ := hostStringValidator.Evaluate(cmd.Flags.BindHost)
-		if !ok && ip == nil {
-			validationErrors = append(validationErrors, fmt.Errorf("bindhost is not valid: a valid IP address or hostname is expected"))
-		} else {
-			cmd.newSettings.bindHost = cmd.Flags.BindHost
-		}
-	}
-	if cmd.Flags != nil && len(cmd.Flags.SubjectAlternativeNames) != 0 {
-		for _, name := range cmd.Flags.SubjectAlternativeNames {
-			ip := net.ParseIP(name)
-			ok, _ := hostStringValidator.Evaluate(name)
-			if !ok && ip == nil {
-				validationErrors = append(validationErrors, fmt.Errorf("SubjectAlternativeNames are not valid: a valid IP address or hostname is expected"))
-			} else {
-				cmd.newSettings.subjectAlternativeNames = append(cmd.newSettings.subjectAlternativeNames, name)
-			}
-		}
-	}
-
 	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdSiteUpdate) InputToOptions() {
-	// if EnableLinkAccess flag was explicity set use value otherwise use value from
+	// if EnableLinkAccess flag was explicitly set use value otherwise use value from
 	// previous create command
 	if cmd.CobraCmd.Flags().Changed(common.FlagNameEnableLinkAccess) {
 		if cmd.Flags.EnableLinkAccess == true {
@@ -132,20 +97,12 @@ func (cmd *CmdSiteUpdate) InputToOptions() {
 		}
 	}
 
-	if cmd.linkAccessEnabled == true {
-		if cmd.newSettings.bindHost != "" {
-			cmd.bindHost = cmd.newSettings.bindHost
-		}
-		if len(cmd.newSettings.subjectAlternativeNames) != 0 {
-			cmd.subjectAlternativeNames = cmd.newSettings.subjectAlternativeNames
-		}
-	}
-
 	cmd.routerAccessName = "router-access-" + cmd.siteName
 
 	if cmd.namespace == "" {
 		cmd.namespace = "default"
 	}
+
 }
 
 func (cmd *CmdSiteUpdate) Run() error {

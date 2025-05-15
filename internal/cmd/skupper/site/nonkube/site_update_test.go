@@ -21,8 +21,6 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		name              string
 		args              []string
 		flags             *common.CommandSiteUpdateFlags
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		cobraGenericFlags map[string]string
 		expectedError     string
 	}
@@ -64,34 +62,10 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			expectedError: "site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name:          "bind-host is not valid",
-			args:          []string{"my-site"},
-			flags:         &common.CommandSiteUpdateFlags{BindHost: "not-valid$"},
-			expectedError: "bindhost is not valid: a valid IP address or hostname is expected",
-		},
-		{
-			name:          "subjectAlternativeNames are not valid",
-			args:          []string{"my-site"},
-			flags:         &common.CommandSiteUpdateFlags{SubjectAlternativeNames: []string{"not-valid$"}},
-			expectedError: "SubjectAlternativeNames are not valid: a valid IP address or hostname is expected",
-		},
-		{
-			name:  "kubernetes flags are not valid on this platform",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteUpdateFlags{ServiceAccount: "not-supported"},
-			cobraGenericFlags: map[string]string{
-				common.FlagNameContext:    "test",
-				common.FlagNameKubeconfig: "test",
-			},
-			expectedError: "",
-		},
-		{
 			name: "flags all valid",
 			args: []string{"my-site"},
 			flags: &common.CommandSiteUpdateFlags{
-				BindHost:                "1.2.3.4",
-				EnableLinkAccess:        true,
-				SubjectAlternativeNames: []string{"3.3.3.3"},
+				EnableLinkAccess: true,
 			},
 			expectedError: "",
 		},
@@ -172,59 +146,39 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 
 	type test struct {
-		name                            string
-		args                            []string
-		namespace                       string
-		flags                           common.CommandSiteUpdateFlags
-		expectedLinkAccess              bool
-		expectedNamespace               string
-		expectedSubjectAlternativeNames []string
-		expectedBindHost                string
-		expectedRouterAccessName        string
+		name                     string
+		args                     []string
+		namespace                string
+		flags                    common.CommandSiteUpdateFlags
+		expectedLinkAccess       bool
+		expectedNamespace        string
+		expectedRouterAccessName string
 	}
 
 	testTable := []test{
 		{
-			name:                            "options without link access disabled",
-			args:                            []string{"my-site"},
-			flags:                           common.CommandSiteUpdateFlags{BindHost: "test"},
-			expectedLinkAccess:              false,
-			expectedNamespace:               "default",
-			expectedBindHost:                "",
-			expectedRouterAccessName:        "router-access-my-site",
-			expectedSubjectAlternativeNames: nil,
+			name:                     "options without link access disabled",
+			args:                     []string{"my-site"},
+			flags:                    common.CommandSiteUpdateFlags{},
+			expectedLinkAccess:       false,
+			expectedNamespace:        "default",
+			expectedRouterAccessName: "router-access-my-site",
 		},
 		{
-			name:                            "options with link access enabled",
-			args:                            []string{"my-site"},
-			flags:                           common.CommandSiteUpdateFlags{EnableLinkAccess: true, BindHost: "test"},
-			expectedLinkAccess:              true,
-			expectedNamespace:               "default",
-			expectedBindHost:                "test",
-			expectedRouterAccessName:        "router-access-my-site",
-			expectedSubjectAlternativeNames: nil,
+			name:                     "options with link access enabled",
+			args:                     []string{"my-site"},
+			flags:                    common.CommandSiteUpdateFlags{EnableLinkAccess: true},
+			expectedLinkAccess:       true,
+			expectedNamespace:        "default",
+			expectedRouterAccessName: "router-access-my-site",
 		},
 		{
-			name:                            "options without enable link access and subject alternative names",
-			args:                            []string{"my-site"},
-			namespace:                       "test4",
-			flags:                           common.CommandSiteUpdateFlags{EnableLinkAccess: false, BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
-			expectedLinkAccess:              false,
-			expectedNamespace:               "test4",
-			expectedBindHost:                "",
-			expectedSubjectAlternativeNames: nil,
-			expectedRouterAccessName:        "router-access-my-site",
-		},
-		{
-			name:                            "options with enable link access and subject alternative names",
-			args:                            []string{"my-site"},
-			namespace:                       "test4",
-			flags:                           common.CommandSiteUpdateFlags{EnableLinkAccess: true, BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
-			expectedLinkAccess:              true,
-			expectedNamespace:               "test4",
-			expectedSubjectAlternativeNames: []string{"test"},
-			expectedBindHost:                "1.2.3.4",
-			expectedRouterAccessName:        "router-access-my-site",
+			name:                     "options with enable HA",
+			args:                     []string{"my-site"},
+			namespace:                "test4",
+			flags:                    common.CommandSiteUpdateFlags{EnableHA: true},
+			expectedNamespace:        "test4",
+			expectedRouterAccessName: "router-access-my-site",
 		},
 	}
 
@@ -233,8 +187,6 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 			cmd := &CmdSiteUpdate{Flags: &common.CommandSiteUpdateFlags{EnableLinkAccess: test.flags.EnableLinkAccess}}
 			cmd.CobraCmd = &cobra.Command{Use: "test"}
 			cmd.Flags = &test.flags
-			cmd.newSettings.bindHost = test.flags.BindHost
-			cmd.newSettings.subjectAlternativeNames = test.flags.SubjectAlternativeNames
 			cmd.siteName = "my-site"
 			cmd.namespace = test.namespace
 			cmd.linkAccessEnabled = test.flags.EnableLinkAccess
@@ -242,10 +194,8 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 			cmd.InputToOptions()
 
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
-			assert.Check(t, cmd.bindHost == test.expectedBindHost)
 			assert.Check(t, cmd.linkAccessEnabled == test.expectedLinkAccess)
 			assert.Check(t, cmd.routerAccessName == test.expectedRouterAccessName)
-			assert.DeepEqual(t, cmd.subjectAlternativeNames, test.expectedSubjectAlternativeNames)
 		})
 	}
 }
@@ -269,9 +219,7 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 			namespace: "test4",
 			siteName:  "my-site",
 			flags: common.CommandSiteUpdateFlags{
-				BindHost:                "1.2.3.4",
-				EnableLinkAccess:        true,
-				SubjectAlternativeNames: []string{"2.2.2.2", "test"},
+				EnableLinkAccess: true,
 			},
 			linkAccessEnabled: true,
 		},
@@ -285,9 +233,7 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 			name:     "run ok output json",
 			siteName: "my-site",
 			flags: common.CommandSiteUpdateFlags{
-				BindHost:                "1.2.3.4",
-				EnableLinkAccess:        true,
-				SubjectAlternativeNames: []string{"2.2.2.2", "test", "5.6.7.8"},
+				EnableLinkAccess: true,
 			},
 			linkAccessEnabled: true,
 		},
@@ -307,8 +253,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 		command.siteName = test.siteName
 		command.siteHandler = fs.NewSiteHandler(command.namespace)
 		command.routerAccessHandler = fs.NewRouterAccessHandler(command.namespace)
-		command.newSettings.bindHost = test.flags.BindHost
-		command.newSettings.subjectAlternativeNames = test.flags.SubjectAlternativeNames
 		command.linkAccessEnabled = test.linkAccessEnabled
 		defer command.siteHandler.Delete("my-site")
 		defer command.routerAccessHandler.Delete("my-site")

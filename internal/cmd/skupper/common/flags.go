@@ -20,15 +20,9 @@ const (
 	FlagDescLinkAccessType   = `configure external access for links from remote sites.
 Choices: [route|loadbalancer]. Default: On OpenShift, route is the default; 
 for other Kubernetes flavors, loadbalancer is the default.`
-	FlagNameOutput                  = "output"
-	FlagDescOutput                  = "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml"
-	FlagVerboseOutput               = "print verbose output to the console. Choices: json, yaml"
-	FlagNameServiceAccount          = "service-account"
-	FlagDescServiceAccount          = "the Kubernetes service account under which to run the Skupper controller"
-	FlagNameBindHost                = "bind-host"
-	FlagDescBindHost                = "A valid host or ip that can be used to bind a local port"
-	FlagNameSubjectAlternativeNames = "subject-alternative-names"
-	FlagDescSubjectAlternativeNames = "Add subject alternative names for the router access in non kubernetes environments"
+	FlagNameOutput    = "output"
+	FlagDescOutput    = "print resources to the console instead of submitting them to the Skupper controller. Choices: json, yaml"
+	FlagVerboseOutput = "print verbose output to the console. Choices: json, yaml"
 
 	FlagNameTlsCredentials     = "tls-credentials"
 	FlagDescTlsCredentials     = "the name of a Kubernetes secret containing the generated or externally-supplied TLS credentials."
@@ -74,12 +68,7 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagNameListenerHost = "host"
 	FlagDescListenerHost = "The hostname or IP address of the local listener. Clients at this site use the listener host and port to establish connections to the remote service."
 
-	FlagNamePath     = "path"
-	FlagDescPath     = "Custom resources location on the file system"
-	FlagNameStrategy = "strategy"
-	FlagDescStrategy = "The bundle strategy to be produced. Choices: bundle, tarball"
-	FlagNameForce    = "force"
-	FlagDescForce    = "Forces to overwrite an existing namespace"
+	FlagNameForce = "force"
 
 	FlagNameWait       = "wait"
 	FlagDescWait       = "Wait for the given status before exiting. Choices: configured, ready, none"
@@ -94,26 +83,25 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagDescType  = "The bundle type to be produced. Choices: tarball, shell-script"
 
 	FlagDescUninstallForce = "option to override even with sites present"
+
+	FlagNameHA = "enable-ha"
+	FlagDescHA = "Configure the site for high availability (EnableHA). EnableHA sites have two active routers"
 )
 
 type CommandSiteCreateFlags struct {
-	EnableLinkAccess        bool
-	LinkAccessType          string
-	ServiceAccount          string
-	Timeout                 time.Duration
-	BindHost                string
-	SubjectAlternativeNames []string
-	Wait                    string
+	EnableLinkAccess bool
+	LinkAccessType   string
+	EnableHA         bool
+	Timeout          time.Duration
+	Wait             string
 }
 
 type CommandSiteUpdateFlags struct {
-	EnableLinkAccess        bool
-	LinkAccessType          string
-	ServiceAccount          string
-	Timeout                 time.Duration
-	BindHost                string
-	SubjectAlternativeNames []string
-	Wait                    string
+	EnableLinkAccess bool
+	LinkAccessType   string
+	EnableHA         bool
+	Timeout          time.Duration
+	Wait             string
 }
 
 type CommandSiteDeleteFlags struct {
@@ -127,12 +115,10 @@ type CommandSiteStatusFlags struct {
 }
 
 type CommandSiteGenerateFlags struct {
-	EnableLinkAccess        bool
-	LinkAccessType          string
-	ServiceAccount          string
-	BindHost                string
-	SubjectAlternativeNames []string
-	Output                  string
+	EnableLinkAccess bool
+	LinkAccessType   string
+	EnableHA         bool
+	Output           string
 }
 
 type CommandLinkGenerateFlags struct {

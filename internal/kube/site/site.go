@@ -145,7 +145,7 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 		s.setBindingsConfiguredStatus(nil)
 		s.checkSecuredAccess()
 	} else if len(s.currentGroups) != len(s.groups()) {
-		s.logger.Info("HA setting changed for site",
+		s.logger.Info("EnableHA setting changed for site",
 			slog.String("namespace", siteDef.Namespace),
 			slog.String("name", siteDef.Name),
 			slog.String("latest", strings.Join(s.groups(), ",")),
@@ -1177,7 +1177,7 @@ func asSecuredAccessSpec(la *skupperv2alpha1.RouterAccess, group string, default
 		Settings:    la.Spec.Settings,
 	}
 	if group != "" {
-		//add extra label to allow for distinct sets of routers in HA
+		//add extra label to allow for distinct sets of routers in EnableHA
 		spec.Selector["skupper.io/group"] = group
 	}
 	for _, role := range la.Spec.Roles {

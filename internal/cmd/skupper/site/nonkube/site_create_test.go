@@ -15,8 +15,6 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
 		args              []string
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		flags             *common.CommandSiteCreateFlags
 		cobraGenericFlags map[string]string
 		expectedError     string
@@ -26,43 +24,25 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 		{
 			name:          "site name is not valid.",
 			args:          []string{"my new site"},
-			flags:         &common.CommandSiteCreateFlags{BindHost: "bindhost", EnableLinkAccess: true},
+			flags:         &common.CommandSiteCreateFlags{EnableLinkAccess: true},
 			expectedError: "site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name:          "site name is not specified.",
 			args:          []string{},
-			flags:         &common.CommandSiteCreateFlags{BindHost: "bindhost"},
+			flags:         &common.CommandSiteCreateFlags{},
 			expectedError: "site name must not be empty",
 		},
 		{
 			name:          "more than one argument was specified",
 			args:          []string{"my", "site"},
-			flags:         &common.CommandSiteCreateFlags{BindHost: "bindhost"},
+			flags:         &common.CommandSiteCreateFlags{},
 			expectedError: "only one argument is allowed for this command",
-		},
-		{
-			name:          "bindHost was not specified ok",
-			args:          []string{"my-site"},
-			flags:         &common.CommandSiteCreateFlags{EnableLinkAccess: true},
-			expectedError: "",
-		},
-		{
-			name:          "bindHost was not valid",
-			args:          []string{"my-site"},
-			flags:         &common.CommandSiteCreateFlags{EnableLinkAccess: true, BindHost: "not-valid$"},
-			expectedError: "bindhost is not valid: a valid IP address or hostname is expected",
-		},
-		{
-			name:          "subjectAlternativeNames was not valid",
-			args:          []string{"my-site"},
-			flags:         &common.CommandSiteCreateFlags{EnableLinkAccess: true, BindHost: "not-valid", SubjectAlternativeNames: []string{"not-valid$"}},
-			expectedError: "SubjectAlternativeNames is not valid: a valid IP address or hostname is expected",
 		},
 		{
 			name:          "kubernetes flags are not valid on this platform",
 			args:          []string{"my-site"},
-			flags:         &common.CommandSiteCreateFlags{BindHost: "bindhost"},
+			flags:         &common.CommandSiteCreateFlags{},
 			expectedError: "",
 			cobraGenericFlags: map[string]string{
 				common.FlagNameContext:    "test",
@@ -73,9 +53,7 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 			name: "flags all valid",
 			args: []string{"my-site"},
 			flags: &common.CommandSiteCreateFlags{
-				BindHost:                "1.2.3.4",
-				EnableLinkAccess:        true,
-				SubjectAlternativeNames: []string{"3.3.3.3"},
+				EnableLinkAccess: true,
 			},
 			expectedError: "",
 		},
@@ -105,59 +83,34 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 
 	type test struct {
-		name                            string
-		args                            []string
-		namespace                       string
-		flags                           common.CommandSiteCreateFlags
-		expectedLinkAccess              bool
-		expectedNamespace               string
-		expectedSubjectAlternativeNames []string
-		expectedBindHost                string
-		expectedRouterAccessName        string
+		name                     string
+		args                     []string
+		namespace                string
+		flags                    common.CommandSiteCreateFlags
+		expectedLinkAccess       bool
+		expectedNamespace        string
+		expectedRouterAccessName string
+		expectedSansByDefault    bool
 	}
 
 	testTable := []test{
 		{
-			name:                            "options without link access disabled",
-			args:                            []string{"my-site"},
-			flags:                           common.CommandSiteCreateFlags{BindHost: "test"},
-			expectedLinkAccess:              false,
-			expectedNamespace:               "default",
-			expectedBindHost:                "",
-			expectedRouterAccessName:        "",
-			expectedSubjectAlternativeNames: nil,
+			name:                     "options without link access disabled",
+			args:                     []string{"my-site"},
+			flags:                    common.CommandSiteCreateFlags{},
+			expectedLinkAccess:       false,
+			expectedNamespace:        "default",
+			expectedRouterAccessName: "",
+			expectedSansByDefault:    false,
 		},
 		{
-			name:                            "options with link access enabled",
-			args:                            []string{"my-site"},
-			flags:                           common.CommandSiteCreateFlags{EnableLinkAccess: true, BindHost: "test"},
-			expectedLinkAccess:              true,
-			expectedNamespace:               "default",
-			expectedBindHost:                "test",
-			expectedRouterAccessName:        "router-access-my-site",
-			expectedSubjectAlternativeNames: nil,
-		},
-		{
-			name:                            "options with subject alternative names",
-			args:                            []string{"my-site"},
-			namespace:                       "test",
-			flags:                           common.CommandSiteCreateFlags{BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
-			expectedLinkAccess:              false,
-			expectedNamespace:               "test",
-			expectedBindHost:                "",
-			expectedSubjectAlternativeNames: nil,
-			expectedRouterAccessName:        "",
-		},
-		{
-			name:                            "options with enable link access and subject alternative names",
-			args:                            []string{"my-site"},
-			namespace:                       "test",
-			flags:                           common.CommandSiteCreateFlags{EnableLinkAccess: true, BindHost: "1.2.3.4", SubjectAlternativeNames: []string{"test"}},
-			expectedLinkAccess:              true,
-			expectedNamespace:               "test",
-			expectedSubjectAlternativeNames: []string{"test"},
-			expectedBindHost:                "1.2.3.4",
-			expectedRouterAccessName:        "router-access-my-site",
+			name:                     "options with link access enabled",
+			args:                     []string{"my-site"},
+			flags:                    common.CommandSiteCreateFlags{EnableLinkAccess: true},
+			expectedLinkAccess:       true,
+			expectedNamespace:        "default",
+			expectedRouterAccessName: "router-access-my-site",
+			expectedSansByDefault:    true,
 		},
 	}
 
@@ -173,10 +126,9 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			cmd.InputToOptions()
 
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
-			assert.Check(t, cmd.bindHost == test.expectedBindHost)
 			assert.Check(t, cmd.linkAccessEnabled == test.expectedLinkAccess)
 			assert.Check(t, cmd.routerAccessName == test.expectedRouterAccessName)
-			assert.DeepEqual(t, cmd.subjectAlternativeNames, test.expectedSubjectAlternativeNames)
+			assert.Equal(t, len(cmd.subjectAlternativeNames) > 0, test.expectedSansByDefault)
 		})
 	}
 }
@@ -188,7 +140,6 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 		skupperObjects    []runtime.Object
 		skupperError      string
 		siteName          string
-		host              string
 		errorMessage      string
 		routerAccessName  string
 		linkAccessEnabled bool
@@ -200,16 +151,14 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 			k8sObjects:        nil,
 			skupperObjects:    nil,
 			siteName:          "my-site",
-			host:              "bindhost",
 			routerAccessName:  "ra-test",
 			linkAccessEnabled: true,
 		},
 		{
-			name:           "runs ok without create site",
+			name:           "runs ok without creating site",
 			k8sObjects:     nil,
 			skupperObjects: nil,
 			siteName:       "test",
-			host:           "bindhost",
 			skupperError:   "",
 		},
 	}

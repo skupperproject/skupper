@@ -356,7 +356,7 @@ spec:
 Equivalent in CLI commands:
 ```
 skupper site create east -n east
-skupper connector create backend 9090 --host 127.0.0.1 --routing-key backend-8080 -n east
+skupper connector create backend 9090 --host 127.0.0.1 --routing-key backend -n east
 ```
 
 **Link**

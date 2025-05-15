@@ -21,28 +21,38 @@ func TestCmdSiteFactory(t *testing.T) {
 		{
 			name: "CmdSiteCreateFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
-				common.FlagNameEnableLinkAccess:        "false",
-				common.FlagNameLinkAccessType:          "",
-				common.FlagNameServiceAccount:          "",
-				common.FlagNameTimeout:                 "3m0s",
-				common.FlagNameBindHost:                "0.0.0.0",
-				common.FlagNameSubjectAlternativeNames: "[]",
-				common.FlagNameWait:                    "ready",
+				common.FlagNameEnableLinkAccess: "false",
+				common.FlagNameLinkAccessType:   "",
+				common.FlagNameTimeout:          "3m0s",
+				common.FlagNameWait:             "ready",
+				common.FlagNameHA:               "false",
 			},
 			command: CmdSiteCreateFactory(common.PlatformKubernetes),
 		},
 		{
+			name: "CmdSiteCreateFactoryNonKube",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameEnableLinkAccess: "false",
+			},
+			command: CmdSiteCreateFactory(common.PlatformPodman),
+		},
+		{
 			name: "CmdSiteUpdateFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
-				common.FlagNameEnableLinkAccess:        "false",
-				common.FlagNameLinkAccessType:          "",
-				common.FlagNameServiceAccount:          "",
-				common.FlagNameBindHost:                "",
-				common.FlagNameTimeout:                 "30s",
-				common.FlagNameSubjectAlternativeNames: "[]",
-				common.FlagNameWait:                    "ready",
+				common.FlagNameEnableLinkAccess: "false",
+				common.FlagNameLinkAccessType:   "",
+				common.FlagNameTimeout:          "30s",
+				common.FlagNameWait:             "ready",
+				common.FlagNameHA:               "false",
 			},
 			command: CmdSiteUpdateFactory(common.PlatformKubernetes),
+		},
+		{
+			name: "CmdSiteUpdateFactoryNonKube",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameEnableLinkAccess: "false",
+			},
+			command: CmdSiteUpdateFactory(common.PlatformPodman),
 		},
 		{
 			name: "CmdSiteDeleteFactory",
@@ -54,6 +64,13 @@ func TestCmdSiteFactory(t *testing.T) {
 			command: CmdSiteDeleteFactory(common.PlatformKubernetes),
 		},
 		{
+			name: "CmdSiteDeleteFactoryNonKube",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameAll: "false",
+			},
+			command: CmdSiteDeleteFactory(common.PlatformPodman),
+		},
+		{
 			name: "CmdSiteStatusFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameOutput: "",
@@ -63,14 +80,20 @@ func TestCmdSiteFactory(t *testing.T) {
 		{
 			name: "CmdSiteGenerateFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
-				common.FlagNameEnableLinkAccess:        "false",
-				common.FlagNameLinkAccessType:          "",
-				common.FlagNameServiceAccount:          "",
-				common.FlagNameOutput:                  "yaml",
-				common.FlagNameBindHost:                "0.0.0.0",
-				common.FlagNameSubjectAlternativeNames: "[]",
+				common.FlagNameEnableLinkAccess: "false",
+				common.FlagNameLinkAccessType:   "",
+				common.FlagNameOutput:           "yaml",
+				common.FlagNameHA:               "false",
 			},
 			command: CmdSiteGenerateFactory(common.PlatformKubernetes),
+		},
+		{
+			name: "CmdSiteGenerateFactoryNonKube",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameEnableLinkAccess: "false",
+				common.FlagNameOutput:           "yaml",
+			},
+			command: CmdSiteGenerateFactory(common.PlatformPodman),
 		},
 	}
 

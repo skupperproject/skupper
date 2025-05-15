@@ -23,16 +23,16 @@ import (
 )
 
 type CmdSiteCreate struct {
-	Client             skupperv2alpha1.SkupperV2alpha1Interface
-	KubeClient         kubernetes.Interface
-	CobraCmd           *cobra.Command
-	Flags              *common.CommandSiteCreateFlags
-	siteName           string
-	serviceAccountName string
-	Namespace          string
-	linkAccessType     string
-	timeout            time.Duration
-	status             string
+	Client         skupperv2alpha1.SkupperV2alpha1Interface
+	KubeClient     kubernetes.Interface
+	CobraCmd       *cobra.Command
+	Flags          *common.CommandSiteCreateFlags
+	siteName       string
+	Namespace      string
+	linkAccessType string
+	HA             bool
+	timeout        time.Duration
+	status         string
 }
 
 func NewCmdSiteCreate() *CmdSiteCreate {
@@ -93,13 +93,6 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 		validationErrors = append(validationErrors, fmt.Errorf("for the site to work with this type of linkAccess, the --enable-link-access option must be set to true"))
 	}
 
-	if cmd.Flags != nil && cmd.Flags.ServiceAccount != "" {
-		svcAccount, err := cmd.KubeClient.CoreV1().ServiceAccounts(cmd.Namespace).Get(context.TODO(), cmd.Flags.ServiceAccount, metav1.GetOptions{})
-		if err != nil || svcAccount == nil {
-			validationErrors = append(validationErrors, fmt.Errorf("service account name is not valid: %s", err))
-		}
-	}
-
 	if cmd.Flags != nil && cmd.Flags.Timeout.String() != "" {
 		ok, err := timeoutValidator.Evaluate(cmd.Flags.Timeout)
 		if !ok {
@@ -119,8 +112,6 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 
 func (cmd *CmdSiteCreate) InputToOptions() {
 
-	cmd.serviceAccountName = cmd.Flags.ServiceAccount
-
 	if cmd.Flags.EnableLinkAccess {
 		if cmd.Flags.LinkAccessType == "" {
 			cmd.linkAccessType = "default"
@@ -131,6 +122,7 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 
 	cmd.timeout = cmd.Flags.Timeout
 	cmd.status = cmd.Flags.Wait
+	cmd.HA = cmd.Flags.EnableHA
 
 }
 
@@ -146,8 +138,8 @@ func (cmd *CmdSiteCreate) Run() error {
 			Namespace: cmd.Namespace,
 		},
 		Spec: v2alpha1.SiteSpec{
-			ServiceAccount: cmd.serviceAccountName,
-			LinkAccess:     cmd.linkAccessType,
+			LinkAccess: cmd.linkAccessType,
+			HA:         cmd.HA,
 		},
 	}
 

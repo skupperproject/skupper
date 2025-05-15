@@ -98,46 +98,6 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			expectedError: "only one argument is allowed for this command",
 		},
 		{
-			name:       "service account name is not valid.",
-			args:       []string{"my-site"},
-			flags:      &common.CommandSiteUpdateFlags{ServiceAccount: "not valid service account name", Timeout: time.Minute},
-			k8sObjects: nil,
-			skupperObjects: []runtime.Object{
-				&v2alpha1.Site{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-site",
-						Namespace: "test",
-					},
-					Status: v2alpha1.SiteStatus{
-						Status: v2alpha1.Status{
-							Message: "OK",
-						},
-					},
-				},
-			},
-			skupperError:  "",
-			expectedError: "service account name is not valid: serviceaccounts \"not valid service account name\" not found",
-		},
-		{
-			name:  "bind-host name was specified, but this flag does not work on kube platforms",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteUpdateFlags{BindHost: "host", Timeout: time.Minute},
-			skupperObjects: []runtime.Object{
-				&v2alpha1.Site{
-					ObjectMeta: v1.ObjectMeta{
-						Name:      "my-site",
-						Namespace: "test",
-					},
-					Status: v2alpha1.SiteStatus{
-						Status: v2alpha1.Status{
-							Message: "OK",
-						},
-					},
-				},
-			},
-			expectedError: "--bind-host flag is not supported on this platform",
-		},
-		{
 			name:       "link access type is not valid",
 			args:       []string{"my-site"},
 			flags:      &common.CommandSiteUpdateFlags{LinkAccessType: "not-valid", Timeout: time.Minute},
@@ -355,6 +315,7 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 		args               []string
 		flags              common.CommandSiteUpdateFlags
 		expectedLinkAccess string
+		expectedHA         bool
 		expectedTimeout    time.Duration
 		expectedStatus     string
 	}
@@ -397,6 +358,12 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 			flags:          common.CommandSiteUpdateFlags{Wait: "configured"},
 			expectedStatus: "configured",
 		},
+		{
+			name:       "options with EnableHA enabled",
+			args:       []string{"my-site"},
+			flags:      common.CommandSiteUpdateFlags{EnableHA: true},
+			expectedHA: true,
+		},
 	}
 
 	for _, test := range testTable {
@@ -416,20 +383,20 @@ func TestCmdSiteUpdate_InputToOptions(t *testing.T) {
 			assert.Check(t, command.status == test.expectedStatus)
 			assert.Check(t, command.linkAccessType == test.expectedLinkAccess)
 			assert.Check(t, command.timeout == test.expectedTimeout)
+			assert.Check(t, command.HA == test.expectedHA)
 		})
 	}
 }
 
 func TestCmdSiteUpdate_Run(t *testing.T) {
 	type test struct {
-		name               string
-		k8sObjects         []runtime.Object
-		skupperObjects     []runtime.Object
-		skupperError       string
-		siteName           string
-		serviceAccountName string
-		linkAccessType     string
-		errorMessage       string
+		name           string
+		k8sObjects     []runtime.Object
+		skupperObjects []runtime.Object
+		skupperError   string
+		siteName       string
+		linkAccessType string
+		errorMessage   string
 	}
 
 	testTable := []test{
@@ -444,31 +411,28 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 					},
 				},
 			},
-			siteName:           "my-site",
-			serviceAccountName: "my-service-account",
-			linkAccessType:     "default",
-			skupperError:       "",
-			errorMessage:       "",
+			siteName:       "my-site",
+			linkAccessType: "default",
+			skupperError:   "",
+			errorMessage:   "",
 		},
 		{
-			name:               "run fails",
-			k8sObjects:         nil,
-			skupperObjects:     nil,
-			siteName:           "my-site",
-			serviceAccountName: "my-service-account",
-			linkAccessType:     "default",
-			skupperError:       "error",
-			errorMessage:       "error",
+			name:           "run fails",
+			k8sObjects:     nil,
+			skupperObjects: nil,
+			siteName:       "my-site",
+			linkAccessType: "default",
+			skupperError:   "error",
+			errorMessage:   "error",
 		},
 		{
-			name:               "runs ok without creating site",
-			k8sObjects:         nil,
-			skupperObjects:     nil,
-			siteName:           "my-site",
-			serviceAccountName: "my-service-account",
-			linkAccessType:     "default",
-			skupperError:       "",
-			errorMessage:       "sites.skupper.io \"my-site\" not found",
+			name:           "runs ok without creating site",
+			k8sObjects:     nil,
+			skupperObjects: nil,
+			siteName:       "my-site",
+			linkAccessType: "default",
+			skupperError:   "",
+			errorMessage:   "sites.skupper.io \"my-site\" not found",
 		},
 	}
 
@@ -481,7 +445,6 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 		assert.Assert(t, err)
 		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
 		command.siteName = test.siteName
-		command.serviceAccountName = test.serviceAccountName
 		command.linkAccessType = test.linkAccessType
 
 		t.Run(test.name, func(t *testing.T) {
