@@ -21,15 +21,14 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 		name              string
 		args              []string
 		flags             *common.CommandListenerUpdateFlags
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		cobraGenericFlags map[string]string
 		expectedError     string
 	}
 
-	homeDir, err := os.UserHomeDir()
+	tmpDir := filepath.Join(t.TempDir(), "/skupper")
+	err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
+	path := filepath.Join(tmpDir, "/namespaces/test/", string(api.InputSiteStatePath))
 
 	testTable := []test{
 		{

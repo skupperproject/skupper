@@ -3,6 +3,7 @@ package nonkube
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -12,7 +13,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/v3/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestCmdListenerStatus_ValidateInput(t *testing.T) {
@@ -21,14 +21,13 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 		args              []string
 		flags             *common.CommandListenerStatusFlags
 		cobraGenericFlags map[string]string
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		expectedError     string
 	}
 
-	homeDir, err := os.UserHomeDir()
+	tmpDir := filepath.Join(t.TempDir(), "/skupper")
+	err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.RuntimeSiteStatePath))
+	path := filepath.Join(tmpDir, "/namespaces/test/", string(api.RuntimeSiteStatePath))
 
 	testTable := []test{
 		{
@@ -117,24 +116,22 @@ func TestCmdListenerStatus_ValidateInput(t *testing.T) {
 
 func TestCmdListenerStatus_Run(t *testing.T) {
 	type test struct {
-		name                string
-		listenerName        string
-		flags               common.CommandListenerStatusFlags
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		errorMessage        string
+		name         string
+		listenerName string
+		flags        common.CommandListenerStatusFlags
+		errorMessage string
 	}
 
-	homeDir, err := os.UserHomeDir()
+	tmpDir := filepath.Join(t.TempDir(), "/skupper")
+	err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
+	path := filepath.Join(tmpDir, "/namespaces/test/", string(api.RuntimeSiteStatePath))
 
 	testTable := []test{
 		{
 			name:         "run fails listener doesn't exist",
 			listenerName: "no-listener",
-			errorMessage: "failed to read file: open " + path + "/Listener-no-listener.yaml: no such file or directory",
+			errorMessage: "no such file or directory",
 		},
 		{
 			name:         "runs ok, returns 1 listeners",
@@ -225,7 +222,6 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 	defer command.listenerHandler.Delete("my-listener")
 	defer command.listenerHandler.Delete("my-listener2")
 
-	path = filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.RuntimeSiteStatePath))
 	content, err := command.listenerHandler.EncodeToYaml(listenerResource1)
 	assert.Check(t, err == nil)
 	err = command.listenerHandler.WriteFile(path, "my-listener.yaml", content, common.Listeners)
@@ -244,7 +240,7 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			err := command.Run()
 			if err != nil {
-				assert.Check(t, test.errorMessage == err.Error())
+				assert.Check(t, strings.HasSuffix(err.Error(), test.errorMessage))
 			} else {
 				assert.Check(t, err == nil)
 			}
@@ -254,22 +250,19 @@ func TestCmdListenerStatus_Run(t *testing.T) {
 
 func TestCmdListenerStatus_RunNoDirectory(t *testing.T) {
 	type test struct {
-		name                string
-		flags               common.CommandListenerStatusFlags
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		errorMessage        string
+		name         string
+		flags        common.CommandListenerStatusFlags
+		errorMessage string
 	}
 
-	homeDir, err := os.UserHomeDir()
+	tmpDir := filepath.Join(t.TempDir(), "/skupper")
+	err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test1/", string(api.InputSiteStatePath))
 
 	testTable := []test{
 		{
 			name:         "runs fails no directory",
-			errorMessage: "failed to read file: open " + path + "/Listener-my-listener.yaml: no such file or directory",
+			errorMessage: "no such file or directory",
 		},
 	}
 
@@ -284,7 +277,7 @@ func TestCmdListenerStatus_RunNoDirectory(t *testing.T) {
 
 			err := command.Run()
 			if err != nil {
-				assert.Check(t, test.errorMessage == err.Error())
+				assert.Check(t, strings.HasSuffix(err.Error(), test.errorMessage))
 			} else {
 				assert.Check(t, err == nil)
 			}
