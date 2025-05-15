@@ -5,17 +5,15 @@ import (
 	"log/slog"
 
 	"github.com/skupperproject/skupper/internal/fs"
-	"github.com/skupperproject/skupper/internal/nonkube/flow"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
 type NamespaceController struct {
-	ns             string
-	stopCh         chan struct{}
-	logger         *slog.Logger
-	flowController *flow.Controller
-	watcher        *fs.FileWatcher
-	prepare        func()
+	ns      string
+	stopCh  chan struct{}
+	logger  *slog.Logger
+	watcher *fs.FileWatcher
+	prepare func()
 }
 
 func NewNamespaceController(namespace string) (*NamespaceController, error) {

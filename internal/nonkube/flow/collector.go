@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"os"
 	"path"
-	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/flow"
@@ -17,10 +16,7 @@ import (
 	"github.com/skupperproject/skupper/internal/nonkube/client/runtime"
 	"github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/internal/utils/tlscfg"
-	"github.com/skupperproject/skupper/internal/version"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
-	"github.com/skupperproject/skupper/pkg/vanflow"
 	"github.com/skupperproject/skupper/pkg/vanflow/session"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -126,68 +122,9 @@ func getLocalTLSConfig(namespace string) (*tls.Config, error) {
 	return config, nil
 }
 
-func startFlowController(ctx context.Context, namespace string) error {
-	siteStateLoader := &common.FileSystemSiteStateLoader{
-		Path: api.GetInternalOutputPath(namespace, api.RuntimeSiteStatePath),
-	}
-	siteState, err := siteStateLoader.Load()
-	if err != nil {
-		return err
-	}
-	siteID := siteState.SiteId
-	siteName := siteState.Site.Name
-
-	platformLoader := &common.NamespacePlatformLoader{}
-	platform, err := platformLoader.Load(namespace)
-	if err != nil {
-		return err
-	}
-	address, err := runtime.GetLocalRouterAddress(namespace)
-	if err != nil {
-		return err
-	}
-	tlsConfig, err := getLocalTLSConfig(namespace)
-	if err != nil {
-		return err
-	}
-
-	creation := time.Now()
-	for _, condition := range siteState.Site.Status.Conditions {
-		if condition.Type == string(v2alpha1.StatusReady) {
-			creation = condition.LastTransitionTime.Time
-		}
-	}
-	fc := NewController(ControllerConfig{
-		Factory: session.NewContainerFactory(address, session.ContainerConfig{
-			ContainerID: "nonkube-flow-controller",
-			TLSConfig:   tlsConfig,
-			SASLType:    session.SASLTypeExternal,
-		}),
-		Site: vanflow.SiteRecord{
-			BaseRecord: vanflow.NewBase(siteID, creation),
-			Name:       &siteName,
-			Namespace:  &namespace,
-			Platform:   &platform,
-			Version:    &version.Version,
-			Provider:   &platform, //todo(ck) Not really correct. involved with nodes access (below)
-		},
-	})
-	go func() {
-		fc.Run(ctx)
-		if ctx.Err() == nil {
-			slog.Error("nonkube flow controller unexpectedly quit")
-		}
-	}()
-	return nil
-}
-
 func StartCollector(ctx context.Context, namespace string) error {
 	log.Println("COLLECTOR: Starting site collection for:", namespace)
 	if err := siteCollector(ctx, namespace); err != nil {
-		return err
-	}
-	if err := startFlowController(ctx, namespace); err != nil {
-		log.Printf("COLLECTOR: Failed to start controller for emitting site events: %s", err)
 		return err
 	}
 	return nil
