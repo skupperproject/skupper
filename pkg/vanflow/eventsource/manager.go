@@ -2,7 +2,6 @@ package eventsource
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"time"
@@ -101,8 +100,6 @@ func (m *Manager) sendRecords(ctx context.Context) {
 			msg, err := record.Encode()
 			if err != nil {
 				m.logger.Error("skipping record message after encoding error:", slog.Any("error", err))
-				recordJson, _ := json.MarshalIndent(record, "", "  ")
-				m.logger.Error(string(recordJson))
 				continue
 			}
 			if err := sender.Send(ctx, msg); err != nil {

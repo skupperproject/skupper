@@ -8,9 +8,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/messaging"
 	"github.com/skupperproject/skupper/internal/nonkube/client/runtime"
-	"github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/internal/qdr"
-	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
 type RouterStateHandler struct {
@@ -96,7 +94,6 @@ func newHeartBeatsClient(namespace string) *heartBeatsClient {
 type heartBeatsClient struct {
 	Namespace  string
 	logger     *slog.Logger
-	siteId     string
 	url        string
 	address    string
 	mutex      sync.Mutex
@@ -152,6 +149,8 @@ func (h *heartBeatsClient) routerUp(stopCh <-chan struct{}) {
 }
 
 func (h *heartBeatsClient) run(stopCh <-chan struct{}) {
+	const address = "mc/sfe.all"
+
 	h.logger.Debug("Watching for router availability")
 	ticker := time.NewTicker(time.Second)
 	for {
@@ -168,11 +167,6 @@ func (h *heartBeatsClient) run(stopCh <-chan struct{}) {
 		url, err := h.getUrl()
 		if err != nil {
 			h.routerDown(fmt.Sprintf("Unable to retrieve heartbeat url: %s", err))
-			continue
-		}
-		address, err := h.getAddress()
-		if err != nil {
-			h.routerDown(fmt.Sprintf("Unable to retrieve heartbeat address: %s", err))
 			continue
 		}
 		tls := runtime.GetRuntimeTlsCert(h.Namespace, "skupper-local-client")
@@ -222,22 +216,6 @@ func (h *heartBeatsClient) run(stopCh <-chan struct{}) {
 	h.logger.Info("Exiting")
 }
 
-func (h *heartBeatsClient) getSiteId() (string, error) {
-	if h.siteId != "" {
-		return h.siteId, nil
-	}
-	// Loading runtime state
-	siteStateLoader := &common.FileSystemSiteStateLoader{
-		Path: api.GetInternalOutputPath(h.Namespace, api.RuntimeSiteStatePath),
-	}
-	siteState, err := siteStateLoader.Load()
-	if err != nil {
-		return "", fmt.Errorf("unable to load site state: %w", err)
-	}
-	h.siteId = siteState.SiteId
-	return h.siteId, nil
-}
-
 func (h *heartBeatsClient) getUrl() (string, error) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
@@ -251,13 +229,4 @@ func (h *heartBeatsClient) getUrl() (string, error) {
 	h.url = fmt.Sprintf("amqps://127.0.0.1:%d", port)
 	return h.url, nil
 
-}
-
-func (h *heartBeatsClient) getAddress() (string, error) {
-	siteId, err := h.getSiteId()
-	if err != nil {
-		return "", fmt.Errorf("unable to determine siteId: %w", err)
-	}
-	address := fmt.Sprintf("/mc/sfe.%s.heartbeats", siteId)
-	return address, nil
 }
