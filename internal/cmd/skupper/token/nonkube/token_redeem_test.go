@@ -179,12 +179,12 @@ func newAccessTokenFile(fileName string, withErrors bool) error {
 	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 	out, err := os.Create(fileName)
 	if err != nil {
-		return fmt.Errorf("Could not write to file " + fileName + ": " + err.Error())
+		return fmt.Errorf("could not write to file %s: %v", fileName, err)
 	}
 
 	err = s.Encode(&resource, out)
 	if err != nil {
-		return fmt.Errorf("Could not write out generated token: " + err.Error())
+		return fmt.Errorf("could not write out generated token: %v", err)
 	}
 
 	defer out.Close()
