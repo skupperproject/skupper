@@ -24,13 +24,21 @@ func RedeemClaims(siteState *api.SiteState) error {
 
 	logger := NewLogger()
 	for name, claim := range siteState.Claims {
-		err := redeemAccessToken(claim, siteState)
+		decoder, err := RedeemAccessToken(claim, siteState.Site.Name)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to redeem claim %s: %w", name, err))
 			logger.Error("RedeemClaims: failed to redeem claim",
 				slog.String("name", name),
 				slog.String("error", err.Error()),
 			)
+		}
+
+		siteState.Secrets[decoder.Secret.ObjectMeta.Name] = &decoder.Secret
+		decoder.Secret.ObjectMeta.Namespace = siteState.GetNamespace()
+
+		for _, link := range decoder.Links {
+			siteState.Links[link.ObjectMeta.Name] = &link
+			link.ObjectMeta.Namespace = siteState.GetNamespace()
 		}
 	}
 
@@ -42,7 +50,7 @@ func RedeemClaims(siteState *api.SiteState) error {
 }
 
 // Redeem logic that populates siteState.Secrets and siteState.Links
-func redeemAccessToken(claim *skupperv2alpha1.AccessToken, siteState *api.SiteState) error {
+func RedeemAccessToken(claim *skupperv2alpha1.AccessToken, subject string) (*LinkDecoder, error) {
 	transport := &http.Transport{}
 	if claim.Spec.Ca != "" {
 		caPool := x509.NewCertPool()
@@ -57,13 +65,13 @@ func redeemAccessToken(claim *skupperv2alpha1.AccessToken, siteState *api.SiteSt
 	}
 	request, err := http.NewRequest(http.MethodPost, claim.Spec.Url, bytes.NewReader([]byte(claim.Spec.Code)))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	request.Header.Add("name", claim.Name)
-	request.Header.Add("subject", string(siteState.Site.Name))
+	request.Header.Add("subject", subject)
 	response, err := client.Do(request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if response.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(response.Body)
@@ -72,31 +80,23 @@ func redeemAccessToken(claim *skupperv2alpha1.AccessToken, siteState *api.SiteSt
 		} else {
 			err = fmt.Errorf("Received HTTP Response %d. Could not read body: %s", response.StatusCode, err)
 		}
-		return err
+		return nil, err
 	}
 	// TODO should bootstrap log helpful status info (like the following)?
 	// log.Printf("HTTP Post to %s for %s/%s was sucessful, decoding response body", claim.Spec.Url, claim.Namespace, claim.Name)
 
 	decoder := newLinkDecoder(response.Body)
 	if err := decoder.decodeAll(); err != nil {
-		return err
+		return nil, err
 	}
 
-	siteState.Secrets[decoder.secret.ObjectMeta.Name] = &decoder.secret
-	decoder.secret.ObjectMeta.Namespace = siteState.GetNamespace()
-
-	for _, link := range decoder.links {
-		siteState.Links[link.ObjectMeta.Name] = &link
-		link.ObjectMeta.Namespace = siteState.GetNamespace()
-	}
-
-	return nil
+	return decoder, nil
 }
 
 type LinkDecoder struct {
 	decoder *yaml.YAMLOrJSONDecoder
-	secret  corev1.Secret
-	links   []skupperv2alpha1.Link
+	Secret  corev1.Secret
+	Links   []skupperv2alpha1.Link
 }
 
 func newLinkDecoder(r io.Reader) *LinkDecoder {
@@ -106,7 +106,7 @@ func newLinkDecoder(r io.Reader) *LinkDecoder {
 }
 
 func (d *LinkDecoder) decodeSecret() error {
-	return d.decoder.Decode(&d.secret)
+	return d.decoder.Decode(&d.Secret)
 }
 
 func (d *LinkDecoder) decodeLink() error {
@@ -114,7 +114,7 @@ func (d *LinkDecoder) decodeLink() error {
 	if err := d.decoder.Decode(&link); err != nil {
 		return err
 	}
-	d.links = append(d.links, link)
+	d.Links = append(d.Links, link)
 	return nil
 }
 
