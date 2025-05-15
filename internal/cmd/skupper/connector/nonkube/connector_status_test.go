@@ -13,7 +13,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/v3/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
@@ -22,8 +21,6 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 		args              []string
 		flags             *common.CommandConnectorStatusFlags
 		cobraGenericFlags map[string]string
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		expectedError     string
 	}
 
@@ -119,13 +116,10 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 
 func TestCmdConnectorStatus_Run(t *testing.T) {
 	type test struct {
-		name                string
-		connectorName       string
-		flags               common.CommandConnectorStatusFlags
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		errorMessage        string
+		name          string
+		connectorName string
+		flags         common.CommandConnectorStatusFlags
+		errorMessage  string
 	}
 
 	tmpDir := filepath.Join(t.TempDir(), "/skupper")
@@ -256,12 +250,9 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 
 func TestCmdConnectorStatus_RunNoDirectory(t *testing.T) {
 	type test struct {
-		name                string
-		flags               common.CommandConnectorStatusFlags
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		errorMessage        string
+		name         string
+		flags        common.CommandConnectorStatusFlags
+		errorMessage string
 	}
 
 	tmpDir := filepath.Join(t.TempDir(), "/skupper")

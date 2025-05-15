@@ -3,6 +3,7 @@ package nonkube
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -13,7 +14,6 @@ import (
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestCmdListenerDelete_ValidateInput(t *testing.T) {
@@ -22,14 +22,13 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 		args              []string
 		flags             *common.CommandListenerDeleteFlags
 		cobraGenericFlags map[string]string
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		expectedError     string
 	}
 
-	homeDir, err := os.UserHomeDir()
+	tmpDir := filepath.Join(t.TempDir(), "/skupper")
+	err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
+	path := filepath.Join(tmpDir, "/namespaces/test/", string(api.InputSiteStatePath))
 
 	testTable := []test{
 		{
@@ -117,28 +116,27 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 
 func TestCmdListenerDelete_Run(t *testing.T) {
 	type test struct {
-		name                string
-		namespace           string
-		deleteName          string
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		errorMessage        string
+		name         string
+		namespace    string
+		deleteName   string
+		errorMessage string
 	}
+
+	tmpDir := filepath.Join(t.TempDir(), "/skupper")
+	err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
+	assert.Check(t, err == nil)
+	path := filepath.Join(tmpDir, "/namespaces/test/", string(api.InputSiteStatePath))
 
 	testTable := []test{
 		{
-			name:                "run fails default",
-			deleteName:          "my-listener",
-			skupperErrorMessage: "error",
-			errorMessage:        "error",
+			name:         "run fails default",
+			deleteName:   "my-listener",
+			errorMessage: "no such file or directory",
 		},
 		{
-			name:                "run fails",
-			namespace:           "test",
-			deleteName:          "my-listener",
-			skupperErrorMessage: "error",
-			errorMessage:        "error",
+			name:       "run ok",
+			namespace:  "test",
+			deleteName: "my-listener",
 		},
 	}
 
@@ -147,6 +145,7 @@ func TestCmdListenerDelete_Run(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
+			createListenerResource(path, t)
 			cmd.listenerName = test.deleteName
 			cmd.namespace = test.namespace
 			cmd.listenerHandler = fs.NewListenerHandler(cmd.namespace)
@@ -154,10 +153,32 @@ func TestCmdListenerDelete_Run(t *testing.T) {
 
 			err := cmd.Run()
 			if err != nil {
-				assert.Check(t, test.errorMessage == err.Error())
+				assert.Check(t, strings.HasSuffix(err.Error(), test.errorMessage))
 			} else {
 				assert.Check(t, err == nil)
 			}
 		})
 	}
+}
+
+func createListenerResource(path string, t *testing.T) {
+	listenerResource := v2alpha1.Listener{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "Listener",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-listener",
+			Namespace: "test",
+		},
+	}
+
+	listenerHandler := fs.NewListenerHandler("test")
+
+	defer listenerHandler.Delete("my-connector")
+
+	contentConnector, err := listenerHandler.EncodeToYaml(listenerResource)
+	assert.Check(t, err == nil)
+	err = listenerHandler.WriteFile(path, "my-connector.yaml", contentConnector, common.Sites)
+	assert.Check(t, err == nil)
 }
