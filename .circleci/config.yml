@@ -229,6 +229,9 @@ jobs:
           name: Creating artifacts directory
           command: mkdir /tmp/artifacts
       - run:
+          name: Run Vet
+          command: make vet
+      - run:
           name: Run tests
           command: make cover
       - run:
