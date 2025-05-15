@@ -24,7 +24,7 @@ func RedeemClaims(siteState *api.SiteState) error {
 
 	logger := NewLogger()
 	for name, claim := range siteState.Claims {
-		decoder, err := RedeemAccessToken(claim, siteState)
+		decoder, err := RedeemAccessToken(claim, siteState.Site.Name)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to redeem claim %s: %w", name, err))
 			logger.Error("RedeemClaims: failed to redeem claim",
@@ -50,7 +50,7 @@ func RedeemClaims(siteState *api.SiteState) error {
 }
 
 // Redeem logic that populates siteState.Secrets and siteState.Links
-func RedeemAccessToken(claim *skupperv2alpha1.AccessToken, siteState *api.SiteState) (*LinkDecoder, error) {
+func RedeemAccessToken(claim *skupperv2alpha1.AccessToken, subject string) (*LinkDecoder, error) {
 	transport := &http.Transport{}
 	if claim.Spec.Ca != "" {
 		caPool := x509.NewCertPool()
@@ -68,7 +68,7 @@ func RedeemAccessToken(claim *skupperv2alpha1.AccessToken, siteState *api.SiteSt
 		return nil, err
 	}
 	request.Header.Add("name", claim.Name)
-	request.Header.Add("subject", string(siteState.Site.Name))
+	request.Header.Add("subject", subject)
 	response, err := client.Do(request)
 	if err != nil {
 		return nil, err
