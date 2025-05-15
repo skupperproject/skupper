@@ -1,9 +1,7 @@
 package fs
 
 import (
-	"errors"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"io/fs"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -42,9 +40,7 @@ func (s *SecretHandler) Delete(name string) error {
 	fileName := name + ".yaml"
 
 	if err := s.DeleteFile(s.pathProvider.GetNamespace(), fileName, common.Secrets); err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
+		return err
 	}
 
 	return nil

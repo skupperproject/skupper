@@ -123,7 +123,7 @@ func (cmd *CmdSystemApply) Run() error {
 	for _, site := range parsedInput.Site {
 		err := cmd.siteHandler.Add(site)
 		if err != nil {
-			slog.Error("Error while adding site %q: %s", site.Name, err)
+			slog.Error("Error while adding site", slog.String("site", site.Name), slog.Any("error", err))
 		} else {
 			crApplied = true
 			fmt.Printf("Site %s added\n", site.Name)
@@ -133,7 +133,7 @@ func (cmd *CmdSystemApply) Run() error {
 	for _, connector := range parsedInput.Connector {
 		err := cmd.connectorHandler.Add(connector)
 		if err != nil {
-			slog.Error("Error while adding connector %q: %s", connector.Name, err)
+			slog.Error("Error while adding connector", slog.String("connector", connector.Name), slog.Any("error", err))
 		} else {
 			crApplied = true
 			fmt.Printf("Connector %s added\n", connector.Name)
@@ -143,7 +143,7 @@ func (cmd *CmdSystemApply) Run() error {
 	for _, listener := range parsedInput.Listener {
 		err := cmd.listenerHandler.Add(listener)
 		if err != nil {
-			slog.Error("Error while adding listener %q: %s", listener.Name, err)
+			slog.Error("Error while adding listener", slog.String("listener", listener.Name), slog.Any("error", err))
 		} else {
 			crApplied = true
 			fmt.Printf("Listener %s added\n", listener.Name)
@@ -153,7 +153,7 @@ func (cmd *CmdSystemApply) Run() error {
 	for _, link := range parsedInput.Link {
 		err := cmd.linkHandler.Add(link)
 		if err != nil {
-			slog.Error("Error while adding link %q: %s", link.Name, err)
+			slog.Error("Error while adding link", slog.String("link", link.Name), slog.Any("error", err))
 		} else {
 			crApplied = true
 			fmt.Printf("Link %s added\n", link.Name)
@@ -163,7 +163,7 @@ func (cmd *CmdSystemApply) Run() error {
 	for _, routerAccess := range parsedInput.RouterAccess {
 		err := cmd.routerAccessHandler.Add(routerAccess)
 		if err != nil {
-			slog.Error("Error while adding router access %q: %s", routerAccess.Name, err)
+			slog.Error("Error while adding router access", slog.String("router access", routerAccess.Name), slog.Any("error", err))
 		} else {
 			crApplied = true
 			fmt.Printf("RouterAccess %s added\n", routerAccess.Name)
@@ -173,7 +173,7 @@ func (cmd *CmdSystemApply) Run() error {
 	for _, accessToken := range parsedInput.AccessToken {
 		err := cmd.accessTokenHandler.Add(accessToken)
 		if err != nil {
-			slog.Error("Error while adding access token %q: %s", accessToken.Name, err)
+			slog.Error("Error while adding access token", slog.String("access token", accessToken.Name), slog.Any("error", err))
 		} else {
 			crApplied = true
 			fmt.Printf("AccessToken %s added\n", accessToken.Name)
@@ -183,7 +183,7 @@ func (cmd *CmdSystemApply) Run() error {
 	for _, secret := range parsedInput.Secret {
 		err := cmd.secretHandler.Add(secret)
 		if err != nil {
-			slog.Error("Error while adding secret %q: %s", secret.Name, err)
+			slog.Error("Error while adding secret", slog.String("secret", secret.Name), slog.Any("error", err))
 		} else {
 			crApplied = true
 			fmt.Printf("Secret %s added\n", secret.Name)
@@ -193,7 +193,7 @@ func (cmd *CmdSystemApply) Run() error {
 	for _, securedAccess := range parsedInput.SecuredAccess {
 		err := cmd.securedAccessHandler.Add(securedAccess)
 		if err != nil {
-			slog.Error("Error while adding secured access %q: %s", securedAccess.Name, err)
+			slog.Error("Error while adding secured access", slog.String("secured access", securedAccess.Name), slog.Any("error", err))
 		} else {
 			crApplied = true
 			fmt.Printf("SecuredAccess %s added\n", securedAccess.Name)
@@ -203,7 +203,7 @@ func (cmd *CmdSystemApply) Run() error {
 	for _, certificate := range parsedInput.Certificate {
 		err := cmd.certificateHandler.Add(certificate)
 		if err != nil {
-			slog.Error("Error while adding certificate %q: %s", certificate.Name, err)
+			slog.Error("Error while adding certificate", slog.String("certificate", certificate.Name), slog.Any("error", err))
 		} else {
 			crApplied = true
 			fmt.Printf("Certificate %s added\n", certificate.Name)
