@@ -3,6 +3,7 @@ package nonkube
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -13,7 +14,6 @@ import (
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestCmdSiteDelete_ValidateInput(t *testing.T) {
@@ -22,8 +22,6 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 		args              []string
 		flags             *common.CommandSiteDeleteFlags
 		cobraGenericFlags map[string]string
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		expectedError     string
 	}
 
@@ -126,22 +124,19 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 
 func TestCmdSiteDelete_Run(t *testing.T) {
 	type test struct {
-		name                string
-		namespace           string
-		deleteName          string
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		errorMessage        string
-		expectedNamespace   string
-		all                 bool
+		name              string
+		namespace         string
+		deleteName        string
+		errorMessage      string
+		expectedNamespace string
+		all               bool
 	}
 
 	testTable := []test{
 		{
 			name:              "run default",
 			deleteName:        "no-site",
-			errorMessage:      "error",
+			errorMessage:      "no such file or directory",
 			expectedNamespace: "default",
 			all:               false,
 		},
@@ -237,7 +232,7 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 
 			err := command.Run()
 			if err != nil {
-				assert.Check(t, test.errorMessage == err.Error())
+				assert.Check(t, strings.HasSuffix(err.Error(), test.errorMessage))
 			} else {
 				assert.Check(t, err == nil)
 				assert.Equal(t, command.namespace, test.expectedNamespace)
