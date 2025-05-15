@@ -1,10 +1,8 @@
 package fs
 
 import (
-	"errors"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"io/fs"
 )
 
 type AccessTokenHandler struct {
@@ -44,9 +42,7 @@ func (a *AccessTokenHandler) Delete(name string) error {
 	fileName := name + ".yaml"
 
 	if err := a.DeleteFile(a.pathProvider.GetNamespace(), fileName, common.AccessTokens); err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
+		return err
 	}
 
 	return nil

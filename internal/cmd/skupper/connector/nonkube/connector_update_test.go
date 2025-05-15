@@ -27,9 +27,11 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		expectedError     string
 	}
 
-	homeDir, err := os.UserHomeDir()
+	tmpDir := filepath.Join(t.TempDir(), "/skupper")
+	err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
 	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
+	path := filepath.Join(tmpDir, "/namespaces/test/", string(api.InputSiteStatePath))
+
 	testTable := []test{
 		{
 			name:          "connector is not updated because get connector returned error",

@@ -77,9 +77,7 @@ func (s *SiteHandler) Delete(name string) error {
 	if name != "" {
 		fileName := name + ".yaml"
 		if err := s.DeleteFile(s.pathProvider.GetNamespace(), fileName, common.Sites); err != nil {
-			if !errors.Is(err, fs.ErrNotExist) {
-				return err
-			}
+			return err
 		}
 	} else {
 		// remove directory and its contents

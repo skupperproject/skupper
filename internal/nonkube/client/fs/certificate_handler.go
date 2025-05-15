@@ -1,10 +1,8 @@
 package fs
 
 import (
-	"errors"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"io/fs"
 )
 
 type CertificateHandler struct {
@@ -44,9 +42,7 @@ func (c *CertificateHandler) Delete(name string) error {
 	fileName := name + ".yaml"
 
 	if err := c.DeleteFile(c.pathProvider.GetNamespace(), fileName, common.Certificates); err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
+		return err
 	}
 
 	return nil
