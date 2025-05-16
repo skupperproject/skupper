@@ -8,14 +8,14 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/skupperproject/skupper/internal/fs"
+	"github.com/skupperproject/skupper/internal/filesystem"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
 type NamespacesHandler struct {
 	logger     *slog.Logger
 	basePath   string
-	watcher    *fs.FileWatcher
+	watcher    *filesystem.FileWatcher
 	namespaces map[string]*NamespaceController
 	mutex      sync.Mutex
 }
@@ -34,7 +34,7 @@ func NewNamespacesHandler() (*NamespacesHandler, error) {
 		logger: slog.Default().
 			With("component", componentName),
 	}
-	nsh.watcher, err = fs.NewWatcher(slog.String("owner", componentName))
+	nsh.watcher, err = filesystem.NewWatcher(slog.String("owner", componentName))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create namespaces watcher: %v", err)
 	}
