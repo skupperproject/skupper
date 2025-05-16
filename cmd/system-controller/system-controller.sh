@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -Ceu
+set -Ceufxo
 
 IMAGE="${SKUPPER_SYSTEM_CONTROLLER_IMAGE:-quay.io/skupper/system-controller:v2-dev}"
 SKUPPER_OUTPUT_PATH="${XDG_DATA_HOME:-${HOME}/.local/share}/skupper"
