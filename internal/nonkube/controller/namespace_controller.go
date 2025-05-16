@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/skupperproject/skupper/internal/fs"
+	"github.com/skupperproject/skupper/internal/filesystem"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
@@ -12,7 +12,7 @@ type NamespaceController struct {
 	ns      string
 	stopCh  chan struct{}
 	logger  *slog.Logger
-	watcher *fs.FileWatcher
+	watcher *filesystem.FileWatcher
 	prepare func()
 }
 
@@ -21,7 +21,7 @@ func NewNamespaceController(namespace string) (*NamespaceController, error) {
 		ns:     namespace,
 		stopCh: make(chan struct{}),
 	}
-	watcher, err := fs.NewWatcher(slog.String("namespace", namespace))
+	watcher, err := filesystem.NewWatcher(slog.String("namespace", namespace))
 	if err != nil {
 		return nil, fmt.Errorf("error creating watcher on namespace %s: %v", namespace, err)
 	}
