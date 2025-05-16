@@ -1,8 +1,6 @@
 package fs
 
 import (
-	"errors"
-	"io/fs"
 	"os"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -95,9 +93,7 @@ func (s *ConfigMapHandler) Delete(name string, runtime bool) error {
 	fileName := name + ".yaml"
 
 	if err := s.DeleteFile(s.getPath(runtime), fileName, common.ConfigMaps); err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
+		return err
 	}
 
 	return nil
