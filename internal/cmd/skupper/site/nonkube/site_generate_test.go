@@ -168,15 +168,15 @@ func TestNonKubeCmdSiteGenerate_Run(t *testing.T) {
 			output:            "json",
 		},
 		{
-			name:           "runs ok with yaml output",
-			siteName:       "test",
-			output:         "yaml",
+			name:     "runs ok with yaml output",
+			siteName: "test",
+			output:   "yaml",
 		},
 		{
-			name:           "runs fails because the output format is not supported",
-			siteName:       "test",
-			output:         "unsupported",
-			errorMessage:   "format unsupported not supported",
+			name:         "runs fails because the output format is not supported",
+			siteName:     "test",
+			output:       "unsupported",
+			errorMessage: "format unsupported not supported",
 		},
 	}
 
