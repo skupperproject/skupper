@@ -72,12 +72,6 @@ func NewManager(container session.Container, cfg ManagerConfig) *Manager {
 	}
 }
 
-func (m *Manager) SetLoggerArgs(args map[string]interface{}) {
-	for k, v := range args {
-		m.logger = m.logger.With(k, v)
-	}
-}
-
 func (m *Manager) PublishUpdate(update RecordUpdate) {
 	m.changeQueue <- update
 }
