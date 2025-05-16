@@ -32,7 +32,6 @@ type StatusSyncClient struct {
 }
 
 func (s *StatusSyncClient) Logger() *slog.Logger {
-	// TODO ignore local sources and use their stores
 	logger := slog.New(slog.Default().Handler()).With(
 		slog.String("component", "kube.flow.statusSync"),
 	)
