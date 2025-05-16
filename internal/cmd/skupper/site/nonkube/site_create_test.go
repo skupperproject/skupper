@@ -8,7 +8,6 @@ import (
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
@@ -136,9 +135,6 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 	type test struct {
 		name              string
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
-		skupperError      string
 		siteName          string
 		errorMessage      string
 		routerAccessName  string
@@ -148,18 +144,13 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 	testTable := []test{
 		{
 			name:              "runs ok",
-			k8sObjects:        nil,
-			skupperObjects:    nil,
 			siteName:          "my-site",
 			routerAccessName:  "ra-test",
 			linkAccessEnabled: true,
 		},
 		{
-			name:           "runs ok without creating site",
-			k8sObjects:     nil,
-			skupperObjects: nil,
-			siteName:       "test",
-			skupperError:   "",
+			name:     "runs ok without create site",
+			siteName: "test",
 		},
 	}
 

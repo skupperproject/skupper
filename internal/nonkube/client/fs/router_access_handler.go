@@ -1,10 +1,7 @@
 package fs
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
-
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
@@ -64,10 +61,7 @@ func (s *RouterAccessHandler) Delete(name string) error {
 	fileName := name + ".yaml"
 
 	if err := s.DeleteFile(s.pathProvider.GetNamespace(), fileName, common.RouterAccesses); err != nil {
-		fmt.Println(err)
-		if !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
+		return err
 	}
 
 	return nil
