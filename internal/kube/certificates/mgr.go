@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"reflect"
 	"strings"
 	"time"
 
@@ -16,6 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/skupperproject/skupper/internal/certs"
 	"github.com/skupperproject/skupper/internal/kube/watchers"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -128,6 +129,11 @@ func (m *CertificateManagerImpl) Ensure(namespace string, name string, ca string
 	return m.ensure(namespace, name, spec, refs)
 }
 
+var compareSpecUnordered []cmp.Option = []cmp.Option{
+	cmpopts.EquateEmpty(),
+	cmpopts.SortSlices(func(a, b string) bool { return a < b }),
+}
+
 func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skupperv2alpha1.CertificateSpec, refs []metav1.OwnerReference) error {
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
@@ -135,7 +141,7 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 		if mergeOwnerReferences(current.ObjectMeta.OwnerReferences, refs) {
 			changed = true
 		}
-		if !reflect.DeepEqual(spec, current.Spec) {
+		if !cmp.Equal(spec, current.Spec, compareSpecUnordered...) {
 			// merge hosts as the certificate may be shared by sources each requiring different sets of hosts:
 			hosts := getHostChanges(getPreviousHosts(current, refs), spec.Hosts, key).apply(current.Spec.Hosts)
 			current.Spec = spec
