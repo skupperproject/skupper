@@ -3,20 +3,15 @@ package flow
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"log"
 	"log/slog"
-	"os"
-	"path"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/flow"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/internal/nonkube/client/runtime"
 	"github.com/skupperproject/skupper/internal/nonkube/common"
-	"github.com/skupperproject/skupper/internal/utils/tlscfg"
-	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/skupperproject/skupper/pkg/vanflow/session"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -99,26 +94,11 @@ func siteCollector(ctx context.Context, namespace string) error {
 }
 
 func getLocalTLSConfig(namespace string) (*tls.Config, error) {
-	certsPath := api.GetInternalOutputPath(namespace, api.CertificatesPath)
-	localClientPath := path.Join(certsPath, "skupper-local-client")
-	config := tlscfg.Modern()
-	caFile := path.Join(localClientPath, "ca.crt")
-	certFile := path.Join(localClientPath, "tls.crt")
-	certKey := path.Join(localClientPath, "tls.key")
-
-	certPool := x509.NewCertPool()
-	if caData, err := os.ReadFile(caFile); err == nil {
-		certPool.AppendCertsFromPEM(caData)
-		config.RootCAs = certPool
-	} else {
-		return nil, err
+	tlsCert := runtime.GetRuntimeTlsCert(namespace, "skupper-local-client")
+	config, err := tlsCert.GetTlsConfig()
+	if err == nil {
+		config.MinVersion = tls.VersionTLS13
 	}
-	if cert, err := tls.LoadX509KeyPair(certFile, certKey); err == nil {
-		config.Certificates = []tls.Certificate{cert}
-	} else {
-		return nil, err
-	}
-
 	return config, nil
 }
 
