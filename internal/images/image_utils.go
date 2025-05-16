@@ -2,14 +2,15 @@ package images
 
 import (
 	"bytes"
-	"github.com/skupperproject/skupper/api/types"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/strings/slices"
 	"log"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
+
+	"github.com/skupperproject/skupper/api/types"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/strings/slices"
 )
 
 type SkupperImage struct {
@@ -23,6 +24,7 @@ const (
 	KubeAdaptorImageEnvKey        string = "SKUPPER_KUBE_ADAPTOR_IMAGE"
 	NetworkObserverImageEnvKey    string = "SKUPPER_NETWORK_OBSERVER_IMAGE"
 	CliImageEnvKey                string = "SKUPPER_CLI_IMAGE"
+	SystemControllerImageEnvKey   string = "SKUPPER_SYSTEM_CONTROLLER_IMAGE"
 	PrometheusServerImageEnvKey   string = "PROMETHEUS_SERVER_IMAGE"
 	OauthProxyImageEnvKey         string = "OAUTH_PROXY_IMAGE"
 	RouterPullPolicyEnvKey        string = "SKUPPER_ROUTER_IMAGE_PULL_POLICY"
@@ -137,6 +139,16 @@ func GetPrometheusServerImageName() string {
 	}
 }
 
+func GetSystemControllerImageName() string {
+	image := os.Getenv(SystemControllerImageEnvKey)
+	if image == "" {
+		imageRegistry := GetImageRegistry()
+		return strings.Join([]string{imageRegistry, SystemControllerImageName}, "/")
+	} else {
+		return image
+	}
+}
+
 func GetImageRegistry() string {
 	imageRegistry := os.Getenv(SkupperImageRegistryEnvKey)
 	if imageRegistry == "" {
@@ -160,6 +172,7 @@ func CreateMapImageDigest(runningPods map[string]string) map[string]string {
 		"kube-adaptor":       GetKubeAdaptorImageName(),
 		"network-observer":   GetNetworkObserverImageName(),
 		"cli":                GetCliImageName(),
+		"system-controller":  GetSystemControllerImageName(),
 		"prometheus":         GetPrometheusServerImageName(),
 		"origin-oauth-proxy": GetOauthProxyImageName(),
 	}
@@ -334,6 +347,9 @@ func GetImages(component string, digestMap map[string]string) []SkupperImage {
 	case "cli":
 		names[CliImageEnvKey] = CliImageName
 		registry = GetImageRegistry()
+	case "system-controller":
+		names[SystemControllerImageEnvKey] = SystemControllerImageName
+		registry = GetImageRegistry()
 	case "prometheus":
 		names[PrometheusServerImageEnvKey] = PrometheusServerImageName
 		registry = GetPrometheusImageRegistry()
@@ -382,9 +398,14 @@ func GetImageVersion(component string) string {
 			image = NetworkObserverImageName
 		}
 	case "cli":
-		image = os.Getenv(CliImageName)
+		image = os.Getenv(CliImageEnvKey)
 		if image == "" {
 			image = ControllerImageName
+		}
+	case "system-controller":
+		image = os.Getenv(SystemControllerImageEnvKey)
+		if image == "" {
+			image = SystemControllerImageName
 		}
 	case "prometheus":
 		image = os.Getenv(PrometheusServerImageEnvKey)
