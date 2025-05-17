@@ -11,7 +11,7 @@ REGISTRY := quay.io/skupper
 IMAGE_TAG := v2-dev
 ROUTER_IMAGE_TAG := main
 PLATFORMS ?= linux/amd64,linux/arm64
-CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer
+CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer Dockerfile.system-controller
 SHARED_IMAGE_LABELS = \
     --label "org.opencontainers.image.created=$(shell TZ=GMT date --iso-8601=seconds)" \
 	--label "org.opencontainers.image.url=https://skupper.io/" \
@@ -26,7 +26,7 @@ DOCKER := docker
 SKOPEO := skopeo
 PODMAN := podman
 
-all: skupper controller kube-adaptor network-observer
+all: skupper controller kube-adaptor network-observer system-controller
 
 basepkg = github.com/skupperproject/skupper
 # This lists non-test Go files inside each directory corresponding
@@ -56,6 +56,10 @@ network-observer: $(call pkgdeps,./cmd/network-observer)
 build-doc-generator: generate-doc
 generate-doc: $(call pkgdeps,./internal/cmd/generate-doc)
 	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o $@ ./internal/cmd/generate-doc
+
+build-system-controller: system-controller
+system-controller: $(call pkgdeps,./cmd/system-controller)
+	GOOS=${GOOS} GOARCH=${GOARCH} go build -ldflags="${LDFLAGS}"  -o $@ ./cmd/system-controller
 
 ## native/default container image builds
 docker-build: $(patsubst Dockerfile.%,docker-build-%,$(CONTAINERFILES))

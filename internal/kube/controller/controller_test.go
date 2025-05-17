@@ -1344,7 +1344,7 @@ func (*factory) podCondition(conditionType corev1.PodConditionType, status corev
 
 func (*factory) addNetworkStatus(site *skupperv2alpha1.Site, status *NetworkStatus) *skupperv2alpha1.Site {
 	//add equivalent data to that generated in networkStatusInfo
-	site.Status.Network = extractSiteRecords(*status.info())
+	site.Status.Network = network.ExtractSiteRecords(*status.info())
 	return site
 }
 

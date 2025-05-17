@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -19,16 +20,12 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
 func TestStatusSyncEndToEnd(t *testing.T) {
 	ctx := context.Background()
-	cm := fake.NewSimpleClientset(&v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "test",
-		},
-	}).CoreV1().ConfigMaps("test")
+	cm := fakeCmClient()
 
 	factory := session.NewMockContainerFactory()
 	conn := factory.Create()
@@ -148,7 +145,7 @@ func TestStatusSyncEndToEnd(t *testing.T) {
 			go ss.Run(tstCtx)
 
 			poll.WaitOn(t, func(log poll.LogT) poll.Result {
-				actualCM, err := cm.Get(tstCtx, "test", metav1.GetOptions{})
+				actualCM, err := cm.Get(tstCtx)
 				if err != nil {
 					return poll.Error(fmt.Errorf("unexpected error condition: %s", err))
 				}
@@ -170,6 +167,37 @@ func TestStatusSyncEndToEnd(t *testing.T) {
 			}, poll.WithDelay(time.Millisecond*10), poll.WithTimeout(time.Second*2))
 		})
 	}
+}
+
+type fakeKubeStatusSyncClient struct {
+	cm corev1.ConfigMapInterface
+}
+
+func (f *fakeKubeStatusSyncClient) Logger() *slog.Logger {
+	logger := slog.New(slog.Default().Handler()).With(
+		slog.String("component", "kube.flow.statusSync"),
+	)
+	return logger
+}
+
+func (f *fakeKubeStatusSyncClient) Get(ctx context.Context) (*v1.ConfigMap, error) {
+	return f.cm.Get(ctx, "test", metav1.GetOptions{})
+}
+
+func (f *fakeKubeStatusSyncClient) Update(ctx context.Context, latest *v1.ConfigMap) error {
+	_, err := f.cm.Update(ctx, latest, metav1.UpdateOptions{})
+	return err
+}
+
+func fakeCmClient() StatusSyncClient {
+	client := &fakeKubeStatusSyncClient{}
+	client.cm = fake.NewSimpleClientset(&v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "test",
+		},
+	}).CoreV1().ConfigMaps("test")
+	return client
 }
 
 func asEntries(r []vanflow.Record) []store.Entry {

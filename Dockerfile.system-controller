@@ -1,0 +1,27 @@
+FROM --platform=$BUILDPLATFORM golang:1.24 AS builder
+
+ARG TARGETARCH
+
+WORKDIR /go/src/app
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
+COPY . .
+
+ENV CGO_ENABLED=0
+RUN make system-controller GOARCH=$TARGETARCH
+
+FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
+LABEL \
+  org.opencontainers.image.title="Skupper System Controller" \
+  org.opencontainers.image.description="Updates runtime resources for all system sites under a given user."
+
+# Create user and group and switch to user's context
+RUN microdnf -y install shadow-utils \
+&& microdnf clean all
+RUN useradd --uid 10000 runner
+USER 10000
+
+WORKDIR /app
+COPY --from=builder /go/src/app/system-controller .
+ENTRYPOINT ["/app/system-controller"]

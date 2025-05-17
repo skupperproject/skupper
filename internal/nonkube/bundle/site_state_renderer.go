@@ -41,6 +41,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	s.loadedSiteState = loadedSiteState
 	// active (runtime) SiteState
 	s.siteState = common.CopySiteState(s.loadedSiteState)
+	s.siteState.SiteId = "{{.SiteId}}"
 	err = common.RedeemClaims(s.siteState)
 	if err != nil {
 		return fmt.Errorf("failed to redeem claims: %v", err)

@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"os"
 	"regexp"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -462,78 +461,7 @@ func (c *Controller) networkStatusUpdate(key string, cm *corev1.ConfigMap) error
 		return nil
 	}
 	c.log.Debug("Updating network status", slog.String("site", key))
-	return c.getSite(cm.ObjectMeta.Namespace).NetworkStatusUpdated(extractSiteRecords(status))
-}
-
-func extractSiteRecords(status network.NetworkStatusInfo) []skupperv2alpha1.SiteRecord {
-	var records []skupperv2alpha1.SiteRecord
-	routerAPs := map[string]string{} // router access point ID -> site ID
-	siteNames := map[string]string{} // site ID -> site name
-	for _, site := range status.SiteStatus {
-		siteNames[site.Site.Identity] = site.Site.Name
-		for _, router := range site.RouterStatus {
-			for _, ap := range router.AccessPoints {
-				routerAPs[ap.Identity] = site.Site.Identity
-			}
-		}
-	}
-	for _, site := range status.SiteStatus {
-		record := skupperv2alpha1.SiteRecord{
-			Id:        site.Site.Identity,
-			Name:      site.Site.Name,
-			Platform:  site.Site.Platform,
-			Namespace: site.Site.Namespace,
-			Version:   site.Site.Version,
-		}
-		services := map[string]*skupperv2alpha1.ServiceRecord{}
-		for _, router := range site.RouterStatus {
-			for _, link := range router.Links {
-				if link.Name == "" || link.Peer == "" {
-					continue
-				}
-
-				if site, ok := routerAPs[link.Peer]; ok {
-					record.Links = append(record.Links, skupperv2alpha1.LinkRecord{
-						Name:           link.Name,
-						RemoteSiteId:   site,
-						RemoteSiteName: siteNames[site],
-						Operational:    strings.EqualFold(link.Status, "up"),
-					})
-				}
-			}
-			for _, connector := range router.Connectors {
-				if connector.Address != "" && connector.DestHost != "" {
-					address := connector.Address
-					service, ok := services[address]
-					if !ok {
-						service = &skupperv2alpha1.ServiceRecord{
-							RoutingKey: address,
-						}
-						services[address] = service
-					}
-					service.Connectors = append(service.Connectors, connector.DestHost)
-				}
-			}
-			for _, listener := range router.Listeners {
-				if listener.Address != "" && listener.Name != "" {
-					address := listener.Address
-					service, ok := services[address]
-					if !ok {
-						service = &skupperv2alpha1.ServiceRecord{
-							RoutingKey: address,
-						}
-						services[address] = service
-					}
-					service.Listeners = append(service.Listeners, listener.Name)
-				}
-			}
-		}
-		for _, service := range services {
-			record.Services = append(record.Services, *service)
-		}
-		records = append(records, record)
-	}
-	return records
+	return c.getSite(cm.ObjectMeta.Namespace).NetworkStatusUpdated(network.ExtractSiteRecords(status))
 }
 
 func filter[V any](controller *Controller, handler func(string, V) error) func(string, V) error {

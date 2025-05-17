@@ -26,9 +26,12 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 		expectedError     string
 	}
 
-	tmpDir := filepath.Join(t.TempDir(), "/skupper")
-	err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
-	assert.Check(t, err == nil)
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+	tmpDir := api.GetDataHome()
 	path := filepath.Join(tmpDir, "/namespaces/test/", string(api.InputSiteStatePath))
 
 	testTable := []test{
@@ -121,9 +124,12 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 		output              string
 	}
 
-	tmpDir := filepath.Join(t.TempDir(), "/skupper")
-	err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
-	assert.Check(t, err == nil)
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+	tmpDir := api.GetDataHome()
 	path := filepath.Join(tmpDir, "/namespaces/test3/", string(api.InputSiteStatePath))
 	testTable := []test{
 		{
@@ -209,9 +215,12 @@ func TestCmdSiteStatus_RunNoDirectory(t *testing.T) {
 		errorMessage        string
 	}
 
-	tmpDir := filepath.Join(t.TempDir(), "/skupper")
-	err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
-	assert.Check(t, err == nil)
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+	tmpDir := api.GetDataHome()
 	path := filepath.Join(tmpDir, "/namespaces/test3/", string(api.InputSiteStatePath))
 
 	testTable := []test{
