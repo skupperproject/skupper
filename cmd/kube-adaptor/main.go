@@ -75,7 +75,7 @@ func main() {
 	}
 
 	if *isInit {
-		if err := adaptor.InitialiseConfig(cli.GetKubeClient(), cli.GetNamespace(), configDir, configMapName); err != nil {
+		if err := adaptor.InitialiseConfig(cli, cli.GetNamespace(), configDir, configMapName); err != nil {
 			log.Fatal("Error initialising config ", err.Error())
 		}
 		os.Exit(0)
