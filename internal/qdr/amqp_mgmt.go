@@ -1333,6 +1333,14 @@ func (a *Agent) CreateSslProfile(profile SslProfile) error {
 	return nil
 }
 
+func (a *Agent) UpdateSslProfile(profile SslProfile) error {
+	if err := a.Update("io.skupper.router.sslProfile", profile.Name, profile); err != nil {
+		return fmt.Errorf("error updating SSL Profile: %s", err)
+	}
+
+	return nil
+}
+
 func (a *Agent) ReloadSslProfile(name string) error {
 
 	profile, err := a.GetSslProfileByName(name)

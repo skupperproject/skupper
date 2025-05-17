@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -18,6 +19,7 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/certificates"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	kubeqdr "github.com/skupperproject/skupper/internal/kube/qdr"
+	"github.com/skupperproject/skupper/internal/kube/secrets"
 	"github.com/skupperproject/skupper/internal/kube/site/resources"
 	"github.com/skupperproject/skupper/internal/kube/site/sizing"
 	"github.com/skupperproject/skupper/internal/kube/watchers"
@@ -55,10 +57,12 @@ type Site struct {
 	logger        *slog.Logger
 	currentGroups []string
 	labelling     Labelling
+	profiles      *secrets.ProfilesWatcher
 }
 
 func NewSite(namespace string, eventProcessor *watchers.EventProcessor, certs certificates.CertificateManager, access SecuredAccessFactory, sizes *sizing.Registry, labelling Labelling) *Site {
-	return &Site{
+	logger := slog.New(slog.Default().Handler())
+	site := &Site{
 		bindings:   NewExtendedBindings(eventProcessor, SSL_PROFILE_PATH),
 		namespace:  namespace,
 		clients:    eventProcessor,
@@ -68,13 +72,31 @@ func NewSite(namespace string, eventProcessor *watchers.EventProcessor, certs ce
 		access:     access,
 		sizes:      sizes,
 		routerPods: map[string]*corev1.Pod{},
-		logger: slog.New(slog.Default().Handler()).With(
+		logger: logger.With(
 			slog.String("component", "kube.site.site"),
 		),
 		labelling: labelling,
 	}
+	site.profiles = secrets.NewProfilesWatcher(
+		sslSecretsWatcher(namespace, eventProcessor),
+		eventProcessor.GetKubeClient(),
+		site.updateRouterConfig,
+		site,
+		namespace,
+		logger.With(
+			slog.String("component", "kube.site.secrets"),
+			slog.String("namespace", namespace)),
+	)
+	return site
 }
 
+func sslSecretsWatcher(namespace string, eventProcessor *watchers.EventProcessor) secrets.SecretsCacheFactory {
+	return func(stopCh <-chan struct{}, handler func(string, *corev1.Secret) error) secrets.SecretsCache {
+		m := eventProcessor.WatchAllSecrets(namespace, handler)
+		m.Start(stopCh)
+		return m
+	}
+}
 func (s *Site) NameMatches(name string) bool {
 	return s.name == name
 }
@@ -1012,6 +1034,7 @@ func (s *Site) Deleted() {
 		slog.String("name", s.name))
 	s.bindings.cleanup()
 	s.setBindingsConfiguredStatus(stderrors.New("No active site"))
+	s.profiles.Stop()
 }
 
 func (s *Site) setDefaultIssuerInStatus() bool {
@@ -1072,6 +1095,14 @@ func getLinkRecordsForSite(siteId string, network []skupperv2alpha1.SiteRecord) 
 			return siteRecord.Links
 		}
 	}
+	return nil
+}
+
+func (s *Site) CheckSslProfiles(config *qdr.RouterConfig) error {
+	if !s.initialised {
+		return nil
+	}
+	s.profiles.UseProfiles(config.SslProfiles)
 	return nil
 }
 
@@ -1312,6 +1343,18 @@ func (s *Site) isRouterPodRunning() skupperv2alpha1.ConditionState {
 		}
 	}
 	return state
+}
+
+func (s *Site) TLSPriorValidRevisions() uint64 {
+	revisions := uint64(2)
+	if s.site != nil {
+		if override, ok := s.site.Spec.Settings["tls-prior-valid-revisions"]; ok {
+			if parsed, err := strconv.ParseUint(override, 10, 64); err == nil {
+				revisions = parsed
+			}
+		}
+	}
+	return revisions
 }
 
 func podState(pod *corev1.Pod) skupperv2alpha1.ConditionState {
