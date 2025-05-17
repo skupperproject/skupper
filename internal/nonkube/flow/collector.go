@@ -99,7 +99,7 @@ func getLocalTLSConfig(namespace string) (*tls.Config, error) {
 	if err == nil {
 		config.MinVersion = tls.VersionTLS13
 	}
-	return config, nil
+	return config, err
 }
 
 func StartCollector(ctx context.Context, namespace string) error {
