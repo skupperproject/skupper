@@ -152,7 +152,8 @@ func TestCmdConnectorDelete_Run(t *testing.T) {
 			cmd.InputToOptions()
 
 			err := cmd.Run()
-			if err != nil {
+
+			if test.errorMessage != "" {
 				assert.Check(t, strings.HasSuffix(err.Error(), test.errorMessage), err.Error())
 			} else {
 				assert.Check(t, err == nil)
@@ -177,6 +178,6 @@ func createConnectorResource(path string, t *testing.T) {
 
 	contentConnector, err := connectorHandler.EncodeToYaml(connectorResource)
 	assert.Check(t, err == nil)
-	err = connectorHandler.WriteFile(path, "my-connector.yaml", contentConnector, common.Sites)
+	err = connectorHandler.WriteFile(path, "my-connector.yaml", contentConnector, common.Connectors)
 	assert.Check(t, err == nil)
 }

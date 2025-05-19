@@ -152,7 +152,7 @@ func TestCmdListenerDelete_Run(t *testing.T) {
 			cmd.InputToOptions()
 
 			err := cmd.Run()
-			if err != nil {
+			if test.errorMessage != "" {
 				assert.Check(t, strings.HasSuffix(err.Error(), test.errorMessage))
 			} else {
 				assert.Check(t, err == nil)
@@ -177,6 +177,6 @@ func createListenerResource(path string, t *testing.T) {
 
 	contentConnector, err := listenerHandler.EncodeToYaml(listenerResource)
 	assert.Check(t, err == nil)
-	err = listenerHandler.WriteFile(path, "my-connector.yaml", contentConnector, common.Sites)
+	err = listenerHandler.WriteFile(path, "my-listener.yaml", contentConnector, common.Listeners)
 	assert.Check(t, err == nil)
 }
