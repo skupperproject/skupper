@@ -371,10 +371,12 @@ type RouterMetadata struct {
 }
 
 type SslProfile struct {
-	Name           string `json:"name,omitempty"`
-	CertFile       string `json:"certFile,omitempty"`
-	PrivateKeyFile string `json:"privateKeyFile,omitempty"`
-	CaCertFile     string `json:"caCertFile,omitempty"`
+	Name               string `json:"name,omitempty"`
+	CertFile           string `json:"certFile,omitempty"`
+	PrivateKeyFile     string `json:"privateKeyFile,omitempty"`
+	CaCertFile         string `json:"caCertFile,omitempty"`
+	Ordinal            uint64 `json:"ordinal,omitempty"`
+	OldestValidOrdinal uint64 `json:"oldestValidOrdinal,omitempty"`
 }
 
 func (p SslProfile) toRecord() Record {
@@ -390,6 +392,12 @@ func (p SslProfile) toRecord() Record {
 	}
 	if p.CaCertFile != "" {
 		result["caCertFile"] = p.CaCertFile
+	}
+	if p.Ordinal > 0 {
+		result["ordinal"] = p.Ordinal
+	}
+	if p.OldestValidOrdinal > 0 {
+		result["oldestValidOrdinal"] = p.OldestValidOrdinal
 	}
 	return result
 }
