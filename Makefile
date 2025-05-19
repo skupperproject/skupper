@@ -8,7 +8,7 @@ TEST_IMAGE := quay.io/skupper/skupper-tests
 TEST_BINARIES_FOLDER := ${PWD}/test/integration/bin
 DOCKER := docker
 LDFLAGS := -X github.com/skupperproject/skupper/pkg/version.Version=${VERSION}
-PLATFORMS ?= linux/amd64,linux/arm64
+PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
 GOOS ?= linux
 GOARCH ?= amd64
 
