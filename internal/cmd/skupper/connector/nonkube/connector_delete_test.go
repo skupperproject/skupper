@@ -175,8 +175,6 @@ func createConnectorResource(path string, t *testing.T) {
 
 	connectorHandler := fs.NewConnectorHandler("test")
 
-	defer connectorHandler.Delete("my-connector")
-
 	contentConnector, err := connectorHandler.EncodeToYaml(connectorResource)
 	assert.Check(t, err == nil)
 	err = connectorHandler.WriteFile(path, "my-connector.yaml", contentConnector, common.Sites)

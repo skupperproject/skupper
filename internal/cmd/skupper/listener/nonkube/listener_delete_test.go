@@ -175,8 +175,6 @@ func createListenerResource(path string, t *testing.T) {
 
 	listenerHandler := fs.NewListenerHandler("test")
 
-	defer listenerHandler.Delete("my-connector")
-
 	contentConnector, err := listenerHandler.EncodeToYaml(listenerResource)
 	assert.Check(t, err == nil)
 	err = listenerHandler.WriteFile(path, "my-connector.yaml", contentConnector, common.Sites)
