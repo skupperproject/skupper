@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"runtime"
 	"time"
 
 	"github.com/skupperproject/skupper/test/integration/performance/common"
@@ -45,6 +46,9 @@ type postgresSettings struct {
 }
 
 func TestPostgres(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("Skipping test on s390x architecture as image unavailable")
+	}
 	// TestPostgres is currently not functional for ARM
 	// https://github.com/skupperproject/skupper/issues/1650
 	common.CheckArch(t)
