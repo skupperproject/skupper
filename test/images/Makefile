@@ -86,7 +86,7 @@ SKOPEO = skopeo
 # That is required for their use with Openshift 3.11
 FORMAT_OPTIONS = --format docker
 TRANSFORM_OPTIONS = --format v2s2
-PLATFORM = linux/amd64,linux/arm64
+PLATFORM = linux/amd64,linux/arm64,linux/s390x
 
 # Repositories
 MAIN_REPO = quay.io/skupper

@@ -13,11 +13,13 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"runtime"
 	"time"
 
 	"github.com/skupperproject/skupper/test/integration/performance/common"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/k8s"
+	"github.com/skupperproject/skupper/test/utils/arch"
 	"gotest.tools/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -45,6 +47,11 @@ type postgresSettings struct {
 }
 
 func TestPostgres(t *testing.T) {
+	// Skip test if the cluster architecture is s390x
+	cluster := base.GetClusterContext()
+	if err := arch.SkipOnlyS390x(t, cluster); err != nil {
+		t.Fatal(err)
+	}
 	// TestPostgres is currently not functional for ARM
 	// https://github.com/skupperproject/skupper/issues/1650
 	common.CheckArch(t)

@@ -53,3 +53,38 @@ func Skip(t *testing.T, clusters ...*base.ClusterContext) error {
 	}
 	return err
 }
+
+// CheckOnlyS390x skips ONLY if the architecture is s390x
+func CheckOnlyS390x(clusters ...*base.ClusterContext) (err error, skip bool) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
+	defer cancel()
+
+	for _, c := range clusters {
+		list, err := c.VanClient.KubeClient.CoreV1().Nodes().List(ctx, v1.ListOptions{})
+		if err != nil {
+			return err, false
+		}
+		for _, node := range list.Items {
+			arch := node.Labels["beta.kubernetes.io/arch"]
+			if arch == "s390x" {
+				return fmt.Errorf(
+					"at least one cluster node is s390x -- skipping (%s at %s is %q)",
+					node.Name,
+					c.VanClient.RestConfig.Host,
+					arch,
+				), true
+			}
+		}
+	}
+	return nil, false
+}
+
+// SkipOnlyS390x skips the test only for s390x clusters
+func SkipOnlyS390x(t *testing.T, clusters ...*base.ClusterContext) error {
+	err, skip := CheckOnlyS390x(clusters...)
+	if skip {
+		t.Skipf("%v", err)
+	}
+	return err
+}
