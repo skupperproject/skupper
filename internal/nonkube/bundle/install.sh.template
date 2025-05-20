@@ -42,6 +42,7 @@ export PLATFORM_FILE="${NAMESPACES_PATH}/${NAMESPACE}/internal/platform.yaml"
 export USER="${USER:-$(id -un)}"
 SITE_ID="$(hostname -s)-${USER}-$(date +%s)"
 export SITE_ID
+export NORMAL_PORT=""
 
 exit_error() {
     echo "$*"
@@ -197,7 +198,10 @@ dump_tokens() {
 
 set_router_access_port() {
     config_file="${NAMESPACES_PATH}/${NAMESPACE}/runtime/router/skrouterd.json"
-    python "${NAMESPACES_PATH:?}/${NAMESPACE:?}/internal/scripts/router_free_port.py" "${config_file}"
+    NORMAL_PORT=$(python "${NAMESPACES_PATH:?}/${NAMESPACE:?}/internal/scripts/router_free_port.py" "${config_file}")
+    export NORMAL_PORT
+    router_access="${NAMESPACES_PATH}/${NAMESPACE}/runtime/resources/RouterAccess-skupper-local.yaml"
+    sed -i "s/port: .*/port: ${NORMAL_PORT}/g" "${router_access}"
 }
 
 create_sed_script() {
@@ -222,6 +226,7 @@ create_sed_script() {
         echo "s#{{"{{"}}.SiteConfigPath{{"}}"}}#${NAMESPACES_PATH}/${NAMESPACE}/runtime/router#g"
         echo "s#{{"{{"}}.RunAs{{"}}"}}#${RUNAS}#g"
         echo "s#{{"{{"}}.UserNamespace{{"}}"}}#${USERNS}#g"
+        echo "s#{{"{{"}}.SkupperLocalPort{{"}}"}}#${NORMAL_PORT}#g"
     } >> script.sed
 }
 

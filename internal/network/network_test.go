@@ -2,8 +2,9 @@ package network
 
 import (
 	"encoding/json"
-	"gotest.tools/v3/assert"
 	"testing"
+
+	"gotest.tools/v3/assert"
 )
 
 func createTestSkupperStatus() *SkupperStatus {
@@ -160,4 +161,50 @@ func TestRemoveLinksFromSameSite(t *testing.T) {
 
 	assert.DeepEqual(t, result, []LinkInfo{link})
 
+}
+
+func TestHasMatchingPair(t *testing.T) {
+	networkStatus := NetworkStatusInfo{
+		Addresses: []AddressInfo{
+			{
+				Name:           "backend-match",
+				ListenerCount:  1,
+				ConnectorCount: 1,
+			},
+			{
+				Name:           "backend-no-listener",
+				ListenerCount:  0,
+				ConnectorCount: 1,
+			},
+			{
+				Name:           "backend-no-connector",
+				ListenerCount:  1,
+				ConnectorCount: 0,
+			},
+		},
+	}
+	scenarios := []struct {
+		address       string
+		expectedMatch bool
+	}{
+		{
+			address:       "backend-match",
+			expectedMatch: true,
+		},
+		{
+			address:       "backend-no-listener",
+			expectedMatch: false,
+		},
+		{
+			address:       "backend-no-connector",
+			expectedMatch: false,
+		},
+		{
+			address:       "invalid-address",
+			expectedMatch: false,
+		},
+	}
+	for _, scenario := range scenarios {
+		assert.Equal(t, scenario.expectedMatch, HasMatchingPair(networkStatus, scenario.address))
+	}
 }

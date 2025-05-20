@@ -6,9 +6,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/skupperproject/skupper/internal/network"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/v3/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -109,11 +111,11 @@ func TestSiteState_ToRouterConfig(t *testing.T) {
 				rolesFound[string(listener.Role)] = true
 			}
 			assert.Equal(t, len(rolesFound), 3, "expecting normal, inter-router and edge, found: %s", rolesFound)
-			assert.Equal(t, len(routerConfig.Connectors), 1)
-			assert.Equal(t, len(routerConfig.SslProfiles), 6)
+			assert.Equal(t, len(routerConfig.Connectors), 2)
+			assert.Equal(t, len(routerConfig.SslProfiles), 7)
 			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["link-access-one"].CaCertFile, sslProfileBasePath))
 			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["link-one-profile"].CaCertFile, sslProfileBasePath))
-			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["local-access-one"].CaCertFile, sslProfileBasePath))
+			assert.Assert(t, strings.HasPrefix(routerConfig.SslProfiles["skupper-local"].CaCertFile, sslProfileBasePath))
 			assert.Equal(t, len(routerConfig.Bridges.TcpListeners), 2)
 			assert.Equal(t, len(routerConfig.Bridges.TcpConnectors), 1)
 			assert.Assert(t, routerConfig.SiteConfig != nil)
@@ -155,12 +157,118 @@ func TestMarshalSiteState(t *testing.T) {
 		"Certificate-link-access-one.yaml",
 		"Certificate-client-link-access-one.yaml",
 		"Secret-link-one-profile.yaml",
+		"ConfigMap-configmap.yaml",
 	}
 	for _, expectedFile := range expectedFiles {
 		info, err := os.Stat(path.Join(dir, expectedFile))
 		assert.Assert(t, err)
 		assert.Assert(t, info.Mode().IsRegular())
 		assert.Assert(t, info.Size() > 0)
+	}
+}
+
+func TestUpdateStatus(t *testing.T) {
+	networkStatus := fakeNetworkStatusInfo()
+	ss := fakeSiteState()
+	ss.Links["link-one"].Status.RemoteSiteName = "other-site-name"
+	ss.Links["link-one"].Status.RemoteSiteId = "other-site-id"
+	ss.UpdateStatus(networkStatus)
+	assert.Equal(t, ss.Site.Status.SitesInNetwork, 2)
+	assert.Equal(t, ss.Listeners["listener-one"].Status.HasMatchingConnector, true)
+	assert.Equal(t, ss.Listeners["listener-two"].Status.HasMatchingConnector, false)
+	assert.Equal(t, ss.Connectors["connector-one"].Status.HasMatchingListener, true)
+	assert.Equal(t, meta.IsStatusConditionTrue(ss.Links["link-one"].Status.Conditions, v2alpha1.CONDITION_TYPE_OPERATIONAL), true)
+	assert.Equal(t, meta.IsStatusConditionTrue(ss.Links["link-broken"].Status.Conditions, v2alpha1.CONDITION_TYPE_OPERATIONAL), false)
+}
+
+func fakeNetworkStatusInfo() network.NetworkStatusInfo {
+	return network.NetworkStatusInfo{
+		Addresses: []network.AddressInfo{
+			{
+				Name:           "listener-one-key",
+				Protocol:       "tcp",
+				ListenerCount:  1,
+				ConnectorCount: 1,
+			},
+			{
+				Name:           "connector-one-key",
+				Protocol:       "tcp",
+				ListenerCount:  1,
+				ConnectorCount: 1,
+			},
+		},
+		SiteStatus: []network.SiteStatusInfo{
+			{
+				Site: network.SiteInfo{
+					Identity:  "site-id",
+					Name:      "site-name",
+					Namespace: "default",
+					Platform:  "podman",
+					Version:   "version",
+				},
+				RouterStatus: []network.RouterStatusInfo{
+					{
+						Links: []network.LinkInfo{
+							{
+								Name:     "link-one",
+								LinkCost: 1,
+								Status:   "up",
+								Role:     "inter-router",
+								Peer:     "other-site-link-access-identity-inter-router",
+							},
+						},
+						AccessPoints: []network.RouterAccessInfo{
+							{Identity: "link-access-one-identity-inter-router"},
+							{Identity: "link-access-one-identity-edge"},
+						},
+						Listeners: []network.ListenerInfo{
+							{
+								Name:    "listener-one",
+								Address: "listener-one-key",
+							},
+							{
+								Name:    "listener-two",
+								Address: "listener-two-key",
+							},
+						},
+						Connectors: []network.ConnectorInfo{
+							{
+								DestHost: "connector-one-host",
+								Address:  "connector-one-key",
+							},
+						},
+					},
+				},
+			}, {
+				Site: network.SiteInfo{
+					Identity:  "other-site-id",
+					Name:      "other-site-name",
+					Namespace: "default",
+					Platform:  "linux",
+					Version:   "version",
+				},
+				RouterStatus: []network.RouterStatusInfo{
+					{
+						AccessPoints: []network.RouterAccessInfo{
+							{Identity: "other-site-link-access-identity-inter-router"},
+							{Identity: "other-site-link-access-identity-edge"},
+						},
+						Listeners: []network.ListenerInfo{
+							{
+								Name:    "listener-one",
+								Address: "connector-one-key",
+							},
+						},
+						Connectors: []network.ConnectorInfo{
+							{
+								DestHost: "connector-one-host",
+								Address:  "listener-one-key",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -236,9 +344,9 @@ func fakeSiteState() *SiteState {
 					},
 				},
 			},
-			"local-access-one": {
+			"skupper-local": {
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "local-access-one",
+					Name: "skupper-local",
 				},
 				Spec: v2alpha1.RouterAccessSpec{
 					Roles: []v2alpha1.RouterAccessRole{
@@ -247,7 +355,7 @@ func fakeSiteState() *SiteState {
 							Port: 5671,
 						},
 					},
-					TlsCredentials: "local-access-one",
+					TlsCredentials: "skupper-local",
 					BindHost:       "127.0.0.1",
 					SubjectAlternativeNames: []string{
 						"localhost",
@@ -278,6 +386,27 @@ func fakeSiteState() *SiteState {
 					Cost:           1,
 				},
 			},
+			"link-broken": {
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "link-broken",
+				},
+				Spec: v2alpha1.LinkSpec{
+					Endpoints: []v2alpha1.Endpoint{
+						{
+							Name: "inter-router",
+							Host: "127.0.0.1",
+							Port: "55671",
+						},
+						{
+							Name: "edge",
+							Host: "127.0.0.1",
+							Port: "45671",
+						},
+					},
+					TlsCredentials: "link-broken",
+					Cost:           1,
+				},
+			},
 		},
 		Secrets: map[string]*corev1.Secret{
 			"link-one-profile": {
@@ -288,6 +417,16 @@ func fakeSiteState() *SiteState {
 					"ca.crt":  []byte("ca.crt"),
 					"tls.crt": []byte("tls.crt"),
 					"tls.key": []byte("tls.key"),
+				},
+			},
+		},
+		ConfigMaps: map[string]*corev1.ConfigMap{
+			"configmap": {
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "configmap",
+				},
+				Data: map[string]string{
+					"data": "data",
 				},
 			},
 		},
@@ -361,6 +500,7 @@ func assertNamespaceOnSiteState(t *testing.T, ss *SiteState, namespace string) {
 	assert.Assert(t, assertNamespaceOnMap(ss.Claims, namespace))
 	assert.Assert(t, assertNamespaceOnMap(ss.Certificates, namespace))
 	assert.Assert(t, assertNamespaceOnMap(ss.SecuredAccesses, namespace))
+	assert.Assert(t, assertNamespaceOnMap(ss.ConfigMaps, namespace))
 }
 
 func assertNamespaceOnMap[T metav1.Object](objMap map[string]T, namespace string) bool {

@@ -9,9 +9,9 @@ type PathProvider struct {
 }
 
 func (p *PathProvider) GetNamespace() string {
-	return api.GetHostNamespaceHome(p.Namespace) + "/" + string(api.InputSiteStatePath)
+	return api.GetDefaultOutputPath(p.Namespace) + "/" + string(api.InputSiteStatePath)
 }
 
 func (p *PathProvider) GetRuntimeNamespace() string {
-	return api.GetHostNamespaceHome(p.Namespace) + "/" + string(api.RuntimeSiteStatePath)
+	return api.GetDefaultOutputPath(p.Namespace) + "/" + string(api.RuntimeSiteStatePath)
 }

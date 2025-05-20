@@ -23,6 +23,7 @@ func CopySiteState(siteState *api.SiteState) *api.SiteState {
 	activeSiteState.SecuredAccesses = copySiteStateMap(siteState.SecuredAccesses)
 	activeSiteState.Certificates = copySiteStateMap(siteState.Certificates)
 	activeSiteState.Secrets = copySiteStateMap(siteState.Secrets)
+	activeSiteState.ConfigMaps = copySiteStateMap(siteState.ConfigMaps)
 	return activeSiteState
 }
 

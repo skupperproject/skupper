@@ -286,5 +286,6 @@ func fakeSiteState() *api.SiteState {
 		Claims:          make(map[string]*v2alpha1.AccessToken),
 		Certificates:    make(map[string]*v2alpha1.Certificate),
 		SecuredAccesses: make(map[string]*v2alpha1.SecuredAccess),
+		ConfigMaps:      make(map[string]*corev1.ConfigMap),
 	}
 }

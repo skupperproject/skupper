@@ -18,8 +18,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/vanflow/session"
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
 	"golang.org/x/time/rate"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -39,7 +38,7 @@ type StatusSync struct {
 
 	session       session.Container
 	discovery     *eventsource.Discovery
-	client        v1.ConfigMapInterface
+	client        StatusSyncClient
 	configMapName string
 
 	logger *slog.Logger
@@ -54,12 +53,15 @@ type StatusSync struct {
 	burst      int
 }
 
-func NewStatusSync(factory session.ContainerFactory, localSources map[string][]store.Interface, client v1.ConfigMapInterface, configMap string) *StatusSync {
+type StatusSyncClient interface {
+	Logger() *slog.Logger
+	Get(ctx context.Context) (*corev1.ConfigMap, error)
+	Update(ctx context.Context, latest *corev1.ConfigMap) error
+}
 
-	// TODO ignore local sources and use their stores
-	logger := slog.New(slog.Default().Handler()).With(
-		slog.String("component", "kube.flow.statusSync"),
-	)
+func NewStatusSync(factory session.ContainerFactory, localSources map[string][]store.Interface, client StatusSyncClient, configMap string) *StatusSync {
+
+	logger := client.Logger()
 	sessionCtr := factory.Create()
 	sessionCtr.OnSessionError(func(err error) {
 		logger.Error("session error on discovery container", slog.Any("error", err))
@@ -316,12 +318,15 @@ func (s *StatusSync) publish(info network.NetworkStatusInfo) error {
 	networkStatus := string(bs)
 	data := map[string]string{"NetworkStatus": networkStatus}
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		current, err := s.client.Get(ctx, s.configMapName, metav1.GetOptions{})
+		current, err := s.client.Get(ctx)
 		if err != nil {
 			return err
 		}
 		current.Data = data
-		_, err = s.client.Update(ctx, current, metav1.UpdateOptions{})
+		err = s.client.Update(ctx, current)
+		if err != nil {
+			s.logger.Error("updating network status", slog.Any("error", err))
+		}
 		return err
 	})
 	if err != nil {

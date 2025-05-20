@@ -27,4 +27,5 @@ func TestFileSystemSiteStateLoder(t *testing.T) {
 	loadedSiteState, err := fsStateLoader.Load()
 	assert.Assert(t, err)
 	assert.Assert(t, loadedSiteState != nil)
+	assert.Equal(t, string(loadedSiteState.Site.ObjectMeta.UID), loadedSiteState.SiteId)
 }

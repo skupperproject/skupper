@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"reflect"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/skupperproject/skupper/internal/network"
 	"github.com/skupperproject/skupper/internal/qdr"
 	"github.com/skupperproject/skupper/internal/site"
 	"github.com/skupperproject/skupper/internal/utils"
@@ -17,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
@@ -32,10 +36,11 @@ type SiteState struct {
 	RouterAccesses  map[string]*v2alpha1.RouterAccess
 	Grants          map[string]*v2alpha1.AccessGrant
 	Links           map[string]*v2alpha1.Link
-	Secrets         map[string]*corev1.Secret
 	Claims          map[string]*v2alpha1.AccessToken
 	Certificates    map[string]*v2alpha1.Certificate
 	SecuredAccesses map[string]*v2alpha1.SecuredAccess
+	Secrets         map[string]*corev1.Secret
+	ConfigMaps      map[string]*corev1.ConfigMap
 	bundle          bool
 }
 
@@ -44,13 +49,14 @@ func NewSiteState(bundle bool) *SiteState {
 		Site:            &v2alpha1.Site{},
 		Listeners:       make(map[string]*v2alpha1.Listener),
 		Connectors:      make(map[string]*v2alpha1.Connector),
-		RouterAccesses:  map[string]*v2alpha1.RouterAccess{},
+		RouterAccesses:  make(map[string]*v2alpha1.RouterAccess),
 		Grants:          make(map[string]*v2alpha1.AccessGrant),
 		Links:           make(map[string]*v2alpha1.Link),
-		Secrets:         make(map[string]*corev1.Secret),
 		Claims:          make(map[string]*v2alpha1.AccessToken),
-		Certificates:    map[string]*v2alpha1.Certificate{},
-		SecuredAccesses: map[string]*v2alpha1.SecuredAccess{},
+		Certificates:    make(map[string]*v2alpha1.Certificate),
+		SecuredAccesses: make(map[string]*v2alpha1.SecuredAccess),
+		Secrets:         make(map[string]*corev1.Secret),
+		ConfigMaps:      make(map[string]*corev1.ConfigMap),
 		bundle:          bundle,
 	}
 }
@@ -74,7 +80,7 @@ func (s *SiteState) IsInterior() bool {
 func (s *SiteState) HasRouterAccess() bool {
 	for _, la := range s.RouterAccesses {
 		for _, role := range la.Spec.Roles {
-			if role.Name == "normal" {
+			if la.Name == "skupper-local" && role.Name == "normal" {
 				return true
 			}
 		}
@@ -336,6 +342,39 @@ func (s *SiteState) SetNamespace(namespace string) {
 	setNamespaceOnMap(s.Claims, namespace)
 	setNamespaceOnMap(s.Certificates, namespace)
 	setNamespaceOnMap(s.SecuredAccesses, namespace)
+	setNamespaceOnMap(s.ConfigMaps, namespace)
+}
+
+func (s *SiteState) UpdateStatus(networkStatus network.NetworkStatusInfo) {
+	siteRecords := network.ExtractSiteRecords(networkStatus)
+	if reflect.DeepEqual(s.Site.Status.Network, siteRecords) {
+		return
+	}
+	s.Site.Status.Network = siteRecords
+	s.Site.Status.SitesInNetwork = len(siteRecords)
+	linkRecords := network.GetLinkRecordsForSite(s.SiteId, siteRecords)
+
+	for _, linkRecord := range linkRecords {
+		if link, ok := s.Links[linkRecord.Name]; ok {
+			link.SetOperational(linkRecord.Operational, linkRecord.RemoteSiteId, linkRecord.RemoteSiteName)
+		}
+	}
+	for linkName, existingLink := range s.Links {
+		exists := slices.ContainsFunc(linkRecords, func(record v2alpha1.LinkRecord) bool {
+			return record.Name == linkName
+		})
+		if !exists {
+			existingLink.SetOperational(false, "", "")
+		}
+	}
+
+	// updating listeners and connectors
+	for _, listener := range s.Listeners {
+		listener.SetHasMatchingConnector(network.HasMatchingPair(networkStatus, listener.Spec.RoutingKey))
+	}
+	for _, connector := range s.Connectors {
+		connector.SetHasMatchingListener(network.HasMatchingPair(networkStatus, connector.Spec.RoutingKey))
+	}
 }
 
 func marshal(outputDirectory, resourceType, resourceName string, resource interface{}) error {
@@ -370,6 +409,9 @@ func marshalMap[V any](outputDirectory, resourceType string, resourceMap map[str
 
 func MarshalSiteState(siteState SiteState, outputDirectory string) error {
 	var err error
+	if siteState.Site != nil && siteState.Site.ObjectMeta.UID == "" {
+		siteState.Site.ObjectMeta.UID = types.UID(siteState.SiteId)
+	}
 	if err = marshal(outputDirectory, "Site", siteState.Site.Name, siteState.Site); err != nil {
 		return err
 	}
@@ -398,6 +440,9 @@ func MarshalSiteState(siteState SiteState, outputDirectory string) error {
 		return err
 	}
 	if err = marshalMap(outputDirectory, "Secret", siteState.Secrets); err != nil {
+		return err
+	}
+	if err = marshalMap(outputDirectory, "ConfigMap", siteState.ConfigMaps); err != nil {
 		return err
 	}
 	return nil
