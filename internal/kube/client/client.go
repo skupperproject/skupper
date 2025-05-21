@@ -20,8 +20,8 @@ import (
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
 )
 
-// The Clients interface defines acess to different types of client
-// interface required for interactions withe the Kubernetes API
+// The Clients interface defines access to different types of client
+// interface required for interactions with the Kubernetes API
 // server.
 type Clients interface {
 	GetKubeClient() kubernetes.Interface

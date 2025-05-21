@@ -38,7 +38,7 @@ the Service, no target is inferred. The service is configured to point
 at the router pods on a port that will route to the address specified
 by the skupper.io/address annotation.
 
-The code accummulated to handle all these configurations as well as
+The code accumulated to handle all these configurations as well as
 the CLI is not the easiest to maintain.
 
 ## Decision

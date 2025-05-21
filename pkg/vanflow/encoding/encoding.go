@@ -1,4 +1,4 @@
-// encoding exposes functionality to convert between an arbitray maps and
+// encoding exposes functionality to convert between an arbitrary maps and
 // native Go structs in service of the Vanflow protocol.
 //
 // The Vanflow protocol uses the amqp-value section to represent record types

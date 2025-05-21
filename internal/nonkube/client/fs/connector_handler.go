@@ -59,7 +59,7 @@ func (s *ConnectorHandler) Get(name string, opt GetOptions) (*v2alpha1.Connector
 			return nil, err
 		}
 	} else {
-		// read from input directory to get lastest config
+		// read from input directory to get latest config
 		err, file := s.ReadFile(s.pathProvider.GetNamespace(), fileName, common.Connectors)
 		if err != nil {
 			return nil, err

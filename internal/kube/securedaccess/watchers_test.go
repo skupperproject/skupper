@@ -178,7 +178,7 @@ func TestSecuredAccessRecovery(t *testing.T) {
 			k8sObjects: []runtime.Object{
 				service("mysvc", "test", selector(), "", servicePorts()),
 				route("mysvc-a", "test", "hoo", "foo", ""),
-				route("mysvc-b", "test", "haa", "bar", ""),
+				route("mysvc-b", "test", "hah", "bar", ""),
 			},
 			skupperObjects: []runtime.Object{
 				securedAccess("mysvc", "test", selector(), securedAccessPorts()),

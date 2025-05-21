@@ -47,7 +47,7 @@ func TestSampling(t *testing.T) {
 		assert.Equal(t, ct, 2_000)
 	})
 
-	t.Run("rate limt zero with burst", func(t *testing.T) {
+	t.Run("rate limit zero with burst", func(t *testing.T) {
 		ct := 0
 		messageCounter := func(string, ...any) {
 			ct++

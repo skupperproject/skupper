@@ -341,7 +341,7 @@ func (c *Collector) discoveryHandler(ctx context.Context) func(eventsource.Info)
 		})
 
 		if err != nil {
-			c.logger.Error("error creating watcher for discoverd source", slog.Any("error", err))
+			c.logger.Error("error creating watcher for discovered source", slog.Any("error", err))
 			c.discovery.Forget(source.ID)
 			return
 		}

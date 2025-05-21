@@ -379,7 +379,7 @@ func Test_RedeemAccessToken(t *testing.T) {
 			scheme:         "https",
 			tokenName:      "my-token",
 			defaultIssuer:  "i-dont-exist",
-			expectedStatus: "Controller got failed response: 500 (Internal Server Error) Could not get issuer for requested certficate",
+			expectedStatus: "Controller got failed response: 500 (Internal Server Error) Could not get issuer for requested certificate",
 		},
 	}
 	for _, tt := range tests {

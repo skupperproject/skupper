@@ -10,7 +10,7 @@ Proposal
 
 Currently claims tokens are converted into certificates (if the claim
 is valid) by code embedded in the service-controller. This means that
-this functionaly us exposed through a different service and ingress
+this functionally us exposed through a different service and ingress
 resource than the certs tokens are used with. This can cause confusion
 with configuration where the ingress mode of the console is what is
 relevant to the claims.

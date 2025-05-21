@@ -406,7 +406,7 @@ func (s *StatusSync) handleDiscovery(source eventsource.Info) {
 	})
 
 	if err != nil {
-		s.logger.Error("error creating watcher for discoverd source", slog.Any("error", err))
+		s.logger.Error("error creating watcher for discovered source", slog.Any("error", err))
 		s.discovery.Forget(source.ID)
 		return
 	}

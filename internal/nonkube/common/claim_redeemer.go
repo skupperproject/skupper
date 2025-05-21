@@ -83,7 +83,7 @@ func RedeemAccessToken(claim *skupperv2alpha1.AccessToken, subject string) (*Lin
 		return nil, err
 	}
 	// TODO should bootstrap log helpful status info (like the following)?
-	// log.Printf("HTTP Post to %s for %s/%s was sucessful, decoding response body", claim.Spec.Url, claim.Namespace, claim.Name)
+	// log.Printf("HTTP Post to %s for %s/%s was successful, decoding response body", claim.Spec.Url, claim.Namespace, claim.Name)
 
 	decoder := newLinkDecoder(response.Body)
 	if err := decoder.decodeAll(); err != nil {

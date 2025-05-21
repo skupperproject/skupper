@@ -3,7 +3,7 @@ You have installed the skupper network observer!
 Accessing the console:
 {{- if .Values.ingress.enabled }}
   The {{ include "network-observer.fullname" . }} service is exposed through an
-  Ingress and should be availalble external to the cluster at the following
+  Ingress and should be available external to the cluster at the following
   locations.
 {{- range $host := .Values.ingress.hosts }}
   {{- range .paths }}

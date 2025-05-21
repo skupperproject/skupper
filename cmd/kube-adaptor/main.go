@@ -52,7 +52,7 @@ func main() {
 	var configDir string
 	var configMapName string
 	iflag.StringVar(flags, &configDir, "config-dir", "SKUPPER_CONFIG_DIR", "/etc/skupper-router-certs", "The directory to which configuration should be saved")
-	iflag.StringVar(flags, &configMapName, "router-config", "SKUPPER_ROUTER_CONFIG", "skupper-router", "The name of the ConfigMap containg the router config")
+	iflag.StringVar(flags, &configMapName, "router-config", "SKUPPER_ROUTER_CONFIG", "skupper-router", "The name of the ConfigMap containing the router config")
 
 	// if -version used, report and exit
 	isVersion := flags.Bool("version", false, "Report the version of Config Sync")

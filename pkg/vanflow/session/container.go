@@ -1,5 +1,5 @@
 // session implements amqp connection and session management though the concept
-// of a Container, inspired by the Conatiner interface exposed by the qpid
+// of a Container, inspired by the Container interface exposed by the qpid
 // proton amqp libraries. This abstraction allows vanflow components to be
 // written without repeating connection management tasks.
 package session
@@ -39,7 +39,7 @@ func (o SenderOptions) get() amqp.SenderOptions {
 type Container interface {
 	// Start the container
 	Start(context.Context)
-	// NewReceiver adds a new reciver link using the container's session
+	// NewReceiver adds a new receiver link using the container's session
 	NewReceiver(address string, opts ReceiverOptions) Receiver
 	// NewSender adds a new sender link using the container's session
 	NewSender(address string, opts SenderOptions) Sender
@@ -92,7 +92,7 @@ func (cfg ContainerConfig) toAmqp() *amqp.ConnOptions {
 	return &opts
 }
 
-// NewContainer creats an amqp container that will attempt to create a single
+// NewContainer creates an amqp container that will attempt to create a single
 // connection + session pair using the supplied amqp connection options for use
 // with the container's Senders and Receivers. Will recreate the connection and
 // session when a link encounters an error using the specified backoff
@@ -221,7 +221,7 @@ func (c *container) Start(ctx context.Context) {
 			if errors.Is(err, ctx.Err()) {
 				return
 			}
-			wErr := fmt.Errorf("error caused contianer to close: %w", err)
+			wErr := fmt.Errorf("error caused container to close: %w", err)
 			c.mu.Lock()
 			defer c.mu.Unlock()
 			for _, handler := range c.errorHandlers {

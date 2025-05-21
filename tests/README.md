@@ -138,7 +138,7 @@ make test TEST="hello-world"
 
 - This will run the `hello-world` test located in the `e2e/hello-world` directory, activating the virtual environment and running the test playbook.
 
-### Aditional Configuration
+### Additional Configuration
 
 1. **vars.yml file**: Create a `vars.yml` file in the repository root to set extra variables for the tests.
 

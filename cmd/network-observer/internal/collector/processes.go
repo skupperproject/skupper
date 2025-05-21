@@ -165,7 +165,7 @@ func (m *processManager) run(ctx context.Context) func() error {
 
 								}
 								if toDelete != "" {
-									m.logger.Info("Deleting site server process superceeded by new process",
+									m.logger.Info("Deleting site server process superseded by new process",
 										slog.String("id", toDelete),
 										slog.String("site_id", siteID),
 										slog.String("host", host),

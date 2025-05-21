@@ -64,7 +64,7 @@ func TestManagerClient(t *testing.T) {
 		}
 	})
 
-	t.Run("will syncronize records", func(t *testing.T) {
+	t.Run("will synchronize records", func(t *testing.T) {
 		poll.WaitOn(t, func(t poll.LogT) poll.Result {
 			actual := clientStor.List()
 			expected := logStor.List()

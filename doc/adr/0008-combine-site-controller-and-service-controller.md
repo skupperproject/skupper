@@ -52,7 +52,7 @@ Skupper will also use one less pod per site in many cases.
 
 The get command and associated web api will no longer be available in
 its current form. Neither will the already deprecated web api for
-managing links and tokens. The prefered approach for making
+managing links and tokens. The preferred approach for making
 information available will be through kubernetes resources. An
 alternative to `skupper debug events` will be needed. This might be
 Kubernetes Event resources or some other resource into which

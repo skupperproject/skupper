@@ -89,7 +89,7 @@ func TestClient(t *testing.T) {
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				t.Errorf("client.Close() should be safe to call multiple times but paniced: %v", r)
+				t.Errorf("client.Close() should be safe to call multiple times but panicked: %v", r)
 			}
 		}()
 		client.Close()

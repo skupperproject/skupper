@@ -60,7 +60,7 @@ func (s *SiteHandler) Get(name string, opts GetOptions) (*v2alpha1.Site, error) 
 			return nil, err
 		}
 	} else {
-		// read from input directory to get lastest config
+		// read from input directory to get latest config
 		err, file := s.ReadFile(s.pathProvider.GetNamespace(), fileName, common.Sites)
 		if err != nil {
 			return nil, err
