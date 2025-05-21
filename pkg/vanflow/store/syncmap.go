@@ -20,7 +20,7 @@ type syncMapStore struct {
 	items map[string]Entry
 
 	indexers      map[string]Indexer
-	indices      map[string]map[string]keySet
+	indices       map[string]map[string]keySet
 	eventHandlers EventHandlerFuncs
 }
 
@@ -37,7 +37,7 @@ func NewSyncMapStore(cfg SyncMapStoreConfig) Interface {
 		indexers:      cfg.Indexers,
 		eventHandlers: cfg.Handlers,
 
-		items:    make(map[string]Entry),
+		items:   make(map[string]Entry),
 		indices: make(map[string]map[string]keySet),
 	}
 }
