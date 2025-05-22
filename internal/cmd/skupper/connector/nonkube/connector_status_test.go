@@ -3,6 +3,7 @@ package nonkube
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -12,7 +13,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/v3/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
@@ -21,14 +21,16 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 		args              []string
 		flags             *common.CommandConnectorStatusFlags
 		cobraGenericFlags map[string]string
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		expectedError     string
 	}
 
-	homeDir, err := os.UserHomeDir()
-	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.RuntimeSiteStatePath))
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+	tmpDir := api.GetDataHome()
+	path := filepath.Join(tmpDir, "/namespaces/test/", string(api.RuntimeSiteStatePath))
 
 	testTable := []test{
 		{
@@ -117,24 +119,25 @@ func TestCmdConnectorStatus_ValidateInput(t *testing.T) {
 
 func TestCmdConnectorStatus_Run(t *testing.T) {
 	type test struct {
-		name                string
-		connectorName       string
-		flags               common.CommandConnectorStatusFlags
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		errorMessage        string
+		name          string
+		connectorName string
+		flags         common.CommandConnectorStatusFlags
+		errorMessage  string
 	}
 
-	homeDir, err := os.UserHomeDir()
-	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+	tmpDir := api.GetDataHome()
+	path := filepath.Join(tmpDir, "/namespaces/test/", string(api.RuntimeSiteStatePath))
 
 	testTable := []test{
 		{
 			name:          "run fails connector doesn't exist",
 			connectorName: "no-connector",
-			errorMessage:  "failed to read file: open " + path + "/Connector-no-connector.yaml: no such file or directory",
+			errorMessage:  "no such file or directory",
 		},
 		{
 			name:          "runs ok, returns 1 connectors",
@@ -225,7 +228,6 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 	defer command.connectorHandler.Delete("my-connector")
 	defer command.connectorHandler.Delete("my-connector2")
 
-	path = filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.RuntimeSiteStatePath))
 	content, err := command.connectorHandler.EncodeToYaml(connectorResource1)
 	assert.Check(t, err == nil)
 	err = command.connectorHandler.WriteFile(path, "my-connector.yaml", content, common.Connectors)
@@ -244,7 +246,7 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			err := command.Run()
 			if err != nil {
-				assert.Equal(t, test.errorMessage, err.Error())
+				assert.Check(t, strings.HasSuffix(err.Error(), test.errorMessage))
 			} else {
 				assert.NilError(t, err)
 			}
@@ -254,22 +256,21 @@ func TestCmdConnectorStatus_Run(t *testing.T) {
 
 func TestCmdConnectorStatus_RunNoDirectory(t *testing.T) {
 	type test struct {
-		name                string
-		flags               common.CommandConnectorStatusFlags
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		errorMessage        string
+		name         string
+		flags        common.CommandConnectorStatusFlags
+		errorMessage string
 	}
 
-	homeDir, err := os.UserHomeDir()
-	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test1/", string(api.InputSiteStatePath))
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
 
 	testTable := []test{
 		{
-			name:         "runs fails no directory",
-			errorMessage: "failed to read file: open " + path + "/Connector-my-connector.yaml: no such file or directory",
+			name:         "run function fails because the file does not exist",
+			errorMessage: "no such file or directory",
 		},
 	}
 
@@ -284,7 +285,7 @@ func TestCmdConnectorStatus_RunNoDirectory(t *testing.T) {
 
 			err := command.Run()
 			if err != nil {
-				assert.Check(t, test.errorMessage == err.Error())
+				assert.Check(t, strings.HasSuffix(err.Error(), test.errorMessage))
 			} else {
 				assert.Check(t, err == nil)
 			}

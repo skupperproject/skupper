@@ -1,8 +1,6 @@
 package fs
 
 import (
-	"errors"
-	"io/fs"
 	"os"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -76,9 +74,7 @@ func (s *ConnectorHandler) Delete(name string) error {
 	fileName := name + ".yaml"
 
 	if err := s.DeleteFile(s.pathProvider.GetNamespace(), fileName, common.Connectors); err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
+		return err
 	}
 
 	return nil

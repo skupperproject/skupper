@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
@@ -21,15 +20,18 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 		name              string
 		args              []string
 		flags             *common.CommandConnectorUpdateFlags
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		cobraGenericFlags map[string]string
 		expectedError     string
 	}
 
-	homeDir, err := os.UserHomeDir()
-	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+	tmpDir := api.GetDataHome()
+	path := filepath.Join(tmpDir, "/namespaces/test/", string(api.InputSiteStatePath))
+
 	testTable := []test{
 		{
 			name:          "connector is not updated because get connector returned error",
@@ -163,18 +165,15 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 
 func TestCmdConnectorUpdate_Run(t *testing.T) {
 	type test struct {
-		name                string
-		namespace           string
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		errorMessage        string
-		connectorName       string
-		host                string
-		routingKey          string
-		tlsCredentials      string
-		connectorType       string
-		port                int
+		name           string
+		namespace      string
+		errorMessage   string
+		connectorName  string
+		host           string
+		routingKey     string
+		tlsCredentials string
+		connectorType  string
+		port           int
 	}
 
 	testTable := []test{

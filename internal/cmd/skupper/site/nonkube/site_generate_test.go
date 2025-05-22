@@ -9,15 +9,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"gotest.tools/v3/assert"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestNonKubeCmdSiteGenerate_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
 		args              []string
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		flags             *common.CommandSiteGenerateFlags
 		cobraGenericFlags map[string]string
 		expectedError     string
@@ -155,9 +152,6 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 func TestNonKubeCmdSiteGenerate_Run(t *testing.T) {
 	type test struct {
 		name              string
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
-		skupperError      string
 		siteName          string
 		output            string
 		errorMessage      string
@@ -168,29 +162,21 @@ func TestNonKubeCmdSiteGenerate_Run(t *testing.T) {
 	testTable := []test{
 		{
 			name:              "runs ok",
-			k8sObjects:        nil,
-			skupperObjects:    nil,
 			siteName:          "my-site",
 			routerAccessName:  "ra-test",
 			linkAccessEnabled: true,
 			output:            "json",
 		},
 		{
-			name:           "runs ok with yaml output",
-			k8sObjects:     nil,
-			skupperObjects: nil,
-			siteName:       "test",
-			output:         "yaml",
-			skupperError:   "",
+			name:     "runs ok with yaml output",
+			siteName: "test",
+			output:   "yaml",
 		},
 		{
-			name:           "runs fails because the output format is not supported",
-			k8sObjects:     nil,
-			skupperObjects: nil,
-			siteName:       "test",
-			output:         "unsupported",
-			skupperError:   "",
-			errorMessage:   "format unsupported not supported",
+			name:         "runs fails because the output format is not supported",
+			siteName:     "test",
+			output:       "unsupported",
+			errorMessage: "format unsupported not supported",
 		},
 	}
 

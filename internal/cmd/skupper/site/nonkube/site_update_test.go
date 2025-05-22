@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
@@ -205,15 +204,12 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 
 func TestCmdSiteUpdate_Run(t *testing.T) {
 	type test struct {
-		name                string
-		namespace           string
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		errorMessage        string
-		siteName            string
-		flags               common.CommandSiteUpdateFlags
-		linkAccessEnabled   bool
+		name              string
+		namespace         string
+		errorMessage      string
+		siteName          string
+		flags             common.CommandSiteUpdateFlags
+		linkAccessEnabled bool
 	}
 
 	testTable := []test{

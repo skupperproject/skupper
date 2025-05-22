@@ -1,8 +1,6 @@
 package fs
 
 import (
-	"errors"
-	"io/fs"
 	"os"
 	"strings"
 
@@ -69,10 +67,8 @@ func (s *LinkHandler) Get(name string, opts GetOptions) (*v2alpha1.Link, error) 
 func (s *LinkHandler) Delete(name string) error {
 	fileName := name + ".yaml"
 
-	if err := s.DeleteFile(s.pathProvider.GetRuntimeNamespace(), fileName, "links"); err != nil {
-		if !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
+	if err := s.DeleteFile(s.pathProvider.GetNamespace(), fileName, common.Links); err != nil {
+		return err
 	}
 
 	return nil

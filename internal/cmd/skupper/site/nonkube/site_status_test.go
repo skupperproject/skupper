@@ -21,8 +21,6 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 		args              []string
 		flags             *common.CommandSiteStatusFlags
 		cobraGenericFlags map[string]string
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		expectedError     string
 	}
 
@@ -115,13 +113,10 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 
 func TestCmdSiteStatus_Run(t *testing.T) {
 	type test struct {
-		name                string
-		siteName            string
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		errorMessage        string
-		output              string
+		name         string
+		siteName     string
+		errorMessage string
+		output       string
 	}
 
 	if os.Getuid() == 0 {

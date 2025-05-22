@@ -3,6 +3,7 @@ package nonkube
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -13,7 +14,6 @@ import (
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
@@ -22,14 +22,16 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 		args              []string
 		flags             *common.CommandConnectorDeleteFlags
 		cobraGenericFlags map[string]string
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		expectedError     string
 	}
 
-	homeDir, err := os.UserHomeDir()
-	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.InputSiteStatePath))
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+	tmpDir := api.GetDataHome()
+	path := filepath.Join(tmpDir, "/namespaces/test/", string(api.InputSiteStatePath))
 
 	testTable := []test{
 		{
@@ -117,28 +119,30 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 
 func TestCmdConnectorDelete_Run(t *testing.T) {
 	type test struct {
-		name                string
-		namespace           string
-		deleteName          string
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		errorMessage        string
+		name         string
+		namespace    string
+		deleteName   string
+		errorMessage string
 	}
+
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+	tmpDir := api.GetDataHome()
+	path := filepath.Join(tmpDir, "/namespaces/test/", string(api.InputSiteStatePath))
 
 	testTable := []test{
 		{
-			name:                "run fails default",
-			deleteName:          "my-connector",
-			skupperErrorMessage: "error",
-			errorMessage:        "error",
+			name:         "run fails default",
+			deleteName:   "my-connector",
+			errorMessage: "no such file or directory",
 		},
 		{
-			name:                "run fails",
-			namespace:           "test",
-			deleteName:          "my-connector",
-			skupperErrorMessage: "error",
-			errorMessage:        "error",
+			name:       "runs ok",
+			namespace:  "test",
+			deleteName: "my-connector",
 		},
 	}
 
@@ -147,17 +151,39 @@ func TestCmdConnectorDelete_Run(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 
+			createConnectorResource(path, t)
 			cmd.connectorName = test.deleteName
 			cmd.namespace = test.namespace
 			cmd.connectorHandler = fs.NewConnectorHandler(cmd.namespace)
 			cmd.InputToOptions()
 
 			err := cmd.Run()
-			if err != nil {
-				assert.Check(t, test.errorMessage == err.Error())
+
+			if test.errorMessage != "" {
+				assert.Check(t, strings.HasSuffix(err.Error(), test.errorMessage), err.Error())
 			} else {
 				assert.Check(t, err == nil)
 			}
 		})
 	}
+}
+
+func createConnectorResource(path string, t *testing.T) {
+	connectorResource := v2alpha1.Connector{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "Connector",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-connector",
+			Namespace: "test",
+		},
+	}
+
+	connectorHandler := fs.NewConnectorHandler("test")
+
+	contentConnector, err := connectorHandler.EncodeToYaml(connectorResource)
+	assert.Check(t, err == nil)
+	err = connectorHandler.WriteFile(path, "my-connector.yaml", contentConnector, common.Connectors)
+	assert.Check(t, err == nil)
 }

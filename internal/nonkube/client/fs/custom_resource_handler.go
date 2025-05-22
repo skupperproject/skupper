@@ -104,6 +104,11 @@ func (b *BaseCustomResourceHandler) DeleteFile(path string, name string, kind st
 		completeFilePath = path
 	}
 
+	_, err := os.Stat(completeFilePath)
+	if os.IsNotExist(err) {
+		return err
+	}
+
 	if err := os.RemoveAll(completeFilePath); err != nil {
 		return fmt.Errorf("failed to delete file: %s", err)
 	}
