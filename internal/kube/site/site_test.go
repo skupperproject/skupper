@@ -1005,7 +1005,7 @@ func Test_CheckSecuredAccess(t *testing.T) {
 				if s.linkAccess["skupper-router"].Spec.AccessType == "loadbalancer" {
 					t.Errorf("Site.CheckSecuredAccess() linkAccess not updated")
 				}
-				// TBD adds to code coverge but doesn't return error if failed
+				// TBD adds to code coverage but doesn't return error if failed
 				if err = s.checkSecuredAccess(); err != nil {
 					t.Errorf("Site.CheckSecuredAccess() linkAccess not updated")
 				}

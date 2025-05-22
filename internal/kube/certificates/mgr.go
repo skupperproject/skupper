@@ -1,5 +1,5 @@
 // Package certificates provides the ability to create or update
-// instances of the v2alpha1 Certificate resource, and esnure that a
+// instances of the v2alpha1 Certificate resource, and ensure that a
 // corresponding Secret resource is maintained for each.
 package certificates
 

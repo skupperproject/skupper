@@ -72,7 +72,7 @@ func TestCmdVersion_InputToOptions(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "good defaul",
+			name:     "good default",
 			expected: false,
 		},
 	}

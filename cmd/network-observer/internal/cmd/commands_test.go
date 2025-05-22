@@ -127,7 +127,7 @@ func TestEnsureSecrets(t *testing.T) {
 			case err != nil && tc.ExpectErr:
 				// OKAY
 			case err != nil && !tc.ExpectErr:
-				t.Fatalf("Unxpected error %s", err)
+				t.Fatalf("Unexpected error %s", err)
 			}
 
 			if tc.Assert != nil {

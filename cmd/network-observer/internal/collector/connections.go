@@ -456,7 +456,7 @@ func (c *connectionManager) run(ctx context.Context) {
 				c.transportFlows.Matching(func(state *transportState) bool {
 					// only reconcile flow sources for flows that are not yet
 					// reconcilled, but have been waiting at least 15s (a delay
-					// for any related records to propogate before perminately
+					// for any related records to propagate before perminately
 					// associating a flow with an inferred source)
 					return state.metrics == nil &&
 						time.Since(state.FirstSeen) > 15*time.Second

@@ -59,7 +59,7 @@ func runEnsureSecret(args []string) error {
 	}
 	iflag.StringVar(flags, &namespace, "namespace", "NAMESPACE", "", "The Kubernetes namespace scope for the controller")
 	iflag.StringVar(flags, &kubeconfig, "kubeconfig", "KUBECONFIG", "", "A path to the kubeconfig file to use")
-	iflag.StringVar(flags, &format, "format", "ENSURE_SECRET_FORMAT", "", "Secret format. One of [oauth2-proxy-session-cookie, htpasswd]. Requried.")
+	iflag.StringVar(flags, &format, "format", "ENSURE_SECRET_FORMAT", "", "Secret format. One of [oauth2-proxy-session-cookie, htpasswd]. Required.")
 	flags.Parse(args[1:])
 	posArgs := flags.Args()
 	if len(posArgs) != 1 {
@@ -75,7 +75,7 @@ func runEnsureSecret(args []string) error {
 	case "oauth2-proxy-session-cookie":
 		secretsProvider = generateOauth2ProxySessionSecret
 	case "":
-		fmt.Fprintf(flags.Output(), "flag --format is requried\n")
+		fmt.Fprintf(flags.Output(), "flag --format is required\n")
 		flags.Usage()
 		os.Exit(1)
 	default:

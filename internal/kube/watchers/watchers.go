@@ -193,7 +193,7 @@ func (c *EventProcessor) Stop() {
 }
 
 // Creates an event handler that will take handle events from an
-// informer by contructing an appropriate ResourceChange instance and
+// informer by constructing an appropriate ResourceChange instance and
 // adding it to the EventProcessor's work queue.
 func (c *EventProcessor) newEventHandler(handler ResourceChangeHandler) *cache.ResourceEventHandlerFuncs {
 	evt := ResourceChange{

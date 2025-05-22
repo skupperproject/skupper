@@ -91,7 +91,7 @@ func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
 			expectedError: "host is not valid: a valid IP address or hostname is expected",
 		},
 		{
-			name:  "host is not configued default",
+			name:  "host is not configured default",
 			args:  []string{"my-connector-host", "8080"},
 			flags: &common.CommandConnectorCreateFlags{},
 		},

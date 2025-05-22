@@ -267,7 +267,7 @@ jobs:
             KUBECONFIG=~/kc.west ./scripts/kind-dev-cluster -n west  \
               --images ociarchive
       - run:
-          name: Initalize Sites
+          name: Initialize Sites
           command: |
             set -x
 

@@ -76,7 +76,7 @@ func (s *ConfigMapHandler) Get(name string, opts GetOptions) (*corev1.ConfigMap,
 			return nil, err
 		}
 	} else {
-		// read from input directory to get lastest config
+		// read from input directory to get latest config
 		err, file := s.ReadFile(s.pathProvider.GetNamespace(), fileName, common.ConfigMaps)
 		if err != nil {
 			return nil, err

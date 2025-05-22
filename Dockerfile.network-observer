@@ -24,7 +24,7 @@ RUN yarn install && yarn build
 FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
 LABEL \
   org.opencontainers.image.title="Skupper Network Observer" \
-  org.opencontainers.image.description="Exposes Skupper network telemetry thorugh an API, metrics and a web console"
+  org.opencontainers.image.description="Exposes Skupper network telemetry through an API, metrics and a web console"
 
 # Create user and group and switch to user's context
 RUN microdnf -y install shadow-utils \

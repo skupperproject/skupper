@@ -12,7 +12,7 @@ package manager.
 
 ## Prerequisites
 
-- A Skupper Version 2 Site running in the same Kuberentes Namesapce the network
+- A Skupper Version 2 Site running in the same Kubernetes Namespace the network
 observer is to be installed in.
 - The Skupper Controller running and managing the Site.
 

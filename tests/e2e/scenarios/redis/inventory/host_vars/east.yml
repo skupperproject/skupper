@@ -6,7 +6,7 @@ kubeconfig: "{{ kubeconfig_2 }}"
 # Namespace configuration
 namespace_name: redis-east
 
-# Wast CRs
+# East CRs
 site: "{{ playbook_dir }}/resources/east/site-east.yml"
 connector: "{{ playbook_dir }}/resources/east/connector-east.yml"
 listener: "{{ playbook_dir }}/resources/east/listener-east.yml"

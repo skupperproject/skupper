@@ -51,7 +51,7 @@ func TestDiscoveryBasic(t *testing.T) {
 
 	// a "real" skupper router can drop beacon messages when there is not yet a
 	// consumer ready. retry sending initial beacons once when the
-	// implemenation is not a mock
+	// implementation is not a mock
 	retryOnceAfter := time.Now().Add(time.Hour * 48)
 	if _, isMock := tstSender.(interface{ IsMock() }); !isMock {
 		retryOnceAfter = time.Now().Add(500 * rtt)

@@ -45,7 +45,7 @@ func NewTokenGenerator(site *skupperv2alpha1.Site, clients internalclient.Client
 	}
 	if err := generator.loadCA(site.DefaultIssuer()); err != nil {
 		log.Printf("Error retrieving default issuer %s for site %s in %s: %s", site.DefaultIssuer(), site.Name, site.Namespace, err)
-		return nil, errors.New("Could not get issuer for requested certficate")
+		return nil, errors.New("Could not get issuer for requested certificate")
 	}
 	if ok := generator.setValidHostsFromSite(site); !ok {
 		log.Printf("Could not resolve any target endpoints for site %s in %s", site.Name, site.Namespace)

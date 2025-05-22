@@ -2386,7 +2386,7 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 				} else if err != nil {
 					t.Error(err)
 				} else {
-					// retrieve SecuredAccess instance from API and verify it natches expectations
+					// retrieve SecuredAccess instance from API and verify it matches expectations
 					actual, err := m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(args.namespace).Get(context.Background(), args.name, metav1.GetOptions{})
 					if err != nil {
 						t.Error(err)

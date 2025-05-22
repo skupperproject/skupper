@@ -155,7 +155,7 @@
           when:
             - "'west' in inventory_hostname"
 
-        - name: "[ HATest - RunTest ] Failling the test if num_requests = 0 or num_failures > 5% "
+        - name: "[ HATest - RunTest ] Failing the test if num_requests = 0 or num_failures > 5% "
           fail:
             msg: "The test has FAILED - num_requests: {{ num_requests }}, num_failures: {{ num_failures }}"
           when:

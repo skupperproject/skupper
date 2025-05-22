@@ -14,14 +14,14 @@ func StringVar(flags *flag.FlagSet, output *string, flagName string, envVarName 
 
 func BoolVar(flags *flag.FlagSet, output *bool, flagName string, envVarName string, defaultValue bool, usage string) error {
 	dval, err := boolEnvVar(envVarName, defaultValue)
-	//set flag inspite of error, caller can decide whether to ignore and go with default or not
+	//set flag in spite of error, caller can decide whether to ignore and go with default or not
 	flags.BoolVar(output, flagName, dval, usage)
 	return err
 }
 
 func IntVar(flags *flag.FlagSet, output *int, flagName string, envVarName string, defaultValue int, usage string) error {
 	dval, err := intEnvVar(envVarName, defaultValue)
-	//set flag inspite of error, caller can decide whether to ignore and go with default or not
+	//set flag in spite of error, caller can decide whether to ignore and go with default or not
 	flags.IntVar(output, flagName, dval, usage)
 	return err
 }

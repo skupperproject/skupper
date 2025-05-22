@@ -20,7 +20,7 @@ type syncMapStore struct {
 	items map[string]Entry
 
 	indexers      map[string]Indexer
-	indicies      map[string]map[string]keySet
+	indices       map[string]map[string]keySet
 	eventHandlers EventHandlerFuncs
 }
 
@@ -37,8 +37,8 @@ func NewSyncMapStore(cfg SyncMapStoreConfig) Interface {
 		indexers:      cfg.Indexers,
 		eventHandlers: cfg.Handlers,
 
-		items:    make(map[string]Entry),
-		indicies: make(map[string]map[string]keySet),
+		items:   make(map[string]Entry),
+		indices: make(map[string]map[string]keySet),
 	}
 }
 
@@ -201,7 +201,7 @@ func (m *syncMapStore) Index(index string, exemplar Entry) []Entry {
 	if !ok {
 		return nil
 	}
-	idx := m.indicies[index]
+	idx := m.indices[index]
 	indexVals := indexer(exemplar)
 
 	keys := make(keySet)
@@ -220,7 +220,7 @@ func (m *syncMapStore) IndexValues(index string) []string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	idx := m.indicies[index]
+	idx := m.indices[index]
 	if len(idx) == 0 {
 		return nil
 	}
@@ -241,7 +241,7 @@ func (m *syncMapStore) Replace(items []Entry) {
 	}
 	m.items = entries
 
-	m.indicies = make(map[string]map[string]keySet)
+	m.indices = make(map[string]map[string]keySet)
 	for key, entry := range m.items {
 		m.reindex(key, nil, entry)
 	}
@@ -251,7 +251,7 @@ func (m *syncMapStore) unindex(key string, entry Entry) {
 	for name, indexer := range m.indexers {
 		indexVals := indexer(entry)
 
-		index := m.indicies[name]
+		index := m.indices[name]
 		if index == nil {
 			continue
 		}
@@ -273,10 +273,10 @@ func (m *syncMapStore) reindex(key string, prev *Entry, next Entry) {
 	for name, indexer := range m.indexers {
 		indexVals := indexer(next)
 
-		index := m.indicies[name]
+		index := m.indices[name]
 		if index == nil {
 			index = map[string]keySet{}
-			m.indicies[name] = index
+			m.indices[name] = index
 		}
 		for _, indexVal := range indexVals {
 			set := index[indexVal]

@@ -28,7 +28,7 @@ func RedeemAccessToken(token *skupperv2alpha1.AccessToken, site *skupperv2alpha1
 	if err != nil {
 		return updateAccessTokenStatus(token, err, clients)
 	}
-	log.Printf("HTTP Post to %s for %s/%s was sucessful, decoding response body", token.Spec.Url, token.Namespace, token.Name)
+	log.Printf("HTTP Post to %s for %s/%s was successful, decoding response body", token.Spec.Url, token.Namespace, token.Name)
 	return handleTokenResponse(body, token, site, clients)
 }
 

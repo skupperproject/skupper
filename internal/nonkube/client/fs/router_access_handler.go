@@ -77,7 +77,7 @@ func (s *RouterAccessHandler) Update(name string) (*v2alpha1.RouterAccess, error
 	var context v2alpha1.RouterAccess
 	fileName := name + ".yaml"
 
-	// read from input directory to get lastest config
+	// read from input directory to get latest config
 	err, file := s.ReadFile(s.pathProvider.GetNamespace(), fileName, common.RouterAccesses)
 	if err != nil {
 		return nil, err

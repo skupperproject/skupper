@@ -50,7 +50,7 @@ func TestDecode(t *testing.T) {
 			In:    &amqp.Message{Properties: &amqp.MessageProperties{Subject: ptrTo("A")}},
 			Error: "cannot decode message",
 		}, {
-			Name: "emtpy record",
+			Name: "empty record",
 			In:   func() *amqp.Message { m, _ := RecordMessage{}.Encode(); return m }(),
 			Out:  RecordMessage{MessageProps: MessageProps{Subject: "RECORD"}},
 		}, {
