@@ -255,11 +255,45 @@ This will apply the link to the private site. The sites should connect.
 **TODO** Support for rotating TLS Credentials is currently under development
 and is not yet fully implemented.
 
-When considering rotating the TLS credentials used by Skupper, it is important
-to understand the trust model used for linking Skupper Sites. The default
-[trust model](#default-controller-managed-tls-in-kubernetes) used by Skupper is
-distributed: each Site having its own trust root. Because of this, rotating
-client certificates and Site CAs is an especially complicated exercise.
+Skupper uses Links to communicate between Sites. Each Link consists of a family
+of TLS Connections that Skupper routers use for internal coordination and
+proxying application traffic across Sites. Rotating the TLS Credentials used by
+a Link will initiate an active migration where the routers will open new TLS
+connections to their peers using the updated credentials. Once established, all
+internal communications and any new application traffic will happen over the
+new connections based on the updated credentials. By default, Skupper will
+leave the old connections open in order to not disrupt existing application
+connections.
+
+### Updating TLS Credentials
+
+Skupper automatically watches for changes to Secrets being used for TLS
+Credentials. When the Secret is updated, Skupper will immediately begin to
+prefer the new set of credentials. For a RouterAccess any new connections will
+use the updated credentials, but existing connections are only terminated when
+they are based on a prior revision that becomes invalid (more below.) For Link
+resources, skupper will proactively begin the migration to the new set of
+credentials.
+
+### Discontinuing Use of Previous TLS Credentials
+
+When TLS Credentials are rotated, Skupper will preserve the connections based
+on the previous revision of the credentials to ensure service continuity for
+open application connections. This behavior can be overwritten at the Site with
+the `tls-prior-valid-revisions` setting or at the Secret with the
+`skupper.io/tls-prior-valid-revisions` annotation, with the Secret annotation
+taking precedent.
+
+This setting indicates the floor for the number of previous revisions to a TLS
+Secret (counted as changes to the Secret data fields) that are permissible to
+keep existing connections alive for. The default behavior is
+`tls-prior-valid-revisions=1`, meaning that after updating a Secret with new
+TLS credentials the existing connections will remain open for any existing
+application connections. Setting `tls-prior-valid-revisions=0` will instruct
+skupper to close all connections not based on the current revision of a TLS
+Certificate and will disrupt any application connections made before the
+rotation. Setting tls-prior-valid-revisions above 1 may be desirable while
+performing a multi-phase migration, such as is needed when rotating a CA.
 
 ## Troubleshooting TLS Issues
 
