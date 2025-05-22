@@ -6,6 +6,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/v3/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
@@ -30,9 +31,11 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 
 	defer os.Remove("/tmp/token-redeem.yaml")
 
-	tmpDir := filepath.Join(t.TempDir(), "/skupper")
-	err = os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
-	assert.Check(t, err == nil)
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
 
 	testTable := []test{
 		{
@@ -86,9 +89,11 @@ func TestCmdTokenRedeem_Run(t *testing.T) {
 		errorType    string
 	}
 
-	tmpDir := filepath.Join(t.TempDir(), "/skupper")
-	err := os.Setenv("SKUPPER_OUTPUT_PATH", tmpDir)
-	assert.Check(t, err == nil)
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
 
 	tmpDirToken := t.TempDir()
 	tokenFile := filepath.Join(tmpDirToken, "token.yaml")
@@ -118,6 +123,7 @@ func TestCmdTokenRedeem_Run(t *testing.T) {
 		command.secretHandler = fs.NewSecretHandler(command.Namespace)
 		command.fileName = tokenFile
 
+		var err error
 		switch test.errorType {
 		case "malformedFile":
 			err = newMalformedTokenFile(tokenFile)
