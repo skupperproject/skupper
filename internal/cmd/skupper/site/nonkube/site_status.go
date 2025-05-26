@@ -79,8 +79,8 @@ func (cmd *CmdSiteStatus) Run() error {
 	opts := fs.GetOptions{LogWarning: true}
 	sites, err := cmd.siteHandler.List(opts)
 	if sites == nil || err != nil {
-		fmt.Println("no site found:")
-		return err
+		fmt.Println("There is no existing Skupper site resource")
+		return nil
 	}
 
 	if cmd.output != "" {
@@ -96,16 +96,10 @@ func (cmd *CmdSiteStatus) Run() error {
 		fmt.Fprintln(writer, "NAME\tSTATUS\tMESSAGE")
 
 		for _, site := range sites {
-			status := "Not Ready"
-			if site.IsReady() {
-				status = "Ready"
-			} else if site.IsConfigured() {
-				status = "configured"
-			}
-
-			fmt.Fprintf(writer, "%s\t%s\t%s", site.Name, status, site.Status.Message)
+			fmt.Fprintf(writer, "%s\t%s\t%s", site.Name, site.Status.StatusType, site.Status.Message)
 			fmt.Fprintln(writer)
 		}
+
 		writer.Flush()
 	}
 
