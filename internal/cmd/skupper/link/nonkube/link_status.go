@@ -3,6 +3,8 @@ package nonkube
 import (
 	"errors"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"os"
 	"text/tabwriter"
 
@@ -19,6 +21,7 @@ type CmdLinkStatus struct {
 	Flags       *common.CommandLinkStatusFlags
 	namespace   string
 	linkName    string
+	output      string
 }
 
 func NewCmdLinkStatus() *CmdLinkStatus {
@@ -57,57 +60,74 @@ func (cmd *CmdLinkStatus) ValidateInput(args []string) error {
 }
 
 func (cmd *CmdLinkStatus) Run() error {
-	opts := fs.GetOptions{LogWarning: false}
-	links, err := cmd.linkHandler.List(opts)
-	if links == nil || err != nil {
-		fmt.Println("no links found")
-		return nil
-	}
-	if cmd.linkName == "" {
-		tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
-		_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s",
-			"NAME", "STATUS"))
-		for _, link := range links {
-			status := "Not Ready"
-			if link.IsConfigured() {
-				status = "Ok"
-			}
-			fmt.Fprintln(tw, fmt.Sprintf("%s\t%s",
-				link.Name, status))
+
+	if cmd.linkName != "" {
+		selectedLink, err := cmd.linkHandler.Get(cmd.linkName, fs.GetOptions{LogWarning: false})
+		if err != nil {
+			return fmt.Errorf("There is no link resource in the namespace with the name %q", cmd.linkName)
 		}
-		_ = tw.Flush()
+
+		if cmd.output != "" {
+			return printEncodedOuptut(cmd.output, selectedLink)
+		} else {
+			displaySingleLink(selectedLink)
+		}
+
 	} else {
-		for _, link := range links {
-			if link.Name == cmd.linkName {
-				status := "Not Ready"
-				if link.IsConfigured() {
-					status = "Ok"
-				}
 
-				// get the site and determine role of router, default to interRouter
-				endpointName := ""
-				endPointType := common.InterRouterRole
-				sites, err := cmd.siteHandler.List(opts)
-				if sites != nil && err == nil {
-					if sites[0].Spec.Edge {
-						endPointType = common.EdgeRole
-					}
-				}
-				for index, endpoint := range link.Spec.Endpoints {
-					if endpoint.Name == endPointType {
-						endpointName = link.Spec.Endpoints[index].Host + ":" + link.Spec.Endpoints[index].Port
-					}
-				}
-
-				tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
-				fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nCost:\t%d\nTlsCredentials:\t%s\nEndpoint:\t%s\n",
-					link.Name, status, link.Spec.Cost, link.Spec.TlsCredentials, endpointName))
-				_ = tw.Flush()
-			}
+		linkList, err := cmd.linkHandler.List(fs.GetOptions{LogWarning: false})
+		if err != nil {
+			return err
 		}
+
+		if linkList != nil && len(linkList) == 0 {
+			fmt.Println("There are no link resources in the namespace")
+			return nil
+		}
+
+		if cmd.output != "" {
+			for _, link := range linkList {
+				err := printEncodedOuptut(cmd.output, link)
+
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			displayLinkList(linkList)
+		}
+
 	}
+
 	return nil
 }
 
-func (cmd *CmdLinkStatus) InputToOptions()  {}
+func (cmd *CmdLinkStatus) InputToOptions() {
+	cmd.output = cmd.Flags.Output
+}
 func (cmd *CmdLinkStatus) WaitUntil() error { return nil }
+
+func printEncodedOuptut(outputType string, link *v2alpha1.Link) error {
+	encodedOutput, err := utils.Encode(outputType, link)
+	fmt.Println(encodedOutput)
+	return err
+}
+
+func displaySingleLink(link *v2alpha1.Link) {
+	fmt.Printf("%s\t: %s\n", "Name", link.Name)
+	fmt.Printf("%s\t: %s\n", "Status", link.Status.StatusType)
+	fmt.Printf("%s\t: %d\n", "Cost", link.Spec.Cost)
+	fmt.Printf("%s\t: %s\n", "Message", link.Status.Message)
+}
+
+func displayLinkList(linkList []*v2alpha1.Link) {
+	writer := tabwriter.NewWriter(os.Stdout, 0, 8, 1, '\t', tabwriter.AlignRight)
+	fmt.Fprintln(writer, "NAME\tSTATUS\tCOST\tMESSAGE")
+
+	for _, link := range linkList {
+		fmt.Fprintf(writer, "%s\t%s\t%d\t%s", link.Name, link.Status.StatusType, link.Spec.Cost, link.Status.Message)
+		fmt.Fprintln(writer)
+	}
+
+	writer.Flush()
+}

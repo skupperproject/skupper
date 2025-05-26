@@ -21,15 +21,17 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 		args              []string
 		flags             *common.CommandLinkStatusFlags
 		cobraGenericFlags map[string]string
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
 		expectedError     string
 		linkName          string
 	}
 
-	homeDir, err := os.UserHomeDir()
-	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.RuntimeSiteStatePath))
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+	tmpDir := api.GetDataHome()
+	path := filepath.Join(tmpDir, "namespaces/test1/", string(api.RuntimeSiteStatePath))
 
 	testTable := []test{
 		{
@@ -105,23 +107,25 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 
 func TestCmdLinkStatus_Run(t *testing.T) {
 	type test struct {
-		name                string
-		linkName            string
-		flags               common.CommandLinkStatusFlags
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		errorMessage        string
+		name         string
+		linkName     string
+		flags        common.CommandLinkStatusFlags
+		errorMessage string
 	}
 
-	homeDir, err := os.UserHomeDir()
-	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.RuntimeSiteStatePath))
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+	tmpDir := api.GetDataHome()
+	path := filepath.Join(tmpDir, "namespaces/test1/", string(api.RuntimeSiteStatePath))
 
 	testTable := []test{
 		{
-			name:     "runs ok, link doesn't exist",
-			linkName: "no-link",
+			name:         "runs ok, link doesn't exist",
+			linkName:     "no-link",
+			errorMessage: "There is no link resource in the namespace with the name \"no-link\"",
 		},
 		{
 			name:     "runs ok, returns 1 links",
@@ -249,7 +253,7 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 	defer command.linkHandler.Delete("my-link2")
 	defer command.siteHandler.Delete("my-site")
 
-	path = filepath.Join(homeDir, "/.local/share/skupper/namespaces/test/", string(api.RuntimeSiteStatePath))
+	path = filepath.Join(tmpDir, "/namespaces/test/", string(api.RuntimeSiteStatePath))
 	content, err := command.linkHandler.EncodeToYaml(linkResource1)
 	assert.Check(t, err == nil)
 	err = command.linkHandler.WriteFile(path, "my-link.yaml", content, common.Links)
@@ -272,7 +276,7 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			err := command.Run()
 			if err != nil {
-				assert.Check(t, test.errorMessage == err.Error())
+				assert.Check(t, test.errorMessage == err.Error(), test.errorMessage, err.Error())
 			} else {
 				assert.Check(t, err == nil)
 			}
@@ -291,14 +295,18 @@ func TestCmdLinkStatus_RunNoDirectory(t *testing.T) {
 		linkName            string
 	}
 
-	homeDir, err := os.UserHomeDir()
-	assert.Check(t, err == nil)
-	path := filepath.Join(homeDir, "/.local/share/skupper/namespaces/test1/", string(api.RuntimeSiteStatePath))
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+	tmpDir := api.GetDataHome()
+	path := filepath.Join(tmpDir, "namespaces/test1/", string(api.RuntimeSiteStatePath))
 
 	testTable := []test{
 		{
 			name:         "runs fails no directory",
-			errorMessage: "failed to read directory: open " + path + "/links: no such file or directory",
+			errorMessage: "failed to read directory: open " + path + ": no such file or directory",
 		},
 	}
 
@@ -312,7 +320,7 @@ func TestCmdLinkStatus_RunNoDirectory(t *testing.T) {
 
 			err := command.Run()
 			if err != nil {
-				assert.Check(t, test.errorMessage == err.Error())
+				assert.Check(t, test.errorMessage == err.Error(), err.Error(), test.errorMessage)
 			} else {
 				assert.Check(t, err == nil)
 			}
