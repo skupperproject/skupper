@@ -319,7 +319,7 @@ jobs:
             cp ~/kc.west ~/.kube/config
             make ci-tests
       - store_artifacts:
-          path: /tmp/e2e-venv
+          path: /tmp/e2e
           destination: e2e-logs
   generate-manifest:
     executor:
