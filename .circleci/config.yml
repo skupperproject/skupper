@@ -318,7 +318,9 @@ jobs:
             cd tests
             cp ~/kc.west ~/.kube/config
             make ci-tests
-
+      - store_artifacts:
+          path: /tmp/e2e-venv
+          destination: e2e-logs
   generate-manifest:
     executor:
       name: go_cimg
