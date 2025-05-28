@@ -255,7 +255,7 @@ This will apply the link to the private site. The sites should connect.
 **TODO** Support for rotating TLS Credentials is currently under development
 and is not yet fully implemented.
 
-Skupper uses Links to communicate between Sites. Each Link consists of a family
+Skupper uses Links to communicate between Sites. Each Link consists of a set
 of TLS Connections that Skupper routers use for internal coordination and
 proxying application traffic across Sites. Rotating the TLS Credentials used by
 a Link will initiate an active migration where the routers will open new TLS
@@ -268,16 +268,15 @@ connections.
 ### Updating TLS Credentials
 
 Skupper automatically watches for changes to Secrets being used for TLS
-Credentials. When the Secret is updated, Skupper will immediately begin to
-prefer the new set of credentials. For a RouterAccess any new connections will
-use the updated credentials, but existing connections are only terminated when
-they are based on a prior revision that becomes invalid (more below.) For Link
-resources, skupper will proactively begin the migration to the new set of
-credentials.
+Credentials. When the Secret is updated, Skupper immediately prefers the new
+set of credentials. For a RouterAccess any new connections will use the updated
+credentials, but existing connections are only terminated when they are based
+on a prior revision that becomes invalid (more below.) For Link resources,
+skupper will proactively begin the migration to the new set of credentials.
 
 ### Discontinuing Use of Previous TLS Credentials
 
-When TLS Credentials are rotated, Skupper will preserve the connections based
+When TLS Credentials are rotated, Skupper preserves the connections based
 on the previous revision of the credentials to ensure service continuity for
 open application connections. This behavior can be overwritten at the Site with
 the `tls-prior-valid-revisions` setting or at the Secret with the
