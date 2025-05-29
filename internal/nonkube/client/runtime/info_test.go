@@ -32,6 +32,12 @@ func TestGetLocalRouterAddress(t *testing.T) {
 	routerAddress, err = GetLocalRouterAddress(namespace)
 	assert.Assert(t, err)
 	assert.Equal(t, routerAddress, "amqps://127.0.0.1:5671")
+
+	// Make router access invalid
+	ss.RouterAccesses["skupper-local"].Spec.Roles = nil
+	assert.Assert(t, api.MarshalSiteState(*ss, outputDir))
+	routerAddress, err = GetLocalRouterAddress(namespace)
+	assert.ErrorContains(t, err, "no roles defined on RouterAccess: skupper-local")
 }
 
 func fakeSkupperLocalRouterAccess(namespace string) *v2alpha1.RouterAccess {
