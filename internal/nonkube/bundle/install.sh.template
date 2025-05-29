@@ -40,7 +40,7 @@ fi
 export NAMESPACES_PATH="${SKUPPER_OUTPUT_PATH}/namespaces"
 export PLATFORM_FILE="${NAMESPACES_PATH}/${NAMESPACE}/internal/platform.yaml"
 export USER="${USER:-$(id -un)}"
-SITE_ID="$(hostname -s)-${USER}-$(date +%s)"
+SITE_ID="$(hostname -s)-${USER}-$(date +%s-%N)"
 export SITE_ID
 export NORMAL_PORT=""
 
