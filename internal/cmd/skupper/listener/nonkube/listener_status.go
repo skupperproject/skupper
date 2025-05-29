@@ -3,6 +3,7 @@ package nonkube
 import (
 	"errors"
 	"fmt"
+	k8serrs "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"text/tabwriter"
 
@@ -78,14 +79,14 @@ func (cmd *CmdListenerStatus) ValidateInput(args []string) error {
 func (cmd *CmdListenerStatus) Run() error {
 	opts := fs.GetOptions{RuntimeFirst: true, LogWarning: true}
 	if cmd.listenerName == "" {
-		listeners, err := cmd.listenerHandler.List()
-		if listeners == nil || err != nil {
-			fmt.Println("no listeners found:")
+		resources, err := cmd.listenerHandler.List()
+		if err != nil || resources == nil || len(resources) == 0 {
+			fmt.Println("No listeners found")
 			return err
 		}
 		if cmd.output != "" {
-			for _, listener := range listeners {
-				encodedOutput, err := utils.Encode(cmd.output, listener)
+			for _, resource := range resources {
+				encodedOutput, err := utils.Encode(cmd.output, resource)
 				if err != nil {
 					return err
 				}
@@ -93,41 +94,36 @@ func (cmd *CmdListenerStatus) Run() error {
 			}
 		} else {
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
-			_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s",
-				"NAME", "STATUS", "ROUTING-KEY", "HOST", "PORT"))
-			for _, listener := range listeners {
-				status := "Not Ready"
-				if listener.IsConfigured() {
-					status = "Ok"
-				}
-				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%d",
-					listener.Name, status, listener.Spec.RoutingKey, listener.Spec.Host, listener.Spec.Port))
+			_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s",
+				"NAME", "STATUS", "ROUTING-KEY", "HOST", "PORT", "MATCHING-CONNECTOR", "MESSAGE"))
+			for _, resource := range resources {
+				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%d\t%t\t%s",
+					resource.Name, resource.Status.StatusType, resource.Spec.RoutingKey, resource.Spec.Host,
+					resource.Spec.Port, resource.Status.HasMatchingConnector, resource.Status.Message))
 			}
 			_ = tw.Flush()
 		}
 	} else {
-		listener, err := cmd.listenerHandler.Get(cmd.listenerName, opts)
-		if listener == nil || err != nil {
-			fmt.Println("No listeners found:")
+		resource, err := cmd.listenerHandler.Get(cmd.listenerName, opts)
+		if err != nil || resource == nil || k8serrs.IsNotFound(err) {
+			fmt.Println("No listeners found")
 			return err
 		}
 		if cmd.output != "" {
-			encodedOutput, err := utils.Encode(cmd.output, listener)
+			encodedOutput, err := utils.Encode(cmd.output, resource)
 			if err != nil {
 				return err
 			}
 			fmt.Println(encodedOutput)
 		} else {
-			status := "Not Ready"
-			if listener.IsConfigured() {
-				status = "Ok"
-			}
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
-			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nHost:\t%s\nPort:\t%d\nTlsCredentials:\t%s\n",
-				listener.Name, status, listener.Spec.RoutingKey, listener.Spec.Host, listener.Spec.Port, listener.Spec.TlsCredentials))
+			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nHost:\t%s\nPort:\t%d\nHas Matching Connector:\t%t\nMessage:\t%s\n",
+				resource.Name, resource.Status.StatusType, resource.Spec.RoutingKey, resource.Spec.Host,
+				resource.Spec.Port, resource.Status.HasMatchingConnector, resource.Status.Message))
 			_ = tw.Flush()
 		}
 	}
+
 	return nil
 }
 

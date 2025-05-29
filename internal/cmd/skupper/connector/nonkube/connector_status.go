@@ -78,14 +78,14 @@ func (cmd *CmdConnectorStatus) ValidateInput(args []string) error {
 func (cmd *CmdConnectorStatus) Run() error {
 	opts := fs.GetOptions{RuntimeFirst: true, LogWarning: true}
 	if cmd.connectorName == "" {
-		connectors, err := cmd.connectorHandler.List()
-		if connectors == nil || err != nil {
-			fmt.Println("No connectors found:")
+		resources, err := cmd.connectorHandler.List()
+		if err != nil || resources == nil || len(resources) == 0 {
+			fmt.Println("No connectors found")
 			return err
 		}
 		if cmd.output != "" {
-			for _, connector := range connectors {
-				encodedOutput, err := utils.Encode(cmd.output, connector)
+			for _, resource := range resources {
+				encodedOutput, err := utils.Encode(cmd.output, resource)
 				if err != nil {
 					return err
 				}
@@ -93,41 +93,36 @@ func (cmd *CmdConnectorStatus) Run() error {
 			}
 		} else {
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
-			_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s",
-				"NAME", "STATUS", "ROUTING-KEY", "HOST", "PORT"))
-			for _, connector := range connectors {
-				status := "Not Ready"
-				if connector.IsConfigured() {
-					status = "Ok"
-				}
-				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%d",
-					connector.Name, status, connector.Spec.RoutingKey, connector.Spec.Host, connector.Spec.Port))
+			_, _ = fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s",
+				"NAME", "STATUS", "ROUTING-KEY", "SELECTOR", "HOST", "PORT", "HAS MATCHING LISTENER", "MESSAGE"))
+			for _, resource := range resources {
+				fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%d\t%t\t%s",
+					resource.Name, resource.Status.StatusType, resource.Spec.RoutingKey,
+					resource.Spec.Selector, resource.Spec.Host, resource.Spec.Port, resource.Status.HasMatchingListener, resource.Status.Message))
 			}
 			_ = tw.Flush()
 		}
 	} else {
-		connector, err := cmd.connectorHandler.Get(cmd.connectorName, opts)
-		if connector == nil || err != nil {
-			fmt.Println("No connectors found:")
+		resource, err := cmd.connectorHandler.Get(cmd.connectorName, opts)
+		if err != nil || resource == nil {
+			fmt.Println("No connectors found")
 			return err
 		}
 		if cmd.output != "" {
-			encodedOutput, err := utils.Encode(cmd.output, connector)
+			encodedOutput, err := utils.Encode(cmd.output, resource)
 			if err != nil {
 				return err
 			}
 			fmt.Println(encodedOutput)
 		} else {
-			status := "Not Ready"
-			if connector.IsConfigured() {
-				status = "Ok"
-			}
 			tw := tabwriter.NewWriter(os.Stdout, 8, 8, 1, '\t', tabwriter.TabIndent)
-			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nHost:\t%s\nPort:\t%d\nTlsCredentials:\t%s",
-				connector.Name, status, connector.Spec.RoutingKey, connector.Spec.Host, connector.Spec.Port, connector.Spec.TlsCredentials))
+			fmt.Fprintln(tw, fmt.Sprintf("Name:\t%s\nStatus:\t%s\nRouting key:\t%s\nSelector:\t%s\nHost:\t%s\nPort:\t%d\nHas Matching Listener:%t\nMessage:\t%s\n",
+				resource.Name, resource.Status.StatusType, resource.Spec.RoutingKey, resource.Spec.Selector,
+				resource.Spec.Host, resource.Spec.Port, resource.Status.HasMatchingListener, resource.Status.Message))
 			_ = tw.Flush()
 		}
 	}
+
 	return nil
 }
 
