@@ -127,7 +127,8 @@ func TestSiteState_ToRouterConfig(t *testing.T) {
 			}
 			assert.Equal(t, routerConfig.SiteConfig.Platform, expectedPlatform)
 			assert.Equal(t, routerConfig.SiteConfig.Namespace, expectedNamespace)
-
+			assert.Equal(t, len(routerConfig.Addresses), 1)
+			assert.Equal(t, routerConfig.Addresses["mc"].Distribution, "multicast")
 		})
 	}
 }

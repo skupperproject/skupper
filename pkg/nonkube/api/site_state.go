@@ -286,6 +286,11 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string, platform string) q
 		routerName = fmt.Sprintf("%s-%d", s.Site.Name, time.Now().Unix())
 	}
 	routerConfig := qdr.InitialConfig(routerName, s.SiteId, version.Version, !s.IsInterior(), 3)
+	routerConfig.AddAddress(qdr.Address{
+		Prefix:       "mc",
+		Distribution: "multicast",
+	})
+
 	routerConfig.SiteConfig = &qdr.SiteConfig{
 		Name:      routerName,
 		Namespace: s.GetNamespace(),
