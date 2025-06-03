@@ -1091,7 +1091,7 @@ func (s *Site) updateLinkOperationalCondition(link *skupperv2alpha1.Link, operat
 }
 
 func (s *Site) CheckSslProfiles(config *qdr.RouterConfig) error {
-	if !s.initialised {
+	if !s.initialised || config == nil {
 		return nil
 	}
 	s.profiles.UseProfiles(config.SslProfiles)
