@@ -3,10 +3,11 @@ package nonkube
 import (
 	"errors"
 	"fmt"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"os"
 	"text/tabwriter"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
@@ -62,7 +63,7 @@ func (cmd *CmdLinkStatus) ValidateInput(args []string) error {
 func (cmd *CmdLinkStatus) Run() error {
 
 	if cmd.linkName != "" {
-		selectedLink, err := cmd.linkHandler.Get(cmd.linkName, fs.GetOptions{LogWarning: false})
+		selectedLink, err := cmd.linkHandler.Get(cmd.linkName, fs.GetOptions{LogWarning: false, RuntimeFirst: true})
 		if err != nil {
 			return fmt.Errorf("There is no link resource in the namespace with the name %q", cmd.linkName)
 		}
