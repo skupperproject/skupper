@@ -147,7 +147,7 @@ func configEnvVariables(platform string) (*ControllerConfig, error) {
 	// Get current username
 	currentUser, err := user.Current()
 	if err != nil {
-		return nil, fmt.Errorf(fmt.Sprintf("Failed to get current user: %v", err))
+		return nil, fmt.Errorf("Failed to get current user: %v", err)
 	}
 	uid := currentUser.Uid
 	controllerConfig.username = currentUser.Username
@@ -174,7 +174,7 @@ func configEnvVariables(platform string) (*ControllerConfig, error) {
 	}
 
 	if err := os.MkdirAll(api.GetDefaultOutputNamespacesPath(), 0755); err != nil {
-		return nil, fmt.Errorf(fmt.Sprintf("Failed to create directory: %v", err))
+		return nil, fmt.Errorf("Failed to create directory: %v", err)
 	}
 
 	containerEndpoint := os.Getenv("CONTAINER_ENDPOINT")
