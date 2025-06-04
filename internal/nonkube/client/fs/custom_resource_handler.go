@@ -102,6 +102,8 @@ func (b *BaseCustomResourceHandler) DeleteFile(path string, name string, kind st
 	completeFilePath = filepath.Join(path, fmt.Sprintf("%s-%s", kind, name))
 	if kind == "" && name == "" {
 		completeFilePath = path
+	} else if strings.HasPrefix(name, kind+"-") {
+		completeFilePath = filepath.Join(path, name)
 	}
 
 	_, err := os.Stat(completeFilePath)
