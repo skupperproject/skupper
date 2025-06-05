@@ -141,7 +141,6 @@ func (c *sender) _send() error {
 			}
 		}
 	}
-	return nil
 }
 
 type receiver struct {
@@ -196,5 +195,4 @@ func (r *receiver) _receive() error {
 		results := decode(msg)
 		r.incoming <- results
 	}
-	return nil
 }
