@@ -100,7 +100,8 @@ func (d *DeleteTester) Run(platform types.Platform, cluster *base.ClusterContext
 	for _, cm := range cmList.Items {
 		gwName, ok := cm.Annotations["skupper.io/gateway-name"]
 		if ok && gwName == gatewayName {
-			fmt.Errorf("gateway configmap still exists")
+			err = fmt.Errorf("gateway configmap still exists")
+			return
 		}
 	}
 
