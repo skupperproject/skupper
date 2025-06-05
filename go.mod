@@ -2,6 +2,8 @@ module github.com/skupperproject/skupper
 
 go 1.23
 
+toolchain go1.23.6
+
 require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-openapi/errors v0.20.3
