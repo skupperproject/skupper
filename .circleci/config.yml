@@ -103,7 +103,7 @@ commands:
           command: sudo rm -rf /usr/local/go
       - docker/install-docker
       - go/install:
-          version: "1.19"
+          version: "1.23"
       - kube-orb/install-kubectl
       - run: make generate-client
       - run: make
@@ -401,7 +401,7 @@ jobs:
   test:
     executor:
       name: go/default
-      tag: "1.19"
+      tag: "1.23"
     steps:
       - checkout
       - run:
@@ -447,7 +447,7 @@ jobs:
   build-all:
     executor:
       name: go/default
-      tag: "1.19"
+      tag: "1.23"
     steps:
       - checkout
       - go/mod-download-cached
@@ -531,7 +531,7 @@ jobs:
   generate-manifest:
     executor:
       name: go/default
-      tag: "1.19"
+      tag: "1.23"
     steps:
       - checkout
       - go/mod-download-cached
@@ -571,7 +571,7 @@ jobs:
   publish-github-release-images:
     executor:
       name: go/default
-      tag: "1.19"
+      tag: "1.23"
     steps:
       - checkout
       - setup_remote_docker
@@ -592,7 +592,7 @@ jobs:
   publish-github-main-images:
     executor:
       name: go/default
-      tag: "1.19"
+      tag: "1.23"
     steps:
       - checkout
       - setup_remote_docker
