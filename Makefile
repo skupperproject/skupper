@@ -154,6 +154,9 @@ pack-network-observer-helm-chart:
 generate-operator-bundle:
 	./scripts/skupper-operator-bundle-generator.sh ${IMAGE_TAG} ${ROUTER_IMAGE_TAG}
 
+generate-network-observer-operator-bundle:
+	./scripts/skupper-network-observer-operator-generator.sh ${IMAGE_TAG}
+
 generate-network-observer:
 	helm template skupper-network-observer ./charts/network-observer/ \
 		--set skipManagementLabels=true \
@@ -186,4 +189,5 @@ clean:
 		network-observer generate-doc \
 		cover.out oci-archives bundle bundle.Dockerfile \
 		skupper-*.tgz artifacthub-repo.yml \
-		network-observer-*.tgz  skupper-*-scope.yaml
+		network-observer-*.tgz  skupper-*-scope.yaml \
+		network-observer-operator
