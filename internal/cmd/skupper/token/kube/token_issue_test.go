@@ -317,6 +317,94 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 			expectedError: "token file name is a directory",
 		},
 		{
+			name: "token name is a directory.",
+			args: []string{"~/"},
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
+				Cost:               "1",
+			},
+			skupperObjects: []runtime.Object{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "site1",
+								Namespace: "test",
+							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "route",
+							},
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
+											Status: "True",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedError: "token file name is not valid",
+		},
+		{
+			name: "directory doesn't exist.",
+			args: []string{"/invalid/token.yaml"},
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
+				Cost:               "1",
+			},
+			skupperObjects: []runtime.Object{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "site1",
+								Namespace: "test",
+							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "route",
+							},
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
+											Status: "True",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedError: "directory to write token to does not exist",
+		},
+		{
 			name: "redemptions is not valid",
 			args: []string{"~/token.yaml"},
 			flags: common.CommandTokenIssueFlags{
