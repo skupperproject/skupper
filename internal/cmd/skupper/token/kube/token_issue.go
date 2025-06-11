@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -70,9 +71,15 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) error {
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("token file name is not valid: %s", err))
 		} else {
-			// check we can use as a filename
-			if _, err := os.ReadDir(args[0]); err == nil {
+			directory, filename := filepath.Split(args[0])
+			if filename == "" {
+				validationErrors = append(validationErrors, fmt.Errorf("token file name is not valid"))
+			} else if directory == "/" {
 				validationErrors = append(validationErrors, fmt.Errorf("token file name is a directory"))
+			} else if directory != "" && directory != "~/" {
+				if _, err := os.ReadDir(directory); err != nil {
+					validationErrors = append(validationErrors, fmt.Errorf("directory to write token to does not exist"))
+				}
 			}
 			cmd.fileName = args[0]
 		}
