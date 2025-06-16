@@ -58,7 +58,6 @@ func Install(platform string) error {
 		"CONTAINER_ENDPOINT":  config.containerEndpoint,
 		"SKUPPER_OUTPUT_PATH": config.hostDataHome,
 		"CONTAINER_ENGINE":    config.containerEngine,
-		"XDG_DATA_HOME":       config.xdgDataHome,
 	}
 
 	//To mount a volume as a bind, the host path must be specified in the Name field
