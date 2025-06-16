@@ -48,6 +48,14 @@ func Install(platform string) error {
 		return fmt.Errorf("failed to create container client: %v", err)
 	}
 
+	containerName := fmt.Sprintf("%s-skupper-system-controller", config.username)
+
+	systemContainer, err := cli.ContainerInspect(containerName)
+	if err == nil && systemContainer != nil {
+		fmt.Printf("Warning: The system controller container %q is already running.\n", containerName)
+		return nil
+	}
+
 	err = cli.ImagePull(context.TODO(), images.GetSystemControllerImageName())
 	if err != nil {
 		return fmt.Errorf("failed to pull system-controller image: %v", err)
@@ -66,11 +74,13 @@ func Install(platform string) error {
 
 	mounts := []container.Volume{}
 
+	volumeDestination := fmt.Sprintf("/var/run/%s.sock", platform)
+
 	if strings.HasPrefix(config.containerEndpoint, "unix://") {
 		socketPath := strings.TrimPrefix(config.containerEndpoint, "unix://")
 		mounts = append(mounts, container.Volume{
 			Name:        socketPath,
-			Destination: "/var/run/docker.sock",
+			Destination: volumeDestination,
 			Mode:        "z",
 			RW:          true,
 		})
@@ -78,7 +88,7 @@ func Install(platform string) error {
 
 		mounts = append(mounts, container.Volume{
 			Name:        config.containerEndpoint,
-			Destination: "/var/run/docker.sock",
+			Destination: volumeDestination,
 			Mode:        "z",
 			RW:          true,
 		})
