@@ -2,19 +2,18 @@ package kube
 
 import (
 	"archive/tar"
-	"bytes"
 	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
 	"sigs.k8s.io/yaml"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/utils/validator"
@@ -24,10 +23,8 @@ import (
 
 	crdClient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	restclient "k8s.io/client-go/rest"
@@ -142,16 +139,16 @@ func (cmd *CmdDebug) Run() error {
 	tw := tar.NewWriter(gz)
 	defer tw.Close()
 
-	kv, err := runCommand("kubectl", "version", "-o", "yaml")
+	kv, err := utils.RunCommand("kubectl", "version", "-o", "yaml")
 	if err == nil {
-		writeTar("/versions/kubernetes.yaml", kv, time.Now(), tw)
-		writeTar("/versions/kubernetes.yaml.txt", kv, time.Now(), tw)
+		utils.WriteTar("/versions/kubernetes.yaml", kv, time.Now(), tw)
+		utils.WriteTar("/versions/kubernetes.yaml.txt", kv, time.Now(), tw)
 	}
 
-	manifest, err := runCommand("skupper", "version", "-o", "yaml")
+	manifest, err := utils.RunCommand("skupper", "version", "-o", "yaml")
 	if err == nil {
-		writeTar("/versions/skupper.yaml", manifest, time.Now(), tw)
-		writeTar("/versions/skupper.yaml.txt", manifest, time.Now(), tw)
+		utils.WriteTar("/versions/skupper.yaml", manifest, time.Now(), tw)
+		utils.WriteTar("/versions/skupper.yaml.txt", manifest, time.Now(), tw)
 	}
 
 	// get resources for skupper-router
@@ -159,16 +156,16 @@ func (cmd *CmdDebug) Run() error {
 	if site != nil && err == nil {
 		path := "/site-namespace/"
 		rPath := path + "resources/"
-		events, err := runCommand("kubectl", "events")
+		events, err := utils.RunCommand("kubectl", "events")
 		if err == nil {
-			writeTar(path+"events.txt", events, time.Now(), tw)
+			utils.WriteTar(path+"events.txt", events, time.Now(), tw)
 		}
 
-		endpoints, err := runCommand("kubectl", "get", "endpoints", "-o", "yaml")
+		endpoints, err := utils.RunCommand("kubectl", "get", "endpoints", "-o", "yaml")
 		if err == nil {
 			ePath := rPath + "Endpoints-skupper-router-" + cmd.Namespace + ".yaml"
-			writeTar(ePath, endpoints, time.Now(), tw)
-			writeTar(ePath+".txt", endpoints, time.Now(), tw)
+			utils.WriteTar(ePath, endpoints, time.Now(), tw)
+			utils.WriteTar(ePath+".txt", endpoints, time.Now(), tw)
 		}
 
 		err = getDeployments(cmd, path, "skupper-router", tw)
@@ -188,7 +185,7 @@ func (cmd *CmdDebug) Run() error {
 				}
 				encodedOutput, err = yaml.Marshal(crds)
 				if err == nil {
-					writeTar(path+"crds.txt", encodedOutput, time.Now(), tw)
+					utils.WriteTar(path+"crds.txt", encodedOutput, time.Now(), tw)
 				}
 			}
 		}
@@ -196,7 +193,7 @@ func (cmd *CmdDebug) Run() error {
 		for i := range configMaps {
 			cm, err := cmd.KubeClient.CoreV1().ConfigMaps(cmd.Namespace).Get(context.TODO(), configMaps[i], metav1.GetOptions{})
 			if err == nil {
-				err := writeObject(cm, rPath+"Configmap-"+cm.Name, tw)
+				err := utils.WriteObject(cm, rPath+"Configmap-"+cm.Name, tw)
 				if err != nil {
 					return err
 				}
@@ -206,7 +203,7 @@ func (cmd *CmdDebug) Run() error {
 		for _, service := range routerServices {
 			service, err := cmd.KubeClient.CoreV1().Services(cmd.Namespace).Get(context.TODO(), service, metav1.GetOptions{})
 			if err == nil {
-				err := writeObject(service, rPath+"Services-"+service.Name, tw)
+				err := utils.WriteObject(service, rPath+"Services-"+service.Name, tw)
 				if err != nil {
 					return err
 				}
@@ -217,7 +214,7 @@ func (cmd *CmdDebug) Run() error {
 		if accessGrantList != nil && err == nil {
 			for _, grant := range accessGrantList.Items {
 				g := grant.DeepCopy()
-				err := writeObject(g, rPath+"Accessgrant-"+g.Name, tw)
+				err := utils.WriteObject(g, rPath+"Accessgrant-"+g.Name, tw)
 				if err != nil {
 					return err
 				}
@@ -228,7 +225,7 @@ func (cmd *CmdDebug) Run() error {
 		if accessTokenList != nil && err == nil {
 			for _, token := range accessTokenList.Items {
 				t := token.DeepCopy()
-				err := writeObject(t, rPath+"AccessTokens-"+t.Name, tw)
+				err := utils.WriteObject(t, rPath+"AccessTokens-"+t.Name, tw)
 				if err != nil {
 					return err
 				}
@@ -239,7 +236,7 @@ func (cmd *CmdDebug) Run() error {
 		if attachedConnectorBindingList != nil && err == nil {
 			for _, binding := range attachedConnectorBindingList.Items {
 				b := binding.DeepCopy()
-				err := writeObject(b, rPath+"AttachedConnectorBinding-"+b.Name, tw)
+				err := utils.WriteObject(b, rPath+"AttachedConnectorBinding-"+b.Name, tw)
 				if err != nil {
 					return err
 				}
@@ -250,7 +247,7 @@ func (cmd *CmdDebug) Run() error {
 		if attachedConnectorList != nil && err == nil {
 			for _, attachedConnector := range attachedConnectorList.Items {
 				a := attachedConnector.DeepCopy()
-				err := writeObject(a, rPath+"AttachedConnector-"+a.Name, tw)
+				err := utils.WriteObject(a, rPath+"AttachedConnector-"+a.Name, tw)
 				if err != nil {
 					return err
 				}
@@ -261,7 +258,7 @@ func (cmd *CmdDebug) Run() error {
 		if certificateList != nil && err == nil {
 			for _, certificate := range certificateList.Items {
 				c := certificate.DeepCopy()
-				err := writeObject(c, rPath+"Certificate-"+c.Name, tw)
+				err := utils.WriteObject(c, rPath+"Certificate-"+c.Name, tw)
 				if err != nil {
 					return err
 				}
@@ -272,7 +269,7 @@ func (cmd *CmdDebug) Run() error {
 		if connectorList != nil && err == nil {
 			for _, connector := range connectorList.Items {
 				c := connector.DeepCopy()
-				err := writeObject(c, rPath+"Connector-"+c.Name, tw)
+				err := utils.WriteObject(c, rPath+"Connector-"+c.Name, tw)
 				if err != nil {
 					return err
 				}
@@ -283,7 +280,7 @@ func (cmd *CmdDebug) Run() error {
 		if linkList != nil && err == nil {
 			for _, link := range linkList.Items {
 				l := link.DeepCopy()
-				err := writeObject(l, rPath+"Link-"+l.Name, tw)
+				err := utils.WriteObject(l, rPath+"Link-"+l.Name, tw)
 				if err != nil {
 					return err
 				}
@@ -294,7 +291,7 @@ func (cmd *CmdDebug) Run() error {
 		if listenerList != nil && err == nil {
 			for _, listener := range listenerList.Items {
 				l := listener.DeepCopy()
-				err := writeObject(l, rPath+"Listener-"+l.Name, tw)
+				err := utils.WriteObject(l, rPath+"Listener-"+l.Name, tw)
 				if err != nil {
 					return err
 				}
@@ -305,7 +302,7 @@ func (cmd *CmdDebug) Run() error {
 		if siteList != nil && err == nil {
 			for _, site := range siteList.Items {
 				s := site.DeepCopy()
-				err := writeObject(s, rPath+"Site-"+s.Name, tw)
+				err := utils.WriteObject(s, rPath+"Site-"+s.Name, tw)
 				if err != nil {
 					return err
 				}
@@ -316,7 +313,7 @@ func (cmd *CmdDebug) Run() error {
 		if routerAccessList != nil && err == nil {
 			for _, site := range routerAccessList.Items {
 				s := site.DeepCopy()
-				err := writeObject(s, rPath+"RouterAccess-"+s.Name, tw)
+				err := utils.WriteObject(s, rPath+"RouterAccess-"+s.Name, tw)
 				if err != nil {
 					return err
 				}
@@ -327,7 +324,7 @@ func (cmd *CmdDebug) Run() error {
 		if securedAccessList != nil && err == nil {
 			for _, site := range securedAccessList.Items {
 				s := site.DeepCopy()
-				err := writeObject(s, rPath+"SecuredAccess-"+s.Name, tw)
+				err := utils.WriteObject(s, rPath+"SecuredAccess-"+s.Name, tw)
 				if err != nil {
 					return err
 				}
@@ -341,16 +338,16 @@ func (cmd *CmdDebug) Run() error {
 		path := "/controller-namespace/"
 		rPath := path + "resources/"
 
-		events, err := runCommand("kubectl", "events")
+		events, err := utils.RunCommand("kubectl", "events")
 		if err == nil {
-			writeTar(path+"events.txt", events, time.Now(), tw)
+			utils.WriteTar(path+"events.txt", events, time.Now(), tw)
 		}
 
-		endpoints, err := runCommand("kubectl", "get", "endpoints", "-o", "yaml")
+		endpoints, err := utils.RunCommand("kubectl", "get", "endpoints", "-o", "yaml")
 		if err == nil {
 			ePath := rPath + "Endpoints-skuper-controller.yaml"
-			writeTar(ePath, endpoints, time.Now(), tw)
-			writeTar(ePath+".txt", endpoints, time.Now(), tw)
+			utils.WriteTar(ePath, endpoints, time.Now(), tw)
+			utils.WriteTar(ePath+".txt", endpoints, time.Now(), tw)
 		}
 
 		err = getDeployments(cmd, path, "skupper-controller", tw)
@@ -361,7 +358,7 @@ func (cmd *CmdDebug) Run() error {
 		for i := range controllerServices {
 			service, err := cmd.KubeClient.CoreV1().Services(cmd.Namespace).Get(context.TODO(), controllerServices[i], metav1.GetOptions{})
 			if err == nil {
-				err := writeObject(service, rPath+"Services-"+service.Name, tw)
+				err := utils.WriteObject(service, rPath+"Services-"+service.Name, tw)
 				if err != nil {
 					return err
 				}
@@ -372,54 +369,7 @@ func (cmd *CmdDebug) Run() error {
 	return nil
 }
 
-func runCommand(name string, args ...string) ([]byte, error) {
-	cmd := exec.Command(name, args...)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-	err := cmd.Run()
-	if err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
-}
-
 // helper functions
-
-func writeTar(name string, data []byte, ts time.Time, tw *tar.Writer) error {
-	hdr := &tar.Header{
-		Name:    name,
-		Mode:    0600,
-		Size:    int64(len(data)),
-		ModTime: ts,
-	}
-	err := tw.WriteHeader(hdr)
-	if err != nil {
-		return fmt.Errorf("Failed to write tar file header: %w", err)
-	}
-	_, err = tw.Write(data)
-	if err != nil {
-		return fmt.Errorf("Failed to write to tar archive: %w", err)
-	}
-	return nil
-}
-
-func writeObject(rto runtime.Object, name string, tw *tar.Writer) error {
-	var b bytes.Buffer
-	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
-	if err := s.Encode(rto, &b); err != nil {
-		return err
-	}
-	err := writeTar(name+".yaml", b.Bytes(), time.Now(), tw)
-	if err != nil {
-		return err
-	}
-	err = writeTar(name+".yaml.txt", b.Bytes(), time.Now(), tw)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 func hasRestartedContainer(pod v1.Pod) bool {
 	for _, containerStatus := range pod.Status.ContainerStatuses {
@@ -449,7 +399,7 @@ func getDeployments(cmd *CmdDebug, path string, deploymentType string, tw *tar.W
 			continue
 		}
 
-		err = writeObject(deployment, rPath+"Deployment-"+deployment.Name, tw)
+		err = utils.WriteObject(deployment, rPath+"Deployment-"+deployment.Name, tw)
 		if err != nil {
 			return err
 		}
@@ -464,14 +414,14 @@ func getDeployments(cmd *CmdDebug, path string, deploymentType string, tw *tar.W
 			if err != nil {
 				continue
 			} else {
-				err := writeObject(pod, rPath+"Pod-"+pod.Name, tw)
+				err := utils.WriteObject(pod, rPath+"Pod-"+pod.Name, tw)
 				if err != nil {
 					return err
 				}
 			}
-			top, err := runCommand("kubectl", "top", "pod", pod.Name)
+			top, err := utils.RunCommand("kubectl", "top", "pod", pod.Name)
 			if err == nil {
-				writeTar(rPath+pod.Name+"/top-pod.txt", top, time.Now(), tw)
+				utils.WriteTar(rPath+pod.Name+"/top-pod.txt", top, time.Now(), tw)
 			}
 
 			for container := range pod.Spec.Containers {
@@ -480,7 +430,7 @@ func getDeployments(cmd *CmdDebug, path string, deploymentType string, tw *tar.W
 					for x := range flags {
 						qdr, err := client.ExecCommandInContainer([]string{"skstat", flags[x]}, pod.Name, "router", cmd.Namespace, cmd.KubeClient, cmd.Rest)
 						if err == nil {
-							writeTar(rPath+"skstat/"+pod.Name+"-skstat"+flags[x]+".txt", qdr.Bytes(), time.Now(), tw)
+							utils.WriteTar(rPath+"skstat/"+pod.Name+"-skstat"+flags[x]+".txt", qdr.Bytes(), time.Now(), tw)
 						} else {
 							continue
 						}
@@ -489,13 +439,13 @@ func getDeployments(cmd *CmdDebug, path string, deploymentType string, tw *tar.W
 
 				log, err := internalclient.GetPodContainerLogs(pod.Name, pod.Spec.Containers[container].Name, cmd.Namespace, cmd.KubeClient)
 				if err == nil {
-					writeTar(path+"logs/"+pod.Name+"-"+pod.Spec.Containers[container].Name+".txt", []byte(log), time.Now(), tw)
+					utils.WriteTar(path+"logs/"+pod.Name+"-"+pod.Spec.Containers[container].Name+".txt", []byte(log), time.Now(), tw)
 				}
 
 				if hasRestartedContainer(*pod) {
 					prevLog, err := internalclient.GetPodContainerLogsWithOpts(pod.Name, pod.Spec.Containers[container].Name, cmd.Namespace, cmd.KubeClient, v1.PodLogOptions{Previous: true})
 					if err == nil {
-						writeTar(path+"logs/"+pod.Name+"-"+pod.Spec.Containers[container].Name+"-previous.txt", []byte(prevLog), time.Now(), tw)
+						utils.WriteTar(path+"logs/"+pod.Name+"-"+pod.Spec.Containers[container].Name+"-previous.txt", []byte(prevLog), time.Now(), tw)
 					}
 				}
 			}
@@ -503,7 +453,7 @@ func getDeployments(cmd *CmdDebug, path string, deploymentType string, tw *tar.W
 
 		role, err := cmd.KubeClient.RbacV1().Roles(cmd.Namespace).Get(context.TODO(), deployments[i], metav1.GetOptions{})
 		if err == nil && role != nil {
-			err = writeObject(role, rPath+"Role-"+deployment.Name, tw)
+			err = utils.WriteObject(role, rPath+"Role-"+deployment.Name, tw)
 			if err != nil {
 				return err
 			}
@@ -511,7 +461,7 @@ func getDeployments(cmd *CmdDebug, path string, deploymentType string, tw *tar.W
 
 		roleBinding, err := cmd.KubeClient.RbacV1().RoleBindings(cmd.Namespace).Get(context.TODO(), deployments[i], metav1.GetOptions{})
 		if err == nil && roleBinding != nil {
-			err = writeObject(roleBinding, rPath+"RoleBinding-"+deployment.Name, tw)
+			err = utils.WriteObject(roleBinding, rPath+"RoleBinding-"+deployment.Name, tw)
 			if err != nil {
 				return err
 			}
@@ -521,7 +471,7 @@ func getDeployments(cmd *CmdDebug, path string, deploymentType string, tw *tar.W
 		if err == nil && replicaSetList != nil {
 			for _, replicaSet := range replicaSetList.Items {
 				r := replicaSet.DeepCopy()
-				err = writeObject(r, rPath+"ReplicaSet-"+replicaSet.Name, tw)
+				err = utils.WriteObject(r, rPath+"ReplicaSet-"+replicaSet.Name, tw)
 				if err != nil {
 					return err
 				}
