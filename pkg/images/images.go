@@ -2,12 +2,12 @@ package images
 
 const (
 	DefaultImageRegistry       string = "quay.io/skupper"
-	RouterImageName            string = "skupper-router:2.7.5"
-	ServiceControllerImageName string = "service-controller:1.9.1"
-	ControllerPodmanImageName  string = "controller-podman:1.9.1"
-	ConfigSyncImageName        string = "config-sync:1.9.1"
-	FlowCollectorImageName     string = "flow-collector:1.9.1"
-	SiteControllerImageName    string = "site-controller:1.9.1"
+	RouterImageName            string = "skupper-router:2.7.6"
+	ServiceControllerImageName string = "service-controller:1.9.2"
+	ControllerPodmanImageName  string = "controller-podman:1.9.2"
+	ConfigSyncImageName        string = "config-sync:1.9.2"
+	FlowCollectorImageName     string = "flow-collector:1.9.2"
+	SiteControllerImageName    string = "site-controller:1.9.2"
 	PrometheusImageRegistry    string = "quay.io/prometheus"
 	PrometheusServerImageName  string = "prometheus:v2.55.1"
 	OauthProxyImageRegistry    string = "quay.io/openshift"
