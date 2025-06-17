@@ -14,9 +14,11 @@ import (
 )
 
 type GetOptions struct {
-	RuntimeFirst bool
-	LogWarning   bool
-	Attributes   map[string]string
+	RuntimeFirst  bool
+	LogWarning    bool
+	Attributes    map[string]string
+	ResourcesPath string
+	RemoveKey     bool
 }
 
 type CustomResourceHandler[T any] interface {

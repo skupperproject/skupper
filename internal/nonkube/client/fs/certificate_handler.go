@@ -1,6 +1,8 @@
 package fs
 
 import (
+	"fmt"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
@@ -48,4 +50,29 @@ func (c *CertificateHandler) Delete(name string) error {
 	return nil
 }
 
-func (c *CertificateHandler) List() ([]*v2alpha1.Certificate, error) { return nil, nil }
+func (c *CertificateHandler) List() ([]*v2alpha1.Certificate, error) {
+	var certificates []*v2alpha1.Certificate
+	// First read from runtime directory, where output is found after bootstrap
+	// has run.  If no runtime secrets try and display configured secrets
+	path := c.pathProvider.GetRuntimeNamespace()
+	err, files := c.ReadDir(path, common.Certificates)
+	if err != nil {
+		fmt.Println("err: reading dir", path)
+		return nil, err
+	}
+
+	for _, file := range files {
+		err, site := c.ReadFile(path, file.Name(), common.Certificates)
+		if err != nil {
+			fmt.Println("err reading file", file.Name())
+			return nil, err
+		}
+		var context v2alpha1.Certificate
+		if err = c.DecodeYaml(site, &context); err != nil {
+			return nil, err
+		}
+		certificates = append(certificates, &context)
+	}
+
+	return certificates, nil
+}
