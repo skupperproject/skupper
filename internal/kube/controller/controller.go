@@ -414,7 +414,10 @@ func (c *Controller) generateLinkConfig(namespace string, name string, subject s
 	if err != nil {
 		return err
 	}
-	token := generator.NewCertToken(name, subject)
+	token, err := generator.NewCertToken(name, subject)
+	if err != nil {
+		return err
+	}
 	return token.Write(writer)
 }
 

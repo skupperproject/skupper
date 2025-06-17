@@ -100,6 +100,14 @@ func (t *TestTripper) RoundTrip(request *http.Request) (*http.Response, error) {
 }
 
 func Test_handleTokenResponse(t *testing.T) {
+	myToken, err := tf.secret("my-token", "", "My Subject", nil)
+	if err != nil {
+		t.Error(err)
+	}
+	myToken1, err := tf.secret("my-token", "test", "Another Subject", nil)
+	if err != nil {
+		t.Error(err)
+	}
 	var tests = []struct {
 		name                 string
 		token                *v2alpha1.AccessToken
@@ -120,7 +128,7 @@ func Test_handleTokenResponse(t *testing.T) {
 			token: tf.token("my-token", "test", "http://foo/xyz", "mycode", ""),
 			site:  tf.site("my-site", "test"),
 			body: &CertToken{
-				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
+				tlsCredentials: myToken,
 				links: []*v2alpha1.Link{
 					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
@@ -145,7 +153,7 @@ func Test_handleTokenResponse(t *testing.T) {
 			token: tf.token("my-token", "test", "http://foo/xyz", "mycode", ""),
 			site:  tf.site("my-site", "test"),
 			body: &CertToken{
-				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
+				tlsCredentials: myToken,
 				links: []*v2alpha1.Link{
 					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
@@ -163,7 +171,7 @@ func Test_handleTokenResponse(t *testing.T) {
 			token: tf.token("my-token", "test", "http://foo/xyz", "mycode", ""),
 			site:  tf.site("my-site", "test"),
 			body: &CertToken{
-				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
+				tlsCredentials: myToken,
 				links: []*v2alpha1.Link{
 					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
@@ -174,14 +182,14 @@ func Test_handleTokenResponse(t *testing.T) {
 				},
 			},
 			expectedStatus:  "Controller could not create received secret: secrets \"my-token\" already exists",
-			extraK8sObjects: []runtime.Object{tf.secret("my-token", "test", "Another Subject", nil)},
+			extraK8sObjects: []runtime.Object{myToken1},
 		},
 		{
 			name:  "link collision",
 			token: tf.token("my-token", "test", "http://foo/xyz", "mycode", ""),
 			site:  tf.site("my-site", "test"),
 			body: &CertToken{
-				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
+				tlsCredentials: myToken,
 				links: []*v2alpha1.Link{
 					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
@@ -199,7 +207,7 @@ func Test_handleTokenResponse(t *testing.T) {
 			token: tf.addLinkCost(tf.token("my-token", "test", "http://foo/xyz", "mycode", ""), 10),
 			site:  tf.site("my-site", "test"),
 			body: &CertToken{
-				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
+				tlsCredentials: myToken,
 				links: []*v2alpha1.Link{
 					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
@@ -384,7 +392,11 @@ func Test_RedeemAccessToken(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, err := fake.NewFakeClient("test", []runtime.Object{tf.secret("skupper-site-ca", "test", "Test Site CA", nil)}, []runtime.Object{tf.site("my-site", "test"), tf.grant("my-grant", "test", "")}, "")
+			siteCa, err := tf.secret("skupper-site-ca", "test", "Test Site CA", nil)
+			if err != nil {
+				t.Error(err)
+			}
+			client, err := fake.NewFakeClient("test", []runtime.Object{siteCa}, []runtime.Object{tf.site("my-site", "test"), tf.grant("my-grant", "test", "")}, "")
 			site, err := client.GetSkupperClient().SkupperV2alpha1().Sites("test").Get(context.TODO(), "my-site", metav1.GetOptions{})
 			if err != nil {
 				t.Error(err)
@@ -404,10 +416,14 @@ func Test_RedeemAccessToken(t *testing.T) {
 			server := newServer(":0", tt.scheme == "https", grants)
 			server.listen()
 			grants.setUrl(fmt.Sprintf("localhost:%d", server.port()))
+			myCreds, err := tf.secret("my-creds", "test", "grant server", []string{"localhost"})
+			if err != nil {
+				t.Error(err)
+			}
 			go server.serve()
 			defer server.stop()
 			if tt.scheme == "https" {
-				secret := tf.secret("my-creds", "test", "grant server", []string{"localhost"})
+				secret := myCreds
 				err = server.setCertificateFromSecret(secret)
 				if err != nil {
 					t.Error(err)
@@ -478,7 +494,10 @@ func (g *TestTokenGenerator) generate(namespace string, name string, subject str
 	if err != nil {
 		return err
 	}
-	token := generator.NewCertToken(name, subject)
+	token, err := generator.NewCertToken(name, subject)
+	if err != nil {
+		return err
+	}
 	return token.Write(writer)
 }
 

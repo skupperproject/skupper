@@ -7,6 +7,11 @@ import (
 )
 
 func Test_tlsCredentialsUpdated(t *testing.T) {
+	secret, err := tf.secret("simple", "test", "My Subject", []string{"foo.com", "bar.org"})
+	if err != nil {
+		t.Error(err)
+	}
+
 	var tests = []struct {
 		name   string
 		key    string
@@ -15,7 +20,7 @@ func Test_tlsCredentialsUpdated(t *testing.T) {
 		{
 			name:   "simple",
 			key:    "test/simple",
-			secret: tf.secret("simple", "test", "My Subject", []string{"foo.com", "bar.org"}),
+			secret: secret,
 		},
 		{
 			name:   "non tls secret",

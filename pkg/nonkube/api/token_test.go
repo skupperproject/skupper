@@ -42,7 +42,7 @@ func TestCreateTokens(t *testing.T) {
 	tests := []struct {
 		name          string
 		ra            v2alpha1.RouterAccess
-		serverSecret  v1.Secret
+		serverSecret  *v1.Secret
 		expectedHosts []string
 	}{
 		{
@@ -67,7 +67,7 @@ func TestCreateTokens(t *testing.T) {
 		{
 			name:         "invalid-server-cert",
 			ra:           fakeRouterAccessBothRoles(),
-			serverSecret: fakeServerSecretBad(),
+			serverSecret: fakeServerSecretBad(t),
 			expectedHosts: []string{
 				"127.0.0.1",
 			},
@@ -75,7 +75,7 @@ func TestCreateTokens(t *testing.T) {
 		{
 			name:         "server-cert-no-hosts",
 			ra:           fakeRouterAccessBothRoles(),
-			serverSecret: fakeServerSecret([]string{}),
+			serverSecret: fakeServerSecret([]string{}, t),
 			expectedHosts: []string{
 				"127.0.0.1",
 			},
@@ -92,7 +92,7 @@ func TestCreateTokens(t *testing.T) {
 		{
 			name:         "sans-provided-empty-server-cert",
 			ra:           fakeRouterAccessWithSANs("fake.host.one", "fake.host.two"),
-			serverSecret: fakeServerSecret([]string{}),
+			serverSecret: fakeServerSecret([]string{}, t),
 			expectedHosts: []string{
 				"127.0.0.1",
 				"fake.host.one",
@@ -102,7 +102,7 @@ func TestCreateTokens(t *testing.T) {
 		{
 			name:         "sans-provided-server-cert-with-hosts",
 			ra:           fakeRouterAccessWithSANs("fake.host.one", "fake.host.two"),
-			serverSecret: fakeServerSecret([]string{"server.host.one", "server.host.two"}),
+			serverSecret: fakeServerSecret([]string{"server.host.one", "server.host.two"}, t),
 			expectedHosts: []string{
 				"127.0.0.1",
 				"server.host.one",
@@ -112,7 +112,7 @@ func TestCreateTokens(t *testing.T) {
 		{
 			name:         "sans-provided-server-cert-with-hosts-and-ips",
 			ra:           fakeRouterAccessWithSANs("fake.host.one", "fake.host.two"),
-			serverSecret: fakeServerSecret([]string{"server.host.one", "server.host.two", "10.0.0.1", "10.0.0.2"}),
+			serverSecret: fakeServerSecret([]string{"server.host.one", "server.host.two", "10.0.0.1", "10.0.0.2"}, t),
 			expectedHosts: []string{
 				"127.0.0.1",
 				"10.0.0.1",
@@ -205,16 +205,29 @@ func fakeRouterAccessWithSANs(sans ...string) v2alpha1.RouterAccess {
 	return ra
 }
 
-func fakeServerSecretBad() v1.Secret {
-	ca := certs.GenerateSecret("fake-ca", "fake-ca", "", 0, nil)
-	server := certs.GenerateSecret("fake-server-cert", "fake-server-cert", "", 0, &ca)
-	delete(server.Data, "tls.crt")
-	return server
+func fakeServerSecretBad(t *testing.T) *v1.Secret {
+	ca, err := certs.GenerateSecret("fake-ca", "fake-ca", "", 0, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	serverCert, err := certs.GenerateSecret("fake-server-cert", "fake-server-cert", "", 0, ca)
+	if err != nil {
+		t.Error(err)
+	}
+
+	delete(serverCert.Data, "tls.crt")
+	return serverCert
 }
 
-func fakeServerSecret(hosts []string) v1.Secret {
+func fakeServerSecret(hosts []string, t *testing.T) *v1.Secret {
 	hostsCsv := strings.Join(hosts, ",")
-	ca := certs.GenerateSecret("fake-ca", "fake-ca", "", 0, nil)
-	server := certs.GenerateSecret("fake-server-cert", "fake-server-cert", hostsCsv, 0, &ca)
-	return server
+	ca, err := certs.GenerateSecret("fake-ca", "fake-ca", "", 0, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	serverCert, err := certs.GenerateSecret("fake-server-cert", "fake-server-cert", hostsCsv, 0, ca)
+	if err != nil {
+		t.Error(err)
+	}
+	return serverCert
 }

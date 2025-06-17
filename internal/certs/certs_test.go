@@ -18,6 +18,8 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestGenerateCASecret(t *testing.T) {
@@ -26,7 +28,10 @@ func TestGenerateCASecret(t *testing.T) {
 	name := "ca-secret"
 	host := host1 + ", " + host2
 	cn := "www.example.com"
-	ca_secret := GenerateSecret(name, cn, host, 0, nil)
+	ca_secret, err := GenerateSecret(name, cn, host, 0, nil)
+	if err != nil {
+		t.Error(err)
+	}
 	data, ok := ca_secret.Data["tls.crt"]
 	if !ok {
 		t.Error("Invalid secret, tls.crt is missing")
@@ -46,10 +51,16 @@ func TestGenerateCASecret(t *testing.T) {
 
 func TestGenerateSecret(t *testing.T) {
 	ca_cn := "www.example.com"
-	ca_secret := GenerateSecret("test-secret", ca_cn, "134.565.56.77", 0, nil)
+	ca_secret, err := GenerateSecret("test-secret", ca_cn, "134.565.56.77", 0, nil)
+	if err != nil {
+		t.Error(err)
+	}
 	my_secret_cn := "www.my.example.com"
 	my_secret_host := "172.565.56.77"
-	my_secret := GenerateSecret("my_secret", my_secret_cn, my_secret_host, 86400000000000 /*duration of 1 day*/, &ca_secret)
+	my_secret, err := GenerateSecret("my_secret", my_secret_cn, my_secret_host, 86400000000000 /*duration of 1 day*/, ca_secret)
+	if err != nil {
+		t.Error(err)
+	}
 	data, ok := my_secret.Data["tls.crt"]
 	if !ok {
 		t.Error("Invalid secret, tls.crt is missing")
@@ -61,4 +72,20 @@ func TestGenerateSecret(t *testing.T) {
 
 	assert.Equal(t, my_secret_cn, my_cert.Subject.CommonName)
 	assert.Equal(t, ca_cn, my_cert.Issuer.CommonName)
+
+	// Instantiate the Secret object.
+	caSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "emptyCASecret",
+			Namespace: "testNamespace",
+		},
+		//  To create a 0-byte data field, initialize the map as empty.
+		//  The type is map[string][]byte.
+		Data: map[string][]byte{},
+		Type: corev1.SecretTypeOpaque,
+	}
+
+	_, err = GenerateSecret("test-secret", ca_cn, "134.565.56.77", 0, caSecret)
+	errorText := err.Error()
+	assert.Equal(t, errorText, "unable to decode the Data element of the secret certificate")
 }

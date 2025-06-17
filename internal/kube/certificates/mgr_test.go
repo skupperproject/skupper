@@ -520,7 +520,10 @@ func (c *Call) eventcount(events int) *Call {
 
 func fixtureCASecret(t *testing.T, name, namespace string) *corev1.Secret {
 	t.Helper()
-	secret := certs.GenerateSecret(name, "skupper test CA", "", time.Hour*8, nil)
+	secret, err := certs.GenerateSecret(name, "skupper test CA", "", time.Hour*8, nil)
+	if err != nil {
+		t.Error(err)
+	}
 	secret.Namespace = namespace
-	return &secret
+	return secret
 }

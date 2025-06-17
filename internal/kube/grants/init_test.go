@@ -15,6 +15,14 @@ import (
 
 func Test_Initialise(t *testing.T) {
 	grantUid := "0bde3bc8-a4a2-404a-bfbe-44fdf7bf3231"
+	myCredsSecret, err := tf.secret("my-creds", "test", "grant server", nil)
+	if err != nil {
+		t.Error(err)
+	}
+	grantSecret, err := tf.secret("skupper-grant-server", "test", "grant server", nil)
+	if err != nil {
+		t.Error(err)
+	}
 	var tests = []struct {
 		name           string
 		config         GrantConfig
@@ -35,7 +43,7 @@ func Test_Initialise(t *testing.T) {
 				BaseUrl:              "foo:5432",
 				TlsCredentialsSecret: "my-creds",
 			},
-			k8sObjects:     []runtime.Object{tf.secret("my-creds", "test", "grant server", nil)},
+			k8sObjects:     []runtime.Object{myCredsSecret},
 			expectedStatus: "OK",
 			expectedUrl:    "https://foo:5432/" + grantUid,
 		},
@@ -48,7 +56,7 @@ func Test_Initialise(t *testing.T) {
 				TlsCredentialsSecret: "skupper-grant-server",
 			},
 			//add pregenerated secret as the certificate controller is not in action in this test
-			k8sObjects: []runtime.Object{tf.pod("my-pod", "test", map[string]string{"foo": "bar"}, ref1), tf.secret("skupper-grant-server", "test", "grant server", nil)},
+			k8sObjects: []runtime.Object{tf.pod("my-pod", "test", map[string]string{"foo": "bar"}, ref1), grantSecret},
 			endpoint: &v2alpha1.Endpoint{
 				Host: "my-host",
 				Port: "1234",
@@ -65,7 +73,7 @@ func Test_Initialise(t *testing.T) {
 				TlsCredentialsSecret: "skupper-grant-server",
 			},
 			//add pregenerated secret as the certificate controller is not in action in this test
-			k8sObjects:     []runtime.Object{tf.secret("skupper-grant-server", "test", "grant server", nil)},
+			k8sObjects:     []runtime.Object{grantSecret},
 			expectedStatus: "Pending",
 		},
 	}

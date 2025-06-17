@@ -11,6 +11,10 @@ import (
 )
 
 func Test_CertTokenWrite(t *testing.T) {
+	mySecret, err := tf.secret("my-token", "", "My Subject", nil)
+	if err != nil {
+		t.Error(err)
+	}
 	var tests = []struct {
 		name          string
 		cert          *CertToken
@@ -20,7 +24,7 @@ func Test_CertTokenWrite(t *testing.T) {
 		{
 			name: "good",
 			cert: &CertToken{
-				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
+				tlsCredentials: mySecret,
 				links: []*v2alpha1.Link{
 					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
@@ -34,7 +38,7 @@ func Test_CertTokenWrite(t *testing.T) {
 		{
 			name: "bad",
 			cert: &CertToken{
-				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
+				tlsCredentials: mySecret,
 				links: []*v2alpha1.Link{
 					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
@@ -50,7 +54,7 @@ func Test_CertTokenWrite(t *testing.T) {
 		{
 			name: "later bad",
 			cert: &CertToken{
-				tlsCredentials: tf.secret("my-token", "", "My Subject", nil),
+				tlsCredentials: mySecret,
 				links: []*v2alpha1.Link{
 					tf.link("my-token", "", []v2alpha1.Endpoint{
 						{
