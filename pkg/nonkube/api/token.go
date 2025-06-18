@@ -11,7 +11,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -44,7 +44,7 @@ func (t *Token) Marshal() ([]byte, error) {
 	return buffer.Bytes(), nil
 }
 
-func CreateTokens(routerAccess v2alpha1.RouterAccess, serverSecret v1.Secret, clientSecret v1.Secret) []*Token {
+func CreateTokens(routerAccess v2alpha1.RouterAccess, serverSecret *v1.Secret, clientSecret v1.Secret) []*Token {
 	var tokens []*Token
 	interRouter := 0
 	edge := 0
@@ -106,19 +106,22 @@ func CreateTokens(routerAccess v2alpha1.RouterAccess, serverSecret v1.Secret, cl
 	var hosts []string
 	hosts = append(hosts, utils.DefaultStr(routerAccess.Spec.BindHost, "127.0.0.1"))
 	// reading SANs from server certificate
-	serverCertificateData := serverSecret.Data["tls.crt"]
-	serverCertificateBlk, _ := pem.Decode(serverCertificateData)
-	if serverCertificateBlk != nil {
-		serverCertificate, err := x509.ParseCertificate(serverCertificateBlk.Bytes)
-		if err == nil {
-			for _, ipAddr := range serverCertificate.IPAddresses {
-				if ipAddr.String() != "" && !slices.Contains(hosts, ipAddr.String()) {
-					hosts = append(hosts, ipAddr.String())
+
+	if serverSecret != nil {
+		serverCertificateData := serverSecret.Data["tls.crt"]
+		serverCertificateBlk, _ := pem.Decode(serverCertificateData)
+		if serverCertificateBlk != nil {
+			serverCertificate, err := x509.ParseCertificate(serverCertificateBlk.Bytes)
+			if err == nil {
+				for _, ipAddr := range serverCertificate.IPAddresses {
+					if ipAddr.String() != "" && !slices.Contains(hosts, ipAddr.String()) {
+						hosts = append(hosts, ipAddr.String())
+					}
 				}
-			}
-			for _, dnsName := range serverCertificate.DNSNames {
-				if dnsName != "" && !slices.Contains(hosts, dnsName) {
-					hosts = append(hosts, dnsName)
+				for _, dnsName := range serverCertificate.DNSNames {
+					if dnsName != "" && !slices.Contains(hosts, dnsName) {
+						hosts = append(hosts, dnsName)
+					}
 				}
 			}
 		}

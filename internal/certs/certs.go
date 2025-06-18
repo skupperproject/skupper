@@ -21,7 +21,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"log"
 	"math/big"
 	"net"
 	"strings"
@@ -57,31 +56,43 @@ type CertificateAuthority struct {
 
 type CertificateData map[string][]byte
 
-func decodeDataElement(in []byte, name string) []byte {
+func decodeDataElement(in []byte, name string) ([]byte, error) {
 	block, _ := pem.Decode(in)
 	if block == nil {
-		log.Fatal("failed to decode PEM block of type " + name)
+		return nil, fmt.Errorf("failed to read PEM encoded data from %q", name)
 	}
-	return block.Bytes
+	return block.Bytes, nil
 }
 
-func getCAFromSecret(secret *corev1.Secret) *CertificateAuthority {
+func getCAFromSecret(secret *corev1.Secret) (*CertificateAuthority, error) {
 	if secret == nil || secret.Data == nil {
-		return nil
+		return nil, nil
 	}
-	cert, err := x509.ParseCertificate(decodeDataElement(secret.Data["tls.crt"], "certificate"))
+
+	certBytes, err := decodeDataElement(secret.Data["tls.crt"], "tls.crt")
 	if err != nil {
-		log.Fatal("failed to get CA certificate from secret")
+		return nil, err
 	}
-	key, err := x509.ParsePKCS1PrivateKey(decodeDataElement(secret.Data["tls.key"], "private key"))
+
+	cert, err := x509.ParseCertificate(certBytes)
 	if err != nil {
-		log.Fatal("failed to get CA private key from secret", err)
+		return nil, err
 	}
+
+	privateKeyBytes, err := decodeDataElement(secret.Data["tls.key"], "tls.key")
+	if err != nil {
+		return nil, err
+	}
+	key, err := x509.ParsePKCS1PrivateKey(privateKeyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get CA private key from secret %s", err)
+	}
+
 	return &CertificateAuthority{
 		Certificate: cert,
 		Key:         key,
 		CrtData:     secret.Data["tls.crt"],
-	}
+	}, nil
 }
 
 // GenerateSecret generates a kubernetes secret.
@@ -90,12 +101,17 @@ func getCAFromSecret(secret *corev1.Secret) *CertificateAuthority {
 // hosts are the host names in the x509 certificate. Comma separated if more than one hostname
 // expiration is when the secret expires, if zero is passed in, the expiration is set to 5 years from now
 // ca is the certificate authority, if nil a ca cert will be created.
-func GenerateSecret(name string, subject string, hosts string, expiration time.Duration, ca *corev1.Secret) corev1.Secret {
-	caCert := getCAFromSecret(ca)
+func GenerateSecret(name string, subject string, hosts string, expiration time.Duration, ca *corev1.Secret) (*corev1.Secret, error) {
+	caCert, err := getCAFromSecret(ca)
+
+	if err != nil {
+		return nil, fmt.Errorf("error reading CA Certificate from Secret %q: %s", ca.Name, err)
+	}
 
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		log.Fatalf("failed to generate private key: %s", err)
+		return nil, fmt.Errorf("failed to generate private key: %v", err)
+
 	}
 
 	notBefore := time.Now()
@@ -107,7 +123,7 @@ func GenerateSecret(name string, subject string, hosts string, expiration time.D
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		log.Fatalf("failed to generate serial number: %s", err)
+		return nil, err
 	}
 
 	template := x509.Certificate{
@@ -147,7 +163,7 @@ func GenerateSecret(name string, subject string, hosts string, expiration time.D
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, parent, publicKey(priv), cakey)
 	if err != nil {
-		log.Fatalf("Failed to create certificate: %s", err)
+		return nil, err
 	}
 
 	secret := corev1.Secret{
@@ -173,7 +189,7 @@ func GenerateSecret(name string, subject string, hosts string, expiration time.D
 		secret.Data["ca.crt"] = secret.Data["tls.crt"] //self.signed
 	}
 
-	return secret
+	return &secret, nil
 }
 
 func DecodeCertificate(data []byte) (*x509.Certificate, error) {

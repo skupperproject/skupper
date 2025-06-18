@@ -132,10 +132,13 @@ func (*factory) grant(name string, namespace string, uid string) *v2alpha1.Acces
 
 }
 
-func (*factory) secret(name string, namespace string, subject string, hosts []string) *corev1.Secret {
-	secret := certs.GenerateSecret(name, subject, strings.Join(hosts, ","), 0, nil)
+func (*factory) secret(name string, namespace string, subject string, hosts []string) (*corev1.Secret, error) {
+	secret, err := certs.GenerateSecret(name, subject, strings.Join(hosts, ","), 0, nil)
+	if err != nil {
+		return nil, err
+	}
 	secret.ObjectMeta.Namespace = namespace
-	return &secret
+	return secret, nil
 }
 
 func (*factory) genericSecret(name string, namespace string) *corev1.Secret {

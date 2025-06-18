@@ -123,15 +123,24 @@ func compareCertificates(t *testing.T, customOutputPath string) {
 func createInputCertificates(t *testing.T, customOutputPath string) {
 	// preparing certificates
 	fakeHosts := "10.0.0.1,10.0.0.2,fake.domain"
-	ca := certs.GenerateSecret("fake-ca", "fake-ca", "", 0, nil)
-	server := certs.GenerateSecret("fake-server-cert", "fake-server-cert", fakeHosts, 0, &ca)
-	client := certs.GenerateSecret("fake-client-cert", "fake-client-cert", "", 0, &ca)
+	ca, err := certs.GenerateSecret("fake-ca", "fake-ca", "", 0, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	server, err := certs.GenerateSecret("fake-server-cert", "fake-server-cert", fakeHosts, 0, ca)
+	if err != nil {
+		t.Error(err)
+	}
+	client, err := certs.GenerateSecret("fake-client-cert", "fake-client-cert", "", 0, ca)
+	if err != nil {
+		t.Error(err)
+	}
 
 	// paths for each provided certificate
 	caPath := path.Join(customOutputPath, "namespaces/default", string(api.InputIssuersPath), "skupper-site-ca")
 	serverPath := path.Join(customOutputPath, "namespaces/default", string(api.InputCertificatesPath), "link-access-one")
 	clientPath := path.Join(customOutputPath, "namespaces/default", string(api.InputCertificatesPath), "client-link-access-one")
-	certsMap := map[string]corev1.Secret{
+	certsMap := map[string]*corev1.Secret{
 		caPath:     ca,
 		serverPath: server,
 		clientPath: client,

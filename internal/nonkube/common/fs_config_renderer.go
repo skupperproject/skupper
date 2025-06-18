@@ -282,7 +282,7 @@ func (c *FileSystemConfigurationRenderer) createTokens(siteState *api.SiteState)
 		if err != nil {
 			return fmt.Errorf("unable to load client secret %s: %v", secretName, err)
 		}
-		routerTokens := api.CreateTokens(*linkAccess, *serverSecret, *secret)
+		routerTokens := api.CreateTokens(*linkAccess, serverSecret, *secret)
 		// routerAccess is valid (inter-router and edge endpoints defined)
 		if len(routerTokens) > 0 {
 			tokens = append(tokens, routerTokens...)
@@ -371,18 +371,21 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 		if certificate.Spec.Signing == false {
 			continue
 		}
-		secret := certs.GenerateSecret(name, certificate.Spec.Subject, "", 0, nil)
+		secret, err := certs.GenerateSecret(name, certificate.Spec.Subject, "", 0, nil)
+		if err != nil {
+			return err
+		}
 
 		ignoreExisting := true
 		userCaSecret, err := c.loadUserCertAsSecret(siteState, "ca", name)
 		if userCaSecret != nil && err == nil {
 			// override with user provided CA
 			ignoreExisting = false
-			secret = *userCaSecret
+			secret = userCaSecret
 			fmt.Printf("-> User provided CA found: %s\n", name)
 		}
 		caPath := path.Join(outputPath, string(api.IssuersPath), name)
-		err = writeSecretFilesIgnore(caPath, &secret, ignoreExisting)
+		err = writeSecretFilesIgnore(caPath, secret, ignoreExisting)
 		if err != nil {
 			return err
 		}
@@ -390,7 +393,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 	// generate all other certificates now
 	for name, certificate := range siteState.Certificates {
 		var purpose string
-		var secret corev1.Secret
+		var secret *corev1.Secret
 		var caSecret *corev1.Secret
 		if certificate.Spec.Ca != "" {
 			caSecret, err = c.loadCASecret(siteState, certificate.Spec.Ca)
@@ -400,25 +403,31 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 		}
 		if certificate.Spec.Client {
 			purpose = "client"
-			secret = certs.GenerateSecret(name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), 0, caSecret)
+			secret, err = certs.GenerateSecret(name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), 0, caSecret)
+			if err != nil {
+				return err
+			}
 			// TODO Not sure if connect.json is needed (probably need to get rid of it)
 			if connectJson := c.connectJson(siteState); connectJson != nil {
 				secret.Data["connect.json"] = []byte(*connectJson)
 			}
 		} else if certificate.Spec.Server {
 			purpose = "server"
-			secret = certs.GenerateSecret(name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), 0, caSecret)
+			secret, err = certs.GenerateSecret(name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), 0, caSecret)
+			if err != nil {
+				return err
+			}
 		} else {
 			continue
 		}
 		userSecret, err := c.loadUserCertAsSecret(siteState, purpose, name)
 		if userSecret != nil && err == nil {
 			// override with user provided secret
-			secret = *userSecret
+			secret = userSecret
 			fmt.Printf("-> User provided %s certificate found: %s\n", purpose, name)
 		}
 		certPath := path.Join(outputPath, string(api.CertificatesPath), name)
-		err = writeSecretFiles(certPath, &secret)
+		err = writeSecretFiles(certPath, secret)
 		if err != nil {
 			return err
 		}

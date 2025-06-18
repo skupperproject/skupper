@@ -11,6 +11,10 @@ import (
 )
 
 func Test_setCertificateFromSecret(t *testing.T) {
+	simpleSecret, err := tf.secret("simple", "", "My Subject", []string{"foo.com", "bar.org"})
+	if err != nil {
+		t.Error(err)
+	}
 	var tests = []struct {
 		name             string
 		secret           *corev1.Secret
@@ -20,7 +24,7 @@ func Test_setCertificateFromSecret(t *testing.T) {
 	}{
 		{
 			name:             "simple",
-			secret:           tf.secret("simple", "", "My Subject", []string{"foo.com", "bar.org"}),
+			secret:           simpleSecret,
 			expectedSubject:  "My Subject",
 			expectedDNSNames: []string{"foo.com", "bar.org"},
 		},

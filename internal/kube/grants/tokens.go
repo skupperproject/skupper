@@ -88,10 +88,13 @@ func (g *TokenGenerator) setValidHostsFromSite(site *skupperv2alpha1.Site) bool 
 	return true
 }
 
-func (g *TokenGenerator) NewCertToken(name string, subject string) Token {
-	cert := certs.GenerateSecret(name, subject, strings.Join(g.hosts, ","), 0, g.ca)
+func (g *TokenGenerator) NewCertToken(name string, subject string) (Token, error) {
+	cert, err := certs.GenerateSecret(name, subject, strings.Join(g.hosts, ","), 0, g.ca)
+	if err != nil {
+		return nil, err
+	}
 	token := &CertToken{
-		tlsCredentials: &cert,
+		tlsCredentials: cert,
 	}
 	for i, endpoints := range g.endpoints {
 		linkName := name
@@ -113,7 +116,7 @@ func (g *TokenGenerator) NewCertToken(name string, subject string) Token {
 		}
 		token.links = append(token.links, link)
 	}
-	return token
+	return token, nil
 }
 
 func (t *CertToken) Write(writer io.Writer) error {
