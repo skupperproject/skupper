@@ -79,7 +79,7 @@ func getCAFromSecret(secret *corev1.Secret) (*CertificateAuthority, error) {
 		return nil, err
 	}
 
-	privateKeyBytes, err := decodeDataElement(secret.Data["tls.key"], "private key")
+	privateKeyBytes, err := decodeDataElement(secret.Data["tls.key"], "tls.key")
 	if err != nil {
 		return nil, err
 	}
