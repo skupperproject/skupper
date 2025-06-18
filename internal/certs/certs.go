@@ -59,7 +59,7 @@ type CertificateData map[string][]byte
 func decodeDataElement(in []byte, name string) ([]byte, error) {
 	block, _ := pem.Decode(in)
 	if block == nil {
-		return nil, fmt.Errorf("unable to decode the Data element of the secret %s", name)
+		return nil, fmt.Errorf("failed to read PEM encoded data from %q", name)
 	}
 	return block.Bytes, nil
 }
