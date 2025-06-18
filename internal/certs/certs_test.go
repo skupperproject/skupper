@@ -87,5 +87,5 @@ func TestGenerateSecret(t *testing.T) {
 
 	_, err = GenerateSecret("test-secret", ca_cn, "134.565.56.77", 0, caSecret)
 	errorText := err.Error()
-	assert.Equal(t, errorText, "unable to decode the Data element of the secret certificate")
+	assert.Equal(t, errorText, "error reading CA Certificate from Secret \"emptyCASecret\": failed to read PEM encoded data from \"tls.crt\"")
 }
