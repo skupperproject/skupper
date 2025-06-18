@@ -105,7 +105,7 @@ func GenerateSecret(name string, subject string, hosts string, expiration time.D
 	caCert, err := getCAFromSecret(ca)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading CA Certificate from Secret %q: %s", ca.Name, err)
 	}
 
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
