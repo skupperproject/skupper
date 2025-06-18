@@ -280,10 +280,13 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 			routerMode = currentSite.RouterStatus[0].Router.Mode
 
 			statusDataOutput := formatter.StatusData{
-				EnabledIn: formatter.PlatformSupport{"kubernetes", currentSite.Site.Namespace},
-				Mode:      routerMode,
-				SiteName:  currentSite.Site.Name,
-				Policies:  currentSite.Site.Policy,
+				EnabledIn: formatter.PlatformSupport{
+					SupportType: "kubernetes",
+					SupportName: currentSite.Site.Namespace,
+				},
+				Mode:     routerMode,
+				SiteName: currentSite.Site.Name,
+				Policies: currentSite.Site.Policy,
 			}
 
 			err, index := statusManager.GetRouterIndex(currentSite)
@@ -312,7 +315,10 @@ func (s *SkupperKubeSite) Status(cmd *cobra.Command, args []string) error {
 				if siteConfig.Spec.EnableFlowCollector && consoleUrl != "" {
 					statusDataOutput.ConsoleUrl = consoleUrl
 					if siteConfig.Spec.AuthMode == "internal" {
-						statusDataOutput.Credentials = formatter.PlatformSupport{"secret", "'skupper-console-users'"}
+						statusDataOutput.Credentials = formatter.PlatformSupport{
+							SupportType: "secret",
+							SupportName: "'skupper-console-users'",
+						}
 					}
 				}
 			}

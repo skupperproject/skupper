@@ -99,13 +99,11 @@ func (s *SkupperKubeToken) createFromTemplate(cmd *cobra.Command, args []string)
 			fmt.Println()
 			return nil
 		}
-		return nil
 	case "claim":
 		return fmt.Errorf("--template option cannot be used for a claim")
 	default:
 		return fmt.Errorf("invalid token type.")
 	}
-	return nil
 }
 
 func (s *SkupperKubeToken) Status(cmd *cobra.Command, args []string) error {

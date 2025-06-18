@@ -289,7 +289,10 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 	}
 
 	statusOutput.Mode = site.GetMode()
-	statusOutput.EnabledIn = formatter.PlatformSupport{"podman", podman.Username}
+	statusOutput.EnabledIn = formatter.PlatformSupport{
+		SupportType: "podman",
+		SupportName: podman.Username,
+	}
 
 	var currentSite = statusManager.GetSiteById(site.Id)
 
@@ -313,7 +316,10 @@ func (s *SkupperPodmanSite) Status(cmd *cobra.Command, args []string) error {
 	if site.EnableFlowCollector {
 		statusOutput.ConsoleUrl = site.GetConsoleUrl()
 		if site.AuthMode == "internal" {
-			statusOutput.Credentials = formatter.PlatformSupport{"podman volume", "'skupper-console-users'"}
+			statusOutput.Credentials = formatter.PlatformSupport{
+				SupportType: "podman volume",
+				SupportName: "'skupper-console-users'",
+			}
 		}
 	}
 
