@@ -729,7 +729,7 @@ func TestConsoleAuthArgs(t *testing.T) {
 				skupperCli.Cli = lcli
 			}
 
-			t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
+			t.Run(fmt.Sprint(tc.name), func(t *testing.T) {
 				cmd := NewCmdInit(skupperCli.Site())
 				b := bytes.NewBufferString("")
 				cmd.SetOut(b)

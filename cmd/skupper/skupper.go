@@ -140,7 +140,7 @@ type BindOptions struct {
 }
 
 func SkupperNotInstalledError(namespace string) error {
-	return fmt.Errorf("Skupper is not installed in Namespace: '" + namespace + "`")
+	return fmt.Errorf("Skupper is not installed in Namespace: '%s`", namespace)
 
 }
 
