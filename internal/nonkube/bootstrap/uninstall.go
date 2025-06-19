@@ -6,8 +6,8 @@ import (
 	"github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"os"
+	"os/user"
 	"path"
-	"strings"
 )
 
 func Uninstall(platform string) error {
@@ -17,24 +17,24 @@ func Uninstall(platform string) error {
 		return fmt.Errorf("failed to create container client: %v", err)
 	}
 
-	list, err := cli.ContainerList()
+	currentUser, err := user.Current()
 	if err != nil {
-		return err
-	}
-	var systemControllerContainer string
-	for _, container := range list {
-		if strings.HasSuffix(container.Name, "system-controller") {
-			systemControllerContainer = container.Name
-			break
-		}
+		return fmt.Errorf("Failed to get current user: %v", err)
 	}
 
-	err = cli.ContainerStop(systemControllerContainer)
+	containerName := fmt.Sprintf("%s-skupper-system-controller", currentUser.Username)
+
+	container, err := cli.ContainerInspect(containerName)
+	if err != nil || container == nil {
+		return nil
+	}
+
+	err = cli.ContainerStop(containerName)
 	if err != nil {
 		return fmt.Errorf("failed to stop system-controller container: %v", err)
 	}
 
-	err = cli.ContainerRemove(systemControllerContainer)
+	err = cli.ContainerRemove(containerName)
 	if err != nil {
 		return fmt.Errorf("failed to remove system-controller container: %v", err)
 	}
