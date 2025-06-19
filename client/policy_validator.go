@@ -423,7 +423,7 @@ func (p *PolicyAPIClient) execGet(args ...string) (*PolicyAPIResult, error) {
 		} else if err != notEnabledErr {
 			err = fmt.Errorf("Unable to communicate with the API: %v", err)
 		}
-		recordPolicyValidatorEvent(err.Error())
+		recordPolicyValidatorEvent("%s", err.Error())
 		return &PolicyAPIResult{
 			Allowed: false,
 			Enabled: false,
@@ -462,7 +462,7 @@ func (p *PolicyAPIClient) execGet(args ...string) (*PolicyAPIResult, error) {
 
 func (p *PolicyAPIResult) Err() error {
 	if p.Error != "" {
-		return fmt.Errorf(p.Error)
+		return fmt.Errorf("%s", p.Error)
 	}
 	return nil
 }

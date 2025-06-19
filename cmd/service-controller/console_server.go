@@ -127,7 +127,7 @@ func (server *ConsoleServer) version() http.Handler {
 				server.httpInternalError(w, fmt.Errorf("Error writing version: %s", err))
 				return
 			}
-			fmt.Fprintf(w, string(bytes)+"\n")
+			fmt.Fprint(w, string(bytes)+"\n")
 		} else {
 			tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
 			fmt.Fprintln(tw, "site\t"+v.SiteVersion)
@@ -183,7 +183,7 @@ func (server *ConsoleServer) serveEvents() http.Handler {
 				server.httpInternalError(w, fmt.Errorf("Error writing events: %s", err))
 				return
 			}
-			fmt.Fprintf(w, string(bytes)+"\n")
+			fmt.Fprint(w, string(bytes)+"\n")
 		} else {
 			tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
 			fmt.Fprintln(tw, fmt.Sprintf("%s\t%s\t%s\t%s", "NAME", "COUNT", " ", "AGE"))
@@ -218,7 +218,7 @@ func (server *ConsoleServer) serveSites(jsonByDefault bool) http.Handler {
 				if err != nil {
 					server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
 				} else {
-					fmt.Fprintf(w, string(bytes)+"\n")
+					fmt.Fprint(w, string(bytes)+"\n")
 				}
 			} else {
 				tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
@@ -246,7 +246,7 @@ func (server *ConsoleServer) serveServices() http.Handler {
 				if err != nil {
 					server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
 				} else {
-					fmt.Fprintf(w, string(bytes)+"\n")
+					fmt.Fprint(w, string(bytes)+"\n")
 				}
 			} else {
 				tw := tabwriter.NewWriter(w, 0, 4, 1, ' ', 0)
@@ -301,7 +301,7 @@ func (server *ConsoleServer) checkService() http.Handler {
 						if err != nil {
 							server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
 						} else {
-							fmt.Fprintf(w, string(bytes)+"\n")
+							fmt.Fprint(w, string(bytes)+"\n")
 						}
 					} else {
 						if len(data.Observations) > 0 {
@@ -358,7 +358,7 @@ func (server *ConsoleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
 		} else {
-			fmt.Fprintf(w, string(bytes)+"\n")
+			fmt.Fprint(w, string(bytes)+"\n")
 		}
 	}
 }
@@ -368,7 +368,7 @@ func (server *ConsoleServer) writeJson(obj interface{}, w http.ResponseWriter) {
 	if err != nil {
 		server.httpInternalError(w, fmt.Errorf("Error writing json: %s", err))
 	} else {
-		fmt.Fprintf(w, string(bytes)+"\n")
+		fmt.Fprint(w, string(bytes)+"\n")
 	}
 }
 

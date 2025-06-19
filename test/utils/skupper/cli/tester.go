@@ -290,7 +290,7 @@ func checkPlain(s string, bits []string, name string) (err error) {
 			for _, mp := range missingPieces {
 				msg = fmt.Sprintf("%v- %v\n", msg, mp)
 			}
-			err = fmt.Errorf(msg)
+			err = fmt.Errorf("%s", msg)
 		}
 	}
 	return
@@ -324,7 +324,7 @@ func checkRe(s string, bits []regexp.Regexp, name string, expected bool) (err er
 		for _, p := range problems {
 			message += fmt.Sprintf("- %s\n", p)
 		}
-		err = fmt.Errorf(message)
+		err = fmt.Errorf("%s", message)
 	}
 
 	return err
@@ -351,7 +351,7 @@ func groupErrors(name, actual string, errors []error) (err error) {
 	}
 	message += fmt.Sprintf("Actual %v:\n%v", name, actual)
 
-	return fmt.Errorf(message)
+	return fmt.Errorf("%s", message)
 }
 
 // Checks all items from the specification.
@@ -383,7 +383,7 @@ func (e Expect) Check(stdout, stderr string) (err error) {
 	}
 
 	if message != "" {
-		err = fmt.Errorf(message)
+		err = fmt.Errorf("%s", message)
 	}
 	return
 

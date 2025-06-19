@@ -39,11 +39,11 @@ func (cli *VanClient) TokenClaimCreateFile(ctx context.Context, name string, pas
 	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 	out, err := os.Create(secretFile)
 	if err != nil {
-		return fmt.Errorf("Could not write to file " + secretFile + ": " + err.Error())
+		return fmt.Errorf("Could not write to file %s: ", err.Error())
 	}
 	err = s.Encode(claim, out)
 	if err != nil {
-		return fmt.Errorf("Could not write out generated secret: " + err.Error())
+		return fmt.Errorf("Could not write out generated secret: %s", err.Error())
 	} else {
 		var extra string
 		if localOnly {

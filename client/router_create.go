@@ -705,7 +705,7 @@ func configureDeployment(spec *types.DeploymentSpec, options *types.Tuning) erro
 		}
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf(strings.Join(errs, ", "))
+		return fmt.Errorf("%s", strings.Join(errs, ", "))
 	} else {
 		return nil
 	}

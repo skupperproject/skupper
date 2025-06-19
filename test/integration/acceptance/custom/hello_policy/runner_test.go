@@ -129,7 +129,7 @@ func (c policyTestCase) run(t *testing.T, pub, prv *base.ClusterContext, context
 		func(t *testing.T) {
 			if c.skip != nil {
 				if skipReason := c.skip(); skipReason != "" {
-					t.Skipf(skipReason)
+					t.Skip(skipReason)
 				}
 			}
 			for _, step := range c.steps {
@@ -154,10 +154,10 @@ type hookFunction func(map[string]string) error
 // and run a set of cli command scenarios, along with some other helper steps.
 //
 // ATTENTION to how the policy lists (pubPolicy, prvPolicy) work:
-// - Each item on the list will generate a policy named pub/prv-policy-i,
-//   based on their position on the list (i is an index)
-// - Every time a list is defined, each of its items will be either updated
-//   or created
+//   - Each item on the list will generate a policy named pub/prv-policy-i,
+//     based on their position on the list (i is an index)
+//   - Every time a list is defined, each of its items will be either updated
+//     or created
 //
 // So, if the previous step defined two public policies, and the current step...
 //
@@ -174,10 +174,10 @@ type hookFunction func(map[string]string) error
 // When you have more than one policy and you're not updating all, it may be
 // good to document it on the struct.  Something like this:
 //
-// pubPolicy: []skupperv1.SkupperClusterPolicySpec{
-//   allowIncomingLinkPolicy(pub.Namespace, true),
-//   // second policy is not being changed on this test
-// },
+//	pubPolicy: []skupperv1.SkupperClusterPolicySpec{
+//	  allowIncomingLinkPolicy(pub.Namespace, true),
+//	  // second policy is not being changed on this test
+//	},
 //
 // To remove a policy, set it as having a sole namespace named REMOVE.  To keep
 // a policy while updating or removing another one that follows it, set it with
@@ -410,12 +410,12 @@ func (s policyTestStep) waitChecks(t *testing.T, contextMap map[string]string) {
 				if err != nil {
 					errMsg := fmt.Sprintf("GET check %v failed: %v", check, err)
 					log.Print(errMsg)
-					t.Errorf(errMsg)
+					t.Errorf("%s", errMsg)
 				}
 				if !ok {
 					errMsg := fmt.Sprintf("GET check %v returned incorrect response", check)
 					log.Print(errMsg)
-					t.Errorf(errMsg)
+					t.Errorf("%s", errMsg)
 				}
 			}
 			log.Printf("All tests pass")

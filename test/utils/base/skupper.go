@@ -89,8 +89,8 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.C
 
 	if err = json.Unmarshal([]byte(resp.Body), &payload); err != nil {
 		if strings.HasPrefix(resp.Body, "Error") {
-			log.Printf(resp.Body)
-			return consoleData, fmt.Errorf(resp.Body)
+			log.Print(resp.Body)
+			return consoleData, fmt.Errorf("%s", resp.Body)
 		} else {
 			log.Printf("error unmarshalling Payload: %s", err)
 			log.Printf("invalid response body: %s", resp.Body)
@@ -118,8 +118,8 @@ func GetConsoleData(cc *ClusterContext, consoleUser, consolePass string) (data.C
 
 	if err = json.Unmarshal([]byte(resp.Body), &payload); err != nil {
 		if strings.HasPrefix(resp.Body, "Error") {
-			log.Printf(resp.Body)
-			return consoleData, fmt.Errorf(resp.Body)
+			log.Print(resp.Body)
+			return consoleData, fmt.Errorf("%s", resp.Body)
 		} else {
 			log.Printf("error unmarshalling Payload: %s", err)
 			log.Printf("invalid response body: %s", resp.Body)
