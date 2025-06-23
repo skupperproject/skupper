@@ -5,6 +5,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
+	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/internal/utils/configs"
 	"gotest.tools/v3/assert"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -116,6 +117,11 @@ func TestCmdVersion_Run(t *testing.T) {
 			flags:        common.CommandVersionFlags{Output: "not-valid"},
 			errorMessage: "format not-valid not supported",
 		},
+		{
+			name:         "no cluster",
+			flags:        common.CommandVersionFlags{},
+			errorMessage: "Cluster is not accessible",
+		},
 	}
 
 	for _, test := range testTable {
@@ -142,8 +148,14 @@ func TestCmdVersion_Run(t *testing.T) {
 
 func newCmdVersionWithMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*CmdVersion, error) {
 
+	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
+	if err != nil {
+		return nil, err
+	}
 	cmdVersion := &CmdVersion{
-		namespace: namespace,
+		Client:     client.GetSkupperClient().SkupperV2alpha1(),
+		namespace:  namespace,
+		KubeClient: client.GetKubeClient(),
 	}
 
 	return cmdVersion, nil
