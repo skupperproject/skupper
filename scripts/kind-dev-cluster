@@ -13,13 +13,16 @@ USAGE: $0 [options...]
  -n, --name		    Name of the cluster to create [default skupper-dev]
  -i, --images	    Source of skupper images
 	One of docker, podman, ociarchive, none [default docker]
+ -c, --container    Container platform to use
+	One of docker, podman [default docker]
+ -v, --verbose      Produces verbose output 
 EOF
 }
 
 readonly KIND=${KIND:-kind}
 readonly KUBECTL=${KUBECTL:-kubectl}
 readonly HELM=${HELM:-helm}
-readonly DOCKER=${DOCKER:-docker}
+
 readonly PYTHON=${PYTHON:-python3}
 readonly IMAGE_TAG=${IMAGE_TAG:-v2-dev}
 readonly ROUTER_IMAGE_TAG=${SKUPPER_ROUTER_IMAGE_TAG:-main}
@@ -30,58 +33,86 @@ readonly SKUPPER_KUBE_ADAPTOR_IMAGE=${SKUPPER_KUBE_ADAPTOR_IMAGE:-${REGISTRY}/ku
 readonly SKUPPER_NETWORK_OBSERVER_IMAGE=${SKUPPER_NETWORK_OBSERVER_IMAGE:-${REGISTRY}/network-observer:${IMAGE_TAG}}
 
 KIND_LOG_LEVEL="1"
-DEBUG=${DEBUG:=false}
+VERBOSE=${VERBOSE:=false}
 CLUSTER="skupper-dev"
 IMAGE_SOURCE="docker"
 FORCE_RECREATE="false"
 METALLB="false"
 SUBNET="1"
 
-if [ "${DEBUG}" == "true" ]; then
-  set -x
-  KIND_LOG_LEVEL="6"
-fi
+verbose_log() {
+	if [ "${VERBOSE}" == "true" ]; then
+		echo "(skdev) $1"
+	fi
+}
 
 ensure::kind() {
 	if ! command -v "${KIND}" > /dev/null 2>&1; then
-		echo "${KIND} not found";
+		echo "(skdev) ${KIND} not found, exiting";
 		echo "See https://kind.sigs.k8s.io/ for installation and usage.";
 		exit 1
+	else 
+	   verbose_log "Found Kind ..."
 	fi
 }
-ensure::docker() {
-	if ! command -v "${DOCKER}" > /dev/null 2>&1; then
-		echo "${DOCKER} not found";
-		echo "This tool assumes docker is used to run kind and does not support the experimental podman provider";
+
+ensure::container() {
+	if [[ "$CONTAINER" == "docker" ]]; then
+		if ! command -v docker > /dev/null 2>&1; then
+			echo "(skdev) docker not found, exiting"
+			exit 1
+		else
+		  	DOCKER_VERSION=$(docker --version)
+			verbose_log "docker found. Version: $DOCKER_VERSION"
+		fi
+	elif [[ "$CONTAINER" == "podman" ]]; then
+		if command -v podman > /dev/null 2>&1; then
+			# Podman is found. Get and print its version and set KIND_EXPERIMENTAL_PROVIDER
+			PODMAN_VERSION=$(podman --version)
+			verbose_log "podman found. Version: $PODMAN_VERSION"
+			export KIND_EXPERIMENTAL_PROVIDER=podman
+		else
+			# Podman is not found. Print error and exit.
+			echo "(skdev) podman not found, exiting"
+			exit 1
+		fi
+	else
+	    echo "Invalid container specified, must be docker or podman"
 		exit 1
 	fi
 }
+
 ensure::helm() {
 	if ! command -v "${HELM}" > /dev/null 2>&1; then
-		echo "${HELM} not found";
-		echo "This tool uses helm to enable some features. See https://helm.sh/ for installation.";
+		verbose_log "This tool uses helm to enable some features. See https://helm.sh/ for installation.";
+		echo "${HELM} not found, exiting";
 		exit 1
 	fi
 }
 ensure::python() {
 	if ! command -v "${PYTHON}" > /dev/null 2>&1; then
-		echo "${PYTHON} not found";
 		echo "This tool uses python3 for munging subnet addresses for installing metallb.";
+		echo "${PYTHON} not found, exiting";
 		exit 1
+	else
+	    verbose_log "Python version is $(python --version)"
 	fi
 }
 kind::cluster::list() {
     ${KIND} get clusters
 }
+
 kind::cluster::delete() {
     ${KIND} delete cluster \
         --name "$1"
 }
+
 kind::cluster::create() {
     ${KIND} create cluster \
 		--verbosity="${KIND_LOG_LEVEL}" \
         --name "$1"
 }
+
 kind::imageload::docker() {
 	for image in "${SKUPPER_CONTROLLER_IMAGE}" \
 		"${SKUPPER_KUBE_ADAPTOR_IMAGE}" \
@@ -114,8 +145,12 @@ kind::imageload::podman() {
 	done
 }
 
-docker::network::subnet () {
-		${DOCKER} network inspect "$1" | jq -r '.[].IPAM.Config[0].Subnet'
+container::network::subnet() {
+	    subnetPath='.[].IPAM.Config[].Subnet  | select(test("([0-9]{1,3}[.]){3}[0-9]{1,3}/[1-3]?[0-9]")?)'
+		if [ "${CONTAINER}" == "podman" ]; then
+		    subnetPath='.[].subnets[].subnet | select(test("([0-9]{1,3}[.]){3}[0-9]{1,3}/[1-3]?[0-9]")?)'
+		fi
+		${CONTAINER} network inspect "$1" | jq -r "$subnetPath"								
 }
 
 metallb::l2::config() {
@@ -127,6 +162,8 @@ metadata:
   name: default
   namespace: metallb-system
 spec:
+  avoidBuggyIPs: true
+  autoAssign: true
   addresses:
   - ${subnet}
 ---
@@ -164,11 +201,22 @@ main () {
 				shift
 				shift
 				;;
+			-c|--container)
+				CONTAINER="$2"
+				shift
+				shift
+				;;				
 			-i|--images)
 				IMAGE_SOURCE="$2"
 				shift
 				shift
 				;;
+			-v|--verbose)
+				VERBOSE="true"
+				set -x
+				KIND_LOG_LEVEL="6"
+				shift
+				;;				
 			*)
 				echo "Unknown argument $1"
 				usage
@@ -178,7 +226,7 @@ main () {
 	done
 
 	ensure::kind
-	ensure::docker
+	ensure::container
 	if [ -z "${KUBECONFIG-}" ]; then
 		export KUBECONFIG="$HOME/.kube/skupperdev-config-$CLUSTER"
 		echo "(skdev) WARNING: KUBECONFIG not set. Defaulting to ${KUBECONFIG}"
@@ -218,13 +266,18 @@ main () {
 		ensure::helm
 		ensure::python
 		echo "(skdev) deploying metallb to ${CLUSTER}"
-		kind_subnet=$(docker::network::subnet kind)
+		kind_subnet=$(container::network::subnet kind)
+
+		METALLB_DEBUG_FLAG=""
+		if [[ "${VERBOSE}" == "true" ]]; then
+			METALLB_DEBUG_FLAG="--debug"
+		fi
 		"${HELM}" repo add metallb https://metallb.github.io/metallb
 		"${HELM}" upgrade --install metallb metallb/metallb \
 			--namespace metallb-system --create-namespace \
 			--set speaker.ignoreExcludeLB=true \
-			--version 0.14.* \
-			--wait
+			--version 0.15.* \
+			--wait ${METALLB_DEBUG_FLAG} # empty or --debug
 		"${KUBECTL}" apply -f <(metallb::l2::config "$kind_subnet" "$SUBNET")
 	fi
 
