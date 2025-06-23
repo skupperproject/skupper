@@ -151,9 +151,9 @@ func NewDefaultEventLogger() *DefaultEventLogger {
 }
 
 func (logger DefaultEventLogger) RecordWarningEvent(reason string, message string) {
-	logger.store.Recordf(reason, message)
+	logger.store.Record(reason, message)
 }
 
 func (logger DefaultEventLogger) RecordNormalEvent(reason string, message string) {
-	logger.store.Recordf(reason, message)
+	logger.store.Record(reason, message)
 }

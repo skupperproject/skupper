@@ -209,7 +209,7 @@ func writeJson(obj interface{}, w http.ResponseWriter) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	} else {
-		fmt.Fprintf(w, string(bytes)+"\n")
+		fmt.Fprint(w, string(bytes)+"\n")
 	}
 }
 
@@ -256,7 +256,7 @@ func serveLinks(m Links) http.Handler {
 				} else if !ok {
 					http.Error(w, "No such link", http.StatusNotFound)
 				} else {
-					event.Recordf("Link %s deleted", name)
+					event.Recordf(LinkManagement, "Link %s deleted", name)
 				}
 			} else {
 				http.Error(w, "Invalid method", http.StatusMethodNotAllowed)

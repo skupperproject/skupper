@@ -30,9 +30,9 @@ func SystemdUnitAvailable(gatewayName string) bool {
 	stdout, _, err := systemctlCommand("list-unit-files", s)
 	if err != nil {
 		log.Printf("systemd user unit not found: %s - %s", s, err)
-		log.Printf(stdout)
+		log.Print(stdout)
 	} else if strings.Contains(stdout, "0 unit") {
-		log.Printf(stdout)
+		log.Print(stdout)
 		return false
 	}
 	return err == nil

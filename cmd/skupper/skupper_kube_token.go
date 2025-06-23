@@ -85,11 +85,11 @@ func (s *SkupperKubeToken) createFromTemplate(cmd *cobra.Command, args []string)
 		s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
 		out, err := os.Create(filename)
 		if err != nil {
-			return fmt.Errorf("Could not write to file " + filename + ": " + err.Error())
+			return fmt.Errorf("Could not write to file %s: %s ", filename, err.Error())
 		}
 		err = s.Encode(secret, out)
 		if err != nil {
-			return fmt.Errorf("Could not write out generated secret: " + err.Error())
+			return fmt.Errorf("Could not write out generated secret: %s", err.Error())
 		} else {
 			var extra string
 			if localOnly {
