@@ -70,6 +70,13 @@ podman-build: $(patsubst Dockerfile.%,podman-build-%,$(CONTAINERFILES))
 podman-build-%: Dockerfile.%
 	${PODMAN} build $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/$*:${IMAGE_TAG}" -f $< .
 
+# Push all container images built by podman-build
+podman-push: $(patsubst Dockerfile.%,podman-push-%,$(CONTAINERFILES))
+
+# Pattern rule to push individual images
+podman-push-%: podman-build-%
+	${PODMAN} push "${REGISTRY}/$*:${IMAGE_TAG}"
+
 
 ## multi-platform container images built in docker buildkit builder and
 # exported to oci archive format.
