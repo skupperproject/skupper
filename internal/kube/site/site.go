@@ -240,7 +240,7 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 func (s *Site) initialRouterConfig() *qdr.RouterConfig {
 	//
 	// If the set of listeners in this initial configuration changes, make sure to update the function
-	// IsNotNormalListener to include the complete list of "protected" listeners.
+	// IsNotProtectedListener to include the complete list of "protected" listeners.
 	//
 	rc := qdr.InitialConfig(s.name+"-${HOSTNAME}", s.site.GetSiteId(), version.Version, s.isEdge(), 3)
 	rc.AddAddress(qdr.Address{
