@@ -289,7 +289,7 @@ func TestRouterAccessConfig_Apply(t *testing.T) {
 			argsConfig.SslProfiles = tt.args.sslProfiles
 
 			if got := g.Apply(&argsConfig); got != tt.want {
-				t.Errorf("RouterAccessConfig.Apply() = %v, want %v", got, tt.want)
+				t.Errorf("RouterAccessConfig.Apply() = %v, want %v (subtest: %s)", got, tt.want, tt.name)
 			}
 		})
 	}

@@ -824,8 +824,14 @@ func (r *RouterConfig) UpdateConfigMap(configmap *corev1.ConfigMap) (bool, error
 
 type ListenerPredicate func(Listener) bool
 
-func IsNotNormalListener(l Listener) bool {
-	return l.Role != "normal" && l.Role != ""
+func IsNotProtectedListener(l Listener) bool {
+	protectedNames := [3]string{"@9090", "amqp", "amqps"}
+	for _, name := range protectedNames {
+		if l.Name == name {
+			return false
+		}
+	}
+	return true
 }
 
 func FilterListeners(in map[string]Listener, predicate ListenerPredicate) map[string]Listener {

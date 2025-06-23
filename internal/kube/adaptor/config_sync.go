@@ -193,7 +193,7 @@ func syncListeners(agent *qdr.Agent, desired *qdr.RouterConfig) error {
 		return fmt.Errorf("Error retrieving local listeners: %s", err)
 	}
 
-	if differences := qdr.ListenersDifference(qdr.FilterListeners(actual, qdr.IsNotNormalListener), desired.GetMatchingListeners(qdr.IsNotNormalListener)); !differences.Empty() {
+	if differences := qdr.ListenersDifference(qdr.FilterListeners(actual, qdr.IsNotProtectedListener), desired.GetMatchingListeners(qdr.IsNotProtectedListener)); !differences.Empty() {
 		if err := agent.UpdateListenerConfig(differences); err != nil {
 			return fmt.Errorf("Error syncing listeners: %s", err)
 		}
