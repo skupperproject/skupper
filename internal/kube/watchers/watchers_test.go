@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -57,10 +58,6 @@ func TestCallback(t *testing.T) {
 }
 
 func TestNamespaceWatcher(t *testing.T) {
-	type call struct {
-		Key       string
-		Namespace *corev1.Namespace
-	}
 	type get struct {
 		key       string
 		namespace *corev1.Namespace
@@ -73,7 +70,7 @@ func TestNamespaceWatcher(t *testing.T) {
 		deleted   []*corev1.Namespace
 		recovered []*corev1.Namespace
 		expected  []*corev1.Namespace
-		callbacks []call
+		callbacks []callbackResult[corev1.Namespace]
 		gets      []get
 		err       string
 	}{
@@ -88,10 +85,10 @@ func TestNamespaceWatcher(t *testing.T) {
 			expected: []*corev1.Namespace{
 				namespace("foo"),
 			},
-			callbacks: []call{
+			callbacks: []callbackResult[corev1.Namespace]{
 				{
-					Key:       "foo",
-					Namespace: namespace("foo"),
+					Key: "foo",
+					Obj: namespace("foo"),
 				},
 			},
 			gets: []get{
@@ -121,14 +118,14 @@ func TestNamespaceWatcher(t *testing.T) {
 			expected: []*corev1.Namespace{
 				namespace("bar"),
 			},
-			callbacks: []call{
+			callbacks: []callbackResult[corev1.Namespace]{
 				{
-					Key:       "foo",
-					Namespace: namespace("foo"),
+					Key: "foo",
+					Obj: namespace("foo"),
 				},
 				{
-					Key:       "bar",
-					Namespace: namespace("bar"),
+					Key: "bar",
+					Obj: namespace("bar"),
 				},
 				{
 					Key: "foo",
@@ -152,17 +149,7 @@ func TestNamespaceWatcher(t *testing.T) {
 				assert.Assert(t, err)
 			}
 			processor := NewEventProcessor("tester", client)
-			var actual []call
-			handler := func(key string, namespace *corev1.Namespace) error {
-				actual = append(actual, call{
-					Key:       key,
-					Namespace: namespace,
-				})
-				if tt.err != "" {
-					return errors.New(tt.err)
-				}
-				return nil
-			}
+			handler, getCallbacks := makeHandler[corev1.Namespace](tt.err)
 			watcher := processor.WatchNamespaces(nil, handler)
 			stopCh := make(chan struct{})
 			watcher.Start(stopCh)
@@ -173,6 +160,10 @@ func TestNamespaceWatcher(t *testing.T) {
 				assert.Assert(t, cmp.Contains(recovered, expected))
 			}
 			assert.Equal(t, len(recovered), len(tt.recovered))
+
+			for i := 0; i < len(tt.initial); i++ {
+				processor.TestProcess()
+			}
 			for _, namespace := range tt.added {
 				_, err = client.GetKubeClient().CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
 				assert.Assert(t, err)
@@ -181,10 +172,10 @@ func TestNamespaceWatcher(t *testing.T) {
 				err = client.GetKubeClient().CoreV1().Namespaces().Delete(context.Background(), namespace.Name, metav1.DeleteOptions{})
 				assert.Assert(t, err)
 			}
-			for i := 0; i < len(tt.initial)+len(tt.added)+len(tt.deleted); i++ {
+			for i := 0; i < len(tt.added)+len(tt.deleted); i++ {
 				processor.TestProcess()
 			}
-			assert.DeepEqual(t, tt.callbacks, actual)
+			assert.DeepEqual(t, tt.callbacks, getCallbacks())
 			all := watcher.List()
 			assert.DeepEqual(t, all, tt.expected)
 			for _, get := range tt.gets {
@@ -213,10 +204,6 @@ func namespace(name string) *corev1.Namespace {
 }
 
 func TestNodeWatcher(t *testing.T) {
-	type call struct {
-		Key  string
-		Node *corev1.Node
-	}
 	type get struct {
 		key  string
 		node *corev1.Node
@@ -229,7 +216,7 @@ func TestNodeWatcher(t *testing.T) {
 		deleted   []*corev1.Node
 		recovered []*corev1.Node
 		expected  []*corev1.Node
-		callbacks []call
+		callbacks []callbackResult[corev1.Node]
 		gets      []get
 		err       string
 	}{
@@ -244,10 +231,10 @@ func TestNodeWatcher(t *testing.T) {
 			expected: []*corev1.Node{
 				node("foo"),
 			},
-			callbacks: []call{
+			callbacks: []callbackResult[corev1.Node]{
 				{
-					Key:  "foo",
-					Node: node("foo"),
+					Key: "foo",
+					Obj: node("foo"),
 				},
 			},
 			gets: []get{
@@ -277,14 +264,14 @@ func TestNodeWatcher(t *testing.T) {
 			expected: []*corev1.Node{
 				node("bar"),
 			},
-			callbacks: []call{
+			callbacks: []callbackResult[corev1.Node]{
 				{
-					Key:  "foo",
-					Node: node("foo"),
+					Key: "foo",
+					Obj: node("foo"),
 				},
 				{
-					Key:  "bar",
-					Node: node("bar"),
+					Key: "bar",
+					Obj: node("bar"),
 				},
 				{
 					Key: "foo",
@@ -308,17 +295,7 @@ func TestNodeWatcher(t *testing.T) {
 				assert.Assert(t, err)
 			}
 			processor := NewEventProcessor("tester", client)
-			var actual []call
-			handler := func(key string, node *corev1.Node) error {
-				actual = append(actual, call{
-					Key:  key,
-					Node: node,
-				})
-				if tt.err != "" {
-					return errors.New(tt.err)
-				}
-				return nil
-			}
+			handler, getCallbacks := makeHandler[corev1.Node](tt.err)
 			watcher := processor.WatchNodes(handler)
 			stopCh := make(chan struct{})
 			watcher.Start(stopCh)
@@ -327,6 +304,9 @@ func TestNodeWatcher(t *testing.T) {
 			recovered := watcher.List()
 			for _, expected := range tt.recovered {
 				assert.Assert(t, cmp.Contains(recovered, expected))
+			}
+			for i := 0; i < len(tt.initial); i++ {
+				processor.TestProcess()
 			}
 			assert.Equal(t, len(recovered), len(tt.recovered))
 			for _, node := range tt.added {
@@ -337,10 +317,10 @@ func TestNodeWatcher(t *testing.T) {
 				err = client.GetKubeClient().CoreV1().Nodes().Delete(context.Background(), node.Name, metav1.DeleteOptions{})
 				assert.Assert(t, err)
 			}
-			for i := 0; i < len(tt.initial)+len(tt.added)+len(tt.deleted); i++ {
+			for i := 0; i < len(tt.added)+len(tt.deleted); i++ {
 				processor.TestProcess()
 			}
-			assert.DeepEqual(t, tt.callbacks, actual)
+			assert.DeepEqual(t, tt.callbacks, getCallbacks())
 			all := watcher.List()
 			assert.DeepEqual(t, all, tt.expected)
 			for _, get := range tt.gets {
@@ -394,4 +374,32 @@ func TestProcessRequeueLimit(t *testing.T) {
 		callCount++
 	}
 	assert.Equal(t, stubHandler.CallCount, 6, "Should Requeue 5 times + 1 for the initial event")
+}
+
+type callbackResult[T any] struct {
+	Key string
+	Obj *T
+}
+
+func makeHandler[T any](errStr string) (handler func(key string, obj *T) error, getter func() []callbackResult[T]) {
+	var (
+		actual []callbackResult[T]
+		mu     sync.Mutex
+	)
+	return func(key string, obj *T) error {
+			mu.Lock()
+			defer mu.Unlock()
+			actual = append(actual, callbackResult[T]{
+				Key: key,
+				Obj: obj,
+			})
+			if errStr != "" {
+				return errors.New(errStr)
+			}
+			return nil
+		}, func() []callbackResult[T] {
+			mu.Lock()
+			defer mu.Unlock()
+			return actual
+		}
 }
