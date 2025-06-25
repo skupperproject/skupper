@@ -22,7 +22,6 @@ EOF
 readonly KIND=${KIND:-kind}
 readonly KUBECTL=${KUBECTL:-kubectl}
 readonly HELM=${HELM:-helm}
-
 readonly PYTHON=${PYTHON:-python3}
 readonly IMAGE_TAG=${IMAGE_TAG:-v2-dev}
 readonly ROUTER_IMAGE_TAG=${SKUPPER_ROUTER_IMAGE_TAG:-main}
@@ -31,7 +30,7 @@ readonly SKUPPER_ROUTER_IMAGE=${SKUPPER_ROUTER_IMAGE:-${REGISTRY}/skupper-router
 readonly SKUPPER_CONTROLLER_IMAGE=${SKUPPER_CONTROLLER_IMAGE:-${REGISTRY}/controller:${IMAGE_TAG}}
 readonly SKUPPER_KUBE_ADAPTOR_IMAGE=${SKUPPER_KUBE_ADAPTOR_IMAGE:-${REGISTRY}/kube-adaptor:${IMAGE_TAG}}
 readonly SKUPPER_NETWORK_OBSERVER_IMAGE=${SKUPPER_NETWORK_OBSERVER_IMAGE:-${REGISTRY}/network-observer:${IMAGE_TAG}}
-
+CONTAINER=docker
 KIND_LOG_LEVEL="1"
 VERBOSE=${VERBOSE:=false}
 CLUSTER="skupper-dev"
@@ -118,7 +117,7 @@ kind::imageload::docker() {
 		"${SKUPPER_KUBE_ADAPTOR_IMAGE}" \
 		"${SKUPPER_ROUTER_IMAGE}" \
 		"${SKUPPER_NETWORK_OBSERVER_IMAGE}"; do
-		if ${DOCKER} image inspect "$image" > /dev/null 2>&1; then
+		if ${CONTAINER} image inspect "$image" > /dev/null 2>&1; then
 		    ${KIND} load docker-image --name="$1" "$image"
 		else
 			echo "(skdev) WARNING: skipped loading image $image"
