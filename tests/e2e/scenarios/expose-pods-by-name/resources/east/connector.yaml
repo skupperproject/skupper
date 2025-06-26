@@ -1,0 +1,9 @@
+apiVersion: skupper.io/v2alpha1
+kind: Connector
+metadata:
+  name: backend
+spec:
+  routingKey: backend
+  port: 8080
+  selector: app=backend
+  exposePodsByName: true
