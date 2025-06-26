@@ -272,7 +272,7 @@
           when:
             - "'west' in inventory_hostname"
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Failing the test if the exposed services does not matches the pod names after dployment restart"
+        - name: "[ ExposePodsByNameTest - RunTest ] Failing the test if the exposed services does not matches the pod names after deployment restart"
           ansible.builtin.fail:
             msg: "The test has FAILED - Pod names {{ hostvars['east']['pod_names_array'] }}, Service names {{ svc_names_array }}"
           when:
