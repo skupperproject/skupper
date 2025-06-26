@@ -12,19 +12,19 @@ RUN go mod download
 
 COPY . .
 ENV CGO_ENABLED=0
-RUN make GOARCH=$TARGETARCH build-kube-adaptor
+RUN make build-kube-adaptor GOARCH=$TARGETARCH
 
-FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
+# Use scratch for minimal image size
+FROM scratch
+
 LABEL \
   org.opencontainers.image.title="Skupper Router Adaptor" \
   org.opencontainers.image.description="Kubernetes aware interface for the skupper-router"
 
-# Create user and group and switch to user's context
-RUN microdnf -y install shadow-utils \
-&& microdnf clean all
-RUN useradd --uid 10000 runner
+WORKDIR /app
+
+COPY --from=builder /go/src/app/kube-adaptor .
+
 USER 10000
 
-WORKDIR /app
-COPY --from=builder /go/src/app/kube-adaptor .
 CMD ["/app/kube-adaptor"]
