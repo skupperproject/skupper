@@ -69,13 +69,11 @@ func (cmd *CmdVersion) InputToOptions() {
 	if cmd.KubeClient != nil {
 		// search for running pods in the current namespace
 		runningPodList, err := cmd.KubeClient.CoreV1().Pods(cmd.namespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app.kubernetes.io/part-of in (skupper, skupper-network-observer)"})
-		if err != nil {
-			return
-		}
-
-		for _, runningPod := range runningPodList.Items {
-			for _, container := range runningPod.Status.ContainerStatuses {
-				mapRunningPods[container.Name] = container.Image
+		if err == nil {
+			for _, runningPod := range runningPodList.Items {
+				for _, container := range runningPod.Status.ContainerStatuses {
+					mapRunningPods[container.Name] = container.Image
+				}
 			}
 		}
 	}
@@ -85,11 +83,11 @@ func (cmd *CmdVersion) InputToOptions() {
 	} else {
 		cmd.manifest = configs.ManifestManager{Components: images.KubeComponents, EnableSHA: false, RunningPods: mapRunningPods}
 	}
-
 }
 
 func (cmd *CmdVersion) Run() error {
 	files := cmd.manifest.GetConfiguredManifest()
+
 	if cmd.output != "" {
 		encodedOutput, err := utils.Encode(cmd.output, files)
 		if err != nil {
