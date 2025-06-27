@@ -3,9 +3,11 @@ package bootstrap
 import (
 	"context"
 	"fmt"
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/images"
 	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
 	"github.com/skupperproject/skupper/internal/nonkube/common"
+	"github.com/skupperproject/skupper/internal/nonkube/controller"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"os"
@@ -107,7 +109,7 @@ func Install(platform string) error {
 	}
 
 	sysControllerContainer := container.Container{
-		Name:        fmt.Sprintf("%s-skupper-system-controller", config.username),
+		Name:        fmt.Sprintf("%s-skupper-controller", config.username),
 		Image:       images.GetSystemControllerImageName(),
 		Env:         env,
 		Mounts:      mounts,
@@ -121,6 +123,11 @@ func Install(platform string) error {
 	err = cli.ContainerStart(sysControllerContainer.Name)
 	if err != nil {
 		return fmt.Errorf("failed to start system-controller container: %v", err)
+	}
+
+	err = createSystemdService(sysControllerContainer, platform)
+	if err != nil {
+		return fmt.Errorf("failed to create system-controller systemd service: %v", err)
 	}
 
 	return nil
@@ -220,4 +227,36 @@ func configEnvVariables(platform string) (*ControllerConfig, error) {
 	controllerConfig.containerEndpoint = containerEndpoint
 
 	return &controllerConfig, nil
+}
+
+func createSystemdService(container container.Container, platform string) error {
+	_, err := controller.NewSystemdServiceInfo(container, platform)
+	if err != nil {
+		return err
+	}
+
+	// Creating startup scripts
+	startupArgs := controller.StartupScriptsArgs{
+		Name:     container.Name,
+		Platform: types.Platform(platform),
+	}
+	scripts, err := controller.GetStartupScripts(startupArgs, api.GetInternalOutputPath)
+	if err != nil {
+		return fmt.Errorf("error getting startup scripts: %w", err)
+	}
+	err = scripts.Create()
+	if err != nil {
+		return fmt.Errorf("error creating startup scripts: %w", err)
+	}
+
+	// Creating systemd user service
+	systemd, err := controller.NewSystemdServiceInfo(container, platform)
+	if err != nil {
+		return err
+	}
+	if err = systemd.Create(); err != nil {
+		return fmt.Errorf("unable to create startup service %q - %v\n", systemd.GetServiceName(), err)
+	}
+
+	return nil
 }

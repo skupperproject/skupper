@@ -1,0 +1,21 @@
+[Unit]
+Description=skupper-system-controller.service
+After=network-online.target
+Wants=network-online.target
+RequiresMountsFor={{.RuntimeDir}}/containers
+{{- range .Mounts}}
+RequiresMountsFor={{.Source}}
+{{- end}}
+
+[Service]
+TimeoutStopSec=70
+RemainAfterExit=yes
+{{- range $key, $value := .Env}}
+Environment="{{$key}}={{$value}}"
+{{- end}}
+ExecStart=/bin/bash {{.SiteScriptPath}}/start.sh
+ExecStop=/bin/bash {{.SiteScriptPath}}/stop.sh
+Type=simple
+
+[Install]
+WantedBy=default.target
