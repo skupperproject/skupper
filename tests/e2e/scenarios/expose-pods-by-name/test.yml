@@ -63,7 +63,7 @@
             namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
             kubeconfig: "{{ kubeconfig }}"
           register: link_list
-          until: link_list.resources[0].status.status == "Ready"
+          until: link_list.resources | length > 0 and link_list.resources[0].status.status == "Ready"
           retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
           delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
           when:
@@ -202,7 +202,7 @@
             label_selectors:
               - app = backend
           register: pod_list
-          until: pod_list.resources[0].status.phase == "Running"
+          until: pod_list.resources | length > 0 and  pod_list.resources[0].status.phase == "Running"
           retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
           delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
           when:
