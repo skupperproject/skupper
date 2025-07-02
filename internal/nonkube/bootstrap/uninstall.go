@@ -11,7 +11,6 @@ import (
 )
 
 func Uninstall(platform string) error {
-
 	cli, err := internalclient.NewCompatClient("", "")
 	if err != nil {
 		return fmt.Errorf("failed to create container client: %v", err)
@@ -22,7 +21,7 @@ func Uninstall(platform string) error {
 		return fmt.Errorf("Failed to get current user: %v", err)
 	}
 
-	containerName := fmt.Sprintf("%s-skupper-system-controller", currentUser.Username)
+	containerName := fmt.Sprintf("%s-skupper-controller", currentUser.Username)
 
 	container, err := cli.ContainerInspect(containerName)
 	if err != nil || container == nil {
