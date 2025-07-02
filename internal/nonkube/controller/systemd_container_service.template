@@ -1,10 +1,10 @@
 [Unit]
-Description=skupper-system-controller.service
+Description={{.Name}}
 After=network-online.target
 Wants=network-online.target
 RequiresMountsFor={{.RuntimeDir}}/containers
-{{- range .Mounts}}
-RequiresMountsFor={{.Source}}
+{{- range $volume := .Mounts}}
+RequiresMountsFor={{$volume}}
 {{- end}}
 
 [Service]
@@ -13,8 +13,8 @@ RemainAfterExit=yes
 {{- range $key, $value := .Env}}
 Environment="{{$key}}={{$value}}"
 {{- end}}
-ExecStart=/bin/bash {{.SiteScriptPath}}/start.sh
-ExecStop=/bin/bash {{.SiteScriptPath}}/stop.sh
+ExecStart=/bin/bash {{.ScriptPath}}/start.sh
+ExecStop=/bin/bash {{.ScriptPath}}/stop.sh
 Type=simple
 
 [Install]

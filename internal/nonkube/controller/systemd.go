@@ -46,6 +46,7 @@ type systemdServiceInfo struct {
 	GetUid              api.IdGetter
 	command             CommandExecutor
 	rootSystemdBasePath string
+	ScriptPath          string
 }
 
 func NewSystemdServiceInfo(systemContainer container.Container, platform string) (SystemdService, error) {
@@ -61,6 +62,7 @@ func NewSystemdServiceInfo(systemContainer container.Container, platform string)
 		command:             exec.Command,
 		rootSystemdBasePath: rootSystemdBasePath,
 		Platform:            platform,
+		ScriptPath:          api.GetSystemControllerPath(),
 	}, nil
 }
 
@@ -126,7 +128,7 @@ func (s *systemdServiceInfo) GetServiceFile() string {
 	if s.GetUid() == 0 {
 		return path.Join(s.rootSystemdBasePath, s.GetServiceName())
 	}
-	return path.Join(api.GetConfigHome(), "systemd/user", s.GetServiceName())
+	return path.Join(api.GetSystemConfigHome(), "systemd/user", s.GetServiceName())
 }
 
 func (s *systemdServiceInfo) Remove() error {

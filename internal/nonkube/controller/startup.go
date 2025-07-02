@@ -4,14 +4,13 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/nonkube/common"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"log/slog"
 	"os"
 	"path"
 	"text/template"
-
-	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
 var (
@@ -34,7 +33,6 @@ type startupScripts struct {
 	StartScript     string
 	StopScript      string
 	Name            string
-	SiteId          string
 	SkupperPlatform string
 	ContainerEngine string
 	path            string
@@ -46,7 +44,7 @@ type StartupScriptsArgs struct {
 	Bundle   bool
 }
 
-func GetStartupScripts(args StartupScriptsArgs, pathProvider api.InternalPathProvider) (StartupScript, error) {
+func GetStartupScripts(args StartupScriptsArgs, controllerPath string) (StartupScript, error) {
 	scripts := &startupScripts{
 		StartScript:     StartScriptContainerTemplate,
 		StopScript:      StopScriptContainerTemplate,
@@ -62,18 +60,23 @@ func GetStartupScripts(args StartupScriptsArgs, pathProvider api.InternalPathPro
 	if args.Bundle {
 		scripts.ContainerEngine = "{{.ContainerEngine}}"
 	}
-	if pathProvider == nil {
-		pathProvider = api.GetInternalOutputPath
-	}
-	scripts.path = string(api.ScriptsPath)
+
+	scriptsPath := path.Join(controllerPath, string(api.ScriptsPath))
+
+	scripts.path = scriptsPath
 	return scripts, nil
 }
 
 func (s *startupScripts) Create() error {
+
 	var startBuf bytes.Buffer
 	var stopBuf bytes.Buffer
 	logger := common.NewLogger()
 	logger.Debug("creating startup scripts")
+
+	if err := os.MkdirAll(s.path, 0755); err != nil {
+		return fmt.Errorf("error creating skupper system controller directory %q: %v", s.path, err)
+	}
 
 	startTemplate := template.Must(template.New("start").Parse(s.StartScript))
 	if err := startTemplate.Execute(&startBuf, s); err != nil {

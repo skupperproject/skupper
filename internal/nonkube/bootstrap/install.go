@@ -3,6 +3,12 @@ package bootstrap
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
+	"os/user"
+	"strconv"
+	"strings"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/images"
 	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
@@ -10,11 +16,6 @@ import (
 	"github.com/skupperproject/skupper/internal/nonkube/controller"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
-	"os"
-	"os/exec"
-	"os/user"
-	"strconv"
-	"strings"
 )
 
 type ControllerConfig struct {
@@ -230,17 +231,13 @@ func configEnvVariables(platform string) (*ControllerConfig, error) {
 }
 
 func createSystemdService(container container.Container, platform string) error {
-	_, err := controller.NewSystemdServiceInfo(container, platform)
-	if err != nil {
-		return err
-	}
 
 	// Creating startup scripts
 	startupArgs := controller.StartupScriptsArgs{
 		Name:     container.Name,
 		Platform: types.Platform(platform),
 	}
-	scripts, err := controller.GetStartupScripts(startupArgs, api.GetInternalOutputPath)
+	scripts, err := controller.GetStartupScripts(startupArgs, api.GetSystemControllerPath())
 	if err != nil {
 		return fmt.Errorf("error getting startup scripts: %w", err)
 	}
@@ -255,7 +252,7 @@ func createSystemdService(container container.Container, platform string) error 
 		return err
 	}
 	if err = systemd.Create(); err != nil {
-		return fmt.Errorf("unable to create startup service %q - %v\n", systemd.GetServiceName(), err)
+		return fmt.Errorf("unable to create startup service %q - %v", systemd.GetServiceName(), err)
 	}
 
 	return nil
