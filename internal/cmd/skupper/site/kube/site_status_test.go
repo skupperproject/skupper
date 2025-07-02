@@ -3,6 +3,7 @@ package kube
 import (
 	"testing"
 
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
@@ -16,6 +17,7 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
+		flags          common.CommandSiteStatusFlags
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		skupperError   string
@@ -24,12 +26,19 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:           "more than one argument was specified",
-			args:           []string{"my-site", ""},
-			k8sObjects:     nil,
-			skupperObjects: nil,
-			skupperError:   "",
-			expectedError:  "this command does not need any arguments",
+			name:          "more than one argument was specified",
+			args:          []string{"my-site", ""},
+			flags:         common.CommandSiteStatusFlags{},
+			expectedError: "this command does not need any arguments",
+		},
+		{
+			name:          "bad output flag",
+			flags:         common.CommandSiteStatusFlags{Output: "not-supported"},
+			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
+		},
+		{
+			name:  "good output flag",
+			flags: common.CommandSiteStatusFlags{Output: "yaml"},
 		},
 	}
 
@@ -42,7 +51,7 @@ func TestCmdSiteStatus_ValidateInput(t *testing.T) {
 			fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
 			assert.Assert(t, err)
 			command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
-
+			command.Flags = &test.flags
 			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
@@ -55,6 +64,7 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 		skupperObjects []runtime.Object
 		skupperError   string
 		errorMessage   string
+		output         string
 	}
 
 	testTable := []test{
@@ -98,11 +108,32 @@ func TestCmdSiteStatus_Run(t *testing.T) {
 			skupperError:   "",
 			errorMessage:   "",
 		},
+		{
+			name:       "runs ok, output yaml",
+			k8sObjects: nil,
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "old-site",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
+						},
+					},
+				},
+			},
+			skupperError: "",
+			errorMessage: "",
+			output:       "yaml",
+		},
 	}
 
 	for _, test := range testTable {
 		command := &CmdSiteStatus{
 			Namespace: "test",
+			output:    test.output,
 		}
 
 		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, test.k8sObjects, test.skupperObjects, test.skupperError)
