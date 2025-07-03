@@ -5,9 +5,9 @@ import (
 	"os"
 	"path"
 	"sync"
-	"syscall"
 
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -43,12 +43,12 @@ func (c *Controller) ensureSingleInstance(stop chan struct{}) {
 	if err != nil {
 		log.Fatalf("Unable to create lock file: %v", err)
 	}
-	if err = syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if err = unix.Flock(int(lock.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
 		log.Fatalf("System controller is already running, exiting")
 	}
 	go func() {
 		<-stop
-		if err = syscall.Flock(int(lock.Fd()), syscall.LOCK_UN); err != nil {
+		if err = unix.Flock(int(lock.Fd()), unix.LOCK_UN); err != nil {
 			log.Fatalf("Error releasing lock file: %v", err)
 		}
 	}()
