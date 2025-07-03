@@ -4,22 +4,26 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-readonly SKUPPER_IMAGE_TAG=${1-2.0.1}
+readonly SKUPPER_IMAGE_TAG=${1:-2.0.1}
 
 readonly OPERATOR_SDK=${OPERATOR_SDK:-operator-sdk}
 readonly KUBECTL=${KUBECTL:-kubectl}
 readonly MIN_KUBE_VERSION=${MIN_KUBE_VERSION:-1.25.0}
 
 readonly BUNDLE_VERSION=${BUNDLE_VERSION:-2.0.1}
+readonly PREVIOUS_BUNDLE_VERSION=${PREVIOUS_BUNDLE_VERSION:-2.0.0}
 readonly BUNDLE_CHANNELS=${BUNDLE_CHANNELS:-"stable-2,stable-v2.0"}
 readonly BUNDLE_DEFAULT_CHANNEL=${BUNDLE_DEFAULT_CHANNEL:-stable-2}
+
+readonly REPLACED_VERSION=network-observer-operator.v${PREVIOUS_BUNDLE_VERSION}
+readonly OLM_SKIP_RANGE='">2.0.0 <2.0.1"'
 
 readonly SKUPPER_IMAGE_REGISTRY=${SKUPPER_IMAGE_REGISTRY:-quay.io/skupper}
 readonly PROMETHEUS_IMAGE_TAG=${PROMETHEUS_IMAGE_TAG:-v2.55.1}
 readonly OAUTH_PROXY_IMAGE_TAG=${OAUTH_PROXY_IMAGE_TAG:-4.18.0}
 readonly NGINX_IMAGE_TAG=${NGINX_IMAGE_TAG:-1.27.3-alpine}
 
-readonly IMG=${SKUPPER_IMAGE_REGISTRY}/network-observer-operator:v${SKUPPER_IMAGE_TAG}
+readonly IMG=${SKUPPER_IMAGE_REGISTRY}/network-observer-operator:v${BUNDLE_VERSION}
 readonly BUNDLE_IMG=${SKUPPER_IMAGE_REGISTRY}/network-observer-operator-bundle:v${BUNDLE_VERSION}
 
 readonly SKUPPER_NETWORK_OBSERVER_SHA=${SKUPPER_NETWORK_OBSERVER_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${SKUPPER_IMAGE_REGISTRY}/network-observer:${SKUPPER_IMAGE_TAG})}
@@ -49,7 +53,7 @@ kind: Kustomization
 images:
 - name: controller
   newName: ${SKUPPER_IMAGE_REGISTRY}/network-observer-operator
-  newTag: v${SKUPPER_IMAGE_TAG}
+  newTag: v${BUNDLE_VERSION}
 resources:
 - manager.yaml
 EOF
@@ -184,6 +188,7 @@ metadata:
     certified: 'false'
     containerImage: quay.io/skupper/network-observer:${SKUPPER_IMAGE_TAG}
     description: Skupper Network Obsever Operator provides the ability to monitor a service network
+    olm.skipRange: ${OLM_SKIP_RANGE}
     operators.operatorframework.io/builder: operator-sdk-v1.17.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/skuppproject/skupper
@@ -226,6 +231,7 @@ spec:
   provider:
     name: Skupper Project
     url: https://skupper.io
+  replaces: ${REPLACED_VERSION}
   selector: {}
   version: ${BUNDLE_VERSION}
 EOF
@@ -278,12 +284,12 @@ main () {
   "${OPERATOR_SDK}" bundle validate ./bundle 
 
   # build and push images using generated makefile
-  make docker-build docker-push IMG=${IMG}
+  make docker-buildx IMG=${IMG} PLATFORMS=linux/arm64,linux/amd64
   make bundle-build bundle-push BUNDLE_IMG=${BUNDLE_IMG}
 
   # setup directory for bundle and deploy content
   rm -rf ${CUR_DIR}/network-observer-operator
-  mkdir -p ${CUR_DIR}/network-observer-operator/bundle
+  mkdir -p ${CUR_DIR}/network-observer-operator
   cp -R bundle ${CUR_DIR}/network-observer-operator/bundle
   cp bundle.Dockerfile ${CUR_DIR}/network-observer-operator/bundle
   mkdir -p ${CUR_DIR}/network-observer-operator/deploy
