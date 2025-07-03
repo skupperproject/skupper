@@ -194,8 +194,7 @@ func GetSystemControllerPath() string {
 	return path.Join(dataHome, "skupper", "system-controller")
 }
 
-
 func GetSystemConfigHome() string {
 	homeDir, _ := os.UserHomeDir()
-	return path.Join(homeDir,".local/share")
+	return path.Join(homeDir, ".local/share")
 }
