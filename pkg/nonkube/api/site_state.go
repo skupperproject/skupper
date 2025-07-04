@@ -283,7 +283,8 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string, platform string) q
 	}
 	var routerName = s.Site.Name
 	if !s.bundle {
-		routerName = fmt.Sprintf("%s-%d", s.Site.Name, time.Now().Unix())
+		now := time.Now()
+		routerName = fmt.Sprintf("%s-%d-%d", s.Site.Name, now.Unix(), now.Nanosecond())
 	}
 	routerConfig := qdr.InitialConfig(routerName, s.SiteId, version.Version, !s.IsInterior(), 3)
 	routerConfig.AddAddress(qdr.Address{
@@ -308,6 +309,7 @@ func (s *SiteState) ToRouterConfig(sslProfileBasePath string, platform string) q
 		}
 		metadataJson, _ := encodingjson.Marshal(metadata)
 		routerConfig.Metadata.Metadata = string(metadataJson)
+		routerConfig.SiteConfig.Name += "-{{.SiteNameSuffix}}"
 		routerConfig.SiteConfig.Namespace = "{{.Namespace}}"
 		routerConfig.SiteConfig.Platform = "{{.Platform}}"
 	}
