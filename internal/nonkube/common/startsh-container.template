@@ -3,7 +3,7 @@
 set -o errexit
 set -o nounset
 
-for container in $({{.ContainerEngine}} container ls --filter label=application=skupper --filter label=skupper.io/site-id={{.SiteId}} --format {{"{{"}}.Names{{"}}"}} --all); do
+for container in $({{.ContainerEngine}} container ls --filter label=application=skupper-v2 --filter label=skupper.io/site-id={{.SiteId}} --format {{"{{"}}.Names{{"}}"}} --all); do
     {{.ContainerEngine}} start ${container}
 done
 
