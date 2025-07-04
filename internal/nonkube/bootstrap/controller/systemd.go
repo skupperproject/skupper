@@ -51,6 +51,8 @@ type systemdServiceInfo struct {
 
 func NewSystemdServiceInfo(systemContainer container.Container, platform string) (SystemdService, error) {
 
+	scriptPath := path.Join(api.GetSystemControllerPath(), "internal", "scripts")
+
 	return &systemdServiceInfo{
 		Name:                systemContainer.Name,
 		Image:               systemContainer.Image,
@@ -62,7 +64,7 @@ func NewSystemdServiceInfo(systemContainer container.Container, platform string)
 		command:             exec.Command,
 		rootSystemdBasePath: rootSystemdBasePath,
 		Platform:            platform,
-		ScriptPath:          api.GetSystemControllerPath(),
+		ScriptPath:          scriptPath,
 	}, nil
 }
 

@@ -2,12 +2,14 @@ package bootstrap
 
 import (
 	"fmt"
-	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
-	"github.com/skupperproject/skupper/internal/nonkube/common"
-	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"os"
 	"os/user"
 	"path"
+
+	"github.com/skupperproject/skupper/internal/nonkube/bootstrap/controller"
+	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
+	"github.com/skupperproject/skupper/internal/nonkube/common"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
 func Uninstall(platform string) error {
@@ -18,7 +20,7 @@ func Uninstall(platform string) error {
 
 	currentUser, err := user.Current()
 	if err != nil {
-		return fmt.Errorf("Failed to get current user: %v", err)
+		return fmt.Errorf("failed to get current user: %v", err)
 	}
 
 	containerName := fmt.Sprintf("%s-skupper-controller", currentUser.Username)
@@ -37,6 +39,14 @@ func Uninstall(platform string) error {
 	if err != nil {
 		return fmt.Errorf("failed to remove system-controller container: %v", err)
 	}
+
+	systemdService, err := controller.NewSystemdServiceInfo(*container, platform)
+	if err != nil {
+		return nil
+
+	}
+
+	systemdService.Remove()
 
 	systemdGlobal, err := common.NewSystemdGlobal(platform)
 	if err != nil {

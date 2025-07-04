@@ -11,9 +11,9 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/images"
+	"github.com/skupperproject/skupper/internal/nonkube/bootstrap/controller"
 	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
 	"github.com/skupperproject/skupper/internal/nonkube/common"
-	"github.com/skupperproject/skupper/internal/nonkube/bootstrap/controller"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )

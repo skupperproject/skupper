@@ -4,7 +4,7 @@ After=network-online.target
 Wants=network-online.target
 RequiresMountsFor={{.RuntimeDir}}/containers
 {{- range $volume := .Mounts}}
-RequiresMountsFor={{$volume}}
+RequiresMountsFor={{$volume.Name}}
 {{- end}}
 
 [Service]
