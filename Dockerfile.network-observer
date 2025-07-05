@@ -23,18 +23,19 @@ RUN tar -zxf main.tar.gz
 WORKDIR ./skupper-console-main
 RUN yarn install && yarn build
 
-FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
+# Use scratch for minimal image size
+FROM scratch
 LABEL \
   org.opencontainers.image.title="Skupper Network Observer" \
   org.opencontainers.image.description="Exposes Skupper network telemetry through an API, metrics and a web console"
 
-# Create user and group and switch to user's context
-RUN microdnf -y install shadow-utils \
-&& microdnf clean all
-RUN useradd --uid 10000 runner
-USER 10000
-
 WORKDIR /app
+
+# Copy the statically linked binary
 COPY --from=builder /go/src/app/network-observer .
 COPY --from=console-builder /skupper-console/skupper-console-main/build/ console
+
+# Use numeric user ID (no need to create user in scratch)
+USER 10000
+
 ENTRYPOINT ["/app/network-observer"]

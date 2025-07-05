@@ -13,17 +13,19 @@ COPY . .
 ENV CGO_ENABLED=0
 RUN make build-cli GOARCH=$TARGETARCH
 
-FROM --platform=$TARGETPLATFORM registry.access.redhat.com/ubi9-minimal
+# Use scratch for minimal image size
+FROM scratch
+
 LABEL \
   org.opencontainers.image.title="Skupper CLI" \
   org.opencontainers.image.description="Provide users with the ability to operate their Skupper resources."
 
-# Create user and group and switch to user's context
-RUN microdnf -y install shadow-utils \
-&& microdnf clean all
-RUN useradd --uid 10000 runner
+WORKDIR /app
+
+# Copy the statically linked binary
+COPY --from=builder /go/src/app/skupper .
+
+# Use numeric user ID (no need to create user in scratch)
 USER 10000
 
-WORKDIR /app
-COPY --from=builder /go/src/app/skupper .
 ENTRYPOINT ["/app/skupper"]
