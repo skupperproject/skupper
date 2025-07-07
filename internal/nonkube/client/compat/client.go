@@ -159,10 +159,10 @@ func GetDefaultContainerEndpoint() string {
 	if os.Getenv(types.ENV_PLATFORM) == "docker" {
 		return "unix:///run/docker.sock"
 	}
-	return fmt.Sprintf("unix://%s/podman/podman.sock", getRuntimeDir())
+	return fmt.Sprintf("unix://%s/podman/podman.sock", GetRuntimeDir())
 }
 
-func getRuntimeDir() string {
+func GetRuntimeDir() string {
 	if getUid() == 0 {
 		return "/run"
 	}

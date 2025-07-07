@@ -6,6 +6,7 @@ import (
 	"os/user"
 	"path"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap/controller"
 	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
 	"github.com/skupperproject/skupper/internal/nonkube/common"
@@ -13,7 +14,34 @@ import (
 )
 
 func Uninstall(platform string) error {
-	
+
+	currentUser, err := user.Current()
+	if err != nil {
+		return fmt.Errorf("failed to get current user: %v", err)
+	}
+
+	containerName := fmt.Sprintf("%s-skupper-controller", currentUser.Username)
+
+	isContainerAlreadyRunningInPodman, err := IsContainerRunning(containerName, types.PlatformPodman)
+	if err != nil {
+		return err
+	}
+
+	if isContainerAlreadyRunningInPodman && platform == "docker" {
+		fmt.Printf("Warning: The system controller container %q is already running in Podman but the selected platform is Docker.\n", containerName)
+		return nil
+	}
+
+	isContainerAlreadyRunningInDocker, err := IsContainerRunning(containerName, types.PlatformDocker)
+	if err != nil {
+		return err
+	}
+
+	if isContainerAlreadyRunningInDocker && platform == "podman" {
+		fmt.Printf("Warning: The system controller container %q is already running in Docker but the selected platform is Podman.\n", containerName)
+		return nil
+	}
+
 	endpoint := ""
 
 	if platform == "docker" {
@@ -24,13 +52,6 @@ func Uninstall(platform string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create container client: %v", err)
 	}
-
-	currentUser, err := user.Current()
-	if err != nil {
-		return fmt.Errorf("failed to get current user: %v", err)
-	}
-
-	containerName := fmt.Sprintf("%s-skupper-controller", currentUser.Username)
 
 	container, err := cli.ContainerInspect(containerName)
 	if err != nil || container == nil {
@@ -64,6 +85,8 @@ func Uninstall(platform string) error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("Platform %s infrastructure for Skupper is now uninstalled\n", platform)
 
 	return nil
 }

@@ -286,48 +286,40 @@ func NewSystemdGlobal(platform string) (SystemdGlobal, error) {
 func (sg *systemdGlobal) getCmdEnableSocket() *exec.Cmd {
 	if sg.getUid() == 0 {
 		return sg.command("systemctl", "enable", sg.platform+".socket")
-	} else if sg.platform == "podman" {
-		return sg.command("systemctl", "--user", "enable", sg.platform+".socket")
 	}
-	return nil
+
+	return sg.command("systemctl", "--user", "enable", "podman.socket")
 }
 
 func (sg *systemdGlobal) getCmdStartSocket() *exec.Cmd {
 	if sg.getUid() == 0 {
 		return sg.command("systemctl", "start", sg.platform+".socket")
-	} else if sg.platform == "podman" {
-		return sg.command("systemctl", "--user", "start", sg.platform+".socket")
 	}
-	return nil
+
+	return sg.command("systemctl", "--user", "start", "podman.socket")
+
 }
 
 func (sg *systemdGlobal) getCmdStopSocket() *exec.Cmd {
 
 	if sg.getUid() == 0 {
 		return sg.command("systemctl", "stop", sg.platform+".socket")
-	} else if sg.platform == "podman" {
-		return sg.command("systemctl", "--user", "stop", sg.platform+".socket")
 	}
 
-	return nil
+	return sg.command("systemctl", "--user", "stop", "podman.socket")
+
 }
 
 func (sg *systemdGlobal) getCmdDisableSocket() *exec.Cmd {
 
 	if sg.getUid() == 0 {
 		return sg.command("systemctl", "disable", sg.platform+".socket")
-	} else if sg.platform == "podman" {
-		return sg.command("systemctl", "--user", "disable", sg.platform+".socket")
 	}
 
-	return nil
+	return sg.command("systemctl", "--user", "disable", "podman.socket")
 }
 
 func (sg *systemdGlobal) Enable() error {
-
-	if sg.platform == "docker" && sg.getUid() != 0 {
-		return nil
-	}
 
 	err := sg.getCmdEnableSocket().Run()
 	if err != nil {
@@ -338,8 +330,6 @@ func (sg *systemdGlobal) Enable() error {
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("Enabled %s socket \n", sg.platform)
 
 	return nil
 
