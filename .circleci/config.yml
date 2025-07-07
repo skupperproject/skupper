@@ -317,7 +317,9 @@ jobs:
             set -x
             cd tests
             cp ~/kc.west ~/.kube/config
+            for i in {0..50}; do
             make ci-tests
+            done;
       - store_artifacts:
           path: /tmp/e2e
           destination: e2e-logs
