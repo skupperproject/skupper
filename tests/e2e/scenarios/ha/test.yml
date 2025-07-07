@@ -1,3 +1,4 @@
+---
 - name: Skupper HA Test
   hosts: all
   connection: local
@@ -63,7 +64,14 @@
             namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
             kubeconfig: "{{ kubeconfig }}"
           register: link_list
-          until: link_list.resources | length > 1 and link_list.resources[0].status.status == "Ready" and link_list.resources[1].status.status == "Ready"
+          until:
+            - link_list.resources | length > 1
+            - link_list.resources[0].status is defined
+            - link_list.resources[0].status.status is defined
+            - link_list.resources[0].status.status == "Ready"
+            - link_list.resources[1].status is defined
+            - link_list.resources[1].status.status is defined
+            - link_list.resources[1].status.status == "Ready"
           retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
           delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
           when:
@@ -237,4 +245,4 @@
           register: out
           failed_when: out.failed and 'not exists' not in out.stderr_lines
           when:
-           - remove_namespaces | default(false) | bool
+            - remove_namespaces | default(false) | bool
