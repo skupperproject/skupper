@@ -39,8 +39,6 @@ func Install(platform string) error {
 		return err
 	}
 
-	fmt.Printf("Enabled %s socket \n", platform)
-
 	config, err := configEnvVariables(platform)
 	if err != nil {
 		return err

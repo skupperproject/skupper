@@ -13,7 +13,14 @@ import (
 )
 
 func Uninstall(platform string) error {
-	cli, err := internalclient.NewCompatClient("", "")
+	
+	endpoint := ""
+
+	if platform == "docker" {
+		endpoint = "unix:///run/docker.sock"
+	}
+
+	cli, err := internalclient.NewCompatClient(endpoint, "")
 	if err != nil {
 		return fmt.Errorf("failed to create container client: %v", err)
 	}

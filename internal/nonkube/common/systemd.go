@@ -326,7 +326,7 @@ func (sg *systemdGlobal) getCmdDisableSocket() *exec.Cmd {
 func (sg *systemdGlobal) Enable() error {
 
 	if sg.platform == "docker" && sg.getUid() != 0 {
-		return fmt.Errorf("Docker installation must be run as root user.")
+		return nil
 	}
 
 	err := sg.getCmdEnableSocket().Run()
@@ -338,6 +338,8 @@ func (sg *systemdGlobal) Enable() error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("Enabled %s socket \n", sg.platform)
 
 	return nil
 
