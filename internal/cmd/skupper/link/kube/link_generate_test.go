@@ -11,6 +11,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/v3/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -858,7 +859,7 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 	type test struct {
 		name               string
 		generateCredential bool
-		generatedLink      v2alpha1.Link
+		generatedLinks     []v2alpha1.Link
 		outputType         string
 		tlsCredentials     string
 		timeout            time.Duration
@@ -887,9 +888,24 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 		{
 			name:               "bad format for the output",
 			generateCredential: false,
-			outputType:         "not supported",
-			timeout:            time.Second,
-			expectError:        true,
+			generatedLinks: []v2alpha1.Link{
+				{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "skupper.io/v2alpha1",
+						Kind:       "Link",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "link",
+					},
+					Spec: v2alpha1.LinkSpec{
+						TlsCredentials: "credentials",
+						Cost:           1,
+					},
+				},
+			},
+			outputType:  "not supported",
+			timeout:     time.Second,
+			expectError: true,
 		},
 		{
 			name:               "the output contains the link and the secret",
@@ -963,6 +979,7 @@ func TestCmdLinkGenerate_WaitUntil(t *testing.T) {
 			command.generateCredential = test.generateCredential
 			command.tlsCredentials = test.tlsCredentials
 			command.timeout = test.timeout
+			command.generatedLinks = test.generatedLinks
 
 			err := command.WaitUntil()
 
