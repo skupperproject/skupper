@@ -454,6 +454,7 @@ func TestCmdInitAnnotations(t *testing.T) {
 			"routerAddsAnnotations",
 			[]string{"--annotations", "Name=xyz@@test=value=abc",
 				"--annotation-separator", "@@",
+				"--ingress-annotations", "test=abc",
 				"--router-service-annotations", "foo=1,2,3@@test=abc",
 				"--router-pod-annotations", "test=abc",
 				"--controller-service-annotation", "foo=1,2,3@@test=abc",
@@ -487,6 +488,7 @@ func TestCmdInitAnnotations(t *testing.T) {
 			err := cmd.RunE(cmd, tc.args)
 			assert.Assert(t, err)
 			assert.Equal(t, routerCreateOpts.AnnotationSeparator, tc.expectedSeparator)
+			assert.Assert(t, reflect.DeepEqual(routerCreateOpts.IngressAnnotations, tc.expectedAnnotations3))
 			assert.Assert(t, reflect.DeepEqual(routerCreateOpts.Annotations, tc.expectedAnnotations1))
 			assert.Assert(t, reflect.DeepEqual(routerCreateOpts.Router.ServiceAnnotations, tc.expectedAnnotations2))
 			assert.Assert(t, reflect.DeepEqual(routerCreateOpts.Router.PodAnnotations, tc.expectedAnnotations3))

@@ -136,6 +136,7 @@ func (s *SkupperKubeSite) CreateFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&routerCreateOpts.ConsoleIngress, "console-ingress", "", "", "Determines if/how console is exposed outside cluster. If not specified uses value of --ingress. One of: ["+strings.Join(types.ValidIngressOptions(s.kube.Platform()), "|")+"].")
 	cmd.Flags().BoolVarP(&routerCreateOpts.EnableRestAPI, "enable-rest-api", "", false, "Enable REST API")
 	cmd.Flags().StringVar(&routerCreateOpts.AnnotationSeparator, "annotation-separator", ",", "String used to separate multiple annotations")
+	cmd.Flags().StringVar(&s.kubeInit.ingressAnnotations, "ingress-annotations", "", "Annotations to add to skupper ingress")
 	cmd.Flags().StringVar(&s.kubeInit.annotations, "annotations", "", "Annotations to add to skupper pods")
 	cmd.Flags().StringVar(&s.kubeInit.routerServiceAnnotations, "router-service-annotations", "", "Annotations to add to skupper router service")
 	cmd.Flags().StringVar(&s.kubeInit.routerPodAnnotations, "router-pod-annotations", "", "Annotations to add to skupper router pod")
