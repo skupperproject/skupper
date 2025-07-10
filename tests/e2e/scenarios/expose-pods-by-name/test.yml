@@ -276,7 +276,7 @@
           when:
             - "'east' in inventory_hostname"
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Failing the test if the the pod names havent changed after deployment restart"
+        - name: "[ ExposePodsByNameTest - RunTest ] Failing the test if the the pod names haven't changed after deployment restart"
           ansible.builtin.fail:
             msg: "The test has FAILED - Old Pod names {{ pod_names_array }}, New Pod names {{ new_pod_names_array }}"
           when:
