@@ -47,7 +47,7 @@ func Install(platform string) error {
 	containerName := fmt.Sprintf("%s-skupper-controller", config.username)
 
 	isContainerAlreadyRunningInPodman := IsContainerRunning(containerName, types.PlatformPodman)
-	
+
 	if isContainerAlreadyRunningInPodman {
 		fmt.Printf("Warning: The system controller container %q is already running in Podman.\n", containerName)
 		return nil
