@@ -242,7 +242,7 @@ func createSystemdService(container container.Container, platform string) error 
 
 	// Creating startup scripts
 	startupArgs := controller.StartupScriptsArgs{
-		Name:     container.Name,
+		Name:     "skupper-controller",
 		Platform: types.Platform(platform),
 	}
 	scripts, err := controller.GetStartupScripts(startupArgs, api.GetSystemControllerPath())

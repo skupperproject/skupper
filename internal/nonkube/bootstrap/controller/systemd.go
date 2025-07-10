@@ -54,7 +54,7 @@ func NewSystemdServiceInfo(systemContainer container.Container, platform string)
 	scriptPath := path.Join(api.GetSystemControllerPath(), "internal", "scripts")
 
 	return &systemdServiceInfo{
-		Name:                systemContainer.Name,
+		Name:                "skupper-controller",
 		Image:               systemContainer.Image,
 		Env:                 systemContainer.Env,
 		Mounts:              systemContainer.Mounts,
