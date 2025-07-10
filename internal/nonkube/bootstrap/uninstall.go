@@ -22,21 +22,16 @@ func Uninstall(platform string) error {
 
 	containerName := fmt.Sprintf("%s-skupper-controller", currentUser.Username)
 
-	isContainerAlreadyRunningInPodman, err := IsContainerRunning(containerName, types.PlatformPodman)
-	if err != nil {
-		return err
-	}
+	isContainerAlreadyRunningInPodman := IsContainerRunning(containerName, types.PlatformPodman)
+	
 
 	if isContainerAlreadyRunningInPodman && platform == "docker" {
 		fmt.Printf("Warning: The system controller container %q is already running in Podman but the selected platform is Docker.\n", containerName)
 		return nil
 	}
 
-	isContainerAlreadyRunningInDocker, err := IsContainerRunning(containerName, types.PlatformDocker)
-	if err != nil {
-		return err
-	}
-
+	isContainerAlreadyRunningInDocker := IsContainerRunning(containerName, types.PlatformDocker)
+	
 	if isContainerAlreadyRunningInDocker && platform == "podman" {
 		fmt.Printf("Warning: The system controller container %q is already running in Docker but the selected platform is Podman.\n", containerName)
 		return nil

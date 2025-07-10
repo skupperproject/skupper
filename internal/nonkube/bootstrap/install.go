@@ -46,21 +46,15 @@ func Install(platform string) error {
 
 	containerName := fmt.Sprintf("%s-skupper-controller", config.username)
 
-	isContainerAlreadyRunningInPodman, err := IsContainerRunning(containerName, types.PlatformPodman)
-	if err != nil {
-		return err
-	}
-
+	isContainerAlreadyRunningInPodman := IsContainerRunning(containerName, types.PlatformPodman)
+	
 	if isContainerAlreadyRunningInPodman {
 		fmt.Printf("Warning: The system controller container %q is already running in Podman.\n", containerName)
 		return nil
 	}
 
-	isContainerAlreadyRunningInDocker, err := IsContainerRunning(containerName, types.PlatformDocker)
-	if err != nil {
-		return err
-	}
-
+	isContainerAlreadyRunningInDocker := IsContainerRunning(containerName, types.PlatformDocker)
+	
 	if isContainerAlreadyRunningInDocker {
 		fmt.Printf("Warning: The system controller container %q is already running in Docker.\n", containerName)
 		return nil
@@ -272,7 +266,7 @@ func createSystemdService(container container.Container, platform string) error 
 	return nil
 }
 
-func IsContainerRunning(containerName string, platform types.Platform) (bool, error) {
+func IsContainerRunning(containerName string, platform types.Platform) bool {
 
 	endpoint := fmt.Sprintf("unix://%s/podman/podman.sock", api.GetRuntimeDir())
 	if platform == types.PlatformDocker {
@@ -281,19 +275,19 @@ func IsContainerRunning(containerName string, platform types.Platform) (bool, er
 
 	cli, err := internalclient.NewCompatClient(endpoint, "")
 	if err != nil {
-		return false, fmt.Errorf("failed to create container client: %v", err)
+		return false
 	}
 
 	containers, err := cli.ContainerList()
 	if err != nil {
-		return false, fmt.Errorf("failed to list containers: %v", err)
+		return false
 	}
 
 	for _, container := range containers {
 		if container.Name == containerName {
-			return true, nil
+			return true
 		}
 	}
 
-	return false, nil
+	return false
 }
