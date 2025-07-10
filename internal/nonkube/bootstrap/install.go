@@ -54,7 +54,7 @@ func Install(platform string) error {
 	}
 
 	isContainerAlreadyRunningInDocker := IsContainerRunning(containerName, types.PlatformDocker)
-	
+
 	if isContainerAlreadyRunningInDocker {
 		fmt.Printf("Warning: The system controller container %q is already running in Docker.\n", containerName)
 		return nil
@@ -242,7 +242,7 @@ func createSystemdService(container container.Container, platform string) error 
 
 	// Creating startup scripts
 	startupArgs := controller.StartupScriptsArgs{
-		Name:     "skupper-controller",
+		Name:     container.Name,
 		Platform: types.Platform(platform),
 	}
 	scripts, err := controller.GetStartupScripts(startupArgs, api.GetSystemControllerPath())
