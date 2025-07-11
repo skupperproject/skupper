@@ -191,5 +191,5 @@ func GetInternalBundleOutputPath(namespace string, internalPath InternalPath) st
 
 func GetSystemControllerPath() string {
 	dataHome := GetHostDataHome()
-	return path.Join(dataHome, "skupper", "system-controller")
+	return path.Join(dataHome, "system-controller")
 }

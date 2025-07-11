@@ -3,4 +3,7 @@
 set -o errexit
 set -o nounset
 
-{{.ContainerEngine}} start {{.Name}} -e 'SKUPPER_OUTPUT_PATH=${SKUPPER_OUTPUT_PATH} -e XDG_DATA_HOME=${XDG_DATA_HOME} -e CONTAINER_ENDPOINT_DEFAULT=${CONTAINER_ENDPOINT_DEFAULT}
+export SKUPPER_OUTPUT_PATH=${SKUPPER_OUTPUT_PATH}
+export CONTAINER_ENDPOINT=${CONTAINER_ENDPOINT}
+
+{{.ContainerEngine}} start {{.Name}}
