@@ -207,33 +207,15 @@ func configEnvVariables(platform string) (*ControllerConfig, error) {
 		containerEndpoint = containerEndpointDefault
 	}
 
-	err = os.Setenv("CONTAINER_ENDPOINT_DEFAULT", containerEndpointDefault)
-	if err != nil {
-		return nil, err
-	}
-
-	controllerConfig.containerEndpointDefault = containerEndpointDefault
-
-	err = os.Setenv("SKUPPER_OUTPUT_PATH", hostDataHome)
-	if err != nil {
-		return nil, err
-	}
-
-	controllerConfig.hostDataHome = hostDataHome
-
-	err = os.Setenv("XDG_DATA_HOME", xdgDataHome)
-	if err != nil {
-		return nil, err
-	}
-
-	controllerConfig.xdgDataHome = xdgDataHome
-
 	err = os.Setenv("CONTAINER_ENDPOINT", containerEndpoint)
 	if err != nil {
 		return nil, err
 	}
 
 	controllerConfig.containerEndpoint = containerEndpoint
+	controllerConfig.containerEndpointDefault = containerEndpointDefault
+	controllerConfig.hostDataHome = hostDataHome
+	controllerConfig.xdgDataHome = xdgDataHome
 
 	return &controllerConfig, nil
 }
