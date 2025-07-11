@@ -36,7 +36,7 @@ type CmdLinkGenerate struct {
 	output             string
 	activeSite         *v2alpha1.Site
 	generateCredential bool
-	generatedLink      v2alpha1.Link
+	generatedLinks     []v2alpha1.Link
 	timeout            time.Duration
 }
 
@@ -165,22 +165,31 @@ func (cmd *CmdLinkGenerate) Run() error {
 		return fmt.Errorf("Output format is not specified")
 	}
 
-	resource := v2alpha1.Link{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v2alpha1",
-			Kind:       "Link",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: cmd.linkName,
-		},
-		Spec: v2alpha1.LinkSpec{
-			TlsCredentials: cmd.tlsCredentials,
-			Cost:           cmd.cost,
-			Endpoints:      cmd.activeSite.Status.Endpoints,
-		},
+	endpointMap := getEndpointsByGroups(cmd.activeSite.Status.Endpoints)
+
+	var resources []v2alpha1.Link
+	for key, endpointGroup := range endpointMap {
+
+		resource := v2alpha1.Link{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "skupper.io/v2alpha1",
+				Kind:       "Link",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: strings.Join([]string{cmd.linkName, key}, "-"),
+			},
+			Spec: v2alpha1.LinkSpec{
+				TlsCredentials: cmd.tlsCredentials,
+				Cost:           cmd.cost,
+				Endpoints:      endpointGroup,
+			},
+		}
+
+		resources = append(resources, resource)
+
 	}
 
-	cmd.generatedLink = resource
+	cmd.generatedLinks = resources
 
 	if cmd.generateCredential {
 		//Check if the certificate was previously created
@@ -215,9 +224,14 @@ func (cmd *CmdLinkGenerate) Run() error {
 func (cmd *CmdLinkGenerate) WaitUntil() error {
 
 	var resourcesToPrint []string
-	encodedOutput, err := utils.Encode(cmd.output, cmd.generatedLink)
-	if err != nil {
-		return err
+
+	for _, generatedLink := range cmd.generatedLinks {
+		encodedOutput, err := utils.Encode(cmd.output, generatedLink)
+		if err != nil {
+			return err
+		}
+
+		resourcesToPrint = append(resourcesToPrint, encodedOutput)
 	}
 
 	if cmd.generateCredential {
@@ -262,11 +276,10 @@ func (cmd *CmdLinkGenerate) WaitUntil() error {
 
 	}
 
-	resourcesToPrint = append(resourcesToPrint, encodedOutput)
 	printResources(resourcesToPrint, cmd.output)
 
 	if cmd.generateCredential {
-		_, err = cmd.Client.Certificates(cmd.Namespace).Get(context.TODO(), cmd.tlsCredentials, metav1.GetOptions{})
+		_, err := cmd.Client.Certificates(cmd.Namespace).Get(context.TODO(), cmd.tlsCredentials, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("there was an error trying to delete the generated certificate: %s", err)
 		}
@@ -293,4 +306,19 @@ func printResources(resources []string, outputFormat string) {
 			fmt.Println("---")
 		}
 	}
+}
+
+func getEndpointsByGroups(endpointList []v2alpha1.Endpoint) map[string][]v2alpha1.Endpoint {
+
+	endpointGroup := make(map[string][]v2alpha1.Endpoint)
+
+	for _, endpoint := range endpointList {
+		if len(endpointGroup[endpoint.Group]) > 0 {
+			endpointGroup[endpoint.Group] = append(endpointGroup[endpoint.Group], endpoint)
+		} else {
+			endpointGroup[endpoint.Group] = []v2alpha1.Endpoint{endpoint}
+		}
+	}
+
+	return endpointGroup
 }
