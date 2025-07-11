@@ -1,0 +1,21 @@
+[Unit]
+Description={{.Name}}
+After=network-online.target
+Wants=network-online.target
+RequiresMountsFor={{.RuntimeDir}}/containers
+{{- range $volume := .Mounts}}
+RequiresMountsFor={{$volume.Name}}
+{{- end}}
+
+[Service]
+TimeoutStopSec=70
+RemainAfterExit=yes
+{{- range $key, $value := .Env}}
+Environment="{{$key}}={{$value}}"
+{{- end}}
+ExecStart=/bin/bash {{.ScriptPath}}/start.sh
+ExecStop=/bin/bash {{.ScriptPath}}/stop.sh
+Type=simple
+
+[Install]
+WantedBy=default.target

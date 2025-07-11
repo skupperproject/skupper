@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+
+set -o errexit
+set -o nounset
+
+export SKUPPER_OUTPUT_PATH=${SKUPPER_OUTPUT_PATH}
+export CONTAINER_ENDPOINT=${CONTAINER_ENDPOINT}
+
+{{.ContainerEngine}} start {{.Name}}

@@ -69,8 +69,6 @@ func (cmd *CmdSystemUninstall) Run() error {
 		return fmt.Errorf("failed to uninstall : %s", err)
 	}
 
-	fmt.Printf("Platform %s infrastructure for Skupper is now uninstalled\n", string(config.GetPlatform()))
-
 	return nil
 }
 

@@ -50,8 +50,6 @@ func (cmd *CmdSystemInstall) Run() error {
 		return fmt.Errorf("failed to configure the environment : %s", err)
 	}
 
-	fmt.Printf("Platform %s is now configured for Skupper\n", string(config.GetPlatform()))
-
 	return nil
 }
 
