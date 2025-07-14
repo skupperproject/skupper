@@ -130,7 +130,7 @@ func (s *systemdServiceInfo) GetServiceFile() string {
 	if s.GetUid() == 0 {
 		return path.Join(s.rootSystemdBasePath, s.GetServiceName())
 	}
-	return path.Join(api.GetHostDataHome(), "systemd/user", s.GetServiceName())
+	return path.Join(api.GetConfigHome(), "systemd/user", s.GetServiceName())
 }
 
 func (s *systemdServiceInfo) Remove() error {
