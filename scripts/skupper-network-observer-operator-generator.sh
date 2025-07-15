@@ -136,12 +136,16 @@ EOF
 skupper::network-observer-bundle::runas_user_patch() {
 		cat << EOF
 # Set runAsUser 1001 - from helm operator sdk image
-- op: add
-  path: /spec/template/spec/containers/0/securityContext/runAsUser
-  value: 1001
+#- op: add
+#  path: /spec/template/spec/containers/0/securityContext/runAsUser
+#  value: 1001
 - op: add
   path: /spec/template/spec/containers/0/securityContext/runAsNonRoot
   value: true
+- op: add
+  path: /spec/template/spec/containers/0/securityContext/seccompProfile
+  value:
+    type: RuntimeDefault
 EOF
 }
 
