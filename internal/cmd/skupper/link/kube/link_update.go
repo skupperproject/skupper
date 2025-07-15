@@ -126,40 +126,26 @@ func (cmd *CmdLinkUpdate) InputToOptions() {
 
 func (cmd *CmdLinkUpdate) Run() error {
 
-	currentSite, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
+	currentLink, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
 
 	if err != nil {
 		return err
 	}
 
-	updatedCost := currentSite.Spec.Cost
-	if cmd.cost != currentSite.Spec.Cost {
+	updatedCost := currentLink.Spec.Cost
+	if cmd.cost != currentLink.Spec.Cost {
 		updatedCost = cmd.cost
 	}
 
-	updatedTlsCredentials := currentSite.Spec.TlsCredentials
+	updatedTlsCredentials := currentLink.Spec.TlsCredentials
 	if cmd.tlsCredentials != "" {
 		updatedTlsCredentials = cmd.tlsCredentials
 	}
 
-	resource := v2alpha1.Link{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v2alpha1",
-			Kind:       "Link",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:              cmd.linkName,
-			Namespace:         cmd.Namespace,
-			CreationTimestamp: currentSite.CreationTimestamp,
-			ResourceVersion:   currentSite.ResourceVersion,
-		},
-		Spec: v2alpha1.LinkSpec{
-			TlsCredentials: updatedTlsCredentials,
-			Cost:           updatedCost,
-		},
-	}
+	currentLink.Spec.TlsCredentials = updatedTlsCredentials
+	currentLink.Spec.Cost = updatedCost
 
-	_, err = cmd.Client.Links(cmd.Namespace).Update(context.TODO(), &resource, metav1.UpdateOptions{})
+	_, err = cmd.Client.Links(cmd.Namespace).Update(context.TODO(), currentLink, metav1.UpdateOptions{})
 	return err
 
 }
