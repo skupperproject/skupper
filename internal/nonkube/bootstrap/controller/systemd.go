@@ -121,12 +121,6 @@ func (s *systemdServiceInfo) Create() error {
 }
 
 func (s *systemdServiceInfo) GetServiceFile() string {
-	if api.IsRunningInContainer() {
-		outputStat, err := os.Stat("/output")
-		if err == nil && outputStat.IsDir() {
-			return path.Join(path.Join("output", string(api.ScriptsPath)), s.GetServiceName())
-		}
-	}
 	if s.GetUid() == 0 {
 		return path.Join(s.rootSystemdBasePath, s.GetServiceName())
 	}
