@@ -1,9 +1,11 @@
-package common
+package controller
 
 import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"github.com/skupperproject/skupper/internal/nonkube/common"
+	"github.com/skupperproject/skupper/pkg/container"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -12,15 +14,12 @@ import (
 	"text/template"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
 var (
 	//go:embed systemd_container_service.template
 	SystemdContainerServiceTemplate string
-	//go:embed systemd_service.template
-	SystemdServiceTemplate string
 )
 
 const (
@@ -34,76 +33,60 @@ type SystemdService interface {
 	GetServiceFile() string
 }
 
-type SystemdGlobal interface {
-	Enable() error
-	Disable() error
-}
-
 type CommandExecutor func(name string, arg ...string) *exec.Cmd
 
 type systemdServiceInfo struct {
-	Site                *v2alpha1.Site
-	SiteId              string
-	Namespace           string
-	SiteScriptPath      string
-	SiteConfigPath      string
-	SiteHomePath        string
+	Name                string
+	Image               string
+	Env                 map[string](string)
+	Mounts              []container.Volume
+	Annotations         map[string]string
+	Platform            string
 	RuntimeDir          string
-	getUid              api.IdGetter
+	GetUid              api.IdGetter
 	command             CommandExecutor
 	rootSystemdBasePath string
-	platform            string
+	ScriptPath          string
 }
 
-type systemdGlobal struct {
-	getUid              api.IdGetter
-	command             CommandExecutor
-	rootSystemdBasePath string
-	platform            string
-}
+func NewSystemdServiceInfo(systemContainer container.Container, platform string) (SystemdService, error) {
 
-func NewSystemdServiceInfo(siteState *api.SiteState, platform string) (SystemdService, error) {
-	site := siteState.Site
-	siteHomePath := api.GetHostSiteHome(site)
-	siteScriptPath := path.Join(siteHomePath, string(api.ScriptsPath))
-	siteConfigPath := path.Join(siteHomePath, string(api.RouterConfigPath))
-	namespace := site.Namespace
-	if namespace == "" {
-		namespace = "default"
-	}
+	scriptPath := path.Join(api.GetSystemControllerPath(), "internal", "scripts")
+
 	return &systemdServiceInfo{
-		Site:                site,
-		SiteId:              siteState.SiteId,
-		Namespace:           namespace,
-		SiteScriptPath:      siteScriptPath,
-		SiteConfigPath:      siteConfigPath,
+		Name:                "skupper-controller",
+		Image:               systemContainer.Image,
+		Env:                 systemContainer.Env,
+		Mounts:              systemContainer.Mounts,
+		Annotations:         systemContainer.Annotations,
 		RuntimeDir:          api.GetRuntimeDir(),
-		getUid:              os.Getuid,
+		GetUid:              os.Getuid,
 		command:             exec.Command,
 		rootSystemdBasePath: rootSystemdBasePath,
-		platform:            platform,
+		Platform:            platform,
+		ScriptPath:          scriptPath,
 	}, nil
 }
 
 func (s *systemdServiceInfo) GetServiceName() string {
-	return fmt.Sprintf("skupper-%s.service", s.Namespace)
+	return fmt.Sprintf("%s.service", s.Name)
 }
 
 func (s *systemdServiceInfo) Create() error {
 	if !api.IsRunningInContainer() && !s.isSystemdEnabled() {
 		msg := "SystemD is not enabled"
-		if s.getUid() != 0 {
+		if s.GetUid() != 0 {
 			msg += " at user level"
 		}
 		return fmt.Errorf("%s", msg)
 	}
-	var logger = NewLogger()
+	var logger = common.NewLogger()
 	logger.Debug("creating systemd service")
 	var buf = new(bytes.Buffer)
 	var service *template.Template
-	logger.Debug("using service template for:", slog.String("platform", s.platform))
-	if s.platform == string(types.PlatformLinux) {
-		service = template.Must(template.New(s.GetServiceName()).Parse(SystemdServiceTemplate))
+	logger.Debug("using service template for:", slog.String("platform", s.Platform))
+	if s.Platform == string(types.PlatformLinux) {
+		return fmt.Errorf("the creation of the systemd service is not supported on Linux platform")
 	} else {
 		service = template.Must(template.New(s.GetServiceName()).Parse(SystemdContainerServiceTemplate))
 	}
@@ -138,10 +121,7 @@ func (s *systemdServiceInfo) Create() error {
 }
 
 func (s *systemdServiceInfo) GetServiceFile() string {
-	if api.IsRunningInContainer() {
-		return path.Join(api.GetInternalOutputPath(s.Site.Namespace, api.ScriptsPath), s.GetServiceName())
-	}
-	if s.getUid() == 0 {
+	if s.GetUid() == 0 {
 		return path.Join(s.rootSystemdBasePath, s.GetServiceName())
 	}
 	return path.Join(api.GetConfigHome(), "systemd/user", s.GetServiceName())
@@ -152,7 +132,7 @@ func (s *systemdServiceInfo) Remove() error {
 		return fmt.Errorf("SystemD is not enabled at user level")
 	}
 
-	logger := NewLogger()
+	logger := common.NewLogger()
 
 	// Stopping systemd user service
 	if !api.IsRunningInContainer() {
@@ -211,49 +191,49 @@ func (s *systemdServiceInfo) enableService(serviceName string) error {
 }
 
 func (s *systemdServiceInfo) getCmdEnableSystemdService(serviceName string) *exec.Cmd {
-	if s.getUid() == 0 {
+	if s.GetUid() == 0 {
 		return s.command("systemctl", "enable", serviceName)
 	}
 	return s.command("systemctl", "--user", "enable", serviceName)
 }
 
 func (s *systemdServiceInfo) getCmdDisableSystemdService(serviceName string) *exec.Cmd {
-	if s.getUid() == 0 {
+	if s.GetUid() == 0 {
 		return s.command("systemctl", "disable", serviceName)
 	}
 	return s.command("systemctl", "--user", "disable", serviceName)
 }
 
 func (s *systemdServiceInfo) getCmdReloadSystemdDaemon() *exec.Cmd {
-	if s.getUid() == 0 {
+	if s.GetUid() == 0 {
 		return s.command("systemctl", "daemon-reload")
 	}
 	return s.command("systemctl", "--user", "daemon-reload")
 }
 
 func (s *systemdServiceInfo) getCmdStartSystemdService(serviceName string) *exec.Cmd {
-	if s.getUid() == 0 {
+	if s.GetUid() == 0 {
 		return s.command("systemctl", "start", serviceName)
 	}
 	return s.command("systemctl", "--user", "start", serviceName)
 }
 
 func (s *systemdServiceInfo) getCmdStopSystemdService(serviceName string) *exec.Cmd {
-	if s.getUid() == 0 {
+	if s.GetUid() == 0 {
 		return s.command("systemctl", "stop", serviceName)
 	}
 	return s.command("systemctl", "--user", "stop", serviceName)
 }
 
 func (s *systemdServiceInfo) getCmdResetFailedSystemService(serviceName string) *exec.Cmd {
-	if s.getUid() == 0 {
+	if s.GetUid() == 0 {
 		return s.command("systemctl", "reset-failed", serviceName)
 	}
 	return s.command("systemctl", "--user", "reset-failed", serviceName)
 }
 
 func (s *systemdServiceInfo) getCmdIsSystemdEnabled() *exec.Cmd {
-	if s.getUid() == 0 {
+	if s.GetUid() == 0 {
 		return s.command("systemctl", []string{"list-units", "--no-pager"}...)
 	}
 	return s.command("systemctl", []string{"--user", "list-units", "--no-pager"}...)
@@ -265,91 +245,4 @@ func (s *systemdServiceInfo) isSystemdEnabled() bool {
 		return false
 	}
 	return true
-}
-
-func IsLingeringEnabled(user string) bool {
-	lingerFile := fmt.Sprintf("/var/lib/systemd/linger/%s", user)
-	_, err := os.Stat(lingerFile)
-	return err == nil
-}
-
-func NewSystemdGlobal(platform string) (SystemdGlobal, error) {
-
-	return &systemdGlobal{
-		getUid:              os.Getuid,
-		command:             exec.Command,
-		rootSystemdBasePath: rootSystemdBasePath,
-		platform:            platform,
-	}, nil
-}
-
-func (sg *systemdGlobal) getCmdEnableSocket() *exec.Cmd {
-	if sg.getUid() == 0 {
-		return sg.command("systemctl", "enable", sg.platform+".socket")
-	}
-
-	return sg.command("systemctl", "--user", "enable", "podman.socket")
-}
-
-func (sg *systemdGlobal) getCmdStartSocket() *exec.Cmd {
-	if sg.getUid() == 0 {
-		return sg.command("systemctl", "start", sg.platform+".socket")
-	}
-
-	return sg.command("systemctl", "--user", "start", "podman.socket")
-
-}
-
-func (sg *systemdGlobal) getCmdStopSocket() *exec.Cmd {
-
-	if sg.getUid() == 0 {
-		return sg.command("systemctl", "stop", sg.platform+".socket")
-	}
-
-	return sg.command("systemctl", "--user", "stop", "podman.socket")
-
-}
-
-func (sg *systemdGlobal) getCmdDisableSocket() *exec.Cmd {
-
-	if sg.getUid() == 0 {
-		return sg.command("systemctl", "disable", sg.platform+".socket")
-	}
-
-	return sg.command("systemctl", "--user", "disable", "podman.socket")
-}
-
-func (sg *systemdGlobal) Enable() error {
-
-	err := sg.getCmdEnableSocket().Run()
-	if err != nil {
-		return err
-	}
-
-	err = sg.getCmdStartSocket().Run()
-	if err != nil {
-		return err
-	}
-
-	return nil
-
-}
-
-func (sg *systemdGlobal) Disable() error {
-
-	if sg.platform == "podman" {
-
-		err := sg.getCmdDisableSocket().Run()
-		if err != nil {
-			return err
-		}
-
-		err = sg.getCmdStopSocket().Run()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-
 }
