@@ -317,8 +317,52 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 			expectedError: "token file name is a directory",
 		},
 		{
+			name: "directory doesn't exist.",
+			args: []string{"/invalid/token.yaml"},
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
+				Cost:               "1",
+			},
+			skupperObjects: []runtime.Object{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "site1",
+								Namespace: "test",
+							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "route",
+							},
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
+											Status: "True",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedError: "invalid token file name: no such file or directory",
+		},
+		{
 			name: "redemptions is not valid",
-			args: []string{"~/token.yaml"},
+			args: []string{"token.yaml"},
 			flags: common.CommandTokenIssueFlags{
 				ExpirationWindow:   15 * time.Minute,
 				RedemptionsAllowed: 0,
@@ -362,7 +406,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		},
 		{
 			name: "expiration is not valid",
-			args: []string{"~/token.yaml"},
+			args: []string{"token.yaml"},
 			flags: common.CommandTokenIssueFlags{
 				ExpirationWindow:   10 * time.Second,
 				RedemptionsAllowed: 1,
@@ -406,7 +450,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		},
 		{
 			name: "timeout is not valid",
-			args: []string{"~/token.yaml"},
+			args: []string{"token.yaml"},
 			flags: common.CommandTokenIssueFlags{
 				ExpirationWindow:   15 * time.Minute,
 				RedemptionsAllowed: 1,
@@ -450,7 +494,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		},
 		{
 			name: "cost is not valid",
-			args: []string{"~/token.yaml"},
+			args: []string{"token.yaml"},
 			flags: common.CommandTokenIssueFlags{
 				ExpirationWindow:   15 * time.Minute,
 				RedemptionsAllowed: 1,
@@ -494,7 +538,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		},
 		{
 			name: "link access is not valid",
-			args: []string{"~/token.yaml"},
+			args: []string{"token.yaml"},
 			flags: common.CommandTokenIssueFlags{
 				ExpirationWindow:   15 * time.Minute,
 				RedemptionsAllowed: 1,
@@ -535,7 +579,7 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 		},
 		{
 			name: "flags all valid",
-			args: []string{"~/token.yaml"},
+			args: []string{"/tmp/token.yaml"},
 			flags: common.CommandTokenIssueFlags{
 				ExpirationWindow:   15 * time.Minute,
 				RedemptionsAllowed: 1,
