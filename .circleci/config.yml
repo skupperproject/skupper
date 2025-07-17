@@ -145,6 +145,10 @@ workflows:
           <<: *run_for_numeric_tags
           requires:
             - generate-manifest
+      - generate-network-observer-operator-bundle:
+          <<: *run_for_numeric_tags
+          requires:
+            - generate-manifest
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
           requires:
@@ -152,6 +156,7 @@ workflows:
             - generate-manifest
             - generate-skupper-setup
             - generate-operator-bundle
+            - generate-network-observer-operator-bundle
           context:
             - skupper-org
   build:
@@ -199,6 +204,10 @@ workflows:
           <<: *run_for_v2_branch
           requires:
             - generate-manifest
+      - generate-network-observer-operator-bundle:
+          <<: *run_for_v2_branch
+          requires:
+            - generate-manifest
       - publish-github-prerelease-artifacts:
           <<: *run_for_v2_branch
           version: v2-dev-release
@@ -207,6 +216,7 @@ workflows:
             - generate-manifest
             - generate-skupper-setup
             - generate-operator-bundle
+            - generate-network-observer-operator-bundle
           context:
             - skupper-org
 
@@ -335,7 +345,6 @@ jobs:
           root: .
           paths:
             - skupper-manifest
-
   generate-operator-bundle:
     executor:
       name: go_cimg
@@ -351,6 +360,19 @@ jobs:
           root: .
           paths:
             - operator-bundle
+  generate-network-observer-operator-bundle:
+    executor:
+      name: go_cimg
+    steps:
+      - checkout
+      - go/mod-download-cached
+      - kubectl-install
+      - operator-sdk-install
+      - run: make generate-network-observer-operator-bundle
+      - persist_to_workspace:
+          root: .
+          paths:
+            - network-observer-operator
   generate-skupper-setup:
     executor:
       name: go_cimg
@@ -522,6 +544,7 @@ jobs:
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
             cp skupper-setup/* archives
             tar -zcf "${BASEDIR}/archives/operator-bundle-${VERSION}.tgz" operator-bundle
+            tar -zcf "${BASEDIR}/archives/network-observer-operator-bundle-${VERSION}.tgz" network-observer-operator
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease -draft ${VERSION} "${BASEDIR}/archives"
 
   publish-github-prerelease-artifacts:
@@ -552,4 +575,5 @@ jobs:
             cp "${BASEDIR}/skupper-manifest/manifest.json" "${BASEDIR}/archives"
             cp skupper-setup/* archives
             tar -zcf "${BASEDIR}/archives/operator-bundle-${VERSION}.tgz" operator-bundle
+            tar -zcf "${BASEDIR}/archives/network-observer-operator-bundle-${VERSION}.tgz" network-observer-operator
             ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -replace -prerelease ${VERSION} "${BASEDIR}/archives"
