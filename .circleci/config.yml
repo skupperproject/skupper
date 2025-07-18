@@ -364,6 +364,8 @@ jobs:
     executor:
       name: go_cimg
     steps:
+      - docker/install-docker
+      - skopeo-install
       - checkout
       - go/mod-download-cached
       - kubectl-install
