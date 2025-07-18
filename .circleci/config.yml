@@ -364,11 +364,11 @@ jobs:
     executor:
       name: go_cimg
     steps:
-      - docker/install-docker
-      - skopeo-install
       - checkout
       - go/mod-download-cached
+      - setup_remote_docker
       - kubectl-install
+      - skopeo-install
       - operator-sdk-install
       - run: make generate-network-observer-operator-bundle
       - persist_to_workspace:
