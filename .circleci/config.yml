@@ -149,6 +149,8 @@ workflows:
           <<: *run_for_numeric_tags
           requires:
             - generate-manifest
+          context:
+            - skupper-org
       - publish-github-release-artifacts:
           <<: *run_for_numeric_tags
           requires:
@@ -208,6 +210,8 @@ workflows:
           <<: *run_for_v2_branch
           requires:
             - generate-manifest
+          context:
+            - skupper-org
       - publish-github-prerelease-artifacts:
           <<: *run_for_v2_branch
           version: v2-dev-release
@@ -363,6 +367,8 @@ jobs:
   generate-network-observer-operator-bundle:
     executor:
       name: go_cimg
+    environment:
+      REGISTRY_AUTH_FILE: ~/.skopeoauth.json
     steps:
       - checkout
       - go/mod-download-cached
@@ -370,6 +376,7 @@ jobs:
       - kubectl-install
       - skopeo-install
       - operator-sdk-install
+      - run: skopeo login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run: make generate-network-observer-operator-bundle
       - persist_to_workspace:
           root: .
