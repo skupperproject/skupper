@@ -78,7 +78,7 @@ func (cmd *CmdConnectorStatus) ValidateInput(args []string) error {
 func (cmd *CmdConnectorStatus) Run() error {
 	opts := fs.GetOptions{RuntimeFirst: true, LogWarning: true}
 	if cmd.connectorName == "" {
-		resources, err := cmd.connectorHandler.List()
+		resources, err := cmd.connectorHandler.List(fs.GetOptions{RuntimeFirst: true})
 		if err != nil || resources == nil || len(resources) == 0 {
 			fmt.Println("No connectors found")
 			return err
