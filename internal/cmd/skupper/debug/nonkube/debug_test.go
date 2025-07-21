@@ -109,15 +109,25 @@ func TestCmdDebug_InputToOptions(t *testing.T) {
 			args:      []string{},
 			flags:     common.CommandDebugFlags{},
 		},
+		{
+			name:     "name",
+			filename: "skupper-dump",
+			args:     []string{},
+			flags:    common.CommandDebugFlags{},
+		},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			command := &CmdDebug{Flags: &common.CommandDebugFlags{}}
 			command.CobraCmd = &cobra.Command{Use: "test"}
+			namespace := test.namespace
+			if namespace == "" {
+				namespace = "default"
+			}
 			command.namespace = test.namespace
 			command.fileName = test.filename
-			name := fmt.Sprintf("%s-%s-%s", test.filename, command.namespace, time.Now().Format("20060102150405"))
+			name := fmt.Sprintf("%s-%s-%s", test.filename, namespace, time.Now().Format("20060102150405"))
 			command.InputToOptions()
 
 			assert.Check(t, command.fileName == name)
@@ -135,8 +145,13 @@ func TestCmdDebug_Run(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:      "run default",
+			name:      "run namespace exists",
 			namespace: "test2",
+		},
+		{
+			name:         "no namespace",
+			namespace:    "default",
+			errorMessage: "Namespace default has not been configured, cannot run debug dump command",
 		},
 	}
 	// Add a temp file so listener/connector/site exists for delete tests
