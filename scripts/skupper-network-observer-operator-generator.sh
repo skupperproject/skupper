@@ -23,7 +23,7 @@ readonly PROMETHEUS_IMAGE_TAG=${PROMETHEUS_IMAGE_TAG:-v2.55.1}
 readonly OAUTH_PROXY_IMAGE_TAG=${OAUTH_PROXY_IMAGE_TAG:-4.18.0}
 readonly NGINX_IMAGE_TAG=${NGINX_IMAGE_TAG:-1.27.3-alpine}
 
-readonly IMG=${SKUPPER_IMAGE_REGISTRY}/network-observer-operator:v${BUNDLE_VERSION}
+readonly IMG=${SKUPPER_IMAGE_REGISTRY}/network-observer-operator:${SKUPPER_IMAGE_TAG}
 readonly BUNDLE_IMG=${SKUPPER_IMAGE_REGISTRY}/network-observer-operator-bundle:v${BUNDLE_VERSION}
 
 readonly SKUPPER_NETWORK_OBSERVER_SHA=${SKUPPER_NETWORK_OBSERVER_SHA:-$(skopeo inspect --format "{{.Digest}}" docker://${SKUPPER_IMAGE_REGISTRY}/network-observer:${SKUPPER_IMAGE_TAG})}
@@ -53,7 +53,7 @@ kind: Kustomization
 images:
 - name: controller
   newName: ${SKUPPER_IMAGE_REGISTRY}/network-observer-operator
-  newTag: v${BUNDLE_VERSION}
+  newTag: ${SKUPPER_IMAGE_TAG}
 resources:
 - manager.yaml
 EOF

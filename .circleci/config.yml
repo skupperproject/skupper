@@ -376,7 +376,7 @@ jobs:
       - kubectl-install
       - skopeo-install
       - operator-sdk-install
-      - run: skopeo login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
+      - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run: make generate-network-observer-operator-bundle
       - persist_to_workspace:
           root: .
