@@ -105,8 +105,8 @@ func (o *ContourHttpProxyAccessType) ensureHttpProxy(namespace string, desired H
 	}
 	log.Printf("Creating contour httpproxy")
 	if o.manager.context != nil {
-		o.manager.context.SetLabels(namespace, desired.Name, "HttpProxy", labels)
-		o.manager.context.SetAnnotations(namespace, desired.Name, "HttpProxy", annotations)
+		o.manager.context.SetLabels(namespace, desired.Name, "HTTPProxy", labels)
+		o.manager.context.SetAnnotations(namespace, desired.Name, "HTTPProxy", annotations)
 	}
 	created, err := createContourProxy(o.manager.clients.GetDynamicClient(), namespace, desired, labels, annotations, ownerRefs)
 	if err != nil {
