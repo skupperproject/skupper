@@ -2,7 +2,7 @@ package images
 
 const (
 	DefaultImageRegistry      string = "quay.io/skupper"
-	RouterImageName           string = "skupper-router:3.3.1"
+	RouterImageName           string = "skupper-router:3.4.0"
 	ControllerImageName       string = "controller:2.1.0"
 	KubeAdaptorImageName      string = "kube-adaptor:2.1.0"
 	NetworkObserverImageName  string = "network-observer:2.1.0"
