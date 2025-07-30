@@ -12,7 +12,7 @@ COPY . .
 
 # Build statically linked binary
 ENV CGO_ENABLED=0
-RUN make build-controller GOARCH=$TARGETARCH
+RUN make -B build-controller GOARCH=$TARGETARCH
 
 # Use scratch for minimal image size
 FROM scratch

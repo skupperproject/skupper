@@ -13,7 +13,7 @@ RUN go mod download
 COPY . .
 
 ENV CGO_ENABLED=0
-RUN make GOARCH=$TARGETARCH build-network-observer
+RUN make -B GOARCH=$TARGETARCH build-network-observer
 
 FROM --platform=$BUILDPLATFORM node:20.18.0 AS console-builder
 
