@@ -11,7 +11,7 @@ RUN go mod download
 COPY . .
 
 ENV CGO_ENABLED=0
-RUN make system-controller GOARCH=$TARGETARCH
+RUN make -B system-controller GOARCH=$TARGETARCH
 
 # Use scratch for minimal image size
 FROM scratch

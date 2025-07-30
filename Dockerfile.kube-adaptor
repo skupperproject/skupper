@@ -12,7 +12,7 @@ RUN go mod download
 
 COPY . .
 ENV CGO_ENABLED=0
-RUN make build-kube-adaptor GOARCH=$TARGETARCH
+RUN make -B build-kube-adaptor GOARCH=$TARGETARCH
 
 # Use scratch for minimal image size
 FROM scratch
