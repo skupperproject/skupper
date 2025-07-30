@@ -54,6 +54,13 @@ func TestGrantRegistryGeneral(t *testing.T) {
 				RedemptionsAllowed: 3,
 			},
 		},
+		&v2alpha1.AccessGrant{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "three",
+				Namespace: "test",
+				UID:       "74ebd47e-28d9-449b-ac64-df1723cb2133",
+			},
+		},
 	}
 	var skupperObjects []runtime.Object
 	for _, grant := range grants {
@@ -84,6 +91,11 @@ func TestGrantRegistryGeneral(t *testing.T) {
 		_, err = time.Parse(time.RFC3339, grant.Status.ExpirationTime)
 		if err != nil {
 			t.Error(err)
+		}
+		if grant.Spec.RedemptionsAllowed == 0 {
+			assert.Equal(t, latest.Spec.RedemptionsAllowed, 1)
+		} else {
+			assert.Equal(t, latest.Spec.RedemptionsAllowed, grant.Spec.RedemptionsAllowed)
 		}
 		assert.Assert(t, meta.IsStatusConditionTrue(latest.Status.Conditions, v2alpha1.CONDITION_TYPE_PROCESSED))
 	}
