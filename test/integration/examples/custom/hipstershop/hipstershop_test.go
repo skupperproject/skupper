@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"runtime"
 
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
@@ -29,6 +30,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestHipsterShop(t *testing.T) {
+	if runtime.GOARCH == "s390x" {
+		t.Skip("Skipping test on s390x architecture as images unavailble for s390x")
+	}
 	// Cluster needs for hipster shop
 	needs := base.ClusterNeeds{
 		NamespaceId:     "hipster",
