@@ -22,7 +22,7 @@ type ListenerFunction func(*skupperv2alpha1.Listener) *skupperv2alpha1.Listener
 
 type Bindings struct {
 	SiteId      string
-	profilePath string
+	ProfilePath string
 	connectors  map[string]*skupperv2alpha1.Connector
 	listeners   map[string]*skupperv2alpha1.Listener
 	handler     BindingEventHandler
@@ -34,7 +34,7 @@ type Bindings struct {
 
 func NewBindings(profilePath string) *Bindings {
 	bindings := &Bindings{
-		profilePath: profilePath,
+		ProfilePath: profilePath,
 		connectors:  map[string]*skupperv2alpha1.Connector{},
 		listeners:   map[string]*skupperv2alpha1.Listener{},
 	}
@@ -181,20 +181,20 @@ func (b *Bindings) AddSslProfiles(config *qdr.RouterConfig) bool {
 			if !c.Spec.UseClientCert {
 				//if only ca is used, need to qualify the profile to ensure that it does not collide with
 				// use of the same secret where client auth *is* required
-				name := getSslProfileName(c)
+				name := GetSslProfileName(c.Spec.TlsCredentials, c.Spec.UseClientCert)
 				if _, ok := profiles[name]; !ok {
-					profiles[name] = qdr.ConfigureSslProfile(name, b.profilePath, false)
+					profiles[name] = qdr.ConfigureSslProfile(name, b.ProfilePath, false)
 				}
 			} else {
 				if _, ok := profiles[c.Spec.TlsCredentials]; !ok {
-					profiles[c.Spec.TlsCredentials] = qdr.ConfigureSslProfile(c.Spec.TlsCredentials, b.profilePath, true)
+					profiles[c.Spec.TlsCredentials] = qdr.ConfigureSslProfile(c.Spec.TlsCredentials, b.ProfilePath, true)
 				}
 			}
 		}
 	}
 	for _, l := range b.listeners {
 		if _, ok := profiles[l.Spec.TlsCredentials]; l.Spec.TlsCredentials != "" && !ok {
-			profiles[l.Spec.TlsCredentials] = qdr.ConfigureSslProfile(l.Spec.TlsCredentials, b.profilePath, true)
+			profiles[l.Spec.TlsCredentials] = qdr.ConfigureSslProfile(l.Spec.TlsCredentials, b.ProfilePath, true)
 		}
 	}
 	changed := false

@@ -253,6 +253,7 @@ func (b *ExtendedBindings) Apply(config *qdr.RouterConfig) bool {
 	desired := b.bindings.ToBridgeConfig()
 	for _, connector := range b.connectors {
 		connector.updateBridgeConfig(b.bindings.SiteId, &desired)
+		b.AddSslProfiles(config, connector.definitions)
 	}
 	for _, ptl := range b.perTargetListeners {
 		ptl.updateBridgeConfig(b.bindings.SiteId, &desired)
@@ -261,6 +262,33 @@ func (b *ExtendedBindings) Apply(config *qdr.RouterConfig) bool {
 	config.UpdateBridgeConfig(desired)
 	config.RemoveUnreferencedSslProfiles()
 	return true //TODO: can optimise by indicating if no change was required
+}
+
+func (b *ExtendedBindings) AddSslProfiles(config *qdr.RouterConfig, definitions map[string]*skupperv2alpha1.AttachedConnector) bool {
+	profiles := map[string]qdr.SslProfile{}
+	for _, c := range definitions {
+		if c.Spec.TlsCredentials != "" {
+			if !c.Spec.UseClientCert {
+				//if only ca is used, need to qualify the profile to ensure that it does not collide with
+				// use of the same secret where client auth *is* required
+				name := site.GetSslProfileName(c.Spec.TlsCredentials, c.Spec.UseClientCert)
+				if _, ok := profiles[name]; !ok {
+					profiles[name] = qdr.ConfigureSslProfile(name, b.bindings.ProfilePath, false)
+				}
+			} else {
+				if _, ok := profiles[c.Spec.TlsCredentials]; !ok {
+					profiles[c.Spec.TlsCredentials] = qdr.ConfigureSslProfile(c.Spec.TlsCredentials, b.bindings.ProfilePath, true)
+				}
+			}
+		}
+	}
+	changed := false
+	for _, profile := range profiles {
+		if config.AddSslProfile(profile) {
+			changed = true
+		}
+	}
+	return changed
 }
 
 func (b *ExtendedBindings) SetSite(site *Site) {
