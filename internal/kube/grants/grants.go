@@ -210,7 +210,18 @@ func (g *Grants) checkGrant(key string, grant *skupperv2alpha1.AccessGrant) erro
 			changed = true
 		}
 	}
+
 	var err error
+
+	// if RedemptionsAllowed is not set default to 1 so that grant is usable
+	if grant.Spec.RedemptionsAllowed == 0 {
+		grant.Spec.RedemptionsAllowed = 1
+		_, e := g.clients.GetSkupperClient().SkupperV2alpha1().AccessGrants(grant.ObjectMeta.Namespace).Update(context.TODO(), grant, metav1.UpdateOptions{})
+		if e != nil {
+			status = append(status, fmt.Sprintf("Failed updating Redemptions Allowed %s", e))
+		}
+		changed = true
+	}
 
 	if len(status) != 0 {
 		err = fmt.Errorf("%s", strings.Join(status, ", "))
