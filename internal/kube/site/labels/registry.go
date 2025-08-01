@@ -1,6 +1,7 @@
 package labels
 
 import (
+	"log/slog"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -10,6 +11,7 @@ import (
 type LabelsAndAnnotations struct {
 	namespaces          map[string]*Registry
 	controllerNamespace string
+	log                 *slog.Logger
 }
 
 func NewLabelsAndAnnotations(controllerNamespace string) *LabelsAndAnnotations {
@@ -19,6 +21,9 @@ func NewLabelsAndAnnotations(controllerNamespace string) *LabelsAndAnnotations {
 	return &LabelsAndAnnotations{
 		namespaces:          map[string]*Registry{},
 		controllerNamespace: controllerNamespace,
+		log: slog.New(slog.Default().Handler()).With(
+			slog.String("component", "kube.site.labels.registry"),
+		),
 	}
 }
 
@@ -27,6 +32,10 @@ func (l *LabelsAndAnnotations) Update(key string, cm *corev1.ConfigMap) error {
 	if existing, ok := l.namespaces[namespace]; ok {
 		return existing.update(key, cm)
 	} else if cm != nil {
+		l.log.Info("Found new label and annotation configuration",
+			slog.String("name", cm.Name),
+			slog.String("namespace", cm.Namespace),
+		)
 		created := newRegistry()
 		l.namespaces[namespace] = created
 		return created.update(key, cm)
@@ -62,11 +71,15 @@ func (l *LabelsAndAnnotations) SetAnnotations(namespace string, name string, kin
 
 type Registry struct {
 	config map[string]*corev1.ConfigMap
+	log    *slog.Logger
 }
 
 func newRegistry() *Registry {
 	return &Registry{
 		config: map[string]*corev1.ConfigMap{},
+		log: slog.New(slog.Default().Handler()).With(
+			slog.String("component", "kube.site.labels.registry"),
+		),
 	}
 }
 
@@ -74,6 +87,11 @@ func (r *Registry) update(key string, cm *corev1.ConfigMap) error {
 	_, ok := label(cm, "skupper.io/label-template")
 	if !ok {
 		delete(r.config, key)
+		namespace, name, _ := cache.SplitMetaNamespaceKey(key)
+		r.log.Info("Removing label and annotation configuration",
+			slog.String("name", name),
+			slog.String("namespace", namespace),
+		)
 		return nil
 	}
 	r.config[key] = cm
