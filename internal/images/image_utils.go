@@ -283,9 +283,6 @@ func GetImage(imageNames map[string]string, imageRegistry string, digestMap map[
 
 		var image SkupperImage
 
-		if imageRegistry != "" {
-			name = strings.Join([]string{imageRegistry, name}, "/")
-		}
 		image.Name = name
 
 		if digestMap != nil {
@@ -312,16 +309,14 @@ func GetImages(component string, digestMap map[string]string) []SkupperImage {
 		if envImage != "" {
 			names[RouterImageEnvKey] = envImage
 		} else {
-			names[RouterImageEnvKey] = RouterImageName
-			registry = GetImageRegistry()
+			names[RouterImageEnvKey] = strings.Join([]string{GetImageRegistry(), RouterImageName}, "/")
 		}
 
 		envImage = os.Getenv(KubeAdaptorImageEnvKey)
 		if envImage != "" {
 			names[KubeAdaptorImageEnvKey] = envImage
 		} else {
-			names[KubeAdaptorImageEnvKey] = KubeAdaptorImageName
-			registry = GetImageRegistry()
+			names[KubeAdaptorImageEnvKey] = strings.Join([]string{GetImageRegistry(), KubeAdaptorImageName}, "/")
 		}
 	case "controller":
 		envImage := os.Getenv(ControllerImageEnvKey)
@@ -329,8 +324,7 @@ func GetImages(component string, digestMap map[string]string) []SkupperImage {
 		if envImage != "" {
 			names[ControllerImageEnvKey] = envImage
 		} else {
-			names[ControllerImageEnvKey] = ControllerImageName
-			registry = GetImageRegistry()
+			names[ControllerImageEnvKey] = strings.Join([]string{GetImageRegistry(), ControllerImageName}, "/")
 		}
 
 	case "network-observer":
@@ -340,22 +334,17 @@ func GetImages(component string, digestMap map[string]string) []SkupperImage {
 		if envImage != "" {
 			names[NetworkObserverImageEnvKey] = envImage
 		} else {
-			names[NetworkObserverImageEnvKey] = NetworkObserverImageName
-			registry = GetImageRegistry()
+			names[NetworkObserverImageEnvKey] = strings.Join([]string{GetImageRegistry(), NetworkObserverImageName}, "/")
 		}
 
 	case "cli":
-		names[CliImageEnvKey] = CliImageName
-		registry = GetImageRegistry()
+		names[CliImageEnvKey] = strings.Join([]string{GetImageRegistry(), CliImageName}, "/")
 	case "system-controller":
-		names[SystemControllerImageEnvKey] = SystemControllerImageName
-		registry = GetImageRegistry()
+		names[SystemControllerImageEnvKey] = strings.Join([]string{GetImageRegistry(), SystemControllerImageName}, "/")
 	case "prometheus":
-		names[PrometheusServerImageEnvKey] = PrometheusServerImageName
-		registry = GetPrometheusImageRegistry()
+		names[PrometheusServerImageEnvKey] = strings.Join([]string{GetPrometheusImageRegistry(), PrometheusServerImageName}, "/")
 	case "origin-oauth-proxy":
-		names[OauthProxyImageEnvKey] = OauthProxyImageName
-		registry = GetOauthProxyImageRegistry()
+		names[OauthProxyImageEnvKey] = strings.Join([]string{GetOauthProxyImageRegistry(), OauthProxyImageName}, "/")
 	}
 
 	if names != nil {
