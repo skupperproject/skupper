@@ -912,6 +912,7 @@ func endpoint(name string, port string, host string) skupperv2alpha1.Endpoint {
 }
 
 func route(name string, namespace string, svcName string, portName string, host string) *routev1.Route {
+	hundred := int32(100)
 	return &routev1.Route{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -933,8 +934,9 @@ func route(name string, namespace string, svcName string, portName string, host 
 				TargetPort: intstr.FromString(portName),
 			},
 			To: routev1.RouteTargetReference{
-				Kind: "Service",
-				Name: svcName,
+				Kind:   "Service",
+				Name:   svcName,
+				Weight: &hundred,
 			},
 			TLS: &routev1.TLSConfig{
 				Termination:                   routev1.TLSTerminationPassthrough,
