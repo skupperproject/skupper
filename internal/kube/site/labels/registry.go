@@ -32,11 +32,7 @@ func (l *LabelsAndAnnotations) Update(key string, cm *corev1.ConfigMap) error {
 	if existing, ok := l.namespaces[namespace]; ok {
 		return existing.update(key, cm)
 	} else if cm != nil {
-		l.log.Info("Found new label and annotation configuration",
-			slog.String("name", cm.Name),
-			slog.String("namespace", cm.Namespace),
-		)
-		created := newRegistry()
+		created := newRegistry(l.log)
 		l.namespaces[namespace] = created
 		return created.update(key, cm)
 	}
@@ -74,12 +70,10 @@ type Registry struct {
 	log    *slog.Logger
 }
 
-func newRegistry() *Registry {
+func newRegistry(log *slog.Logger) *Registry {
 	return &Registry{
 		config: map[string]*corev1.ConfigMap{},
-		log: slog.New(slog.Default().Handler()).With(
-			slog.String("component", "kube.site.labels.registry"),
-		),
+		log:    log,
 	}
 }
 
@@ -93,6 +87,12 @@ func (r *Registry) update(key string, cm *corev1.ConfigMap) error {
 			slog.String("namespace", namespace),
 		)
 		return nil
+	}
+	if _, ok := r.config[key]; !ok {
+		r.log.Info("Loading label and annotation configuration",
+			slog.String("name", cm.Name),
+			slog.String("namespace", cm.Namespace),
+		)
 	}
 	r.config[key] = cm
 	return nil
