@@ -1045,6 +1045,11 @@ func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ig
 			result.Added = append(result.Added, v1)
 			result.AddedSslProfiles[v1.SslProfile] = desired.SslProfiles[v1.SslProfile]
 		}
+
+		//in case the connector exists but has changed some of its values, it needs to be recreated again
+		if ok && !v1.Equivalent(actual[key]) {
+			result.Added = append(result.Added, v1)
+		}
 	}
 	for key, v1 := range actual {
 		_, ok := desired.Connectors[key]
@@ -1057,12 +1062,31 @@ func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ig
 		if !ok && allowedToDelete {
 			result.Deleted = append(result.Deleted, v1)
 		}
+
+		//if the connector exists but has changed some of its values, the connector's former version has to be deleted
+		if ok && !v1.Equivalent(desired.Connectors[key]) && allowedToDelete{
+			result.Deleted = append(result.Deleted, v1)
+		}
 	}
 	return &result
 }
 
 func (a *ConnectorDifference) Empty() bool {
 	return len(a.Deleted) == 0 && len(a.Added) == 0
+}
+
+func (desired Connector) Equivalent(actual Connector) bool {
+	return desired.Name == actual.Name &&
+		desired.Role == actual.Role &&
+		desired.Host == actual.Host &&
+		desired.Port == actual.Port &&
+		desired.RouteContainer == actual.RouteContainer &&
+		desired.Cost == actual.Cost &&
+		desired.SslProfile == actual.SslProfile &&
+		desired.VerifyHostname == actual.VerifyHostname &&
+		(desired.MaxFrameSize == 0 || desired.MaxFrameSize == actual.MaxFrameSize) &&
+		(desired.MaxSessionFrames == 0 || desired.MaxSessionFrames == actual.MaxSessionFrames) &&
+		(desired.LinkCapacity == 0 || desired.LinkCapacity == actual.LinkCapacity) 
 }
 
 type ListenerDifference struct {
