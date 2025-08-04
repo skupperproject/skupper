@@ -1064,7 +1064,7 @@ func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ig
 		}
 
 		//if the connector exists but has changed some of its values, the connector's former version has to be deleted
-		if ok && !v1.Equivalent(desired.Connectors[key]) && allowedToDelete{
+		if ok && !v1.Equivalent(desired.Connectors[key]) && allowedToDelete {
 			result.Deleted = append(result.Deleted, v1)
 		}
 	}
@@ -1086,7 +1086,7 @@ func (desired Connector) Equivalent(actual Connector) bool {
 		desired.VerifyHostname == actual.VerifyHostname &&
 		(desired.MaxFrameSize == 0 || desired.MaxFrameSize == actual.MaxFrameSize) &&
 		(desired.MaxSessionFrames == 0 || desired.MaxSessionFrames == actual.MaxSessionFrames) &&
-		(desired.LinkCapacity == 0 || desired.LinkCapacity == actual.LinkCapacity) 
+		(desired.LinkCapacity == 0 || desired.LinkCapacity == actual.LinkCapacity)
 }
 
 type ListenerDifference struct {
