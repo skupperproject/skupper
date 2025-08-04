@@ -28,21 +28,21 @@ func updateBridgeConfigForConnector(name string, siteId string, connector *skupp
 			Host:           host,
 			Port:           strconv.Itoa(connector.Spec.Port),
 			Address:        address,
-			SslProfile:     getSslProfileName(connector),
+			SslProfile:     GetSslProfileName(connector.Spec.TlsCredentials, connector.Spec.UseClientCert),
 			ProcessID:      processID,
 			VerifyHostname: getVerifyHostname(connector),
 		})
 	}
 }
 
-func getSslProfileName(connector *skupperv2alpha1.Connector) string {
-	if connector.Spec.TlsCredentials == "" {
+func GetSslProfileName(tlsCredentials string, useClientCert bool) string {
+	if tlsCredentials == "" {
 		return ""
 	}
-	if !connector.Spec.UseClientCert {
-		return connector.Spec.TlsCredentials + "-profile"
+	if !useClientCert {
+		return tlsCredentials + "-profile"
 	}
-	return connector.Spec.TlsCredentials
+	return tlsCredentials
 }
 
 func getVerifyHostname(connector *skupperv2alpha1.Connector) *bool {
