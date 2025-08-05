@@ -10,23 +10,76 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
-          description: "A site is a place on the network where application workloads are running"
+          description: |-
+            A site is a place on the network where application workloads are
+            running. Sites are joined by links.
+
+            The Site resource is the basis for site configuration. It is the
+            parent of all Skupper resources in its namespace. There can be only
+            one active Site resource per namespace.
           type: object
           properties:
             spec:
               type: object
               properties:
                 serviceAccount:
+                  description: |-
+                    Advanced. The name of the Kubernetes service account under
+                    which to run the Skupper router. A service account is
+                    generated if none is specified.
                   type: string
                 linkAccess:
+                  description: |-
+                    Configure external access for links from remote sites.
+
+                    Sites and links are the basis for creating application
+                    networks. In a simple two-site network, at least one of the
+                    sites must have link access enabled. Choices include:
+                      `none`: No linking to this site is enabled.
+                      `default`: Use the default link access for the current platform. For OpenShift, the default is `route`. For other Kubernetes flavors, the default is `loadbalancer`.
+                      `route`: Use an OpenShift route.
+                      `loadbalancer`: Use a Kubernetes load balancer.
                   type: string
                 defaultIssuer:
+                  description: |-
+                    Advanced. The name of a Kubernetes secret containing the
+                    signing CA used to generate a certificate from a token. A
+                    secret is generated if none is specified.
+
+                    This issuer is used by AccessGrant and RouterAccess if a
+                    specific issuer is not set. Defaults to `skupper-site-ca`
                   type: string
                 ha:
                   type: boolean
+                  description: |-
+                    Configure the site for high availability (HA). HA sites
+                    have two active routers.
+
+                    Note that Skupper routers are stateless, and they restart
+                    after failure. This already provides a high level of
+                    availability. Enabling HA goes further and reduces the
+                    window of downtime caused by restarts.
                 edge:
                   type: boolean
+                  description: |-
+                    Advanced. Configure the site to operate in edge mode. Edge
+                    sites cannot accept links from remote sites.
+
+                    Edge mode can help you scale your network to large numbers
+                    of sites. However, for networks with 16 or fewer sites,
+                    there is little benefit.
+
+                    Currently, edge sites cannot also have HA enabled.
                 settings:
+                  description: |-
+                    Advanced. A map containing additional settings. Each map
+                    entry has a string name and a string value.
+
+                    **Note:** In  general, we recommend not changing settings
+                    from their default values.
+
+                    `routerDataConnections`: Set the number of router worker threads. Minimum 2.
+                    `routerLogging`: Set the number of router logging level. Options are "info", "warning", "error".
                   type: object
                   additionalProperties:
                     type: string
@@ -34,10 +87,19 @@ spec:
               type: object
               properties:
                 defaultIssuer:
+                  description: |-
+                    The name of the Kubernetes secret containing the active default signing CA.
                   type: string
                 status:
+                  description: |-
+                    The current state of the resource.
+                    `Pending`: The resource is being processed.
+                    `Error`: There was an error processing the resource. See `message` for more information.
+                    `Ready`: The resource is ready to use.
                   type: string
                 message:
+                  description: |-
+                    A human-readable status message. Error messages are reported here.
                   type: string
                 controller:
                   type: object
@@ -50,6 +112,13 @@ spec:
                       type: string
                 conditions:
                   type: array
+                  description: |-
+                    A set of named conditions describing the current state of the resource.
+
+                    `Configured`: The output resources for this resource have been created.
+                    `Running`: There is at least one router pod running.
+                    `Resolved`: The hostname or IP address for link access is available.
+                    `Ready`: The site is ready for use. All other conditions are true.
                   items:
                     type: object
                     properties:
@@ -85,6 +154,8 @@ spec:
                     - status
                     - type
                 endpoints:
+                  description: |-
+                    An array of connection endpoints. Each item has a name, host, port, and group. These include connection endpoints for link access.
                   type: array
                   items:
                     type: object
