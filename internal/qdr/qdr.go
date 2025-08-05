@@ -1077,16 +1077,10 @@ func (a *ConnectorDifference) Empty() bool {
 
 func (desired Connector) Equivalent(actual Connector) bool {
 	return desired.Name == actual.Name &&
-		desired.Role == actual.Role &&
 		desired.Host == actual.Host &&
 		desired.Port == actual.Port &&
-		desired.RouteContainer == actual.RouteContainer &&
 		desired.Cost == actual.Cost &&
-		desired.SslProfile == actual.SslProfile &&
-		desired.VerifyHostname == actual.VerifyHostname &&
-		(desired.MaxFrameSize == 0 || desired.MaxFrameSize == actual.MaxFrameSize) &&
-		(desired.MaxSessionFrames == 0 || desired.MaxSessionFrames == actual.MaxSessionFrames) &&
-		(desired.LinkCapacity == 0 || desired.LinkCapacity == actual.LinkCapacity)
+		desired.SslProfile == actual.SslProfile
 }
 
 type ListenerDifference struct {
