@@ -29,6 +29,7 @@ import (
 )
 
 func TestSecuredAccessGeneral(t *testing.T) {
+	hundred := int32(100)
 	pathTypePrefix := networkingv1.PathTypePrefix
 	testTable := []struct {
 		name                 string
@@ -406,8 +407,9 @@ func TestSecuredAccessGeneral(t *testing.T) {
 							TargetPort: intstr.FromString("a"),
 						},
 						To: routev1.RouteTargetReference{
-							Kind: "Service",
-							Name: "mysvc",
+							Kind:   "Service",
+							Name:   "mysvc",
+							Weight: &hundred,
 						},
 						TLS: &routev1.TLSConfig{
 							Termination:                   routev1.TLSTerminationPassthrough,
@@ -432,8 +434,9 @@ func TestSecuredAccessGeneral(t *testing.T) {
 							TargetPort: intstr.FromString("b"),
 						},
 						To: routev1.RouteTargetReference{
-							Kind: "Service",
-							Name: "mysvc",
+							Kind:   "Service",
+							Name:   "mysvc",
+							Weight: &hundred,
 						},
 						TLS: &routev1.TLSConfig{
 							Termination:                   routev1.TLSTerminationPassthrough,
@@ -552,8 +555,9 @@ func TestSecuredAccessGeneral(t *testing.T) {
 							TargetPort: intstr.FromString("a"),
 						},
 						To: routev1.RouteTargetReference{
-							Kind: "Service",
-							Name: "mysvc",
+							Kind:   "Service",
+							Name:   "mysvc",
+							Weight: &hundred,
 						},
 						TLS: &routev1.TLSConfig{
 							Termination:                   routev1.TLSTerminationPassthrough,
@@ -572,8 +576,9 @@ func TestSecuredAccessGeneral(t *testing.T) {
 							TargetPort: intstr.FromString("b"),
 						},
 						To: routev1.RouteTargetReference{
-							Kind: "Service",
-							Name: "mysvc",
+							Kind:   "Service",
+							Name:   "mysvc",
+							Weight: &hundred,
 						},
 						TLS: &routev1.TLSConfig{
 							Termination:                   routev1.TLSTerminationPassthrough,
