@@ -80,6 +80,9 @@ spec:
 
                     `routerDataConnections`: Set the number of router worker threads. Minimum 2.
                     `routerLogging`: Set the number of router logging level. Options are "info", "warning", "error".
+                    `disable-anti-affinity`: Set to "true" in order to prevent skupper from specifying router pod affinity.
+                    `size`: The desired site sizing profile to use for constraining pod resources. Corresponds to a ConfigMap with matching `skupper.io/site-sizing` label.
+                    `tls-prior-valid-revisions`: Set the number of revisions to TLS Secrets backing Site Link connections that are permissible to hold open to preserve established service connections. An unsigned integer defaults to 1. Set to 0 to immediately disrupt connections secured with old TLS configurations.
                   type: object
                   additionalProperties:
                     type: string
