@@ -1044,6 +1044,7 @@ func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ig
 		if !ok {
 			result.Added = append(result.Added, v1)
 			result.AddedSslProfiles[v1.SslProfile] = desired.SslProfiles[v1.SslProfile]
+			continue
 		}
 
 		//in case the connector exists but has changed some of its values, it needs to be recreated again
@@ -1061,6 +1062,7 @@ func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ig
 
 		if !ok && allowedToDelete {
 			result.Deleted = append(result.Deleted, v1)
+			continue
 		}
 
 		//if the connector exists but has changed some of its values, the connector's former version has to be deleted
