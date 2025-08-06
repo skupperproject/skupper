@@ -137,7 +137,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: site-controller
-        image: quay.io/skupper/site-controller:1.9.3
+        image: quay.io/skupper/site-controller:1.9.4
         securityContext:
           capabilities:
             drop:
