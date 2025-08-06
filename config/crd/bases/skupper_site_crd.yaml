@@ -59,6 +59,10 @@ spec:
                     after failure. This already provides a high level of
                     availability. Enabling HA goes further and reduces the
                     window of downtime caused by restarts.
+
+                    By default, Pod anti-affinity will be configured on the router
+                    Deployments when HA is enabled. To overwrite this behavior
+                    see the `disable-anti-affinity` Site setting.
                 edge:
                   type: boolean
                   description: |-
