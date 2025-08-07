@@ -81,3 +81,26 @@ RESOURCE_DELAY_MULTIPLIER:  1
 # Remove the namespaces
 # remove_namespaces: true
 
+
+##################################################
+# Custom Labels and Annotations variables
+##################################################
+# remove the namespaces
+# remove_namespaces: true
+#
+# Namespace where the Skupper Controller is installed. Default = skupper
+# skupper_controller_ns: "skupper"
+#
+
+##################################################
+# Custom Labels and Annotations constants
+##################################################
+# Define the custom annotations
+# custom_annotations:
+# com.acme.foo/annotest: "skupper-custom-annotation"
+# sku.pper: "skupper-custom-annotation2"
+#
+# Define the custom labels
+# custom_labels:
+# acme.foo/labeltest : "skupper-custom-label"
+# sku.pper : "skupper-custom-label2"

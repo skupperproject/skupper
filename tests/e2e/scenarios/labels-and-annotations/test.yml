@@ -1,0 +1,225 @@
+---
+- name: Skupper Labels-and-Annotations Test
+  hosts: all
+  connection: local
+  gather_facts: false
+  any_errors_fatal: true
+
+  vars:
+    kubeconfig: kubeconfig
+
+  tasks:
+    - name: "[ LabelsAndAnnotations ] Initial validation block"
+      block:
+        - name: "[ LabelsAndAnnotations - NoConfigMap ] Ensure that no configMap with custom labels and annotations exists"
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: ConfigMap
+            label_selectors:
+              - "skupper.io/label-template=true"
+            kubeconfig: "{{ kubeconfig }}"
+          register: unique_verify
+
+        - name: "[ LabelsAndAnnotations ] Fail if a configMap with custom labels and annotations already exists"
+          ansible.builtin.fail:
+            msg: "Failing because a configMap with custom labels and annotations already exists - {{ unique_verify.resources[0].metadata.namespace }}"
+          when:
+            - unique_verify is defined
+            - unique_verify.resources is defined
+            - unique_verify.resources | length > 0
+      when:
+        - "'east' in inventory_hostname"
+
+    - name: "[ ExposePodsByNameTest ] - Main test block"
+      block:
+
+        - name: "[ LabelsAndAnnotations ] Generating the namespaces"
+          ansible.builtin.include_role:
+            name: e2e.tests.generate_namespaces
+
+        - name: "[ LabelsAndAnnotations ] Creating Skupper resources on east namespace"
+          skupper.v2.resource:
+            kubeconfig: "{{ kubeconfig }}"
+            path: "{{ item }}"
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+          with_items:
+            - "{{ playbook_dir }}/resources/east/01-site-no-label-annot.yaml"
+          when:
+            - "'east' in inventory_hostname"
+
+        - name: "[ LabelsAndAnnotations - NoConfigMap ] Wait for the initial deployment to be running"
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Deployment
+            name: "skupper-router"
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          register: initial_verify
+          until:
+            - initial_verify is defined
+            - initial_verify.resources is defined
+            - initial_verify.resources | length > 0
+            - initial_verify.resources[0].status.readyReplicas is defined
+            - initial_verify.resources[0].status.availableReplicas == initial_verify.resources[0].spec.replicas
+          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
+          when:
+            - "'east' in inventory_hostname"
+
+        ###
+        ###  Apply the Label and Annotations configMap
+        ###
+        - name: "[ LabelsAndAnnotations - CreateConfigMap ] Apply the Label-and-Annotations ConfigMap "
+          skupper.v2.resource:
+            kubeconfig: "{{ kubeconfig }}"
+            path: "{{ item }}"
+            namespace: "{{ skupper_controller_ns }}"
+          with_items:
+            - "{{ playbook_dir }}/resources/east/03-cm-label-annot-all-kinds.yaml"
+          when:
+            - "'east' in inventory_hostname"
+
+        # Test if a deployment created before the CM gets the custom annotations and labels applied
+        - name: "[ LabelsAndAnnotations - AfterConfigMap ] Wait until the deployment have all the custom labels and annotations"
+          kubernetes.core.k8s_info:
+            kind: Deployment
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            label_selectors:
+              - "acme.foo/labeltest={{ custom_labels['acme.foo/labeltest'] }}"
+              - "sku.pper={{ custom_labels['sku.pper'] }}"
+          register: full_verify
+          until:
+            - full_verify is defined
+            - full_verify.resources is defined
+            - full_verify.resources | length == 1
+            - full_verify.resources[0].metadata.annotations['com.acme.foo/annotest'] == custom_annotations['com.acme.foo/annotest']
+            - full_verify.resources[0].metadata.annotations['sku.pper'] == custom_annotations['sku.pper']
+          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
+          when:
+            - "'east' in inventory_hostname"
+
+        # Test if a deployment created after the CM gets the custom annotations and labels applied
+        - name: "[ LabelsAndAnnotations - AfterConfigMap ] Creating Skupper resources on west namespace"
+          skupper.v2.resource:
+            kubeconfig: "{{ kubeconfig }}"
+            path: "{{ item }}"
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+          with_items:
+            - "{{ playbook_dir }}/resources/west/01-site-with-label-annot.yaml"
+          when:
+            - "'west' in inventory_hostname"
+
+        - name: "[ LabelsAndAnnotations - WithConfigMap ] Wait for the annotated deployment to be running and with the custom labels and annotations"
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Deployment
+            name: "skupper-router"
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          register: annotated_verify
+          until:
+            - annotated_verify is defined
+            - annotated_verify.resources is defined
+            - annotated_verify.resources | length > 0
+            - annotated_verify.resources[0].status.readyReplicas is defined
+            - annotated_verify.resources[0].status.availableReplicas == annotated_verify.resources[0].spec.replicas
+            - annotated_verify.resources[0].metadata.labels is defined and 'acme.foo/labeltest' in annotated_verify.resources[0].metadata.labels
+            - annotated_verify.resources[0].metadata.labels is defined and 'sku.pper' in annotated_verify.resources[0].metadata.labels
+            - annotated_verify.resources[0].metadata.annotations is defined and 'com.acme.foo/annotest' in annotated_verify.resources[0].metadata.annotations
+            - annotated_verify.resources[0].metadata.annotations is defined and 'sku.pper' in annotated_verify.resources[0].metadata.annotations
+          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
+          when:
+            - "'west' in inventory_hostname"
+
+        ###
+        ###  Remove the Label and Annotations configMap
+        ###
+        - name: "[ LabelsAndAnnotations - RemovedConfigMap ] Remove the ConfigMap with custom labels and annotations "
+          skupper.v2.resource:
+            kubeconfig: "{{ kubeconfig }}"
+            path: "{{ item }}"
+            state: "absent"
+            namespace: "{{ skupper_controller_ns }}"
+          with_items:
+            - "{{ playbook_dir }}/resources/east/03-cm-label-annot-all-kinds.yaml"
+          when:
+            - "'east' in inventory_hostname"
+
+        # Test if the deployment created before the CM creation gets the custom annotations and labels removed when the CM is removed
+        - name: "[ LabelsAndAnnotations - RemovedConfigMap ] Wait until the deployment have all the custom labels and annotations removed"
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Deployment
+            name: "skupper-router"
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          register: full_verify
+          until:
+            - full_verify is defined
+            - full_verify.resources is defined
+            - full_verify.resources | length == 1
+            - full_verify.resources[0].metadata.annotations['com.acme.foo/annotest'] is not defined
+            - full_verify.resources[0].metadata.annotations['sku.pper'] is not defined
+          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
+          when:
+            - "'east' in inventory_hostname"
+
+        # Test if a deployment created after the CM gets the custom annotations and labels removed when the CM is removed
+        - name: "[ LabelsAndAnnotations - RemovedConfigMap ] Retrieve the deployment details and check if all custom annotations and labels were removed"
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Deployment
+            name: "skupper-router"
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          register: removed_verify
+          until:
+            - removed_verify is defined
+            - removed_verify.resources is defined
+            - removed_verify.resources | length > 0
+            - removed_verify.resources[0].status.readyReplicas is defined
+            - removed_verify.resources[0].status.availableReplicas == removed_verify.resources[0].spec.replicas
+            - removed_verify.resources[0].metadata.labels is defined and 'acme.foo/labeltest' not in removed_verify.resources[0].metadata.labels
+            - removed_verify.resources[0].metadata.labels is defined and 'sku.pper' not in removed_verify.resources[0].metadata.labels
+            - removed_verify.resources[0].metadata.annotations is defined and 'com.acme.foo/annotest' not in removed_verify.resources[0].metadata.annotations
+            - removed_verify.resources[0].metadata.annotations is defined and 'sku.pper' not in removed_verify.resources[0].metadata.annotations
+          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
+          when:
+            - "'west' in inventory_hostname"
+
+      # Teardown
+      always:
+        - name: "[ LabelsAndAnnotations - Teardown ] Removing Skupper resources from east namespace"
+          skupper.v2.resource:
+            kubeconfig: "{{ kubeconfig }}"
+            path: "{{ item }}"
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            state: absent
+          with_items:
+            - "{{ playbook_dir }}/resources/east/01-site-no-label-annot.yaml"
+          when:
+            - "'east' in inventory_hostname"
+
+        - name: "[ LabelsAndAnnotations - Teardown ] Removing Skupper resources from west namespace"
+          skupper.v2.resource:
+            kubeconfig: "{{ kubeconfig }}"
+            path: "{{ item }}"
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            state: absent
+          with_items:
+            - "{{ playbook_dir }}/resources/west/01-site-with-label-annot.yaml"
+          when:
+            - "'west' in inventory_hostname"
+
+        - name: "[ LabelsAndAnnotations - Teardown ] Removing the namespaces"
+          ansible.builtin.command: "kubectl delete namespace {{ item }} --kubeconfig {{ kubeconfig }}"
+          with_items:
+            - "{{ namespace_prefix }}-{{ namespace_name }}"
+          register: out
+          failed_when: out.failed and 'not exists' not in out.stderr_lines
+          when:
+            - remove_namespaces | default(false) | bool

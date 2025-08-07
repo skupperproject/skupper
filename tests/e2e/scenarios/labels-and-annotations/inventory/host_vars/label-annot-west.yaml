@@ -1,0 +1,5 @@
+---
+# Kubeconfig path for west site
+kubeconfig_1: "{{ ansible_env.HOME }}/.kube/config"
+kubeconfig: "{{ kubeconfig_1 }}"
+namespace_name: "label-annot-west"
