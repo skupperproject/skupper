@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: label-annot-all-kinds
+  labels:
+    skupper.io/label-template: "true"
+    acme.foo/labeltest : "skupper-custom-label"
+    sku.pper : "skupper-custom-label2"
+  annotations:
+    com.acme.foo/annotest: "skupper-custom-annotation"
+    sku.pper: "skupper-custom-annotation2"
+data:
