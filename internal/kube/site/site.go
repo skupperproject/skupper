@@ -973,7 +973,7 @@ func (s *Site) CheckLink(name string, linkconfig *skupperv2alpha1.Link) error {
 func (s *Site) link(linkconfig *skupperv2alpha1.Link) error {
 	var config *site.Link
 	if existing, ok := s.links[linkconfig.ObjectMeta.Name]; ok {
-		if existing.Update(linkconfig) {
+		if existing.Update(linkconfig) || !existing.Definition().IsConfigured() {
 			config = existing
 		}
 	} else {
