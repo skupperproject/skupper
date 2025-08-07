@@ -8,7 +8,7 @@ remove_namespaces: true
 resource_retry_value: 30
 resource_delay_value: 10
 min_verbosity: 1
-skupper_controller_ns: "my-operator-catalog"
+skupper_controller_ns: "skupper"
 
 custom_annotations:
   com.acme.foo/annotest: "skupper-custom-annotation"
