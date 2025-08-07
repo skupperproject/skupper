@@ -273,7 +273,7 @@ func (cmd *CmdDebug) Run() error {
 	links, err = cmd.linkHandler.List(lopts)
 	if err == nil && links != nil && len(links) != 0 {
 		for _, link := range links {
-			err := utils.WriteObject(link, path+link.Name+link.Spec.Endpoints[0].Host, tw)
+			err := utils.WriteObject(link, path+link.Name+"-"+link.Spec.Endpoints[0].Host, tw)
 			if err != nil {
 				return err
 			}
@@ -363,47 +363,74 @@ func (cmd *CmdDebug) Run() error {
 	}
 
 	//logs and skupper-router statistics
-	if err := os.Setenv("SKUPPER_PLATFORM", platform); err == nil {
-		cli, err := internalclient.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
+	if platform == "linux" {
+		user := "--user"
+		if os.Getuid() == 0 {
+			user = ""
+		}
+		rtrName := "skupper-" + cmd.namespace + ".service"
+		pv, err = utils.RunCommand("journalctl", user, "-u", rtrName, "--no-pager", "--all")
 		if err == nil {
-			rtrContainerName := cmd.namespace + "-skupper-router"
-			if container, err := cli.ContainerInspect(rtrContainerName); err == nil {
-				encodedOutput, _ := utils.Encode("yaml", container)
-				utils.WriteTar(rpath+"Container-"+container.Name+".yaml", []byte(encodedOutput), time.Now(), tw)
-			}
-
-			localRouterAddress, err := runtime.GetLocalRouterAddress(cmd.namespace)
+			utils.WriteTar(path+"logs/"+rtrName+".txt", pv, time.Now(), tw)
+		}
+		localRouterAddress, err := runtime.GetLocalRouterAddress(cmd.namespace)
+		if err == nil {
+			certs := runtime.GetRuntimeTlsCert(cmd.namespace, "skupper-local-client")
 			if err == nil {
 				for x := range flags {
-					skStatCommand := []string{
-						"/bin/skstat", flags[x],
+					pv, err = utils.RunCommand("/usr/bin/skstat", flags[x],
 						"-b", localRouterAddress,
-						"--ssl-certificate", "/etc/skupper-router/runtime/certs/skupper-local-client/tls.crt",
-						"--ssl-key", "/etc/skupper-router/runtime/certs/skupper-local-client/tls.key",
-						"--ssl-trustfile", "/etc/skupper-router/runtime/certs/skupper-local-client/ca.crt",
-					}
-
-					out, err := cli.ContainerExec(rtrContainerName, skStatCommand) //strings.Split(skStatCommand, " "))
+						"--ssl-certificate", certs.CertPath,
+						"--ssl-key", certs.KeyPath,
+						"--ssl-trustfile", certs.CaPath)
 					if err == nil {
-						utils.WriteTar(path+"skstat/"+rtrContainerName+"-skstat"+flags[x]+".txt", []byte(out), time.Now(), tw)
+						utils.WriteTar(path+"skstat/"+"skrouterd"+"-skstat"+flags[x]+".txt", pv, time.Now(), tw)
 					}
 				}
 			}
-
-			logs, err := cli.ContainerLogs(rtrContainerName)
+		}
+	} else {
+		if err := os.Setenv("SKUPPER_PLATFORM", platform); err == nil {
+			cli, err := internalclient.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
 			if err == nil {
-				utils.WriteTar(rpath+"logs/"+rtrContainerName+".txt", []byte(logs), time.Now(), tw)
-			}
+				rtrContainerName := cmd.namespace + "-skupper-router"
+				if container, err := cli.ContainerInspect(rtrContainerName); err == nil {
+					encodedOutput, _ := utils.Encode("yaml", container)
+					utils.WriteTar(rpath+"Container-"+container.Name+".yaml", []byte(encodedOutput), time.Now(), tw)
+				}
 
-			ctlContainerName := "system-controller"
-			if container, err := cli.ContainerInspect(ctlContainerName); err == nil {
-				encodedOutput, _ := utils.Encode("yaml", container)
-				utils.WriteTar(rpath+"Container-"+container.Name+".yaml", []byte(encodedOutput), time.Now(), tw)
-			}
+				localRouterAddress, err := runtime.GetLocalRouterAddress(cmd.namespace)
+				if err == nil {
+					for x := range flags {
+						skStatCommand := []string{
+							"/bin/skstat", flags[x],
+							"-b", localRouterAddress,
+							"--ssl-certificate", "/etc/skupper-router/runtime/certs/skupper-local-client/tls.crt",
+							"--ssl-key", "/etc/skupper-router/runtime/certs/skupper-local-client/tls.key",
+							"--ssl-trustfile", "/etc/skupper-router/runtime/certs/skupper-local-client/ca.crt",
+						}
+						out, err := cli.ContainerExec(rtrContainerName, skStatCommand) //strings.Split(skStatCommand, " "))
+						if err == nil {
+							utils.WriteTar(path+"skstat/"+rtrContainerName+"-skstat"+flags[x]+".txt", []byte(out), time.Now(), tw)
+						}
+					}
+				}
 
-			logs, err = cli.ContainerLogs(ctlContainerName)
-			if err == nil {
-				utils.WriteTar(rpath+"logs/"+ctlContainerName+".txt", []byte(logs), time.Now(), tw)
+				logs, err := cli.ContainerLogs(rtrContainerName)
+				if err == nil {
+					utils.WriteTar(rpath+"logs/"+rtrContainerName+".txt", []byte(logs), time.Now(), tw)
+				}
+
+				ctlContainerName := "system-controller"
+				if container, err := cli.ContainerInspect(ctlContainerName); err == nil {
+					encodedOutput, _ := utils.Encode("yaml", container)
+					utils.WriteTar(rpath+"Container-"+container.Name+".yaml", []byte(encodedOutput), time.Now(), tw)
+				}
+
+				logs, err = cli.ContainerLogs(ctlContainerName)
+				if err == nil {
+					utils.WriteTar(rpath+"logs/"+ctlContainerName+".txt", []byte(logs), time.Now(), tw)
+				}
 			}
 		}
 	}
