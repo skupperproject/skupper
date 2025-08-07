@@ -138,7 +138,13 @@
 
         - name: "[ ExposePodsByNameTest - RunTest ] Compare initial pods and services"
           ansible.builtin.set_fact:
-            pod_svc_difference: "{{ hostvars['east']['pod_names_array'] | ansible.builtin.symmetric_difference(svc_names_array) }}"
+            pod_svc_difference: "{{ hostvars['east']['pod_names_array'] | symmetric_difference(svc_names_array) }}"
+          when:
+            - "'west' in inventory_hostname"
+
+        - name: "[ ExposePodsByNameTest - RunTest ] Show diff"
+          ansible.builtin.debug:
+            var: pod_svc_difference
           when:
             - "'west' in inventory_hostname"
 
