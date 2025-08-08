@@ -1102,6 +1102,7 @@ func asConnector(record Record) Connector {
 		RouteContainer: record.AsBool("routeContainer"),
 		VerifyHostname: record.AsBool("verifyHostname"),
 		SslProfile:     record.AsString("sslProfile"),
+		Cost:           int32(record.AsInt("cost")),
 	}
 }
 
