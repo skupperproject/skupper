@@ -9,8 +9,8 @@ teardown_flag: true
 ##################################################
 # Common variables
 ##################################################
-RESOURCE_RETRY_MULTIPLIER:  1
-RESOURCE_DELAY_MULTIPLIER:  1
+RESOURCE_RETRY_MULTIPLIER:  2
+RESOURCE_DELAY_MULTIPLIER:  2
 
 ##################################################
 # IPERF3 variables
