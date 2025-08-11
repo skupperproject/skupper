@@ -98,7 +98,7 @@ func TestNetworkStatusHandler(t *testing.T) {
 
 	t.Run("verify-runtime-resources-reset", func(t *testing.T) {
 		assert.Assert(t, verifyJsonPathNotFound(namespace, "Site", "site-name", "{.status.sitesInNetwork}"), "sitesInNetwork found, but not expected")
-		assert.Assert(t, verifyJsonPathExpected(namespace, "Site", "site-name", "{.status}", "{}"), "status expected as empty")
+		assert.Assert(t, verifyJsonPathExpected(namespace, "Site", "site-name", "{.status.status}", "Pending"), "status expected as Pending")
 		assert.Assert(t, verifyJsonPathNotFound(namespace, "Connector", "connector-one", "{.status.hasMatchingListener}"), "hasMatchingListener found, but not expected")
 		assert.Assert(t, verifyJsonPathExpected(namespace, "Connector", "connector-one", "{.status.conditions[?(@.type=='Matched')].status}", "False"))
 		assert.Assert(t, verifyJsonPathNotFound(namespace, "Listener", "listener-one", "{.status.hasMatchingConnector}"), "hasMatchingConnector found, but not expected")
