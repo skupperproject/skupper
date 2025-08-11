@@ -384,7 +384,7 @@ func getHttpJobs(settings *httpSettings, serviceName string) []common.JobInfo {
 		// hey job
 		jobHeyName := fmt.Sprintf("%s-hey-clients-%d", jobPrefix, clients)
 		labelsHey := map[string]string{"job": jobHeyName, "type": "hey"}
-		heyArgs := []string{"-z", strconv.Itoa(settings.duration) + "s", "-c", strconv.Itoa(clients)}
+		heyArgs := []string{"/app/hey", "-z", strconv.Itoa(settings.duration) + "s", "-c", strconv.Itoa(clients)}
 		if settings.rate > 0 {
 			heyArgs = append(heyArgs, "-q", strconv.Itoa(settings.rate))
 		}
