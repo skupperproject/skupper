@@ -10,7 +10,14 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
-          description: "An internal resource used to create secure access to pods"
+          description: |-
+            SecuredAccess is an internal resource used to create secure access to pods.
+
+            SecuredAccess configures a Kubernetes Service and sometimes an
+            additional resource to provide external connectivity, such as an
+            Ingress or Route. When the access endpoint is resolved to a
+            hostname or IP address, the SecuredAccess may also configure a
+            Certificate resource with the correct subjects.
           type: object
           properties:
             spec:
