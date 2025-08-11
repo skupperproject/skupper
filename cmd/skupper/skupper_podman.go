@@ -89,6 +89,13 @@ func (s *SkupperPodman) Network() SkupperNetworkClient {
 	return s.network
 }
 
+func getCmdEnablePodmanSocket() string {
+	if os.Getuid() == 0 {
+		return "systemctl enable --now podman.socket"
+	}
+	return "systemctl --user enable --now podman.socket"
+}
+
 func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 	// endpoint can be provided during init
 	var endpoint string
@@ -131,13 +138,13 @@ func (s *SkupperPodman) NewClient(cmd *cobra.Command, args []string) {
 				fmt.Fprintf(out, "Podman endpoint is not available: %s",
 					utils.DefaultStr(endpoint, clientpodman.GetDefaultPodmanEndpoint()))
 				fmt.Fprintln(out)
-				recommendation = `
+				recommendation = fmt.Sprintf(`
 Recommendation:
 
 	Make sure you have an active podman endpoint available.
 	On most systems you can execute:
 
-		systemctl --user enable --now podman.socket
+		%s
 
 	Alternatively you could also create your own service that runs:
 
@@ -145,7 +152,7 @@ Recommendation:
 
 	You can get concrete examples through:
 
-		podman help system service`
+		podman help system service`, getCmdEnablePodmanSocket())
 				fmt.Fprintln(out, recommendation)
 			}
 			s.exit(1)
