@@ -270,18 +270,37 @@
           when:
             - "'east' in inventory_hostname"
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Check if we have differences between pods and service names"
+        - name: "[ ExposePodsByNameTest - RunTest ] Check if we have pods with old names"
           ansible.builtin.set_fact:
             num_differences_old_new_pods: "{{ old_pod_new_pod_difference | length }}"
           when:
             - "'east' in inventory_hostname"
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Failing the test if the the pod names haven't changed after deployment restart"
+        - name: "[ ExposePodsByNameTest - RunTest ] Failing the test if the pod names haven't changed after deployment restart"
           ansible.builtin.fail:
             msg: "The test has FAILED - Old Pod names {{ pod_names_array }}, New Pod names {{ new_pod_names_array }}"
           when:
             - "'east' in inventory_hostname"
             - num_differences_old_new_pods | int != 6
+
+
+        - name: "[ ExposePodsByNameTest - RunTest ] Wait for each old service to disappear"
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Service
+            name: "{{ item }}"
+            kubeconfig: "{{ kubeconfig }}"
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+          register: old_svc_removed
+          until:
+            - old_svc_removed.resources is defined
+            - old_svc_removed.resources | length == 0
+          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
+          loop: "{{ svc_names_array }}"
+          when:
+            - svc_list is defined
+            - "'west' in inventory_hostname"
 
         # Get Services array
         - name: "[ ExposePodsByNameTest - RunTest ] Get the service names in west"
