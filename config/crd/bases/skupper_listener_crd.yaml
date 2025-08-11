@@ -77,9 +77,9 @@ spec:
                 status:
                   description: |-
                     The current state of the resource.
-                    `Pending`: The resource is being processed.
-                    `Error`: There was an error processing the resource. See `message` for more information.
-                    `Ready`: The resource is ready to use.
+                    - `Pending`: The resource is being processed.
+                    - `Error`: There was an error processing the resource. See `message` for more information.
+                    - `Ready`: The resource is ready to use.
                   type: string
                 message:
                   description: |-
@@ -90,9 +90,9 @@ spec:
                   description: |-
                     A set of named conditions describing the current state of the resource.
 
-                    `Configured`: The listener configuration has been applied to the router.
-                    `Operational`: There is at least one connector corresponding to this listener.
-                    `Ready`: The listener is ready for use. All other conditions are true.
+                    - `Configured`: The listener configuration has been applied to the router.
+                    - `Operational`: There is at least one connector corresponding to this listener.
+                    - `Ready`: The listener is ready for use. All other conditions are true.
                   items:
                     type: object
                     properties:
