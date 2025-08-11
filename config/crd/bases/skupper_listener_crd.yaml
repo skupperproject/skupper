@@ -90,9 +90,9 @@ spec:
                   description: |-
                     A set of named conditions describing the current state of the resource.
 
-                    `Configured`: The link configuration has been applied to the router.
-                    `Operational`: The link to the remote site is active.
-                    `Ready`: The link is ready for use. All other conditions are true.
+                    `Configured`: The listener configuration has been applied to the router.
+                    `Operational`: There is at least one connector corresponding to this listener.
+                    `Ready`: The listener is ready for use. All other conditions are true.
                   items:
                     type: object
                     properties:
