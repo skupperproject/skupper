@@ -10,33 +10,82 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
-          description: "A connector binds a local workload to listeners in remote sites"
+          description: |-
+            A connector binds a local workload to listeners in remote sites. Listeners
+            and connectors are matched by routing key.
+
+            On Kubernetes, a Connector resource has a selector and port for specifying
+            workload pods.1
+
+            On Docker, Podman, and Linux, a Connector resource has a host and port for
+            specifying a local server. Optionally, Kubernetes can also use a host and port.
           type: object
           properties:
             spec:
               type: object
               properties:
                 routingKey:
+                  description: |-
+                    The identifier used to route traffic from listeners to connectors.
+                    To expose a local workload to a remote site, the remote listener and
+                    the local connector must have matching routing keys.
                   type: string
                 port:
+                  description: |-
+                    The port on the target server to connect to.
                   type: integer
                 selector:
+                  description: |-
+                    A Kubernetes label selector for specifying target server pods. It uses
+                    <label-name>=<label-value> syntax.
+
+                    On Kubernetes, either selector or host is required.
                   type: string
                 host:
+                  description: |-
+                    The hostname or IP address of the server. This is an alternative to
+                    selector for specifying the target server.
+
+                    On Kubernetes, either selector or host is required.
+
+                    On Docker, Podman, or Linux, host is required.
                   type: string
                 tlsCredentials:
+                  description: |-
+                    The name of a bundle of TLS certificates used for secure router-to-server
+                    communication. The bundle contains the trusted server certificate
+                    (usually a CA). It optionally includes a client certificate and key for
+                    mutual TLS.
+
+                    On Kubernetes, the value is the name of a Secret in the current namespace.
+                    On Docker, Podman, and Linux, the value is the name of a directory under
+                    input/certs/ in the current namespace.
                   type: string
                 useClientCert:
+                  description: |-
+                    Send the client certificate when connecting in order to enable mutual TLS.
                   type: boolean
                 verifyHostname:
+                  description: |-
+                    If true, require that the hostname of the server connected to matches the
+                    hostname in the server's certificate.
                   type: boolean
                 type:
                   type: string
                 includeNotReadyPods:
+                  description: |-
+                    If true, include server pods in the NotReady state.
                   type: boolean
                 exposePodsByName:
+                  description: |-
+                    If true, expose each pod as an individual service.
                   type: boolean
                 settings:
+                  description: |-
+                    A map containing additional settings. Each map entry has a string name and a
+                    string value.
+
+                    Note: In general, we recommend not changing settings from their default values.
                   type: object
                   additionalProperties:
                     type: string
