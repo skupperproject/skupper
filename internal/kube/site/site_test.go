@@ -2,6 +2,7 @@ package site
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/kube/certificates"
@@ -18,7 +19,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"log/slog"
 )
 
 func TestSite_Recover(t *testing.T) {
@@ -549,6 +549,40 @@ func TestSite_CheckLink(t *testing.T) {
 			},
 		},
 		{
+			name: "link - site initialized later",
+			args: args{
+				name: "link1",
+				linkconfig: &skupperv2alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "link1",
+						Namespace: "test",
+						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
+					},
+					Spec: skupperv2alpha1.LinkSpec{
+						Cost: 1,
+						Endpoints: []skupperv2alpha1.Endpoint{
+							{
+								Name: string(qdr.RoleInterRouter),
+								Host: "10.10.10.1",
+								Port: "55671",
+							},
+						},
+					},
+				},
+			},
+			want:      "post-initialized",
+			wantErr:   false,
+			wantLinks: 1,
+			skupperObjects: []runtime.Object{
+				&skupperv2alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "link1",
+						Namespace: "test",
+					},
+				},
+			},
+		},
+		{
 			name: "link - not found",
 			args: args{
 				name: "link1",
@@ -677,6 +711,17 @@ func TestSite_CheckLink(t *testing.T) {
 				if len(s.links) != 0 {
 					t.Errorf("Site.CheckLink() link not removed")
 				}
+			} else if tt.want == "post-initialized" {
+				existing := s.links[tt.args.name]
+				assert.Equal(t, false, existing.Definition().IsConfigured())
+				s.initialised = true
+				err = createRouterConfigMock(s)
+				assert.Assert(t, err)
+				if err := s.CheckLink(tt.args.name, tt.args.linkconfig); (err != nil) != tt.wantErr {
+					t.Errorf("Site.CheckLink() error = %v, wantErr %v", err, tt.skupperErrorMessage)
+				}
+				existing = s.links[tt.args.name]
+				assert.Equal(t, true, existing.Definition().IsConfigured())
 			} else {
 				// router not initialized
 				numLinks := len(s.links)
