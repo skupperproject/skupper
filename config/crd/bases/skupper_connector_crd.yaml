@@ -15,7 +15,7 @@ spec:
             and connectors are matched by routing key.
 
             On Kubernetes, a Connector resource has a selector and port for specifying
-            workload pods.1
+            workload pods.
 
             On Docker, Podman, and Linux, a Connector resource has a host and port for
             specifying a local server. Optionally, Kubernetes can also use a host and port.
