@@ -12,6 +12,14 @@ PLATFORMS ?= linux/amd64,linux/arm64
 GOOS ?= linux
 GOARCH ?= amd64
 
+# Shipyard configuration
+BASE_BRANCH = main
+LOAD_BALANCER = true
+ORG = skupperproject
+PROJECT = skupper
+SETTINGS = ./.shipyard.yml
+export BASE_BRANCH ORG PROJECT SHIPYARD_REPO SHIPYARD_URL
+
 all: generate-client build-cmd build-get build-config-sync build-controllers build-tests build-manifest
 
 build-tests:
@@ -142,3 +150,31 @@ release/arm64/skupper: cmd/skupper/skupper.go
 
 release/arm64.tgz: release/arm64/skupper
 	tar -czf release/arm64.tgz release/arm64/skupper
+
+ifneq (,$(DAPPER_HOST_ARCH))
+
+# Running in Shipyard's container
+
+include $(SHIPYARD_DIR)/Makefile.clusters
+
+deploy-example-hello-world: SETTINGS=.example.hello-world.yml
+deploy-example-hello-world: build-cmd clusters
+	./scripts/$@.sh
+
+.PHONY: deploy-example-hello-world
+
+else
+
+# Not running in Shipyard's container
+
+Makefile.shipyard:
+ifeq (,$(findstring s,$(firstword -$(MAKEFLAGS))))
+	@echo Downloading $@
+endif
+	@curl -sfLO $(SHIPYARD_URL)/$@
+
+ONLY_SHIPYARD_GOALS = true
+SHIPYARD_GOALS = deploy-example-hello-world
+include Makefile.shipyard
+
+endif
