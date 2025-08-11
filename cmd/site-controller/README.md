@@ -55,10 +55,6 @@ ConfigMaps allow you to manage a Skupper site using a ConfigMap named `skupper-s
 
 `data:router-node-selector` - Node selector to control placement of router pods
 
-`data:xp-router-max-frame-size` - Set  max frame size on inter-router listeners/connectors
-
-`data:xp-router-max-session-frames` - Set  max session frames on inter-router listeners/connectors
-
 `data:router-ingress-host` - Host through which node is accessible when using nodeport as ingress.
 
 `data:router-service-annotations` - Annotations to add to skupper router service
