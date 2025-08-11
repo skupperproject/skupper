@@ -101,11 +101,23 @@ spec:
               type: object
               properties:
                 status:
+                  description: |-
+                    The current state of the resource.
+                    - `Pending`: The resource is being processed.
+                    - `Error`: There was an error processing the resource. See `message` for more information.
+                    - `Ready`: The resource is ready to use.
                   type: string
                 message:
+                  description: |-
+                    A human-readable status message. Error messages are reported here.
                   type: string
                 conditions:
                   type: array
+                  description: |-
+                    A set of named conditions describing the current state of the resource.
+                    - `Configured`: The connector configuration has been applied to the router.
+                    - `Matched`: There is at least one listener corresponding to this connector.
+                    - `Ready`: The connector is ready to use. All other conditions are true.
                   items:
                     type: object
                     properties:
@@ -140,6 +152,10 @@ spec:
                     - reason
                     - status
                     - type
+                hasMatchingListener:
+                  description: |-
+                    True if there is at least one listener with a matching routing key (usually in a remote site).
+                  type: boolean
                 selectedPods:
                   type: array
                   items:
@@ -149,8 +165,6 @@ spec:
                         type: string
                       ip:
                         type: string
-                hasMatchingListener:
-                  type: boolean
       subresources:
         status: {}
       additionalPrinterColumns:
