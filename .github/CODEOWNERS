@@ -1,0 +1,4 @@
+*                       @c-kruse @fgiorgetti @nluaces
+config/crd/bases/*      @c-kruse @fgiorgetti @nluaces @pwright
+doc/*                   @c-kruse @fgiorgetti @nluaces @pwright
+tests/*                 @c-kruse @fgiorgetti @granzoto @hash-d @nluaces
