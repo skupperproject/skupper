@@ -32,6 +32,7 @@ spec:
                         description: The role name. Either "inter-router" or "edge".
                         type: string
                       port:
+                        description: The port for the router to bind. Must not conflict with another role.
                         type: integer
                     required:
                       - name
