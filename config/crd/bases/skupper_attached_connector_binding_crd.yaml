@@ -96,6 +96,8 @@ spec:
                     - status
                     - type
                 hasMatchingListener:
+                  description: |- 
+                    Whether there is at least one listener in the network with a matching routing key.
                   type: boolean
       subresources:
         status: {}
