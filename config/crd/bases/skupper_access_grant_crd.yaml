@@ -10,22 +10,46 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
-          description: "Permission to redeem access tokens for links to the local site"
+          description: |-
+            Permission to redeem access tokens for links to the local site.
+            A remote site can use a token containing the grant URL and secret
+            code to obtain a certificate signed by the grant's certificate authority (CA),
+            within a certain expiration window and for a limited number of redemptions.
+
+            The code, url, and ca properties of the resource status are used to generate access tokens from the grant.
           type: object
           properties:
             spec:
               type: object
               properties:
                 redemptionsAllowed:
+                  description: |-
+                    The maximum number of times an access token for this grant can be redeemed.
+                    The default value is `1`.
                   type: integer
                 expirationWindow:
+                  description: |-
+                    The period of time in which an access token for this grant can be redeemed.
+                    The default value is `15m`.
                   type: string
                   format: duration
                 code:
+                  description: |-
+                    Advanced. The secret code to use to authenticate access tokens submitted for redemption.
+                    If not set, a value is generated and placed in the code status property.
                   type: string
                 issuer:
+                  description: |-
+                    Advanced. The name of a Kubernetes secret used to generate a certificate when redeeming a token for this grant.
+                    If not set, `defaultIssuer` on the Site resource is used.
                   type: string
                 settings:
+                  description: |-
+                    Advanced. A map containing additional settings. Each map
+                    entry has a string name and a string value.
+
+                    **Note:** In  general, we recommend not changing `settings`
+                    from their default values.
                   type: object
                   additionalProperties:
                     type: string
@@ -33,21 +57,44 @@ spec:
               type: object
               properties:
                 url:
+                  description: |-
+                    The URL of the token-redemption service for this grant.
                   type: string
                 code:
+                  description: |-
+                    The secret code used to authenticate access tokens submitted for redemption.
                   type: string
                 ca:
+                  description: |-
+                    The trusted server certificate of the token-redemption service for this grant.
                   type: string
                 redemptions:
+                  description: |-
+                    The number of times a token for this grant has been redeemed.
                   type: integer
                 expirationTime:
+                  description: |-
+                    The point in time when the grant expires.
                   type: string
                   format: date-time
                 status:
+                  description: |-
+                    The current state of the resource.
+                    - `Pending`: The resource is being processed.
+                    - `Error`: There was an error processing the resource. See `message` for more information.
+                    - `Ready`: The resource is ready to use.
                   type: string
                 message:
+                  description: |-
+                    A human-readable status message. Error messages are reported here.
                   type: string
                 conditions:
+                  description: |-
+                    A set of named conditions describing the current state of the resource.
+
+                    - `Processed`: The controller has accepted the grant.
+                    - `Resolved`: The grant service is available to process tokens for this grant.
+                    - `Ready`: The grant is ready to use. All other conditions are true.
                   type: array
                   items:
                     type: object
