@@ -10,21 +10,38 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
-          description: "A short-lived credential used to create a link"
+          description: |-
+            A short-lived credential used to create a link between sites.
+            An access token contains the URL and secret code of a corresponding access grant.
+            **Note:** Access tokens are typically issued and redeemed using the Skupper CLI.
           type: object
           properties:
             spec:
               type: object
               properties:
                 url:
+                  description: |-
+                    The URL of the grant service at the remote site.
                   type: string
                 code:
+                  description: |-
+                    The secret code used to authenticate the token when submitted for redemption.
                   type: string
                 ca:
+                  description: |-
+                    The trusted server certificate of the grant service at the remote site.
                   type: string
                 linkCost:
+                  description: |-
+                    The link cost to use when creating the link.
                   type: integer
                 settings:
+                  description: |-
+                    Advanced. A map containing additional settings. Each map
+                    entry has a string name and a string value.
+
+                    **Note:** In  general, we recommend not changing settings
+                    from their default values.
                   type: object
                   additionalProperties:
                     type: string
@@ -36,13 +53,26 @@ spec:
               type: object
               properties:
                 redeemed:
+                  description: |-
+                    True if the token has been redeemed. Once a token is redeemed, it cannot be used again.
                   type: boolean
                 status:
+                  description: |-
+                    The current state of the resource.
+                    - `Pending`: The resource is being processed.
+                    - `Error`: There was an error processing the resource. See `message` for more information.
+                    - `Ready`: The resource is ready to use.
                   type: string
                 message:
+                  description: |-
+                    A human-readable status message. Error messages are reported here.
                   type: string
                 conditions:
                   type: array
+                  description: |-
+                    A set of named conditions describing the current state of the resource.
+
+                    - `Redeemed`: The token has been exchanged for a link.
                   items:
                     type: object
                     properties:
