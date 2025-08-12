@@ -37,10 +37,10 @@ spec:
                     Sites and links are the basis for creating application
                     networks. In a simple two-site network, at least one of the
                     sites must have link access enabled. Choices include:
-                      `none`: No linking to this site is enabled.
-                      `default`: Use the default link access for the current platform. For OpenShift, the default is `route`. For other Kubernetes flavors, the default is `loadbalancer`.
-                      `route`: Use an OpenShift route.
-                      `loadbalancer`: Use a Kubernetes load balancer.
+                      - `none`: No linking to this site is enabled.
+                      - `default`: Use the default link access for the current platform. For OpenShift, the default is `route`. For other Kubernetes flavors, the default is `loadbalancer`.
+                      - `route`: Use an OpenShift route.
+                      - `loadbalancer`: Use a Kubernetes load balancer.
                   type: string
                 defaultIssuer:
                   description: |-
@@ -81,14 +81,14 @@ spec:
                     Advanced. A map containing additional settings. Each map
                     entry has a string name and a string value.
 
-                    **Note:** In  general, we recommend not changing settings
+                    **Note:** In  general, we recommend not changing `settings`
                     from their default values.
 
-                    `routerDataConnections`: Set the number of router worker threads. Minimum 2.
-                    `routerLogging`: Set the number of router logging level. Options are "info", "warning", "error".
-                    `disable-anti-affinity`: Set to "true" in order to prevent skupper from specifying router pod affinity.
-                    `size`: The desired site sizing profile to use for constraining pod resources. Corresponds to a ConfigMap with matching `skupper.io/site-sizing` label.
-                    `tls-prior-valid-revisions`: Set the number of revisions to TLS Secrets backing Site Link connections that are permissible to hold open to preserve established service connections. An unsigned integer defaults to 1. Set to 0 to immediately disrupt connections secured with old TLS configurations.
+                    - `routerDataConnections`: Set the number of router worker threads. Minimum 2.
+                    - `routerLogging`: Set the number of router logging level. Options are "info", "warning", "error".
+                    - `disable-anti-affinity`: Set to "true" in order to prevent skupper from specifying router pod affinity.
+                    - `size`: The desired site sizing profile to use for constraining pod resources. Corresponds to a ConfigMap with matching `skupper.io/site-sizing` label.
+                    - `tls-prior-valid-revisions`: Set the number of revisions to TLS Secrets backing Site Link connections that are permissible to hold open to preserve established service connections. An unsigned integer defaults to 1. Set to 0 to immediately disrupt connections secured with old TLS configurations.
                   type: object
                   additionalProperties:
                     type: string
@@ -102,9 +102,9 @@ spec:
                 status:
                   description: |-
                     The current state of the resource.
-                    `Pending`: The resource is being processed.
-                    `Error`: There was an error processing the resource. See `message` for more information.
-                    `Ready`: The resource is ready to use.
+                    - `Pending`: The resource is being processed.
+                    - `Error`: There was an error processing the resource. See `message` for more information.
+                    - `Ready`: The resource is ready to use.
                   type: string
                 message:
                   description: |-
@@ -124,10 +124,10 @@ spec:
                   description: |-
                     A set of named conditions describing the current state of the resource.
 
-                    `Configured`: The output resources for this resource have been created.
-                    `Running`: There is at least one router pod running.
-                    `Resolved`: The hostname or IP address for link access is available.
-                    `Ready`: The site is ready for use. All other conditions are true.
+                    - `Configured`: The output resources for this resource have been created.
+                    - `Running`: There is at least one router pod running.
+                    - `Resolved`: The hostname or IP address for link access is available.
+                    - `Ready`: The site is ready for use. All other conditions are true.
                   items:
                     type: object
                     properties:
