@@ -1044,6 +1044,12 @@ func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ig
 		if !ok {
 			result.Added = append(result.Added, v1)
 			result.AddedSslProfiles[v1.SslProfile] = desired.SslProfiles[v1.SslProfile]
+			continue
+		}
+
+		//in case the connector exists but has changed some of its values, it needs to be recreated again
+		if ok && !v1.Equivalent(actual[key]) {
+			result.Added = append(result.Added, v1)
 		}
 	}
 	for key, v1 := range actual {
@@ -1056,6 +1062,12 @@ func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ig
 
 		if !ok && allowedToDelete {
 			result.Deleted = append(result.Deleted, v1)
+			continue
+		}
+
+		//if the connector exists but has changed some of its values, the connector's former version has to be deleted
+		if ok && !v1.Equivalent(desired.Connectors[key]) && allowedToDelete {
+			result.Deleted = append(result.Deleted, v1)
 		}
 	}
 	return &result
@@ -1063,6 +1075,14 @@ func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ig
 
 func (a *ConnectorDifference) Empty() bool {
 	return len(a.Deleted) == 0 && len(a.Added) == 0
+}
+
+func (desired Connector) Equivalent(actual Connector) bool {
+	return desired.Name == actual.Name &&
+		desired.Host == actual.Host &&
+		desired.Port == actual.Port &&
+		desired.Cost == actual.Cost &&
+		desired.SslProfile == actual.SslProfile
 }
 
 type ListenerDifference struct {
