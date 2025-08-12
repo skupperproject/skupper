@@ -11,9 +11,9 @@ spec:
       schema:
         openAPIV3Schema:
           description: |-
-            A short-lived credential used to create a link.
+            A short-lived credential used to create a link between sites.
             An access token contains the URL and secret code of a corresponding access grant.
-            **Note:** Access tokens are often issued and redeemed using the Skupper CLI.
+            **Note:** Access tokens are typically issued and redeemed using the Skupper CLI.
           type: object
           properties:
             spec:
@@ -59,9 +59,9 @@ spec:
                 status:
                   description: |-
                     The current state of the resource.
-                    `Pending`: The resource is being processed.
-                    `Error`: There was an error processing the resource. See `message` for more information.
-                    `Ready`: The resource is ready to use.
+                    - `Pending`: The resource is being processed.
+                    - `Error`: There was an error processing the resource. See `message` for more information.
+                    - `Ready`: The resource is ready to use.
                   type: string
                 message:
                   description: |-
@@ -72,7 +72,7 @@ spec:
                   description: |-
                     A set of named conditions describing the current state of the resource.
 
-                    `Redeemed`: The token has been exchanged for a link.
+                    - `Redeemed`: The token has been exchanged for a link.
                   items:
                     type: object
                     properties:
