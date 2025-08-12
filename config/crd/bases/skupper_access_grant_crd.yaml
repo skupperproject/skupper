@@ -24,7 +24,7 @@ spec:
               properties:
                 redemptionsAllowed:
                   description: |-
-                    The number of times an access token for this grant can be redeemed.
+                    The maximum number of times an access token for this grant can be redeemed.
                     The default value is `1`.
                   type: integer
                 expirationWindow:
