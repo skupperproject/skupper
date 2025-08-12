@@ -10,27 +10,48 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
-          description: "A connector in a peer namespace"
+          description: |-
+            An attached connector is a connector in a peer namespace that allows you to bring a workload into your existing VAN without creating a separate site or establishing inter-site links.
+            The name of this resource must be the same as that of the associated AttachedConnectorBinding resource in the site namespace.
           type: object
           properties:
             spec:
               type: object
               properties:
                 siteNamespace:
+                  description: |-
+                    The name of the namespace in which the site this connector should be attached to is defined.
                   type: string
                 port:
+                  description: |-
+                    The port on the target server to connect to.
                   type: integer
                 selector:
+                  description: |-
+                    A Kubernetes label selector for specifying target server pods. It uses <label-name>=<label-value> syntax.
+                    On Kubernetes, either selector or host is required.
                   type: string
                 tlsCredentials:
+                  description: |-
+                    Advanced. The name of a bundle of TLS certificates used for secure router-to-server communication. The bundle contains the trusted server certificate (usually a CA). It optionally includes a client certificate and key for mutual TLS.
+                    On Kubernetes, the value is the name of a Secret in the current namespace. On Docker, Podman, and Linux, the value is the name of a directory under input/certs/ in the current namespace.
                   type: string
                 useClientCert:
                   type: boolean
+                  description: |-
+                    Advanced. Send the client certificate when connecting in order to enable mutual TLS. Default value is false.
                 type:
                   type: string
+                  description: |-
+                    Selected protocol for service networking. By default, its value is TCP, the only option available.
                 includeNotReadyPods:
+                  description: |-
+                    Advanced. If true, include server pods in the NotReady state. By default it is false.
                   type: boolean
                 settings:
+                  description: |-
+                    Advanced. A map containing additional settings. Each map entry has a string name and a string value.
+                    Note: In general, we recommend not changing settings from their default values.
                   type: object
                   additionalProperties:
                     type: string
@@ -42,10 +63,19 @@ spec:
               type: object
               properties:
                 status:
+                  description: |-
+                    The current state of the resource.
+                    - `Pending`: The resource is being processed.
+                    - `Error`: There was an error processing the resource. See message for more information.
+                    - `Ready`: The resource is ready to use.
                   type: string
                 message:
+                  description: |-
+                    A human-readable status message. Error messages are reported here.
                   type: string
                 conditions:
+                  description: |-
+                    A set of named conditions describing the current state of the resource.
                   type: array
                   items:
                     type: object
