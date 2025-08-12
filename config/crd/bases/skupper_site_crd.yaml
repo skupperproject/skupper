@@ -37,10 +37,10 @@ spec:
                     Sites and links are the basis for creating application
                     networks. In a simple two-site network, at least one of the
                     sites must have link access enabled. Choices include:
-                      - `none`: No linking to this site is enabled.
-                      - `default`: Use the default link access for the current platform. For OpenShift, the default is `route`. For other Kubernetes flavors, the default is `loadbalancer`.
-                      - `route`: Use an OpenShift route.
-                      - `loadbalancer`: Use a Kubernetes load balancer.
+                    - `none`: No linking to this site is enabled.
+                    - `default`: Use the default link access for the current platform. For OpenShift, the default is `route`. For other Kubernetes flavors, the default is `loadbalancer`.
+                    - `route`: Use an OpenShift route.
+                    - `loadbalancer`: Use a Kubernetes load balancer.
                   type: string
                 defaultIssuer:
                   description: |-
