@@ -15,7 +15,7 @@ spec:
             Listeners and connector are matched by routing key.
 
             A Listener resource specifies a host and port for accepting connections
-            from local client. To expose a multi-port service, create multiple listener
+            from local client. To expose a multi-port service, create multiple listeners
             with the same host value.
           type: object
           properties:
