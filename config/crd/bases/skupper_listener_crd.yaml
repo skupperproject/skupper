@@ -10,25 +10,60 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
-          description: "A listener binds a local connection endpoint to connectors in remote sites"
+          description: |-
+            A listener binds a local connection endpoint to connectors in remote sites.
+            Listeners and connector are matched by routing key.
+
+            A Listener resource specifies a host and port for accepting connections
+            from local client. To expose a multi-port service, create multiple listeners
+            with the same host value.
           type: object
           properties:
             spec:
               type: object
               properties:
                 routingKey:
+                  description: |-
+                    The identifier to route traffic from listeners to connectors. To
+                    enable connecting to a service at a remote site, the local listener
+                    and the remote connector must have matching routingKeys.
                   type: string
                 host:
+                  description: |-
+                    The hostname or IP address of the local listener. Clients at this
+                    site use the listener host and port to establish connections to the
+                    remote service.
                   type: string
                 port:
+                  description: |-
+                    The port of the local listener. Clients at this site use the listener
+                    host and port to establish connections to the remote service.
                   type: integer
                 tlsCredentials:
+                  description: |-
+                    The name of a bundle of TLS certificates used for secure client-to-router
+                    communication. The bundle contains the server certificate and key. It
+                    optionally includes the trusted client certificate (usually a CA) for
+                    mutual TLS.
+
+                    On Kubernetes, the value is the name of a Secret in the current namespace.
+                    On Docker, Podman, and Linux, the value is the name of a directory under
+                    input/certs/ in the current namespace.
                   type: string
                 type:
                   type: string
                 exposePodsByName:
+                  description: |-
+                    If true, expose each pod as an individual service. This allows individual
+                    pods to be directly connected across a network. The pod names will be used
+                    to create each service.
                   type: boolean
                 settings:
+                  description: |-
+                    A map containing additional settings. Each map entry has a string name and a string value.
+
+                    **Note:** In general, we recommend not changing settings from
+                    their default values.
                   type: object
                   additionalProperties:
                     type: string
@@ -40,11 +75,24 @@ spec:
               type: object
               properties:
                 status:
+                  description: |-
+                    The current state of the resource.
+                    - `Pending`: The resource is being processed.
+                    - `Error`: There was an error processing the resource. See `message` for more information.
+                    - `Ready`: The resource is ready to use.
                   type: string
                 message:
+                  description: |-
+                    A human-readable status message. Error messages are reported here.
                   type: string
                 conditions:
                   type: array
+                  description: |-
+                    A set of named conditions describing the current state of the resource.
+
+                    - `Configured`: The listener configuration has been applied to the router.
+                    - `Operational`: There is at least one connector corresponding to this listener.
+                    - `Ready`: The listener is ready for use. All other conditions are true.
                   items:
                     type: object
                     properties:
@@ -80,6 +128,8 @@ spec:
                     - status
                     - type
                 hasMatchingConnector:
+                  description: |-
+                    True if there is at least one connector with a matching routing key (usually in a remote site).
                   type: boolean
       subresources:
         status: {}
