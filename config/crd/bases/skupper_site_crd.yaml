@@ -30,7 +30,9 @@ spec:
                   type: string
                 linkAccess:
                   description: |-
-                    Configure external access for links from remote sites.
+                    Configure external access for links from remote sites. When
+                    set, implies a RouterAccess resource with accessType set
+                    according to the linkAccess value.
 
                     Sites and links are the basis for creating application
                     networks. In a simple two-site network, at least one of the

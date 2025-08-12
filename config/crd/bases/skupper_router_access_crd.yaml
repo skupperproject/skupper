@@ -10,38 +10,86 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
-          description: "Configuration for secure access to the site router"
+          description: |-
+            Configuration for secure access to the site router.  The
+            configuration includes TLS credentials and router ports.  The
+            RouterAccess resource is used to implement link access for sites.
           type: object
           properties:
             spec:
               type: object
               properties:
                 roles:
+                  description: |-
+                    The named interfaces by which a router can be accessed.  These
+                    include "inter-router" for links between interior routers and
+                    "edge" for links from edge routers to interior routers.
                   type: array
                   items:
                     type: object
                     properties:
                       name:
+                        description: The role name. Either "inter-router" or "edge".
                         type: string
                       port:
+                        description: The port for the router to bind. Must not conflict with another role.
                         type: integer
                     required:
                       - name
                 generateTlsCredentials:
+                  description: |-
+                    When set, Skupper generates the TLS credentials to be
+                    stored in the Secret specified by `tlsCredentials`. See
+                    also `issuer`.
                   type: boolean
                 issuer:
                   type: string
+                  description: |-
+                    The name of the Kubernetes Secret containing the signing CA
+                    used to generate TLS certificates for the RouterAccess when
+                    `generateTlsCredentials` is set.
                 accessType:
+                  description: |-
+                    Configures the access type for the router endpoints.
+                    Available access types and the default selection is
+                    configured on the Skupper controller for Kubernetes.
+
+                    The options available by default are:
+                      - `local`: No external ingress. Implies a Kubernetes Service with type CluterIP.
+                      - `route`: Exposed via an OpenShift Route.
+                      - `loadbalancer`: Exposed via a Kubernetes Service with type LoadBalancer.
                   type: string
                 tlsCredentials:
+                  description: |-
+                    The name of a bundle of TLS certificates used for mutual TLS
+                    router-to-router communication.  The bundle contains the
+                    server certificate and key and the trusted client certificate
+                    (usually a CA).
+
+                    On Kubernetes, the value is the name of a Secret in the
+                    current namespace.
+
+                    On Docker, Podman, and Linux, the value is the name of a
+                    directory under `input/certs/` in the current namespace.
                   type: string
                 bindHost:
+                  description: |-
+                    The hostname or IP address of the network interface to bind
+                    to.  By default, Skupper binds all the interfaces on the host.
                   type: string
                 subjectAlternativeNames:
                   type: array
+                  description: |-
+                    The hostnames and IPs secured by the router TLS certificate.
                   items:
                     type: string
                 settings:
+                  description: |-
+                    Advanced. A map containing additional settings. Each map
+                    entry has a string name and a string value.
+
+                    **Note:** In  general, we recommend not changing `settings`
+                    from their default values.
                   type: object
                   additionalProperties:
                     type: string
@@ -52,11 +100,24 @@ spec:
               type: object
               properties:
                 status:
+                  description: |-
+                    The current state of the resource.
+                     - `Pending`: The resource is being processed.
+                     - `Error`: There was an error processing the resource. See `message` for more information.
+                     - `Ready`: The resource is ready to use.
                   type: string
                 message:
+                  description: |-
+                    A human-readable status message. Error messages are reported here.
                   type: string
                 conditions:
                   type: array
+                  description: |-
+                    A set of named conditions describing the current state of the resource.
+
+                     - `Configured`: The output resources for this resource have been created.
+                     - `Resolved`: The connection endpoints are available.
+                     - `Ready`: The router access is ready for use. All other conditions are true.
                   items:
                     type: object
                     properties:
@@ -93,6 +154,9 @@ spec:
                     - type
                 endpoints:
                   type: array
+                  description: |-
+                    An array of connection endpoints.  Each item has a name, host,
+                    port, and group.
                   items:
                     type: object
                     properties:
