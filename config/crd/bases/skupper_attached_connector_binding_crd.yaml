@@ -10,19 +10,33 @@ spec:
       storage: true
       schema:
         openAPIV3Schema:
-          description: "A binding to an attached connector in a peer namespace"
+          description: |-
+            An attached connector binding is a binding to an attached connector in a peer namespace that allows you to 
+            bring a workload into your existing VAN without creating a separate site or establishing inter-site links.
+            The name of this resource must be the same as that of the associated AttachedConnector resource in the peer 
+            namespace.
           type: object
           properties:
             spec:
               type: object
               properties:
                 connectorNamespace:
+                  description: |-
+                    The name of the namespace where the associated AttachedConnector is located.
                   type: string
                 routingKey:
+                  description: |-
+                    The identifier used to route traffic from listeners to connectors. To expose a local workload to a 
+                    remote site, the remote listener and the local connector must have matching routing keys.
                   type: string
                 exposePodsByName:
+                  description: |-
+                    If true, expose each pod as an individual service.
                   type: boolean
                 settings:
+                  description: |-
+                    Advanced. A map containing additional settings. Each map entry has a string name and a string value.
+                    **Note**: In general, we recommend not changing settings from their default values.
                   type: object
                   additionalProperties:
                     type: string
@@ -33,10 +47,19 @@ spec:
               type: object
               properties:
                 status:
+                  description: |-
+                    The current state of the resource.
+                    - `Pending`: The resource is being processed.
+                    - `Error`: There was an error processing the resource. See message for more information.
+                    - `Ready`: The resource is ready to use.
                   type: string
                 message:
+                  description: |-
+                    A human-readable status message. Error messages are reported here.
                   type: string
                 conditions:
+                  description: |-
+                    A set of named conditions describing the current state of the resource.
                   type: array
                   items:
                     type: object
@@ -73,6 +96,8 @@ spec:
                     - status
                     - type
                 hasMatchingListener:
+                  description: |- 
+                    Whether there is at least one listener in the network with a matching routing key.
                   type: boolean
       subresources:
         status: {}
