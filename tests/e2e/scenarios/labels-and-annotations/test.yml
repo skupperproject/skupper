@@ -147,28 +147,8 @@
           when:
             - "'east' in inventory_hostname"
 
-        # Test if the deployment created before the CM creation gets the custom annotations and labels removed when the CM is removed
-        - name: "[ LabelsAndAnnotations - RemovedConfigMap ] Wait until the deployment have all the custom labels and annotations removed"
-          kubernetes.core.k8s_info:
-            api_version: v1
-            kind: Deployment
-            name: "skupper-router"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            kubeconfig: "{{ kubeconfig }}"
-          register: full_verify
-          until:
-            - full_verify is defined
-            - full_verify.resources is defined
-            - full_verify.resources | length == 1
-            - full_verify.resources[0].metadata.annotations['com.acme.foo/annotest'] is not defined
-            - full_verify.resources[0].metadata.annotations['sku.pper'] is not defined
-          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
-          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
-          when:
-            - "'east' in inventory_hostname"
-
-        # Test if a deployment created after the CM gets the custom annotations and labels removed when the CM is removed
-        - name: "[ LabelsAndAnnotations - RemovedConfigMap ] Retrieve the deployment details and check if all custom annotations and labels were removed"
+        # Test if custom annotations and labels are removed properly
+        - name: "[ LabelsAndAnnotations - RemovedConfigMap ] Check if all custom annotations and labels were removed"
           kubernetes.core.k8s_info:
             api_version: v1
             kind: Deployment
@@ -188,8 +168,6 @@
             - removed_verify.resources[0].metadata.annotations is defined and 'sku.pper' not in removed_verify.resources[0].metadata.annotations
           retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
           delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
-          when:
-            - "'west' in inventory_hostname"
 
       # Teardown
       always:
