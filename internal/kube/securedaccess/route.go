@@ -15,6 +15,8 @@ import (
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
+var routeWeight100 int32 = 100
+
 type RouteAccessType struct {
 	manager *SecuredAccessManager
 }
@@ -121,8 +123,9 @@ func desiredRouteForPort(sa *skupperv2alpha1.SecuredAccess, port skupperv2alpha1
 				TargetPort: intstr.FromString(port.Name),
 			},
 			To: routev1.RouteTargetReference{
-				Kind: "Service",
-				Name: sa.Name,
+				Kind:   "Service",
+				Name:   sa.Name,
+				Weight: &routeWeight100,
 			},
 			TLS: &routev1.TLSConfig{
 				Termination:                   routev1.TLSTerminationPassthrough,
