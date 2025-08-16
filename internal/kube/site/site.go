@@ -1233,7 +1233,7 @@ func (s *Site) checkSecuredAccess() error {
 				"internal.skupper.io/controlled":   "true",
 				"internal.skupper.io/routeraccess": la.Name,
 			}
-			if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.site.DefaultIssuer()), annotations, s.ownerReferences()); err != nil {
+			if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.site.DefaultIssuer()), annotations, routerAccessOwner(la)); err != nil {
 				//TODO: add message to site status
 				s.logger.Error("Error ensuring SecuredAccess for RouterAccess",
 					slog.String("key", la.Key()),
@@ -1258,42 +1258,43 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv2alpha1.RouterAccess) 
 	if !s.initialised {
 		return nil
 	}
-	if specChanged || !la.IsConfigured() {
-		var previousGroups []string
-		groups := s.groups()
-		var errors []string
-		for i, group := range groups {
+	var previousGroups []string
+	groups := s.groups()
+	var errors []string
+	for i, group := range groups {
+		if specChanged || !la.IsConfigured() {
 			if err := s.updateRouterConfigForGroup(s.linkAccess.DesiredConfig(previousGroups, SSL_PROFILE_PATH), group); err != nil {
 				s.logger.Error("Error updating router config",
 					slog.String("namespace", s.namespace),
 					slog.Any("error", err))
 				errors = append(errors, err.Error())
 			}
-			if la != nil {
-				name := la.Name
-				if i > 0 {
-					name = fmt.Sprintf("%s-%d", la.Name, (i + 1))
-				}
-				annotations := map[string]string{
-					"internal.skupper.io/controlled":   "true",
-					"internal.skupper.io/routeraccess": la.Name,
-				}
-				if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.site.DefaultIssuer()), annotations, s.ownerReferences()); err != nil {
-					s.logger.Error("Error ensuring SecuredAccess for RouterAccess",
-						slog.String("key", la.Key()),
-						slog.Any("error", err))
-					errors = append(errors, err.Error())
-				}
+		}
+
+		if la != nil {
+			name := la.Name
+			if i > 0 {
+				name = fmt.Sprintf("%s-%d", la.Name, (i + 1))
 			}
-			previousGroups = append(previousGroups, group)
+			annotations := map[string]string{
+				"internal.skupper.io/controlled":   "true",
+				"internal.skupper.io/routeraccess": la.Name,
+			}
+			if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.site.DefaultIssuer()), annotations, routerAccessOwner(la)); err != nil {
+				s.logger.Error("Error ensuring SecuredAccess for RouterAccess",
+					slog.String("key", la.Key()),
+					slog.Any("error", err))
+				errors = append(errors, err.Error())
+			}
 		}
-		var err error
-		if len(errors) > 0 {
-			err = fmt.Errorf("%s", strings.Join(errors, ", "))
-		}
-		if la != nil && la.SetConfigured(err) {
-			s.updateRouterAccessStatus(la)
-		}
+		previousGroups = append(previousGroups, group)
+	}
+	var err error
+	if len(errors) > 0 {
+		err = fmt.Errorf("%s", strings.Join(errors, ", "))
+	}
+	if la != nil && la.SetConfigured(err) {
+		s.updateRouterAccessStatus(la)
 	}
 	return s.updateResolved()
 }
@@ -1464,4 +1465,15 @@ func isOwner(site *skupperv2alpha1.Site, owners []metav1.OwnerReference) bool {
 		}
 	}
 	return false
+}
+
+func routerAccessOwner(ra *skupperv2alpha1.RouterAccess) []metav1.OwnerReference {
+	return []metav1.OwnerReference{
+		{
+			Kind:       "RouterAccess",
+			APIVersion: "skupper.io/v2alpha1",
+			Name:       ra.Name,
+			UID:        ra.ObjectMeta.UID,
+		},
+	}
 }
