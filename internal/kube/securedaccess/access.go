@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -122,6 +123,10 @@ func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skuppe
 			if m.context.SetAnnotations(namespace, name, "SecuredAccess", current.ObjectMeta.Annotations) {
 				update = true
 			}
+		}
+
+		if ensureOwnerReferences(&current.ObjectMeta, refs) {
+			update = true
 		}
 		if !update {
 			return nil
@@ -638,4 +643,28 @@ func hasSecuredAccessLabel(obj *metav1.ObjectMeta) bool {
 	}
 	_, ok := obj.Labels["internal.skupper.io/secured-access"]
 	return ok
+}
+
+func ensureOwnerReferences(meta *metav1.ObjectMeta, owners []metav1.OwnerReference) bool {
+	byUID := make(map[string]int, len(owners))
+	for iRef, ref := range owners {
+		byUID[string(ref.UID)] = iRef
+	}
+
+	changed := false
+	for i, ref := range meta.OwnerReferences {
+		uid := string(ref.UID)
+		if _, ok := byUID[uid]; ok {
+			delete(byUID, uid)
+			continue
+		}
+		meta.OwnerReferences = slices.Delete(meta.OwnerReferences, i, i+1)
+		changed = true
+	}
+	for _, iRef := range byUID {
+		meta.OwnerReferences = append(meta.OwnerReferences, owners[iRef])
+		changed = true
+	}
+
+	return changed
 }
