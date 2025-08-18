@@ -31,6 +31,13 @@ imagePullPolicy: {{ .Values.nginx.pullPolicy }}
 securityContext:
   {{- toYaml . | nindent 2 }}
 {{- end }}
+
+{{- if .Values.nginx.args }}
+args:
+{{- range .Values.nginx.args }}
+  - {{ . }}
+{{- end }}
+{{- end }}
 ports:
   - name: https
     containerPort: 8443
@@ -61,6 +68,9 @@ args:
   - -tls-cert=/etc/certificates/tls.crt
   - -tls-key=/etc/certificates/tls.key
   - -cookie-secret-file=/etc/session-secrets/secret
+  {{- range .Values.openshiftOauthProxy.extraArgs }}
+  - {{ . }}
+  {{- end }}
 ports:
   - name: https
     containerPort: 8443

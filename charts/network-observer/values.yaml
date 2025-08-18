@@ -30,6 +30,8 @@ nginx:
   repository: "mirror.gcr.io/nginxinc/nginx-unprivileged"
   tag: "1.27.3-alpine"
   pullPolicy: IfNotPresent
+  # args to pass to the nginx proxy container
+  args: []
   securityContext:
     allowPrivilegeEscalation: false
     capabilities:
@@ -46,6 +48,9 @@ openshiftOauthProxy:
     capabilities:
       drop:
         - ALL
+  # extraArgs to pass to the oauth proxy container
+  extraArgs: []
+
 
 # extraArgs to pass to the network-observer container
 extraArgs:
