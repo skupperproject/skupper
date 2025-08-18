@@ -159,4 +159,5 @@ func (n *NetworkStatusHandler) Filter(name string) bool {
 }
 
 func (n *NetworkStatusHandler) OnCreate(name string) {
+	n.OnUpdate(name)
 }
