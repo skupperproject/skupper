@@ -19,6 +19,7 @@ import (
 func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
+		namespace         string
 		args              []string
 		flags             *common.CommandListenerDeleteFlags
 		cobraGenericFlags map[string]string
@@ -36,18 +37,21 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "listener name is not specified",
+			namespace:     "test",
 			args:          []string{},
 			flags:         &common.CommandListenerDeleteFlags{},
 			expectedError: "listener name must be specified",
 		},
 		{
 			name:          "listener name is nil",
+			namespace:     "test",
 			args:          []string{""},
 			flags:         &common.CommandListenerDeleteFlags{},
 			expectedError: "listener name must not be empty",
 		},
 		{
 			name:          "listener name is not valid",
+			namespace:     "test",
 			args:          []string{"my name"},
 			flags:         &common.CommandListenerDeleteFlags{},
 			expectedError: "listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
@@ -73,6 +77,13 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 				common.FlagNameContext:    "test",
 				common.FlagNameKubeconfig: "test",
 			},
+		},
+		{
+			name:          "invalid namespace",
+			namespace:     "TestInvalid",
+			args:          []string{"my-listener"},
+			flags:         &common.CommandListenerDeleteFlags{},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
 		},
 	}
 
@@ -105,6 +116,7 @@ func TestCmdListenerDelete_ValidateInput(t *testing.T) {
 			if test.flags != nil {
 				command.Flags = test.flags
 			}
+			command.namespace = test.namespace
 
 			if test.cobraGenericFlags != nil && len(test.cobraGenericFlags) > 0 {
 				for name, value := range test.cobraGenericFlags {

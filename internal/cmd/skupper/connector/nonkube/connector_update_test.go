@@ -18,6 +18,7 @@ import (
 func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
+		namespace         string
 		args              []string
 		flags             *common.CommandConnectorUpdateFlags
 		cobraGenericFlags map[string]string
@@ -35,12 +36,14 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "connector is not updated because get connector returned error",
+			namespace:     "test",
 			args:          []string{"no-connector"},
 			flags:         &common.CommandConnectorUpdateFlags{Host: "1.2.3.4"},
 			expectedError: "connector no-connector must exist in namespace test to be updated",
 		},
 		{
 			name:          "connector name is not specified",
+			namespace:     "test",
 			args:          []string{},
 			flags:         &common.CommandConnectorUpdateFlags{Host: "localhost"},
 			expectedError: "connector name must be configured",
@@ -104,8 +107,16 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			expectedError: "",
 		},
 		{
-			name: "flags all valid",
-			args: []string{"my-connector"},
+			name:          "invalid namespace",
+			namespace:     "TestInvalid",
+			args:          []string{"my-connector"},
+			flags:         &common.CommandConnectorUpdateFlags{Host: "localhost"},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+		},
+		{
+			name:      "flags all valid",
+			namespace: "test",
+			args:      []string{"my-connector"},
 			flags: &common.CommandConnectorUpdateFlags{
 				RoutingKey:     "routingkeyname",
 				TlsCredentials: "secretname",
@@ -151,6 +162,7 @@ func TestCmdConnectorUpdate_ValidateInput(t *testing.T) {
 			if test.flags != nil {
 				command.Flags = test.flags
 			}
+			command.namespace = test.namespace
 
 			if test.cobraGenericFlags != nil && len(test.cobraGenericFlags) > 0 {
 				for name, value := range test.cobraGenericFlags {

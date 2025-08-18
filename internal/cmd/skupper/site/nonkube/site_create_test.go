@@ -13,6 +13,7 @@ import (
 func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
+		namespace         string
 		args              []string
 		flags             *common.CommandSiteCreateFlags
 		cobraGenericFlags map[string]string
@@ -22,24 +23,28 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "site name is not valid.",
+			namespace:     "test1",
 			args:          []string{"my new site"},
 			flags:         &common.CommandSiteCreateFlags{EnableLinkAccess: true},
 			expectedError: "site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name:          "site name is not specified.",
+			namespace:     "test2",
 			args:          []string{},
 			flags:         &common.CommandSiteCreateFlags{},
 			expectedError: "site name must not be empty",
 		},
 		{
 			name:          "more than one argument was specified",
+			namespace:     "test3",
 			args:          []string{"my", "site"},
 			flags:         &common.CommandSiteCreateFlags{},
 			expectedError: "only one argument is allowed for this command",
 		},
 		{
 			name:          "kubernetes flags are not valid on this platform",
+			namespace:     "test4",
 			args:          []string{"my-site"},
 			flags:         &common.CommandSiteCreateFlags{},
 			expectedError: "",
@@ -49,8 +54,16 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 			},
 		},
 		{
-			name: "flags all valid",
-			args: []string{"my-site"},
+			name:          "invalid namespace",
+			namespace:     "Test5",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteCreateFlags{},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+		},
+		{
+			name:      "flags all valid",
+			namespace: "test6",
+			args:      []string{"my-site"},
 			flags: &common.CommandSiteCreateFlags{
 				EnableLinkAccess: true,
 			},
@@ -62,6 +75,7 @@ func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			command := &CmdSiteCreate{Flags: &common.CommandSiteCreateFlags{}}
 			command.CobraCmd = &cobra.Command{Use: "test"}
+			command.namespace = test.namespace
 			command.siteHandler = fs.NewSiteHandler(command.namespace)
 
 			if test.flags != nil {

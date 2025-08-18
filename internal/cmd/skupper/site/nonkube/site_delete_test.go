@@ -19,6 +19,7 @@ import (
 func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
+		namespace         string
 		args              []string
 		flags             *common.CommandSiteDeleteFlags
 		cobraGenericFlags map[string]string
@@ -36,41 +37,48 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "site name is not specified",
+			namespace:     "test",
 			args:          []string{},
 			flags:         &common.CommandSiteDeleteFlags{},
 			expectedError: "site name must be specified",
 		},
 		{
-			name:  "site name is not specified, all",
-			args:  []string{},
-			flags: &common.CommandSiteDeleteFlags{All: true},
+			name:      "site name is not specified, all",
+			namespace: "test",
+			args:      []string{},
+			flags:     &common.CommandSiteDeleteFlags{All: true},
 		},
 		{
 			name:          "site name is nil",
+			namespace:     "test",
 			args:          []string{""},
 			flags:         &common.CommandSiteDeleteFlags{All: false},
 			expectedError: "site name must not be empty",
 		},
 		{
 			name:          "site name is not valid",
+			namespace:     "test",
 			args:          []string{"my name"},
 			flags:         &common.CommandSiteDeleteFlags{},
 			expectedError: "site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name:          "more than one argument is specified",
+			namespace:     "test",
 			args:          []string{"my", "site"},
 			flags:         &common.CommandSiteDeleteFlags{},
 			expectedError: "only one argument is allowed for this command",
 		},
 		{
 			name:          "site doesn't exist",
+			namespace:     "test",
 			args:          []string{"no-site"},
 			flags:         &common.CommandSiteDeleteFlags{},
 			expectedError: "site no-site does not exist",
 		},
 		{
 			name:          "kubernetes flags are not valid on this platform",
+			namespace:     "test",
 			args:          []string{"my-site"},
 			flags:         &common.CommandSiteDeleteFlags{},
 			expectedError: "",
@@ -78,6 +86,13 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 				common.FlagNameContext:    "test",
 				common.FlagNameKubeconfig: "test",
 			},
+		},
+		{
+			name:          "invalid namespace",
+			namespace:     "TestInvalid",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteDeleteFlags{},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
 		},
 	}
 
@@ -110,6 +125,7 @@ func TestCmdSiteDelete_ValidateInput(t *testing.T) {
 			if test.flags != nil {
 				command.Flags = test.flags
 			}
+			command.namespace = test.namespace
 
 			if test.cobraGenericFlags != nil && len(test.cobraGenericFlags) > 0 {
 				for name, value := range test.cobraGenericFlags {

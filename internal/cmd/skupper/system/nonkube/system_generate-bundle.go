@@ -3,6 +3,9 @@ package nonkube
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
@@ -10,8 +13,6 @@ import (
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
-	"os"
-	"path/filepath"
 )
 
 type CmdSystemGenerateBundle struct {
@@ -41,6 +42,7 @@ func (cmd *CmdSystemGenerateBundle) NewClient(cobraCommand *cobra.Command, args 
 
 func (cmd *CmdSystemGenerateBundle) ValidateInput(args []string) error {
 	var validationErrors []error
+	namespaceStringValidator := validator.NamespaceStringValidator()
 
 	if args == nil || len(args) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("You need to specify a name for the bundle file to generate."))
@@ -48,6 +50,13 @@ func (cmd *CmdSystemGenerateBundle) ValidateInput(args []string) error {
 
 	if args != nil && len(args) > 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("This command does not accept more than one argument."))
+	}
+
+	if cmd.Namespace != "" {
+		ok, err := namespaceStringValidator.Evaluate(cmd.Namespace)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("namespace is not valid: %s", err))
+		}
 	}
 
 	if len(args) == 1 {
@@ -59,7 +68,6 @@ func (cmd *CmdSystemGenerateBundle) ValidateInput(args []string) error {
 		inputPath, err := filepath.Abs(cmd.Flags.Input)
 		if err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("Unable to determine absolute path of %s: %v", inputPath, err))
-
 		}
 
 		if info, err := os.Stat(inputPath); err == nil {

@@ -18,6 +18,7 @@ import (
 func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
+		namespace         string
 		args              []string
 		flags             *common.CommandSiteUpdateFlags
 		cobraGenericFlags map[string]string
@@ -35,24 +36,28 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "site is not updated because get site returned error",
+			namespace:     "test4",
 			args:          []string{"no-site"},
 			flags:         &common.CommandSiteUpdateFlags{},
 			expectedError: "site no-site must exist to be updated",
 		},
 		{
 			name:          "site name is not specified",
+			namespace:     "test4",
 			args:          []string{},
 			flags:         &common.CommandSiteUpdateFlags{},
 			expectedError: "site name must be configured",
 		},
 		{
 			name:          "site name is nil",
+			namespace:     "test4",
 			args:          []string{""},
 			flags:         &common.CommandSiteUpdateFlags{},
 			expectedError: "site name must not be empty",
 		},
 		{
 			name:          "more than one argument is specified",
+			namespace:     "test4",
 			args:          []string{"my", "site"},
 			flags:         &common.CommandSiteUpdateFlags{},
 			expectedError: "only one argument is allowed for this command",
@@ -64,8 +69,16 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			expectedError: "site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
-			name: "flags all valid",
-			args: []string{"my-site"},
+			name:          "invalid namespace",
+			namespace:     "TestInvalid",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteUpdateFlags{},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+		},
+		{
+			name:      "flags all valid",
+			namespace: "test4",
+			args:      []string{"my-site"},
 			flags: &common.CommandSiteUpdateFlags{
 				EnableLinkAccess: true,
 			},
@@ -133,6 +146,8 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 			if test.flags != nil {
 				command.Flags = test.flags
 			}
+
+			command.namespace = test.namespace
 
 			if test.cobraGenericFlags != nil && len(test.cobraGenericFlags) > 0 {
 				for name, value := range test.cobraGenericFlags {

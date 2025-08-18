@@ -3,19 +3,21 @@ package nonkube
 import (
 	"bufio"
 	"fmt"
+	"log"
+	"os"
+	"testing"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
-	"log"
-	"os"
-	"testing"
 )
 
 func TestCmdSystemApply_ValidateInput(t *testing.T) {
 	type test struct {
 		name          string
+		namespace     string
 		args          []string
 		flags         *common.CommandSystemApplyFlags
 		expectedError string
@@ -24,6 +26,7 @@ func TestCmdSystemApply_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "arguments are not accepted",
+			namespace:     "test",
 			args:          []string{"something"},
 			flags:         &common.CommandSystemApplyFlags{Filename: "-"},
 			expectedError: "This command does not accept arguments",
@@ -48,12 +51,19 @@ func TestCmdSystemApply_ValidateInput(t *testing.T) {
 			flags:         &common.CommandSystemApplyFlags{Filename: "file.txt"},
 			expectedError: "The file has an unsupported extension, it should have one of the following: .yaml, .json\nThe file \"file.txt\" does not exist",
 		},
+		{
+			name:          "invalid-namespace",
+			namespace:     "Invalid",
+			flags:         &common.CommandSystemApplyFlags{Filename: "-"},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+		},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
 			command := &CmdSystemApply{Flags: test.flags}
+			command.Namespace = test.namespace
 
 			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})

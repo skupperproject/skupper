@@ -19,6 +19,7 @@ import (
 func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
+		namespace         string
 		args              []string
 		linkHandler       *fs.LinkHandler
 		flags             *common.CommandLinkDeleteFlags
@@ -37,18 +38,21 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "Link name is not specified",
+			namespace:     "test",
 			args:          []string{},
 			flags:         &common.CommandLinkDeleteFlags{},
 			expectedError: "link name must be specified",
 		},
 		{
 			name:          "Link name is nil",
+			namespace:     "test",
 			args:          []string{""},
 			flags:         &common.CommandLinkDeleteFlags{},
 			expectedError: "link name must not be empty",
 		},
 		{
 			name:          "Link name is not valid",
+			namespace:     "test",
 			args:          []string{"my name"},
 			flags:         &common.CommandLinkDeleteFlags{},
 			expectedError: "link name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
@@ -75,6 +79,13 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 				common.FlagNameKubeconfig: "test",
 			},
 		},
+		{
+			name:          "invalid namespace",
+			namespace:     "TestInvalid",
+			args:          []string{"link-mine"},
+			flags:         &common.CommandLinkDeleteFlags{},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$\nThere is no link resource in the namespace with the name \"link-mine\"",
+		},
 	}
 
 	// Add temp files so Link exists for update tests
@@ -84,7 +95,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 			Kind:       "Link",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "Link-mine",
+			Name:      "link-mine",
 			Namespace: "test",
 		},
 	}
@@ -105,6 +116,7 @@ func TestCmdLinkDelete_ValidateInput(t *testing.T) {
 			if test.flags != nil {
 				command.Flags = test.flags
 			}
+			command.namespace = test.namespace
 
 			if test.cobraGenericFlags != nil && len(test.cobraGenericFlags) > 0 {
 				for name, value := range test.cobraGenericFlags {

@@ -3,12 +3,14 @@ package nonkube
 import (
 	"errors"
 	"fmt"
+	"os"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
+	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 type CmdSystemStart struct {
@@ -36,6 +38,7 @@ func (cmd *CmdSystemStart) NewClient(cobraCommand *cobra.Command, args []string)
 
 func (cmd *CmdSystemStart) ValidateInput(args []string) error {
 	var validationErrors []error
+	namespaceStringValidator := validator.NamespaceStringValidator()
 
 	if args != nil && len(args) > 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("this command does not accept arguments"))
@@ -43,6 +46,10 @@ func (cmd *CmdSystemStart) ValidateInput(args []string) error {
 
 	selectedNamespace := "default"
 	if cmd.Namespace != "" {
+		ok, err := namespaceStringValidator.Evaluate(cmd.Namespace)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("namespace is not valid: %s", err))
+		}
 		selectedNamespace = cmd.Namespace
 	}
 

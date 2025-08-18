@@ -10,6 +10,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/internal/utils/validator"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -60,6 +61,7 @@ func (cmd *CmdSystemDelete) NewClient(cobraCommand *cobra.Command, args []string
 
 func (cmd *CmdSystemDelete) ValidateInput(args []string) error {
 	var validationErrors []error
+	namespaceStringValidator := validator.NamespaceStringValidator()
 
 	if len(args) > 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("This command does not accept arguments"))
@@ -67,6 +69,13 @@ func (cmd *CmdSystemDelete) ValidateInput(args []string) error {
 
 	if cmd.Flags == nil || cmd.Flags.Filename == "" {
 		validationErrors = append(validationErrors, fmt.Errorf("You need to provide a file to delete custom resources or use standard input.\n Example: cat site.yaml | skupper system delete -f -"))
+	}
+
+	if cmd.Namespace != "" {
+		ok, err := namespaceStringValidator.Evaluate(cmd.Namespace)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("namespace is not valid: %s", err))
+		}
 	}
 
 	if cmd.Flags != nil && cmd.Flags.Filename != "" && cmd.Flags.Filename != "-" {
