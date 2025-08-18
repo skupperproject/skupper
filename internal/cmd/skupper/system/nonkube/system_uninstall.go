@@ -3,10 +3,12 @@ package nonkube
 import (
 	"errors"
 	"fmt"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
+	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/spf13/cobra"
 )
 
@@ -34,6 +36,7 @@ func (cmd *CmdSystemUninstall) NewClient(cobraCommand *cobra.Command, args []str
 
 func (cmd *CmdSystemUninstall) ValidateInput(args []string) error {
 	var validationErrors []error
+	namespaceStringValidator := validator.NamespaceStringValidator()
 
 	if len(args) > 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("this command does not accept arguments"))
@@ -41,6 +44,13 @@ func (cmd *CmdSystemUninstall) ValidateInput(args []string) error {
 
 	if config.GetPlatform() != types.PlatformPodman && config.GetPlatform() != types.PlatformDocker {
 		validationErrors = append(validationErrors, fmt.Errorf("the selected platform is not supported by this command. There is nothing to uninstall"))
+	}
+
+	if cmd.Namespace != "" {
+		ok, err := namespaceStringValidator.Evaluate(cmd.Namespace)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("namespace is not valid: %s", err))
+		}
 	}
 
 	if cmd.Flags != nil && !cmd.Flags.Force {

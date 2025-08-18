@@ -48,6 +48,7 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) error {
 	numberValidator := validator.NewNumberValidator()
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
 	hostStringValidator := validator.NewHostStringValidator()
+	namespaceStringValidator := validator.NamespaceStringValidator()
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
 		fmt.Println("Warning: --context flag is not supported on this platform")
@@ -55,6 +56,13 @@ func (cmd *CmdConnectorUpdate) ValidateInput(args []string) error {
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameKubeconfig) != nil && cmd.CobraCmd.Flag(common.FlagNameKubeconfig).Value.String() != "" {
 		fmt.Println("Warning: --kubeconfig flag is not supported on this platform")
+	}
+
+	if cmd.namespace != "" {
+		ok, err := namespaceStringValidator.Evaluate(cmd.namespace)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("namespace is not valid: %s", err))
+		}
 	}
 
 	// Validate arguments name
