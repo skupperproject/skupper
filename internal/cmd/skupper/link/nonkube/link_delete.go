@@ -33,6 +33,14 @@ func (cmd *CmdLinkDelete) NewClient(cobraCommand *cobra.Command, args []string) 
 func (cmd *CmdLinkDelete) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
+	namespaceStringValidator := validator.NamespaceStringValidator()
+
+	if cmd.namespace != "" {
+		ok, err := namespaceStringValidator.Evaluate(cmd.namespace)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("namespace is not valid: %s", err))
+		}
+	}
 
 	// Validate arguments name if specified
 	if len(args) > 1 {

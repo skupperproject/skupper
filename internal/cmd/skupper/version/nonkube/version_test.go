@@ -54,6 +54,11 @@ func TestCmdVersion_ValidateInput(t *testing.T) {
 			flags:         common.CommandVersionFlags{},
 			expectedError: "there is no definition for namespace \"unknown\"",
 		},
+		{
+			name:          "invalid-namespace",
+			namespace:     "Invalid",
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$\nthere is no definition for namespace \"Invalid\"",
+		},
 	}
 
 	for _, test := range testTable {
