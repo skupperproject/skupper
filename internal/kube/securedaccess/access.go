@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"reflect"
-	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -652,14 +651,19 @@ func ensureOwnerReferences(meta *metav1.ObjectMeta, owners []metav1.OwnerReferen
 	}
 
 	changed := false
-	for i, ref := range meta.OwnerReferences {
+	i := 0
+	for _, ref := range meta.OwnerReferences {
 		uid := string(ref.UID)
-		if _, ok := byUID[uid]; ok {
-			delete(byUID, uid)
+		if _, ok := byUID[uid]; !ok {
+			changed = true
 			continue
 		}
-		meta.OwnerReferences = slices.Delete(meta.OwnerReferences, i, i+1)
-		changed = true
+		delete(byUID, uid)
+		meta.OwnerReferences[i] = ref
+		i++
+	}
+	if changed {
+		meta.OwnerReferences = meta.OwnerReferences[:i]
 	}
 	for _, iRef := range byUID {
 		meta.OwnerReferences = append(meta.OwnerReferences, owners[iRef])

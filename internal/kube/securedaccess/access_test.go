@@ -2169,6 +2169,12 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 							Name:       "ownerRef",
 							UID:        "ffffffdf-403b-4e4a-83a8-97d3d459adb6",
 						},
+						{
+							Kind:       "Site",
+							APIVersion: "skupper.io/v2alpha1",
+							Name:       "ownerRef",
+							UID:        "eeeeeeee-403b-4e4a-83a8-97d3d459adb6",
+						},
 					},
 				},
 				{
