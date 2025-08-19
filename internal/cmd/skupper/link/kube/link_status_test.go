@@ -120,6 +120,7 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 		errorMessage        string
 		linkName            string
 		output              string
+		site                string
 	}
 
 	testTable := []test{
@@ -241,6 +242,178 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 			output:       "unsupported",
 			errorMessage: "format unsupported not supported",
 		},
+		{
+			name: "runs ok no incoming links",
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "public1",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
+						},
+					},
+				},
+			},
+			site: "public1",
+		},
+		{
+			name: "runs ok shows incoming links",
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "public1",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
+						},
+						Network: []v2alpha1.SiteRecord{
+							{
+								Id: "08b068e0-31d2-4739-8291-d168230b527b",
+								Links: []v2alpha1.LinkRecord{
+									{
+										Name:           "public1-d72cbb23-d98d-4cf7-a943-a56d0d447498",
+										Operational:    true,
+										RemoteSiteId:   "bb96fff0-2f25-4259-830a-b4c15e5b3f80",
+										RemoteSiteName: "public1",
+									},
+								},
+								Name:      "public2",
+								Namespace: "public2",
+								Platform:  "kubernetes",
+								Version:   "2.0.0",
+							},
+						},
+					},
+				},
+			},
+			site: "public1",
+		},
+		{
+			name: "runs ok shows selected incoming link",
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "public1",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
+						},
+						Network: []v2alpha1.SiteRecord{
+							{
+								Id: "08b068e0-31d2-4739-8291-d168230b527b",
+								Links: []v2alpha1.LinkRecord{
+									{
+										Name:           "public1-d72cbb23-d98d-4cf7-a943-a56d0d447498",
+										Operational:    true,
+										RemoteSiteId:   "bb96fff0-2f25-4259-830a-b4c15e5b3f80",
+										RemoteSiteName: "public1",
+									},
+								},
+								Name:      "public2",
+								Namespace: "public2",
+								Platform:  "kubernetes",
+								Version:   "2.0.0",
+							},
+						},
+					},
+				},
+			},
+			linkName: "public1-d72cbb23-d98d-4cf7-a943-a56d0d447498",
+			site:     "public1",
+		},
+		{
+			name: "runs ok shows selected incoming link in yaml form",
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "public1",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
+						},
+						Network: []v2alpha1.SiteRecord{
+							{
+								Id: "08b068e0-31d2-4739-8291-d168230b527b",
+								Links: []v2alpha1.LinkRecord{
+									{
+										Name:           "public1-d72cbb23-d98d-4cf7-a943-a56d0d447498",
+										Operational:    true,
+										RemoteSiteId:   "bb96fff0-2f25-4259-830a-b4c15e5b3f80",
+										RemoteSiteName: "public1",
+									},
+								},
+								Name:      "public2",
+								Namespace: "public2",
+								Platform:  "kubernetes",
+								Version:   "2.0.0",
+							},
+						},
+					},
+				},
+			},
+			linkName: "public1-d72cbb23-d98d-4cf7-a943-a56d0d447498",
+			site:     "public1",
+			output:   "yaml",
+		},
+		{
+			name: "runs ok shows incoming links in json",
+			skupperObjects: []runtime.Object{
+				&v2alpha1.Site{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "public1",
+						Namespace: "test",
+					},
+					Status: v2alpha1.SiteStatus{
+						Status: v2alpha1.Status{
+							Message: "OK",
+						},
+						Network: []v2alpha1.SiteRecord{
+							{
+								Id: "08b068e0-31d2-4739-8291-d168230b527b",
+								Links: []v2alpha1.LinkRecord{
+									{
+										Name:           "public1-d72cbb23-d98d-4cf7-a943-a56d0d447498",
+										Operational:    true,
+										RemoteSiteId:   "bb96fff0-2f25-4259-830a-b4c15e5b3f80",
+										RemoteSiteName: "public1",
+									},
+								},
+								Name:      "public2",
+								Namespace: "public2",
+								Platform:  "kubernetes",
+								Version:   "2.0.0",
+							},
+							{
+								Id: "65816e8e-cf73-4ba7-91e9-e16a9c0b6ea4",
+								Links: []v2alpha1.LinkRecord{
+									{
+										Name:           "public1-d72cbb23-d98d-4cf7-a943-a56d0d447498",
+										Operational:    true,
+										RemoteSiteId:   "bb96fff0-2f25-4259-830a-b4c15e5b3f80",
+										RemoteSiteName: "public1",
+									},
+								},
+								Name:      "private1",
+								Namespace: "private1",
+								Platform:  "kubernetes",
+								Version:   "2.0.0",
+							},
+						},
+					},
+				},
+			},
+			site:   "public1",
+			output: "yaml",
+		},
 	}
 
 	for _, test := range testTable {
@@ -248,6 +421,7 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 		assert.Assert(t, err)
 		cmd.linkName = test.linkName
 		cmd.output = test.output
+		cmd.siteName = test.site
 
 		t.Run(test.name, func(t *testing.T) {
 
