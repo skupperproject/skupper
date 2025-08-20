@@ -133,6 +133,20 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 										},
 									},
 								},
+								Endpoints: []v2alpha1.Endpoint{
+									{
+										Name:  "inter-router",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+									{
+										Name:  "edge",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+								},
 							},
 						},
 					},
@@ -175,6 +189,20 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 											Type:   "Ready",
 											Status: "True",
 										},
+									},
+								},
+								Endpoints: []v2alpha1.Endpoint{
+									{
+										Name:  "inter-router",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+									{
+										Name:  "edge",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
 									},
 								},
 							},
@@ -221,6 +249,20 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 										},
 									},
 								},
+								Endpoints: []v2alpha1.Endpoint{
+									{
+										Name:  "inter-router",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+									{
+										Name:  "edge",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+								},
 							},
 						},
 					},
@@ -263,6 +305,20 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 											Type:   "Ready",
 											Status: "True",
 										},
+									},
+								},
+								Endpoints: []v2alpha1.Endpoint{
+									{
+										Name:  "inter-router",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+									{
+										Name:  "edge",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
 									},
 								},
 							},
@@ -309,6 +365,20 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 										},
 									},
 								},
+								Endpoints: []v2alpha1.Endpoint{
+									{
+										Name:  "inter-router",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+									{
+										Name:  "edge",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+								},
 							},
 						},
 					},
@@ -351,6 +421,20 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 											Type:   "Ready",
 											Status: "True",
 										},
+									},
+								},
+								Endpoints: []v2alpha1.Endpoint{
+									{
+										Name:  "inter-router",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+									{
+										Name:  "edge",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
 									},
 								},
 							},
@@ -397,6 +481,20 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 										},
 									},
 								},
+								Endpoints: []v2alpha1.Endpoint{
+									{
+										Name:  "inter-router",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+									{
+										Name:  "edge",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+								},
 							},
 						},
 					},
@@ -439,6 +537,20 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 											Type:   "Ready",
 											Status: "True",
 										},
+									},
+								},
+								Endpoints: []v2alpha1.Endpoint{
+									{
+										Name:  "inter-router",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+									{
+										Name:  "edge",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
 									},
 								},
 							},
@@ -485,6 +597,20 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 										},
 									},
 								},
+								Endpoints: []v2alpha1.Endpoint{
+									{
+										Name:  "inter-router",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+									{
+										Name:  "edge",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+								},
 							},
 						},
 					},
@@ -529,6 +655,20 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 										},
 									},
 								},
+								Endpoints: []v2alpha1.Endpoint{
+									{
+										Name:  "inter-router",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+									{
+										Name:  "edge",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+								},
 							},
 						},
 					},
@@ -552,6 +692,9 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 							ObjectMeta: v1.ObjectMeta{
 								Name:      "site1",
 								Namespace: "test",
+							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "local",
 							},
 							Status: v2alpha1.SiteStatus{
 								Status: v2alpha1.Status{
@@ -612,6 +755,20 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 											Type:   "Ready",
 											Status: "True",
 										},
+									},
+								},
+								Endpoints: []v2alpha1.Endpoint{
+									{
+										Name:  "inter-router",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+									{
+										Name:  "edge",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
 									},
 								},
 							},

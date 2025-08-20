@@ -101,7 +101,7 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) error {
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 		} else {
-			ok, siteName = utils.SiteLinkAccessEnabled(siteList, common.LinkAccessTypes)
+			ok, siteName = utils.SiteLinkAccessEndpoints(siteList)
 			if !ok {
 				validationErrors = append(validationErrors, fmt.Errorf("You must enable link access for this site before you can create a token."))
 			} else {
