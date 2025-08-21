@@ -2140,6 +2140,75 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 			},
 		},
 		{
+			name: "changed owners",
+			args: []args{
+				{
+					namespace: "test",
+					name:      "skupper",
+					spec: skupperv2alpha1.SecuredAccessSpec{
+						AccessType: ACCESS_TYPE_LOADBALANCER,
+						Ports: []skupperv2alpha1.SecuredAccessPort{
+							{
+								Name:       "port1",
+								Port:       8080,
+								TargetPort: 8081,
+								Protocol:   "TCP",
+							},
+						},
+						Certificate: "skupper",
+						Issuer:      "skupper-site-ca",
+					},
+					annotations: map[string]string{
+						"internal.skupper.io/controlled":   "true",
+						"internal.skupper.io/routeraccess": "name",
+					},
+					refs: []metav1.OwnerReference{
+						{
+							Kind:       "Site",
+							APIVersion: "skupper.io/v2alpha1",
+							Name:       "ownerRef",
+							UID:        "ffffffdf-403b-4e4a-83a8-97d3d459adb6",
+						},
+						{
+							Kind:       "Site",
+							APIVersion: "skupper.io/v2alpha1",
+							Name:       "ownerRef",
+							UID:        "eeeeeeee-403b-4e4a-83a8-97d3d459adb6",
+						},
+					},
+				},
+				{
+					namespace: "test",
+					name:      "skupper",
+					spec: skupperv2alpha1.SecuredAccessSpec{
+						AccessType: ACCESS_TYPE_LOADBALANCER,
+						Ports: []skupperv2alpha1.SecuredAccessPort{
+							{
+								Name:       "port1",
+								Port:       8080,
+								TargetPort: 8081,
+								Protocol:   "TCP",
+							},
+						},
+						Certificate: "skupper",
+						Issuer:      "skupper-site-ca",
+					},
+					annotations: map[string]string{
+						"internal.skupper.io/controlled":   "true",
+						"internal.skupper.io/routeraccess": "name",
+					},
+					refs: []metav1.OwnerReference{
+						{
+							Kind:       "SecuredAccess",
+							APIVersion: "skupper.io/v2alpha1",
+							Name:       "ownerRef",
+							UID:        "000000df-403b-4e4a-83a8-97d3d459adb6",
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "changed annotations",
 			args: []args{
 				{

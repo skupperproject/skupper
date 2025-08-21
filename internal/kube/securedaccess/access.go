@@ -123,6 +123,10 @@ func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skuppe
 				update = true
 			}
 		}
+
+		if ensureOwnerReferences(&current.ObjectMeta, refs) {
+			update = true
+		}
 		if !update {
 			return nil
 		}
@@ -638,4 +642,33 @@ func hasSecuredAccessLabel(obj *metav1.ObjectMeta) bool {
 	}
 	_, ok := obj.Labels["internal.skupper.io/secured-access"]
 	return ok
+}
+
+func ensureOwnerReferences(meta *metav1.ObjectMeta, owners []metav1.OwnerReference) bool {
+	byUID := make(map[string]int, len(owners))
+	for iRef, ref := range owners {
+		byUID[string(ref.UID)] = iRef
+	}
+
+	changed := false
+	i := 0
+	for _, ref := range meta.OwnerReferences {
+		uid := string(ref.UID)
+		if _, ok := byUID[uid]; !ok {
+			changed = true
+			continue
+		}
+		delete(byUID, uid)
+		meta.OwnerReferences[i] = ref
+		i++
+	}
+	if changed {
+		meta.OwnerReferences = meta.OwnerReferences[:i]
+	}
+	for _, iRef := range byUID {
+		meta.OwnerReferences = append(meta.OwnerReferences, owners[iRef])
+		changed = true
+	}
+
+	return changed
 }
