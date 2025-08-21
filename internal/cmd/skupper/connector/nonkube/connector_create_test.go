@@ -15,6 +15,7 @@ import (
 func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
+		namespace         string
 		args              []string
 		k8sObjects        []runtime.Object
 		skupperObjects    []runtime.Object
@@ -26,54 +27,63 @@ func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "Connector name and port are not specified",
+			namespace:     "test",
 			args:          []string{},
 			flags:         &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedError: "connector name and port must be configured",
 		},
 		{
 			name:          "Connector name is not valid",
+			namespace:     "test",
 			args:          []string{"my new Connector", "8080"},
 			flags:         &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedError: "connector name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name:          "Connector name is empty",
+			namespace:     "test",
 			args:          []string{"", "1234"},
 			flags:         &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedError: "connector name must not be empty",
 		},
 		{
 			name:          "connector port empty",
+			namespace:     "test",
 			args:          []string{"my-name-port-empty", ""},
 			flags:         &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedError: "connector port must not be empty",
 		},
 		{
 			name:          "port is not valid",
+			namespace:     "test",
 			args:          []string{"my-connector-port", "abcd"},
 			flags:         &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedError: "connector port is not valid: strconv.Atoi: parsing \"abcd\": invalid syntax",
 		},
 		{
 			name:          "port not positive",
+			namespace:     "test",
 			args:          []string{"my-port-positive", "-45"},
 			flags:         &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedError: "connector port is not valid: value is not positive",
 		},
 		{
 			name:          "more than two arguments was specified",
+			namespace:     "test",
 			args:          []string{"my", "Connector", "test"},
 			flags:         &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
 			expectedError: "only two arguments are allowed for this command",
 		},
 		{
 			name:          "type is not valid",
+			namespace:     "test",
 			args:          []string{"my-connector", "8080"},
 			flags:         &common.CommandConnectorCreateFlags{ConnectorType: "not-valid", Host: "1.2.3.4"},
 			expectedError: "connector type is not valid: value not-valid not allowed. It should be one of this options: [tcp]",
 		},
 		{
 			name:          "routing key is not valid",
+			namespace:     "test",
 			args:          []string{"my-connector-rk", "8080"},
 			flags:         &common.CommandConnectorCreateFlags{RoutingKey: "not-valid$", Host: "1.2.3.4"},
 			expectedError: "routing key is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
@@ -96,7 +106,6 @@ func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
 			flags: &common.CommandConnectorCreateFlags{},
 		},
 		{
-
 			name:  "kubernetes flags are not valid on this platform",
 			args:  []string{"my-connector", "8080"},
 			flags: &common.CommandConnectorCreateFlags{Host: "1.2.3.4"},
@@ -106,8 +115,16 @@ func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
 			},
 		},
 		{
-			name: "flags all valid",
-			args: []string{"my-connector-flags", "8080"},
+			name:          "invalid namespace",
+			namespace:     "TestInvalid",
+			args:          []string{"my-connector-invalid", "8080"},
+			flags:         &common.CommandConnectorCreateFlags{},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+		},
+		{
+			name:      "flags all valid",
+			namespace: "test",
+			args:      []string{"my-connector-flags", "8080"},
 			flags: &common.CommandConnectorCreateFlags{
 				RoutingKey:     "routingkeyname",
 				TlsCredentials: "secretname",
@@ -126,6 +143,7 @@ func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
 			if test.flags != nil {
 				command.Flags = test.flags
 			}
+			command.namespace = test.namespace
 
 			if test.cobraGenericFlags != nil && len(test.cobraGenericFlags) > 0 {
 				for name, value := range test.cobraGenericFlags {

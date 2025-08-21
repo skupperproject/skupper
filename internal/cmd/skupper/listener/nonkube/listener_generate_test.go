@@ -15,6 +15,7 @@ import (
 func TestNonKubeCmdListenerGenerate_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
+		namespace         string
 		args              []string
 		k8sObjects        []runtime.Object
 		skupperObjects    []runtime.Object
@@ -26,18 +27,21 @@ func TestNonKubeCmdListenerGenerate_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "listener name and port are not specified",
+			namespace:     "test",
 			args:          []string{},
 			flags:         &common.CommandListenerGenerateFlags{Host: "1.2.3.4"},
 			expectedError: "listener name and port must be configured",
 		},
 		{
 			name:          "listener name is not valid",
+			namespace:     "test",
 			args:          []string{"my new Listener", "8080"},
 			flags:         &common.CommandListenerGenerateFlags{Host: "1.2.3.4"},
 			expectedError: "listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name:          "listener name is empty",
+			namespace:     "test",
 			args:          []string{"", "1234"},
 			flags:         &common.CommandListenerGenerateFlags{Host: "1.2.3.4"},
 			expectedError: "listener name must not be empty",
@@ -106,6 +110,13 @@ func TestNonKubeCmdListenerGenerate_ValidateInput(t *testing.T) {
 			},
 		},
 		{
+			name:          "invalid namespace",
+			namespace:     "TestInvalid",
+			args:          []string{"my-listener", "8080"},
+			flags:         &common.CommandListenerGenerateFlags{Host: "1.2.3.4"},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+		},
+		{
 			name: "flags all valid",
 			args: []string{"my-listener-flags", "8080"},
 			flags: &common.CommandListenerGenerateFlags{
@@ -126,6 +137,7 @@ func TestNonKubeCmdListenerGenerate_ValidateInput(t *testing.T) {
 			if test.flags != nil {
 				command.Flags = test.flags
 			}
+			command.namespace = test.namespace
 
 			if test.cobraGenericFlags != nil && len(test.cobraGenericFlags) > 0 {
 				for name, value := range test.cobraGenericFlags {

@@ -2,20 +2,22 @@ package nonkube
 
 import (
 	"fmt"
+	"os"
+	"strings"
+	"testing"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/v3/assert"
-	"os"
-	"strings"
-	"testing"
 )
 
 func TestCmdSystemGenerateBundle_ValidateInput(t *testing.T) {
 	type test struct {
 		name          string
+		namespace     string
 		args          []string
 		flags         *common.CommandSystemGenerateBundleFlags
 		expectedError string
@@ -24,6 +26,7 @@ func TestCmdSystemGenerateBundle_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "no-args",
+			namespace:     "test",
 			args:          []string{},
 			expectedError: "You need to specify a name for the bundle file to generate.",
 		},
@@ -55,6 +58,12 @@ func TestCmdSystemGenerateBundle_ValidateInput(t *testing.T) {
 				Input: "./",
 			},
 		},
+		{
+			name:          "invalid-namespace",
+			namespace:     "Invalid",
+			args:          []string{"bundle-name"},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+		},
 	}
 
 	for _, test := range testTable {
@@ -62,7 +71,7 @@ func TestCmdSystemGenerateBundle_ValidateInput(t *testing.T) {
 
 			command := &CmdSystemGenerateBundle{}
 			command.CobraCmd = common.ConfigureCobraCommand(common.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
-
+			command.Namespace = test.namespace
 			if test.flags != nil {
 				command.Flags = test.flags
 			}

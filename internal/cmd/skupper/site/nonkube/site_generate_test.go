@@ -14,6 +14,7 @@ import (
 func TestNonKubeCmdSiteGenerate_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
+		namespace         string
 		args              []string
 		flags             *common.CommandSiteGenerateFlags
 		cobraGenericFlags map[string]string
@@ -23,40 +24,53 @@ func TestNonKubeCmdSiteGenerate_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "site name is not valid.",
+			namespace:     "test",
 			args:          []string{"my new site"},
 			flags:         &common.CommandSiteGenerateFlags{},
 			expectedError: "site name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name:          "site name is not specified.",
+			namespace:     "test",
 			args:          []string{},
 			flags:         &common.CommandSiteGenerateFlags{},
 			expectedError: "site name must not be empty",
 		},
 		{
 			name:          "more than one argument was specified",
+			namespace:     "test",
 			args:          []string{"my", "site"},
 			flags:         &common.CommandSiteGenerateFlags{},
 			expectedError: "only one argument is allowed for this command",
 		},
 		{
 			name:          "output format is not valid",
+			namespace:     "test",
 			args:          []string{"my-site"},
 			flags:         &common.CommandSiteGenerateFlags{Output: "not-valid"},
 			expectedError: "output type is not valid: value not-valid not allowed. It should be one of this options: [json yaml]",
 		},
 		{
-			name:  "kubernetes flags are not valid on this platform",
-			args:  []string{"my-site"},
-			flags: &common.CommandSiteGenerateFlags{},
+			name:      "kubernetes flags are not valid on this platform",
+			namespace: "test",
+			args:      []string{"my-site"},
+			flags:     &common.CommandSiteGenerateFlags{},
 			cobraGenericFlags: map[string]string{
 				common.FlagNameContext:    "test",
 				common.FlagNameKubeconfig: "test",
 			},
 		},
 		{
-			name: "flags all valid",
-			args: []string{"my-site"},
+			name:          "invalid namespace",
+			namespace:     "TestInvalid",
+			args:          []string{"my-site"},
+			flags:         &common.CommandSiteGenerateFlags{},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+		},
+		{
+			name:      "flags all valid",
+			namespace: "test",
+			args:      []string{"my-site"},
 			flags: &common.CommandSiteGenerateFlags{
 				EnableLinkAccess: true,
 			},
@@ -67,7 +81,7 @@ func TestNonKubeCmdSiteGenerate_ValidateInput(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			command := &CmdSiteGenerate{Flags: &common.CommandSiteGenerateFlags{}}
 			command.CobraCmd = &cobra.Command{Use: "test"}
-
+			command.namespace = test.namespace
 			if test.flags != nil {
 				command.Flags = test.flags
 			}
