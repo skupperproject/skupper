@@ -122,6 +122,7 @@ const (
 	Version                // 52
 	Policy                 // 53
 	Target                 // 54
+	LinkName               // 55
 )
 
 var attributeNames = []string{
@@ -180,6 +181,7 @@ var attributeNames = []string{
 	"Version",         // 52
 	"Policy",          // 53
 	"Target",          // 54
+	"LinkName",        // 55
 }
 
 var Internal string = "internal"
@@ -276,6 +278,7 @@ type LinkRecord struct {
 	Name      *string `json:"name,omitempty"`
 	LinkCost  *uint64 `json:"linkCost,omitempty"`
 	Direction *string `json:"direction,omitempty"`
+	LinkName  *string `json:"linkName,omitempty"`
 }
 
 type linkRecordResponse struct {
