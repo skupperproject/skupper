@@ -5,5 +5,5 @@ debug: false
 namespace_prefix: "e2e"
 generate_namespaces_namespace_label: "xpbn"
 remove_namespaces: true
-resource_retry_value: 30
+resource_retry_value: 60
 resource_delay_value: 10
