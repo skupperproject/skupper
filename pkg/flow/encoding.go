@@ -329,6 +329,9 @@ func decode(msg *amqp.Message) []interface{} {
 					if v, ok := m["Direction"].(string); ok {
 						link.Direction = &v
 					}
+					if v, ok := m["Location"].(string); ok {
+						link.Location = &v
+					}
 
 					result = append(result, link)
 				case Listener:
