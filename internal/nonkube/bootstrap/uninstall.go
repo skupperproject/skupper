@@ -60,6 +60,8 @@ func Uninstall(platform string) error {
 	err = cli.ContainerRemove(containerName)
 	if err != nil {
 		return fmt.Errorf("failed to remove system-controller container: %v", err)
+	} else {
+		fmt.Println("System-controller has been removed")
 	}
 
 	systemdService, err := controller.NewSystemdServiceInfo(*container, platform)
@@ -86,6 +88,7 @@ func Uninstall(platform string) error {
 }
 
 func CheckActiveSites() (bool, error) {
+	activeSites := false
 
 	entries, err := os.ReadDir(path.Join(api.GetHostDataHome(), "namespaces/"))
 	if err != nil {
@@ -94,9 +97,19 @@ func CheckActiveSites() (bool, error) {
 
 	for _, entry := range entries {
 		if entry.IsDir() {
-			return true, nil
+			runtimeDir := "namespaces/" + entry.Name() + "/runtime/"
+			_, err := os.ReadDir(path.Join(api.GetHostDataHome(), runtimeDir))
+			if err == nil {
+				activeSites = true
+				fmt.Printf("site %s active\n", entry.Name())
+			}
+
 		}
 	}
 
-	return false, nil
+	if activeSites == true {
+		return true, nil
+	} else {
+		return false, nil
+	}
 }
