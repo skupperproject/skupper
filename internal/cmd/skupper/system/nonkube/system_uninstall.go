@@ -3,10 +3,14 @@ package nonkube
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path"
+
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
 )
 
@@ -17,6 +21,7 @@ type CmdSystemUninstall struct {
 	CheckActiveSites func() (bool, error)
 	Flags            *common.CommandSystemUninstallFlags
 	forceUninstall   bool
+	TearDown         func(namespace string) error
 }
 
 func NewCmdSystemUninstall() *CmdSystemUninstall {
@@ -30,6 +35,7 @@ func (cmd *CmdSystemUninstall) NewClient(cobraCommand *cobra.Command, args []str
 	cmd.SystemUninstall = bootstrap.Uninstall
 	cmd.CheckActiveSites = bootstrap.CheckActiveSites
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
+	cmd.TearDown = bootstrap.Teardown
 }
 
 func (cmd *CmdSystemUninstall) ValidateInput(args []string) error {
@@ -49,7 +55,7 @@ func (cmd *CmdSystemUninstall) ValidateInput(args []string) error {
 			return err
 		}
 		if activeSites {
-			validationErrors = append(validationErrors, fmt.Errorf("Uninstallation halted: Active sites detected."))
+			validationErrors = append(validationErrors, fmt.Errorf("Uninstallation halted: Active sites detected. Use --force flag to stop and remove active sites"))
 		}
 	}
 
@@ -62,6 +68,22 @@ func (cmd *CmdSystemUninstall) InputToOptions() {
 }
 
 func (cmd *CmdSystemUninstall) Run() error {
+	if cmd.forceUninstall {
+		entries, err := os.ReadDir(path.Join(api.GetHostDataHome(), "namespaces/"))
+		if err != nil {
+			return err
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				err := cmd.TearDown(entry.Name())
+				if err == nil {
+					fmt.Printf("Site \"%s\" removed\n", entry.Name())
+				} else {
+					return fmt.Errorf("failed to remove site \"%s\": %s", entry.Name(), err)
+				}
+			}
+		}
+	}
 
 	err := cmd.SystemUninstall(string(config.GetPlatform()))
 
