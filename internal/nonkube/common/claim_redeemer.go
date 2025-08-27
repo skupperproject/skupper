@@ -31,14 +31,14 @@ func RedeemClaims(siteState *api.SiteState) error {
 				slog.String("name", name),
 				slog.String("error", err.Error()),
 			)
-		}
+		} else {
+			siteState.Secrets[decoder.Secret.ObjectMeta.Name] = &decoder.Secret
+			decoder.Secret.ObjectMeta.Namespace = siteState.GetNamespace()
 
-		siteState.Secrets[decoder.Secret.ObjectMeta.Name] = &decoder.Secret
-		decoder.Secret.ObjectMeta.Namespace = siteState.GetNamespace()
-
-		for _, link := range decoder.Links {
-			siteState.Links[link.ObjectMeta.Name] = &link
-			link.ObjectMeta.Namespace = siteState.GetNamespace()
+			for _, link := range decoder.Links {
+				siteState.Links[link.ObjectMeta.Name] = &link
+				link.ObjectMeta.Namespace = siteState.GetNamespace()
+			}
 		}
 	}
 
