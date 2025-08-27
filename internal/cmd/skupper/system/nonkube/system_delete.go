@@ -4,14 +4,15 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"strings"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
-	"log/slog"
-	"os"
-	"strings"
 )
 
 type CmdSystemDelete struct {
@@ -230,7 +231,7 @@ func (cmd *CmdSystemDelete) Run() error {
 	}
 
 	if crDeleted {
-		fmt.Println("Custom resources deleted. You can now run `skupper system reload` to make effective the changes.")
+		fmt.Println("Custom resources deleted. If a site is already running, run `skupper system reload` to make effective the changes.")
 	}
 
 	return nil
