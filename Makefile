@@ -27,7 +27,7 @@ DOCKER := docker
 SKOPEO := skopeo
 PODMAN := podman
 
-all: skupper controller kube-adaptor network-observer system-controller
+all: skupper controller kube-adaptor network-observer system-controller generate-doc
 
 basepkg = github.com/skupperproject/skupper
 # This lists non-test Go files inside each directory corresponding
