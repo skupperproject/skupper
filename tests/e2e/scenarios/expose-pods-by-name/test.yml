@@ -48,157 +48,143 @@
           when:
             - "'west' in inventory_hostname"
 
-        - name: "[ ExposePodsByNameTest - Setup ] Apply token to east site"
-          skupper.v2.resource:
-            kubeconfig: "{{ kubeconfig }}"
-            def: "{{ hostvars['west']['west']['token'] }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+
+        - name: "[ ExposePodsByNameTest ] - East setup block"
+          block:
+            - name: "[ ExposePodsByNameTest - Setup ] Apply token to east site"
+              skupper.v2.resource:
+                kubeconfig: "{{ kubeconfig }}"
+                def: "{{ hostvars['west']['west']['token'] }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+
+            - name: "[ ExposePodsByNameTest - Setup ] Wait for links to get in Ready state"
+              kubernetes.core.k8s_info:
+                api_version: skupper.io/v2alpha1
+                kind: Link
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                kubeconfig: "{{ kubeconfig }}"
+              register: link_list
+              until:
+                - link_list.resources is defined
+                - link_list.resources | length > 0
+                - link_list.resources[0].status is defined
+                - link_list.resources[0].status.status is defined
+                - link_list.resources[0].status.status == "Ready"
+              retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+              delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
+
+            # Get Pods array
+            - name: "[ ExposePodsByNameTest - RunTest ] Get the pod names in east"
+              kubernetes.core.k8s_info:
+                api_version: v1
+                kind: Pod
+                kubeconfig: "{{ kubeconfig }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                label_selectors:
+                  - app = backend
+              register: pod_list
+              until:
+                - pod_list.resources is defined
+                - pod_list.resources | length == 3
+              retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+              delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
+
+            - name: "[ ExposePodsByNameTest - RunTest ] Extract pod names into an array"
+              ansible.builtin.set_fact:
+                pod_names_array: "{{ pod_list.resources | map(attribute='metadata.name') | list }}"
+
+            - name: "[ ExposePodsByNameTest - RunTest ] Display the array of pod names"
+              ansible.builtin.debug:
+                var: pod_names_array
+              when:
+                - pod_names_array is defined
           when:
             - "'east' in inventory_hostname"
 
-        - name: "[ ExposePodsByNameTest - Setup ] Wait for links to get in Ready state"
-          kubernetes.core.k8s_info:
-            api_version: skupper.io/v2alpha1
-            kind: Link
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            kubeconfig: "{{ kubeconfig }}"
-          register: link_list
-          until:
-            - link_list.resources is defined
-            - link_list.resources | length > 0
-            - link_list.resources[0].status is defined
-            - link_list.resources[0].status.status is defined
-            - link_list.resources[0].status.status == "Ready"
-          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
-          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
-          when:
-            - "'east' in inventory_hostname"
+        - name: "[ ExposePodsByNameTest ] - West setup block"
+          block:
+            # Get Services array
+            - name: "[ ExposePodsByNameTest - RunTest ] Get the service names in west"
+              kubernetes.core.k8s_info:
+                api_version: v1
+                kind: Service
+                kubeconfig: "{{ kubeconfig }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                label_selectors:
+                  - internal.skupper.io/listener = true
+              register: svc_list
+              until:
+                - svc_list.resources is defined
+                - svc_list.resources | length == 4
+              retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+              delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
 
-        # Get Pods array
-        - name: "[ ExposePodsByNameTest - RunTest ] Get the pod names in east"
-          kubernetes.core.k8s_info:
-            api_version: v1
-            kind: Pod
-            kubeconfig: "{{ kubeconfig }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            label_selectors:
-              - app = backend
-          register: pod_list
-          until:
-            - pod_list.resources is defined
-            - pod_list.resources | length == 3
-          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
-          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
-          when:
-            - "'east' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Extract service names into an array"
+              ansible.builtin.set_fact:
+                svc_names_array: "{{ svc_list.resources | selectattr('metadata.name', 'search', search_character) | map(attribute='metadata.name') | list }}"
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Extract pod names into an array"
-          ansible.builtin.set_fact:
-            pod_names_array: "{{ pod_list.resources | map(attribute='metadata.name') | list }}"
-          when:
-            - "'east' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Display the array of service names"
+              ansible.builtin.debug:
+                var: svc_names_array
+              when:
+                - svc_names_array is defined
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Display the array of pod names"
-          ansible.builtin.debug:
-            var: pod_names_array
-          when:
-            - pod_names_array is defined
-            - "'east' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Compare initial pods and services"
+              ansible.builtin.set_fact:
+                pod_svc_difference: "{{ hostvars['east']['pod_names_array'] | ansible.builtin.symmetric_difference(svc_names_array) }}"
 
-        # Get Services array
-        - name: "[ ExposePodsByNameTest - RunTest ] Get the service names in west"
-          kubernetes.core.k8s_info:
-            api_version: v1
-            kind: Service
-            kubeconfig: "{{ kubeconfig }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            label_selectors:
-              - internal.skupper.io/listener = true
-          register: svc_list
-          until:
-            - svc_list.resources is defined
-            - svc_list.resources | length == 4
-          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
-          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
+            - name: "[ ExposePodsByNameTest - RunTest ] Check if we have differences between pods and service names"
+              ansible.builtin.set_fact:
+                num_differences: "{{ pod_svc_difference | length }}"
+
+            - name: "[ ExposePodsByNameTest - RunTest ] Failing the test if the exposed services does not matches the pod names"
+              ansible.builtin.fail:
+                msg: "The test has FAILED - Pod names {{ hostvars['east']['pod_names_array'] }}, Service names {{ svc_names_array }}"
+              when:
+                - num_differences | int > 0
           when:
             - "'west' in inventory_hostname"
-
-        - name: "[ ExposePodsByNameTest - RunTest ] Extract service names into an array"
-          ansible.builtin.set_fact:
-            svc_names_array: "{{ svc_list.resources | selectattr('metadata.name', 'search', search_character) | map(attribute='metadata.name') | list }}"
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ ExposePodsByNameTest - RunTest ] Display the array of service names"
-          ansible.builtin.debug:
-            var: svc_names_array
-          when:
-            - svc_names_array is defined
-            - "'west' in inventory_hostname"
-
-        - name: "[ ExposePodsByNameTest - RunTest ] Compare initial pods and services"
-          ansible.builtin.set_fact:
-            pod_svc_difference: "{{ hostvars['east']['pod_names_array'] | ansible.builtin.symmetric_difference(svc_names_array) }}"
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ ExposePodsByNameTest - RunTest ] Check if we have differences between pods and service names"
-          ansible.builtin.set_fact:
-            num_differences: "{{ pod_svc_difference | length }}"
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ ExposePodsByNameTest - RunTest ] Failing the test if the exposed services does not matches the pod names"
-          ansible.builtin.fail:
-            msg: "The test has FAILED - Pod names {{ hostvars['east']['pod_names_array'] }}, Service names {{ svc_names_array }}"
-          when:
-            - "'west' in inventory_hostname"
-            - num_differences | int > 0
 
         #####
         # Restart the Deployment
         #####
-        - name: "[ ExposePodsByNameTest - RunTest ] Restarting the deployments"
-          ansible.builtin.shell: |
-            kubectl -n {{ namespace_prefix }}-{{ namespace_name }} \
-            rollout restart deployment backend
-          register: rollout
-          changed_when: rollout.rc == 0
-          failed_when: rollout.rc != 0 and 'not found' not in rollout.stderr
-          when:
-            - "'east' in inventory_hostname"
+        - name: "[ ExposePodsByNameTest ] - Restart block on East"
+          block:
+            - name: "[ ExposePodsByNameTest - RunTest ] Restarting the deployments"
+              ansible.builtin.shell: |
+                kubectl -n {{ namespace_prefix }}-{{ namespace_name }} \
+                rollout restart deployment backend
+              register: rollout
+              changed_when: rollout.rc == 0
+              failed_when: rollout.rc != 0 and 'not found' not in rollout.stderr
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Get the name of the new ReplicaSet"
-          ansible.builtin.shell: |
-            kubectl -n  {{ namespace_prefix }}-{{ namespace_name }} get ReplicaSet \
-            --sort-by=.metadata.creationTimestamp | tail -n 1 | awk -F " " '{print $1}'
-          register: new_replicaset_out
-          when:
-            - "'east' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Get the name of the new ReplicaSet"
+              ansible.builtin.shell: |
+                kubectl -n  {{ namespace_prefix }}-{{ namespace_name }} get ReplicaSet \
+                --sort-by=.metadata.creationTimestamp | tail -n 1 | awk -F " " '{print $1}'
+              register: new_replicaset_out
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Set the name of the new ReplicaSet as fact"
-          ansible.builtin.set_fact:
-            new_replicaset: "{{ new_replicaset_out.stdout | trim }}"
-          when:
-            - "'east' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Set the name of the new ReplicaSet as fact"
+              ansible.builtin.set_fact:
+                new_replicaset: "{{ new_replicaset_out.stdout | trim }}"
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Wait until all replicas are ready"
-          kubernetes.core.k8s_info:
-            api_version: apps/v1
-            kind: ReplicaSet
-            kubeconfig: "{{ kubeconfig }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            name: "{{ new_replicaset }}"
-          register: new_replicaset_status
-          until:
-            - new_replicaset_status is defined
-            - new_replicaset_status.resources is defined
-            - new_replicaset_status.resources | length > 0
-            - new_replicaset_status.resources[0].status is defined
-            - new_replicaset_status.resources[0].status.replicas is defined
-            - new_replicaset_status.resources[0].status.replicas == new_replicaset_status.resources[0].metadata.annotations['deployment.kubernetes.io/desired-replicas'] | int
-          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
-          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
+            - name: "[ ExposePodsByNameTest - RunTest ] Wait until all replicas are ready"
+              kubernetes.core.k8s_info:
+                api_version: apps/v1
+                kind: ReplicaSet
+                kubeconfig: "{{ kubeconfig }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                name: "{{ new_replicaset }}"
+              register: new_replicaset_status
+              until:
+                - new_replicaset_status is defined
+                - new_replicaset_status.resources is defined
+                - new_replicaset_status.resources | length > 0
+                - new_replicaset_status.resources[0].status is defined
+                - new_replicaset_status.resources[0].status.replicas is defined
+                - new_replicaset_status.resources[0].status.replicas == new_replicaset_status.resources[0].metadata.annotations['deployment.kubernetes.io/desired-replicas'] | int
+              retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+              delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
           when:
             - "'east' in inventory_hostname"
 
@@ -206,166 +192,146 @@
         # Validation after deployment restart
         #####
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Wait for each old pod to disappear"
-          kubernetes.core.k8s_info:
-            api_version: v1
-            kind: Pod
-            name: "{{ item }}"
-            kubeconfig: "{{ kubeconfig }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-          register: pod_removed
-          until:
-            - pod_removed.resources is defined
-            - pod_removed.resources | length == 0
-          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
-          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
-          loop: "{{ pod_names_array }}"
-          when:
-            - pod_names_array is defined
-            - "'east' in inventory_hostname"
+        - name: "[ ExposePodsByNameTest ] - Validation block on East"
+          block:
+            - name: "[ ExposePodsByNameTest - RunTest ] Wait for each old pod to disappear"
+              kubernetes.core.k8s_info:
+                api_version: v1
+                kind: Pod
+                name: "{{ item }}"
+                kubeconfig: "{{ kubeconfig }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+              register: pod_removed
+              until:
+                - pod_removed.resources is defined
+                - pod_removed.resources | length == 0
+              retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+              delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
+              loop: "{{ pod_names_array }}"
+              when:
+                - pod_names_array is defined
 
-        # Get New Pods array
-        - name: "[ ExposePodsByNameTest - RunTest ] Get the pod names in east"
-          kubernetes.core.k8s_info:
-            api_version: v1
-            kind: Pod
-            kubeconfig: "{{ kubeconfig }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            label_selectors:
-              - app = backend
-          register: new_pod_list
-          until:
-            - new_pod_list is defined
-            - new_pod_list.resources is defined
-            - new_pod_list.resources | length == 3
-            - new_pod_list.resources[0].status is defined
-            - new_pod_list.resources[0].status.phase is defined
-            - new_pod_list.resources[0].status.phase == "Running"
-          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
-          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
-          when:
-            - "'east' in inventory_hostname"
+            # Get New Pods array
+            - name: "[ ExposePodsByNameTest - RunTest ] Get the pod names in east"
+              kubernetes.core.k8s_info:
+                api_version: v1
+                kind: Pod
+                kubeconfig: "{{ kubeconfig }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                label_selectors:
+                  - app = backend
+              register: new_pod_list
+              until:
+                - new_pod_list is defined
+                - new_pod_list.resources is defined
+                - new_pod_list.resources | length == 3
+                - new_pod_list.resources[0].status is defined
+                - new_pod_list.resources[0].status.phase is defined
+                - new_pod_list.resources[0].status.phase == "Running"
+              retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+              delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Extract pod names into an array"
-          ansible.builtin.set_fact:
-            new_pod_names_array: "{{ new_pod_list.resources | map(attribute='metadata.name') | list }}"
-          when:
-            - "'east' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Extract pod names into an array"
+              ansible.builtin.set_fact:
+                new_pod_names_array: "{{ new_pod_list.resources | map(attribute='metadata.name') | list }}"
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Display the array of new pod names"
-          ansible.builtin.debug:
-            var: new_pod_names_array
-          when:
-            - "'east' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Display the array of new pod names"
+              ansible.builtin.debug:
+                var: new_pod_names_array
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Compare old pod names and new pod names"
-          ansible.builtin.set_fact:
-            old_pod_new_pod_difference: "{{ new_pod_names_array | ansible.builtin.symmetric_difference(pod_names_array) }}"
-          when:
-            - "'east' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Compare old pod names and new pod names"
+              ansible.builtin.set_fact:
+                old_pod_new_pod_difference: "{{ new_pod_names_array | ansible.builtin.symmetric_difference(pod_names_array) }}"
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Display the differencec in pod names"
-          ansible.builtin.debug:
-            var: old_pod_new_pod_difference
-          when:
-            - "'east' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Display the differencec in pod names"
+              ansible.builtin.debug:
+                var: old_pod_new_pod_difference
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Check if we have pods with old names"
-          ansible.builtin.set_fact:
-            num_differences_old_new_pods: "{{ old_pod_new_pod_difference | length }}"
+            - name: "[ ExposePodsByNameTest - RunTest ] Check if we have pods with old names"
+              ansible.builtin.set_fact:
+                num_differences_old_new_pods: "{{ old_pod_new_pod_difference | length }}"
+
+            - name: "[ ExposePodsByNameTest - RunTest ] Failing the test if the pod names haven't changed after deployment restart"
+              ansible.builtin.fail:
+                msg: "The test has FAILED - Old Pod names {{ pod_names_array }}, New Pod names {{ new_pod_names_array }}"
+              when:
+                - num_differences_old_new_pods | int != 6
           when:
             - "'east' in inventory_hostname"
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Failing the test if the pod names haven't changed after deployment restart"
-          ansible.builtin.fail:
-            msg: "The test has FAILED - Old Pod names {{ pod_names_array }}, New Pod names {{ new_pod_names_array }}"
-          when:
-            - "'east' in inventory_hostname"
-            - num_differences_old_new_pods | int != 6
+        - name: "[ ExposePodsByNameTest ] - Validation block on West"
+          block:
+            - name: "[ ExposePodsByNameTest - RunTest ] Wait for each old service to disappear"
+              kubernetes.core.k8s_info:
+                api_version: v1
+                kind: Service
+                name: "{{ item }}"
+                kubeconfig: "{{ kubeconfig }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+              register: old_svc_removed
+              until:
+                - old_svc_removed.resources is defined
+                - old_svc_removed.resources | length == 0
+              retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+              delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER * 2 }}"
+              loop: "{{ svc_names_array }}"
+              when:
+                - svc_names_array is defined
 
+            # Get Services array
+            - name: "[ ExposePodsByNameTest - RunTest ] Get the service names in west"
+              kubernetes.core.k8s_info:
+                api_version: v1
+                kind: Service
+                kubeconfig: "{{ kubeconfig }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                label_selectors:
+                  - internal.skupper.io/listener = true
+              register: svc_list
+              until:
+                - svc_list.resources is defined
+                - svc_list.resources | length == 4
+              retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+              delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Wait for each old service to disappear"
-          kubernetes.core.k8s_info:
-            api_version: v1
-            kind: Service
-            name: "{{ item }}"
-            kubeconfig: "{{ kubeconfig }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-          register: old_svc_removed
-          until:
-            - old_svc_removed.resources is defined
-            - old_svc_removed.resources | length == 0
-          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
-          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
-          loop: "{{ svc_names_array }}"
-          when:
-            - svc_list is defined
-            - "'west' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Extract service names into an array"
+              ansible.builtin.set_fact:
+                svc_names_array: "{{ svc_list.resources | selectattr('metadata.name', 'search', search_character) | map(attribute='metadata.name') | list }}"
+              when:
+                - svc_list.resources is defined
+                - svc_list.resources | length == 4
 
-        # Get Services array
-        - name: "[ ExposePodsByNameTest - RunTest ] Get the service names in west"
-          kubernetes.core.k8s_info:
-            api_version: v1
-            kind: Service
-            kubeconfig: "{{ kubeconfig }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            label_selectors:
-              - internal.skupper.io/listener = true
-          register: svc_list
-          until:
-            - svc_list.resources is defined
-            - svc_list.resources | length == 4
-          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
-          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
-          when:
-            - "'west' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Display the array of service names"
+              ansible.builtin.debug:
+                var: svc_names_array
+              when:
+                - svc_names_array is defined
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Extract service names into an array"
-          ansible.builtin.set_fact:
-            svc_names_array: "{{ svc_list.resources | selectattr('metadata.name', 'search', search_character) | map(attribute='metadata.name') | list }}"
-          when:
-            - svc_list.resources is defined
-            - svc_list.resources | length == 4
-            - "'west' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Compare pods and services after deployment reset"
+              ansible.builtin.set_fact:
+                pod_svc_difference: "{{ hostvars['east']['new_pod_names_array'] | ansible.builtin.symmetric_difference(svc_names_array) }}"
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Display the array of service names"
-          ansible.builtin.debug:
-            var: svc_names_array
-          when:
-            - svc_names_array is defined
-            - "'west' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Check if we have differences between pods and service names"
+              ansible.builtin.set_fact:
+                num_differences: "{{ pod_svc_difference | length }}"
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Compare pods and services after deployment reset"
-          ansible.builtin.set_fact:
-            pod_svc_difference: "{{ hostvars['east']['new_pod_names_array'] | ansible.builtin.symmetric_difference(svc_names_array) }}"
-          when:
-            - "'west' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Display if both pods and services have matching names"
+              ansible.builtin.debug:
+                var: pod_svc_difference
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Check if we have differences between pods and service names"
-          ansible.builtin.set_fact:
-            num_differences: "{{ pod_svc_difference | length }}"
-          when:
-            - "'west' in inventory_hostname"
+            - name: "[ ExposePodsByNameTest - RunTest ] Failing the test if the exposed services does not matches the pod names after deployment restart"
+              ansible.builtin.fail:
+                msg: "The test has FAILED - Pod names {{ hostvars['east']['pod_names_array'] }}, Service names {{ svc_names_array }}"
+              when:
+                - num_differences | int > 0
 
-        - name: "[ ExposePodsByNameTest - RunTest ] Display if both pods and services have matching names"
-          ansible.builtin.debug:
-            var: pod_svc_difference
+            - name: "[ ExposePodsByNameTest - RunTest ] Test succeeded"
+              ansible.builtin.debug:
+                msg: "The test has PASSED - Pod names {{ hostvars['east']['pod_names_array'] }}, Service names {{ svc_names_array }}"
+              when:
+                - num_differences | int == 0
           when:
             - "'west' in inventory_hostname"
-
-        - name: "[ ExposePodsByNameTest - RunTest ] Failing the test if the exposed services does not matches the pod names after deployment restart"
-          ansible.builtin.fail:
-            msg: "The test has FAILED - Pod names {{ hostvars['east']['pod_names_array'] }}, Service names {{ svc_names_array }}"
-          when:
-            - "'west' in inventory_hostname"
-            - num_differences | int > 0
-
-        - name: "[ ExposePodsByNameTest - RunTest ] Test succeeded"
-          ansible.builtin.debug:
-            msg: "The test has PASSED - Pod names {{ hostvars['east']['pod_names_array'] }}, Service names {{ svc_names_array }}"
-          when:
-            - "'west' in inventory_hostname"
-            - num_differences | int == 0
 
       always:
         - name: "[ ExposePodsByNameTest - Teardown ] Removing Skupper resources from east namespace"
