@@ -16,6 +16,7 @@ import (
 func TestCmdSystemReload_ValidateInput(t *testing.T) {
 	type test struct {
 		name          string
+		namespace     string
 		args          []string
 		expectedError string
 	}
@@ -26,12 +27,18 @@ func TestCmdSystemReload_ValidateInput(t *testing.T) {
 			args:          []string{"something"},
 			expectedError: "this command does not accept arguments",
 		},
+		{
+			name:          "invalid-namespace",
+			namespace:     "Invalid",
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+		},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
 			command := &CmdSystemReload{}
+			command.Namespace = test.namespace
 			command.CobraCmd = common.ConfigureCobraCommand(common.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
 
 			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
