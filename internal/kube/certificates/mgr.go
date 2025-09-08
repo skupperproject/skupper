@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"slices"
 	"strings"
 	"time"
 
@@ -138,15 +139,34 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
 		changed := false
-		if mergeOwnerReferences(current.ObjectMeta.OwnerReferences, refs) {
+		if mergeOwnerReferences(&current.ObjectMeta, refs) {
 			changed = true
 		}
 		if !cmp.Equal(spec, current.Spec, compareSpecUnordered...) {
 			// merge hosts as the certificate may be shared by sources each requiring different sets of hosts:
 			hosts := getHostChanges(getPreviousHosts(current, refs), spec.Hosts, key).apply(current.Spec.Hosts)
+			originalHosts := current.Spec.Hosts
+			originalSubject := current.Spec.Subject
 			current.Spec = spec
-			current.Spec.Hosts = hosts
-			changed = true
+			ownerRefsLength := len(current.ObjectMeta.OwnerReferences)
+			if ownerRefsLength > 1 {
+				// If multiple owners found, do not change subject
+				// and only change hosts if a host is not present in the SAN
+				current.Spec.Subject = originalSubject
+				for _, host := range hosts {
+					if !slices.Contains(originalHosts, host) {
+						changed = true
+						break
+					}
+				}
+				if changed {
+					current.Spec.Hosts = hosts
+				} else {
+					current.Spec.Hosts = originalHosts
+				}
+			} else {
+				changed = true
+			}
 		}
 		if m.context != nil {
 			if current.ObjectMeta.Labels == nil {
@@ -447,9 +467,10 @@ func ownerReferences(cert *skupperv2alpha1.Certificate) []metav1.OwnerReference 
 	}
 }
 
-func mergeOwnerReferences(original []metav1.OwnerReference, added []metav1.OwnerReference) bool {
+func mergeOwnerReferences(obj *metav1.ObjectMeta, added []metav1.OwnerReference) bool {
 	changed := false
 	byUid := map[types.UID]metav1.OwnerReference{}
+	original := obj.OwnerReferences
 	for _, ref := range original {
 		byUid[ref.UID] = ref
 	}
@@ -458,6 +479,9 @@ func mergeOwnerReferences(original []metav1.OwnerReference, added []metav1.Owner
 			original = append(original, ref)
 			changed = true
 		}
+	}
+	if changed {
+		obj.OwnerReferences = original
 	}
 	return changed
 }
