@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"slices"
 	"strings"
 	"time"
 
@@ -142,31 +141,24 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 		if mergeOwnerReferences(&current.ObjectMeta, refs) {
 			changed = true
 		}
+		ownerRefsLength := len(current.ObjectMeta.OwnerReferences)
+		specHostsCsv := strings.Join(spec.Hosts, ",")
+		specHosts := spec.Hosts
+		if ownerRefsLength > 1 {
+			spec.Subject = current.Spec.Subject
+			specHosts = append(specHosts, current.Spec.Hosts...)
+		}
+		// merge hosts as the certificate may be shared by sources each requiring different sets of hosts:
+		spec.Hosts = getHostChanges(getPreviousHosts(current, refs), specHosts, key).apply(current.Spec.Hosts)
 		if !cmp.Equal(spec, current.Spec, compareSpecUnordered...) {
-			// merge hosts as the certificate may be shared by sources each requiring different sets of hosts:
-			hosts := getHostChanges(getPreviousHosts(current, refs), spec.Hosts, key).apply(current.Spec.Hosts)
-			originalHosts := current.Spec.Hosts
-			originalSubject := current.Spec.Subject
 			current.Spec = spec
-			ownerRefsLength := len(current.ObjectMeta.OwnerReferences)
-			if ownerRefsLength > 1 {
-				// If multiple owners found, do not change subject
-				// and only change hosts if a host is not present in the SAN
-				current.Spec.Subject = originalSubject
-				for _, host := range hosts {
-					if !slices.Contains(originalHosts, host) {
-						changed = true
-						break
-					}
-				}
-				if changed {
-					current.Spec.Hosts = hosts
-				} else {
-					current.Spec.Hosts = originalHosts
-				}
-			} else {
-				changed = true
+			if current.Annotations == nil {
+				current.Annotations = map[string]string{}
 			}
+			if len(refs) > 0 {
+				current.ObjectMeta.Annotations["internal.skupper.io/hosts-"+string(refs[0].UID)] = specHostsCsv
+			}
+			changed = true
 		}
 		if m.context != nil {
 			if current.ObjectMeta.Labels == nil {
