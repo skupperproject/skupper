@@ -52,7 +52,7 @@ function inspect() {
   echo
   if [ -n "$ns" ]; then
     echo "Inspecting resource ${resource} in namespace ${ns}"
-    # it's here just to make the linter happy (we have to use double quotes arround the variable)
+    # it's here just to make the linter happy (we have to use double quotes around the variable)
     if [ -n "${log_collection_args}" ]
     then
       oc adm inspect "${log_collection_args}" "--dest-dir=${BASE_COLLECTION_PATH}" "${resource}" -n "${ns}"
