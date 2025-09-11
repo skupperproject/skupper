@@ -11,7 +11,7 @@ REGISTRY := quay.io/skupper
 IMAGE_TAG := v2-dev
 ROUTER_IMAGE_TAG := main
 PLATFORMS ?= linux/amd64,linux/arm64
-CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer Dockerfile.system-controller
+CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer Dockerfile.system-controller Dockerfile.must-gather
 SHARED_IMAGE_LABELS = \
     --label "org.opencontainers.image.created=$(shell TZ=GMT date --iso-8601=seconds)" \
 	--label "org.opencontainers.image.url=https://skupper.io/" \
@@ -197,4 +197,5 @@ clean:
 		cover.out oci-archives bundle bundle.Dockerfile \
 		skupper-*.tgz artifacthub-repo.yml \
 		network-observer-*.tgz  skupper-*-scope.yaml \
-		network-observer-operator
+		network-observer-operator \
+		must-gather.local.*
