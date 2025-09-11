@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -11,14 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-
+	"github.com/cenkalti/backoff/v4"
 	iflag "github.com/skupperproject/skupper/internal/flag"
 	"github.com/skupperproject/skupper/internal/kube/adaptor"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
-	"github.com/skupperproject/skupper/internal/utils"
+	"github.com/skupperproject/skupper/internal/qdr"
 	"github.com/skupperproject/skupper/internal/version"
 )
 
@@ -82,9 +78,8 @@ func main() {
 	}
 
 	log.Println("Waiting for Skupper router to be ready")
-	_, err = waitForPodsSelectorStatus(cli.GetNamespace(), cli.Kube, "skupper.io/component=router", corev1.PodRunning, time.Second*180, time.Second*5)
-	if err != nil {
-		log.Fatal("Error waiting for router pods to be ready ", err.Error())
+	if err := waitForAMQPConnection("amqp://localhost:5672", time.Second*180, time.Second*5); err != nil {
+		log.Fatal("Error waiting for router ", err.Error())
 	}
 
 	log.Println("Starting collector...")
@@ -106,35 +101,18 @@ func main() {
 	configSync.Stop()
 }
 
-func getPods(selector string, namespace string, cli kubernetes.Interface) ([]corev1.Pod, error) {
-	options := metav1.ListOptions{LabelSelector: selector}
-	podList, err := cli.CoreV1().Pods(namespace).List(context.TODO(), options)
-	if err != nil {
-		return nil, err
-	}
-	return podList.Items, err
-}
-
-func waitForPodsSelectorStatus(namespace string, clientset kubernetes.Interface, selector string, status corev1.PodPhase, timeout time.Duration, interval time.Duration) ([]corev1.Pod, error) {
-	var pods []corev1.Pod
-	var pod corev1.Pod
-	var err error
-
-	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
-	defer cancel()
-	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
-		pods, err = getPods(selector, namespace, clientset)
-		if err != nil {
-			// pod does not exist yet
-			return false, nil
-		}
-		for _, pod = range pods {
-			if pod.Status.Phase != status {
-				return false, nil
+func waitForAMQPConnection(address string, timeout, interval time.Duration) error {
+	b := backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(timeout), backoff.WithMaxInterval(interval))
+	pool := qdr.NewAgentPool(address, nil)
+	pool.SetConnectionTimeout(interval)
+	return backoff.Retry(
+		func() error {
+			agent, err := pool.Get()
+			if err != nil {
+				return err
 			}
-		}
-		return true, nil
-	})
-
-	return pods, err
+			agent.Close()
+			log.Printf("Connected to router at %q", address)
+			return nil
+		}, b)
 }

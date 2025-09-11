@@ -3,6 +3,7 @@ package qdr
 import (
 	"context"
 	"crypto/tls"
+	"time"
 
 	amqp "github.com/interconnectedcloud/go-amqp"
 
@@ -14,19 +15,20 @@ type TlsConfigRetriever interface {
 }
 
 type ConnectionFactory struct {
-	url    string
-	config TlsConfigRetriever
+	url            string
+	config         TlsConfigRetriever
+	connectTimeout time.Duration
 }
 
 func (f *ConnectionFactory) Connect() (messaging.Connection, error) {
 	if f.config == nil {
-		return dial(f.url, amqp.ConnMaxFrameSize(4294967295))
+		return dial(f.url, amqp.ConnMaxFrameSize(4294967295), amqp.ConnConnectTimeout(f.connectTimeout))
 	} else {
 		tlsConfig, err := f.config.GetTlsConfig()
 		if err != nil {
 			return nil, err
 		}
-		return dial(f.url, amqp.ConnSASLExternal(), amqp.ConnMaxFrameSize(4294967295), amqp.ConnTLSConfig(tlsConfig))
+		return dial(f.url, amqp.ConnSASLExternal(), amqp.ConnMaxFrameSize(4294967295), amqp.ConnConnectTimeout(f.connectTimeout), amqp.ConnTLSConfig(tlsConfig))
 	}
 }
 
