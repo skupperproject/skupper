@@ -185,9 +185,10 @@ func (node *RouterNode) AsRouter() *Router {
 }
 
 type AgentPool struct {
-	url    string
-	config TlsConfigRetriever
-	pool   chan *Agent
+	url            string
+	config         TlsConfigRetriever
+	pool           chan *Agent
+	connectTimeout time.Duration
 }
 
 func NewAgentPool(url string, config TlsConfigRetriever) *AgentPool {
@@ -198,13 +199,17 @@ func NewAgentPool(url string, config TlsConfigRetriever) *AgentPool {
 	}
 }
 
+func (p *AgentPool) SetConnectionTimeout(d time.Duration) {
+	p.connectTimeout = d
+}
+
 func (p *AgentPool) Get() (*Agent, error) {
 	var a *Agent
 	var err error
 	select {
 	case a = <-p.pool:
 	default:
-		a, err = Connect(p.url, p.config)
+		a, err = ConnectTimeout(p.url, p.config, p.connectTimeout)
 	}
 	return a, err
 }
@@ -219,6 +224,14 @@ func (p *AgentPool) Put(a *Agent) {
 	}
 }
 
+func ConnectTimeout(url string, config TlsConfigRetriever, connectTimeout time.Duration) (*Agent, error) {
+	factory := ConnectionFactory{
+		url:            url,
+		config:         config,
+		connectTimeout: connectTimeout,
+	}
+	return newAgent(&factory)
+}
 func Connect(url string, config TlsConfigRetriever) (*Agent, error) {
 	factory := ConnectionFactory{
 		url:    url,
