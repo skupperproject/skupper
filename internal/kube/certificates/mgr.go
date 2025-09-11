@@ -138,14 +138,26 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
 		changed := false
-		if mergeOwnerReferences(current.ObjectMeta.OwnerReferences, refs) {
+		if mergeOwnerReferences(&current.ObjectMeta, refs) {
 			changed = true
 		}
+		ownerRefsLength := len(current.ObjectMeta.OwnerReferences)
+		specHostsCsv := strings.Join(spec.Hosts, ",")
+		specHosts := spec.Hosts
+		if ownerRefsLength > 1 {
+			spec.Subject = current.Spec.Subject
+			specHosts = append(specHosts, current.Spec.Hosts...)
+		}
+		// merge hosts as the certificate may be shared by sources each requiring different sets of hosts:
+		spec.Hosts = getHostChanges(getPreviousHosts(current, refs), specHosts, key).apply(current.Spec.Hosts)
 		if !cmp.Equal(spec, current.Spec, compareSpecUnordered...) {
-			// merge hosts as the certificate may be shared by sources each requiring different sets of hosts:
-			hosts := getHostChanges(getPreviousHosts(current, refs), spec.Hosts, key).apply(current.Spec.Hosts)
 			current.Spec = spec
-			current.Spec.Hosts = hosts
+			if current.Annotations == nil {
+				current.Annotations = map[string]string{}
+			}
+			if len(refs) > 0 {
+				current.ObjectMeta.Annotations["internal.skupper.io/hosts-"+string(refs[0].UID)] = specHostsCsv
+			}
 			changed = true
 		}
 		if m.context != nil {
@@ -447,9 +459,10 @@ func ownerReferences(cert *skupperv2alpha1.Certificate) []metav1.OwnerReference 
 	}
 }
 
-func mergeOwnerReferences(original []metav1.OwnerReference, added []metav1.OwnerReference) bool {
+func mergeOwnerReferences(obj *metav1.ObjectMeta, added []metav1.OwnerReference) bool {
 	changed := false
 	byUid := map[types.UID]metav1.OwnerReference{}
+	original := obj.OwnerReferences
 	for _, ref := range original {
 		byUid[ref.UID] = ref
 	}
@@ -458,6 +471,9 @@ func mergeOwnerReferences(original []metav1.OwnerReference, added []metav1.Owner
 			original = append(original, ref)
 			changed = true
 		}
+	}
+	if changed {
+		obj.OwnerReferences = original
 	}
 	return changed
 }
