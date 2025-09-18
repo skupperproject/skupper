@@ -77,7 +77,6 @@ podman-push: $(patsubst Dockerfile.%,podman-push-%,$(CONTAINERFILES))
 podman-push-%: podman-build-%
 	${PODMAN} push "${REGISTRY}/$*:${IMAGE_TAG}"
 
-
 ## multi-platform container images built in docker buildkit builder and
 # exported to oci archive format.
 multiarch-oci: $(patsubst Dockerfile.%,multiarch-oci-%,$(CONTAINERFILES))
@@ -105,6 +104,19 @@ docker-load-oci:
 		img=$$(${PODMAN} load -q < "$$archive" | awk -F": " '{print $$2}') \
 		&& ${PODMAN} image save "$$img" | ${DOCKER} load; \
 	done
+
+# must-gather base is amd64 only
+docker-build-must-gather:
+	${DOCKER} build $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/skupper-must-gather:${IMAGE_TAG}" -f Dockerfile.must-gather .
+
+docker-push-must-gather:
+	${DOCKER} push "${REGISTRY}/skupper-must-gather:${IMAGE_TAG}"
+
+podman-build-must-gather:
+	${PODMAN} build $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/skupper-must-gather:${IMAGE_TAG}" -f Dockerfile.must-gather .
+
+podman-push-must-gather:
+	${PODMAN} push "${REGISTRY}/skupper-must-gather:${IMAGE_TAG}"
 
 ## Print fully qualified image names by arch
 describe-multiarch-oci:
@@ -197,4 +209,5 @@ clean:
 		cover.out oci-archives bundle bundle.Dockerfile \
 		skupper-*.tgz artifacthub-repo.yml \
 		network-observer-*.tgz  skupper-*-scope.yaml \
-		network-observer-operator
+		network-observer-operator \
+		must-gather.local.*
