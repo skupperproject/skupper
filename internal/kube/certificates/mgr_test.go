@@ -243,6 +243,23 @@ func TestCertificateManager(t *testing.T) {
 			expectedSecrets:      []*corev1.Secret{},
 			expectedCertificates: []*skupperv2alpha1.Certificate{},
 		},
+		{
+			name: "owned secret missing annotations",
+			k8sObjects: []runtime.Object{
+				myCaFixture,
+				withOwnerRef(secret("foo", "test", nil, nil, nil), metav1.OwnerReference{APIVersion: "skupper.io/v2alpha1", Kind: "Certificate", Name: "foo"}),
+			},
+			skupperObjects: []runtime.Object{
+				certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil),
+			},
+			expectedSecrets: []*corev1.Secret{
+				secret("foo", "test", nil, nil, nil),
+				secret("my-ca", "test", nil, nil, nil),
+			},
+			expectedCertificates: []*skupperv2alpha1.Certificate{
+				addCertificateStatus(certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil), "", "", condition(skupperv2alpha1.CONDITION_TYPE_READY, metav1.ConditionTrue, "Ready", "OK")),
+			},
+		},
 	}
 	for _, tt := range testTable {
 		t.Run(tt.name, func(t *testing.T) {
@@ -322,6 +339,10 @@ func secret(name string, namespace string, data map[string][]byte, labels map[st
 	}
 }
 
+func withOwnerRef(secret *corev1.Secret, ref metav1.OwnerReference) *corev1.Secret {
+	secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{ref}
+	return secret
+}
 func certificate(name string, namespace string, ca string, subject string, hosts []string, client bool, server bool, labels map[string]string, annotations map[string]string) *skupperv2alpha1.Certificate {
 	return &skupperv2alpha1.Certificate{
 		TypeMeta: metav1.TypeMeta{
