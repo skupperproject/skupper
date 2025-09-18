@@ -293,6 +293,9 @@ func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv2
 		}
 		changed = true
 		secret.Data = regenerated.Data
+		if secret.Annotations == nil {
+			secret.Annotations = map[string]string{}
+		}
 		secret.Annotations["internal.skupper.io/hosts"] = strings.Join(certificate.Spec.Hosts, ",")
 	}
 	if m.context != nil && controlled {
