@@ -2,6 +2,13 @@ ROOT_PATH := $(shell pwd)
 EXTRA_VARS := --extra-vars "@$(ROOT_PATH)/vars.yml"
 COLLECTION_PATH := $(ROOT_PATH)/e2e/collections/ansible_collections/e2e/tests
 TESTS_CI := attached-connector,ha,hello-world,expose-pods-by-name
+PYTHON ?= python3
+
+# The caller may set a TEST_PREFIX, so they can deal with all namespaces created
+# by these tests with -l e2e.prefix=$TEST_PREFIX.  If not set, we create a random one
+RANDOM != echo $$RANDOM
+TEST_PREFIX ?= $(RANDOM)
+export TEST_PREFIX
 
 # E2E Test directories
 E2E_TEST_DIRS := $(sort $(wildcard $(ROOT_PATH)/e2e/scenarios/*))
@@ -13,7 +20,7 @@ create-venv:
 		echo "Removing old environment if it exists..."; \
 		rm -rf /tmp/e2e-venv; \
 		echo "Creating virtual environment..."; \
-		cd /tmp && python3 -m venv e2e-venv; \
+		cd /tmp && $(PYTHON) -m venv e2e-venv; \
 		if [ -d "/tmp/e2e-venv" ]; then \
 			echo "Virtual environment created successfully at /tmp/e2e-venv"; \
 			. /tmp/e2e-venv/bin/activate && \
@@ -58,15 +65,16 @@ test: create-venv
 		exit 1; \
 	fi
 
-	@export TEST_PREFIX=$$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 5 | head -n 1); \
-	echo "Running the test for directory: $(TEST) with prefix: $$TEST_PREFIX"; \
+	@echo "Running the test for directory: $(TEST) with prefix: $(TEST_PREFIX)";
+
 	. /tmp/e2e-venv/bin/activate && \
 	mkdir -p /tmp/e2e/$(TEST) && \
 	ANSIBLE_LOG_PATH=/tmp/e2e/$(TEST)/ansible_$$(date +%Y%m%d_%H%M%S).log \
 	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg \
 	ansible-playbook $(ROOT_PATH)/e2e/scenarios/$(TEST)/test.yml \
 	-i $(ROOT_PATH)/e2e/scenarios/$(TEST)/inventory $(EXTRA_VARS) \
-	-e namespace_prefix=$$TEST_PREFIX; \
+	$(OPTIONS) \
+	-e namespace_prefix=$(TEST_PREFIX); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -ne 0 ]; then \
 		echo "Test $(TEST) failed with exit code $$EXIT_CODE"; \
