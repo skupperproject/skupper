@@ -166,8 +166,9 @@ func (a *ExtendedBindings) updateBridgeConfigForConnector(siteId string, connect
 
 func (a *ExtendedBindings) updateBridgeConfigForListener(siteId string, listener *skupperv2alpha1.Listener, config *qdr.BridgeConfig) {
 	if a.mapping == nil {
-		site.UpdateBridgeConfigForListenerWithHostAndPort(siteId, listener, "", listener.Spec.Port, config)
-	} else if port, err := a.mapping.GetPortForKey(listener.Name); err == nil {
+		a.mapping = qdr.RecoverPortMapping(nil)
+	}
+	if port, err := a.mapping.GetPortForKey(listener.Name); err == nil {
 		site.UpdateBridgeConfigForListenerWithHostAndPort(siteId, listener, "", port, config)
 	} else {
 		bindings_logger.Error("Could not allocate port for %s/%s: %s",
