@@ -867,7 +867,7 @@ func (s *Site) CheckConnector(name string, connector *skupperv2alpha1.Connector)
 func (s *Site) updateListenerStatus(listener *skupperv2alpha1.Listener, err error) error {
 	if listener.SetConfigured(err) {
 		updated, err := s.clients.GetSkupperClient().SkupperV2alpha1().Listeners(listener.ObjectMeta.Namespace).UpdateStatus(context.TODO(), listener, metav1.UpdateOptions{})
-		if err == nil {
+		if err != nil {
 			return err
 		}
 		s.bindings.UpdateListener(updated.Name, updated)
