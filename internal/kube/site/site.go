@@ -152,6 +152,7 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 		s.logger.Info("Initialising site",
 			slog.String("namespace", siteDef.Namespace),
 			slog.String("name", siteDef.Name))
+		s.bindings.SetSite(s)
 		routerConfigs, err := s.recoverRouterConfig(!inRecovery)
 		if err != nil {
 			return err
@@ -164,7 +165,6 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 		s.initialised = true
 		s.currentGroups = s.groups()
 		s.bindings.init(s, routerConfig)
-		s.bindings.SetSite(s)
 		s.setBindingsConfiguredStatus(nil)
 		s.checkSecuredAccess()
 	} else if len(s.currentGroups) != len(s.groups()) {
