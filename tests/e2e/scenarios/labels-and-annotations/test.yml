@@ -7,11 +7,12 @@
 
   vars:
     kubeconfig: kubeconfig
+    test_identifier: "LabelsAndAnnotations"
 
   tasks:
-    - name: "[ LabelsAndAnnotations ] Initial validation block"
+    - name: "[ {{ test_identifier }} ] Initial validation block"
       block:
-        - name: "[ LabelsAndAnnotations - NoConfigMap ] Ensure that no configMap with custom labels and annotations exists"
+        - name: "[ {{ test_identifier }} - NoConfigMap ] Ensure that no configMap with custom labels and annotations exists"
           kubernetes.core.k8s_info:
             api_version: v1
             kind: ConfigMap
@@ -20,7 +21,7 @@
             kubeconfig: "{{ kubeconfig }}"
           register: unique_verify
 
-        - name: "[ LabelsAndAnnotations ] Fail if a configMap with custom labels and annotations already exists"
+        - name: "[ {{ test_identifier }} ] Fail if a configMap with custom labels and annotations already exists"
           ansible.builtin.fail:
             msg: "Failing because a configMap with custom labels and annotations already exists - {{ unique_verify.resources[0].metadata.namespace }}"
           when:
@@ -30,14 +31,14 @@
       when:
         - "'east' in inventory_hostname"
 
-    - name: "[ ExposePodsByNameTest ] - Main test block"
+    - name: "[ {{ test_identifier }} ] - Main test block"
       block:
 
-        - name: "[ LabelsAndAnnotations ] Generating the namespaces"
+        - name: "[ {{ test_identifier }} ] Generating the namespaces"
           ansible.builtin.include_role:
             name: e2e.tests.generate_namespaces
 
-        - name: "[ LabelsAndAnnotations ] Creating Skupper resources on east namespace"
+        - name: "[ {{ test_identifier }} ] Creating Skupper resources on east namespace"
           skupper.v2.resource:
             kubeconfig: "{{ kubeconfig }}"
             path: "{{ item }}"
@@ -47,7 +48,7 @@
           when:
             - "'east' in inventory_hostname"
 
-        - name: "[ LabelsAndAnnotations - NoConfigMap ] Wait for the initial deployment to be running"
+        - name: "[ {{ test_identifier }} - NoConfigMap ] Wait for the initial deployment to be running"
           kubernetes.core.k8s_info:
             api_version: v1
             kind: Deployment
@@ -69,7 +70,7 @@
         ###
         ###  Apply the Label and Annotations configMap
         ###
-        - name: "[ LabelsAndAnnotations - CreateConfigMap ] Apply the Label-and-Annotations ConfigMap "
+        - name: "[ {{ test_identifier }} - CreateConfigMap ] Apply the Label-and-Annotations ConfigMap "
           skupper.v2.resource:
             kubeconfig: "{{ kubeconfig }}"
             path: "{{ item }}"
@@ -80,7 +81,7 @@
             - "'east' in inventory_hostname"
 
         # Test if a deployment created before the CM gets the custom annotations and labels applied
-        - name: "[ LabelsAndAnnotations - AfterConfigMap ] Wait until the deployment have all the custom labels and annotations"
+        - name: "[ {{ test_identifier }} - AfterConfigMap ] Wait until the deployment have all the custom labels and annotations"
           kubernetes.core.k8s_info:
             kind: Deployment
             namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
@@ -100,7 +101,7 @@
             - "'east' in inventory_hostname"
 
         # Test if a deployment created after the CM gets the custom annotations and labels applied
-        - name: "[ LabelsAndAnnotations - AfterConfigMap ] Creating Skupper resources on west namespace"
+        - name: "[ {{ test_identifier }} - AfterConfigMap ] Creating Skupper resources on west namespace"
           skupper.v2.resource:
             kubeconfig: "{{ kubeconfig }}"
             path: "{{ item }}"
@@ -110,7 +111,7 @@
           when:
             - "'west' in inventory_hostname"
 
-        - name: "[ LabelsAndAnnotations - WithConfigMap ] Wait for the annotated deployment to be running and with the custom labels and annotations"
+        - name: "[ {{ test_identifier }} - WithConfigMap ] Wait for the annotated deployment to be running and with the custom labels and annotations"
           kubernetes.core.k8s_info:
             api_version: v1
             kind: Deployment
@@ -136,7 +137,7 @@
         ###
         ###  Remove the Label and Annotations configMap
         ###
-        - name: "[ LabelsAndAnnotations - RemovedConfigMap ] Remove the ConfigMap with custom labels and annotations "
+        - name: "[ {{ test_identifier }} - RemovedConfigMap ] Remove the ConfigMap with custom labels and annotations "
           skupper.v2.resource:
             kubeconfig: "{{ kubeconfig }}"
             path: "{{ item }}"
@@ -148,7 +149,7 @@
             - "'east' in inventory_hostname"
 
         # Test if custom annotations and labels are removed properly
-        - name: "[ LabelsAndAnnotations - RemovedConfigMap ] Check if all custom annotations and labels were removed"
+        - name: "[ {{ test_identifier }} - RemovedConfigMap ] Check if all custom annotations and labels were removed"
           kubernetes.core.k8s_info:
             api_version: v1
             kind: Deployment
@@ -169,9 +170,14 @@
           retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
           delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
 
+      # Run Must-Gather on any failure
+      rescue:
+        - name: "[ {{ test_identifier }} - Teardown ] Import the e2e debug/rescue tasks"
+          ansible.builtin.import_tasks: ../../common/e2e_debug_rescue.yml
+
       # Teardown
       always:
-        - name: "[ LabelsAndAnnotations - Teardown ] Removing Skupper resources from east namespace"
+        - name: "[ {{ test_identifier }} - Teardown ] Removing Skupper resources from east namespace"
           skupper.v2.resource:
             kubeconfig: "{{ kubeconfig }}"
             path: "{{ item }}"
@@ -182,7 +188,7 @@
           when:
             - "'east' in inventory_hostname"
 
-        - name: "[ LabelsAndAnnotations - Teardown ] Removing Skupper resources from west namespace"
+        - name: "[ {{ test_identifier }} - Teardown ] Removing Skupper resources from west namespace"
           skupper.v2.resource:
             kubeconfig: "{{ kubeconfig }}"
             path: "{{ item }}"
@@ -193,7 +199,7 @@
           when:
             - "'west' in inventory_hostname"
 
-        - name: "[ LabelsAndAnnotations - Teardown ] Removing the namespaces"
+        - name: "[ {{ test_identifier }} - Teardown ] Removing the namespaces"
           ansible.builtin.command: "kubectl delete namespace {{ item }} --kubeconfig {{ kubeconfig }}"
           with_items:
             - "{{ namespace_prefix }}-{{ namespace_name }}"
