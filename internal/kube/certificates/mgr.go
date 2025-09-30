@@ -138,26 +138,33 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
 		changed := false
+		ownerMap := certificateToOwnerMapping(current)
+		if !ownerMap.IsControlled {
+			return fmt.Errorf("certificate %q exists but is not controlled by skupper", name)
+		}
 		if mergeOwnerReferences(&current.ObjectMeta, refs) {
 			changed = true
 		}
-		ownerRefsLength := len(current.ObjectMeta.OwnerReferences)
-		specHostsCsv := strings.Join(spec.Hosts, ",")
-		specHosts := spec.Hosts
-		if ownerRefsLength > 1 {
-			spec.Subject = current.Spec.Subject
-			specHosts = append(specHosts, current.Spec.Hosts...)
+		for _, ref := range refs {
+			refUID := string(ref.UID)
+			configuredHosts := ownerMap.PerOwnerHosts[refUID]
+			if !cmp.Equal(configuredHosts, spec.Hosts, compareSpecUnordered...) {
+				ownerMap.PerOwnerHosts[refUID] = spec.Hosts
+			}
 		}
-		// merge hosts as the certificate may be shared by sources each requiring different sets of hosts:
-		spec.Hosts = getHostChanges(getPreviousHosts(current, refs), specHosts, key).apply(current.Spec.Hosts)
+		if ownerMap.ApplyMetadata(current) {
+			changed = true
+		}
+		ownerRefsLength := len(current.ObjectMeta.OwnerReferences)
+		if ownerRefsLength > 1 {
+			// once a certificate is created and gets multiple owners ignore
+			// subject changes to prevent flapping subject from differing owner
+			// spec.
+			spec.Subject = current.Spec.Subject
+		}
+		spec.Hosts = ownerMap.CombinedHosts()
 		if !cmp.Equal(spec, current.Spec, compareSpecUnordered...) {
 			current.Spec = spec
-			if current.Annotations == nil {
-				current.Annotations = map[string]string{}
-			}
-			if len(refs) > 0 {
-				current.ObjectMeta.Annotations["internal.skupper.io/hosts-"+string(refs[0].UID)] = specHostsCsv
-			}
 			changed = true
 		}
 		if m.context != nil {
@@ -196,15 +203,12 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 				Labels: map[string]string{
 					"internal.skupper.io/certificate": "true",
 				},
-				Annotations: map[string]string{
-					"internal.skupper.io/controlled": "true",
-				},
+				Annotations: map[string]string{},
 			},
 			Spec: spec,
 		}
-		if len(refs) > 0 {
-			cert.ObjectMeta.Annotations["internal.skupper.io/hosts-"+string(refs[0].UID)] = strings.Join(spec.Hosts, ",")
-		}
+		ownerMap := newOwnerMapping(refs, spec.Hosts)
+		ownerMap.ApplyMetadata(cert)
 		if m.context != nil {
 			m.context.SetLabels(namespace, cert.Name, "Certificate", cert.ObjectMeta.Labels)
 			m.context.SetAnnotations(namespace, cert.Name, "Certificate", cert.ObjectMeta.Annotations)
@@ -224,26 +228,43 @@ func (m *CertificateManagerImpl) checkCertificate(key string, certificate *skupp
 	if certificate == nil {
 		return m.certificateDeleted(key)
 	}
-	if secret, ok := m.secrets[key]; ok {
-		return m.reconcile(key, certificate, secret)
-	} else {
-		return m.reconcile(key, certificate, nil)
+	ownerMap := certificateToOwnerMapping(certificate)
+	if ownerMap.IsControlled {
+		// check for deleted owner references
+		ownerUIDs := map[string]struct{}{}
+		for _, ref := range certificate.OwnerReferences {
+			ownerUIDs[string(ref.UID)] = struct{}{}
+		}
+		for configuredOwner := range ownerMap.PerOwnerHosts {
+			if _, ok := ownerUIDs[configuredOwner]; !ok {
+				delete(ownerMap.PerOwnerHosts, configuredOwner)
+			}
+		}
+		if ownerMap.ApplyMetadata(certificate) {
+			certificate.Spec.Hosts = ownerMap.CombinedHosts()
+			updated, err := m.processor.GetSkupperClient().SkupperV2alpha1().Certificates(certificate.Namespace).Update(context.Background(), certificate, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+			m.definitions[key] = updated
+			return nil
+		}
+
 	}
+	return m.reconcileSecret(key, certificate, m.secrets[key])
 }
 
 // This method does whatever is required to ensure that there is a
 // Secret resource corresponding to the supplied CertificateResource.
-func (m *CertificateManagerImpl) reconcile(key string, certificate *skupperv2alpha1.Certificate, secret *corev1.Secret) error {
+func (m *CertificateManagerImpl) reconcileSecret(key string, certificate *skupperv2alpha1.Certificate, secret *corev1.Secret) error {
+
+	var err error
 	if secret != nil {
-		if err := m.updateSecret(key, certificate, secret); err != nil {
-			return m.updateStatus(certificate, err)
-		}
+		err = m.updateSecret(key, certificate, secret)
 	} else {
-		if err := m.createSecret(key, certificate); err != nil {
-			return m.updateStatus(certificate, err)
-		}
+		err = m.createSecret(key, certificate)
 	}
-	return m.updateStatus(certificate, nil)
+	return m.updateStatus(certificate, err)
 }
 
 func (m *CertificateManagerImpl) certificateDeleted(key string) error {
@@ -283,7 +304,7 @@ func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv2
 	controlled := isSecretControlled(secret)
 	if !isSecretCorrect(certificate, secret) {
 		if !controlled {
-			return errors.New("Secret exists but is not controlled by skupper")
+			return errors.New("secret exists but is not controlled by skupper")
 		}
 
 		regenerated, err := m.generateSecret(certificate)
@@ -388,7 +409,7 @@ func (m *CertificateManagerImpl) checkSecret(key string, secret *corev1.Secret) 
 	}
 	m.secrets[key] = secret
 	if definition, ok := m.definitions[key]; ok {
-		return m.reconcile(key, definition, secret)
+		return m.reconcileSecret(key, definition, secret)
 	}
 
 	return nil
@@ -413,10 +434,17 @@ func isSecretCorrect(certificate *skupperv2alpha1.Certificate, secret *corev1.Se
 	}
 	validFor := map[string]string{}
 	for _, host := range cert.DNSNames {
+		// Ignore empty DNSNames - GH-2277
+		if host == "" {
+			continue
+		}
 		validFor[host] = host
 	}
 	for _, ip := range cert.IPAddresses {
 		validFor[ip.String()] = ip.String()
+	}
+	if len(certificate.Spec.Hosts) != len(validFor) {
+		return false
 	}
 	for _, host := range certificate.Spec.Hosts {
 		if _, ok := validFor[host]; !ok {
@@ -479,73 +507,4 @@ func mergeOwnerReferences(obj *metav1.ObjectMeta, added []metav1.OwnerReference)
 		obj.OwnerReferences = original
 	}
 	return changed
-}
-
-type HostChanges struct {
-	key       string
-	additions []string
-	deletions []string
-}
-
-func (changes *HostChanges) apply(original []string) []string {
-	changed := false
-	index := map[string]bool{}
-	for _, value := range original {
-		index[value] = true
-	}
-	for _, host := range changes.additions {
-		if _, ok := index[host]; !ok {
-			index[host] = true
-			changed = true
-		}
-	}
-	for _, host := range changes.deletions {
-		if _, ok := index[host]; ok {
-			delete(index, host)
-			changed = true
-		}
-	}
-	if !changed {
-		return original
-	}
-	var hosts []string
-	for key, _ := range index {
-		hosts = append(hosts, key)
-	}
-	log.Printf("Changing hosts for Certificate %s from %v to %v", changes.key, original, hosts)
-	return hosts
-}
-
-func getPreviousHosts(cert *skupperv2alpha1.Certificate, refs []metav1.OwnerReference) map[string]bool {
-	if len(refs) > 0 {
-		if value, ok := cert.ObjectMeta.Annotations["internal.skupper.io/hosts-"+string(refs[0].UID)]; ok {
-			hosts := map[string]bool{}
-			for _, value := range strings.Split(value, ",") {
-				hosts[value] = true
-			}
-			return hosts
-		}
-	}
-	return nil
-}
-
-func getHostChanges(previous map[string]bool, current []string, key string) *HostChanges {
-	changes := &HostChanges{
-		key: key,
-	}
-	if len(previous) > 0 {
-		for _, value := range current {
-			if _, ok := previous[value]; ok {
-				delete(previous, value)
-			} else {
-				changes.additions = append(changes.additions, value)
-			}
-		}
-		for value, _ := range previous {
-			changes.deletions = append(changes.deletions, value)
-		}
-	} else {
-		changes.additions = current
-	}
-	return changes
 }
