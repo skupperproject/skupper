@@ -12,6 +12,17 @@ teardown_flag: true
 RESOURCE_RETRY_MULTIPLIER:  1
 RESOURCE_DELAY_MULTIPLIER:  1
 
+
+##################################################
+# Must-Gather common variables
+##################################################
+mg_image: "quay.io/skupper/skupper-must-gather"
+mg_tag: "latest"
+mg_last_minutes: "30m"
+mg_artifact_pattern: ".*skupper-must*"
+mg_artifact_dest: "/tmp/e2e/"
+
+
 ##################################################
 # IPERF3 variables
 ##################################################

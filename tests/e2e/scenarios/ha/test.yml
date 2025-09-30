@@ -5,239 +5,219 @@
 
   vars:
     kubeconfig: kubeconfig
+    test_identifier: "HATest"
 
   tasks:
-    - name: "[ HATest ] - Main HA test block"
+    - name: "[ {{ test_identifier }} ] - Main HA test block"
       block:
         - ansible.builtin.debug:
-            msg: "[ HATest ] - Main HA test Playbook"
+            msg: "[ {{ test_identifier }} ] - Main HA test Playbook"
 
-        - name: "[ HATest - Setup ] Generating the namespaces"
+        - name: "[ {{ test_identifier }} - Setup ] Generating the namespaces"
           ansible.builtin.include_role:
             name: e2e.tests.generate_namespaces
 
-        - name: "[ HATest - Setup ] Creating Skupper resources on eastha namespace"
-          skupper.v2.resource:
-            kubeconfig: "{{ kubeconfig }}"
-            path: "{{ item }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-          with_items:
-            - "{{ playbook_dir }}/resources/eastha/backend.yaml"
-            - "{{ playbook_dir }}/resources/eastha/site.yaml"
-            - "{{ playbook_dir }}/resources/eastha/connector.yaml"
+        - name: "[ {{ test_identifier }} ] - Setup West"
+          block:
+            - name: "[ {{ test_identifier }} - Setup ] Creating Skupper resources on westha namespace"
+              skupper.v2.resource:
+                kubeconfig: "{{ kubeconfig }}"
+                path: "{{ item }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+              with_items:
+                - "{{ playbook_dir }}/resources/westha/site.yaml"
+                - "{{ playbook_dir }}/resources/westha/listener.yaml"
+
+            - name: "[ {{ test_identifier }} - Setup ] Issue a Skupper access token from westha namespace"
+              skupper.v2.token:
+                kubeconfig: "{{ kubeconfig }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                name: west-ha-grant
+                redemptions_allowed: 1
+              register: west
+
+            - name: "Create temporary build directory"
+              ansible.builtin.tempfile:
+                state: directory
+                suffix: hatemp
+              register: ha_temp_dir
+
+            - name: "[ {{ test_identifier }} - RunTest ] Create the job yaml, based on template, setting the runtime to {{ locust_runtime }}"
+              template:
+                src: "{{ playbook_dir }}/templates/locust-job.yaml.j2"
+                dest: "{{ ha_temp_dir.path }}/locust-job.yaml"
+
+            - name: "[ {{ test_identifier }} - RunTest ] Create the kill-pods script, based on template"
+              template:
+                src: "{{ playbook_dir }}/templates/kill-router-pods.sh.j2"
+                dest: "{{ ha_temp_dir.path }}/kill-router-pods.sh"
+                mode: '0755'
+          when:
+            - "'west' in inventory_hostname"
+
+        - name: "[ {{ test_identifier }} ] - Setup East"
+          block:
+            - name: "[ {{ test_identifier }} - Setup ] Creating Skupper resources on eastha namespace"
+              skupper.v2.resource:
+                kubeconfig: "{{ kubeconfig }}"
+                path: "{{ item }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+              with_items:
+                - "{{ playbook_dir }}/resources/eastha/backend.yaml"
+                - "{{ playbook_dir }}/resources/eastha/site.yaml"
+                - "{{ playbook_dir }}/resources/eastha/connector.yaml"
+
+            - name: "[ {{ test_identifier }} - Setup ] Apply token to eastha site"
+              skupper.v2.resource:
+                kubeconfig: "{{ kubeconfig }}"
+                def: "{{ hostvars['westha']['west']['token'] }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+
+            - name: "[ {{ test_identifier }} - Setup ] Wait for links to get in Ready state"
+              kubernetes.core.k8s_info:
+                api_version: skupper.io/v2alpha1
+                kind: Link
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                kubeconfig: "{{ kubeconfig }}"
+              register: link_list
+              until:
+                - link_list.resources | length > 1
+                - link_list.resources[0].status is defined
+                - link_list.resources[0].status.status is defined
+                - link_list.resources[0].status.status == "Ready"
+                - link_list.resources[1].status is defined
+                - link_list.resources[1].status.status is defined
+                - link_list.resources[1].status.status == "Ready"
+              retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
+              delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
           when:
             - "'east' in inventory_hostname"
 
-        - name: "[ HATest - Setup ] Creating Skupper resources on westha namespace"
-          skupper.v2.resource:
-            kubeconfig: "{{ kubeconfig }}"
-            path: "{{ item }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-          with_items:
-            - "{{ playbook_dir }}/resources/westha/site.yaml"
-            - "{{ playbook_dir }}/resources/westha/listener.yaml"
+        - name: "[ {{ test_identifier }} ] - Run the test"
+          block:
+            - name: "[ {{ test_identifier }} - RunTest ] Start sending POST requests to frontend"
+              skupper.v2.resource:
+                kubeconfig: "{{ kubeconfig }}"
+                path: "{{ item }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+              with_items:
+                - "{{ ha_temp_dir.path }}/locust-job.yaml"
+
+            - name: "[ {{ test_identifier }} - RunTest ] Execute script on control machine to kill the router pods"
+              command: "{{ ha_temp_dir.path }}/kill-router-pods.sh"
+              register: kill_router_pod_output
+              delegate_to: localhost
+
+            - name: "[ {{ test_identifier }} - RunTest ] Display the output for pod kills"
+              debug:
+                var: kill_router_pod_output.stdout_lines
+
+            - name: "[ {{ test_identifier }} - RunTest ] Fail the test if the Locust job has already ended"
+              fail:
+                msg: |
+                  The test validation step has already ran.
+                  If you want to rerun it, please run :
+                    make reset-test
+                    make run-test
+              when:
+                - "'already ended' in kill_router_pod_output.stdout"
+
+            - name: "[ {{ test_identifier }} - RunTest ] Get the locust job logs and save for validation"
+              kubernetes.core.k8s_log:
+                kubeconfig: "{{ kubeconfig }}"
+                api_version: batch/v1
+                kind: Job
+                name: locust-job
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+              register: job_output
+
+            - name: "[ {{ test_identifier }} - RunTest ] Extract num_requests"
+              set_fact:
+                num_requests: "{{ job_output.log_lines | join('') | regex_search('\"num_requests\":\\s*(\\d+)', '\\1') | first }}"
+
+            - name: "[ {{ test_identifier }} - RunTest ] Extract num_failures"
+              set_fact:
+                num_failures: "{{ job_output.log_lines | join('') | regex_search('\"num_failures\":\\s*(\\d+)', '\\1') | first }}"
+
+            - name: "[ {{ test_identifier }} - RunTest ] Display extracted values"
+              debug:
+                msg: "num_requests: {{ num_requests }}, num_failures: {{ num_failures }}"
+
+            - name: "[ {{ test_identifier }} - RunTest ] Failing the test if num_requests = 0 or num_failures > 5% "
+              fail:
+                msg: "The test has FAILED - num_requests: {{ num_requests }}, num_failures: {{ num_failures }}"
+              when:
+                - num_requests|int == 0 or num_failures|int > (num_requests|int / 100) * 5
+
+            - name: "[ {{ test_identifier }} - RunTest ] Test succeeded"
+              ansible.builtin.debug:
+                msg: "The test has PASSED - num_requests: {{ num_requests }}, num_failures: {{ num_failures }}. Failures lower than 5 %"
           when:
             - "'west' in inventory_hostname"
 
-        - name: "[ HATest - Setup ] Issue a Skupper access token from westha namespace"
-          skupper.v2.token:
-            kubeconfig: "{{ kubeconfig }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            name: west-ha-grant
-            redemptions_allowed: 1
-          register: west
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ HATest - Setup ] Apply token to eastha site"
-          skupper.v2.resource:
-            kubeconfig: "{{ kubeconfig }}"
-            def: "{{ hostvars['westha']['west']['token'] }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-          when:
-            - "'east' in inventory_hostname"
-
-        - name: "[ HATest - Setup ] Wait for links to get in Ready state"
-          kubernetes.core.k8s_info:
-            api_version: skupper.io/v2alpha1
-            kind: Link
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            kubeconfig: "{{ kubeconfig }}"
-          register: link_list
-          until:
-            - link_list.resources | length > 1
-            - link_list.resources[0].status is defined
-            - link_list.resources[0].status.status is defined
-            - link_list.resources[0].status.status == "Ready"
-            - link_list.resources[1].status is defined
-            - link_list.resources[1].status.status is defined
-            - link_list.resources[1].status.status == "Ready"
-          retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
-          delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
-          when:
-            - "'east' in inventory_hostname"
-
-        - name: "Create temporary build directory"
-          ansible.builtin.tempfile:
-            state: directory
-            suffix: hatemp
-          register: ha_temp_dir
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ HATest - RunTest ] Create the job yaml, based on template, setting the runtime to {{ locust_runtime }}"
-          template:
-            src: "{{ playbook_dir }}/templates/locust-job.yaml.j2"
-            dest: "{{ ha_temp_dir.path }}/locust-job.yaml"
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ HATest - RunTest ] Create the kill-pods script, based on template"
-          template:
-            src: "{{ playbook_dir }}/templates/kill-router-pods.sh.j2"
-            dest: "{{ ha_temp_dir.path }}/kill-router-pods.sh"
-            mode: '0755'
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ HATest - RunTest ] Start sending POST requests to frontend"
-          skupper.v2.resource:
-            kubeconfig: "{{ kubeconfig }}"
-            path: "{{ item }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-          with_items:
-            - "{{ ha_temp_dir.path }}/locust-job.yaml"
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ HATest - RunTest ] Execute script on control machine to kill the router pods"
-          command: "{{ ha_temp_dir.path }}/kill-router-pods.sh"
-          register: kill_router_pod_output
-          delegate_to: localhost
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ HATest - RunTest ] Display the output for pod kills"
-          debug:
-            var: kill_router_pod_output.stdout_lines
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ HATest - RunTest ] Fail the test if the Locust job has already ended"
-          fail:
-            msg: |
-              The test validation step has already ran.
-              If you want to rerun it, please run :
-                make reset-test
-                make run-test
-          when:
-            - "'west' in inventory_hostname"
-            - "'already ended' in kill_router_pod_output.stdout"
-
-        - name: "[ HATest - RunTest ] Get the locust job logs and save for validation"
-          kubernetes.core.k8s_log:
-            kubeconfig: "{{ kubeconfig }}"
-            api_version: batch/v1
-            kind: Job
-            name: locust-job
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-          register: job_output
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ HATest - RunTest ] Extract num_requests"
-          set_fact:
-            num_requests: "{{ job_output.log_lines | join('') | regex_search('\"num_requests\":\\s*(\\d+)', '\\1') | first }}"
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ HATest - RunTest ] Extract num_failures"
-          set_fact:
-            num_failures: "{{ job_output.log_lines | join('') | regex_search('\"num_failures\":\\s*(\\d+)', '\\1') | first }}"
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ HATest - RunTest ] Display extracted values"
-          debug:
-            msg: "num_requests: {{ num_requests }}, num_failures: {{ num_failures }}"
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ HATest - RunTest ] Failing the test if num_requests = 0 or num_failures > 5% "
-          fail:
-            msg: "The test has FAILED - num_requests: {{ num_requests }}, num_failures: {{ num_failures }}"
-          when:
-            - "'west' in inventory_hostname"
-            - num_requests|int == 0 or num_failures|int > (num_requests|int / 100) * 5
-
-        - name: "[ HATest - RunTest ] Test succeeded"
-          ansible.builtin.debug:
-            msg: "The test has PASSED - num_requests: {{ num_requests }}, num_failures: {{ num_failures }}. Failures lower than 5 %"
-          when:
-            - "'west' in inventory_hostname"
+      # Run Must-Gather on any failure
+      rescue:
+        - name: "[ {{ test_identifier }} ] Import the e2e debug/rescue tasks"
+          ansible.builtin.import_tasks: ../../common/e2e_debug_rescue.yml
 
       always:
-        - name: "[ HATest - Teardown ] Removing the test job"
-          skupper.v2.resource:
-            kubeconfig: "{{ kubeconfig }}"
-            path: "{{ item }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            state: "absent"
-          with_items:
-            - "{{ ha_temp_dir.path }}/locust-job.yaml"
+        - name: "[ {{ test_identifier }} ] - Teardown West"
+          block:
+            - name: "[ {{ test_identifier }} - Teardown ] Removing the test job"
+              skupper.v2.resource:
+                kubeconfig: "{{ kubeconfig }}"
+                path: "{{ item }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                state: "absent"
+              with_items:
+                - "{{ ha_temp_dir.path }}/locust-job.yaml"
+
+            - name: "[ {{ test_identifier }} - Teardown ] Remove the locust ConfigMap"
+              kubernetes.core.k8s:
+                state: absent
+                api_version: v1
+                kind: ConfigMap
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                name: locust-cm
+
+            - name: "[ {{ test_identifier }} - Teardown ] Removing the AccessGrant west-ha-grant in namespace westha"
+              command: "kubectl -n {{ namespace_prefix }}-{{ namespace_name }} delete AccessGrant west-ha-grant --kubeconfig {{ kubeconfig }}"
+              register: out
+              failed_when: out.failed and 'not found' not in out.stderr
+
+            - name: "[ {{ test_identifier }} - Teardown ] Removing Skupper resources from westha namespace"
+              skupper.v2.resource:
+                kubeconfig: "{{ kubeconfig }}"
+                path: "{{ item }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                state: absent
+              with_items:
+                - "{{ playbook_dir }}/resources/westha/site.yaml"
+                - "{{ playbook_dir }}/resources/westha/listener.yaml"
           when:
             - "'west' in inventory_hostname"
 
-        - name: "[ HATest - Teardown ] Remove the locust ConfigMap"
-          kubernetes.core.k8s:
-            state: absent
-            api_version: v1
-            kind: ConfigMap
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            name: locust-cm
-          when:
-            - "'west' in inventory_hostname"
+        - name: "[ {{ test_identifier }} ] - Teardown East"
+          block:
+            - name: "[ {{ test_identifier }} - Teardown ] Removing Skupper resources from eastha namespace"
+              skupper.v2.resource:
+                kubeconfig: "{{ kubeconfig }}"
+                path: "{{ item }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                state: absent
+              with_items:
+                - "{{ playbook_dir }}/resources/eastha/backend.yaml"
+                - "{{ playbook_dir }}/resources/eastha/site.yaml"
+                - "{{ playbook_dir }}/resources/eastha/connector.yaml"
 
-        - name: "[ HATest - Teardown ] Removing Skupper resources from eastha namespace"
-          skupper.v2.resource:
-            kubeconfig: "{{ kubeconfig }}"
-            path: "{{ item }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            state: absent
-          with_items:
-            - "{{ playbook_dir }}/resources/eastha/backend.yaml"
-            - "{{ playbook_dir }}/resources/eastha/site.yaml"
-            - "{{ playbook_dir }}/resources/eastha/connector.yaml"
+            - name: "[ {{ test_identifier }} - Teardown ] Removing the AccessToken token-west-ha-grant in namespace eastha"
+              command: "kubectl -n {{ namespace_prefix }}-{{ namespace_name }} delete AccessToken token-west-ha-grant --kubeconfig {{ kubeconfig }}"
+              register: out
+              failed_when: out.failed and 'not found' not in out.stderr_lines[0]
           when:
             - "'east' in inventory_hostname"
 
-        - name: "[ HATest - Teardown ] Removing Skupper resources from westha namespace"
-          skupper.v2.resource:
-            kubeconfig: "{{ kubeconfig }}"
-            path: "{{ item }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            state: absent
-          with_items:
-            - "{{ playbook_dir }}/resources/westha/site.yaml"
-            - "{{ playbook_dir }}/resources/westha/listener.yaml"
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ HATest - Teardown ] Removing the AccessGrant west-ha-grant in namespace westha"
-          command: "kubectl -n {{ namespace_prefix }}-{{ namespace_name }} delete AccessGrant west-ha-grant --kubeconfig {{ kubeconfig }}"
-          register: out
-          failed_when: out.failed and 'not exists' not in out.stderr_lines[0]
-          when:
-            - "'west' in inventory_hostname"
-
-        - name: "[ HATest - Teardown ] Removing the AccessToken token-west-ha-grant in namespace eastha"
-          command: "kubectl -n {{ namespace_prefix }}-{{ namespace_name }} delete AccessToken token-west-ha-grant --kubeconfig {{ kubeconfig }}"
-          register: out
-          failed_when: out.failed and 'not exists' not in out.stderr_lines[0]
-          when:
-            - "'east' in inventory_hostname"
-
-        - name: "[ HATest - Teardown ] Removing the namespaces"
+        - name: "[ {{ test_identifier }} - Teardown ] Removing the namespaces"
           command: "kubectl delete namespace {{ item }} --kubeconfig {{ kubeconfig }}"
           with_items:
             - "{{ namespace_prefix }}-eastha"

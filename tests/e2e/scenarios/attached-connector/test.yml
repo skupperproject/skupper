@@ -2,10 +2,14 @@
   hosts: all
   roles:
     - e2e.tests.skupper_test_images
+
+  vars:
+    test_identifier: "Attached-Connector"
+
   tasks:
-    - name: Main test block
+    - name: "[ {{ test_identifier }} ] - Main test block"
       block:
-        - name: Creating the namespaces
+        - name: "[ {{ test_identifier }} ] - Creating the namespaces"
           kubernetes.core.k8s:
             state: present
             definition:
@@ -17,7 +21,7 @@
                   e2e.id: "iperf3-attached"
             kubeconfig: "{{ kubeconfig }}"
 
-        - name: Deploy iperf3-server
+        - name: "[ {{ test_identifier }} ] - Deploy iperf3-server"
           kubernetes.core.k8s:
             state: present
             definition:
@@ -46,7 +50,7 @@
           when:
             - "'iperf3-workload'  in inventory_hostname"
 
-        - name: Creating the iperf3 service for iperf3-workload
+        - name: "[ {{ test_identifier }} ] - Creating the iperf3 service for iperf3-workload"
           kubernetes.core.k8s:
             state: present
             definition:
@@ -67,14 +71,14 @@
           when:
             - "'iperf3-workload' in inventory_hostname"
 
-        - name: Creating Skupper resources on iperf3-hub namespace
+        - name: "[ {{ test_identifier }} ] - Creating Skupper resources on iperf3-hub namespace"
           template:
             src: "{{ playbook_dir }}/resources/iperf3-hub/attached-connector-binding.j2"
             dest: "/tmp/attached-connector-binding.yml"
           when:
             - "'iperf3-hub' in inventory_hostname"
 
-        - name: Applying the iperf3-hub service to the iperf3-hub namespace
+        - name: "[ {{ test_identifier }} ] - Applying the iperf3-hub service to the iperf3-hub namespace"
           skupper.v2.resource:
             path: "{{ item }}"
             kubeconfig: "{{ kubeconfig }}"
@@ -85,7 +89,7 @@
           when:
             - "'iperf3-hub' in inventory_hostname"
 
-        - name: Applying the iperf3-server service to the iperf3-hub namespace
+        - name: "[ {{ test_identifier }} ] - Applying the iperf3-server service to the iperf3-hub namespace"
           skupper.v2.resource:
             path: "{{ item }}"
             namespace: "{{ namespace_name }}"
@@ -96,7 +100,7 @@
           when:
             - "'iperf3-client' in inventory_hostname"
 
-        - name: Creating Skupper resources on iperf3-workload namespace
+        - name: "[ {{ test_identifier }} ] - Creating Skupper resources on iperf3-workload namespace"
           template:
             src: "{{ playbook_dir }}/resources/iperf3-workload/attached-connector.j2"
             dest: "/tmp/attached-connector.yml"
@@ -105,7 +109,7 @@
           when:
             - "'iperf3-workload' in inventory_hostname"
 
-        - name: Applying the iperf3-workload service to the iperf3-workload namespace
+        - name: "[ {{ test_identifier }} ] - Applying the iperf3-workload service to the iperf3-workload namespace"
           skupper.v2.resource:
             path: "/tmp/attached-connector.yml"
             kubeconfig: "{{ kubeconfig }}"
@@ -113,7 +117,7 @@
           when:
             - "'iperf3-workload' in inventory_hostname"
 
-        - name: Issue a Skupper access token from iperf3-hub
+        - name: "[ {{ test_identifier }} ] - Issue a Skupper access token from iperf3-hub"
           skupper.v2.token:
             namespace: "{{ namespace_name }}"
             kubeconfig: "{{ kubeconfig }}"
@@ -123,7 +127,7 @@
           when:
             - "'iperf3-hub' in inventory_hostname"
 
-        - name: Apply token to iperf3-client and iperf3-server
+        - name: "[ {{ test_identifier }} ] - Apply token to iperf3-client and iperf3-server"
           skupper.v2.resource:
             def: "{{ hostvars['iperf3-hub']['iperf3']['token'] }}"
             namespace: "{{ namespace_name }}"
@@ -131,7 +135,7 @@
           when:
             - "'iperf3-client' in inventory_hostname"
 
-        - name: Wait for the AttachedConnectorBinding to be in READY state
+        - name: "[ {{ test_identifier }} ] - Wait for the AttachedConnectorBinding to be in READY state"
           kubernetes.core.k8s_info:
             api_version: skupper.io/v2alpha1
             kind: AttachedConnectorBinding
@@ -144,7 +148,7 @@
           delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
           when: "'iperf3-hub' in inventory_hostname"
 
-        - name: Creating a JOB to test the connection
+        - name: "[ {{ test_identifier }} ] - Creating a JOB to test the connection"
           kubernetes.core.k8s:
             state: present
             src: "{{ playbook_dir }}/resources/iperf3-client/iperf3-consumer.yaml"
@@ -153,7 +157,7 @@
           when:
             - "'iperf3-client' in inventory_hostname"
 
-        - name: Wait for the job to be completed
+        - name: "[ {{ test_identifier }} ] - Wait for the job to be completed"
           kubernetes.core.k8s_info:
             api_version: batch/v1
             kind: Job
@@ -169,7 +173,7 @@
           delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
           when: "'iperf3-client' in inventory_hostname"
 
-        - name: Print the iperf test job logs
+        - name: "[ {{ test_identifier }} ] - Print the iperf test job logs"
           kubernetes.core.k8s_log:
             name: iperf-test
             kind: Job
@@ -178,12 +182,12 @@
           register: job_logs
           when: "'iperf3-client' in inventory_hostname"
 
-        - name: Display the job logs
+        - name: "[ {{ test_identifier }} ] - Display the job logs"
           ansible.builtin.debug:
             var: job_logs.log
           when: "'iperf3-client' in inventory_hostname"
 
-        - name: Check iperf connection success
+        - name: "[ {{ test_identifier }} ] - Check iperf connection success"
           ansible.builtin.assert:
             that:
               - "'connected to' in job_logs.log"
@@ -191,8 +195,13 @@
             fail_msg: "iperf test failed"
           when: "'iperf3-client' in inventory_hostname"
 
+      # Run Must-Gather on any failure
+      rescue:
+        - name: "[ {{ test_identifier }} ] Import the e2e debug/rescue tasks"
+          ansible.builtin.import_tasks: ../../common/e2e_debug_rescue.yml
+
       always:
-        - name: Teardown tests
+        - name: "[ {{ test_identifier }} ] - Teardown tests"
           kubernetes.core.k8s:
             state: absent
             definition:

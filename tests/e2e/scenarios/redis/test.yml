@@ -3,163 +3,176 @@
   hosts: all
   roles:
     - e2e.tests.skupper_test_images
+
+  vars:
+    test_identifier: "Redis Test"
+
   tasks:
-    - name: Kubernetes Block
+    - name: "[ {{ test_identifier }} ] - Main Redis test block"
       block:
-        # Kubernetes block
-        - name: Environment shakeout
-          ansible.builtin.include_role:
-            name: e2e.tests.env_shakeout
+        - name: "[ {{ test_identifier }} ] - Kubernetes Block"
+          block:
+            # Kubernetes block
+            - name: "[ {{ test_identifier }} ] - Environment shakeout"
+              ansible.builtin.include_role:
+                name: e2e.tests.env_shakeout
 
-        - name: Generating the namespaces
-          ansible.builtin.include_role:
-            name: e2e.tests.generate_namespaces
+            - name: "[ {{ test_identifier }} ] - Generating the namespaces"
+              ansible.builtin.include_role:
+                name: e2e.tests.generate_namespaces
 
-        - name: Creating Skupper sites resources in the namespaces
-          skupper.v2.resource:
-            path: "{{ site }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            kubeconfig: "{{ kubeconfig }}"
+            - name: "[ {{ test_identifier }} ] - Creating Skupper sites resources in the namespaces"
+              skupper.v2.resource:
+                path: "{{ site }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                kubeconfig: "{{ kubeconfig }}"
 
-        - name: Wait for all Skupper site pods in the namespace to be in Running state
-          ansible.builtin.include_role:
-            name: e2e.tests.pod_wait
-          vars:
-            pod_wait_label_selectors: "app.kubernetes.io/part-of in (skupper, skupper-network-observer)"
+            - name: "[ {{ test_identifier }} ] - Wait for all Skupper site pods in the namespace to be in Running state"
+              ansible.builtin.include_role:
+                name: e2e.tests.pod_wait
+              vars:
+                pod_wait_label_selectors: "app.kubernetes.io/part-of in (skupper, skupper-network-observer)"
 
-        - name: Deploy Redis Server and Sentinel
-          kubernetes.core.k8s:
-            src: "{{ redis }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            kubeconfig: "{{ kubeconfig }}"
+            - name: "[ {{ test_identifier }} ] - Deploy Redis Server and Sentinel"
+              kubernetes.core.k8s:
+                src: "{{ redis }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                kubeconfig: "{{ kubeconfig }}"
 
-        - name: Wait for all Redis Server pods in the namespace to be in Running state
-          ansible.builtin.include_role:
-            name: e2e.tests.pod_wait
-          vars:
-            pod_wait_label_selectors: "application in (redis-server)"
+            - name: "[ {{ test_identifier }} ] - Wait for all Redis Server pods in the namespace to be in Running state"
+              ansible.builtin.include_role:
+                name: e2e.tests.pod_wait
+              vars:
+                pod_wait_label_selectors: "application in (redis-server)"
 
-        - name: Creating Listeners and Connectors resources in the namespaces
-          skupper.v2.resource:
-            path: "{{ item }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            kubeconfig: "{{ kubeconfig }}"
-          with_items:
-            - "{{ listener }}"
-            - "{{ connector }}"
+            - name: "[ {{ test_identifier }} ] - Creating Listeners and Connectors resources in the namespaces"
+              skupper.v2.resource:
+                path: "{{ item }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                kubeconfig: "{{ kubeconfig }}"
+              with_items:
+                - "{{ listener }}"
+                - "{{ connector }}"
 
-        - name: Wait for all Redis Sentinel pods in the namespace to be in Running state
-          ansible.builtin.include_role:
-            name: e2e.tests.pod_wait
-          vars:
-            pod_wait_label_selectors: "application in (redis-sentinel)"
+            - name: "[ {{ test_identifier }} ] - Wait for all Redis Sentinel pods in the namespace to be in Running state"
+              ansible.builtin.include_role:
+                name: e2e.tests.pod_wait
+              vars:
+                pod_wait_label_selectors: "application in (redis-sentinel)"
 
-        - name: Create a Skupper access link from west namespace
-          skupper.v2.token:
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            name: west-link
-            type: link
-            kubeconfig: "{{ kubeconfig }}"
-          register: west
+            - name: "[ {{ test_identifier }} ] - Create a Skupper access link from west namespace"
+              skupper.v2.token:
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                name: west-link
+                type: link
+                kubeconfig: "{{ kubeconfig }}"
+              register: west
+              when:
+                - "'west' in inventory_hostname"
+
+            - name: "[ {{ test_identifier }} ] - Apply token to east site and north"
+              skupper.v2.resource:
+                def: "{{ hostvars['west']['west']['token'] }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+                kubeconfig: "{{ kubeconfig }}"
+              when: "'east' in inventory_hostname or 'north' in inventory_hostname"
           when:
-            - "'west' in inventory_hostname"
+            - "'podman' not in inventory_hostname"
 
-        - name: Apply token to east site and north
-          skupper.v2.resource:
-            def: "{{ hostvars['west']['west']['token'] }}"
-            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
-            kubeconfig: "{{ kubeconfig }}"
-          when: "'east' in inventory_hostname or 'north' in inventory_hostname"
-      when:
-        - "'podman' not in inventory_hostname"
+        # Podman block
+        - name: "[ {{ test_identifier }} ] - Podman Site"
+          block:
 
-    # Podman block
-    - name: Podman Site
-      block:
+            - name: "[ {{ test_identifier }} ] - Creating Skupper sites resources in the namespaces"
+              skupper.v2.resource:
+                path: "{{ item }}"
+                platform: podman
+              with_items:
+                - https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/podman-crs/listener-podman.yaml
+                - https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/podman-crs/site-podman.yaml
 
-        - name: Creating Skupper sites resources in the namespaces
-          skupper.v2.resource:
-            path: "{{ item }}"
-            platform: podman
-          with_items:
-            - https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/podman-crs/listener-podman.yaml
-            - https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/podman-crs/site-podman.yaml
+            - name: "[ {{ test_identifier }} ] - Apply token to podman site"
+              skupper.v2.resource:
+                def: "{{ hostvars['west']['west']['token'] }}"
+                platform: podman
 
-        - name: Apply token to podman site
-          skupper.v2.resource:
-            def: "{{ hostvars['west']['west']['token'] }}"
-            platform: podman
+            - name: "[ {{ test_identifier }} ] - Initialize the default namespace using podman"
+              skupper.v2.system:
+                action: start
+                image: "{{ lookup('env', 'SKUPPER_CLI_IMAGE') | default (omit, true) }}"
+          when:
+            - "'podman' in inventory_hostname"
 
-        - name: Initialize the default namespace using podman
-          skupper.v2.system:
-            action: setup
-      when:
-        - "'podman' in inventory_hostname"
+        # Test block
+        - name: "[ {{ test_identifier }} ] - Check Redis INFO status"
+          block:
+            - name: Run redis-cli command to check INFO with retries
+              ansible.builtin.command:
+                cmd: podman run --network=host {{ skupper_test_images_lanyard }} redis-cli -p 6379 INFO
+              register: redis_info_output
+              changed_when: false
+              failed_when: false
+              retries: 18
+              delay: 10
+              until: redis_info_output.rc == 0 and 'connected_clients' in redis_info_output.stdout
 
-    # Test block
-    - name: Check Redis INFO status
-      block:
-        - name: Run redis-cli command to check INFO with retries
-          ansible.builtin.command:
-            cmd: podman run --network=host {{ skupper_test_images_lanyard }} redis-cli -p 6379 INFO
-          register: redis_info_output
-          changed_when: false
-          failed_when: false
-          retries: 18
-          delay: 10
-          until: redis_info_output.rc == 0 and 'connected_clients' in redis_info_output.stdout
+            - name: "[ {{ test_identifier }} ] - Display redis-cli INFO output"
+              ansible.builtin.debug:
+                var: redis_info_output
 
-        - name: Display redis-cli INFO output
-          ansible.builtin.debug:
-            var: redis_info_output
+            - name: "[ {{ test_identifier }} ] - Extract Redis version and connected clients"
+              ansible.builtin.set_fact:
+                redis_version: "{{ redis_info_output.stdout | regex_search('redis_version:([\\d\\.]+)', '\\1') | first }}"
+                connected_clients: "{{ redis_info_output.stdout | regex_search('connected_clients:(\\d+)', '\\1') | first }}"
+              when: redis_info_output.rc == 0 and redis_info_output.stdout | length > 0
 
-        - name: Extract Redis version and connected clients
-          ansible.builtin.set_fact:
-            redis_version: "{{ redis_info_output.stdout | regex_search('redis_version:([\\d\\.]+)', '\\1') | first }}"
-            connected_clients: "{{ redis_info_output.stdout | regex_search('connected_clients:(\\d+)', '\\1') | first }}"
-          when: redis_info_output.rc == 0 and redis_info_output.stdout | length > 0
+            - name: "[ {{ test_identifier }} ] - Display Redis version and connected clients"
+              ansible.builtin.debug:
+                msg: "Redis version {{ redis_version }} has {{ connected_clients }} connected clients"
+              when: redis_version is defined and connected_clients is defined
 
-        - name: Display Redis version and connected clients
-          ansible.builtin.debug:
-            msg: "Redis version {{ redis_version }} has {{ connected_clients }} connected clients"
-          when: redis_version is defined and connected_clients is defined
+            - name: "[ {{ test_identifier }} ] - Verify Redis has expected connected clients"
+              ansible.builtin.assert:
+                that:
+                  - connected_clients | int >= 3
+                fail_msg: "Redis has fewer than expected connected clients ({{ connected_clients }})"
+                success_msg: "Redis verification successful. Found version {{ redis_version }} with {{ connected_clients }} connected clients"
+              when: connected_clients is defined
+          when:
+            - "'podman' in inventory_hostname"
 
-        - name: Verify Redis has expected connected clients
-          ansible.builtin.assert:
-            that:
-              - connected_clients | int >= 3
-            fail_msg: "Redis has fewer than expected connected clients ({{ connected_clients }})"
-            success_msg: "Redis verification successful. Found version {{ redis_version }} with {{ connected_clients }} connected clients"
-          when: connected_clients is defined
-      when:
-        - "'podman' in inventory_hostname"
+      # Run Must-Gather on any failure
+      rescue:
+        - name: "[ {{ test_identifier }} - Teardown ] Import the e2e debug/rescue tasks"
+          ansible.builtin.import_tasks: ../../common/e2e_debug_rescue.yml
 
-    # Teardown block
-    - name: Teardown block
-      block:
-        - name: Teardown namespace
-          skupper.v2.system:
-            action: teardown
-            namespace: "{{ item }}"
-            platform: "podman"
-          with_items:
-            - default
-          when: "'podman' in inventory_hostname"
+      always:
+        # Teardown block
+        - name: "[ {{ test_identifier }} ] - Teardown block"
+          block:
+            - name: "[ {{ test_identifier }} ] - Teardown namespace"
+              skupper.v2.system:
+                action: stop
+                namespace: "{{ item }}"
+                platform: "podman"
+              with_items:
+                - default
+              when: "'podman' in inventory_hostname"
 
-        - name: Delete Kubernetes namespaces
-          kubernetes.core.k8s:
-            state: absent
-            kind: Namespace
-            kubeconfig: "{{ kubeconfig }}"
-            label_selectors:
-              - e2e.id
-            wait: true
-            wait_timeout: 300
-          register: delete_result
-          when: "'podman' not in inventory_hostname"
+            - name: "[ {{ test_identifier }} ] - Delete Kubernetes namespaces"
+              kubernetes.core.k8s:
+                state: absent
+                kind: Namespace
+                kubeconfig: "{{ kubeconfig }}"
+                label_selectors:
+                  - e2e.id
+                wait: true
+                wait_timeout: 300
+              register: delete_result
+              when: "'podman' not in inventory_hostname"
 
-        - name: Show deletion results
-          debug:
-            var: delete_result
-      when:
-        - teardown_flag != false
+            - name: "[ {{ test_identifier }} ] - Show deletion results"
+              debug:
+                var: delete_result
+          when:
+            - teardown_flag != false

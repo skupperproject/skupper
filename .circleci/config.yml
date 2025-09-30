@@ -29,6 +29,12 @@ commands:
       - run: curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
       - run: sudo chmod +x kubectl
       - run: sudo mv kubectl /usr/local/bin
+  oc-install:
+    description: Install oc ( Openshift Client ) used by must-gather
+    steps:
+      - run: curl https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux-arm64.tar.gz | tar xvz -C /tmp/
+      - run: sudo chmod +x /tmp/oc
+      - run: sudo mv /tmp/oc /usr/local/bin
   kind-install:
     description: Install kind
     steps:
@@ -261,6 +267,7 @@ jobs:
     steps:
       - checkout
       - kubectl-install
+      - oc-install
       - kind-install
       - attach_workspace:
           at: .
