@@ -2,6 +2,7 @@ package certificates
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -185,11 +186,16 @@ func TestCertificateManager(t *testing.T) {
 				myCaFixture,
 			},
 			skupperObjects: []runtime.Object{
-				certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil),
+				managedWithOwnerHosts(t,
+					certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil),
+					metav1.OwnerReference{UID: "aaaa-1a1a1a1a"},
+					"aaa",
+					"bbb",
+				),
 			},
 			context: fakeContext().control("test").label("foo", "bar").annotate("x", "y"),
 			calls: []*Call{
-				call("foo", "test").ensure("my-ca", "my-subject", []string{"xxx", "yyy"}, false, true).owner("mallory", ""),
+				call("foo", "test").ensure("my-ca", "my-subject", []string{"xxx", "yyy"}, false, true).owner("mallory", "ffff-0f0f0f"),
 			},
 			expectedSecrets: []*corev1.Secret{
 				secret("foo", "test", nil, map[string]string{"foo": "bar"}, map[string]string{"x": "y"}),
@@ -197,6 +203,62 @@ func TestCertificateManager(t *testing.T) {
 			},
 			expectedCertificates: []*skupperv2alpha1.Certificate{
 				certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb", "xxx", "yyy"}, false, true, nil, nil),
+			},
+		},
+		{
+			name: "prune hosts from deleted owners",
+			k8sObjects: []runtime.Object{
+				myCaFixture,
+				secret("foo", "test", nil, map[string]string{"foo": "bar"}, map[string]string{"x": "y", "internal.skupper.io/controlled": "true"}),
+			},
+			skupperObjects: []runtime.Object{
+				managedWithOwnerHosts(t,
+					managedWithOwnerHosts(t,
+						certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb", "ccc"}, false, true, nil, nil),
+						metav1.OwnerReference{UID: "aaaa-1a1a1a1a"},
+						"aaa", "bbb",
+					),
+					metav1.OwnerReference{UID: "bbbb-bbbb2222"},
+					"bbb", "ccc",
+				),
+			},
+			context: fakeContext().control("test").label("foo", "bar").annotate("x", "y"),
+			calls: []*Call{
+				call("foo", "test").updateCertificate(
+					managedWithOwnerHosts(t,
+						certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb", "ccc"}, false, true, nil, map[string]string{
+							"internal.skupper.io/hosts-bbbb-bbbb2222": "bbb,ccc",
+						}),
+						metav1.OwnerReference{UID: "aaaa-1a1a1a1a"}, "aaa", "bbb",
+					),
+				),
+			},
+			expectedSecrets: []*corev1.Secret{
+				secret("foo", "test", nil, map[string]string{"foo": "bar"}, map[string]string{"x": "y"}),
+				secret("my-ca", "test", nil, nil, nil),
+			},
+			expectedCertificates: []*skupperv2alpha1.Certificate{
+				certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil),
+			},
+		},
+		{
+			name: "attempt to update non-controlled certificate",
+			k8sObjects: []runtime.Object{
+				myCaFixture,
+			},
+			skupperObjects: []runtime.Object{
+				certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil),
+			},
+			context: fakeContext().control("test").label("foo", "bar").annotate("x", "y"),
+			calls: []*Call{
+				call("foo", "test").ensure("my-ca", "my-subject", []string{"xxx", "yyy"}, false, true).mustError(),
+			},
+			expectedSecrets: []*corev1.Secret{
+				secret("foo", "test", nil, map[string]string{"foo": "bar"}, map[string]string{"x": "y"}),
+				secret("my-ca", "test", nil, nil, nil),
+			},
+			expectedCertificates: []*skupperv2alpha1.Certificate{
+				certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil),
 			},
 		},
 		{
@@ -247,7 +309,7 @@ func TestCertificateManager(t *testing.T) {
 			name: "owned secret missing annotations",
 			k8sObjects: []runtime.Object{
 				myCaFixture,
-				withOwnerRef(secret("foo", "test", nil, nil, nil), metav1.OwnerReference{APIVersion: "skupper.io/v2alpha1", Kind: "Certificate", Name: "foo"}),
+				secretWithOwnerRef(secret("foo", "test", nil, nil, nil), metav1.OwnerReference{APIVersion: "skupper.io/v2alpha1", Kind: "Certificate", Name: "foo"}),
 			},
 			skupperObjects: []runtime.Object{
 				certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil),
@@ -280,7 +342,12 @@ func TestCertificateManager(t *testing.T) {
 
 			processor.TestProcessAll()
 			for _, c := range tt.calls {
-				c.invoke(mgr)
+				callErr := c.invoke(mgr)
+				if c.expectErr {
+					assert.Assert(t, callErr != nil, "expected call to result in error")
+				} else {
+					assert.Assert(t, callErr, "unexpected call error")
+				}
 				for i := 0; i < c.events; i++ {
 					processor.TestProcess()
 					processor.TestProcess()
@@ -339,10 +406,34 @@ func secret(name string, namespace string, data map[string][]byte, labels map[st
 	}
 }
 
-func withOwnerRef(secret *corev1.Secret, ref metav1.OwnerReference) *corev1.Secret {
+func secretWithOwnerRef(secret *corev1.Secret, ref metav1.OwnerReference) *corev1.Secret {
 	secret.ObjectMeta.OwnerReferences = []metav1.OwnerReference{ref}
 	return secret
 }
+
+// managedWithOwnerHosts sets up a Certificiate with skupper controlled and owner hosts annotations
+func managedWithOwnerHosts(t *testing.T, cert *skupperv2alpha1.Certificate, ref metav1.OwnerReference, hosts ...string) *skupperv2alpha1.Certificate {
+	t.Helper()
+	cert.ObjectMeta.OwnerReferences = append(cert.ObjectMeta.OwnerReferences, ref)
+	specHosts := make(map[string]struct{}, len(cert.Spec.Hosts))
+	for _, specHost := range cert.Spec.Hosts {
+		specHosts[specHost] = struct{}{}
+	}
+	for _, host := range hosts {
+		if _, ok := specHosts[host]; ok {
+			continue
+		}
+		cert.Spec.Hosts = append(cert.Spec.Hosts, host)
+	}
+	setAnnotation(&cert.ObjectMeta, annotationKeySkupperControlled, "")
+	setAnnotation(
+		&cert.ObjectMeta,
+		certificateHostsAnnotationKey(string(ref.UID)),
+		strings.Join(hosts, ","),
+	)
+	return cert
+}
+
 func certificate(name string, namespace string, ca string, subject string, hosts []string, client bool, server bool, labels map[string]string, annotations map[string]string) *skupperv2alpha1.Certificate {
 	return &skupperv2alpha1.Certificate{
 		TypeMeta: metav1.TypeMeta{
@@ -480,18 +571,25 @@ type Call struct {
 	refs       []metav1.OwnerReference
 	events     int
 	deleteCert bool
+	updateCert *skupperv2alpha1.Certificate
+	expectErr  bool
 }
 
 func call(name string, namespace string) *Call {
 	return &Call{
 		name:      name,
 		namespace: namespace,
+		refs:      fixtureRefs,
 	}
 }
 
 func (c *Call) invoke(mgr *CertificateManagerImpl) error {
 	if c.deleteCert {
 		return mgr.processor.GetSkupperClient().SkupperV2alpha1().Certificates(c.namespace).Delete(context.Background(), c.name, metav1.DeleteOptions{})
+	}
+	if c.updateCert != nil {
+		_, err := mgr.processor.GetSkupperClient().SkupperV2alpha1().Certificates(c.namespace).Update(context.Background(), c.updateCert, metav1.UpdateOptions{})
+		return err
 	}
 	if c.signing {
 		return mgr.EnsureCA(c.namespace, c.name, c.subject, c.refs)
@@ -523,6 +621,12 @@ func (c *Call) deleteCertificate() *Call {
 	return c
 }
 
+func (c *Call) updateCertificate(updated *skupperv2alpha1.Certificate) *Call {
+	c.updateCert = updated
+	c.events = 1
+	return c
+}
+
 func (c *Call) owner(name string, uid string) *Call {
 	if uid == "" {
 		uid = uuid.NewString()
@@ -539,6 +643,11 @@ func (c *Call) eventcount(events int) *Call {
 	return c
 }
 
+func (c *Call) mustError() *Call {
+	c.expectErr = true
+	return c
+}
+
 func fixtureCASecret(t *testing.T, name, namespace string) *corev1.Secret {
 	t.Helper()
 	secret, err := certs.GenerateSecret(name, "skupper test CA", nil, time.Hour*8, nil)
@@ -548,3 +657,12 @@ func fixtureCASecret(t *testing.T, name, namespace string) *corev1.Secret {
 	secret.Namespace = namespace
 	return secret
 }
+
+var (
+	fixtureRefs []metav1.OwnerReference = []metav1.OwnerReference{
+		{
+			Name: "fixture-owner",
+			UID:  "0000-0000000",
+		},
+	}
+)
