@@ -32,7 +32,7 @@ commands:
   oc-install:
     description: Install oc ( Openshift Client ) used by must-gather
     steps:
-      - run: curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.19.9/openshift-client-linux-4.19.9.tar.gz | tar xvz -C /tmp/
+      - run: curl -L https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.19.9/openshift-client-linux-4.19.9.tar.gz | tar xvz -C /tmp/
       - run: sudo chmod +x /tmp/oc
       - run: sudo mv /tmp/oc /usr/local/bin
   kind-install:
