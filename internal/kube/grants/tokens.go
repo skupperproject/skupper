@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -89,7 +88,7 @@ func (g *TokenGenerator) setValidHostsFromSite(site *skupperv2alpha1.Site) bool 
 }
 
 func (g *TokenGenerator) NewCertToken(name string, subject string) (Token, error) {
-	cert, err := certs.GenerateSecret(name, subject, strings.Join(g.hosts, ","), 0, g.ca)
+	cert, err := certs.GenerateSecret(name, subject, g.hosts, 0, g.ca)
 	if err != nil {
 		return nil, err
 	}

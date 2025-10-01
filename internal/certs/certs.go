@@ -98,10 +98,10 @@ func getCAFromSecret(secret *corev1.Secret) (*CertificateAuthority, error) {
 // GenerateSecret generates a kubernetes secret.
 // name is the corev1.Secret's name.
 // subject is the x509 certificate's common name.
-// hosts are the host names in the x509 certificate. Comma separated if more than one hostname
+// hosts are the host names in the x509 certificate subject alternative names extension.
 // expiration is when the secret expires, if zero is passed in, the expiration is set to 5 years from now
 // ca is the certificate authority, if nil a ca cert will be created.
-func GenerateSecret(name string, subject string, hosts string, expiration time.Duration, ca *corev1.Secret) (*corev1.Secret, error) {
+func GenerateSecret(name string, subject string, hosts []string, expiration time.Duration, ca *corev1.Secret) (*corev1.Secret, error) {
 	caCert, err := getCAFromSecret(ca)
 
 	if err != nil {
@@ -138,8 +138,7 @@ func GenerateSecret(name string, subject string, hosts string, expiration time.D
 		BasicConstraintsValid: true,
 	}
 
-	hosts_list := strings.Split(hosts, ",")
-	for _, h := range hosts_list {
+	for _, h := range hosts {
 		// Remove leading and trailing whitespaces from the string
 		h = strings.TrimSpace(h)
 		if ip := net.ParseIP(h); ip != nil {
