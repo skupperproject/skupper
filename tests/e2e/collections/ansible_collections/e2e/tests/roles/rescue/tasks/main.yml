@@ -1,0 +1,22 @@
+---
+- name: "[ {{ test_identifier }} ] - Rescue/Debug"
+  block:
+    - name: "[ {{ test_identifier }} - Rescue/Debug ] Run MustGather to collect Skupper details"
+      ansible.builtin.command: "oc adm must-gather --since={{ rescue_mg_last_minutes }} --dest-dir={{ rescue_mg_artifact_dest }}/{{ test_name }}/must-gather --image={{ rescue_mg_image }}:{{ rescue_mg_tag }}"
+      register: must_gather_output
+      delegate_to: localhost
+
+    - name: "[ {{ test_identifier }} - Rescue/Debug ] Compact the MustGather artifacts"
+      community.general.archive:
+        path: "{{ rescue_mg_artifact_dest }}/{{ test_name }}/must-gather/"
+        dest: "{{ rescue_mg_artifact_dest }}/{{ test_name }}/skupper-must-gather-details.tar.gz"
+        format: gz
+
+    - name: "[ {{ test_identifier }} - Rescue/Debug ] Remove the MustGather directory"
+      ansible.builtin.file:
+        path: "{{ rescue_mg_artifact_dest }}/{{ test_name }}/must-gather/"
+        state: absent
+
+    - name: "[ {{ test_identifier }} - Rescue/Debug ] Force a fail, otherwise it would be set as rescued"
+      ansible.builtin.fail:
+        msg: "A test step has failed. Skupper and cluster details were saved in the artifacts area"

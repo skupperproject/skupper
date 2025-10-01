@@ -197,8 +197,9 @@
 
       # Run Must-Gather on any failure
       rescue:
-        - name: "[ {{ test_identifier }} ] Import the e2e debug/rescue tasks"
-          ansible.builtin.import_tasks: ../../common/e2e_debug_rescue.yml
+        - name: "[ {{ test_identifier }} ] Run the rescue role"
+          ansible.builtin.include_role:
+            name: e2e.tests.rescue
 
       always:
         - name: "[ {{ test_identifier }} ] - Teardown tests"
