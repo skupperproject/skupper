@@ -330,7 +330,7 @@ func (m *CertificateManagerImpl) generateSecret(certificate *skupperv2alpha1.Cer
 	var secret *corev1.Secret
 	var err error
 	if certificate.Spec.Signing {
-		secret, err = certs.GenerateSecret(certificate.Name, certificate.Spec.Subject, "", 0, nil)
+		secret, err = certs.GenerateSecret(certificate.Name, certificate.Spec.Subject, nil, 0, nil)
 		if err != nil {
 			return secret, err
 		}
@@ -343,7 +343,7 @@ func (m *CertificateManagerImpl) generateSecret(certificate *skupperv2alpha1.Cer
 			return nil, fmt.Errorf("CA %q not found", caKey)
 		}
 		// TODO: handle server and client roles properly
-		secret, err = certs.GenerateSecret(certificate.Name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), expiration, ca)
+		secret, err = certs.GenerateSecret(certificate.Name, certificate.Spec.Subject, certificate.Spec.Hosts, expiration, ca)
 		if err != nil {
 			return nil, err
 		}

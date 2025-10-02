@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"strings"
 	"syscall"
 
 	"github.com/skupperproject/skupper/internal/certs"
@@ -371,7 +370,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 		if certificate.Spec.Signing == false {
 			continue
 		}
-		secret, err := certs.GenerateSecret(name, certificate.Spec.Subject, "", 0, nil)
+		secret, err := certs.GenerateSecret(name, certificate.Spec.Subject, nil, 0, nil)
 		if err != nil {
 			return err
 		}
@@ -403,7 +402,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 		}
 		if certificate.Spec.Client {
 			purpose = "client"
-			secret, err = certs.GenerateSecret(name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), 0, caSecret)
+			secret, err = certs.GenerateSecret(name, certificate.Spec.Subject, certificate.Spec.Hosts, 0, caSecret)
 			if err != nil {
 				return err
 			}
@@ -413,7 +412,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 			}
 		} else if certificate.Spec.Server {
 			purpose = "server"
-			secret, err = certs.GenerateSecret(name, certificate.Spec.Subject, strings.Join(certificate.Spec.Hosts, ","), 0, caSecret)
+			secret, err = certs.GenerateSecret(name, certificate.Spec.Subject, certificate.Spec.Hosts, 0, caSecret)
 			if err != nil {
 				return err
 			}

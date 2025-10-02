@@ -23,12 +23,9 @@ import (
 )
 
 func TestGenerateCASecret(t *testing.T) {
-	host1 := "134.565.56.77"
-	host2 := "172.345.82.7"
 	name := "ca-secret"
-	host := host1 + ", " + host2
 	cn := "www.example.com"
-	ca_secret, err := GenerateSecret(name, cn, host, 0, nil)
+	ca_secret, err := GenerateSecret(name, cn, nil, 0, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -42,8 +39,7 @@ func TestGenerateCASecret(t *testing.T) {
 		t.Error("Error decoding certificate")
 	}
 
-	assert.Equal(t, host1, cert.DNSNames[0])
-	assert.Equal(t, host2, cert.DNSNames[1])
+	assert.Equal(t, 0, len(cert.DNSNames))
 	assert.Equal(t, cn, cert.Issuer.CommonName)
 	assert.Equal(t, cert.IsCA, true)
 	assert.Equal(t, name, ca_secret.Name)
@@ -51,13 +47,13 @@ func TestGenerateCASecret(t *testing.T) {
 
 func TestGenerateSecret(t *testing.T) {
 	ca_cn := "www.example.com"
-	ca_secret, err := GenerateSecret("test-secret", ca_cn, "134.565.56.77", 0, nil)
+	ca_secret, err := GenerateSecret("test-secret", ca_cn, []string{"134.565.56.77"}, 0, nil)
 	if err != nil {
 		t.Error(err)
 	}
 	my_secret_cn := "www.my.example.com"
 	my_secret_host := "172.565.56.77"
-	my_secret, err := GenerateSecret("my_secret", my_secret_cn, my_secret_host, 86400000000000 /*duration of 1 day*/, ca_secret)
+	my_secret, err := GenerateSecret("my_secret", my_secret_cn, []string{my_secret_host}, 86400000000000 /*duration of 1 day*/, ca_secret)
 	if err != nil {
 		t.Error(err)
 	}
@@ -85,7 +81,7 @@ func TestGenerateSecret(t *testing.T) {
 		Type: corev1.SecretTypeOpaque,
 	}
 
-	_, err = GenerateSecret("test-secret", ca_cn, "134.565.56.77", 0, caSecret)
+	_, err = GenerateSecret("test-secret", ca_cn, []string{"134.565.56.77"}, 0, caSecret)
 	errorText := err.Error()
 	assert.Equal(t, errorText, "error reading CA Certificate from Secret \"emptyCASecret\": failed to read PEM encoded data from \"tls.crt\"")
 }

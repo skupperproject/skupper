@@ -38,7 +38,7 @@ func TestTlsConfigRetriever(t *testing.T) {
 	t.Run("tls-config-retriever-valid-certs", func(t *testing.T) {
 		validity, err := time.ParseDuration("1h")
 		assert.Assert(t, err)
-		ca, err := certs.GenerateSecret("my-ca", "my-ca", "my-ca.host", validity, nil)
+		ca, err := certs.GenerateSecret("my-ca", "my-ca", []string{"my-ca.host"}, validity, nil)
 		if err != nil {
 			t.Error(err)
 		}

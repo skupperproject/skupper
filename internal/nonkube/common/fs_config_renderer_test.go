@@ -122,8 +122,8 @@ func compareCertificates(t *testing.T, customOutputPath string) {
 
 func createInputCertificates(t *testing.T, customOutputPath string) {
 	// preparing certificates
-	fakeHosts := "10.0.0.1,10.0.0.2,fake.domain"
-	ca, err := certs.GenerateSecret("fake-ca", "fake-ca", "", 0, nil)
+	fakeHosts := []string{"10.0.0.1", "10.0.0.2", "fake.domain"}
+	ca, err := certs.GenerateSecret("fake-ca", "fake-ca", nil, 0, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -131,7 +131,7 @@ func createInputCertificates(t *testing.T, customOutputPath string) {
 	if err != nil {
 		t.Error(err)
 	}
-	client, err := certs.GenerateSecret("fake-client-cert", "fake-client-cert", "", 0, ca)
+	client, err := certs.GenerateSecret("fake-client-cert", "fake-client-cert", nil, 0, ca)
 	if err != nil {
 		t.Error(err)
 	}

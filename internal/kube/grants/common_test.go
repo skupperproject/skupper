@@ -3,7 +3,6 @@ package grants
 import (
 	"errors"
 	"io"
-	"strings"
 
 	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
@@ -133,7 +132,7 @@ func (*factory) grant(name string, namespace string, uid string) *v2alpha1.Acces
 }
 
 func (*factory) secret(name string, namespace string, subject string, hosts []string) (*corev1.Secret, error) {
-	secret, err := certs.GenerateSecret(name, subject, strings.Join(hosts, ","), 0, nil)
+	secret, err := certs.GenerateSecret(name, subject, hosts, 0, nil)
 	if err != nil {
 		return nil, err
 	}
