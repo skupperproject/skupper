@@ -11,12 +11,9 @@
         path: "{{ rescue_mg_artifact_dest }}/{{ test_name }}/must-gather/"
         dest: "{{ rescue_mg_artifact_dest }}/{{ test_name }}/skupper-must-gather-details.tar.gz"
         format: gz
-
-    - name: "[ {{ test_identifier }} - Rescue/Debug ] Remove the MustGather directory"
-      ansible.builtin.file:
-        path: "{{ rescue_mg_artifact_dest }}/{{ test_name }}/must-gather/"
-        state: absent
+        remove: true
 
     - name: "[ {{ test_identifier }} - Rescue/Debug ] Force a fail, otherwise it would be set as rescued"
       ansible.builtin.fail:
         msg: "A test step has failed. Skupper and cluster details were saved in the artifacts area"
+  run_once: true
