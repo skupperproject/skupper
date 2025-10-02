@@ -422,8 +422,11 @@ func (c *Controller) generateLinkConfig(namespace string, name string, subject s
 }
 
 func (c *Controller) checkSecuredAccess(key string, se *skupperv2alpha1.SecuredAccess) error {
-	c.getSite(se.ObjectMeta.Namespace).CheckSecuredAccess(se)
-	return nil
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return err
+	}
+	return c.getSite(namespace).CheckSecuredAccess(name, se)
 }
 
 func (c *Controller) checkRouterAccess(key string, ra *skupperv2alpha1.RouterAccess) error {
