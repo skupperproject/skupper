@@ -41,6 +41,7 @@ func (cmd *CmdLinkStatus) NewClient(cobraCommand *cobra.Command, args []string) 
 func (cmd *CmdLinkStatus) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
+	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 
 	// Validate arguments name if specified
 	if len(args) > 1 {
@@ -55,6 +56,13 @@ func (cmd *CmdLinkStatus) ValidateInput(args []string) error {
 			} else {
 				cmd.linkName = args[0]
 			}
+		}
+	}
+
+	if cmd.Flags.Output != "" {
+		ok, _ := outputTypeValidator.Evaluate(cmd.Flags.Output)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("format bad-value not supported"))
 		}
 	}
 	return errors.Join(validationErrors...)
@@ -76,7 +84,7 @@ func (cmd *CmdLinkStatus) Run() error {
 
 	} else {
 
-		linkList, err := cmd.linkHandler.List(fs.GetOptions{LogWarning: false})
+		linkList, err := cmd.linkHandler.List(fs.GetOptions{RuntimeFirst: true, LogWarning: false})
 		if err != nil {
 			return err
 		}
