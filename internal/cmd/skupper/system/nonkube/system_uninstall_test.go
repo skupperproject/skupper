@@ -2,14 +2,25 @@ package nonkube
 
 import (
 	"fmt"
-	"github.com/skupperproject/skupper/internal/config"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
+	"github.com/skupperproject/skupper/internal/config"
+	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/v3/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+type CmdSiteStatus struct {
+	siteHandler *fs.SiteHandler
+	Flags       *common.CommandSiteStatusFlags
+	namespace   string
+}
 
 func TestCmdSystemUnInstall_ValidateInput(t *testing.T) {
 	type test struct {
@@ -38,7 +49,7 @@ func TestCmdSystemUnInstall_ValidateInput(t *testing.T) {
 			flags:         &common.CommandSystemUninstallFlags{Force: false},
 			platform:      "podman",
 			mock:          mockCmdSystemUninstallThereAreStillSites,
-			expectedError: "Uninstallation halted: Active sites detected.",
+			expectedError: "Uninstallation halted: Active sites detected. Use --force flag to stop and remove active sites",
 		},
 		{
 			name:     "force flag is not provided but there are not any active site",
@@ -113,6 +124,7 @@ func TestCmdSystemUninstall_InputToOptions(t *testing.T) {
 func TestCmdSystemUninstall_Run(t *testing.T) {
 	type test struct {
 		name               string
+		flags              *common.CommandSystemUninstallFlags
 		disableSocketFails bool
 		errorMessage       string
 	}
@@ -122,16 +134,67 @@ func TestCmdSystemUninstall_Run(t *testing.T) {
 			name:               "runs ok",
 			disableSocketFails: false,
 			errorMessage:       "",
+			flags:              &common.CommandSystemUninstallFlags{Force: true},
 		},
 		{
 			name:               "disable socket fails",
 			disableSocketFails: true,
 			errorMessage:       "failed to uninstall : disable socket fails",
+			flags:              &common.CommandSystemUninstallFlags{Force: false},
 		},
 	}
 
+	//Add a temp file so site exists for uninstall tests
+	siteResource1 := v2alpha1.Site{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "Site",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-site",
+			Namespace: "test",
+		},
+		Spec: v2alpha1.SiteSpec{
+			LinkAccess: "route",
+			Settings: map[string]string{
+				"name": "my-site",
+			},
+		},
+		Status: v2alpha1.SiteStatus{
+			Status: v2alpha1.Status{
+				Conditions: []metav1.Condition{
+					{
+						Type:   "Configured",
+						Status: "True",
+					},
+				},
+			},
+		},
+	}
+
+	// add site in runtime directory
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+	tmpDir := api.GetDataHome()
+	cmd := &CmdSiteStatus{}
+	cmd.namespace = "test"
+	cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
+	content, err := cmd.siteHandler.EncodeToYaml(siteResource1)
+	assert.Check(t, err == nil)
+	path := filepath.Join(tmpDir, "/namespaces/test/", string(api.RuntimeSiteStatePath))
+	path2 := filepath.Join(tmpDir, "/namespaces/test2/", string(api.InputSiteStatePath))
+	err = cmd.siteHandler.WriteFile(path, "my-site.yaml", content, common.Sites)
+	assert.Check(t, err == nil)
+	err = cmd.siteHandler.WriteFile(path2, "my-site.yaml", content, common.Sites)
+	assert.Check(t, err == nil)
+	defer cleanup()
+
 	for _, test := range testTable {
 		command := newCmdSystemUninstallWithMocks(test.disableSocketFails)
+		command.forceUninstall = test.flags.Force
 
 		t.Run(test.name, func(t *testing.T) {
 
@@ -147,11 +210,20 @@ func TestCmdSystemUninstall_Run(t *testing.T) {
 
 // --- helper methods
 
+func cleanup() {
+	tmpDir := api.GetDataHome()
+	path := filepath.Join(tmpDir, "/namespaces/test/")
+	os.RemoveAll(path)
+	path = filepath.Join(tmpDir, "/namespaces/test2/")
+	os.RemoveAll(path)
+}
+
 func newCmdSystemUninstallWithMocks(disableSocketFails bool) *CmdSystemUninstall {
 
 	cmdMock := &CmdSystemUninstall{
 		SystemUninstall:  mockCmdSystemUninstall,
 		CheckActiveSites: mockCmdSystemUninstallNoActiveSites,
+		TearDown:         mockCmdSystemTearDown,
 	}
 
 	if disableSocketFails {
@@ -169,3 +241,4 @@ func mockCmdSystemUninstallDisableSocketFails(platform string) error {
 func mockCmdSystemUninstallThereAreStillSites() (bool, error)    { return true, nil }
 func mockCmdSystemUninstallCheckActiveSitesFails() (bool, error) { return false, fmt.Errorf("error") }
 func mockCmdSystemUninstallNoActiveSites() (bool, error)         { return false, nil }
+func mockCmdSystemTearDown(string) error                         { return nil }
