@@ -68,7 +68,7 @@ test: create-venv
 	ANSIBLE_CONFIG=$(ROOT_PATH)/e2e/ansible.cfg \
 	ansible-playbook $(ROOT_PATH)/e2e/scenarios/$(TEST)/test.yml \
 	-i $(ROOT_PATH)/e2e/scenarios/$(TEST)/inventory $(EXTRA_VARS) \
-	-e namespace_prefix=$$TEST_PREFIX; \
+	-e namespace_prefix=$$TEST_PREFIX -e test_name=$$TEST; \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -ne 0 ]; then \
 		echo "Test $(TEST) failed with exit code $$EXIT_CODE"; \
