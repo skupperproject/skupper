@@ -61,9 +61,9 @@ func (m ownerMapping) ApplyMetadata(certificate *skupperv2alpha1.Certificate) bo
 	}
 	changed := false
 	if m.IsControlled {
-		setAnnotation(&certificate.ObjectMeta, "internal.skupper.io/controlled", "true")
+		setAnnotation(&certificate.ObjectMeta, annotationKeySkupperControlled, "true")
 	} else {
-		clearAnnotation(&certificate.ObjectMeta, "internal.skupper.io/controlled")
+		clearAnnotation(&certificate.ObjectMeta, annotationKeySkupperControlled)
 	}
 	// clear host annotations not in desired
 	for refid := range parseHostsAnnotations(certificate.ObjectMeta.Annotations) {
