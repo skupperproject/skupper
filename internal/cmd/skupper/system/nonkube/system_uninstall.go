@@ -99,7 +99,7 @@ func (cmd *CmdSystemUninstall) Run() error {
 	err := cmd.SystemUninstall(string(config.GetPlatform()))
 
 	if err != nil {
-		return fmt.Errorf("failed to uninstall : %s", err)
+		return fmt.Errorf("Unable to communicate with the Container Engine.\nRun: \"skupper system install\" to prepare the local environment and start the controller.\n\nError: %s", err)
 	}
 
 	return nil

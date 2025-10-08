@@ -139,7 +139,7 @@ func TestCmdSystemUninstall_Run(t *testing.T) {
 		{
 			name:               "disable socket fails",
 			disableSocketFails: true,
-			errorMessage:       "failed to uninstall : disable socket fails",
+			errorMessage:       "Unable to communicate with the Container Engine.\nRun: \"skupper system install\" to prepare the local environment and start the controller.\n\nError: disable socket fails",
 			flags:              &common.CommandSystemUninstallFlags{Force: false},
 		},
 	}
