@@ -2,7 +2,7 @@ module github.com/skupperproject/skupper
 
 go 1.24.0
 
-toolchain go1.24.4
+toolchain go1.24.7
 
 require (
 	github.com/Azure/go-amqp v1.0.5
