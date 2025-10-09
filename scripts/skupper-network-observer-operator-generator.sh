@@ -4,19 +4,19 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-readonly SKUPPER_IMAGE_TAG=${1:-2.1.1}
+readonly SKUPPER_IMAGE_TAG=${1:-2.1.2}
 
 readonly OPERATOR_SDK=${OPERATOR_SDK:-operator-sdk}
 readonly KUBECTL=${KUBECTL:-kubectl}
 readonly MIN_KUBE_VERSION=${MIN_KUBE_VERSION:-1.25.0}
 
-readonly BUNDLE_VERSION=${BUNDLE_VERSION:-2.1.1}
-readonly PREVIOUS_BUNDLE_VERSION=${PREVIOUS_BUNDLE_VERSION:-2.1.0}
-readonly BUNDLE_CHANNELS=${BUNDLE_CHANNELS:-"stable-2,stable-v2.0"}
+readonly BUNDLE_VERSION=${BUNDLE_VERSION:-2.1.2}
+readonly PREVIOUS_BUNDLE_VERSION=${PREVIOUS_BUNDLE_VERSION:-2.1.1}
+readonly BUNDLE_CHANNELS=${BUNDLE_CHANNELS:-"stable-2,stable-2.1"}
 readonly BUNDLE_DEFAULT_CHANNEL=${BUNDLE_DEFAULT_CHANNEL:-stable-2}
 
 readonly REPLACED_VERSION=network-observer-operator.v${PREVIOUS_BUNDLE_VERSION}
-readonly OLM_SKIP_RANGE='">2.0.0 <2.0.1"'
+readonly OLM_SKIP_RANGE='">2.0.0 <2.1.0"'
 
 readonly SKUPPER_IMAGE_REGISTRY=${SKUPPER_IMAGE_REGISTRY:-quay.io/skupper}
 readonly PROMETHEUS_IMAGE_TAG=${PROMETHEUS_IMAGE_TAG:-v2.55.1}
