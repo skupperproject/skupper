@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/certs"
@@ -206,11 +205,11 @@ func fakeRouterAccessWithSANs(sans ...string) v2alpha1.RouterAccess {
 }
 
 func fakeServerSecretBad(t *testing.T) *v1.Secret {
-	ca, err := certs.GenerateSecret("fake-ca", "fake-ca", "", 0, nil)
+	ca, err := certs.GenerateSecret("fake-ca", "fake-ca", nil, 0, nil)
 	if err != nil {
 		t.Error(err)
 	}
-	serverCert, err := certs.GenerateSecret("fake-server-cert", "fake-server-cert", "", 0, ca)
+	serverCert, err := certs.GenerateSecret("fake-server-cert", "fake-server-cert", nil, 0, ca)
 	if err != nil {
 		t.Error(err)
 	}
@@ -220,12 +219,11 @@ func fakeServerSecretBad(t *testing.T) *v1.Secret {
 }
 
 func fakeServerSecret(hosts []string, t *testing.T) *v1.Secret {
-	hostsCsv := strings.Join(hosts, ",")
-	ca, err := certs.GenerateSecret("fake-ca", "fake-ca", "", 0, nil)
+	ca, err := certs.GenerateSecret("fake-ca", "fake-ca", nil, 0, nil)
 	if err != nil {
 		t.Error(err)
 	}
-	serverCert, err := certs.GenerateSecret("fake-server-cert", "fake-server-cert", hostsCsv, 0, ca)
+	serverCert, err := certs.GenerateSecret("fake-server-cert", "fake-server-cert", hosts, 0, ca)
 	if err != nil {
 		t.Error(err)
 	}
