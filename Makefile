@@ -12,6 +12,7 @@ IMAGE_TAG := v2-dev
 ROUTER_IMAGE_TAG := main
 PLATFORMS ?= linux/amd64,linux/arm64
 CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer Dockerfile.system-controller
+GO_IMAGE_BASE_TAG := 1.24.7
 SHARED_IMAGE_LABELS = \
     --label "org.opencontainers.image.created=$(shell TZ=GMT date --iso-8601=seconds)" \
 	--label "org.opencontainers.image.url=https://skupper.io/" \
@@ -64,11 +65,11 @@ system-controller: $(call pkgdeps,./cmd/system-controller)
 ## native/default container image builds
 docker-build: $(patsubst Dockerfile.%,docker-build-%,$(CONTAINERFILES))
 docker-build-%: Dockerfile.%
-	${DOCKER} build $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/$*:${IMAGE_TAG}" -f $< .
+	${DOCKER} build --build-arg GO_IMAGE_BASE_TAG=$(GO_IMAGE_BASE_TAG) $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/$*:${IMAGE_TAG}" -f $< .
 
 podman-build: $(patsubst Dockerfile.%,podman-build-%,$(CONTAINERFILES))
 podman-build-%: Dockerfile.%
-	${PODMAN} build $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/$*:${IMAGE_TAG}" -f $< .
+	${PODMAN} build --build-arg GO_IMAGE_BASE_TAG=$(GO_IMAGE_BASE_TAG) $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/$*:${IMAGE_TAG}" -f $< .
 
 # Push all container images built by podman-build
 podman-push: $(patsubst Dockerfile.%,podman-push-%,$(CONTAINERFILES))
@@ -82,6 +83,7 @@ podman-push-%: podman-build-%
 multiarch-oci: $(patsubst Dockerfile.%,multiarch-oci-%,$(CONTAINERFILES))
 multiarch-oci-%: Dockerfile.% oci-archives
 	${DOCKER} buildx build \
+		--build-arg GO_IMAGE_BASE_TAG=$(GO_IMAGE_BASE_TAG) \
 		"--output=type=oci,dest=$(shell pwd)/oci-archives/$*.tar" \
 		-t "${REGISTRY}/$*:${IMAGE_TAG}" \
 		$(SHARED_IMAGE_LABELS) \
@@ -107,13 +109,13 @@ docker-load-oci:
 
 # must-gather base is amd64 only
 docker-build-must-gather:
-	${DOCKER} build $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/skupper-must-gather:${IMAGE_TAG}" -f Dockerfile.must-gather .
+	${DOCKER} build --build-arg GO_IMAGE_BASE_TAG=$(GO_IMAGE_BASE_TAG) $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/skupper-must-gather:${IMAGE_TAG}" -f Dockerfile.must-gather .
 
 docker-push-must-gather:
 	${DOCKER} push "${REGISTRY}/skupper-must-gather:${IMAGE_TAG}"
 
 podman-build-must-gather:
-	${PODMAN} build $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/skupper-must-gather:${IMAGE_TAG}" -f Dockerfile.must-gather .
+	${PODMAN} build --build-arg GO_IMAGE_BASE_TAG=$(GO_IMAGE_BASE_TAG) $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/skupper-must-gather:${IMAGE_TAG}" -f Dockerfile.must-gather .
 
 podman-push-must-gather:
 	${PODMAN} push "${REGISTRY}/skupper-must-gather:${IMAGE_TAG}"
