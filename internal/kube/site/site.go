@@ -53,6 +53,7 @@ type Site struct {
 	linkAccess    site.RouterAccessMap
 	certs         certificates.CertificateManager
 	access        SecuredAccessFactory
+	accessMapping securedAccessMap
 	sizes         *sizing.Registry
 	routerPods    map[string]*corev1.Pod
 	logger        *slog.Logger
@@ -64,15 +65,16 @@ type Site struct {
 func NewSite(namespace string, eventProcessor *watchers.EventProcessor, certs certificates.CertificateManager, access SecuredAccessFactory, sizes *sizing.Registry, labelling Labelling) *Site {
 	logger := slog.New(slog.Default().Handler())
 	site := &Site{
-		bindings:   NewExtendedBindings(eventProcessor, SSL_PROFILE_PATH),
-		namespace:  namespace,
-		clients:    eventProcessor,
-		links:      map[string]*site.Link{},
-		linkAccess: site.RouterAccessMap{},
-		certs:      certs,
-		access:     access,
-		sizes:      sizes,
-		routerPods: map[string]*corev1.Pod{},
+		bindings:      NewExtendedBindings(eventProcessor, SSL_PROFILE_PATH),
+		namespace:     namespace,
+		clients:       eventProcessor,
+		links:         map[string]*site.Link{},
+		linkAccess:    site.RouterAccessMap{},
+		certs:         certs,
+		access:        access,
+		accessMapping: make(securedAccessMap),
+		sizes:         sizes,
+		routerPods:    map[string]*corev1.Pod{},
 		logger: logger.With(
 			slog.String("component", "kube.site.site"),
 		),
@@ -737,12 +739,17 @@ func (s *Site) deleteRouterResources(group string) error {
 			slog.Any("error", err))
 		errs = append(errs, err)
 	}
-	if err := s.access.Delete(s.namespace, group); err != nil {
-		s.logger.Error("Failed to delete securedaccess for router",
-			slog.String("namespace", s.namespace),
-			slog.String("name", group),
-			slog.Any("error", err))
-		errs = append(errs, err)
+	for accessName, refs := range s.accessMapping {
+		if refs.Group != group {
+			continue
+		}
+		if err := s.access.Delete(s.namespace, accessName); err != nil {
+			s.logger.Error("Failed to delete securedaccess for router",
+				slog.String("namespace", s.namespace),
+				slog.String("name", accessName),
+				slog.Any("error", err))
+			errs = append(errs, err)
+		}
 	}
 	return stderrors.Join(errs...)
 }
@@ -1162,21 +1169,31 @@ func (s *Site) UpdateSiteStatus(site *skupperv2alpha1.Site) (*skupperv2alpha1.Si
 	return updated, nil
 }
 
-func (s *Site) CheckSecuredAccess(sa *skupperv2alpha1.SecuredAccess) {
-	name, ok := sa.ObjectMeta.Annotations["internal.skupper.io/routeraccess"]
+func (s *Site) CheckSecuredAccess(name string, sa *skupperv2alpha1.SecuredAccess) error {
+	refs, ok := s.accessMapping[name]
 	if !ok {
-		name = sa.Name
+		return nil
 	}
-	la, ok := s.linkAccess[name]
+	defer func() {
+		if sa == nil {
+			delete(s.accessMapping, name)
+		}
+	}()
+	routerAccess, ok := s.linkAccess[refs.RouterAccessName]
 	if !ok {
-		return
+		return nil
 	}
-	if la.Resolve(sa.Status.Endpoints, sa.Name) {
-		s.updateRouterAccessStatus(la)
+	var endpoints []skupperv2alpha1.Endpoint
+	if sa != nil {
+		endpoints = sa.Status.Endpoints
 	}
+	if routerAccess.Resolve(endpoints, refs.Group) {
+		return s.updateRouterAccessStatus(routerAccess)
+	}
+	return nil
 }
 
-func (s *Site) updateRouterAccessStatus(la *skupperv2alpha1.RouterAccess) {
+func (s *Site) updateRouterAccessStatus(la *skupperv2alpha1.RouterAccess) error {
 	updated, err := s.clients.GetSkupperClient().SkupperV2alpha1().RouterAccesses(la.Namespace).UpdateStatus(context.TODO(), la, metav1.UpdateOptions{})
 
 	if err != nil {
@@ -1184,9 +1201,12 @@ func (s *Site) updateRouterAccessStatus(la *skupperv2alpha1.RouterAccess) {
 			slog.String("la_namespace", la.Namespace),
 			slog.String("la_name", la.Name),
 			slog.Any("error", err))
+		err = fmt.Errorf("router access status update failed: %s", err)
 	} else {
 		s.linkAccess[la.Name] = updated
 	}
+
+	return err
 }
 
 func asSecuredAccessSpec(routerAccess *skupperv2alpha1.RouterAccess, group string, defaultIssuer string) skupperv2alpha1.SecuredAccessSpec {
@@ -1238,6 +1258,8 @@ func (s *Site) checkSecuredAccess() error {
 				s.logger.Error("Error ensuring SecuredAccess for RouterAccess",
 					slog.String("key", la.Key()),
 					slog.Any("error", err))
+			} else {
+				s.accessMapping[name] = newSecuredAccessMapping(la.Name, group)
 			}
 		}
 	}
@@ -1285,6 +1307,8 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv2alpha1.RouterAccess) 
 					slog.String("key", la.Key()),
 					slog.Any("error", err))
 				errors = append(errors, err.Error())
+			} else {
+				s.accessMapping[name] = newSecuredAccessMapping(la.Name, group)
 			}
 		}
 		previousGroups = append(previousGroups, group)
@@ -1294,7 +1318,9 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv2alpha1.RouterAccess) 
 		err = fmt.Errorf("%s", strings.Join(errors, ", "))
 	}
 	if la != nil && la.SetConfigured(err) {
-		s.updateRouterAccessStatus(la)
+		if err := s.updateRouterAccessStatus(la); err != nil {
+			return err
+		}
 	}
 	return s.updateResolved()
 }

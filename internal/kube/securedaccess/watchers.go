@@ -1,6 +1,8 @@
 package securedaccess
 
 import (
+	"errors"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers/internalinterfaces"
@@ -40,16 +42,20 @@ func (m *SecuredAccessResourceWatcher) WatchGateway(processor *watchers.EventPro
 }
 
 func (m *SecuredAccessResourceWatcher) WatchSecuredAccesses(processor *watchers.EventProcessor, namespace string, handler watchers.SecuredAccessHandler) {
-	f := func(key string, sa *skupperv2alpha1.SecuredAccess) error {
-		if sa == nil {
-			return m.accessMgr.SecuredAccessDeleted(key)
+	var wrappedHandler = m.handleSecuredAccess
+	if handler != nil {
+		wrappedHandler = func(key string, sa *skupperv2alpha1.SecuredAccess) error {
+			return errors.Join(handler(key, sa), m.handleSecuredAccess(key, sa))
 		}
-		if handler != nil {
-			handler(key, sa)
-		}
-		return m.accessMgr.SecuredAccessChanged(key, sa)
 	}
-	m.securedAccessWatcher = processor.WatchSecuredAccesses(namespace, watchers.FilterByNamespace(m.isControlledResource, f))
+	m.securedAccessWatcher = processor.WatchSecuredAccesses(namespace, watchers.FilterByNamespace(m.isControlledResource, wrappedHandler))
+}
+
+func (m *SecuredAccessResourceWatcher) handleSecuredAccess(key string, sa *skupperv2alpha1.SecuredAccess) error {
+	if sa == nil {
+		return m.accessMgr.SecuredAccessDeleted(key)
+	}
+	return m.accessMgr.SecuredAccessChanged(key, sa)
 }
 
 func (m *SecuredAccessResourceWatcher) Recover() {
