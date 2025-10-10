@@ -1,13 +1,13 @@
 package site
 
 type securedAccessMapping struct {
-	RotuerAccessName string
+	RouterAccessName string
 	Group            string
 }
 
 func newSecuredAccessMapping(routerAccess, group string) securedAccessMapping {
 	return securedAccessMapping{
-		RotuerAccessName: routerAccess,
+		RouterAccessName: routerAccess,
 		Group:            group,
 	}
 }

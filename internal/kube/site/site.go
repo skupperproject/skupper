@@ -1179,7 +1179,7 @@ func (s *Site) CheckSecuredAccess(name string, sa *skupperv2alpha1.SecuredAccess
 			delete(s.accessMapping, name)
 		}
 	}()
-	routerAccess, ok := s.linkAccess[refs.RotuerAccessName]
+	routerAccess, ok := s.linkAccess[refs.RouterAccessName]
 	if !ok {
 		return nil
 	}
