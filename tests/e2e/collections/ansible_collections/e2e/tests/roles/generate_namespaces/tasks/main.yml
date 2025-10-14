@@ -10,6 +10,7 @@
         name: "{{ namespace_prefix }}-{{ namespace_name }}"
         labels:
           e2e.id: "{{ generate_namespaces_namespace_label }}"
+          e2e.prefix: "{{ namespace_prefix }}"
     kubeconfig: "{{ kubeconfig }}"
   register: namespace
 
