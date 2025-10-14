@@ -209,8 +209,14 @@ func (cmd *CmdLinkGenerate) Run() error {
 					Subject: getSubjectsFromEndpoints(cmd.activeSite.Status.Endpoints),
 				},
 			}
-
-			_, err := cmd.Client.Certificates(cmd.Namespace).Create(context.TODO(), &certificate, metav1.CreateOptions{})
+			defaultIssuer := pkgutils.DefaultStr(cmd.activeSite.Status.DefaultIssuer, "skupper-site-ca")
+			defaultIssuerCert, err := cmd.Client.Certificates(cmd.Namespace).Get(context.TODO(), defaultIssuer, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("unable to retrieve default issuer certificate %q: %w", defaultIssuer, err)
+			}
+			certificateController := defaultIssuerCert.Spec.GetCertificateController()
+			certificate.Spec.SetCertificateController(certificateController)
+			_, err = cmd.Client.Certificates(cmd.Namespace).Create(context.TODO(), &certificate, metav1.CreateOptions{})
 			if err != nil {
 				return err
 			}

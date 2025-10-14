@@ -17,6 +17,7 @@ type Config struct {
 	Kubeconfig             string
 	WatchNamespace         string
 	Name                   string
+	CertificateController  string
 	RequireExplicitControl bool
 }
 
@@ -47,6 +48,7 @@ func BoundConfig(flags *flag.FlagSet) (*Config, error) {
 	iflag.StringVar(flags, &c.Kubeconfig, "kubeconfig", "KUBECONFIG", "", "A path to the kubeconfig file to use")
 	iflag.StringVar(flags, &c.WatchNamespace, "watch-namespace", "WATCH_NAMESPACE", metav1.NamespaceAll, "The Kubernetes namespace the controller should monitor for controlled resources (will monitor all if not specified)")
 	iflag.StringVar(flags, &c.Name, "name", "CONTROLLER_NAME", "", "A name identifying the controller. If not specified it will be deduced from the hostname.")
+	iflag.StringVar(flags, &c.CertificateController, "certificate-controller", "CERTIFICATE_CONTROLLER", "", "A name that identifies the controller responsible for the Certificates.")
 	iflag.BoolVar(flags, &c.RequireExplicitControl, "require-explicit-control", "REQUIRE_EXPLICIT_CONTROL", false, "If set, this controller instance will only process resources in which there is a ConfigMap named skupper with an entry 'controller' whose value matches the controller's namespace qualified name. Controllers watching a single namespace require that ConfigMap regardless of this setting.")
 	return c, nil
 }

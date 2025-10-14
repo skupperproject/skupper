@@ -33,6 +33,7 @@ func TestCertificateManager(t *testing.T) {
 		k8sObjects           []runtime.Object
 		skupperObjects       []runtime.Object
 		context              ControllerContext
+		certController       string
 		calls                []*Call
 		expectedSecrets      []*corev1.Secret
 		expectedCertificates []*skupperv2alpha1.Certificate
@@ -51,6 +52,22 @@ func TestCertificateManager(t *testing.T) {
 			},
 			expectedCertificates: []*skupperv2alpha1.Certificate{
 				addCertificateStatus(certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil), "", "", condition(skupperv2alpha1.CONDITION_TYPE_READY, metav1.ConditionTrue, "Ready", "OK")),
+			},
+		},
+		{
+			name: "simple recovery of all delegated certificates",
+			k8sObjects: []runtime.Object{
+				myCaFixture,
+			},
+			skupperObjects: []runtime.Object{
+				certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil),
+			},
+			certController: "external",
+			expectedSecrets: []*corev1.Secret{
+				secret("my-ca", "test", nil, nil, nil),
+			},
+			expectedCertificates: []*skupperv2alpha1.Certificate{
+				addCertificateStatus(certificate("foo", "test", "my-ca", "my-subject", []string{"aaa", "bbb"}, false, true, nil, nil), "", ""),
 			},
 		},
 		{
@@ -181,6 +198,80 @@ func TestCertificateManager(t *testing.T) {
 			},
 		},
 		{
+			name:           "ensure all delegated ca and certificate",
+			k8sObjects:     []runtime.Object{},
+			skupperObjects: []runtime.Object{},
+			context:        fakeContext().control("test"),
+			certController: "external",
+			calls: []*Call{
+				call("my-ca", "test").ensureCa("my-cas-subject").noSecretEvent(),
+				call("foo", "test").ensure("my-ca", "my-subject", []string{"xxx", "yyy"}, false, true).noSecretEvent(),
+			},
+			expectedSecrets: []*corev1.Secret{},
+			expectedCertificates: []*skupperv2alpha1.Certificate{
+				caCertificate("my-ca", "test", "my-cas-subject", map[string]string{"foo": "bar"}, map[string]string{"x": "y"}),
+				certificate("foo", "test", "my-ca", "my-subject", []string{"xxx", "yyy"}, false, true, map[string]string{"foo": "bar"}, map[string]string{"x": "y"}),
+			},
+		},
+		{
+			name:           "ensure single delegated certificate",
+			k8sObjects:     []runtime.Object{},
+			skupperObjects: []runtime.Object{},
+			context:        fakeContext().control("test"),
+			calls: []*Call{
+				call("my-ca", "test").ensureCa("my-cas-subject"),
+				call("foo-delegated", "test").ensure("my-ca", "my-subject", []string{"xxx", "yyy"}, false, true).setExternalController().noSecretEvent(),
+				call("foo-handled", "test").ensure("my-ca", "my-subject", []string{"xxx", "yyy"}, false, true),
+			},
+			expectedSecrets: []*corev1.Secret{
+				secret("my-ca", "test", nil, nil, nil),
+				secret("foo-handled", "test", nil, nil, nil),
+			},
+			expectedCertificates: []*skupperv2alpha1.Certificate{
+				caCertificate("my-ca", "test", "my-cas-subject", map[string]string{"foo": "bar"}, map[string]string{"x": "y"}),
+				certificate("foo-handled", "test", "my-ca", "my-subject", []string{"xxx", "yyy"}, false, true, map[string]string{"foo": "bar"}, map[string]string{"x": "y"}),
+				certificate("foo-delegated", "test", "my-ca", "my-subject", []string{"xxx", "yyy"}, false, true, map[string]string{"foo": "bar"}, map[string]string{"x": "y"}),
+			},
+		},
+		{
+			name:           "ensure certificate no longer delegated",
+			k8sObjects:     []runtime.Object{},
+			skupperObjects: []runtime.Object{},
+			context:        fakeContext().control("test"),
+			calls: []*Call{
+				call("my-ca", "test").ensureCa("my-cas-subject"),
+				call("foo", "test").ensure("my-ca", "my-subject", []string{"xxx", "yyy"}, false, true).setExternalController().noSecretEvent(),
+				call("foo", "test").ensure("my-ca", "my-subject", []string{"xxx", "yyy"}, false, true),
+			},
+			expectedSecrets: []*corev1.Secret{
+				secret("my-ca", "test", nil, nil, nil),
+				secret("foo", "test", nil, nil, nil),
+			},
+			expectedCertificates: []*skupperv2alpha1.Certificate{
+				caCertificate("my-ca", "test", "my-cas-subject", map[string]string{"foo": "bar"}, map[string]string{"x": "y"}),
+				certificate("foo", "test", "my-ca", "my-subject", []string{"xxx", "yyy"}, false, true, map[string]string{"foo": "bar"}, map[string]string{"x": "y"}),
+			},
+		},
+		{
+			name:           "ensure existing certificate can be delegated and secret remains",
+			k8sObjects:     []runtime.Object{},
+			skupperObjects: []runtime.Object{},
+			context:        fakeContext().control("test"),
+			calls: []*Call{
+				call("my-ca", "test").ensureCa("my-cas-subject"),
+				call("foo", "test").ensure("my-ca", "my-subject", []string{"xxx", "yyy"}, false, true),
+				call("foo", "test").ensure("my-ca", "my-subject", []string{"xxx", "yyy"}, false, true).setExternalController().noSecretEvent(),
+			},
+			expectedSecrets: []*corev1.Secret{
+				secret("my-ca", "test", nil, nil, nil),
+				secret("foo", "test", nil, nil, nil),
+			},
+			expectedCertificates: []*skupperv2alpha1.Certificate{
+				caCertificate("my-ca", "test", "my-cas-subject", map[string]string{"foo": "bar"}, map[string]string{"x": "y"}),
+				certificate("foo", "test", "my-ca", "my-subject", []string{"xxx", "yyy"}, false, true, map[string]string{"foo": "bar"}, map[string]string{"x": "y"}),
+			},
+		},
+		{
 			name: "update hosts for recovered certificate",
 			k8sObjects: []runtime.Object{
 				myCaFixture,
@@ -251,7 +342,7 @@ func TestCertificateManager(t *testing.T) {
 			},
 			context: fakeContext().control("test").label("foo", "bar").annotate("x", "y"),
 			calls: []*Call{
-				call("foo", "test").ensure("my-ca", "my-subject", []string{"xxx", "yyy"}, false, true).mustError(),
+				call("foo", "test").ensure("my-ca", "my-subject", []string{"xxx", "yyy"}, false, true).mustError().eventcount(0),
 			},
 			expectedSecrets: []*corev1.Secret{
 				secret("foo", "test", nil, map[string]string{"foo": "bar"}, map[string]string{"x": "y"}),
@@ -330,7 +421,7 @@ func TestCertificateManager(t *testing.T) {
 				assert.Assert(t, err)
 			}
 			processor := watchers.NewEventProcessor("Controller", client)
-			mgr := NewCertificateManager(processor)
+			mgr := NewCertificateManager(processor, tt.certController)
 			if tt.context != nil {
 				mgr.SetControllerContext(tt.context)
 			}
@@ -350,7 +441,9 @@ func TestCertificateManager(t *testing.T) {
 				}
 				for i := 0; i < c.events; i++ {
 					processor.TestProcess()
-					processor.TestProcess()
+					if c.secretEvt {
+						processor.TestProcess()
+					}
 				}
 			}
 
@@ -570,6 +663,8 @@ type Call struct {
 	signing    bool
 	refs       []metav1.OwnerReference
 	events     int
+	controller string
+	secretEvt  bool
 	deleteCert bool
 	updateCert *skupperv2alpha1.Certificate
 	expectErr  bool
@@ -580,6 +675,7 @@ func call(name string, namespace string) *Call {
 		name:      name,
 		namespace: namespace,
 		refs:      fixtureRefs,
+		secretEvt: true,
 	}
 }
 
@@ -591,10 +687,14 @@ func (c *Call) invoke(mgr *CertificateManagerImpl) error {
 		_, err := mgr.processor.GetSkupperClient().SkupperV2alpha1().Certificates(c.namespace).Update(context.Background(), c.updateCert, metav1.UpdateOptions{})
 		return err
 	}
-	if c.signing {
-		return mgr.EnsureCA(c.namespace, c.name, c.subject, c.refs)
+	controller := c.controller
+	if controller == "" {
+		controller = mgr.certificateController
 	}
-	return mgr.Ensure(c.namespace, c.name, c.ca, c.subject, c.hosts, c.client, c.server, c.refs)
+	if c.signing {
+		return mgr.EnsureCA(c.namespace, c.name, c.subject, controller, c.refs)
+	}
+	return mgr.Ensure(c.namespace, c.name, c.ca, c.subject, c.hosts, c.client, c.server, controller, c.refs)
 }
 
 func (c *Call) ensure(ca string, subject string, hosts []string, client bool, server bool) *Call {
@@ -640,6 +740,16 @@ func (c *Call) owner(name string, uid string) *Call {
 
 func (c *Call) eventcount(events int) *Call {
 	c.events = events
+	return c
+}
+
+func (c *Call) noSecretEvent() *Call {
+	c.secretEvt = false
+	return c
+}
+
+func (c *Call) setExternalController() *Call {
+	c.controller = "external"
 	return c
 }
 
