@@ -3,10 +3,11 @@ package nonkube
 import (
 	"errors"
 	"fmt"
-	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
-	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"os"
 	"text/tabwriter"
+
+	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -44,6 +45,7 @@ func (cmd *CmdVersion) NewClient(cobraCommand *cobra.Command, args []string) {
 func (cmd *CmdVersion) ValidateInput(args []string) error {
 	var validationErrors []error
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
+	namespaceStringValidator := validator.NamespaceStringValidator()
 
 	if cmd.Flags != nil && cmd.Flags.Output != "" {
 		ok, err := outputTypeValidator.Evaluate(cmd.Flags.Output)
@@ -51,6 +53,13 @@ func (cmd *CmdVersion) ValidateInput(args []string) error {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		} else {
 			cmd.output = cmd.Flags.Output
+		}
+	}
+
+	if cmd.namespace != "" {
+		ok, err := namespaceStringValidator.Evaluate(cmd.namespace)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("namespace is not valid: %s", err))
 		}
 	}
 

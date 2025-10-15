@@ -6,6 +6,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
+	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/spf13/cobra"
 )
 
@@ -30,11 +31,21 @@ func (cmd *CmdSystemStop) NewClient(cobraCommand *cobra.Command, args []string) 
 }
 
 func (cmd *CmdSystemStop) ValidateInput(args []string) error {
+	var validationErrors []error
+	namespaceStringValidator := validator.NamespaceStringValidator()
+
 	if len(args) > 0 {
-		return errors.New("this command does not accept arguments")
+		validationErrors = append(validationErrors, fmt.Errorf("this command does not accept arguments"))
 	}
 
-	return nil
+	if cmd.Namespace != "" {
+		ok, err := namespaceStringValidator.Evaluate(cmd.Namespace)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("namespace is not valid: %s", err))
+		}
+	}
+
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdSystemStop) InputToOptions() {

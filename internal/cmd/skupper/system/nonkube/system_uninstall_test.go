@@ -25,6 +25,7 @@ type CmdSiteStatus struct {
 func TestCmdSystemUnInstall_ValidateInput(t *testing.T) {
 	type test struct {
 		name          string
+		namespace     string
 		args          []string
 		flags         *common.CommandSystemUninstallFlags
 		platform      string
@@ -69,6 +70,12 @@ func TestCmdSystemUnInstall_ValidateInput(t *testing.T) {
 			platform:      "linux",
 			expectedError: "the selected platform is not supported by this command. There is nothing to uninstall",
 		},
+		{
+			name:          "invalid-namespace",
+			namespace:     "Invalid",
+			platform:      "podman",
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+		},
 	}
 
 	for _, test := range testTable {
@@ -81,6 +88,7 @@ func TestCmdSystemUnInstall_ValidateInput(t *testing.T) {
 			command := newCmdSystemUninstallWithMocks(false)
 			command.CheckActiveSites = test.mock
 			command.Flags = test.flags
+			command.Namespace = test.namespace
 
 			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
