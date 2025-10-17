@@ -882,11 +882,10 @@ func (s *Site) CheckConnector(name string, connector *skupperv2alpha1.Connector)
 
 func (s *Site) updateListenerStatus(listener *skupperv2alpha1.Listener, err error) error {
 	if listener.SetConfigured(err) {
-		updated, err := s.clients.GetSkupperClient().SkupperV2alpha1().Listeners(listener.ObjectMeta.Namespace).UpdateStatus(context.TODO(), listener, metav1.UpdateOptions{})
+		_, err := s.clients.GetSkupperClient().SkupperV2alpha1().Listeners(listener.ObjectMeta.Namespace).UpdateStatus(context.TODO(), listener, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
-		s.bindings.UpdateListener(updated.Name, updated)
 	}
 	return nil
 }
@@ -922,13 +921,23 @@ func (s *Site) CheckListenerService(svc *corev1.Service) error {
 }
 
 func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener) error {
-	update, err1 := s.bindings.UpdateListener(name, listener)
 	if s.site == nil {
 		if listener == nil {
 			return nil
 		}
 		return s.updateListenerStatus(listener, stderrors.New("No active site in namespace"))
 	}
+	if listener != nil {
+		ctxt := context.TODO()
+		current, err := s.clients.GetKubeClient().CoreV1().Services(s.namespace).Get(ctxt, listener.Spec.Host, metav1.GetOptions{})
+		if current != nil && err == nil {
+			if !isOwned(current) {
+				return s.updateListenerStatus(listener, fmt.Errorf("Service to expose %s already exists in namespace", listener.Spec.Host))
+			}
+		}
+	}
+
+	update, err1 := s.bindings.UpdateListener(name, listener)
 	if update == nil {
 		return nil
 	}
