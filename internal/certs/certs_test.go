@@ -85,3 +85,34 @@ func TestGenerateSecret(t *testing.T) {
 	errorText := err.Error()
 	assert.Equal(t, errorText, "error reading CA Certificate from Secret \"emptyCASecret\": failed to read PEM encoded data from \"tls.crt\"")
 }
+
+// TestGH2284 exercises the ability to generate and parse x509 certificates
+// with invalid empty DNS names.
+//
+// Prior to Skupper version 2.1.2 bug GH2277 resulted in the creation of many
+// such certificates for CA and client use. A Go1.24.8 (and Go1.25.2) security
+// fix briefly enabled strict validation that prevented the parsing of these
+// certificates. These strict validations were relaxed in a subsequent point
+// release.
+func TestGH2284(t *testing.T) {
+	invalidDNSHosts := []string{""}
+	secret, err := GenerateSecret("issue-2284", "local.test", invalidDNSHosts, 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	certBytes, ok := secret.Data["tls.crt"]
+	if !ok {
+		t.Fatal("Invalid secret, tls.crt is missing")
+	}
+	cert, err := DecodeCertificate(certBytes)
+
+	const errMsgSANdNS = `x509: SAN dNSName is malformed`
+	if err != nil {
+		if err.Error() == errMsgSANdNS {
+			t.Fatalf("Unexpected error %q: see https://github.com/skupperproject/skupper/issues/2284", err)
+		}
+		t.Fatalf("Unexpected error decoding certificate: %q", err)
+	}
+
+	assert.DeepEqual(t, cert.DNSNames, []string{""})
+}
