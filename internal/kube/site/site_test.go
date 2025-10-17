@@ -330,6 +330,56 @@ func TestSite_CheckListener(t *testing.T) {
 			wantErr:       false,
 			wantListeners: 1,
 		},
+		{
+			name: "pre-existing service for listener added",
+			args: args{
+				name: "listener1",
+				listener: &skupperv2alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "listener1",
+						Namespace: "test",
+						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						RoutingKey: "backend",
+						Port:       8080,
+						Type:       "tcp",
+						Host:       "backend",
+					},
+				},
+			},
+			skupperObjects: []runtime.Object{
+				&skupperv2alpha1.Listener{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "listener1",
+						Namespace: "test",
+					},
+				},
+			},
+			k8sObjects: []runtime.Object{
+				&corev1.Service{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "v1",
+						Kind:       "Service",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "backend",
+						Namespace: "test",
+					},
+					Status: corev1.ServiceStatus{
+						Conditions: []v1.Condition{
+							{
+								Type:   "Configured",
+								Status: "True",
+							},
+						},
+					},
+				},
+			},
+			want:          "initialized",
+			wantErr:       false,
+			wantListeners: 0,
+		},
 		/* TBD updateListenerStatus if kube command err == nil it just
 		   returns and doesn't update s.bindings.UpdateListener ???
 			{
