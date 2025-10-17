@@ -6,8 +6,10 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/flow"
@@ -136,37 +138,56 @@ func startFlowController(ctx context.Context, cli *internalclient.KubeClient) er
 }
 
 func runLeaderElection(lock *resourcelock.LeaseLock, id string, cli *internalclient.KubeClient) {
-	ctx := context.Background()
-	begin := time.Now()
-	podname, _ := os.Hostname()
-	leaderelection.RunOrDie(ctx, leaderelection.LeaderElectionConfig{
-		Lock:            lock,
-		ReleaseOnCancel: true,
-		LeaseDuration:   15 * time.Second,
-		RenewDeadline:   10 * time.Second,
-		RetryPeriod:     2 * time.Second,
-		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(c context.Context) {
-				log.Printf("COLLECTOR: Leader %s starting site collection after %s\n", podname, time.Since(begin))
-				siteCollector(ctx, cli)
-				if err := startFlowController(ctx, cli); err != nil {
-					log.Printf("COLLECTOR: Failed to start controller for emitting site events: %s", err)
-				}
+	var (
+		mu              sync.Mutex
+		leaderCtx       context.Context
+		leaderCtxCancel func()
+	)
+	// attempt to run leader election forever
+	strategy := backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(0))
+	backoff.RetryNotify(func() error {
+		leaderelection.RunOrDie(context.Background(), leaderelection.LeaderElectionConfig{
+			Lock:            lock,
+			ReleaseOnCancel: true,
+			LeaseDuration:   15 * time.Second,
+			RenewDeadline:   10 * time.Second,
+			RetryPeriod:     2 * time.Second,
+			Callbacks: leaderelection.LeaderCallbacks{
+				OnStartedLeading: func(ctx context.Context) {
+					mu.Lock()
+					defer mu.Unlock()
+					leaderCtx, leaderCtxCancel = context.WithCancel(ctx)
+					log.Printf("COLLECTOR: Became leader. Starting status sync and site controller after %s.", strategy.GetElapsedTime())
+					siteCollector(leaderCtx, cli)
+					if err := startFlowController(leaderCtx, cli); err != nil {
+						log.Printf("COLLECTOR: Failed to start controller for emitting site events: %s", err)
+					}
+				},
+				OnStoppedLeading: func() {
+					log.Printf("COLLECTOR: Lost leader lock after %s. Stopping status sync and site controller.", strategy.GetElapsedTime())
+					mu.Lock()
+					defer mu.Unlock()
+					if leaderCtxCancel == nil {
+						return
+					}
+					leaderCtxCancel()
+					leaderCtx, leaderCtxCancel = nil, nil
+				},
+				OnNewLeader: func(current_id string) {
+					if current_id == id {
+						// Remain as the leader
+						return
+					}
+					log.Printf("COLLECTOR: New leader for site collection is %s\n", current_id)
+				},
 			},
-			OnStoppedLeading: func() {
-				// we held the lock but lost it. This indicates that something
-				// went wrong. Exit and restart.
-				log.Fatalf("COLLECTOR: Lost leader lock after %s", time.Since(begin))
-			},
-			OnNewLeader: func(current_id string) {
-				if current_id == id {
-					// Remain as the leader
-					return
-				}
-				log.Printf("COLLECTOR: New leader for site collection is %s\n", current_id)
-			},
-		},
-	})
+		})
+		return fmt.Errorf("leader election died")
+	},
+		strategy,
+		func(_ error, d time.Duration) {
+			log.Printf("COLLECTOR: leader election failed. retrying after %s", d)
+		})
 }
 
 func StartCollector(cli *internalclient.KubeClient) {
