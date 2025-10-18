@@ -31,7 +31,7 @@ import (
 )
 
 type SecuredAccessFactory interface {
-	Ensure(namespace string, name string, spec skupperv2alpha1.SecuredAccessSpec, annotations map[string]string, refs []metav1.OwnerReference) error
+	Ensure(namespace string, name string, spec skupperv2alpha1.SecuredAccessSpec, annotations map[string]string, certificateController string, refs []metav1.OwnerReference) error
 	Delete(namespace string, name string) error
 	IsValidAccessType(accessType string) bool
 }
@@ -42,39 +42,41 @@ type Labelling interface {
 }
 
 type Site struct {
-	initialised   bool
-	site          *skupperv2alpha1.Site
-	name          string
-	namespace     string
-	clients       *watchers.EventProcessor
-	bindings      *ExtendedBindings
-	links         map[string]*site.Link
-	errors        map[string]string
-	linkAccess    site.RouterAccessMap
-	certs         certificates.CertificateManager
-	access        SecuredAccessFactory
-	accessMapping securedAccessMap
-	sizes         *sizing.Registry
-	routerPods    map[string]*corev1.Pod
-	logger        *slog.Logger
-	currentGroups []string
-	labelling     Labelling
-	profiles      *secrets.ProfilesWatcher
+	initialised           bool
+	site                  *skupperv2alpha1.Site
+	name                  string
+	namespace             string
+	clients               *watchers.EventProcessor
+	bindings              *ExtendedBindings
+	links                 map[string]*site.Link
+	errors                map[string]string
+	linkAccess            site.RouterAccessMap
+	certs                 certificates.CertificateManager
+	certificateController string
+	access                SecuredAccessFactory
+	accessMapping         securedAccessMap
+	sizes                 *sizing.Registry
+	routerPods            map[string]*corev1.Pod
+	logger                *slog.Logger
+	currentGroups         []string
+	labelling             Labelling
+	profiles              *secrets.ProfilesWatcher
 }
 
-func NewSite(namespace string, eventProcessor *watchers.EventProcessor, certs certificates.CertificateManager, access SecuredAccessFactory, sizes *sizing.Registry, labelling Labelling) *Site {
+func NewSite(namespace string, eventProcessor *watchers.EventProcessor, certs certificates.CertificateManager, access SecuredAccessFactory, sizes *sizing.Registry, labelling Labelling, certificateController string) *Site {
 	logger := slog.New(slog.Default().Handler())
 	site := &Site{
-		bindings:      NewExtendedBindings(eventProcessor, SSL_PROFILE_PATH),
-		namespace:     namespace,
-		clients:       eventProcessor,
-		links:         map[string]*site.Link{},
-		linkAccess:    site.RouterAccessMap{},
-		certs:         certs,
-		access:        access,
-		accessMapping: make(securedAccessMap),
-		sizes:         sizes,
-		routerPods:    map[string]*corev1.Pod{},
+		bindings:              NewExtendedBindings(eventProcessor, SSL_PROFILE_PATH),
+		namespace:             namespace,
+		clients:               eventProcessor,
+		links:                 map[string]*site.Link{},
+		linkAccess:            site.RouterAccessMap{},
+		certs:                 certs,
+		certificateController: certificateController,
+		access:                access,
+		accessMapping:         make(securedAccessMap),
+		sizes:                 sizes,
+		routerPods:            map[string]*corev1.Pod{},
 		logger: logger.With(
 			slog.String("component", "kube.site.site"),
 		),
@@ -202,13 +204,14 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 		}
 	}
 	// CAs for local and site access
-	if err := s.certs.EnsureCA(s.namespace, "skupper-site-ca", fmt.Sprintf("%s site CA", s.name), s.ownerReferences()); err != nil {
+	certificateController := s.GetCertificateController()
+	if err := s.certs.EnsureCA(s.namespace, "skupper-site-ca", fmt.Sprintf("%s site CA", s.name), certificateController, s.ownerReferences()); err != nil {
 		return err
 	}
-	if err := s.certs.EnsureCA(s.namespace, "skupper-local-ca", fmt.Sprintf("%s local CA", s.name), s.ownerReferences()); err != nil {
+	if err := s.certs.EnsureCA(s.namespace, "skupper-local-ca", fmt.Sprintf("%s local CA", s.name), certificateController, s.ownerReferences()); err != nil {
 		return err
 	}
-	if err := s.certs.Ensure(s.namespace, "skupper-local-server", "skupper-local-ca", "skupper-router-local", s.qualified("skupper-router-local"), false, true, s.ownerReferences()); err != nil {
+	if err := s.certs.Ensure(s.namespace, "skupper-local-server", "skupper-local-ca", "skupper-router-local", s.qualified("skupper-router-local"), false, true, certificateController, s.ownerReferences()); err != nil {
 		return err
 	}
 	// RouterAccess for router
@@ -312,6 +315,8 @@ func (s *Site) checkDefaultRouterAccess(ctxt context.Context, site *skupperv2alp
 			},
 		},
 	}
+	certificateController := s.GetCertificateController()
+	desired.Spec.SetCertificateController(certificateController)
 	current, ok := s.linkAccess[name]
 	if ok {
 		if reflect.DeepEqual(current.Spec, desired.Spec) {
@@ -327,7 +332,18 @@ func (s *Site) checkDefaultRouterAccess(ctxt context.Context, site *skupperv2alp
 	} else {
 		created, err := s.clients.GetSkupperClient().SkupperV2alpha1().RouterAccesses(s.namespace).Create(context.Background(), desired, metav1.CreateOptions{})
 		if err != nil {
-			return err
+			if errors.IsAlreadyExists(err) {
+				s.logger.Info("Router access already exists - loading latest", slog.String("name", desired.Name))
+				created, err = s.clients.GetSkupperClient().SkupperV2alpha1().RouterAccesses(s.namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
+			} else {
+				s.logger.Error("Error creating RouterAccess",
+					slog.String("name", desired.Name),
+					slog.String("error", err.Error()))
+				return err
+			}
 		}
 		s.linkAccess[name] = created
 		return nil
@@ -1253,7 +1269,8 @@ func (s *Site) checkSecuredAccess() error {
 				"internal.skupper.io/controlled":   "true",
 				"internal.skupper.io/routeraccess": la.Name,
 			}
-			if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.site.DefaultIssuer()), annotations, routerAccessOwner(la)); err != nil {
+			certificateController := s.GetCertificateController()
+			if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.site.DefaultIssuer()), annotations, certificateController, routerAccessOwner(la)); err != nil {
 				//TODO: add message to site status
 				s.logger.Error("Error ensuring SecuredAccess for RouterAccess",
 					slog.String("key", la.Key()),
@@ -1302,7 +1319,7 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv2alpha1.RouterAccess) 
 				"internal.skupper.io/controlled":   "true",
 				"internal.skupper.io/routeraccess": la.Name,
 			}
-			if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.site.DefaultIssuer()), annotations, routerAccessOwner(la)); err != nil {
+			if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.site.DefaultIssuer()), annotations, s.GetCertificateController(), routerAccessOwner(la)); err != nil {
 				s.logger.Error("Error ensuring SecuredAccess for RouterAccess",
 					slog.String("key", la.Key()),
 					slog.Any("error", err))
@@ -1378,6 +1395,17 @@ func (s *Site) TLSPriorValidRevisions() uint64 {
 		}
 	}
 	return revisions
+}
+
+func (s *Site) GetCertificateController() string {
+	var controller string
+	if s.site != nil {
+		controller = s.site.Spec.GetCertificateController()
+	}
+	if controller == "" {
+		controller = s.certificateController
+	}
+	return controller
 }
 
 func podState(pod *corev1.Pod) skupperv2alpha1.ConditionState {
