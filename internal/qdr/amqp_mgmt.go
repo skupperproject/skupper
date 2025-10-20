@@ -1153,6 +1153,7 @@ func asSslProfile(record Record) SslProfile {
 		CertFile:       record.AsString("certFile"),
 		PrivateKeyFile: record.AsString("privateKeyFile"),
 		CaCertFile:     record.AsString("caCertFile"),
+		Ordinal:        record.AsUint64("ordinal"),
 	}
 }
 
