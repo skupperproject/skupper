@@ -49,20 +49,6 @@ func (s *StatusSyncClient) Update(ctx context.Context, latest *corev1.ConfigMap)
 	return err
 }
 
-func updateLockOwner(lockname, namespace string, owner *metav1.OwnerReference, cli *internalclient.KubeClient) error {
-	current, err := cli.Kube.CoordinationV1().Leases(namespace).Get(context.TODO(), lockname, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	if owner != nil {
-		current.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
-			*owner,
-		}
-	}
-	_, err = cli.Kube.CoordinationV1().Leases(namespace).Update(context.TODO(), current, metav1.UpdateOptions{})
-	return err
-}
-
 func siteCollector(ctx context.Context, cli *internalclient.KubeClient) {
 	siteData := map[string]string{}
 	platform := config.GetPlatform()
@@ -84,11 +70,6 @@ func siteCollector(ctx context.Context, cli *internalclient.KubeClient) {
 	existing, err := newConfigMap(types.NetworkStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.Kube)
 	if err != nil && existing == nil {
 		log.Fatal("Failed to create site status config map ", err.Error())
-	}
-
-	err = updateLockOwner(types.SiteLeaderLockName, cli.Namespace, &owner, cli)
-	if err != nil {
-		log.Println("Update lock error", err.Error())
 	}
 
 	factory := session.NewContainerFactory("amqp://localhost:5672", session.ContainerConfig{ContainerID: "kube-flow-collector"})
