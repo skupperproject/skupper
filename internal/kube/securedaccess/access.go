@@ -96,7 +96,7 @@ func (m *SecuredAccessManager) IsValidAccessType(accessType string) bool {
 	return ok
 }
 
-func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skupperv2alpha1.SecuredAccessSpec, annotations map[string]string, certificateController string, refs []metav1.OwnerReference) error {
+func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skupperv2alpha1.SecuredAccessSpec, annotations map[string]string, refs []metav1.OwnerReference) error {
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
 		if current.ObjectMeta.Labels == nil {
@@ -151,7 +151,7 @@ func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skuppe
 			},
 			Spec: spec,
 		}
-		sa.Spec.SetCertificateController(certificateController)
+		sa.Spec.SetCertificateController(spec.GetCertificateController())
 		if m.context != nil {
 			if sa.ObjectMeta.Annotations == nil {
 				sa.ObjectMeta.Annotations = map[string]string{}

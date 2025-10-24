@@ -1995,7 +1995,7 @@ func TestSecuredAccessGeneral(t *testing.T) {
 			certs := newMockCertificateManager()
 			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: "test", labels: tt.labels, annotations: tt.annotations})
 
-			err = m.Ensure(tt.definition.Namespace, tt.definition.Name, tt.definition.Spec, nil, tt.definition.Spec.GetCertificateController(), nil)
+			err = m.Ensure(tt.definition.Namespace, tt.definition.Name, tt.definition.Spec, nil, nil)
 			if tt.expectedError != "" {
 				assert.ErrorContains(t, err, tt.expectedError)
 			} else if err != nil {
@@ -2557,7 +2557,7 @@ func TestSecuredAccessManagerEnsure(t *testing.T) {
 			}
 
 			for i, args := range tt.args {
-				err = m.Ensure(args.namespace, args.name, args.spec, args.annotations, "", args.refs)
+				err = m.Ensure(args.namespace, args.name, args.spec, args.annotations, args.refs)
 				if len(tt.expectedErrors) > i && tt.expectedErrors[i] != "" {
 					assert.ErrorContains(t, err, tt.expectedErrors[i])
 				} else if err != nil {
@@ -2654,7 +2654,7 @@ func TestSecuredAccessDeleted(t *testing.T) {
 				err := client.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(def.namespace).Delete(context.Background(), def.name, metav1.DeleteOptions{})
 				assert.Assert(t, err)
 				controller.TestProcess()
-				err = m.Ensure(def.namespace, def.name, def.spec, nil, "", nil)
+				err = m.Ensure(def.namespace, def.name, def.spec, nil, nil)
 				assert.Assert(t, err)
 				controller.TestProcess()
 			}
@@ -2814,7 +2814,7 @@ func TestSecuredAccessManagerChangeDelete(t *testing.T) {
 			m, err := newSecureAccessManagerMocks("test", tt.k8sObjects, tt.skupperObjects, tt.skupperErrorMessage)
 			assert.Assert(t, err)
 
-			if err := m.Ensure(tt.args.namespace, tt.args.name, *tt.args.spec, *tt.args.annotations, "", *tt.args.refs); err != nil {
+			if err := m.Ensure(tt.args.namespace, tt.args.name, *tt.args.spec, *tt.args.annotations, *tt.args.refs); err != nil {
 				t.Errorf("SecuredAccessManager.Ensure() error = %v", err)
 			}
 			// change Access Type
@@ -3032,7 +3032,7 @@ func TestSecuredAccessManagerCheckService(t *testing.T) {
 			m, err := newSecureAccessManagerMocks("test", tt.k8sObjects, tt.skupperObjects, tt.skupperErrorMessage)
 			assert.Assert(t, err)
 
-			if err := m.Ensure(tt.args.namespace, tt.args.name, *tt.args.spec, *tt.args.annotations, "", *tt.args.refs); err != nil {
+			if err := m.Ensure(tt.args.namespace, tt.args.name, *tt.args.spec, *tt.args.annotations, *tt.args.refs); err != nil {
 				t.Errorf("SecuredAccessManager.CheckServic() error = %v", err)
 			}
 
