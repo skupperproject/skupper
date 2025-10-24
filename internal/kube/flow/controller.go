@@ -130,26 +130,26 @@ func (c *Controller) Run(ctx context.Context) {
 		c.logger.Error("amqp session error", slog.Any("error", err), slog.Bool("retryable", retryable))
 	})
 	go c.manager.Run(mgmtCtx)
+	// handle shutdown though work queue
+	go func() {
+		<-mgmtCtx.Done()
+		c.queue.ShutDown()
+	}()
 	for {
-		select {
-		case <-ctx.Done():
+		item, done := c.queue.Get()
+		if done {
+			c.logger.Info("workqueue shutdown")
 			return
-		default:
-			item, done := c.queue.Get()
-			if done {
-				c.logger.Info("workqueue shutdown")
-				return
-			}
-			evnt := item.(workEvent)
-			switch evnt.Type {
-			case eventTypeProcess:
-				if err := c.handlePodEvent(evnt); err != nil {
-					c.queue.AddRateLimited(evnt)
-				}
-			}
-			c.queue.Forget(item)
-			c.queue.Done(item)
 		}
+		evnt := item.(workEvent)
+		switch evnt.Type {
+		case eventTypeProcess:
+			if err := c.handlePodEvent(evnt); err != nil {
+				c.queue.AddRateLimited(evnt)
+			}
+		}
+		c.queue.Forget(item)
+		c.queue.Done(item)
 	}
 }
 
