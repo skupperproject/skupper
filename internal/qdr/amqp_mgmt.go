@@ -1149,10 +1149,12 @@ func asListener(record Record) Listener {
 
 func asSslProfile(record Record) SslProfile {
 	return SslProfile{
-		Name:           record.AsString("name"),
-		CertFile:       record.AsString("certFile"),
-		PrivateKeyFile: record.AsString("privateKeyFile"),
-		CaCertFile:     record.AsString("caCertFile"),
+		Name:               record.AsString("name"),
+		CertFile:           record.AsString("certFile"),
+		PrivateKeyFile:     record.AsString("privateKeyFile"),
+		CaCertFile:         record.AsString("caCertFile"),
+		Ordinal:            record.AsUint64("ordinal"),
+		OldestValidOrdinal: record.AsUint64("oldestValidOrdinal"),
 	}
 }
 

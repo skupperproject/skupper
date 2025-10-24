@@ -353,6 +353,7 @@ func TestRouterAccessMap_DesiredConfig(t *testing.T) {
 						Role:       qdr.RoleInterRouter,
 						Port:       "55671",
 						SslProfile: "skupper",
+						Cost:       1,
 					},
 				},
 			},
