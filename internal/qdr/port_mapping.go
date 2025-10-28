@@ -14,7 +14,6 @@ type PortMapping struct {
 
 func (p *PortMapping) GetPortForKey(key string) (int, error) {
 	if existing, ok := p.mappings[key]; ok {
-		log.Printf("Port %d already allocated for key %s", existing, key)
 		return existing, nil
 	}
 	allocated, err := p.pool.NextFreePort()
