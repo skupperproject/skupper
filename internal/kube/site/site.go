@@ -920,21 +920,15 @@ func (s *Site) CheckListenerService(svc *corev1.Service) error {
 	return nil
 }
 
-func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener) error {
+func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener, svcExists bool) error {
 	if s.site == nil {
 		if listener == nil {
 			return nil
 		}
 		return s.updateListenerStatus(listener, stderrors.New("No active site in namespace"))
 	}
-	if listener != nil {
-		ctxt := context.TODO()
-		current, err := s.clients.GetKubeClient().CoreV1().Services(s.namespace).Get(ctxt, listener.Spec.Host, metav1.GetOptions{})
-		if current != nil && err == nil {
-			if !isOwned(current) {
-				return s.updateListenerStatus(listener, fmt.Errorf("Service to expose %s already exists in namespace", listener.Spec.Host))
-			}
-		}
+	if listener != nil && svcExists {
+		return s.updateListenerStatus(listener, fmt.Errorf("Service %s already exists in namespace", listener.Spec.Host))
 	}
 
 	update, err1 := s.bindings.UpdateListener(name, listener)

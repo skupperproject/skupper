@@ -280,8 +280,9 @@ func TestSite_ExposeUnexpose(t *testing.T) {
 }
 func TestSite_CheckListener(t *testing.T) {
 	type args struct {
-		name     string
-		listener *skupperv2alpha1.Listener
+		name      string
+		listener  *skupperv2alpha1.Listener
+		svcExists bool
 	}
 	tests := []struct {
 		name                string
@@ -317,6 +318,7 @@ func TestSite_CheckListener(t *testing.T) {
 						Host:       "1.2.3.4",
 					},
 				},
+				svcExists: false,
 			},
 			skupperObjects: []runtime.Object{
 				&skupperv2alpha1.Listener{
@@ -347,6 +349,7 @@ func TestSite_CheckListener(t *testing.T) {
 						Host:       "backend",
 					},
 				},
+				svcExists: true,
 			},
 			skupperObjects: []runtime.Object{
 				&skupperv2alpha1.Listener{
@@ -418,7 +421,7 @@ func TestSite_CheckListener(t *testing.T) {
 				assert.Assert(t, err)
 			}
 
-			if err := s.CheckListener(tt.args.name, tt.args.listener); (err != nil) != tt.wantErr {
+			if err := s.CheckListener(tt.args.name, tt.args.listener, tt.args.svcExists); (err != nil) != tt.wantErr {
 				t.Errorf("Site.CheckListener() error = %v", err)
 			}
 
