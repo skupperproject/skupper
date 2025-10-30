@@ -19,10 +19,10 @@ limitations under the License.
 package v2alpha1
 
 import (
-	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // AccessTokenLister helps list AccessTokens.
@@ -30,7 +30,7 @@ import (
 type AccessTokenLister interface {
 	// List lists all AccessTokens in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.AccessToken, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.AccessToken, err error)
 	// AccessTokens returns an object that can list and get AccessTokens.
 	AccessTokens(namespace string) AccessTokenNamespaceLister
 	AccessTokenListerExpansion
@@ -38,17 +38,17 @@ type AccessTokenLister interface {
 
 // accessTokenLister implements the AccessTokenLister interface.
 type accessTokenLister struct {
-	listers.ResourceIndexer[*v2alpha1.AccessToken]
+	listers.ResourceIndexer[*skupperv2alpha1.AccessToken]
 }
 
 // NewAccessTokenLister returns a new AccessTokenLister.
 func NewAccessTokenLister(indexer cache.Indexer) AccessTokenLister {
-	return &accessTokenLister{listers.New[*v2alpha1.AccessToken](indexer, v2alpha1.Resource("accesstoken"))}
+	return &accessTokenLister{listers.New[*skupperv2alpha1.AccessToken](indexer, skupperv2alpha1.Resource("accesstoken"))}
 }
 
 // AccessTokens returns an object that can list and get AccessTokens.
 func (s *accessTokenLister) AccessTokens(namespace string) AccessTokenNamespaceLister {
-	return accessTokenNamespaceLister{listers.NewNamespaced[*v2alpha1.AccessToken](s.ResourceIndexer, namespace)}
+	return accessTokenNamespaceLister{listers.NewNamespaced[*skupperv2alpha1.AccessToken](s.ResourceIndexer, namespace)}
 }
 
 // AccessTokenNamespaceLister helps list and get AccessTokens.
@@ -56,15 +56,15 @@ func (s *accessTokenLister) AccessTokens(namespace string) AccessTokenNamespaceL
 type AccessTokenNamespaceLister interface {
 	// List lists all AccessTokens in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.AccessToken, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.AccessToken, err error)
 	// Get retrieves the AccessToken from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v2alpha1.AccessToken, error)
+	Get(name string) (*skupperv2alpha1.AccessToken, error)
 	AccessTokenNamespaceListerExpansion
 }
 
 // accessTokenNamespaceLister implements the AccessTokenNamespaceLister
 // interface.
 type accessTokenNamespaceLister struct {
-	listers.ResourceIndexer[*v2alpha1.AccessToken]
+	listers.ResourceIndexer[*skupperv2alpha1.AccessToken]
 }

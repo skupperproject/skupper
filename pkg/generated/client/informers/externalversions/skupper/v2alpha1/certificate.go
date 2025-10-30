@@ -19,13 +19,13 @@ limitations under the License.
 package v2alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	apisskupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	versioned "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
 	internalinterfaces "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/internalinterfaces"
-	v2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/listers/skupper/v2alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/listers/skupper/v2alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // Certificates.
 type CertificateInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v2alpha1.CertificateLister
+	Lister() skupperv2alpha1.CertificateLister
 }
 
 type certificateInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredCertificateInformer(client versioned.Interface, namespace string
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV2alpha1().Certificates(namespace).List(context.TODO(), options)
+				return client.SkupperV2alpha1().Certificates(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV2alpha1().Certificates(namespace).Watch(context.TODO(), options)
+				return client.SkupperV2alpha1().Certificates(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.SkupperV2alpha1().Certificates(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.SkupperV2alpha1().Certificates(namespace).Watch(ctx, options)
 			},
 		},
-		&skupperv2alpha1.Certificate{},
+		&apisskupperv2alpha1.Certificate{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *certificateInformer) defaultInformer(client versioned.Interface, resync
 }
 
 func (f *certificateInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&skupperv2alpha1.Certificate{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisskupperv2alpha1.Certificate{}, f.defaultInformer)
 }
 
-func (f *certificateInformer) Lister() v2alpha1.CertificateLister {
-	return v2alpha1.NewCertificateLister(f.Informer().GetIndexer())
+func (f *certificateInformer) Lister() skupperv2alpha1.CertificateLister {
+	return skupperv2alpha1.NewCertificateLister(f.Informer().GetIndexer())
 }

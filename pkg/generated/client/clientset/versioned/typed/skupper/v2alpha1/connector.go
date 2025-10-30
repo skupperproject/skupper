@@ -19,9 +19,9 @@ limitations under the License.
 package v2alpha1
 
 import (
-	"context"
+	context "context"
 
-	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	scheme "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,34 @@ type ConnectorsGetter interface {
 
 // ConnectorInterface has methods to work with Connector resources.
 type ConnectorInterface interface {
-	Create(ctx context.Context, connector *v2alpha1.Connector, opts v1.CreateOptions) (*v2alpha1.Connector, error)
-	Update(ctx context.Context, connector *v2alpha1.Connector, opts v1.UpdateOptions) (*v2alpha1.Connector, error)
+	Create(ctx context.Context, connector *skupperv2alpha1.Connector, opts v1.CreateOptions) (*skupperv2alpha1.Connector, error)
+	Update(ctx context.Context, connector *skupperv2alpha1.Connector, opts v1.UpdateOptions) (*skupperv2alpha1.Connector, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, connector *v2alpha1.Connector, opts v1.UpdateOptions) (*v2alpha1.Connector, error)
+	UpdateStatus(ctx context.Context, connector *skupperv2alpha1.Connector, opts v1.UpdateOptions) (*skupperv2alpha1.Connector, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v2alpha1.Connector, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v2alpha1.ConnectorList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*skupperv2alpha1.Connector, error)
+	List(ctx context.Context, opts v1.ListOptions) (*skupperv2alpha1.ConnectorList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.Connector, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *skupperv2alpha1.Connector, err error)
 	ConnectorExpansion
 }
 
 // connectors implements ConnectorInterface
 type connectors struct {
-	*gentype.ClientWithList[*v2alpha1.Connector, *v2alpha1.ConnectorList]
+	*gentype.ClientWithList[*skupperv2alpha1.Connector, *skupperv2alpha1.ConnectorList]
 }
 
 // newConnectors returns a Connectors
 func newConnectors(c *SkupperV2alpha1Client, namespace string) *connectors {
 	return &connectors{
-		gentype.NewClientWithList[*v2alpha1.Connector, *v2alpha1.ConnectorList](
+		gentype.NewClientWithList[*skupperv2alpha1.Connector, *skupperv2alpha1.ConnectorList](
 			"connectors",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v2alpha1.Connector { return &v2alpha1.Connector{} },
-			func() *v2alpha1.ConnectorList { return &v2alpha1.ConnectorList{} }),
+			func() *skupperv2alpha1.Connector { return &skupperv2alpha1.Connector{} },
+			func() *skupperv2alpha1.ConnectorList { return &skupperv2alpha1.ConnectorList{} },
+		),
 	}
 }

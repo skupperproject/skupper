@@ -19,10 +19,10 @@ limitations under the License.
 package v2alpha1
 
 import (
-	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // RouterAccessLister helps list RouterAccesses.
@@ -30,7 +30,7 @@ import (
 type RouterAccessLister interface {
 	// List lists all RouterAccesses in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.RouterAccess, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.RouterAccess, err error)
 	// RouterAccesses returns an object that can list and get RouterAccesses.
 	RouterAccesses(namespace string) RouterAccessNamespaceLister
 	RouterAccessListerExpansion
@@ -38,17 +38,17 @@ type RouterAccessLister interface {
 
 // routerAccessLister implements the RouterAccessLister interface.
 type routerAccessLister struct {
-	listers.ResourceIndexer[*v2alpha1.RouterAccess]
+	listers.ResourceIndexer[*skupperv2alpha1.RouterAccess]
 }
 
 // NewRouterAccessLister returns a new RouterAccessLister.
 func NewRouterAccessLister(indexer cache.Indexer) RouterAccessLister {
-	return &routerAccessLister{listers.New[*v2alpha1.RouterAccess](indexer, v2alpha1.Resource("routeraccess"))}
+	return &routerAccessLister{listers.New[*skupperv2alpha1.RouterAccess](indexer, skupperv2alpha1.Resource("routeraccess"))}
 }
 
 // RouterAccesses returns an object that can list and get RouterAccesses.
 func (s *routerAccessLister) RouterAccesses(namespace string) RouterAccessNamespaceLister {
-	return routerAccessNamespaceLister{listers.NewNamespaced[*v2alpha1.RouterAccess](s.ResourceIndexer, namespace)}
+	return routerAccessNamespaceLister{listers.NewNamespaced[*skupperv2alpha1.RouterAccess](s.ResourceIndexer, namespace)}
 }
 
 // RouterAccessNamespaceLister helps list and get RouterAccesses.
@@ -56,15 +56,15 @@ func (s *routerAccessLister) RouterAccesses(namespace string) RouterAccessNamesp
 type RouterAccessNamespaceLister interface {
 	// List lists all RouterAccesses in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.RouterAccess, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.RouterAccess, err error)
 	// Get retrieves the RouterAccess from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v2alpha1.RouterAccess, error)
+	Get(name string) (*skupperv2alpha1.RouterAccess, error)
 	RouterAccessNamespaceListerExpansion
 }
 
 // routerAccessNamespaceLister implements the RouterAccessNamespaceLister
 // interface.
 type routerAccessNamespaceLister struct {
-	listers.ResourceIndexer[*v2alpha1.RouterAccess]
+	listers.ResourceIndexer[*skupperv2alpha1.RouterAccess]
 }

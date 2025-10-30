@@ -19,10 +19,10 @@ limitations under the License.
 package v2alpha1
 
 import (
-	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // CertificateLister helps list Certificates.
@@ -30,7 +30,7 @@ import (
 type CertificateLister interface {
 	// List lists all Certificates in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.Certificate, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.Certificate, err error)
 	// Certificates returns an object that can list and get Certificates.
 	Certificates(namespace string) CertificateNamespaceLister
 	CertificateListerExpansion
@@ -38,17 +38,17 @@ type CertificateLister interface {
 
 // certificateLister implements the CertificateLister interface.
 type certificateLister struct {
-	listers.ResourceIndexer[*v2alpha1.Certificate]
+	listers.ResourceIndexer[*skupperv2alpha1.Certificate]
 }
 
 // NewCertificateLister returns a new CertificateLister.
 func NewCertificateLister(indexer cache.Indexer) CertificateLister {
-	return &certificateLister{listers.New[*v2alpha1.Certificate](indexer, v2alpha1.Resource("certificate"))}
+	return &certificateLister{listers.New[*skupperv2alpha1.Certificate](indexer, skupperv2alpha1.Resource("certificate"))}
 }
 
 // Certificates returns an object that can list and get Certificates.
 func (s *certificateLister) Certificates(namespace string) CertificateNamespaceLister {
-	return certificateNamespaceLister{listers.NewNamespaced[*v2alpha1.Certificate](s.ResourceIndexer, namespace)}
+	return certificateNamespaceLister{listers.NewNamespaced[*skupperv2alpha1.Certificate](s.ResourceIndexer, namespace)}
 }
 
 // CertificateNamespaceLister helps list and get Certificates.
@@ -56,15 +56,15 @@ func (s *certificateLister) Certificates(namespace string) CertificateNamespaceL
 type CertificateNamespaceLister interface {
 	// List lists all Certificates in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.Certificate, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.Certificate, err error)
 	// Get retrieves the Certificate from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v2alpha1.Certificate, error)
+	Get(name string) (*skupperv2alpha1.Certificate, error)
 	CertificateNamespaceListerExpansion
 }
 
 // certificateNamespaceLister implements the CertificateNamespaceLister
 // interface.
 type certificateNamespaceLister struct {
-	listers.ResourceIndexer[*v2alpha1.Certificate]
+	listers.ResourceIndexer[*skupperv2alpha1.Certificate]
 }

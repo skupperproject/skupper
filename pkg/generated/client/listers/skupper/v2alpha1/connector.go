@@ -19,10 +19,10 @@ limitations under the License.
 package v2alpha1
 
 import (
-	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // ConnectorLister helps list Connectors.
@@ -30,7 +30,7 @@ import (
 type ConnectorLister interface {
 	// List lists all Connectors in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.Connector, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.Connector, err error)
 	// Connectors returns an object that can list and get Connectors.
 	Connectors(namespace string) ConnectorNamespaceLister
 	ConnectorListerExpansion
@@ -38,17 +38,17 @@ type ConnectorLister interface {
 
 // connectorLister implements the ConnectorLister interface.
 type connectorLister struct {
-	listers.ResourceIndexer[*v2alpha1.Connector]
+	listers.ResourceIndexer[*skupperv2alpha1.Connector]
 }
 
 // NewConnectorLister returns a new ConnectorLister.
 func NewConnectorLister(indexer cache.Indexer) ConnectorLister {
-	return &connectorLister{listers.New[*v2alpha1.Connector](indexer, v2alpha1.Resource("connector"))}
+	return &connectorLister{listers.New[*skupperv2alpha1.Connector](indexer, skupperv2alpha1.Resource("connector"))}
 }
 
 // Connectors returns an object that can list and get Connectors.
 func (s *connectorLister) Connectors(namespace string) ConnectorNamespaceLister {
-	return connectorNamespaceLister{listers.NewNamespaced[*v2alpha1.Connector](s.ResourceIndexer, namespace)}
+	return connectorNamespaceLister{listers.NewNamespaced[*skupperv2alpha1.Connector](s.ResourceIndexer, namespace)}
 }
 
 // ConnectorNamespaceLister helps list and get Connectors.
@@ -56,15 +56,15 @@ func (s *connectorLister) Connectors(namespace string) ConnectorNamespaceLister 
 type ConnectorNamespaceLister interface {
 	// List lists all Connectors in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.Connector, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.Connector, err error)
 	// Get retrieves the Connector from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v2alpha1.Connector, error)
+	Get(name string) (*skupperv2alpha1.Connector, error)
 	ConnectorNamespaceListerExpansion
 }
 
 // connectorNamespaceLister implements the ConnectorNamespaceLister
 // interface.
 type connectorNamespaceLister struct {
-	listers.ResourceIndexer[*v2alpha1.Connector]
+	listers.ResourceIndexer[*skupperv2alpha1.Connector]
 }
