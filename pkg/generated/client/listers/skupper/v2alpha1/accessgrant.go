@@ -19,10 +19,10 @@ limitations under the License.
 package v2alpha1
 
 import (
-	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // AccessGrantLister helps list AccessGrants.
@@ -30,7 +30,7 @@ import (
 type AccessGrantLister interface {
 	// List lists all AccessGrants in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.AccessGrant, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.AccessGrant, err error)
 	// AccessGrants returns an object that can list and get AccessGrants.
 	AccessGrants(namespace string) AccessGrantNamespaceLister
 	AccessGrantListerExpansion
@@ -38,17 +38,17 @@ type AccessGrantLister interface {
 
 // accessGrantLister implements the AccessGrantLister interface.
 type accessGrantLister struct {
-	listers.ResourceIndexer[*v2alpha1.AccessGrant]
+	listers.ResourceIndexer[*skupperv2alpha1.AccessGrant]
 }
 
 // NewAccessGrantLister returns a new AccessGrantLister.
 func NewAccessGrantLister(indexer cache.Indexer) AccessGrantLister {
-	return &accessGrantLister{listers.New[*v2alpha1.AccessGrant](indexer, v2alpha1.Resource("accessgrant"))}
+	return &accessGrantLister{listers.New[*skupperv2alpha1.AccessGrant](indexer, skupperv2alpha1.Resource("accessgrant"))}
 }
 
 // AccessGrants returns an object that can list and get AccessGrants.
 func (s *accessGrantLister) AccessGrants(namespace string) AccessGrantNamespaceLister {
-	return accessGrantNamespaceLister{listers.NewNamespaced[*v2alpha1.AccessGrant](s.ResourceIndexer, namespace)}
+	return accessGrantNamespaceLister{listers.NewNamespaced[*skupperv2alpha1.AccessGrant](s.ResourceIndexer, namespace)}
 }
 
 // AccessGrantNamespaceLister helps list and get AccessGrants.
@@ -56,15 +56,15 @@ func (s *accessGrantLister) AccessGrants(namespace string) AccessGrantNamespaceL
 type AccessGrantNamespaceLister interface {
 	// List lists all AccessGrants in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.AccessGrant, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.AccessGrant, err error)
 	// Get retrieves the AccessGrant from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v2alpha1.AccessGrant, error)
+	Get(name string) (*skupperv2alpha1.AccessGrant, error)
 	AccessGrantNamespaceListerExpansion
 }
 
 // accessGrantNamespaceLister implements the AccessGrantNamespaceLister
 // interface.
 type accessGrantNamespaceLister struct {
-	listers.ResourceIndexer[*v2alpha1.AccessGrant]
+	listers.ResourceIndexer[*skupperv2alpha1.AccessGrant]
 }

@@ -19,9 +19,9 @@ limitations under the License.
 package v2alpha1
 
 import (
-	"context"
+	context "context"
 
-	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	scheme "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,34 @@ type LinksGetter interface {
 
 // LinkInterface has methods to work with Link resources.
 type LinkInterface interface {
-	Create(ctx context.Context, link *v2alpha1.Link, opts v1.CreateOptions) (*v2alpha1.Link, error)
-	Update(ctx context.Context, link *v2alpha1.Link, opts v1.UpdateOptions) (*v2alpha1.Link, error)
+	Create(ctx context.Context, link *skupperv2alpha1.Link, opts v1.CreateOptions) (*skupperv2alpha1.Link, error)
+	Update(ctx context.Context, link *skupperv2alpha1.Link, opts v1.UpdateOptions) (*skupperv2alpha1.Link, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, link *v2alpha1.Link, opts v1.UpdateOptions) (*v2alpha1.Link, error)
+	UpdateStatus(ctx context.Context, link *skupperv2alpha1.Link, opts v1.UpdateOptions) (*skupperv2alpha1.Link, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v2alpha1.Link, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v2alpha1.LinkList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*skupperv2alpha1.Link, error)
+	List(ctx context.Context, opts v1.ListOptions) (*skupperv2alpha1.LinkList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.Link, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *skupperv2alpha1.Link, err error)
 	LinkExpansion
 }
 
 // links implements LinkInterface
 type links struct {
-	*gentype.ClientWithList[*v2alpha1.Link, *v2alpha1.LinkList]
+	*gentype.ClientWithList[*skupperv2alpha1.Link, *skupperv2alpha1.LinkList]
 }
 
 // newLinks returns a Links
 func newLinks(c *SkupperV2alpha1Client, namespace string) *links {
 	return &links{
-		gentype.NewClientWithList[*v2alpha1.Link, *v2alpha1.LinkList](
+		gentype.NewClientWithList[*skupperv2alpha1.Link, *skupperv2alpha1.LinkList](
 			"links",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v2alpha1.Link { return &v2alpha1.Link{} },
-			func() *v2alpha1.LinkList { return &v2alpha1.LinkList{} }),
+			func() *skupperv2alpha1.Link { return &skupperv2alpha1.Link{} },
+			func() *skupperv2alpha1.LinkList { return &skupperv2alpha1.LinkList{} },
+		),
 	}
 }

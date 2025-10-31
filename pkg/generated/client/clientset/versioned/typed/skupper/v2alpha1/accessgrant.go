@@ -19,9 +19,9 @@ limitations under the License.
 package v2alpha1
 
 import (
-	"context"
+	context "context"
 
-	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	scheme "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,34 @@ type AccessGrantsGetter interface {
 
 // AccessGrantInterface has methods to work with AccessGrant resources.
 type AccessGrantInterface interface {
-	Create(ctx context.Context, accessGrant *v2alpha1.AccessGrant, opts v1.CreateOptions) (*v2alpha1.AccessGrant, error)
-	Update(ctx context.Context, accessGrant *v2alpha1.AccessGrant, opts v1.UpdateOptions) (*v2alpha1.AccessGrant, error)
+	Create(ctx context.Context, accessGrant *skupperv2alpha1.AccessGrant, opts v1.CreateOptions) (*skupperv2alpha1.AccessGrant, error)
+	Update(ctx context.Context, accessGrant *skupperv2alpha1.AccessGrant, opts v1.UpdateOptions) (*skupperv2alpha1.AccessGrant, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, accessGrant *v2alpha1.AccessGrant, opts v1.UpdateOptions) (*v2alpha1.AccessGrant, error)
+	UpdateStatus(ctx context.Context, accessGrant *skupperv2alpha1.AccessGrant, opts v1.UpdateOptions) (*skupperv2alpha1.AccessGrant, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v2alpha1.AccessGrant, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v2alpha1.AccessGrantList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*skupperv2alpha1.AccessGrant, error)
+	List(ctx context.Context, opts v1.ListOptions) (*skupperv2alpha1.AccessGrantList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.AccessGrant, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *skupperv2alpha1.AccessGrant, err error)
 	AccessGrantExpansion
 }
 
 // accessGrants implements AccessGrantInterface
 type accessGrants struct {
-	*gentype.ClientWithList[*v2alpha1.AccessGrant, *v2alpha1.AccessGrantList]
+	*gentype.ClientWithList[*skupperv2alpha1.AccessGrant, *skupperv2alpha1.AccessGrantList]
 }
 
 // newAccessGrants returns a AccessGrants
 func newAccessGrants(c *SkupperV2alpha1Client, namespace string) *accessGrants {
 	return &accessGrants{
-		gentype.NewClientWithList[*v2alpha1.AccessGrant, *v2alpha1.AccessGrantList](
+		gentype.NewClientWithList[*skupperv2alpha1.AccessGrant, *skupperv2alpha1.AccessGrantList](
 			"accessgrants",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v2alpha1.AccessGrant { return &v2alpha1.AccessGrant{} },
-			func() *v2alpha1.AccessGrantList { return &v2alpha1.AccessGrantList{} }),
+			func() *skupperv2alpha1.AccessGrant { return &skupperv2alpha1.AccessGrant{} },
+			func() *skupperv2alpha1.AccessGrantList { return &skupperv2alpha1.AccessGrantList{} },
+		),
 	}
 }

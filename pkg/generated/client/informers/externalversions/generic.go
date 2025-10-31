@@ -19,7 +19,7 @@ limitations under the License.
 package externalversions
 
 import (
-	"fmt"
+	fmt "fmt"
 
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

@@ -19,129 +19,30 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeSites implements SiteInterface
-type FakeSites struct {
+// fakeSites implements SiteInterface
+type fakeSites struct {
+	*gentype.FakeClientWithList[*v2alpha1.Site, *v2alpha1.SiteList]
 	Fake *FakeSkupperV2alpha1
-	ns   string
 }
 
-var sitesResource = v2alpha1.SchemeGroupVersion.WithResource("sites")
-
-var sitesKind = v2alpha1.SchemeGroupVersion.WithKind("Site")
-
-// Get takes name of the site, and returns the corresponding site object, and an error if there is any.
-func (c *FakeSites) Get(ctx context.Context, name string, options v1.GetOptions) (result *v2alpha1.Site, err error) {
-	emptyResult := &v2alpha1.Site{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(sitesResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeSites(fake *FakeSkupperV2alpha1, namespace string) skupperv2alpha1.SiteInterface {
+	return &fakeSites{
+		gentype.NewFakeClientWithList[*v2alpha1.Site, *v2alpha1.SiteList](
+			fake.Fake,
+			namespace,
+			v2alpha1.SchemeGroupVersion.WithResource("sites"),
+			v2alpha1.SchemeGroupVersion.WithKind("Site"),
+			func() *v2alpha1.Site { return &v2alpha1.Site{} },
+			func() *v2alpha1.SiteList { return &v2alpha1.SiteList{} },
+			func(dst, src *v2alpha1.SiteList) { dst.ListMeta = src.ListMeta },
+			func(list *v2alpha1.SiteList) []*v2alpha1.Site { return gentype.ToPointerSlice(list.Items) },
+			func(list *v2alpha1.SiteList, items []*v2alpha1.Site) { list.Items = gentype.FromPointerSlice(items) },
+		),
+		fake,
 	}
-	return obj.(*v2alpha1.Site), err
-}
-
-// List takes label and field selectors, and returns the list of Sites that match those selectors.
-func (c *FakeSites) List(ctx context.Context, opts v1.ListOptions) (result *v2alpha1.SiteList, err error) {
-	emptyResult := &v2alpha1.SiteList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(sitesResource, sitesKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v2alpha1.SiteList{ListMeta: obj.(*v2alpha1.SiteList).ListMeta}
-	for _, item := range obj.(*v2alpha1.SiteList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested sites.
-func (c *FakeSites) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(sitesResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a site and creates it.  Returns the server's representation of the site, and an error, if there is any.
-func (c *FakeSites) Create(ctx context.Context, site *v2alpha1.Site, opts v1.CreateOptions) (result *v2alpha1.Site, err error) {
-	emptyResult := &v2alpha1.Site{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(sitesResource, c.ns, site, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Site), err
-}
-
-// Update takes the representation of a site and updates it. Returns the server's representation of the site, and an error, if there is any.
-func (c *FakeSites) Update(ctx context.Context, site *v2alpha1.Site, opts v1.UpdateOptions) (result *v2alpha1.Site, err error) {
-	emptyResult := &v2alpha1.Site{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(sitesResource, c.ns, site, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Site), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeSites) UpdateStatus(ctx context.Context, site *v2alpha1.Site, opts v1.UpdateOptions) (result *v2alpha1.Site, err error) {
-	emptyResult := &v2alpha1.Site{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(sitesResource, "status", c.ns, site, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Site), err
-}
-
-// Delete takes name of the site and deletes it. Returns an error if one occurs.
-func (c *FakeSites) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(sitesResource, c.ns, name, opts), &v2alpha1.Site{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeSites) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(sitesResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v2alpha1.SiteList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched site.
-func (c *FakeSites) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.Site, err error) {
-	emptyResult := &v2alpha1.Site{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(sitesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Site), err
 }

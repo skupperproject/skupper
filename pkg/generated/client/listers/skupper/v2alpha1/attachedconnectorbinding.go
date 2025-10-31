@@ -19,10 +19,10 @@ limitations under the License.
 package v2alpha1
 
 import (
-	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // AttachedConnectorBindingLister helps list AttachedConnectorBindings.
@@ -30,7 +30,7 @@ import (
 type AttachedConnectorBindingLister interface {
 	// List lists all AttachedConnectorBindings in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.AttachedConnectorBinding, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.AttachedConnectorBinding, err error)
 	// AttachedConnectorBindings returns an object that can list and get AttachedConnectorBindings.
 	AttachedConnectorBindings(namespace string) AttachedConnectorBindingNamespaceLister
 	AttachedConnectorBindingListerExpansion
@@ -38,17 +38,17 @@ type AttachedConnectorBindingLister interface {
 
 // attachedConnectorBindingLister implements the AttachedConnectorBindingLister interface.
 type attachedConnectorBindingLister struct {
-	listers.ResourceIndexer[*v2alpha1.AttachedConnectorBinding]
+	listers.ResourceIndexer[*skupperv2alpha1.AttachedConnectorBinding]
 }
 
 // NewAttachedConnectorBindingLister returns a new AttachedConnectorBindingLister.
 func NewAttachedConnectorBindingLister(indexer cache.Indexer) AttachedConnectorBindingLister {
-	return &attachedConnectorBindingLister{listers.New[*v2alpha1.AttachedConnectorBinding](indexer, v2alpha1.Resource("attachedconnectorbinding"))}
+	return &attachedConnectorBindingLister{listers.New[*skupperv2alpha1.AttachedConnectorBinding](indexer, skupperv2alpha1.Resource("attachedconnectorbinding"))}
 }
 
 // AttachedConnectorBindings returns an object that can list and get AttachedConnectorBindings.
 func (s *attachedConnectorBindingLister) AttachedConnectorBindings(namespace string) AttachedConnectorBindingNamespaceLister {
-	return attachedConnectorBindingNamespaceLister{listers.NewNamespaced[*v2alpha1.AttachedConnectorBinding](s.ResourceIndexer, namespace)}
+	return attachedConnectorBindingNamespaceLister{listers.NewNamespaced[*skupperv2alpha1.AttachedConnectorBinding](s.ResourceIndexer, namespace)}
 }
 
 // AttachedConnectorBindingNamespaceLister helps list and get AttachedConnectorBindings.
@@ -56,15 +56,15 @@ func (s *attachedConnectorBindingLister) AttachedConnectorBindings(namespace str
 type AttachedConnectorBindingNamespaceLister interface {
 	// List lists all AttachedConnectorBindings in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.AttachedConnectorBinding, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.AttachedConnectorBinding, err error)
 	// Get retrieves the AttachedConnectorBinding from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v2alpha1.AttachedConnectorBinding, error)
+	Get(name string) (*skupperv2alpha1.AttachedConnectorBinding, error)
 	AttachedConnectorBindingNamespaceListerExpansion
 }
 
 // attachedConnectorBindingNamespaceLister implements the AttachedConnectorBindingNamespaceLister
 // interface.
 type attachedConnectorBindingNamespaceLister struct {
-	listers.ResourceIndexer[*v2alpha1.AttachedConnectorBinding]
+	listers.ResourceIndexer[*skupperv2alpha1.AttachedConnectorBinding]
 }

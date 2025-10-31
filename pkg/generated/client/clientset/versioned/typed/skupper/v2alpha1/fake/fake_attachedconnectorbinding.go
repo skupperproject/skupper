@@ -19,129 +19,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeAttachedConnectorBindings implements AttachedConnectorBindingInterface
-type FakeAttachedConnectorBindings struct {
+// fakeAttachedConnectorBindings implements AttachedConnectorBindingInterface
+type fakeAttachedConnectorBindings struct {
+	*gentype.FakeClientWithList[*v2alpha1.AttachedConnectorBinding, *v2alpha1.AttachedConnectorBindingList]
 	Fake *FakeSkupperV2alpha1
-	ns   string
 }
 
-var attachedconnectorbindingsResource = v2alpha1.SchemeGroupVersion.WithResource("attachedconnectorbindings")
-
-var attachedconnectorbindingsKind = v2alpha1.SchemeGroupVersion.WithKind("AttachedConnectorBinding")
-
-// Get takes name of the attachedConnectorBinding, and returns the corresponding attachedConnectorBinding object, and an error if there is any.
-func (c *FakeAttachedConnectorBindings) Get(ctx context.Context, name string, options v1.GetOptions) (result *v2alpha1.AttachedConnectorBinding, err error) {
-	emptyResult := &v2alpha1.AttachedConnectorBinding{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(attachedconnectorbindingsResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeAttachedConnectorBindings(fake *FakeSkupperV2alpha1, namespace string) skupperv2alpha1.AttachedConnectorBindingInterface {
+	return &fakeAttachedConnectorBindings{
+		gentype.NewFakeClientWithList[*v2alpha1.AttachedConnectorBinding, *v2alpha1.AttachedConnectorBindingList](
+			fake.Fake,
+			namespace,
+			v2alpha1.SchemeGroupVersion.WithResource("attachedconnectorbindings"),
+			v2alpha1.SchemeGroupVersion.WithKind("AttachedConnectorBinding"),
+			func() *v2alpha1.AttachedConnectorBinding { return &v2alpha1.AttachedConnectorBinding{} },
+			func() *v2alpha1.AttachedConnectorBindingList { return &v2alpha1.AttachedConnectorBindingList{} },
+			func(dst, src *v2alpha1.AttachedConnectorBindingList) { dst.ListMeta = src.ListMeta },
+			func(list *v2alpha1.AttachedConnectorBindingList) []*v2alpha1.AttachedConnectorBinding {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v2alpha1.AttachedConnectorBindingList, items []*v2alpha1.AttachedConnectorBinding) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v2alpha1.AttachedConnectorBinding), err
-}
-
-// List takes label and field selectors, and returns the list of AttachedConnectorBindings that match those selectors.
-func (c *FakeAttachedConnectorBindings) List(ctx context.Context, opts v1.ListOptions) (result *v2alpha1.AttachedConnectorBindingList, err error) {
-	emptyResult := &v2alpha1.AttachedConnectorBindingList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(attachedconnectorbindingsResource, attachedconnectorbindingsKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v2alpha1.AttachedConnectorBindingList{ListMeta: obj.(*v2alpha1.AttachedConnectorBindingList).ListMeta}
-	for _, item := range obj.(*v2alpha1.AttachedConnectorBindingList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested attachedConnectorBindings.
-func (c *FakeAttachedConnectorBindings) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(attachedconnectorbindingsResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a attachedConnectorBinding and creates it.  Returns the server's representation of the attachedConnectorBinding, and an error, if there is any.
-func (c *FakeAttachedConnectorBindings) Create(ctx context.Context, attachedConnectorBinding *v2alpha1.AttachedConnectorBinding, opts v1.CreateOptions) (result *v2alpha1.AttachedConnectorBinding, err error) {
-	emptyResult := &v2alpha1.AttachedConnectorBinding{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(attachedconnectorbindingsResource, c.ns, attachedConnectorBinding, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.AttachedConnectorBinding), err
-}
-
-// Update takes the representation of a attachedConnectorBinding and updates it. Returns the server's representation of the attachedConnectorBinding, and an error, if there is any.
-func (c *FakeAttachedConnectorBindings) Update(ctx context.Context, attachedConnectorBinding *v2alpha1.AttachedConnectorBinding, opts v1.UpdateOptions) (result *v2alpha1.AttachedConnectorBinding, err error) {
-	emptyResult := &v2alpha1.AttachedConnectorBinding{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(attachedconnectorbindingsResource, c.ns, attachedConnectorBinding, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.AttachedConnectorBinding), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeAttachedConnectorBindings) UpdateStatus(ctx context.Context, attachedConnectorBinding *v2alpha1.AttachedConnectorBinding, opts v1.UpdateOptions) (result *v2alpha1.AttachedConnectorBinding, err error) {
-	emptyResult := &v2alpha1.AttachedConnectorBinding{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(attachedconnectorbindingsResource, "status", c.ns, attachedConnectorBinding, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.AttachedConnectorBinding), err
-}
-
-// Delete takes name of the attachedConnectorBinding and deletes it. Returns an error if one occurs.
-func (c *FakeAttachedConnectorBindings) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(attachedconnectorbindingsResource, c.ns, name, opts), &v2alpha1.AttachedConnectorBinding{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeAttachedConnectorBindings) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(attachedconnectorbindingsResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v2alpha1.AttachedConnectorBindingList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched attachedConnectorBinding.
-func (c *FakeAttachedConnectorBindings) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.AttachedConnectorBinding, err error) {
-	emptyResult := &v2alpha1.AttachedConnectorBinding{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(attachedconnectorbindingsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.AttachedConnectorBinding), err
 }

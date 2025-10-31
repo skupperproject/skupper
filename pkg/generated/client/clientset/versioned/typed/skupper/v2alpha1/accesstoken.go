@@ -19,9 +19,9 @@ limitations under the License.
 package v2alpha1
 
 import (
-	"context"
+	context "context"
 
-	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	scheme "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,34 @@ type AccessTokensGetter interface {
 
 // AccessTokenInterface has methods to work with AccessToken resources.
 type AccessTokenInterface interface {
-	Create(ctx context.Context, accessToken *v2alpha1.AccessToken, opts v1.CreateOptions) (*v2alpha1.AccessToken, error)
-	Update(ctx context.Context, accessToken *v2alpha1.AccessToken, opts v1.UpdateOptions) (*v2alpha1.AccessToken, error)
+	Create(ctx context.Context, accessToken *skupperv2alpha1.AccessToken, opts v1.CreateOptions) (*skupperv2alpha1.AccessToken, error)
+	Update(ctx context.Context, accessToken *skupperv2alpha1.AccessToken, opts v1.UpdateOptions) (*skupperv2alpha1.AccessToken, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, accessToken *v2alpha1.AccessToken, opts v1.UpdateOptions) (*v2alpha1.AccessToken, error)
+	UpdateStatus(ctx context.Context, accessToken *skupperv2alpha1.AccessToken, opts v1.UpdateOptions) (*skupperv2alpha1.AccessToken, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v2alpha1.AccessToken, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v2alpha1.AccessTokenList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*skupperv2alpha1.AccessToken, error)
+	List(ctx context.Context, opts v1.ListOptions) (*skupperv2alpha1.AccessTokenList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.AccessToken, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *skupperv2alpha1.AccessToken, err error)
 	AccessTokenExpansion
 }
 
 // accessTokens implements AccessTokenInterface
 type accessTokens struct {
-	*gentype.ClientWithList[*v2alpha1.AccessToken, *v2alpha1.AccessTokenList]
+	*gentype.ClientWithList[*skupperv2alpha1.AccessToken, *skupperv2alpha1.AccessTokenList]
 }
 
 // newAccessTokens returns a AccessTokens
 func newAccessTokens(c *SkupperV2alpha1Client, namespace string) *accessTokens {
 	return &accessTokens{
-		gentype.NewClientWithList[*v2alpha1.AccessToken, *v2alpha1.AccessTokenList](
+		gentype.NewClientWithList[*skupperv2alpha1.AccessToken, *skupperv2alpha1.AccessTokenList](
 			"accesstokens",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v2alpha1.AccessToken { return &v2alpha1.AccessToken{} },
-			func() *v2alpha1.AccessTokenList { return &v2alpha1.AccessTokenList{} }),
+			func() *skupperv2alpha1.AccessToken { return &skupperv2alpha1.AccessToken{} },
+			func() *skupperv2alpha1.AccessTokenList { return &skupperv2alpha1.AccessTokenList{} },
+		),
 	}
 }

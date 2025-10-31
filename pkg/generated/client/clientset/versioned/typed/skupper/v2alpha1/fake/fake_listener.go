@@ -19,129 +19,32 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeListeners implements ListenerInterface
-type FakeListeners struct {
+// fakeListeners implements ListenerInterface
+type fakeListeners struct {
+	*gentype.FakeClientWithList[*v2alpha1.Listener, *v2alpha1.ListenerList]
 	Fake *FakeSkupperV2alpha1
-	ns   string
 }
 
-var listenersResource = v2alpha1.SchemeGroupVersion.WithResource("listeners")
-
-var listenersKind = v2alpha1.SchemeGroupVersion.WithKind("Listener")
-
-// Get takes name of the listener, and returns the corresponding listener object, and an error if there is any.
-func (c *FakeListeners) Get(ctx context.Context, name string, options v1.GetOptions) (result *v2alpha1.Listener, err error) {
-	emptyResult := &v2alpha1.Listener{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(listenersResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeListeners(fake *FakeSkupperV2alpha1, namespace string) skupperv2alpha1.ListenerInterface {
+	return &fakeListeners{
+		gentype.NewFakeClientWithList[*v2alpha1.Listener, *v2alpha1.ListenerList](
+			fake.Fake,
+			namespace,
+			v2alpha1.SchemeGroupVersion.WithResource("listeners"),
+			v2alpha1.SchemeGroupVersion.WithKind("Listener"),
+			func() *v2alpha1.Listener { return &v2alpha1.Listener{} },
+			func() *v2alpha1.ListenerList { return &v2alpha1.ListenerList{} },
+			func(dst, src *v2alpha1.ListenerList) { dst.ListMeta = src.ListMeta },
+			func(list *v2alpha1.ListenerList) []*v2alpha1.Listener { return gentype.ToPointerSlice(list.Items) },
+			func(list *v2alpha1.ListenerList, items []*v2alpha1.Listener) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v2alpha1.Listener), err
-}
-
-// List takes label and field selectors, and returns the list of Listeners that match those selectors.
-func (c *FakeListeners) List(ctx context.Context, opts v1.ListOptions) (result *v2alpha1.ListenerList, err error) {
-	emptyResult := &v2alpha1.ListenerList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(listenersResource, listenersKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v2alpha1.ListenerList{ListMeta: obj.(*v2alpha1.ListenerList).ListMeta}
-	for _, item := range obj.(*v2alpha1.ListenerList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested listeners.
-func (c *FakeListeners) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(listenersResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a listener and creates it.  Returns the server's representation of the listener, and an error, if there is any.
-func (c *FakeListeners) Create(ctx context.Context, listener *v2alpha1.Listener, opts v1.CreateOptions) (result *v2alpha1.Listener, err error) {
-	emptyResult := &v2alpha1.Listener{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(listenersResource, c.ns, listener, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Listener), err
-}
-
-// Update takes the representation of a listener and updates it. Returns the server's representation of the listener, and an error, if there is any.
-func (c *FakeListeners) Update(ctx context.Context, listener *v2alpha1.Listener, opts v1.UpdateOptions) (result *v2alpha1.Listener, err error) {
-	emptyResult := &v2alpha1.Listener{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(listenersResource, c.ns, listener, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Listener), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeListeners) UpdateStatus(ctx context.Context, listener *v2alpha1.Listener, opts v1.UpdateOptions) (result *v2alpha1.Listener, err error) {
-	emptyResult := &v2alpha1.Listener{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(listenersResource, "status", c.ns, listener, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Listener), err
-}
-
-// Delete takes name of the listener and deletes it. Returns an error if one occurs.
-func (c *FakeListeners) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(listenersResource, c.ns, name, opts), &v2alpha1.Listener{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeListeners) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(listenersResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v2alpha1.ListenerList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched listener.
-func (c *FakeListeners) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.Listener, err error) {
-	emptyResult := &v2alpha1.Listener{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(listenersResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Listener), err
 }

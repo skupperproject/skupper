@@ -19,129 +19,30 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeLinks implements LinkInterface
-type FakeLinks struct {
+// fakeLinks implements LinkInterface
+type fakeLinks struct {
+	*gentype.FakeClientWithList[*v2alpha1.Link, *v2alpha1.LinkList]
 	Fake *FakeSkupperV2alpha1
-	ns   string
 }
 
-var linksResource = v2alpha1.SchemeGroupVersion.WithResource("links")
-
-var linksKind = v2alpha1.SchemeGroupVersion.WithKind("Link")
-
-// Get takes name of the link, and returns the corresponding link object, and an error if there is any.
-func (c *FakeLinks) Get(ctx context.Context, name string, options v1.GetOptions) (result *v2alpha1.Link, err error) {
-	emptyResult := &v2alpha1.Link{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(linksResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeLinks(fake *FakeSkupperV2alpha1, namespace string) skupperv2alpha1.LinkInterface {
+	return &fakeLinks{
+		gentype.NewFakeClientWithList[*v2alpha1.Link, *v2alpha1.LinkList](
+			fake.Fake,
+			namespace,
+			v2alpha1.SchemeGroupVersion.WithResource("links"),
+			v2alpha1.SchemeGroupVersion.WithKind("Link"),
+			func() *v2alpha1.Link { return &v2alpha1.Link{} },
+			func() *v2alpha1.LinkList { return &v2alpha1.LinkList{} },
+			func(dst, src *v2alpha1.LinkList) { dst.ListMeta = src.ListMeta },
+			func(list *v2alpha1.LinkList) []*v2alpha1.Link { return gentype.ToPointerSlice(list.Items) },
+			func(list *v2alpha1.LinkList, items []*v2alpha1.Link) { list.Items = gentype.FromPointerSlice(items) },
+		),
+		fake,
 	}
-	return obj.(*v2alpha1.Link), err
-}
-
-// List takes label and field selectors, and returns the list of Links that match those selectors.
-func (c *FakeLinks) List(ctx context.Context, opts v1.ListOptions) (result *v2alpha1.LinkList, err error) {
-	emptyResult := &v2alpha1.LinkList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(linksResource, linksKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v2alpha1.LinkList{ListMeta: obj.(*v2alpha1.LinkList).ListMeta}
-	for _, item := range obj.(*v2alpha1.LinkList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested links.
-func (c *FakeLinks) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(linksResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a link and creates it.  Returns the server's representation of the link, and an error, if there is any.
-func (c *FakeLinks) Create(ctx context.Context, link *v2alpha1.Link, opts v1.CreateOptions) (result *v2alpha1.Link, err error) {
-	emptyResult := &v2alpha1.Link{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(linksResource, c.ns, link, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Link), err
-}
-
-// Update takes the representation of a link and updates it. Returns the server's representation of the link, and an error, if there is any.
-func (c *FakeLinks) Update(ctx context.Context, link *v2alpha1.Link, opts v1.UpdateOptions) (result *v2alpha1.Link, err error) {
-	emptyResult := &v2alpha1.Link{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(linksResource, c.ns, link, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Link), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeLinks) UpdateStatus(ctx context.Context, link *v2alpha1.Link, opts v1.UpdateOptions) (result *v2alpha1.Link, err error) {
-	emptyResult := &v2alpha1.Link{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(linksResource, "status", c.ns, link, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Link), err
-}
-
-// Delete takes name of the link and deletes it. Returns an error if one occurs.
-func (c *FakeLinks) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(linksResource, c.ns, name, opts), &v2alpha1.Link{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeLinks) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(linksResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v2alpha1.LinkList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched link.
-func (c *FakeLinks) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.Link, err error) {
-	emptyResult := &v2alpha1.Link{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(linksResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Link), err
 }

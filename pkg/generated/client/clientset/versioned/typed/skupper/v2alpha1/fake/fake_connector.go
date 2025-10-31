@@ -19,129 +19,32 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeConnectors implements ConnectorInterface
-type FakeConnectors struct {
+// fakeConnectors implements ConnectorInterface
+type fakeConnectors struct {
+	*gentype.FakeClientWithList[*v2alpha1.Connector, *v2alpha1.ConnectorList]
 	Fake *FakeSkupperV2alpha1
-	ns   string
 }
 
-var connectorsResource = v2alpha1.SchemeGroupVersion.WithResource("connectors")
-
-var connectorsKind = v2alpha1.SchemeGroupVersion.WithKind("Connector")
-
-// Get takes name of the connector, and returns the corresponding connector object, and an error if there is any.
-func (c *FakeConnectors) Get(ctx context.Context, name string, options v1.GetOptions) (result *v2alpha1.Connector, err error) {
-	emptyResult := &v2alpha1.Connector{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(connectorsResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeConnectors(fake *FakeSkupperV2alpha1, namespace string) skupperv2alpha1.ConnectorInterface {
+	return &fakeConnectors{
+		gentype.NewFakeClientWithList[*v2alpha1.Connector, *v2alpha1.ConnectorList](
+			fake.Fake,
+			namespace,
+			v2alpha1.SchemeGroupVersion.WithResource("connectors"),
+			v2alpha1.SchemeGroupVersion.WithKind("Connector"),
+			func() *v2alpha1.Connector { return &v2alpha1.Connector{} },
+			func() *v2alpha1.ConnectorList { return &v2alpha1.ConnectorList{} },
+			func(dst, src *v2alpha1.ConnectorList) { dst.ListMeta = src.ListMeta },
+			func(list *v2alpha1.ConnectorList) []*v2alpha1.Connector { return gentype.ToPointerSlice(list.Items) },
+			func(list *v2alpha1.ConnectorList, items []*v2alpha1.Connector) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v2alpha1.Connector), err
-}
-
-// List takes label and field selectors, and returns the list of Connectors that match those selectors.
-func (c *FakeConnectors) List(ctx context.Context, opts v1.ListOptions) (result *v2alpha1.ConnectorList, err error) {
-	emptyResult := &v2alpha1.ConnectorList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(connectorsResource, connectorsKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v2alpha1.ConnectorList{ListMeta: obj.(*v2alpha1.ConnectorList).ListMeta}
-	for _, item := range obj.(*v2alpha1.ConnectorList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested connectors.
-func (c *FakeConnectors) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(connectorsResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a connector and creates it.  Returns the server's representation of the connector, and an error, if there is any.
-func (c *FakeConnectors) Create(ctx context.Context, connector *v2alpha1.Connector, opts v1.CreateOptions) (result *v2alpha1.Connector, err error) {
-	emptyResult := &v2alpha1.Connector{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(connectorsResource, c.ns, connector, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Connector), err
-}
-
-// Update takes the representation of a connector and updates it. Returns the server's representation of the connector, and an error, if there is any.
-func (c *FakeConnectors) Update(ctx context.Context, connector *v2alpha1.Connector, opts v1.UpdateOptions) (result *v2alpha1.Connector, err error) {
-	emptyResult := &v2alpha1.Connector{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(connectorsResource, c.ns, connector, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Connector), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeConnectors) UpdateStatus(ctx context.Context, connector *v2alpha1.Connector, opts v1.UpdateOptions) (result *v2alpha1.Connector, err error) {
-	emptyResult := &v2alpha1.Connector{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(connectorsResource, "status", c.ns, connector, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Connector), err
-}
-
-// Delete takes name of the connector and deletes it. Returns an error if one occurs.
-func (c *FakeConnectors) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(connectorsResource, c.ns, name, opts), &v2alpha1.Connector{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeConnectors) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(connectorsResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v2alpha1.ConnectorList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched connector.
-func (c *FakeConnectors) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.Connector, err error) {
-	emptyResult := &v2alpha1.Connector{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(connectorsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.Connector), err
 }

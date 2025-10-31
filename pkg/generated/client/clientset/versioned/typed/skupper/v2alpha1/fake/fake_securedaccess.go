@@ -19,129 +19,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeSecuredAccesses implements SecuredAccessInterface
-type FakeSecuredAccesses struct {
+// fakeSecuredAccesses implements SecuredAccessInterface
+type fakeSecuredAccesses struct {
+	*gentype.FakeClientWithList[*v2alpha1.SecuredAccess, *v2alpha1.SecuredAccessList]
 	Fake *FakeSkupperV2alpha1
-	ns   string
 }
 
-var securedaccessesResource = v2alpha1.SchemeGroupVersion.WithResource("securedaccesses")
-
-var securedaccessesKind = v2alpha1.SchemeGroupVersion.WithKind("SecuredAccess")
-
-// Get takes name of the securedAccess, and returns the corresponding securedAccess object, and an error if there is any.
-func (c *FakeSecuredAccesses) Get(ctx context.Context, name string, options v1.GetOptions) (result *v2alpha1.SecuredAccess, err error) {
-	emptyResult := &v2alpha1.SecuredAccess{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(securedaccessesResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeSecuredAccesses(fake *FakeSkupperV2alpha1, namespace string) skupperv2alpha1.SecuredAccessInterface {
+	return &fakeSecuredAccesses{
+		gentype.NewFakeClientWithList[*v2alpha1.SecuredAccess, *v2alpha1.SecuredAccessList](
+			fake.Fake,
+			namespace,
+			v2alpha1.SchemeGroupVersion.WithResource("securedaccesses"),
+			v2alpha1.SchemeGroupVersion.WithKind("SecuredAccess"),
+			func() *v2alpha1.SecuredAccess { return &v2alpha1.SecuredAccess{} },
+			func() *v2alpha1.SecuredAccessList { return &v2alpha1.SecuredAccessList{} },
+			func(dst, src *v2alpha1.SecuredAccessList) { dst.ListMeta = src.ListMeta },
+			func(list *v2alpha1.SecuredAccessList) []*v2alpha1.SecuredAccess {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v2alpha1.SecuredAccessList, items []*v2alpha1.SecuredAccess) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v2alpha1.SecuredAccess), err
-}
-
-// List takes label and field selectors, and returns the list of SecuredAccesses that match those selectors.
-func (c *FakeSecuredAccesses) List(ctx context.Context, opts v1.ListOptions) (result *v2alpha1.SecuredAccessList, err error) {
-	emptyResult := &v2alpha1.SecuredAccessList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(securedaccessesResource, securedaccessesKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v2alpha1.SecuredAccessList{ListMeta: obj.(*v2alpha1.SecuredAccessList).ListMeta}
-	for _, item := range obj.(*v2alpha1.SecuredAccessList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested securedAccesses.
-func (c *FakeSecuredAccesses) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(securedaccessesResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a securedAccess and creates it.  Returns the server's representation of the securedAccess, and an error, if there is any.
-func (c *FakeSecuredAccesses) Create(ctx context.Context, securedAccess *v2alpha1.SecuredAccess, opts v1.CreateOptions) (result *v2alpha1.SecuredAccess, err error) {
-	emptyResult := &v2alpha1.SecuredAccess{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(securedaccessesResource, c.ns, securedAccess, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.SecuredAccess), err
-}
-
-// Update takes the representation of a securedAccess and updates it. Returns the server's representation of the securedAccess, and an error, if there is any.
-func (c *FakeSecuredAccesses) Update(ctx context.Context, securedAccess *v2alpha1.SecuredAccess, opts v1.UpdateOptions) (result *v2alpha1.SecuredAccess, err error) {
-	emptyResult := &v2alpha1.SecuredAccess{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(securedaccessesResource, c.ns, securedAccess, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.SecuredAccess), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeSecuredAccesses) UpdateStatus(ctx context.Context, securedAccess *v2alpha1.SecuredAccess, opts v1.UpdateOptions) (result *v2alpha1.SecuredAccess, err error) {
-	emptyResult := &v2alpha1.SecuredAccess{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(securedaccessesResource, "status", c.ns, securedAccess, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.SecuredAccess), err
-}
-
-// Delete takes name of the securedAccess and deletes it. Returns an error if one occurs.
-func (c *FakeSecuredAccesses) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(securedaccessesResource, c.ns, name, opts), &v2alpha1.SecuredAccess{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeSecuredAccesses) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(securedaccessesResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v2alpha1.SecuredAccessList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched securedAccess.
-func (c *FakeSecuredAccesses) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.SecuredAccess, err error) {
-	emptyResult := &v2alpha1.SecuredAccess{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(securedaccessesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.SecuredAccess), err
 }

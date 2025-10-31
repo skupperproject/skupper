@@ -19,10 +19,10 @@ limitations under the License.
 package v2alpha1
 
 import (
-	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // ListenerLister helps list Listeners.
@@ -30,7 +30,7 @@ import (
 type ListenerLister interface {
 	// List lists all Listeners in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.Listener, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.Listener, err error)
 	// Listeners returns an object that can list and get Listeners.
 	Listeners(namespace string) ListenerNamespaceLister
 	ListenerListerExpansion
@@ -38,17 +38,17 @@ type ListenerLister interface {
 
 // listenerLister implements the ListenerLister interface.
 type listenerLister struct {
-	listers.ResourceIndexer[*v2alpha1.Listener]
+	listers.ResourceIndexer[*skupperv2alpha1.Listener]
 }
 
 // NewListenerLister returns a new ListenerLister.
 func NewListenerLister(indexer cache.Indexer) ListenerLister {
-	return &listenerLister{listers.New[*v2alpha1.Listener](indexer, v2alpha1.Resource("listener"))}
+	return &listenerLister{listers.New[*skupperv2alpha1.Listener](indexer, skupperv2alpha1.Resource("listener"))}
 }
 
 // Listeners returns an object that can list and get Listeners.
 func (s *listenerLister) Listeners(namespace string) ListenerNamespaceLister {
-	return listenerNamespaceLister{listers.NewNamespaced[*v2alpha1.Listener](s.ResourceIndexer, namespace)}
+	return listenerNamespaceLister{listers.NewNamespaced[*skupperv2alpha1.Listener](s.ResourceIndexer, namespace)}
 }
 
 // ListenerNamespaceLister helps list and get Listeners.
@@ -56,15 +56,15 @@ func (s *listenerLister) Listeners(namespace string) ListenerNamespaceLister {
 type ListenerNamespaceLister interface {
 	// List lists all Listeners in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.Listener, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.Listener, err error)
 	// Get retrieves the Listener from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v2alpha1.Listener, error)
+	Get(name string) (*skupperv2alpha1.Listener, error)
 	ListenerNamespaceListerExpansion
 }
 
 // listenerNamespaceLister implements the ListenerNamespaceLister
 // interface.
 type listenerNamespaceLister struct {
-	listers.ResourceIndexer[*v2alpha1.Listener]
+	listers.ResourceIndexer[*skupperv2alpha1.Listener]
 }
