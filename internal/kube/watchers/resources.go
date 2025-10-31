@@ -71,7 +71,7 @@ type Handler[T runtime.Object] func(string, T) error
 
 // ResourceWatcher for a specific object type. Used internally by
 // EventProcessor for event processing. Also exposes an interface to access
-// cached resoruce state.
+// cached resource state.
 type ResourceWatcher[T runtime.Object] struct {
 	handler  Handler[T]
 	gvk      schema.GroupVersionKind
