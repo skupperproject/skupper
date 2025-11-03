@@ -57,6 +57,14 @@ func (cmd *CmdConnectorGenerate) ValidateInput(args []string) error {
 	connectorTypeValidator := validator.NewOptionValidator(common.ConnectorTypes)
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	hostStringValidator := validator.NewHostStringValidator()
+	namespaceStringValidator := validator.NamespaceStringValidator()
+
+	if cmd.namespace != "" {
+		ok, err := namespaceStringValidator.Evaluate(cmd.namespace)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("namespace is not valid: %s", err))
+		}
+	}
 
 	// Validate arguments name and port
 	if len(args) < 2 {

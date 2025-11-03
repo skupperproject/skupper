@@ -15,6 +15,7 @@ import (
 func TestNonKubeCmdListenerCreate_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
+		namespace         string
 		args              []string
 		k8sObjects        []runtime.Object
 		skupperObjects    []runtime.Object
@@ -26,18 +27,21 @@ func TestNonKubeCmdListenerCreate_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "listener name and port are not specified",
+			namespace:     "test",
 			args:          []string{},
 			flags:         &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
 			expectedError: "listener name and port must be configured",
 		},
 		{
 			name:          "listener name is not valid",
+			namespace:     "test",
 			args:          []string{"my new Listener", "8080"},
 			flags:         &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
 			expectedError: "listener name is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])*(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])*)*$",
 		},
 		{
 			name:          "listener name is empty",
+			namespace:     "test",
 			args:          []string{"", "1234"},
 			flags:         &common.CommandListenerCreateFlags{Host: "1.2.3.4"},
 			expectedError: "listener name must not be empty",
@@ -100,6 +104,13 @@ func TestNonKubeCmdListenerCreate_ValidateInput(t *testing.T) {
 			},
 		},
 		{
+			name:          "invalid namespace",
+			namespace:     "TestInvalid",
+			args:          []string{"my-listener-invalid", "8080"},
+			flags:         &common.CommandListenerCreateFlags{},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+		},
+		{
 			name: "flags all valid",
 			args: []string{"my-listener-flags", "8080"},
 			flags: &common.CommandListenerCreateFlags{
@@ -115,6 +126,7 @@ func TestNonKubeCmdListenerCreate_ValidateInput(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			command := &CmdListenerCreate{Flags: &common.CommandListenerCreateFlags{}}
 			command.CobraCmd = &cobra.Command{Use: "test"}
+			command.namespace = test.namespace
 
 			if test.flags != nil {
 				command.Flags = test.flags

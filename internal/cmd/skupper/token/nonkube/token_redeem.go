@@ -3,12 +3,13 @@ package nonkube
 import (
 	"errors"
 	"fmt"
+	"os"
+
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	nonkubecommon "github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
-	"os"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/scheme"
@@ -42,6 +43,14 @@ func (cmd *CmdTokenRedeem) NewClient(cobraCommand *cobra.Command, args []string)
 func (cmd *CmdTokenRedeem) ValidateInput(args []string) error {
 	var validationErrors []error
 	tokenStringValidator := validator.NewFilePathStringValidator()
+	namespaceStringValidator := validator.NamespaceStringValidator()
+
+	if cmd.Namespace != "" {
+		ok, err := namespaceStringValidator.Evaluate(cmd.Namespace)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("namespace is not valid: %s", err))
+		}
+	}
 
 	// Validate token file name
 	if len(args) < 1 {
