@@ -1,10 +1,22 @@
 ---
+- name: "[ {{ rescue_test_identifier }} - Rescue/Debug ] Get the cluster architecture"
+  ansible.builtin.shell: "kubectl get node -o json | jq -r .items[].status.nodeInfo.architecture | sort -u"
+  register: cluster_info
+  changed_when: false
+  ignore_errors: true
+  delegate_to: localhost
+
+- name: "[ {{ rescue_test_identifier }} - Rescue/Debug ] Set the cluster_arch variable"
+  set_fact:
+    cluster_arch: "{{ cluster_info.stdout | default('amd64') }}"  
+
 - name: "[ {{ rescue_test_identifier }} ] - Rescue/Debug"
   block:
-    - name: "[ {{ rescue_test_identifier}} - Rescue/Debug ] Run MustGather to collect Skupper details"
+    - name: "[ {{ rescue_test_identifier }} - Rescue/Debug ] Run MustGather to collect Skupper details"
       ansible.builtin.command: "oc adm must-gather --since={{ rescue_mg_last_minutes }} --dest-dir={{ rescue_mg_artifact_dest }}/{{ test_name }}/must-gather --image={{ rescue_mg_image }}:{{ rescue_mg_tag }}"
       register: must_gather_output
       delegate_to: localhost
+      when: cluster_arch in rescue_mg_supported_archs
 
     - name: "[ {{ rescue_test_identifier }} - Rescue/Debug ] Compact the MustGather artifacts"
       community.general.archive:
@@ -12,6 +24,7 @@
         dest: "{{ rescue_mg_artifact_dest }}/{{ test_name }}/skupper-must-gather-details.tar.gz"
         format: gz
         remove: true
+      when: cluster_arch in rescue_mg_supported_archs
 
     - name: "[ {{ rescue_test_identifier }} - Rescue/Debug ] Force a fail, otherwise it would be set as rescued"
       ansible.builtin.fail:
