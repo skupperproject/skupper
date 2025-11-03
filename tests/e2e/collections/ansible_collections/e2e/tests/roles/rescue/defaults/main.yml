@@ -9,3 +9,5 @@ rescue_mg_last_minutes: "30m"
 rescue_mg_artifact_pattern: ".*skupper-must*"
 rescue_mg_artifact_dest: "/tmp/e2e/"
 rescue_test_identifier: "{{ test_identifier | default('e2e_rescue') }}"
+rescue_mg_supported_archs:
+  - amd64 
