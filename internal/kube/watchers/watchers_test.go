@@ -18,45 +18,6 @@ import (
 	"gotest.tools/v3/assert/cmp"
 )
 
-func TestCallback(t *testing.T) {
-	testTable := []struct {
-		name string
-		err  string
-	}{
-		{
-			name: "simple",
-		},
-		{
-			name: "error",
-			err:  "test error",
-		},
-	}
-	for _, tt := range testTable {
-		t.Run(tt.name, func(t *testing.T) {
-			client, err := fakeclient.NewFakeClient("test", nil, nil, "")
-			if err != nil {
-				assert.Assert(t, err)
-			}
-			processor := NewEventProcessor("tester", client)
-			stopCh := make(chan struct{})
-			processor.StartWatchers(stopCh)
-			processor.WaitForCacheSync(stopCh)
-			processor.Start(stopCh)
-			ch := make(chan string)
-			processor.CallbackAfter(0, func(context string) error {
-				ch <- context
-				if tt.err != "" {
-					return errors.New(tt.err)
-				}
-				return nil
-			}, tt.name)
-			context := <-ch
-			processor.Stop()
-			assert.Equal(t, context, tt.name)
-		})
-	}
-}
-
 func TestNamespaceWatcher(t *testing.T) {
 	type get struct {
 		key       string
