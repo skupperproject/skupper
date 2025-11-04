@@ -27,6 +27,10 @@
 {{- define "network-observer.nginxProxySpec" -}}
 image: "{{ .Values.nginx.repository }}:{{ .Values.nginx.tag }}"
 imagePullPolicy: {{ .Values.nginx.pullPolicy }}
+{{- with .Values.nginx.command }}
+command:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
 {{- with .Values.nginx.securityContext }}
 securityContext:
   {{- toYaml . | nindent 2 }}
