@@ -19,10 +19,10 @@ limitations under the License.
 package v2alpha1
 
 import (
-	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/listers"
-	"k8s.io/client-go/tools/cache"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	listers "k8s.io/client-go/listers"
+	cache "k8s.io/client-go/tools/cache"
 )
 
 // SecuredAccessLister helps list SecuredAccesses.
@@ -30,7 +30,7 @@ import (
 type SecuredAccessLister interface {
 	// List lists all SecuredAccesses in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.SecuredAccess, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.SecuredAccess, err error)
 	// SecuredAccesses returns an object that can list and get SecuredAccesses.
 	SecuredAccesses(namespace string) SecuredAccessNamespaceLister
 	SecuredAccessListerExpansion
@@ -38,17 +38,17 @@ type SecuredAccessLister interface {
 
 // securedAccessLister implements the SecuredAccessLister interface.
 type securedAccessLister struct {
-	listers.ResourceIndexer[*v2alpha1.SecuredAccess]
+	listers.ResourceIndexer[*skupperv2alpha1.SecuredAccess]
 }
 
 // NewSecuredAccessLister returns a new SecuredAccessLister.
 func NewSecuredAccessLister(indexer cache.Indexer) SecuredAccessLister {
-	return &securedAccessLister{listers.New[*v2alpha1.SecuredAccess](indexer, v2alpha1.Resource("securedaccess"))}
+	return &securedAccessLister{listers.New[*skupperv2alpha1.SecuredAccess](indexer, skupperv2alpha1.Resource("securedaccess"))}
 }
 
 // SecuredAccesses returns an object that can list and get SecuredAccesses.
 func (s *securedAccessLister) SecuredAccesses(namespace string) SecuredAccessNamespaceLister {
-	return securedAccessNamespaceLister{listers.NewNamespaced[*v2alpha1.SecuredAccess](s.ResourceIndexer, namespace)}
+	return securedAccessNamespaceLister{listers.NewNamespaced[*skupperv2alpha1.SecuredAccess](s.ResourceIndexer, namespace)}
 }
 
 // SecuredAccessNamespaceLister helps list and get SecuredAccesses.
@@ -56,15 +56,15 @@ func (s *securedAccessLister) SecuredAccesses(namespace string) SecuredAccessNam
 type SecuredAccessNamespaceLister interface {
 	// List lists all SecuredAccesses in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v2alpha1.SecuredAccess, err error)
+	List(selector labels.Selector) (ret []*skupperv2alpha1.SecuredAccess, err error)
 	// Get retrieves the SecuredAccess from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v2alpha1.SecuredAccess, error)
+	Get(name string) (*skupperv2alpha1.SecuredAccess, error)
 	SecuredAccessNamespaceListerExpansion
 }
 
 // securedAccessNamespaceLister implements the SecuredAccessNamespaceLister
 // interface.
 type securedAccessNamespaceLister struct {
-	listers.ResourceIndexer[*v2alpha1.SecuredAccess]
+	listers.ResourceIndexer[*skupperv2alpha1.SecuredAccess]
 }

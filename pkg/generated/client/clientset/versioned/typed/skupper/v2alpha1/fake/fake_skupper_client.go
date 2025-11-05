@@ -29,47 +29,47 @@ type FakeSkupperV2alpha1 struct {
 }
 
 func (c *FakeSkupperV2alpha1) AccessGrants(namespace string) v2alpha1.AccessGrantInterface {
-	return &FakeAccessGrants{c, namespace}
+	return newFakeAccessGrants(c, namespace)
 }
 
 func (c *FakeSkupperV2alpha1) AccessTokens(namespace string) v2alpha1.AccessTokenInterface {
-	return &FakeAccessTokens{c, namespace}
+	return newFakeAccessTokens(c, namespace)
 }
 
 func (c *FakeSkupperV2alpha1) AttachedConnectors(namespace string) v2alpha1.AttachedConnectorInterface {
-	return &FakeAttachedConnectors{c, namespace}
+	return newFakeAttachedConnectors(c, namespace)
 }
 
 func (c *FakeSkupperV2alpha1) AttachedConnectorBindings(namespace string) v2alpha1.AttachedConnectorBindingInterface {
-	return &FakeAttachedConnectorBindings{c, namespace}
+	return newFakeAttachedConnectorBindings(c, namespace)
 }
 
 func (c *FakeSkupperV2alpha1) Certificates(namespace string) v2alpha1.CertificateInterface {
-	return &FakeCertificates{c, namespace}
+	return newFakeCertificates(c, namespace)
 }
 
 func (c *FakeSkupperV2alpha1) Connectors(namespace string) v2alpha1.ConnectorInterface {
-	return &FakeConnectors{c, namespace}
+	return newFakeConnectors(c, namespace)
 }
 
 func (c *FakeSkupperV2alpha1) Links(namespace string) v2alpha1.LinkInterface {
-	return &FakeLinks{c, namespace}
+	return newFakeLinks(c, namespace)
 }
 
 func (c *FakeSkupperV2alpha1) Listeners(namespace string) v2alpha1.ListenerInterface {
-	return &FakeListeners{c, namespace}
+	return newFakeListeners(c, namespace)
 }
 
 func (c *FakeSkupperV2alpha1) RouterAccesses(namespace string) v2alpha1.RouterAccessInterface {
-	return &FakeRouterAccesses{c, namespace}
+	return newFakeRouterAccesses(c, namespace)
 }
 
 func (c *FakeSkupperV2alpha1) SecuredAccesses(namespace string) v2alpha1.SecuredAccessInterface {
-	return &FakeSecuredAccesses{c, namespace}
+	return newFakeSecuredAccesses(c, namespace)
 }
 
 func (c *FakeSkupperV2alpha1) Sites(namespace string) v2alpha1.SiteInterface {
-	return &FakeSites{c, namespace}
+	return newFakeSites(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

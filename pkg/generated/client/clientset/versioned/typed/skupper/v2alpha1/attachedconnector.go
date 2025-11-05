@@ -19,9 +19,9 @@ limitations under the License.
 package v2alpha1
 
 import (
-	"context"
+	context "context"
 
-	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	scheme "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,34 @@ type AttachedConnectorsGetter interface {
 
 // AttachedConnectorInterface has methods to work with AttachedConnector resources.
 type AttachedConnectorInterface interface {
-	Create(ctx context.Context, attachedConnector *v2alpha1.AttachedConnector, opts v1.CreateOptions) (*v2alpha1.AttachedConnector, error)
-	Update(ctx context.Context, attachedConnector *v2alpha1.AttachedConnector, opts v1.UpdateOptions) (*v2alpha1.AttachedConnector, error)
+	Create(ctx context.Context, attachedConnector *skupperv2alpha1.AttachedConnector, opts v1.CreateOptions) (*skupperv2alpha1.AttachedConnector, error)
+	Update(ctx context.Context, attachedConnector *skupperv2alpha1.AttachedConnector, opts v1.UpdateOptions) (*skupperv2alpha1.AttachedConnector, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, attachedConnector *v2alpha1.AttachedConnector, opts v1.UpdateOptions) (*v2alpha1.AttachedConnector, error)
+	UpdateStatus(ctx context.Context, attachedConnector *skupperv2alpha1.AttachedConnector, opts v1.UpdateOptions) (*skupperv2alpha1.AttachedConnector, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v2alpha1.AttachedConnector, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v2alpha1.AttachedConnectorList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*skupperv2alpha1.AttachedConnector, error)
+	List(ctx context.Context, opts v1.ListOptions) (*skupperv2alpha1.AttachedConnectorList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.AttachedConnector, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *skupperv2alpha1.AttachedConnector, err error)
 	AttachedConnectorExpansion
 }
 
 // attachedConnectors implements AttachedConnectorInterface
 type attachedConnectors struct {
-	*gentype.ClientWithList[*v2alpha1.AttachedConnector, *v2alpha1.AttachedConnectorList]
+	*gentype.ClientWithList[*skupperv2alpha1.AttachedConnector, *skupperv2alpha1.AttachedConnectorList]
 }
 
 // newAttachedConnectors returns a AttachedConnectors
 func newAttachedConnectors(c *SkupperV2alpha1Client, namespace string) *attachedConnectors {
 	return &attachedConnectors{
-		gentype.NewClientWithList[*v2alpha1.AttachedConnector, *v2alpha1.AttachedConnectorList](
+		gentype.NewClientWithList[*skupperv2alpha1.AttachedConnector, *skupperv2alpha1.AttachedConnectorList](
 			"attachedconnectors",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v2alpha1.AttachedConnector { return &v2alpha1.AttachedConnector{} },
-			func() *v2alpha1.AttachedConnectorList { return &v2alpha1.AttachedConnectorList{} }),
+			func() *skupperv2alpha1.AttachedConnector { return &skupperv2alpha1.AttachedConnector{} },
+			func() *skupperv2alpha1.AttachedConnectorList { return &skupperv2alpha1.AttachedConnectorList{} },
+		),
 	}
 }

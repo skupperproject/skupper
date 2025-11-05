@@ -19,129 +19,34 @@ limitations under the License.
 package fake
 
 import (
-	"context"
-
 	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	labels "k8s.io/apimachinery/pkg/labels"
-	types "k8s.io/apimachinery/pkg/types"
-	watch "k8s.io/apimachinery/pkg/watch"
-	testing "k8s.io/client-go/testing"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
+	gentype "k8s.io/client-go/gentype"
 )
 
-// FakeAccessTokens implements AccessTokenInterface
-type FakeAccessTokens struct {
+// fakeAccessTokens implements AccessTokenInterface
+type fakeAccessTokens struct {
+	*gentype.FakeClientWithList[*v2alpha1.AccessToken, *v2alpha1.AccessTokenList]
 	Fake *FakeSkupperV2alpha1
-	ns   string
 }
 
-var accesstokensResource = v2alpha1.SchemeGroupVersion.WithResource("accesstokens")
-
-var accesstokensKind = v2alpha1.SchemeGroupVersion.WithKind("AccessToken")
-
-// Get takes name of the accessToken, and returns the corresponding accessToken object, and an error if there is any.
-func (c *FakeAccessTokens) Get(ctx context.Context, name string, options v1.GetOptions) (result *v2alpha1.AccessToken, err error) {
-	emptyResult := &v2alpha1.AccessToken{}
-	obj, err := c.Fake.
-		Invokes(testing.NewGetActionWithOptions(accesstokensResource, c.ns, name, options), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
+func newFakeAccessTokens(fake *FakeSkupperV2alpha1, namespace string) skupperv2alpha1.AccessTokenInterface {
+	return &fakeAccessTokens{
+		gentype.NewFakeClientWithList[*v2alpha1.AccessToken, *v2alpha1.AccessTokenList](
+			fake.Fake,
+			namespace,
+			v2alpha1.SchemeGroupVersion.WithResource("accesstokens"),
+			v2alpha1.SchemeGroupVersion.WithKind("AccessToken"),
+			func() *v2alpha1.AccessToken { return &v2alpha1.AccessToken{} },
+			func() *v2alpha1.AccessTokenList { return &v2alpha1.AccessTokenList{} },
+			func(dst, src *v2alpha1.AccessTokenList) { dst.ListMeta = src.ListMeta },
+			func(list *v2alpha1.AccessTokenList) []*v2alpha1.AccessToken {
+				return gentype.ToPointerSlice(list.Items)
+			},
+			func(list *v2alpha1.AccessTokenList, items []*v2alpha1.AccessToken) {
+				list.Items = gentype.FromPointerSlice(items)
+			},
+		),
+		fake,
 	}
-	return obj.(*v2alpha1.AccessToken), err
-}
-
-// List takes label and field selectors, and returns the list of AccessTokens that match those selectors.
-func (c *FakeAccessTokens) List(ctx context.Context, opts v1.ListOptions) (result *v2alpha1.AccessTokenList, err error) {
-	emptyResult := &v2alpha1.AccessTokenList{}
-	obj, err := c.Fake.
-		Invokes(testing.NewListActionWithOptions(accesstokensResource, accesstokensKind, c.ns, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-
-	label, _, _ := testing.ExtractFromListOptions(opts)
-	if label == nil {
-		label = labels.Everything()
-	}
-	list := &v2alpha1.AccessTokenList{ListMeta: obj.(*v2alpha1.AccessTokenList).ListMeta}
-	for _, item := range obj.(*v2alpha1.AccessTokenList).Items {
-		if label.Matches(labels.Set(item.Labels)) {
-			list.Items = append(list.Items, item)
-		}
-	}
-	return list, err
-}
-
-// Watch returns a watch.Interface that watches the requested accessTokens.
-func (c *FakeAccessTokens) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
-	return c.Fake.
-		InvokesWatch(testing.NewWatchActionWithOptions(accesstokensResource, c.ns, opts))
-
-}
-
-// Create takes the representation of a accessToken and creates it.  Returns the server's representation of the accessToken, and an error, if there is any.
-func (c *FakeAccessTokens) Create(ctx context.Context, accessToken *v2alpha1.AccessToken, opts v1.CreateOptions) (result *v2alpha1.AccessToken, err error) {
-	emptyResult := &v2alpha1.AccessToken{}
-	obj, err := c.Fake.
-		Invokes(testing.NewCreateActionWithOptions(accesstokensResource, c.ns, accessToken, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.AccessToken), err
-}
-
-// Update takes the representation of a accessToken and updates it. Returns the server's representation of the accessToken, and an error, if there is any.
-func (c *FakeAccessTokens) Update(ctx context.Context, accessToken *v2alpha1.AccessToken, opts v1.UpdateOptions) (result *v2alpha1.AccessToken, err error) {
-	emptyResult := &v2alpha1.AccessToken{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateActionWithOptions(accesstokensResource, c.ns, accessToken, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.AccessToken), err
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeAccessTokens) UpdateStatus(ctx context.Context, accessToken *v2alpha1.AccessToken, opts v1.UpdateOptions) (result *v2alpha1.AccessToken, err error) {
-	emptyResult := &v2alpha1.AccessToken{}
-	obj, err := c.Fake.
-		Invokes(testing.NewUpdateSubresourceActionWithOptions(accesstokensResource, "status", c.ns, accessToken, opts), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.AccessToken), err
-}
-
-// Delete takes name of the accessToken and deletes it. Returns an error if one occurs.
-func (c *FakeAccessTokens) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
-	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(accesstokensResource, c.ns, name, opts), &v2alpha1.AccessToken{})
-
-	return err
-}
-
-// DeleteCollection deletes a collection of objects.
-func (c *FakeAccessTokens) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionActionWithOptions(accesstokensResource, c.ns, opts, listOpts)
-
-	_, err := c.Fake.Invokes(action, &v2alpha1.AccessTokenList{})
-	return err
-}
-
-// Patch applies the patch and returns the patched accessToken.
-func (c *FakeAccessTokens) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.AccessToken, err error) {
-	emptyResult := &v2alpha1.AccessToken{}
-	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceActionWithOptions(accesstokensResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
-
-	if obj == nil {
-		return emptyResult, err
-	}
-	return obj.(*v2alpha1.AccessToken), err
 }

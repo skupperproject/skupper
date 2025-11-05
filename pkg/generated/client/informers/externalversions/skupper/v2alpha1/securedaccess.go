@@ -19,13 +19,13 @@ limitations under the License.
 package v2alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	apisskupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	versioned "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
 	internalinterfaces "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/internalinterfaces"
-	v2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/listers/skupper/v2alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/listers/skupper/v2alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // SecuredAccesses.
 type SecuredAccessInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v2alpha1.SecuredAccessLister
+	Lister() skupperv2alpha1.SecuredAccessLister
 }
 
 type securedAccessInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredSecuredAccessInformer(client versioned.Interface, namespace stri
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV2alpha1().SecuredAccesses(namespace).List(context.TODO(), options)
+				return client.SkupperV2alpha1().SecuredAccesses(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV2alpha1().SecuredAccesses(namespace).Watch(context.TODO(), options)
+				return client.SkupperV2alpha1().SecuredAccesses(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.SkupperV2alpha1().SecuredAccesses(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.SkupperV2alpha1().SecuredAccesses(namespace).Watch(ctx, options)
 			},
 		},
-		&skupperv2alpha1.SecuredAccess{},
+		&apisskupperv2alpha1.SecuredAccess{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *securedAccessInformer) defaultInformer(client versioned.Interface, resy
 }
 
 func (f *securedAccessInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&skupperv2alpha1.SecuredAccess{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisskupperv2alpha1.SecuredAccess{}, f.defaultInformer)
 }
 
-func (f *securedAccessInformer) Lister() v2alpha1.SecuredAccessLister {
-	return v2alpha1.NewSecuredAccessLister(f.Informer().GetIndexer())
+func (f *securedAccessInformer) Lister() skupperv2alpha1.SecuredAccessLister {
+	return skupperv2alpha1.NewSecuredAccessLister(f.Informer().GetIndexer())
 }

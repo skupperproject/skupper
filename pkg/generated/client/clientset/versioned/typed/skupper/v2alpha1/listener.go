@@ -19,9 +19,9 @@ limitations under the License.
 package v2alpha1
 
 import (
-	"context"
+	context "context"
 
-	v2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	scheme "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
@@ -37,33 +37,34 @@ type ListenersGetter interface {
 
 // ListenerInterface has methods to work with Listener resources.
 type ListenerInterface interface {
-	Create(ctx context.Context, listener *v2alpha1.Listener, opts v1.CreateOptions) (*v2alpha1.Listener, error)
-	Update(ctx context.Context, listener *v2alpha1.Listener, opts v1.UpdateOptions) (*v2alpha1.Listener, error)
+	Create(ctx context.Context, listener *skupperv2alpha1.Listener, opts v1.CreateOptions) (*skupperv2alpha1.Listener, error)
+	Update(ctx context.Context, listener *skupperv2alpha1.Listener, opts v1.UpdateOptions) (*skupperv2alpha1.Listener, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, listener *v2alpha1.Listener, opts v1.UpdateOptions) (*v2alpha1.Listener, error)
+	UpdateStatus(ctx context.Context, listener *skupperv2alpha1.Listener, opts v1.UpdateOptions) (*skupperv2alpha1.Listener, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*v2alpha1.Listener, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v2alpha1.ListenerList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*skupperv2alpha1.Listener, error)
+	List(ctx context.Context, opts v1.ListOptions) (*skupperv2alpha1.ListenerList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v2alpha1.Listener, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *skupperv2alpha1.Listener, err error)
 	ListenerExpansion
 }
 
 // listeners implements ListenerInterface
 type listeners struct {
-	*gentype.ClientWithList[*v2alpha1.Listener, *v2alpha1.ListenerList]
+	*gentype.ClientWithList[*skupperv2alpha1.Listener, *skupperv2alpha1.ListenerList]
 }
 
 // newListeners returns a Listeners
 func newListeners(c *SkupperV2alpha1Client, namespace string) *listeners {
 	return &listeners{
-		gentype.NewClientWithList[*v2alpha1.Listener, *v2alpha1.ListenerList](
+		gentype.NewClientWithList[*skupperv2alpha1.Listener, *skupperv2alpha1.ListenerList](
 			"listeners",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *v2alpha1.Listener { return &v2alpha1.Listener{} },
-			func() *v2alpha1.ListenerList { return &v2alpha1.ListenerList{} }),
+			func() *skupperv2alpha1.Listener { return &skupperv2alpha1.Listener{} },
+			func() *skupperv2alpha1.ListenerList { return &skupperv2alpha1.ListenerList{} },
+		),
 	}
 }

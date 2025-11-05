@@ -19,13 +19,13 @@ limitations under the License.
 package v2alpha1
 
 import (
-	"context"
+	context "context"
 	time "time"
 
-	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	apisskupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	versioned "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
 	internalinterfaces "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/internalinterfaces"
-	v2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/listers/skupper/v2alpha1"
+	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/listers/skupper/v2alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -36,7 +36,7 @@ import (
 // Links.
 type LinkInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v2alpha1.LinkLister
+	Lister() skupperv2alpha1.LinkLister
 }
 
 type linkInformer struct {
@@ -62,16 +62,28 @@ func NewFilteredLinkInformer(client versioned.Interface, namespace string, resyn
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV2alpha1().Links(namespace).List(context.TODO(), options)
+				return client.SkupperV2alpha1().Links(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SkupperV2alpha1().Links(namespace).Watch(context.TODO(), options)
+				return client.SkupperV2alpha1().Links(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.SkupperV2alpha1().Links(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.SkupperV2alpha1().Links(namespace).Watch(ctx, options)
 			},
 		},
-		&skupperv2alpha1.Link{},
+		&apisskupperv2alpha1.Link{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,9 +94,9 @@ func (f *linkInformer) defaultInformer(client versioned.Interface, resyncPeriod 
 }
 
 func (f *linkInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&skupperv2alpha1.Link{}, f.defaultInformer)
+	return f.factory.InformerFor(&apisskupperv2alpha1.Link{}, f.defaultInformer)
 }
 
-func (f *linkInformer) Lister() v2alpha1.LinkLister {
-	return v2alpha1.NewLinkLister(f.Informer().GetIndexer())
+func (f *linkInformer) Lister() skupperv2alpha1.LinkLister {
+	return skupperv2alpha1.NewLinkLister(f.Informer().GetIndexer())
 }
