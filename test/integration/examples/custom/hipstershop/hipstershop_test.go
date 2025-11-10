@@ -8,10 +8,12 @@ import (
 	"log"
 	"os"
 	"testing"
+	"runtime"
 
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/k8s"
+	"github.com/skupperproject/skupper/test/utils/arch"
 	"gotest.tools/assert"
 )
 
@@ -29,6 +31,13 @@ func TestMain(m *testing.M) {
 }
 
 func TestHipsterShop(t *testing.T) {
+	
+	//Skipping test on s390x architecture as images unavailable for s390x
+	cluster := base.GetClusterContext()
+	if err := arch.SkipOnlyS390x(t, cluster); err != nil {
+	t.Fatal(err)
+	}
+	
 	// Cluster needs for hipster shop
 	needs := base.ClusterNeeds{
 		NamespaceId:     "hipster",
