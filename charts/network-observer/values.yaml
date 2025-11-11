@@ -1,4 +1,4 @@
-# Default values for network-observer.
+# Default bvalues for network-observer.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -97,7 +97,28 @@ auth:
     serviceAccount:
       create: true
       nameOverride: ""
-
+    # bearerTokenAuth configures the oauth proxy to authenticate http
+    # requests with bearer tokens with the OpenShift master. Requires
+    # additional cluster scoped RBAC.
+    bearerTokenAuth:
+      enabled: true
+      # clusterRoleName is the name of the ClusterRole to create and/or
+      # reference from the ClusterRoleBinding.
+      clusterRoleName: ""
+      # Set createClusterRole to create ClusterRole .clusterRoleName. Defaults
+      # to chart release name.
+      createClusterRole: false
+      # Set createClusterRoleBinding  to create the ClusterRoleBinding for
+      # bearer token auth.
+      createClusterRoleBinding: false
+      # resourceAttributes configures the required access.
+      resourceAttributes:
+        # Set to scope the bearer access to the Chart namespace, otherwise is
+        # cluster scoped.
+        namespaced: true
+        group: skupper.io
+        resource: sites
+        verb: get
 
 # This is for setting Kubernetes Annotations to a Pod.
 podAnnotations: {}
@@ -153,4 +174,13 @@ securityContext:
     drop:
       - ALL
 
+serviceMonitor:
+  create: false
+  nameOverride: ""
+  bearerTokenSecret:
+    enabled: false
+    nameOverride: ""
+    key: token
+    create: true
+  
 skipManagementLabels: false
