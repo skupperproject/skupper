@@ -58,7 +58,7 @@ func main() {
 
 	metricsConfig, err := metrics.BoundConfig(flags)
 	if err != nil {
-		log.Fatal("Error reading metrics configuration: %s", err)
+		log.Fatalf("Error reading metrics configuration: %s", err)
 	}
 	flags.Parse(os.Args[1:])
 	if *isVersion {
