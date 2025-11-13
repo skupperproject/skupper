@@ -429,7 +429,6 @@ jobs:
         type: string
         default: "quay.io/skupper"
     steps:
-      - docker/install-docker
       - skopeo-install
       - checkout
       - run: docker buildx create --use --name skupper-buildx
