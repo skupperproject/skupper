@@ -11,9 +11,11 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/prometheus/client_golang/prometheus"
 	iflag "github.com/skupperproject/skupper/internal/flag"
 	"github.com/skupperproject/skupper/internal/kube/adaptor"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/kube/metrics"
 	"github.com/skupperproject/skupper/internal/qdr"
 	"github.com/skupperproject/skupper/internal/version"
 )
@@ -53,6 +55,11 @@ func main() {
 	// if -version used, report and exit
 	isVersion := flags.Bool("version", false, "Report the version of Config Sync")
 	isInit := flags.Bool("init", false, "Downloads configuration and ssl profile artefacts")
+
+	metricsConfig, err := metrics.BoundConfig(flags)
+	if err != nil {
+		log.Fatalf("Error reading metrics configuration: %s", err)
+	}
 	flags.Parse(os.Args[1:])
 	if *isVersion {
 		fmt.Println(version.Version)
@@ -75,6 +82,15 @@ func main() {
 			log.Fatal("Error initialising config ", err.Error())
 		}
 		os.Exit(0)
+	}
+
+	if !metricsConfig.Disabled {
+		reg := prometheus.NewRegistry()
+		metrics.MustRegisterClientGoMetrics(reg)
+		srv := metrics.NewServer(metricsConfig, reg)
+		if err := srv.Start(stopCh); err != nil {
+			log.Fatalf("Error starting metrics server: %s", err)
+		}
 	}
 
 	log.Println("Waiting for Skupper router to be ready")

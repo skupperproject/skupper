@@ -8,8 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/prometheus/client_golang/prometheus"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/controller"
+	"github.com/skupperproject/skupper/internal/kube/metrics"
 	"github.com/skupperproject/skupper/internal/version"
 )
 
@@ -71,6 +73,15 @@ func main() {
 	controller, err := controller.NewController(cli, config)
 	if err != nil {
 		log.Fatal("Error getting new site controller ", err.Error())
+	}
+
+	if !config.MetricsConfig.Disabled {
+		reg := prometheus.NewRegistry()
+		metrics.MustRegisterClientGoMetrics(reg)
+		srv := metrics.NewServer(config.MetricsConfig, reg)
+		if err := srv.Start(stopCh); err != nil {
+			log.Fatalf("Error starting metrics server: %s", err)
+		}
 	}
 
 	if err = controller.Run(stopCh); err != nil {
