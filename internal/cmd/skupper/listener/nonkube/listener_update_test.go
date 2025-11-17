@@ -19,6 +19,7 @@ import (
 func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
+		namespace         string
 		args              []string
 		flags             *common.CommandListenerUpdateFlags
 		cobraGenericFlags map[string]string
@@ -36,18 +37,21 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "Listener is not updated because get listener returned error",
+			namespace:     "test",
 			args:          []string{"no-listener"},
 			flags:         &common.CommandListenerUpdateFlags{},
 			expectedError: "listener no-listener must exist in namespace test to be updated",
 		},
 		{
 			name:          "listener name is not specified",
+			namespace:     "test",
 			args:          []string{},
 			flags:         &common.CommandListenerUpdateFlags{},
 			expectedError: "listener name must be configured",
 		},
 		{
 			name:          "listener name is nil",
+			namespace:     "test",
 			args:          []string{""},
 			flags:         &common.CommandListenerUpdateFlags{},
 			expectedError: "listener name must not be empty",
@@ -105,6 +109,13 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 			expectedError: "",
 		},
 		{
+			name:          "invalid namespace",
+			namespace:     "TestInvalid",
+			args:          []string{"my-connector"},
+			flags:         &common.CommandListenerUpdateFlags{},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$\nlistener my-connector must exist in namespace TestInvalid to be updated",
+		},
+		{
 			name: "flags all valid",
 			args: []string{"my-listener"},
 			flags: &common.CommandListenerUpdateFlags{
@@ -148,6 +159,7 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 			if test.flags != nil {
 				command.Flags = test.flags
 			}
+			command.namespace = test.namespace
 
 			if test.cobraGenericFlags != nil && len(test.cobraGenericFlags) > 0 {
 				for name, value := range test.cobraGenericFlags {

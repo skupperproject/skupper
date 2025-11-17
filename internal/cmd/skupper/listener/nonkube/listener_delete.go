@@ -44,6 +44,14 @@ func (cmd *CmdListenerDelete) ValidateInput(args []string) error {
 	}
 
 	resourceStringValidator := validator.NewResourceStringValidator()
+	namespaceStringValidator := validator.NamespaceStringValidator()
+
+	if cmd.namespace != "" {
+		ok, err := namespaceStringValidator.Evaluate(cmd.namespace)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("namespace is not valid: %s", err))
+		}
+	}
 
 	// Validate arguments name
 	if len(args) < 1 {

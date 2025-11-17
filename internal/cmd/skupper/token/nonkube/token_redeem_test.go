@@ -2,6 +2,11 @@ package nonkube
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
@@ -11,15 +16,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/client-go/kubernetes/scheme"
-	"os"
-	"path/filepath"
-	"strings"
-	"testing"
 )
 
 func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 	type test struct {
 		name          string
+		namespace     string
 		args          []string
 		flags         common.CommandTokenRedeemFlags
 		expectedError string
@@ -40,30 +42,42 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "file name is not specified",
+			namespace:     "test",
 			args:          []string{},
 			flags:         common.CommandTokenRedeemFlags{},
 			expectedError: "token file name must be configured",
 		},
 		{
 			name:          "file name is empty",
+			namespace:     "test",
 			args:          []string{""},
 			flags:         common.CommandTokenRedeemFlags{},
 			expectedError: "file name must not be empty",
 		},
 		{
 			name:          "more than one argument is specified",
+			namespace:     "test",
 			args:          []string{"my-grant", "/home/user/my-grant.yaml"},
 			flags:         common.CommandTokenRedeemFlags{},
 			expectedError: "only one argument is allowed for this command",
 		},
 		{
 			name:          "token file name is not valid.",
+			namespace:     "test",
 			args:          []string{"my new file"},
 			flags:         common.CommandTokenRedeemFlags{},
 			expectedError: "token file name is not valid: value does not match this regular expression: ^[A-Za-z0-9./~-]+$",
 		},
 		{
+			name:          "invalid namespace",
+			namespace:     "Test5",
+			args:          []string{"/tmp/token-redeem.yaml"},
+			flags:         common.CommandTokenRedeemFlags{},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+		},
+		{
 			name:          "flags all valid",
+			namespace:     "test",
 			args:          []string{"/tmp/token-redeem.yaml"},
 			flags:         common.CommandTokenRedeemFlags{},
 			expectedError: "",
@@ -74,7 +88,7 @@ func TestCmdTokenRedeem_ValidateInput(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			command := &CmdTokenRedeem{}
-			command.Namespace = "test"
+			command.Namespace = test.namespace
 			command.Flags = &test.flags
 
 			testutils.CheckValidateInput(t, command, test.expectedError, test.args)

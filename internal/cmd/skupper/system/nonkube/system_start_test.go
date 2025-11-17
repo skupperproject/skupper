@@ -2,7 +2,6 @@ package nonkube
 
 import (
 	"fmt"
-	"github.com/skupperproject/skupper/internal/utils"
 	"os"
 	"testing"
 
@@ -26,8 +25,14 @@ func TestCmdSystemSetup_ValidateInput(t *testing.T) {
 		{
 			name:          "args-are-not-accepted",
 			args:          []string{"something"},
-			namespace:     utils.RandomId(4),
+			namespace:     "test",
 			expectedError: "this command does not accept arguments",
+		},
+		{
+			name:          "invalid-namespace",
+			args:          []string{},
+			namespace:     "Invalid",
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
 		},
 	}
 

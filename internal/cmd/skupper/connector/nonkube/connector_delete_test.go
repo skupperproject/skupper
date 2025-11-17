@@ -19,6 +19,7 @@ import (
 func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 	type test struct {
 		name              string
+		namespace         string
 		args              []string
 		flags             *common.CommandConnectorDeleteFlags
 		cobraGenericFlags map[string]string
@@ -36,12 +37,14 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:          "connector name is not specified",
+			namespace:     "test",
 			args:          []string{},
 			flags:         &common.CommandConnectorDeleteFlags{},
 			expectedError: "connector name must be configured",
 		},
 		{
 			name:          "connector name is nil",
+			namespace:     "test",
 			args:          []string{""},
 			flags:         &common.CommandConnectorDeleteFlags{},
 			expectedError: "connector name must not be empty",
@@ -74,6 +77,13 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 				common.FlagNameKubeconfig: "test",
 			},
 		},
+		{
+			name:          "invalid namespace",
+			namespace:     "Test5",
+			args:          []string{"my-connector"},
+			flags:         &common.CommandConnectorDeleteFlags{},
+			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+		},
 	}
 
 	//Add a temp file so connector exists for update tests will pass
@@ -105,6 +115,7 @@ func TestCmdConnectorDelete_ValidateInput(t *testing.T) {
 			if test.flags != nil {
 				command.Flags = test.flags
 			}
+			command.namespace = test.namespace
 
 			if test.cobraGenericFlags != nil && len(test.cobraGenericFlags) > 0 {
 				for name, value := range test.cobraGenericFlags {

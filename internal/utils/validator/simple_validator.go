@@ -48,6 +48,12 @@ func NewFilePathStringValidator() *stringValidator {
 	}
 }
 
+func NamespaceStringValidator() *stringValidator {
+	return &stringValidator{
+		Expression: regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`),
+	}
+}
+
 func (s stringValidator) Evaluate(value interface{}) (bool, error) {
 	v, ok := value.(string)
 

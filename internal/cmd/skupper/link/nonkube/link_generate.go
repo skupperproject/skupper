@@ -11,6 +11,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	nonkubecommon "github.com/skupperproject/skupper/internal/nonkube/common"
+	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
 )
@@ -40,11 +41,18 @@ func (cmd *CmdLinkGenerate) NewClient(cobraCommand *cobra.Command, args []string
 }
 
 func (cmd *CmdLinkGenerate) ValidateInput(args []string) error {
-
 	var validationErrors []error
+	namespaceStringValidator := validator.NamespaceStringValidator()
 
 	if len(args) > 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("arguments are not allowed in this command"))
+	}
+
+	if cmd.Namespace != "" {
+		ok, err := namespaceStringValidator.Evaluate(cmd.Namespace)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("namespace is not valid: %s", err))
+		}
 	}
 
 	pathProvider := fs.PathProvider{Namespace: cmd.Namespace}

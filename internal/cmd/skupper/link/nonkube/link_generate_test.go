@@ -18,6 +18,7 @@ import (
 func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 	type test struct {
 		name               string
+		namespace          string
 		args               []string
 		createSite         bool
 		createRouterAccess bool
@@ -27,6 +28,7 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 	testTable := []test{
 		{
 			name:               "an argument was specified",
+			namespace:          "test",
 			args:               []string{"test"},
 			createSite:         true,
 			createRouterAccess: true,
@@ -39,25 +41,32 @@ func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
 		},
 		{
 			name:               "site was not enabled for link access",
+			namespace:          "test",
 			createSite:         true,
 			createRouterAccess: false,
 			expectedError:      "this site is not enabled for link access, there are no links created",
 		},
+		{
+			name:               "invalid namespace",
+			namespace:          "TestInvalid",
+			createSite:         true,
+			createRouterAccess: true,
+			expectedError:      "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+		},
 	}
 
 	command := &CmdLinkGenerate{}
-	command.Namespace = "test"
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
+			command.Namespace = test.namespace
 			if os.Getuid() == 0 {
 				api.DefaultRootDataHome = t.TempDir()
 			} else {
 				t.Setenv("XDG_DATA_HOME", t.TempDir())
 			}
 			tmpDir := api.GetDataHome()
-			path := filepath.Join(tmpDir, "/namespaces/test/", string(api.RuntimeSiteStatePath))
-
+			path := filepath.Join(tmpDir, "/namespaces/", command.Namespace, "/", string(api.RuntimeSiteStatePath))
 			if test.createSite {
 				createSiteResource(path, t)
 			}

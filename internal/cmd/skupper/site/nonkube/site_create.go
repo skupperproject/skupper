@@ -6,6 +6,8 @@ package nonkube
 import (
 	"errors"
 	"fmt"
+	"log/slog"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
@@ -13,7 +15,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"log/slog"
 )
 
 type CmdSiteCreate struct {
@@ -45,6 +46,7 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
+	namespaceStringValidator := validator.NamespaceStringValidator()
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameContext) != nil && cmd.CobraCmd.Flag(common.FlagNameContext).Value.String() != "" {
 		fmt.Println("Warning: --context flag is not supported on this platform")
@@ -52,6 +54,13 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameKubeconfig) != nil && cmd.CobraCmd.Flag(common.FlagNameKubeconfig).Value.String() != "" {
 		fmt.Println("Warning: --kubeconfig flag is not supported on this platform")
+	}
+
+	if cmd.namespace != "" {
+		ok, err := namespaceStringValidator.Evaluate(cmd.namespace)
+		if !ok {
+			validationErrors = append(validationErrors, fmt.Errorf("namespace is not valid: %s", err))
+		}
 	}
 
 	if len(args) == 0 || args[0] == "" {
