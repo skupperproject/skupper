@@ -454,6 +454,22 @@ func (c *Controller) checkAttachedConnector(key string, connector *skupperv2alph
 			return nil
 		}
 	} else {
+		if previous, ok := c.attachableConnectors[key]; ok {
+			if previous.Spec.SiteNamespace != connector.Spec.SiteNamespace {
+				c.log.Info("AttachedConnector site namespace has changed",
+					slog.String("key", key),
+					slog.String("from", previous.Spec.SiteNamespace),
+					slog.String("to", connector.Spec.SiteNamespace),
+				)
+				err := c.getSite(previous.Spec.SiteNamespace).AttachedConnectorUnreferenced(previous)
+				if err != nil {
+					c.log.Error("Error removing AttachedConnector reference from previous namespace",
+						slog.String("key", key),
+						slog.String("previous", previous.Spec.SiteNamespace))
+				}
+			}
+		}
+		c.attachableConnectors[key] = connector
 		return c.getSite(connector.Spec.SiteNamespace).AttachedConnectorUpdated(connector)
 	}
 }
