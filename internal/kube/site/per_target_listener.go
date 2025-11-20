@@ -125,18 +125,22 @@ func (p *PerTargetListener) unexpose(target string, mapping *qdr.PortMapping, ex
 	return nil
 }
 
-func (p *PerTargetListener) updateBridgeConfig(siteId string, config *qdr.BridgeConfig) {
+func (p *PerTargetListener) updateBridgeConfig(siteId string, config *qdr.BridgeConfig) bool {
+	var updated bool
 	for target, port := range p.targets {
 		if p.definition.Spec.Type == "tcp" || p.definition.Spec.Type == "" {
-			config.AddTcpListener(qdr.TcpEndpoint{
+			if config.AddTcpListener(qdr.TcpEndpoint{
 				Name:       p.definition.Name + "@" + target,
 				SiteId:     siteId,
 				Port:       strconv.Itoa(port),
 				Address:    p.address(target),
 				SslProfile: p.definition.Spec.TlsCredentials,
-			})
+			}) {
+				updated = true
+			}
 		}
 	}
+	return updated
 }
 
 func extractTargets(prefix string, network []skupperv2alpha1.SiteRecord) []string {
