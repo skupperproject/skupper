@@ -78,12 +78,15 @@ type EventProcessor struct {
 	skupperClient   skupperclient.Interface
 	queue           workqueue.RateLimitingInterface
 	resync          time.Duration
+	resyncShort     time.Duration
 	watchers        []Watcher
 }
 
+type EventProcessorCustomizer func(e *EventProcessor)
+
 // Creates a properly initialised EventProcessor instance.
-func NewEventProcessor(name string, clients internalclient.Clients) *EventProcessor {
-	return &EventProcessor{
+func NewEventProcessor(name string, clients internalclient.Clients, options ...EventProcessorCustomizer) *EventProcessor {
+	e := &EventProcessor{
 		errorKey:        name + "Error",
 		client:          clients.GetKubeClient(),
 		routeClient:     clients.GetRouteInterface(),
@@ -92,7 +95,20 @@ func NewEventProcessor(name string, clients internalclient.Clients) *EventProces
 		skupperClient:   clients.GetSkupperClient(),
 		queue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
 		resync:          time.Minute * 5,
+		resyncShort:     time.Second * 30,
 	}
+	for _, opt := range options {
+		opt(e)
+	}
+	return e
+}
+
+func (c *EventProcessor) SetResync(resync time.Duration) {
+	c.resync = resync
+}
+
+func (c *EventProcessor) SetResyncShort(resync time.Duration) {
+	c.resyncShort = resync
 }
 
 func (c *EventProcessor) GetKubeClient() kubernetes.Interface {
@@ -137,6 +153,10 @@ func (c *EventProcessor) GetSkupperClient() skupperclient.Interface {
 // Starts the event processing loop in a new go routine.
 func (c *EventProcessor) Start(stopCh <-chan struct{}) {
 	go wait.Until(c.run, time.Second, stopCh)
+}
+
+func (c *EventProcessor) GetWatchers() []Watcher {
+	return c.watchers
 }
 
 func (c *EventProcessor) run() {
@@ -396,7 +416,7 @@ func (c *EventProcessor) WatchSites(namespace string, handler SiteHandler) *Site
 	informer := skupperv2alpha1informer.NewSiteInformer(
 		c.skupperClient,
 		namespace,
-		time.Second*30,
+		c.resyncShort,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	return addEventProcessorWatcher(c, handler, v2alpha1.SchemeGroupVersion, informer)
 }
@@ -405,7 +425,7 @@ func (c *EventProcessor) WatchListeners(namespace string, handler ListenerHandle
 	informer := skupperv2alpha1informer.NewListenerInformer(
 		c.skupperClient,
 		namespace,
-		time.Second*30,
+		c.resyncShort,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	return addEventProcessorWatcher(c, handler, v2alpha1.SchemeGroupVersion, informer)
 }
@@ -414,7 +434,7 @@ func (c *EventProcessor) WatchConnectors(namespace string, handler ConnectorHand
 	informer := skupperv2alpha1informer.NewConnectorInformer(
 		c.skupperClient,
 		namespace,
-		time.Second*30,
+		c.resyncShort,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	return addEventProcessorWatcher(c, handler, v2alpha1.SchemeGroupVersion, informer)
 }
@@ -423,7 +443,7 @@ func (c *EventProcessor) WatchLinks(namespace string, handler LinkHandler) *Link
 	informer := skupperv2alpha1informer.NewLinkInformer(
 		c.skupperClient,
 		namespace,
-		time.Second*30,
+		c.resyncShort,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	return addEventProcessorWatcher(c, handler, v2alpha1.SchemeGroupVersion, informer)
 }
@@ -432,7 +452,7 @@ func (c *EventProcessor) WatchAccessTokens(namespace string, handler AccessToken
 	informer := skupperv2alpha1informer.NewAccessTokenInformer(
 		c.skupperClient,
 		namespace,
-		time.Second*30,
+		c.resyncShort,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	return addEventProcessorWatcher(c, handler, v2alpha1.SchemeGroupVersion, informer)
 }
@@ -441,7 +461,7 @@ func (c *EventProcessor) WatchAccessGrants(namespace string, handler AccessGrant
 	informer := skupperv2alpha1informer.NewAccessGrantInformer(
 		c.skupperClient,
 		namespace,
-		time.Second*30,
+		c.resyncShort,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	return addEventProcessorWatcher(c, handler, v2alpha1.SchemeGroupVersion, informer)
 }
@@ -450,7 +470,7 @@ func (c *EventProcessor) WatchSecuredAccesses(namespace string, handler SecuredA
 	informer := skupperv2alpha1informer.NewSecuredAccessInformer(
 		c.skupperClient,
 		namespace,
-		time.Second*30,
+		c.resyncShort,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	return addEventProcessorWatcher(c, handler, v2alpha1.SchemeGroupVersion, informer)
 }
@@ -459,7 +479,7 @@ func (c *EventProcessor) WatchSecuredAccessesWithOptions(options skupperv2alpha1
 	informer := skupperv2alpha1informer.NewFilteredSecuredAccessInformer(
 		c.skupperClient,
 		namespace,
-		time.Second*30,
+		c.resyncShort,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 		options)
 	return addEventProcessorWatcher(c, handler, v2alpha1.SchemeGroupVersion, informer)
@@ -469,7 +489,7 @@ func (c *EventProcessor) WatchCertificates(namespace string, handler Certificate
 	informer := skupperv2alpha1informer.NewCertificateInformer(
 		c.skupperClient,
 		namespace,
-		time.Second*30,
+		c.resyncShort,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	return addEventProcessorWatcher(c, handler, v2alpha1.SchemeGroupVersion, informer)
 }
@@ -478,7 +498,7 @@ func (c *EventProcessor) WatchRouterAccesses(namespace string, handler RouterAcc
 	informer := skupperv2alpha1informer.NewRouterAccessInformer(
 		c.skupperClient,
 		namespace,
-		time.Second*30,
+		c.resyncShort,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	return addEventProcessorWatcher(c, handler, v2alpha1.SchemeGroupVersion, informer)
 }
@@ -487,7 +507,7 @@ func (c *EventProcessor) WatchAttachedConnectorBindings(namespace string, handle
 	informer := skupperv2alpha1informer.NewAttachedConnectorBindingInformer(
 		c.skupperClient,
 		namespace,
-		time.Second*30,
+		c.resyncShort,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	return addEventProcessorWatcher(c, handler, v2alpha1.SchemeGroupVersion, informer)
 }
@@ -496,7 +516,7 @@ func (c *EventProcessor) WatchAttachedConnectors(namespace string, handler Attac
 	informer := skupperv2alpha1informer.NewAttachedConnectorInformer(
 		c.skupperClient,
 		namespace,
-		time.Second*30,
+		c.resyncShort,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	return addEventProcessorWatcher(c, handler, v2alpha1.SchemeGroupVersion, informer)
 }

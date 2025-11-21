@@ -145,3 +145,7 @@ func (w ResourceWatcher[T]) HasSynced() func() bool {
 func (w ResourceWatcher[T]) Sync(stopCh <-chan struct{}) bool {
 	return cache.WaitForCacheSync(stopCh, w.informer.HasSynced)
 }
+
+func (w ResourceWatcher[T]) IsStopped() bool {
+	return w.informer.IsStopped()
+}
