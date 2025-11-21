@@ -83,9 +83,11 @@ func labelling() internalinterfaces.TweakListOptionsFunc {
 	}
 }
 
+var eventProcessorCustomizers []watchers.EventProcessorCustomizer
+
 func NewController(cli internalclient.Clients, config *Config) (*Controller, error) {
 	controller := &Controller{
-		eventProcessor:       watchers.NewEventProcessor("Controller", cli),
+		eventProcessor:       watchers.NewEventProcessor("Controller", cli, eventProcessorCustomizers...),
 		sites:                map[string]*site.Site{},
 		siteSizing:           sizing.NewRegistry(),
 		labelling:            labels.NewLabelsAndAnnotations(config.Namespace),
