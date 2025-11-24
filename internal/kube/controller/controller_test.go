@@ -667,6 +667,28 @@ func TestUpdate(t *testing.T) {
 				podWatchers(1, 1),
 			},
 		}, {
+			name: "deleted attached connector",
+			skupperObjects: []runtime.Object{
+				f.site("mysite", "test", "", false, false),
+				f.attachedConnectorBinding("myconnector", "test", "test2"),
+				f.attachedConnector("myconnector", "test2", "test", "app=foo", 8080),
+				f.listener("mylistener", "test", "mysvc", 8080),
+			},
+			k8sObjects: []runtime.Object{
+				f.pod("foo", "test2", map[string]string{"app": "foo"}, nil,
+					f.podStatus("10.1.1.10", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue))),
+			},
+			functions: []WaitFunction{
+				isListenerStatusConditionTrue("mylistener", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED),
+				serviceCheck("mysvc", "test").check,
+				isListenerStatusConditionTrue("mylistener", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED),
+				isAttachedConnectorStatusConditionTrue("myconnector", "test2", skupperv2alpha1.CONDITION_TYPE_CONFIGURED),
+				deleteAttachedConnector("myconnector", "test2"),
+			},
+			postFunctions: []ControllerFunction{
+				podWatchers(1, 1),
+			},
+		}, {
 			name: "unreferenced attached connector binding",
 			skupperObjects: []runtime.Object{
 				f.site("mysite", "test", "", false, false),
@@ -686,6 +708,30 @@ func TestUpdate(t *testing.T) {
 				isAttachedConnectorBindingStatusCondition("myconnector", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionTrue),
 				updateAttachedConnectorBindingConnectorNamespace("myconnector", "test", "test3", skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionFalse),
 				isAttachedConnectorBindingStatusCondition("myconnector", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionFalse),
+			},
+			postFunctions: []ControllerFunction{
+				podWatchers(1, 1),
+			},
+		}, {
+			name: "deleted attached connector binding",
+			skupperObjects: []runtime.Object{
+				f.site("mysite", "test", "", false, false),
+				f.attachedConnectorBinding("myconnector", "test", "test2"),
+				f.attachedConnector("myconnector", "test2", "test", "app=foo", 8080),
+				f.listener("mylistener", "test", "mysvc", 8080),
+			},
+			k8sObjects: []runtime.Object{
+				f.pod("foo", "test2", map[string]string{"app": "foo"}, nil,
+					f.podStatus("10.1.1.10", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue))),
+			},
+			functions: []WaitFunction{
+				isListenerStatusConditionTrue("mylistener", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED),
+				serviceCheck("mysvc", "test").check,
+				isListenerStatusConditionTrue("mylistener", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED),
+				isAttachedConnectorStatusConditionTrue("myconnector", "test2", skupperv2alpha1.CONDITION_TYPE_CONFIGURED),
+				isAttachedConnectorBindingStatusCondition("myconnector", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionTrue),
+				deleteAttachedConnectorBinding("myconnector", "test"),
+				isAttachedConnectorStatusCondition("myconnector", "test2", skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionFalse),
 			},
 			postFunctions: []ControllerFunction{
 				podWatchers(1, 1),
@@ -755,6 +801,22 @@ func TestUpdate(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func deleteAttachedConnector(name string, namespace string) WaitFunction {
+	return func(t *testing.T, clients internalclient.Clients) bool {
+		err := clients.GetSkupperClient().SkupperV2alpha1().AttachedConnectors(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+		assert.Assert(t, err)
+		return true
+	}
+}
+
+func deleteAttachedConnectorBinding(name string, namespace string) WaitFunction {
+	return func(t *testing.T, clients internalclient.Clients) bool {
+		err := clients.GetSkupperClient().SkupperV2alpha1().AttachedConnectorBindings(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+		assert.Assert(t, err)
+		return true
 	}
 }
 
