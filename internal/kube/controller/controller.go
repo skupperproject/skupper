@@ -450,6 +450,7 @@ func (c *Controller) checkAttachedConnectorBinding(key string, binding *skupperv
 func (c *Controller) checkAttachedConnector(key string, connector *skupperv2alpha1.AttachedConnector) error {
 	if connector == nil {
 		if previous, ok := c.attachableConnectors[key]; ok {
+			c.log.Info("AttachedConnector deleted", slog.String("key", key))
 			delete(c.attachableConnectors, key)
 			return c.getSite(previous.Spec.SiteNamespace).AttachedConnectorDeleted(previous.Namespace, previous.Name)
 		} else {
