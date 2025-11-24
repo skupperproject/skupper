@@ -290,7 +290,11 @@ func (a *AttachedConnector) bindingDeleted() bool {
 	if a.binding == nil {
 		return false
 	}
+	a.parent.logger.Info("AttachedConnectorBinding deleted",
+		slog.String("key", fmt.Sprintf("%s/%s", a.binding.Namespace, a.binding.Name)),
+	)
 	a.binding = nil
+	a.unbind()
 	return true
 }
 
