@@ -674,6 +674,15 @@ func (s *Site) recoverRouterConfig(update bool) ([]*qdr.RouterConfig, error) {
 	}
 	byName := map[string]*qdr.RouterConfig{}
 	for _, cm := range list.Items {
+		if !isOwner(s.site, cm.OwnerReferences) {
+			s.logger.Error("Error recovering router config - existing config not owned by Site",
+				slog.String("namespace", s.namespace),
+				slog.String("name", cm.Name),
+				slog.String("owner", string(cm.UID)),
+				slog.String("site.uid", string(s.site.UID)),
+			)
+			return nil, fmt.Errorf("%s is not owned by skupper site %q", cm.Name, s.site.UID)
+		}
 		config, err := qdr.GetRouterConfigFromConfigMap(&cm)
 		if err != nil {
 			s.logger.Error("Error parsing router config from config map",
