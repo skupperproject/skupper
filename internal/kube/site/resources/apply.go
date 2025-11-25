@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
@@ -29,12 +30,12 @@ type Labelling interface {
 	SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool
 }
 
-func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Sizing, labelling Labelling) []resource.Template {
+func resourceTemplates(clients internalclient.Clients, site *skupperv2alpha1.Site, group string, size sizing.Sizing, labelling Labelling) []resource.Template {
 	templates := []resource.Template{
 		{
 			Name:       "deployment",
 			Template:   routerDeploymentTemplate,
-			Parameters: getCoreParams(site, group, size).setLabelsAndAnnotations(labelling, site.Namespace, "skupper-router", "Deployment"),
+			Parameters: getCoreParams(clients, site, group, size).setLabelsAndAnnotations(labelling, site.Namespace, "skupper-router", "Deployment"),
 			Resource: schema.GroupVersionResource{
 				Group:    "apps",
 				Version:  "v1",
@@ -44,7 +45,7 @@ func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Siz
 		{
 			Name:       "localService",
 			Template:   routerLocalServiceTemplate,
-			Parameters: getCoreParams(site, group, size).setLabelsAndAnnotations(labelling, site.Namespace, "skupper-router-local", "Service"),
+			Parameters: getCoreParams(clients, site, group, size).setLabelsAndAnnotations(labelling, site.Namespace, "skupper-router-local", "Service"),
 			Resource: schema.GroupVersionResource{
 				Group:    "",
 				Version:  "v1",
@@ -68,6 +69,7 @@ type CoreParams struct {
 	Labels             map[string]string
 	Annotations        map[string]string
 	EnableAntiAffinity bool
+	AddPodSecurity     bool
 }
 
 func (p *CoreParams) setLabelsAndAnnotations(labelling Labelling, namespace string, name string, kind string) *CoreParams {
@@ -149,7 +151,7 @@ func configDigest(config *skupperv2alpha1.SiteSpec) string {
 	return ""
 }
 
-func getCoreParams(site *skupperv2alpha1.Site, group string, size sizing.Sizing) *CoreParams {
+func getCoreParams(clients internalclient.Clients, site *skupperv2alpha1.Site, group string, size sizing.Sizing) *CoreParams {
 	return &CoreParams{
 		SiteId:             site.GetSiteId(),
 		SiteName:           site.Name,
@@ -162,11 +164,26 @@ func getCoreParams(site *skupperv2alpha1.Site, group string, size sizing.Sizing)
 		Sizing:             size,
 		Labels:             map[string]string{},
 		EnableAntiAffinity: enableAntiAffinity(site),
+		AddPodSecurity:     addPodSecurityContext(clients),
+	}
+}
+
+// addPodSecurityContext Only added if server version is >=1.24
+func addPodSecurityContext(cli internalclient.Clients) bool {
+	vi, err := cli.GetKubeClient().Discovery().ServerVersion()
+	if err != nil {
+		return false
+	}
+	// for kubernetes versions 1.24+
+	if vi.Major == "1" && strings.Compare(vi.Minor, "24") >= 0 {
+		return true
+	} else {
+		return false
 	}
 }
 
 func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv2alpha1.Site, group string, size sizing.Sizing, labelling Labelling) error {
-	for _, t := range resourceTemplates(site, group, size, labelling) {
+	for _, t := range resourceTemplates(clients, site, group, size, labelling) {
 		_, err := t.Apply(clients.GetDynamicClient(), ctx, site.Namespace)
 		if err != nil {
 			return err
