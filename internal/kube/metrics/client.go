@@ -18,7 +18,7 @@ func MustRegisterClientGoMetrics(registry *prometheus.Registry) {
 			Subsystem: "kubernetes_client",
 			Name:      "http_request_duration_seconds",
 			Help:      "Latency of kubernetes client requests in seconds by endpoint.",
-		}, []string{"endpoint"}),
+		}, []string{"method", "endpoint"}),
 		results: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: "skupper",
 			Subsystem: "kubernetes_client",
@@ -38,7 +38,7 @@ func MustRegisterClientGoMetrics(registry *prometheus.Registry) {
 			Subsystem: "kubernetes_client",
 			Name:      "rate_limiter_duration_seconds",
 			Help:      "Latency of kubernetes client side rate limiting in seconds by endpoint.",
-		}, []string{"endpoint"}),
+		}, []string{"method", "endpoint"}),
 	}
 
 	registry.MustRegister(httpMetrics.latency, httpMetrics.results, httpMetrics.retries, rateLimiterMetrics.latency)
@@ -57,11 +57,11 @@ type clientGoHttpMetrics struct {
 	retries *prometheus.CounterVec
 }
 
-func (m *clientGoHttpMetrics) Observe(ctx context.Context, _ string, url url.URL, latency time.Duration) {
-	m.latency.WithLabelValues(url.EscapedPath()).Observe(latency.Seconds())
+func (m *clientGoHttpMetrics) Observe(ctx context.Context, verb string, url url.URL, latency time.Duration) {
+	m.latency.WithLabelValues(verb, url.EscapedPath()).Observe(latency.Seconds())
 }
 
-func (m *clientGoHttpMetrics) Increment(ctx context.Context, code string, _ string, _ string) {
+func (m *clientGoHttpMetrics) Increment(ctx context.Context, code string, method string, host string) {
 	m.results.WithLabelValues(code).Inc()
 }
 func (m *clientGoHttpMetrics) IncrementRetry(ctx context.Context, code string, _ string, _ string) {
@@ -72,6 +72,6 @@ type clientGoRateLimiterMetrics struct {
 	latency *prometheus.HistogramVec
 }
 
-func (m *clientGoRateLimiterMetrics) Observe(ctx context.Context, _ string, url url.URL, latency time.Duration) {
-	m.latency.WithLabelValues(url.EscapedPath()).Observe(latency.Seconds())
+func (m *clientGoRateLimiterMetrics) Observe(ctx context.Context, verb string, url url.URL, latency time.Duration) {
+	m.latency.WithLabelValues(verb, url.EscapedPath()).Observe(latency.Seconds())
 }
