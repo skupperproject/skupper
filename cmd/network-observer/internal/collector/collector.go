@@ -399,8 +399,10 @@ func (c *Collector) discoveryHandler(ctx context.Context) func(eventsource.Info)
 			defer cancel()
 			if err := eventsource.FlushOnFirstMessage(ctx, client); err != nil {
 				if errors.Is(err, ctx.Err()) {
+					sendCtx, sendCancel := context.WithTimeout(ctx, time.Second*5)
+					defer sendCancel()
 					c.logger.Info("timed out waiting for first message. sending flush anyways")
-					err = client.SendFlush(ctx)
+					err = client.SendFlush(sendCtx)
 				}
 				if err != nil {
 					c.logger.Error("error sending flush", slog.Any("error", err))
