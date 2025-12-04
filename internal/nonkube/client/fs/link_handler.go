@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"io/fs"
 	"os"
 	"strings"
 
@@ -93,19 +94,37 @@ func (s *LinkHandler) Delete(name string) error {
 
 func (s *LinkHandler) List(opts GetOptions) ([]*v2alpha1.Link, error) {
 	var links []*v2alpha1.Link
+	var files []fs.DirEntry
+	var err error
+	path := s.pathProvider.GetRuntimeNamespace()
+	prefix := common.Links
+
+	// Based on the opts select the proper directory to get links from
+	if opts.ResourcesPath != "" {
+		prefix = "link"
+		path = opts.ResourcesPath
+	}
 
 	// Read from runtime directory
-	path := s.pathProvider.GetRuntimeNamespace()
-	err, files := s.ReadDir(path, common.Links)
-	if err != nil {
-		if opts.LogWarning {
-			os.Stderr.WriteString("Site not initialized yet\n")
+	if opts.RuntimeFirst {
+		err, files = s.ReadDir(path, prefix)
+		if err != nil {
+			if opts.LogWarning {
+				os.Stderr.WriteString("Site not initialized yet\n")
+			}
+			return nil, err
 		}
-		return nil, err
+	} else {
+		// just get configured values
+		path = s.pathProvider.GetNamespace()
+		err, files = s.ReadDir(path, prefix)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	for _, file := range files {
-		err, link := s.ReadFile(path, file.Name(), common.Links)
+		err, link := s.ReadFile(path, file.Name(), prefix)
 		if err != nil {
 			return nil, err
 		}
