@@ -144,6 +144,12 @@ func (a *AttachedConnector) Updated(pods []skupperv2alpha1.PodDetails) error {
 	if a.binding == nil {
 		return a.updateStatusNoBinding()
 	}
+	a.parent.logger.Debug("Updated AttachedConnector pods",
+		slog.String("Namespace", a.binding.Namespace),
+		slog.String("Name", a.binding.Name),
+		slog.String("siteId", a.parent.bindings.SiteId),
+		slog.String("memory", fmt.Sprintf("%p", a)),
+	)
 	definition := a.activeDefinition()
 	if definition == nil {
 		return a.updateStatusTo(fmt.Errorf("No matching AttachedConnector"), nil)
@@ -230,7 +236,8 @@ func (a *AttachedConnector) definitionUpdated(definition *skupperv2alpha1.Attach
 	}
 	a.definitions[definition.Namespace] = definition
 	if a.binding != nil && a.binding.Spec.ConnectorNamespace == definition.Namespace {
-		if selectorChanged || a.watcher == nil {
+		isSiteActive := a.parent.site != nil && a.parent.site.IsInitialised()
+		if isSiteActive && (selectorChanged || a.watcher == nil) {
 			a.parent.logger.Info("Watching pods for AttachedConnector",
 				slog.String("namespace", definition.Namespace),
 				slog.String("name", definition.Name))
@@ -271,6 +278,7 @@ func (a *AttachedConnector) definitionDeleted(namespace string) bool {
 	if _, ok := a.definitions[namespace]; ok {
 		if a.watcher != nil {
 			a.watcher.Close()
+			a.watcher = nil
 		}
 		delete(a.definitions, namespace)
 		return true
@@ -282,14 +290,19 @@ func (a *AttachedConnector) bindingDeleted() bool {
 	if a.binding == nil {
 		return false
 	}
+	a.parent.logger.Info("AttachedConnectorBinding deleted",
+		slog.String("key", fmt.Sprintf("%s/%s", a.binding.Namespace, a.binding.Name)),
+	)
 	a.binding = nil
+	a.unbind()
 	return true
 }
 
-func (a *AttachedConnector) updateBridgeConfig(siteId string, config *qdr.BridgeConfig) {
+func (a *AttachedConnector) updateBridgeConfig(siteId string, config *qdr.BridgeConfig) bool {
+	var updated bool
 	definition := a.activeDefinition()
 	if definition == nil || a.watcher == nil {
-		return
+		return updated
 	}
 	connector := &skupperv2alpha1.Connector{
 		ObjectMeta: metav1.ObjectMeta{
@@ -303,6 +316,18 @@ func (a *AttachedConnector) updateBridgeConfig(siteId string, config *qdr.Bridge
 		},
 	}
 	for _, pod := range a.watcher.pods() {
-		site.UpdateBridgeConfigForConnectorToPod(siteId, connector, pod, a.binding.Spec.ExposePodsByName, config)
+		if site.UpdateBridgeConfigForConnectorToPod(siteId, connector, pod, a.binding.Spec.ExposePodsByName, config) {
+			updated = true
+		}
 	}
+	return updated
+}
+
+func (a *AttachedConnector) unbind() bool {
+	if a.watcher != nil {
+		a.watcher.Close()
+		a.watcher = nil
+		return true
+	}
+	return false
 }

@@ -124,5 +124,6 @@ func (w *PodWatcher) handle(key string, pod *corev1.Pod) error {
 }
 
 func (w *PodWatcher) Close() {
+	bindings_logger.Debug("Stopping pod watcher", w.context.Attr(), slog.String("selector", w.context.Selector()))
 	close(w.stopCh)
 }
