@@ -29,7 +29,7 @@ type InputResourceHandler struct {
 func NewInputResourceHandler(namespace string, inputPath string, bStrap func(config *bootstrap.Config) (*api.SiteState, error), postBootStrap func(config *bootstrap.Config, siteState *api.SiteState)) *InputResourceHandler {
 
 	systemReloadType := utils.DefaultStr(os.Getenv(types.ENV_SYSTEM_AUTO_RELOAD),
-		types.SystemReloadTypeAuto)
+		types.SystemReloadTypeManual)
 
 	if systemReloadType == types.SystemReloadTypeManual {
 		slog.Default().Error("Automatic reloading is not configured.")
