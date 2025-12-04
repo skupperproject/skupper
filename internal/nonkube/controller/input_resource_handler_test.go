@@ -14,6 +14,7 @@ import (
 func TestInputResourceHandler(t *testing.T) {
 
 	t.Run("handler created for docker platform", func(t *testing.T) {
+		t.Setenv(types.ENV_SYSTEM_AUTO_RELOAD, "auto")
 		t.Setenv("CONTAINER_ENGINE", "docker")
 		inputResourceHandler := NewInputResourceHandler("test_namespace", "test_inputPath", mockBootstrap, mockPostExec)
 		expectedConfigBootstrap := bootstrap.Config{
@@ -29,6 +30,7 @@ func TestInputResourceHandler(t *testing.T) {
 	})
 
 	t.Run("handler created for podman platform", func(t *testing.T) {
+		t.Setenv(types.ENV_SYSTEM_AUTO_RELOAD, "auto")
 		t.Setenv("CONTAINER_ENGINE", "podman")
 		inputResourceHandler := NewInputResourceHandler("test_namespace", "test_inputPath", mockBootstrap, mockPostExec)
 		expectedConfigBootstrap := bootstrap.Config{
@@ -44,6 +46,7 @@ func TestInputResourceHandler(t *testing.T) {
 	})
 
 	t.Run("handler not created for linux platform", func(t *testing.T) {
+		t.Setenv(types.ENV_SYSTEM_AUTO_RELOAD, "auto")
 		t.Setenv("CONTAINER_ENGINE", "linux")
 		inputResourceHandler := NewInputResourceHandler("test_namespace", "test_inputPath", mockBootstrap, mockPostExec)
 
@@ -68,6 +71,7 @@ func TestInputResourceHandler(t *testing.T) {
 	})
 
 	t.Run("resource file created or updated", func(t *testing.T) {
+		t.Setenv(types.ENV_SYSTEM_AUTO_RELOAD, "auto")
 		namespace := "test-file-created-ns"
 		inputPath := "test-file-created-input-path"
 
@@ -89,6 +93,7 @@ func TestInputResourceHandler(t *testing.T) {
 	})
 
 	t.Run("resource file removed", func(t *testing.T) {
+		t.Setenv(types.ENV_SYSTEM_AUTO_RELOAD, "auto")
 		namespace := "test-file-ns"
 		inputPath := "test-file-input-path"
 
@@ -109,6 +114,7 @@ func TestInputResourceHandler(t *testing.T) {
 	})
 
 	t.Run("resource file created or updated but the reload fails", func(t *testing.T) {
+		t.Setenv(types.ENV_SYSTEM_AUTO_RELOAD, "auto")
 		namespace := "test-file-created-ns"
 		inputPath := "test-file-created-input-path"
 
