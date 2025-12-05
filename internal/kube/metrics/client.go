@@ -24,13 +24,13 @@ func MustRegisterClientGoMetrics(registry *prometheus.Registry) {
 			Subsystem: "kubernetes_client",
 			Name:      "http_requests_total",
 			Help:      "Total number of kubernetes client requests by status code.",
-		}, []string{"status_code"}),
+		}, []string{"method", "status_code"}),
 		retries: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Namespace: "skupper",
 			Subsystem: "kubernetes_client",
 			Name:      "http_retries_total",
 			Help:      "Total number of kubernetes client requests retried by status code.",
-		}, []string{"status_code"}),
+		}, []string{"method", "status_code"}),
 	}
 	rateLimiterMetrics := &clientGoRateLimiterMetrics{
 		latency: prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -62,10 +62,10 @@ func (m *clientGoHttpMetrics) Observe(ctx context.Context, verb string, url url.
 }
 
 func (m *clientGoHttpMetrics) Increment(ctx context.Context, code string, method string, host string) {
-	m.results.WithLabelValues(code).Inc()
+	m.results.WithLabelValues(method, code).Inc()
 }
-func (m *clientGoHttpMetrics) IncrementRetry(ctx context.Context, code string, _ string, _ string) {
-	m.retries.WithLabelValues(code).Inc()
+func (m *clientGoHttpMetrics) IncrementRetry(ctx context.Context, code string, method string, _ string) {
+	m.retries.WithLabelValues(method, code).Inc()
 }
 
 type clientGoRateLimiterMetrics struct {
