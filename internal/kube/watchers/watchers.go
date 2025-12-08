@@ -4,6 +4,7 @@ package watchers
 
 import (
 	"log"
+	"sync/atomic"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -56,6 +57,8 @@ type ResourceChangeHandler interface {
 	// The Describe method is used to log information about the
 	// event when an error is returned by the Handle method.
 	Describe(event ResourceChange) string
+	// Kind of Resource
+	Kind() string
 }
 
 // The Watcher interface allows the EventProcessor to interact with
@@ -76,9 +79,11 @@ type EventProcessor struct {
 	dynamicClient   dynamic.Interface
 	discoveryClient discovery.DiscoveryInterface
 	skupperClient   skupperclient.Interface
+	metrics         *metricsQueue
 	queue           workqueue.RateLimitingInterface
 	resync          time.Duration
 	watchers        []Watcher
+	started         atomic.Bool
 }
 
 // Creates a properly initialised EventProcessor instance.
@@ -92,6 +97,11 @@ func NewEventProcessor(name string, clients internalclient.Clients) *EventProces
 		skupperClient:   clients.GetSkupperClient(),
 		queue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
 		resync:          time.Minute * 5,
+		metrics: &metricsQueue{
+			provider: noopMetricsProvider{},
+			metrics:  make(map[string]metricsSet),
+			pending:  make(map[ResourceChange]time.Time),
+		},
 	}
 }
 
@@ -134,12 +144,28 @@ func (c *EventProcessor) GetSkupperClient() skupperclient.Interface {
 	return c.skupperClient
 }
 
+// SetMetricsProvider
+func (c *EventProcessor) SetMetricsProvider(provider MetricsProvider) {
+	if c.started.Load() {
+		panic("eventprocessor SetMetricsProvider cannot be called after start")
+	}
+	if provider == nil {
+		provider = noopMetricsProvider{}
+	}
+	c.metrics = &metricsQueue{
+		provider: provider,
+		metrics:  make(map[string]metricsSet),
+		pending:  make(map[ResourceChange]time.Time),
+	}
+}
+
 // Starts the event processing loop in a new go routine.
 func (c *EventProcessor) Start(stopCh <-chan struct{}) {
 	go wait.Until(c.run, time.Second, stopCh)
 }
 
 func (c *EventProcessor) run() {
+	c.started.Store(true)
 	for c.process() {
 	}
 }
@@ -165,19 +191,27 @@ func (c *EventProcessor) process() bool {
 		return false
 	}
 
-	retry := false
+	var (
+		hasError bool
+		isRetry  bool
+	)
 	defer c.queue.Done(obj)
 	if evt, ok := obj.(ResourceChange); ok {
+		resolve := c.metrics.get(evt)
+		defer func() {
+			resolve(evt, isRetry)
+		}()
 		err := evt.Handler.Handle(evt)
 		if err != nil {
-			retry = true
+			hasError = true
 			log.Printf("[%s] Error while handling %s: %s", c.errorKey, evt.Handler.Describe(evt), err)
 		}
 	} else {
 		log.Printf("Invalid object on event queue for %q: %#v", c.errorKey, obj)
 	}
 
-	if retry && c.queue.NumRequeues(obj) < 5 {
+	if hasError && c.queue.NumRequeues(obj) < 5 {
+		isRetry = true
 		c.queue.AddRateLimited(obj)
 		return true
 	}
@@ -205,6 +239,7 @@ func (c *EventProcessor) newEventHandler(handler ResourceChangeHandler) *cache.R
 				utilruntime.HandleError(err)
 			} else {
 				evt.Key = key
+				c.metrics.add(evt)
 				c.queue.Add(evt)
 			}
 		},
@@ -214,6 +249,7 @@ func (c *EventProcessor) newEventHandler(handler ResourceChangeHandler) *cache.R
 				utilruntime.HandleError(err)
 			} else {
 				evt.Key = key
+				c.metrics.add(evt)
 				c.queue.Add(evt)
 			}
 		},
@@ -223,6 +259,7 @@ func (c *EventProcessor) newEventHandler(handler ResourceChangeHandler) *cache.R
 				utilruntime.HandleError(err)
 			} else {
 				evt.Key = key
+				c.metrics.add(evt)
 				c.queue.Add(evt)
 			}
 		},

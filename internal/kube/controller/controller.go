@@ -174,6 +174,10 @@ func (c *Controller) UID() string {
 	return c.deploymentUid
 }
 
+func (c *Controller) SetEventProcessorMetrics(provider watchers.MetricsProvider) {
+	c.eventProcessor.SetMetricsProvider(provider)
+}
+
 func (c *Controller) getDeploymentForPod(podName string, namespace string) (*appsv1.Deployment, error) {
 	re := regexp.MustCompile(`^(\S+)\-[a-z0-9]{9,10}\-[a-z0-9]{5}$`)
 	matches := re.FindStringSubmatch(podName)

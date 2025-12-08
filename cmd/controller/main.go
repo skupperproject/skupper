@@ -78,6 +78,7 @@ func main() {
 	if !config.MetricsConfig.Disabled {
 		reg := prometheus.NewRegistry()
 		metrics.MustRegisterClientGoMetrics(reg)
+		controller.SetEventProcessorMetrics(metrics.MustRegisterEventProcessorMetrics(reg))
 		srv := metrics.NewServer(config.MetricsConfig, reg)
 		if err := srv.Start(stopCh); err != nil {
 			log.Fatalf("Error starting metrics server: %s", err)
