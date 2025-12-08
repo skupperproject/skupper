@@ -56,6 +56,8 @@ type ResourceChangeHandler interface {
 	// The Describe method is used to log information about the
 	// event when an error is returned by the Handle method.
 	Describe(event ResourceChange) string
+	// Kind of Resource
+	Kind() string
 }
 
 // The Watcher interface allows the EventProcessor to interact with
@@ -76,6 +78,7 @@ type EventProcessor struct {
 	dynamicClient   dynamic.Interface
 	discoveryClient discovery.DiscoveryInterface
 	skupperClient   skupperclient.Interface
+	metrics         *metricsQueue
 	queue           workqueue.RateLimitingInterface
 	resync          time.Duration
 	resyncShort     time.Duration
@@ -96,11 +99,25 @@ func NewEventProcessor(name string, clients internalclient.Clients, options ...E
 		queue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
 		resync:          time.Minute * 5,
 		resyncShort:     time.Second * 30,
+		metrics: &metricsQueue{
+			provider: noopMetricsProvider{},
+			metrics:  make(map[string]metricsSet),
+			pending:  make(map[ResourceChange]time.Time),
+		},
 	}
 	for _, opt := range options {
 		opt(e)
 	}
 	return e
+}
+
+func WithMetricsProvider(provider MetricsProvider) EventProcessorCustomizer {
+	return func(e *EventProcessor) {
+		if provider == nil {
+			return
+		}
+		e.metrics.provider = provider
+	}
 }
 
 func (c *EventProcessor) SetResync(resync time.Duration) {
@@ -185,19 +202,27 @@ func (c *EventProcessor) process() bool {
 		return false
 	}
 
-	retry := false
+	var (
+		hasError bool
+		isRetry  bool
+	)
 	defer c.queue.Done(obj)
 	if evt, ok := obj.(ResourceChange); ok {
+		resolve := c.metrics.get(evt)
+		defer func() {
+			resolve(evt, isRetry)
+		}()
 		err := evt.Handler.Handle(evt)
 		if err != nil {
-			retry = true
+			hasError = true
 			log.Printf("[%s] Error while handling %s: %s", c.errorKey, evt.Handler.Describe(evt), err)
 		}
 	} else {
 		log.Printf("Invalid object on event queue for %q: %#v", c.errorKey, obj)
 	}
 
-	if retry && c.queue.NumRequeues(obj) < 5 {
+	if hasError && c.queue.NumRequeues(obj) < 5 {
+		isRetry = true
 		c.queue.AddRateLimited(obj)
 		return true
 	}
@@ -225,6 +250,7 @@ func (c *EventProcessor) newEventHandler(handler ResourceChangeHandler) *cache.R
 				utilruntime.HandleError(err)
 			} else {
 				evt.Key = key
+				c.metrics.add(evt)
 				c.queue.Add(evt)
 			}
 		},
@@ -234,6 +260,7 @@ func (c *EventProcessor) newEventHandler(handler ResourceChangeHandler) *cache.R
 				utilruntime.HandleError(err)
 			} else {
 				evt.Key = key
+				c.metrics.add(evt)
 				c.queue.Add(evt)
 			}
 		},
@@ -243,6 +270,7 @@ func (c *EventProcessor) newEventHandler(handler ResourceChangeHandler) *cache.R
 				utilruntime.HandleError(err)
 			} else {
 				evt.Key = key
+				c.metrics.add(evt)
 				c.queue.Add(evt)
 			}
 		},

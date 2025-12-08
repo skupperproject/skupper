@@ -761,9 +761,11 @@ func TestUpdate(t *testing.T) {
 			},
 		},
 	}
-	defer func() {
-		eventProcessorCustomizers = nil
-	}()
+	eventProcessorResyncShort := []watchers.EventProcessorCustomizer{
+		func(e *watchers.EventProcessor) {
+			e.SetResyncShort(time.Second)
+		},
+	}
 	for _, tt := range testTable {
 		t.Run(tt.name, func(t *testing.T) {
 			flags := &flag.FlagSet{}
@@ -776,12 +778,7 @@ func TestUpdate(t *testing.T) {
 			clients, err := fakeclient.NewFakeClient(config.Namespace, tt.k8sObjects, tt.skupperObjects, "")
 			assert.Assert(t, err)
 			enableSSA(clients.GetDynamicClient())
-			eventProcessorCustomizers = []watchers.EventProcessorCustomizer{
-				func(e *watchers.EventProcessor) {
-					e.SetResyncShort(time.Second)
-				},
-			}
-			controller, err := NewController(clients, config)
+			controller, err := NewController(clients, config, eventProcessorResyncShort...)
 			assert.Assert(t, err)
 			stopCh := make(chan struct{})
 			err = controller.init(stopCh)

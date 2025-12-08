@@ -149,3 +149,7 @@ func (w ResourceWatcher[T]) Sync(stopCh <-chan struct{}) bool {
 func (w ResourceWatcher[T]) IsStopped() bool {
 	return w.informer.IsStopped()
 }
+
+func (w ResourceWatcher[T]) Kind() string {
+	return w.gvk.GroupVersion().String() + " " + w.gvk.Kind
+}

@@ -12,6 +12,7 @@ import (
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/controller"
 	"github.com/skupperproject/skupper/internal/kube/metrics"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	"github.com/skupperproject/skupper/internal/version"
 )
 
@@ -70,18 +71,20 @@ func main() {
 	}
 	config.Namespace = cli.Namespace
 
-	controller, err := controller.NewController(cli, config)
-	if err != nil {
-		log.Fatal("Error getting new site controller ", err.Error())
-	}
-
+	var eventProcessorMetrics watchers.MetricsProvider
 	if !config.MetricsConfig.Disabled {
 		reg := prometheus.NewRegistry()
 		metrics.MustRegisterClientGoMetrics(reg)
+		eventProcessorMetrics = metrics.MustRegisterEventProcessorMetrics(reg)
 		srv := metrics.NewServer(config.MetricsConfig, reg)
 		if err := srv.Start(stopCh); err != nil {
 			log.Fatalf("Error starting metrics server: %s", err)
 		}
+	}
+
+	controller, err := controller.NewController(cli, config, watchers.WithMetricsProvider(eventProcessorMetrics))
+	if err != nil {
+		log.Fatal("Error getting new site controller ", err.Error())
 	}
 
 	if err = controller.Run(stopCh); err != nil {
