@@ -1,0 +1,990 @@
+{
+  "annotations": {
+	"list": [
+	  {
+		"builtIn": 1,
+		"datasource": {
+		  "type": "grafana",
+		  "uid": "-- Grafana --"
+		},
+		"enable": true,
+		"hide": true,
+		"iconColor": "rgba(0, 211, 255, 1)",
+		"name": "Annotations & Alerts",
+		"type": "dashboard"
+	  }
+	]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 1,
+  "links": [],
+  "panels": [
+	{
+	  "collapsed": false,
+	  "gridPos": {
+		"h": 1,
+		"w": 24,
+		"x": 0,
+		"y": 0
+	  },
+	  "id": 7,
+	  "panels": [],
+	  "repeat": "container",
+	  "title": "$container Kube API Utilization",
+	  "type": "row"
+	},
+	{
+	  "datasource": {
+		"type": "prometheus",
+		"uid": "prometheus"
+	  },
+	  "fieldConfig": {
+		"defaults": {
+		  "color": {
+			"mode": "thresholds"
+		  },
+		  "mappings": [],
+		  "thresholds": {
+			"mode": "absolute",
+			"steps": [
+			  {
+				"color": "green",
+				"value": null
+			  },
+			  {
+				"color": "red",
+				"value": 80
+			  }
+			]
+		  }
+		},
+		"overrides": []
+	  },
+	  "gridPos": {
+		"h": 9,
+		"w": 11,
+		"x": 0,
+		"y": 1
+	  },
+	  "id": 11,
+	  "options": {
+		"colorMode": "value",
+		"graphMode": "area",
+		"justifyMode": "auto",
+		"orientation": "auto",
+		"percentChangeColorMode": "standard",
+		"reduceOptions": {
+		  "calcs": [
+			"lastNotNull"
+		  ],
+		  "fields": "",
+		  "values": false
+		},
+		"showPercentChange": false,
+		"textMode": "auto",
+		"wideLayout": true
+	  },
+	  "pluginVersion": "11.5.2",
+	  "targets": [
+		{
+		  "disableTextWrap": false,
+		  "editorMode": "builder",
+		  "expr": "count(sum without(kind) (skupper_workqueue_depth{container=\"$container\"}))",
+		  "fullMetaSearch": false,
+		  "includeNullMetadata": true,
+		  "legendFormat": "__auto",
+		  "range": true,
+		  "refId": "A",
+		  "useBackend": false
+		}
+	  ],
+	  "title": "Container Count",
+	  "type": "stat"
+	},
+	{
+	  "datasource": {
+		"type": "prometheus",
+		"uid": "prometheus"
+	  },
+	  "description": "Rate (per second) of time spent performing client requests",
+	  "fieldConfig": {
+		"defaults": {
+		  "color": {
+			"mode": "thresholds"
+		  },
+		  "mappings": [],
+		  "thresholds": {
+			"mode": "absolute",
+			"steps": [
+			  {
+				"color": "green",
+				"value": null
+			  }
+			]
+		  },
+		  "unit": "s"
+		},
+		"overrides": []
+	  },
+	  "gridPos": {
+		"h": 9,
+		"w": 11,
+		"x": 11,
+		"y": 1
+	  },
+	  "id": 9,
+	  "options": {
+		"colorMode": "value",
+		"graphMode": "area",
+		"justifyMode": "auto",
+		"orientation": "auto",
+		"percentChangeColorMode": "standard",
+		"reduceOptions": {
+		  "calcs": [
+			"lastNotNull"
+		  ],
+		  "fields": "",
+		  "values": false
+		},
+		"showPercentChange": false,
+		"textMode": "auto",
+		"wideLayout": true
+	  },
+	  "pluginVersion": "11.5.2",
+	  "targets": [
+		{
+		  "disableTextWrap": false,
+		  "editorMode": "builder",
+		  "expr": "sum(rate(skupper_kubernetes_client_http_request_duration_seconds_sum{container=\"$container\"}[$__rate_interval]))",
+		  "fullMetaSearch": false,
+		  "includeNullMetadata": false,
+		  "legendFormat": "__auto",
+		  "range": true,
+		  "refId": "A",
+		  "useBackend": false
+		}
+	  ],
+	  "title": "Client Request Time",
+	  "type": "stat"
+	},
+	{
+	  "datasource": {
+		"type": "prometheus",
+		"uid": "prometheus"
+	  },
+	  "description": "Rate of non-2xx http responses from the kube api server",
+	  "fieldConfig": {
+		"defaults": {
+		  "color": {
+			"mode": "palette-classic"
+		  },
+		  "custom": {
+			"axisBorderShow": false,
+			"axisCenteredZero": false,
+			"axisColorMode": "text",
+			"axisLabel": "",
+			"axisPlacement": "auto",
+			"barAlignment": 0,
+			"barWidthFactor": 0.6,
+			"drawStyle": "line",
+			"fillOpacity": 0,
+			"gradientMode": "none",
+			"hideFrom": {
+			  "legend": false,
+			  "tooltip": false,
+			  "viz": false
+			},
+			"insertNulls": false,
+			"lineInterpolation": "linear",
+			"lineWidth": 1,
+			"pointSize": 5,
+			"scaleDistribution": {
+			  "type": "linear"
+			},
+			"showPoints": "auto",
+			"spanNulls": false,
+			"stacking": {
+			  "group": "A",
+			  "mode": "none"
+			},
+			"thresholdsStyle": {
+			  "mode": "off"
+			}
+		  },
+		  "mappings": [],
+		  "thresholds": {
+			"mode": "absolute",
+			"steps": [
+			  {
+				"color": "green",
+				"value": null
+			  },
+			  {
+				"color": "red",
+				"value": 80
+			  }
+			]
+		  },
+		  "unit": "reqps"
+		},
+		"overrides": []
+	  },
+	  "gridPos": {
+		"h": 9,
+		"w": 11,
+		"x": 0,
+		"y": 10
+	  },
+	  "id": 8,
+	  "options": {
+		"legend": {
+		  "calcs": [],
+		  "displayMode": "list",
+		  "placement": "bottom",
+		  "showLegend": true
+		},
+		"tooltip": {
+		  "hideZeros": false,
+		  "mode": "single",
+		  "sort": "none"
+		}
+	  },
+	  "pluginVersion": "11.5.2",
+	  "targets": [
+		{
+		  "disableTextWrap": false,
+		  "editorMode": "builder",
+		  "expr": "sum by(status_code) (rate(skupper_kubernetes_client_http_requests_total{container=\"$container\", status_code!~\"2[0-9]{2}\"}[$__rate_interval]))",
+		  "fullMetaSearch": false,
+		  "includeNullMetadata": false,
+		  "legendFormat": "__auto",
+		  "range": true,
+		  "refId": "A",
+		  "useBackend": false
+		}
+	  ],
+	  "title": "API Server HTTP Error Rate",
+	  "type": "timeseries"
+	},
+	{
+	  "datasource": {
+		"type": "prometheus",
+		"uid": "prometheus"
+	  },
+	  "description": "",
+	  "fieldConfig": {
+		"defaults": {
+		  "color": {
+			"mode": "palette-classic"
+		  },
+		  "custom": {
+			"axisBorderShow": false,
+			"axisCenteredZero": false,
+			"axisColorMode": "text",
+			"axisLabel": "",
+			"axisPlacement": "auto",
+			"barAlignment": 0,
+			"barWidthFactor": 0.6,
+			"drawStyle": "line",
+			"fillOpacity": 0,
+			"gradientMode": "none",
+			"hideFrom": {
+			  "legend": false,
+			  "tooltip": false,
+			  "viz": false
+			},
+			"insertNulls": false,
+			"lineInterpolation": "linear",
+			"lineWidth": 1,
+			"pointSize": 5,
+			"scaleDistribution": {
+			  "type": "linear"
+			},
+			"showPoints": "auto",
+			"spanNulls": false,
+			"stacking": {
+			  "group": "A",
+			  "mode": "none"
+			},
+			"thresholdsStyle": {
+			  "mode": "off"
+			}
+		  },
+		  "mappings": [],
+		  "thresholds": {
+			"mode": "absolute",
+			"steps": [
+			  {
+				"color": "green",
+				"value": null
+			  },
+			  {
+				"color": "red",
+				"value": 80
+			  }
+			]
+		  },
+		  "unit": "reqps"
+		},
+		"overrides": []
+	  },
+	  "gridPos": {
+		"h": 9,
+		"w": 11,
+		"x": 11,
+		"y": 10
+	  },
+	  "id": 12,
+	  "options": {
+		"legend": {
+		  "calcs": [],
+		  "displayMode": "list",
+		  "placement": "bottom",
+		  "showLegend": true
+		},
+		"tooltip": {
+		  "hideZeros": false,
+		  "mode": "single",
+		  "sort": "none"
+		}
+	  },
+	  "pluginVersion": "11.5.2",
+	  "targets": [
+		{
+		  "disableTextWrap": false,
+		  "editorMode": "builder",
+		  "expr": "topk(5, sum by(exported_endpoint, method) (rate(skupper_kubernetes_client_http_request_duration_seconds_count{container=\"$container\"}[$__rate_interval])))",
+		  "fullMetaSearch": false,
+		  "includeNullMetadata": false,
+		  "legendFormat": "{{method}} {{exported_endpoint}}",
+		  "range": true,
+		  "refId": "A",
+		  "useBackend": false
+		}
+	  ],
+	  "title": "High Frequency HTTP Requests by Endpoint and Method",
+	  "type": "timeseries"
+	},
+	{
+	  "datasource": {
+		"type": "prometheus",
+		"uid": "prometheus"
+	  },
+	  "description": "Client side rate limiting duration",
+	  "fieldConfig": {
+		"defaults": {
+		  "color": {
+			"mode": "palette-classic"
+		  },
+		  "custom": {
+			"axisBorderShow": false,
+			"axisCenteredZero": false,
+			"axisColorMode": "text",
+			"axisLabel": "",
+			"axisPlacement": "auto",
+			"barAlignment": 0,
+			"barWidthFactor": 0.6,
+			"drawStyle": "line",
+			"fillOpacity": 0,
+			"gradientMode": "none",
+			"hideFrom": {
+			  "legend": false,
+			  "tooltip": false,
+			  "viz": false
+			},
+			"insertNulls": false,
+			"lineInterpolation": "linear",
+			"lineWidth": 1,
+			"pointSize": 5,
+			"scaleDistribution": {
+			  "type": "linear"
+			},
+			"showPoints": "auto",
+			"spanNulls": false,
+			"stacking": {
+			  "group": "A",
+			  "mode": "none"
+			},
+			"thresholdsStyle": {
+			  "mode": "off"
+			}
+		  },
+		  "mappings": [],
+		  "thresholds": {
+			"mode": "absolute",
+			"steps": [
+			  {
+				"color": "green",
+				"value": null
+			  },
+			  {
+				"color": "red",
+				"value": 80
+			  }
+			]
+		  },
+		  "unit": "s"
+		},
+		"overrides": []
+	  },
+	  "gridPos": {
+		"h": 8,
+		"w": 22,
+		"x": 0,
+		"y": 19
+	  },
+	  "id": 10,
+	  "options": {
+		"legend": {
+		  "calcs": [],
+		  "displayMode": "list",
+		  "placement": "bottom",
+		  "showLegend": true
+		},
+		"tooltip": {
+		  "hideZeros": false,
+		  "mode": "single",
+		  "sort": "none"
+		}
+	  },
+	  "pluginVersion": "11.5.2",
+	  "targets": [
+		{
+		  "disableTextWrap": false,
+		  "editorMode": "builder",
+		  "expr": "histogram_quantile(0.95, sum by(le) (rate(skupper_kubernetes_client_rate_limiter_duration_seconds_bucket{container=\"$container\"}[$__rate_interval])))",
+		  "fullMetaSearch": false,
+		  "includeNullMetadata": false,
+		  "legendFormat": "__auto",
+		  "range": true,
+		  "refId": "A",
+		  "useBackend": false
+		}
+	  ],
+	  "title": "Client Rate Limiting: P95 Duration",
+	  "type": "timeseries"
+	},
+	{
+	  "collapsed": true,
+	  "gridPos": {
+		"h": 1,
+		"w": 24,
+		"x": 0,
+		"y": 27
+	  },
+	  "id": 6,
+	  "panels": [
+		{
+		  "datasource": {
+			"type": "prometheus",
+			"uid": "prometheus"
+		  },
+		  "description": "Estimated responsiveness: time from resource change to processing time",
+		  "fieldConfig": {
+			"defaults": {
+			  "color": {
+				"mode": "palette-classic"
+			  },
+			  "custom": {
+				"axisBorderShow": false,
+				"axisCenteredZero": false,
+				"axisColorMode": "text",
+				"axisLabel": "",
+				"axisPlacement": "auto",
+				"barAlignment": 0,
+				"barWidthFactor": 0.6,
+				"drawStyle": "line",
+				"fillOpacity": 0,
+				"gradientMode": "none",
+				"hideFrom": {
+				  "legend": false,
+				  "tooltip": false,
+				  "viz": false
+				},
+				"insertNulls": false,
+				"lineInterpolation": "linear",
+				"lineWidth": 1,
+				"pointSize": 5,
+				"scaleDistribution": {
+				  "type": "linear"
+				},
+				"showPoints": "auto",
+				"spanNulls": false,
+				"stacking": {
+				  "group": "A",
+				  "mode": "none"
+				},
+				"thresholdsStyle": {
+				  "mode": "off"
+				}
+			  },
+			  "mappings": [],
+			  "thresholds": {
+				"mode": "absolute",
+				"steps": [
+				  {
+					"color": "green",
+					"value": null
+				  },
+				  {
+					"color": "red",
+					"value": 80
+				  }
+				]
+			  },
+			  "unit": "s"
+			},
+			"overrides": []
+		  },
+		  "gridPos": {
+			"h": 8,
+			"w": 22,
+			"x": 0,
+			"y": 28
+		  },
+		  "id": 1,
+		  "options": {
+			"legend": {
+			  "calcs": [],
+			  "displayMode": "list",
+			  "placement": "bottom",
+			  "showLegend": true
+			},
+			"tooltip": {
+			  "hideZeros": false,
+			  "mode": "single",
+			  "sort": "none"
+			}
+		  },
+		  "pluginVersion": "11.5.2",
+		  "targets": [
+			{
+			  "datasource": {
+				"type": "prometheus",
+				"uid": "prometheus"
+			  },
+			  "disableTextWrap": false,
+			  "editorMode": "builder",
+			  "expr": "histogram_quantile(0.95, sum by(le) (rate(skupper_workqueue_delay_seconds_bucket{container=\"$container\"}[$__rate_interval])))",
+			  "fullMetaSearch": false,
+			  "includeNullMetadata": false,
+			  "legendFormat": "__auto",
+			  "range": true,
+			  "refId": "A",
+			  "useBackend": false
+			}
+		  ],
+		  "title": "Responsiveness: P95 Work Queue Delay",
+		  "type": "timeseries"
+		},
+		{
+		  "datasource": {
+			"type": "prometheus",
+			"uid": "prometheus"
+		  },
+		  "fieldConfig": {
+			"defaults": {
+			  "color": {
+				"mode": "palette-classic"
+			  },
+			  "custom": {
+				"axisBorderShow": false,
+				"axisCenteredZero": false,
+				"axisColorMode": "text",
+				"axisLabel": "",
+				"axisPlacement": "auto",
+				"barAlignment": 0,
+				"barWidthFactor": 0.6,
+				"drawStyle": "line",
+				"fillOpacity": 0,
+				"gradientMode": "none",
+				"hideFrom": {
+				  "legend": false,
+				  "tooltip": false,
+				  "viz": false
+				},
+				"insertNulls": false,
+				"lineInterpolation": "linear",
+				"lineWidth": 1,
+				"pointSize": 5,
+				"scaleDistribution": {
+				  "type": "linear"
+				},
+				"showPoints": "auto",
+				"spanNulls": false,
+				"stacking": {
+				  "group": "A",
+				  "mode": "none"
+				},
+				"thresholdsStyle": {
+				  "mode": "off"
+				}
+			  },
+			  "mappings": [],
+			  "thresholds": {
+				"mode": "absolute",
+				"steps": [
+				  {
+					"color": "green",
+					"value": null
+				  },
+				  {
+					"color": "red",
+					"value": 80
+				  }
+				]
+			  },
+			  "unit": "s"
+			},
+			"overrides": []
+		  },
+		  "gridPos": {
+			"h": 8,
+			"w": 11,
+			"x": 0,
+			"y": 36
+		  },
+		  "id": 3,
+		  "options": {
+			"legend": {
+			  "calcs": [],
+			  "displayMode": "list",
+			  "placement": "bottom",
+			  "showLegend": true
+			},
+			"tooltip": {
+			  "hideZeros": false,
+			  "mode": "single",
+			  "sort": "none"
+			}
+		  },
+		  "pluginVersion": "11.5.2",
+		  "targets": [
+			{
+			  "disableTextWrap": false,
+			  "editorMode": "builder",
+			  "expr": "sum by(kind) (rate(skupper_workqueue_duration_seconds_sum{container=\"$container\"}[$__rate_interval])) / sum by(kind) (rate(skupper_workqueue_duration_seconds_count{container=\"controller\"}[$__rate_interval]))",
+			  "fullMetaSearch": false,
+			  "includeNullMetadata": false,
+			  "legendFormat": "__auto",
+			  "range": true,
+			  "refId": "A",
+			  "useBackend": false
+			}
+		  ],
+		  "title": "Average Work Duration by Kind",
+		  "type": "timeseries"
+		},
+		{
+		  "datasource": {
+			"type": "prometheus",
+			"uid": "prometheus"
+		  },
+		  "fieldConfig": {
+			"defaults": {
+			  "color": {
+				"mode": "palette-classic"
+			  },
+			  "custom": {
+				"axisBorderShow": false,
+				"axisCenteredZero": false,
+				"axisColorMode": "text",
+				"axisLabel": "",
+				"axisPlacement": "auto",
+				"barAlignment": 0,
+				"barWidthFactor": 0.6,
+				"drawStyle": "line",
+				"fillOpacity": 0,
+				"gradientMode": "none",
+				"hideFrom": {
+				  "legend": false,
+				  "tooltip": false,
+				  "viz": false
+				},
+				"insertNulls": false,
+				"lineInterpolation": "linear",
+				"lineWidth": 1,
+				"pointSize": 5,
+				"scaleDistribution": {
+				  "type": "linear"
+				},
+				"showPoints": "auto",
+				"spanNulls": false,
+				"stacking": {
+				  "group": "A",
+				  "mode": "none"
+				},
+				"thresholdsStyle": {
+				  "mode": "off"
+				}
+			  },
+			  "mappings": [],
+			  "thresholds": {
+				"mode": "absolute",
+				"steps": [
+				  {
+					"color": "green",
+					"value": null
+				  },
+				  {
+					"color": "red",
+					"value": 80
+				  }
+				]
+			  },
+			  "unit": "eps"
+			},
+			"overrides": []
+		  },
+		  "gridPos": {
+			"h": 8,
+			"w": 11,
+			"x": 11,
+			"y": 36
+		  },
+		  "id": 4,
+		  "options": {
+			"legend": {
+			  "calcs": [],
+			  "displayMode": "list",
+			  "placement": "bottom",
+			  "showLegend": true
+			},
+			"tooltip": {
+			  "hideZeros": false,
+			  "mode": "single",
+			  "sort": "none"
+			}
+		  },
+		  "pluginVersion": "11.5.2",
+		  "targets": [
+			{
+			  "disableTextWrap": false,
+			  "editorMode": "builder",
+			  "expr": "sum by(kind) (rate(skupper_workqueue_adds_total{container=\"$container\"}[$__rate_interval]))",
+			  "fullMetaSearch": false,
+			  "includeNullMetadata": false,
+			  "legendFormat": "__auto",
+			  "range": true,
+			  "refId": "A",
+			  "useBackend": false
+			}
+		  ],
+		  "title": "Queue Add Rate by Kind",
+		  "type": "timeseries"
+		},
+		{
+		  "datasource": {
+			"type": "prometheus",
+			"uid": "prometheus"
+		  },
+		  "description": "Theoretical worker load as a percentage. Queue add rate * Work Item Duration.",
+		  "fieldConfig": {
+			"defaults": {
+			  "color": {
+				"mode": "palette-classic"
+			  },
+			  "custom": {
+				"axisBorderShow": false,
+				"axisCenteredZero": false,
+				"axisColorMode": "text",
+				"axisLabel": "",
+				"axisPlacement": "auto",
+				"barAlignment": 0,
+				"barWidthFactor": 0.7,
+				"drawStyle": "bars",
+				"fillOpacity": 16,
+				"gradientMode": "none",
+				"hideFrom": {
+				  "legend": false,
+				  "tooltip": false,
+				  "viz": false
+				},
+				"insertNulls": false,
+				"lineInterpolation": "linear",
+				"lineWidth": 1,
+				"pointSize": 5,
+				"scaleDistribution": {
+				  "type": "linear"
+				},
+				"showPoints": "auto",
+				"spanNulls": false,
+				"stacking": {
+				  "group": "A",
+				  "mode": "none"
+				},
+				"thresholdsStyle": {
+				  "mode": "line+area"
+				}
+			  },
+			  "mappings": [],
+			  "thresholds": {
+				"mode": "absolute",
+				"steps": [
+				  {
+					"color": "green",
+					"value": null
+				  },
+				  {
+					"color": "red",
+					"value": 0.8
+				  }
+				]
+			  },
+			  "unit": "percentunit"
+			},
+			"overrides": []
+		  },
+		  "gridPos": {
+			"h": 8,
+			"w": 22,
+			"x": 0,
+			"y": 44
+		  },
+		  "id": 5,
+		  "options": {
+			"legend": {
+			  "calcs": [],
+			  "displayMode": "list",
+			  "placement": "bottom",
+			  "showLegend": true
+			},
+			"tooltip": {
+			  "hideZeros": false,
+			  "mode": "single",
+			  "sort": "none"
+			}
+		  },
+		  "pluginVersion": "11.5.2",
+		  "targets": [
+			{
+			  "disableTextWrap": false,
+			  "editorMode": "builder",
+			  "expr": "sum(rate(skupper_workqueue_duration_seconds_sum{container=\"$container\"}[$__rate_interval])) / sum(rate(skupper_workqueue_duration_seconds_count{container=\"$container\"}[$__rate_interval])) * sum(rate(skupper_workqueue_adds_total{container=\"$container\"}[$__rate_interval]))",
+			  "fullMetaSearch": false,
+			  "includeNullMetadata": false,
+			  "legendFormat": "__auto",
+			  "range": true,
+			  "refId": "Worker Load Factor",
+			  "useBackend": false
+			}
+		  ],
+		  "title": "Worker Load Factor",
+		  "type": "timeseries"
+		},
+		{
+		  "datasource": {
+			"type": "prometheus",
+			"uid": "prometheus"
+		  },
+		  "fieldConfig": {
+			"defaults": {
+			  "color": {
+				"mode": "thresholds"
+			  },
+			  "mappings": [],
+			  "thresholds": {
+				"mode": "absolute",
+				"steps": [
+				  {
+					"color": "green",
+					"value": null
+				  },
+				  {
+					"color": "red",
+					"value": 80
+				  }
+				]
+			  }
+			},
+			"overrides": []
+		  },
+		  "gridPos": {
+			"h": 8,
+			"w": 8,
+			"x": 0,
+			"y": 52
+		  },
+		  "id": 13,
+		  "options": {
+			"minVizHeight": 75,
+			"minVizWidth": 75,
+			"orientation": "auto",
+			"reduceOptions": {
+			  "calcs": [
+				"lastNotNull"
+			  ],
+			  "fields": "",
+			  "values": false
+			},
+			"showThresholdLabels": false,
+			"showThresholdMarkers": true,
+			"sizing": "auto"
+		  },
+		  "pluginVersion": "11.5.2",
+		  "targets": [
+			{
+			  "disableTextWrap": false,
+			  "editorMode": "builder",
+			  "expr": "sum(skupper_workqueue_depth{container=\"$container\"})",
+			  "fullMetaSearch": false,
+			  "includeNullMetadata": true,
+			  "legendFormat": "__auto",
+			  "range": true,
+			  "refId": "A",
+			  "useBackend": false
+			}
+		  ],
+		  "title": "Work Queue Depth",
+		  "type": "gauge"
+		}
+	  ],
+	  "repeat": "container",
+	  "title": "$container Responsiveness",
+	  "type": "row"
+	}
+  ],
+  "preload": false,
+  "refresh": "",
+  "schemaVersion": 40,
+  "tags": [],
+  "templating": {
+	"list": [
+	  {
+		"current": {
+		  "text": "All",
+		  "value": [
+			"$__all"
+		  ]
+		},
+		"definition": "label_values(skupper_kubernetes_client_http_requests_total,container)",
+		"includeAll": true,
+		"label": "container",
+		"multi": true,
+		"name": "container",
+		"options": [],
+		"query": {
+		  "qryType": 1,
+		  "query": "label_values(skupper_kubernetes_client_http_requests_total,container)",
+		  "refId": "PrometheusVariableQueryEditor-VariableQuery"
+		},
+		"refresh": 1,
+		"regex": "",
+		"type": "query"
+	  }
+	]
+  },
+  "time": {
+	"from": "now-1h",
+	"to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Skupper Control Plane",
+  "uid": "cez39p3hmn4e8b",
+  "version": 1,
+  "weekStart": ""
+}
+
