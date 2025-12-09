@@ -83,6 +83,10 @@ func (c *ConfigSync) Stop() {
 	c.controller.Stop()
 }
 
+func (c *ConfigSync) SetEventProcessorMetrics(provider watchers.MetricsProvider) {
+	c.controller.SetMetricsProvider(provider)
+}
+
 func (c *ConfigSync) key(name string) string {
 	return fmt.Sprintf("%s/%s", c.namespace, name)
 }
