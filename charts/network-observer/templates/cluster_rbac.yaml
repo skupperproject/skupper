@@ -1,0 +1,40 @@
+{{- if and (eq .Values.auth.strategy "openshift") .Values.auth.openshift.bearerTokenAuth.enabled -}}
+{{- if .Values.auth.openshift.bearerTokenAuth.createClusterRole }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ (include "network-observer.clusterRoleName" .) }}
+  labels:
+    {{- include "network-observer.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - "authentication.k8s.io"
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - "authorization.k8s.io"
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+{{- end }}
+{{- if .Values.auth.openshift.bearerTokenAuth.createClusterRoleBinding }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ (include "network-observer.serviceAccountName" .) }}
+  labels:
+    {{- include "network-observer.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ (include "network-observer.clusterRoleName" .) }}
+subjects:
+- kind: ServiceAccount
+  name: {{ (include "network-observer.serviceAccountName" .) }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}
