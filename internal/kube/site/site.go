@@ -1342,8 +1342,12 @@ func (s *Site) AttachedConnectorUpdated(connector *skupperv2alpha1.AttachedConne
 	return s.bindings.attachedConnectorUpdated(connector.Name, connector)
 }
 
+func (s *Site) AttachedConnectorUnreferenced(connector *skupperv2alpha1.AttachedConnector) error {
+	return s.bindings.attachedConnectorUnreferenced(connector.Namespace, connector.Name)
+}
+
 func (s *Site) AttachedConnectorDeleted(namespace string, name string) error {
-	return s.bindings.attachedConnectorDeleted(name, namespace)
+	return s.bindings.attachedConnectorDeleted(namespace, name)
 }
 
 func (s *Site) GetSite() *skupperv2alpha1.Site {

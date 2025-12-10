@@ -13,16 +13,22 @@ func UpdateBridgeConfigForConnector(siteId string, connector *skupperv2alpha1.Co
 	}
 }
 
-func UpdateBridgeConfigForConnectorToPod(siteId string, connector *skupperv2alpha1.Connector, pod skupperv2alpha1.PodDetails, addQualifiedAddress bool, config *qdr.BridgeConfig) {
-	updateBridgeConfigForConnector(connector.Name+"@"+pod.IP, siteId, connector, pod.IP, pod.UID, connector.Spec.RoutingKey, config)
-	if addQualifiedAddress {
-		updateBridgeConfigForConnector(connector.Name+"@"+pod.Name, siteId, connector, pod.IP, pod.UID, connector.Spec.RoutingKey+"."+pod.Name, config)
+func UpdateBridgeConfigForConnectorToPod(siteId string, connector *skupperv2alpha1.Connector, pod skupperv2alpha1.PodDetails, addQualifiedAddress bool, config *qdr.BridgeConfig) bool {
+	updated := false
+	if updateBridgeConfigForConnector(connector.Name+"@"+pod.IP, siteId, connector, pod.IP, pod.UID, connector.Spec.RoutingKey, config) {
+		updated = true
 	}
+	if addQualifiedAddress {
+		if updateBridgeConfigForConnector(connector.Name+"@"+pod.Name, siteId, connector, pod.IP, pod.UID, connector.Spec.RoutingKey+"."+pod.Name, config) {
+			updated = true
+		}
+	}
+	return updated
 }
 
-func updateBridgeConfigForConnector(name string, siteId string, connector *skupperv2alpha1.Connector, host string, processID string, address string, config *qdr.BridgeConfig) {
+func updateBridgeConfigForConnector(name string, siteId string, connector *skupperv2alpha1.Connector, host string, processID string, address string, config *qdr.BridgeConfig) bool {
 	if connector.Spec.Type == "tcp" || connector.Spec.Type == "" {
-		config.AddTcpConnector(qdr.TcpEndpoint{
+		return config.AddTcpConnector(qdr.TcpEndpoint{
 			Name:           name,
 			SiteId:         siteId,
 			Host:           host,
@@ -33,6 +39,7 @@ func updateBridgeConfigForConnector(name string, siteId string, connector *skupp
 			VerifyHostname: getVerifyHostname(connector),
 		})
 	}
+	return false
 }
 
 func GetSslProfileName(tlsCredentials string, useClientCert bool) string {
