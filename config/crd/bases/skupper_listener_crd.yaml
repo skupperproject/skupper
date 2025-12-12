@@ -51,6 +51,8 @@ spec:
                     input/certs/ in the current namespace.
                   type: string
                 type:
+                  description: |-
+                    Currently only supports tcp.
                   type: string
                 exposePodsByName:
                   description: |-

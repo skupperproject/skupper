@@ -71,6 +71,8 @@ spec:
                     hostname in the server's certificate.
                   type: boolean
                 type:
+                  description: |-
+                    Currently only supports tcp.
                   type: string
                 includeNotReadyPods:
                   description: |-
