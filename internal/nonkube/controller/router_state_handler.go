@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/interconnectedcloud/go-amqp"
 	"github.com/skupperproject/skupper/internal/messaging"
 	"github.com/skupperproject/skupper/internal/nonkube/client/runtime"
 	"github.com/skupperproject/skupper/internal/qdr"
@@ -149,6 +150,7 @@ func (h *heartBeatsClient) routerUp(stopCh <-chan struct{}) {
 }
 
 func (h *heartBeatsClient) run(stopCh <-chan struct{}) {
+	var msg *amqp.Message
 	const address = "mc/sfe.all"
 
 	h.logger.Debug("Watching for router availability")
@@ -202,8 +204,12 @@ func (h *heartBeatsClient) run(stopCh <-chan struct{}) {
 				break
 			}
 			h.mutex.Unlock()
-			_, err = receiver.Receive()
+			msg, err = receiver.Receive()
 			if err == nil {
+				if accErr := msg.Accept(); accErr != nil {
+					h.logger.Error("unable to accept message",
+						slog.String("error", accErr.Error()))
+				}
 				h.routerUp(stopCh)
 				continue
 			}

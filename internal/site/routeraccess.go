@@ -42,6 +42,7 @@ func (m RouterAccessMap) desiredConnectors(targetGroups []string) []qdr.Connecto
 				Role:       qdr.RoleInterRouter,
 				Port:       strconv.Itoa(role.Port),
 				SslProfile: ra.Spec.TlsCredentials,
+				Cost:       1,
 			}
 			connectors = append(connectors, connector)
 		}

@@ -10,8 +10,8 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
-readonly SKUPPER_IMAGE_TAG=${1:-2.1.2}
-readonly SKUPPER_ROUTER_IMAGE_TAG=${2:-3.4.1}
+readonly SKUPPER_IMAGE_TAG=${1:-2.1.3}
+readonly SKUPPER_ROUTER_IMAGE_TAG=${2:-3.4.2}
 
 
 readonly OPERATOR_SDK=${OPERATOR_SDK:-operator-sdk}
@@ -22,7 +22,7 @@ readonly SKUPPER_IMAGE_REGISTRY=${SKUPPER_IMAGE_REGISTRY:-quay.io/skupper}
 readonly PROMETHEUS_IMAGE_TAG=${PROMETHEUS_IMAGE_TAG:-v2.55.1}
 readonly OAUTH_PROXY_IMAGE_TAG=${OAUTH_PROXY_IMAGE_TAG:-4.18.0}
 
-readonly BUNDLE_VERSION=${BUNDLE_VERSION:-2.1.2}
+readonly BUNDLE_VERSION=${BUNDLE_VERSION:-2.1.3}
 readonly BUNDLE_CHANNELS=${BUNDLE_CHANNELS:-"stable-2,stable-2.1"}
 readonly BUNDLE_DEFAULT_CHANNEL=${BUNDLE_DEFAULT_CHANNEL:-stable-2}
 

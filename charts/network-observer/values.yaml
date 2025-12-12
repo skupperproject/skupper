@@ -27,6 +27,11 @@ prometheus:
 
 # nginx configuration for reverse proxy (excluding openshift auth)
 nginx:
+  # nginx container command
+  command:
+  #   - nginx
+  #   - "-g"
+  #   - "daemon off;"
   repository: "mirror.gcr.io/nginxinc/nginx-unprivileged"
   tag: "1.27.3-alpine"
   pullPolicy: IfNotPresent

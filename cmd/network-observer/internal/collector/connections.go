@@ -122,11 +122,13 @@ func (c *connectionManager) handleTransportFlow(record vanflow.TransportBiflowRe
 	bs, br := dref(record.Octets), dref(record.OctetsReverse)
 	sentInc := float64(bs - state.BytesSent)
 	receivedInc := float64(br - state.BytesReceived)
-	if receivedInc != 0 {
-		metrics.sent.Add(sentInc)
+	if receivedInc > 0 {
 		metrics.received.Add(receivedInc)
-		state.BytesSent = bs
 		state.BytesReceived = br
+	}
+	if sentInc > 0 {
+		metrics.sent.Add(sentInc)
+		state.BytesSent = bs
 	}
 	c.transportFlows.Push(record.ID, state)
 }

@@ -75,7 +75,6 @@ func (o *RouteAccessType) ensureRoute(namespace string, route *routev1.Route) (e
 			log.Printf("Error on update for route %s/%s: %s", namespace, route.Name, err)
 			return err, nil
 		}
-		log.Printf("Route %s/%s updated successfully", namespace, route.Name)
 		o.manager.routes[key] = updated
 		return nil, updated
 	}

@@ -83,9 +83,11 @@ func labelling() internalinterfaces.TweakListOptionsFunc {
 	}
 }
 
+var eventProcessorCustomizers []watchers.EventProcessorCustomizer
+
 func NewController(cli internalclient.Clients, config *Config) (*Controller, error) {
 	controller := &Controller{
-		eventProcessor:       watchers.NewEventProcessor("Controller", cli),
+		eventProcessor:       watchers.NewEventProcessor("Controller", cli, eventProcessorCustomizers...),
 		sites:                map[string]*site.Site{},
 		siteSizing:           sizing.NewRegistry(),
 		labelling:            labels.NewLabelsAndAnnotations(config.Namespace),
@@ -445,12 +447,29 @@ func (c *Controller) checkAttachedConnectorBinding(key string, binding *skupperv
 func (c *Controller) checkAttachedConnector(key string, connector *skupperv2alpha1.AttachedConnector) error {
 	if connector == nil {
 		if previous, ok := c.attachableConnectors[key]; ok {
+			c.log.Info("AttachedConnector deleted", slog.String("key", key))
 			delete(c.attachableConnectors, key)
 			return c.getSite(previous.Spec.SiteNamespace).AttachedConnectorDeleted(previous.Namespace, previous.Name)
 		} else {
 			return nil
 		}
 	} else {
+		if previous, ok := c.attachableConnectors[key]; ok {
+			if previous.Spec.SiteNamespace != connector.Spec.SiteNamespace {
+				c.log.Info("AttachedConnector site namespace has changed",
+					slog.String("key", key),
+					slog.String("from", previous.Spec.SiteNamespace),
+					slog.String("to", connector.Spec.SiteNamespace),
+				)
+				err := c.getSite(previous.Spec.SiteNamespace).AttachedConnectorUnreferenced(previous)
+				if err != nil {
+					c.log.Error("Error removing AttachedConnector reference from previous namespace",
+						slog.String("key", key),
+						slog.String("previous", previous.Spec.SiteNamespace))
+				}
+			}
+		}
+		c.attachableConnectors[key] = connector
 		return c.getSite(connector.Spec.SiteNamespace).AttachedConnectorUpdated(connector)
 	}
 }

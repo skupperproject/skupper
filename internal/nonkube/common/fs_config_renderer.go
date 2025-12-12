@@ -139,14 +139,23 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *api.SiteState) error
 					slog.Int("port", role.Port),
 				)
 				endpoints = append(endpoints, v2alpha1.Endpoint{
-					Name: fmt.Sprintf("%s-%s", raName, role.Name),
-					Host: ra.Spec.BindHost,
-					Port: strconv.Itoa(role.Port),
+					Name:  fmt.Sprintf("%s-%s", raName, role.Name),
+					Host:  ra.Spec.BindHost,
+					Port:  strconv.Itoa(role.Port),
+					Group: "skupper-router",
 				})
 			}
 		}
 	}
 	siteState.Site.Status.Endpoints = endpoints
+	if len(endpoints) > 0 {
+		for _, ra := range siteState.RouterAccesses {
+			if ra.FindRole("inter-router") != nil || ra.FindRole("edge") != nil {
+				ra.Resolve(endpoints, "skupper-router")
+			}
+		}
+		siteState.Site.SetEndpoints(endpoints)
+	}
 	return nil
 }
 
