@@ -18,7 +18,11 @@ import (
 )
 
 const (
-	ENV_PLATFORM = "SKUPPER_PLATFORM"
+	ENV_PLATFORM           = "SKUPPER_PLATFORM"
+	ENV_SYSTEM_AUTO_RELOAD = "SKUPPER_SYSTEM_RELOAD_TYPE"
+
+	SystemReloadTypeAuto   string = "auto"
+	SystemReloadTypeManual string = "manual"
 )
 
 type ConnectorCreateOptions struct {
