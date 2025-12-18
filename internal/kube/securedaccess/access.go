@@ -9,6 +9,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -150,6 +151,7 @@ func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skuppe
 			},
 			Spec: spec,
 		}
+		sa.Spec.SetCertificateController(spec.GetCertificateController())
 		if m.context != nil {
 			if sa.ObjectMeta.Annotations == nil {
 				sa.ObjectMeta.Annotations = map[string]string{}
@@ -159,7 +161,17 @@ func (m *SecuredAccessManager) Ensure(namespace string, name string, spec skuppe
 		}
 		created, err := m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Create(context.Background(), sa, metav1.CreateOptions{})
 		if err != nil {
-			return err
+			// needed on controller restart to prevent invalid errors from being logged
+			if apierrors.IsAlreadyExists(err) {
+				log.Printf("SecuredAccess already exists %s - loading latest", key)
+				created, err = m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Get(context.Background(), sa.Name, metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
+			} else {
+				log.Printf("Error creating SecuredAccess %s: %v", key, err)
+				return err
+			}
 		}
 		m.definitions[key] = created
 		return nil
@@ -275,7 +287,7 @@ func (m *SecuredAccessManager) checkCertificate(sa *skupperv2alpha1.SecuredAcces
 	if name == "" {
 		name = sa.Name
 	}
-	return m.certMgr.Ensure(sa.Namespace, name, sa.Spec.Issuer, sa.Name, getHosts(sa), false, true, ownerReferences(sa))
+	return m.certMgr.Ensure(sa.Namespace, name, sa.Spec.Issuer, sa.Name, getHosts(sa), false, true, sa.Spec.GetCertificateController(), ownerReferences(sa))
 }
 
 func (m *SecuredAccessManager) checkService(sa *skupperv2alpha1.SecuredAccess) (*corev1.Service, error) {

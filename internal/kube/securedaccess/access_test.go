@@ -152,6 +152,109 @@ func TestSecuredAccessGeneral(t *testing.T) {
 			},
 		},
 		{
+			name: "loadbalancer delegated",
+			config: Config{
+				EnabledAccessTypes: []string{
+					ACCESS_TYPE_LOADBALANCER,
+					ACCESS_TYPE_ROUTE,
+					ACCESS_TYPE_LOCAL,
+				},
+			},
+			labels: map[string]string{
+				"foo": "bar",
+			},
+			annotations: map[string]string{
+				"abc": "123",
+			},
+			definition: &skupperv2alpha1.SecuredAccess{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "skupper.io/v2alpha1",
+					Kind:       "SecuredAccess",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "mysvc",
+					Namespace: "test",
+				},
+				Spec: skupperv2alpha1.SecuredAccessSpec{
+					AccessType: ACCESS_TYPE_LOADBALANCER,
+					Selector: map[string]string{
+						"app": "foo",
+					},
+					Ports: []skupperv2alpha1.SecuredAccessPort{
+						{
+							Name:       "port1",
+							Port:       8080,
+							TargetPort: 8081,
+							Protocol:   "TCP",
+						},
+					},
+					Certificate: "my-cert",
+					Issuer:      "skupper-site-ca",
+					Settings: map[string]string{
+						"certificate-controller": "external",
+					},
+				},
+			},
+			expectedServices: []*corev1.Service{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "mysvc",
+						Namespace: "test",
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+						Annotations: map[string]string{
+							"abc": "123",
+						},
+					},
+					Spec: corev1.ServiceSpec{
+						Selector: map[string]string{
+							"app": "foo",
+						},
+						Type: corev1.ServiceTypeLoadBalancer,
+						Ports: []corev1.ServicePort{
+							{
+								Name:       "port1",
+								Port:       8080,
+								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
+								Protocol:   corev1.Protocol("TCP"),
+							},
+						},
+					},
+					Status: corev1.ServiceStatus{
+						LoadBalancer: corev1.LoadBalancerStatus{
+							Ingress: []corev1.LoadBalancerIngress{
+								{
+									Hostname: "my-ingress.my-cluster.org",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedCertificates: []MockCertificate{
+				{
+					namespace:  "test",
+					name:       "my-cert",
+					ca:         "skupper-site-ca",
+					subject:    "mysvc",
+					hosts:      []string{"mysvc", "mysvc.test", "my-ingress.my-cluster.org"},
+					client:     false,
+					server:     true,
+					controller: "external",
+					refs:       nil,
+				},
+			},
+			expectedStatus: "OK",
+			expectedEndpoints: []skupperv2alpha1.Endpoint{
+				{
+					Name: "port1",
+					Port: "8080",
+					Host: "my-ingress.my-cluster.org",
+				},
+			},
+		},
+		{
 			name: "loadbalancer with IP",
 			config: Config{
 				EnabledAccessTypes: []string{
@@ -3073,14 +3176,15 @@ func newSecureAccessManagerMocks(namespace string, k8sObjects []runtime.Object, 
 }
 
 type MockCertificate struct {
-	namespace string
-	name      string
-	ca        string
-	subject   string
-	hosts     []string
-	client    bool
-	server    bool
-	refs      []metav1.OwnerReference
+	namespace  string
+	name       string
+	ca         string
+	subject    string
+	hosts      []string
+	client     bool
+	server     bool
+	controller string
+	refs       []metav1.OwnerReference
 }
 
 type MockCA struct {
@@ -3110,6 +3214,7 @@ func (m *MockCertificateManager) checkCertificates(t *testing.T, expected []Mock
 		assert.Equal(t, desired.namespace, m.certs[key].namespace)
 		assert.Equal(t, desired.name, m.certs[key].name)
 		assert.Equal(t, desired.subject, m.certs[key].subject)
+		assert.Equal(t, desired.controller, m.certs[key].controller)
 		for _, host := range desired.hosts {
 			assert.Assert(t, cmp.Contains(m.certs[key].hosts, host))
 		}
@@ -3133,7 +3238,7 @@ func (m *MockCertificateManager) pushError(e string) {
 	m.errors = append(m.errors, e)
 }
 
-func (m *MockCertificateManager) EnsureCA(namespace string, name string, subject string, refs []metav1.OwnerReference) error {
+func (m *MockCertificateManager) EnsureCA(namespace string, name string, subject string, controller string, refs []metav1.OwnerReference) error {
 	m.cas[namespace+"/"+name] = MockCA{
 		namespace: namespace,
 		name:      name,
@@ -3143,16 +3248,17 @@ func (m *MockCertificateManager) EnsureCA(namespace string, name string, subject
 	return m.popError()
 }
 
-func (m *MockCertificateManager) Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error {
+func (m *MockCertificateManager) Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, controller string, refs []metav1.OwnerReference) error {
 	m.certs[namespace+"/"+name] = MockCertificate{
-		namespace: namespace,
-		name:      name,
-		ca:        ca,
-		subject:   subject,
-		hosts:     hosts,
-		client:    client,
-		server:    server,
-		refs:      refs,
+		namespace:  namespace,
+		name:       name,
+		ca:         ca,
+		subject:    subject,
+		hosts:      hosts,
+		client:     client,
+		server:     server,
+		controller: controller,
+		refs:       refs,
 	}
 	return m.popError()
 }
