@@ -181,12 +181,8 @@ spec:
       volumes:
       - emptyDir: {}
         name: skupper-router-certs
-{{- if .AddPodSecurity }}
       securityContext:
         runAsNonRoot: true
-        seccompProfile:
-          type: RuntimeDefault
-{{- end }}
 {{- if .EnableAntiAffinity}}
       affinity:
         podAntiAffinity:
