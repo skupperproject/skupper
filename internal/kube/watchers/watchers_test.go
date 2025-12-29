@@ -321,6 +321,9 @@ func (s *stubErrResourceChangeHandler) Handle(e ResourceChange) error {
 func (stubErrResourceChangeHandler) Describe(e ResourceChange) string {
 	return fmt.Sprintf("StubHandler:%s", e.Key)
 }
+func (stubErrResourceChangeHandler) Kind() string {
+	return "stub"
+}
 
 func TestProcessRequeueLimit(t *testing.T) {
 	client, _ := fakeclient.NewFakeClient("test", nil, nil, "")

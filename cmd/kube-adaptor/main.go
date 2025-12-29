@@ -16,6 +16,7 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/adaptor"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/metrics"
+	"github.com/skupperproject/skupper/internal/kube/watchers"
 	"github.com/skupperproject/skupper/internal/qdr"
 	"github.com/skupperproject/skupper/internal/version"
 )
@@ -84,9 +85,11 @@ func main() {
 		os.Exit(0)
 	}
 
+	var eventProcessorMetrics watchers.MetricsProvider
 	if !metricsConfig.Disabled {
 		reg := prometheus.NewRegistry()
 		metrics.MustRegisterClientGoMetrics(reg)
+		eventProcessorMetrics = metrics.MustRegisterEventProcessorMetrics(reg)
 		srv := metrics.NewServer(metricsConfig, reg)
 		if err := srv.Start(stopCh); err != nil {
 			log.Fatalf("Error starting metrics server: %s", err)
@@ -108,7 +111,7 @@ func main() {
 	})
 	go http.ListenAndServe(":9191", nil)
 
-	configSync := adaptor.NewConfigSync(cli, cli.GetNamespace(), configDir, configMapName)
+	configSync := adaptor.NewConfigSync(cli, cli.GetNamespace(), configDir, configMapName, eventProcessorMetrics)
 	log.Println("Starting controller loop...")
 	configSync.Start(stopCh)
 
