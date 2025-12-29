@@ -31,12 +31,12 @@ type Labelling interface {
 	SetObjectMetadata(namespace string, name string, kind string, meta *metav1.ObjectMeta) bool
 }
 
-func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Sizing, labelling Labelling) []resource.Template {
+func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Sizing, labelling Labelling, disableSecCtx bool) []resource.Template {
 	templates := []resource.Template{
 		{
 			Name:       "deployment",
 			Template:   routerDeploymentTemplate,
-			Parameters: getCoreParams(site, group, size).setLabelsAndAnnotations(labelling, site.Namespace, "skupper-router", "Deployment"),
+			Parameters: getCoreParams(site, group, size, disableSecCtx).setLabelsAndAnnotations(labelling, site.Namespace, "skupper-router", "Deployment"),
 			Resource: schema.GroupVersionResource{
 				Group:    "apps",
 				Version:  "v1",
@@ -46,7 +46,7 @@ func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Siz
 		{
 			Name:       "localService",
 			Template:   routerLocalServiceTemplate,
-			Parameters: getCoreParams(site, group, size).setLabelsAndAnnotations(labelling, site.Namespace, "skupper-router-local", "Service"),
+			Parameters: getCoreParams(site, group, size, disableSecCtx).setLabelsAndAnnotations(labelling, site.Namespace, "skupper-router-local", "Service"),
 			Resource: schema.GroupVersionResource{
 				Group:    "",
 				Version:  "v1",
@@ -70,6 +70,7 @@ type CoreParams struct {
 	Labels             map[string]string
 	Annotations        map[string]string
 	EnableAntiAffinity bool
+	DisableSecCtx      bool
 }
 
 func (p *CoreParams) setLabelsAndAnnotations(labelling Labelling, namespace string, name string, kind string) *CoreParams {
@@ -154,7 +155,7 @@ func configDigest(config *skupperv2alpha1.SiteSpec) string {
 	return ""
 }
 
-func getCoreParams(site *skupperv2alpha1.Site, group string, size sizing.Sizing) *CoreParams {
+func getCoreParams(site *skupperv2alpha1.Site, group string, size sizing.Sizing, disableSecCtx bool) *CoreParams {
 	return &CoreParams{
 		SiteId:             site.GetSiteId(),
 		SiteName:           site.Name,
@@ -167,11 +168,12 @@ func getCoreParams(site *skupperv2alpha1.Site, group string, size sizing.Sizing)
 		Sizing:             size,
 		Labels:             map[string]string{},
 		EnableAntiAffinity: enableAntiAffinity(site),
+		DisableSecCtx:      disableSecCtx,
 	}
 }
 
-func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv2alpha1.Site, group string, size sizing.Sizing, labelling Labelling) error {
-	for _, t := range resourceTemplates(site, group, size, labelling) {
+func Apply(clients internalclient.Clients, ctx context.Context, site *skupperv2alpha1.Site, group string, size sizing.Sizing, labelling Labelling, disableSecCtx bool) error {
+	for _, t := range resourceTemplates(site, group, size, labelling, disableSecCtx) {
 		_, err := t.Apply(clients.GetDynamicClient(), ctx, site.Namespace)
 		if err != nil {
 			return err

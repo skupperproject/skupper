@@ -51,6 +51,7 @@ type Controller struct {
 	labelling            *labels.LabelsAndAnnotations
 	labellingWatcher     *watchers.ConfigMapWatcher
 	attachableConnectors map[string]*skupperv2alpha1.AttachedConnector
+	disableSecContext    bool
 	log                  *slog.Logger
 	namespaces           *NamespaceConfig
 	observedServices     map[string]string
@@ -100,6 +101,7 @@ func NewController(cli internalclient.Clients, config *Config, options ...watche
 		attachableConnectors: map[string]*skupperv2alpha1.AttachedConnector{},
 		log:                  slog.New(slog.Default().Handler()).With(slog.String("component", "kube.controller")),
 		observedServices:     map[string]string{},
+		disableSecContext:    config.DisableSecurityContext,
 	}
 
 	hostname := os.Getenv("HOSTNAME")
@@ -337,7 +339,7 @@ func (c *Controller) getSite(namespace string) *site.Site {
 	if existing, ok := c.sites[namespace]; ok {
 		return existing
 	}
-	site := site.NewSite(namespace, c.eventProcessor, c.certMgr, c.accessMgr, c.siteSizing, c)
+	site := site.NewSite(namespace, c.eventProcessor, c.certMgr, c.accessMgr, c.siteSizing, c, c.disableSecContext)
 	c.sites[namespace] = site
 	return site
 }

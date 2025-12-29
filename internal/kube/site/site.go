@@ -61,9 +61,10 @@ type Site struct {
 	currentGroups []string
 	labelling     Labelling
 	profiles      *secrets.ProfilesWatcher
+	disableSecCtx bool
 }
 
-func NewSite(namespace string, eventProcessor *watchers.EventProcessor, certs certificates.CertificateManager, access SecuredAccessFactory, sizes *sizing.Registry, labelling Labelling) *Site {
+func NewSite(namespace string, eventProcessor *watchers.EventProcessor, certs certificates.CertificateManager, access SecuredAccessFactory, sizes *sizing.Registry, labelling Labelling, disableSecCtx bool) *Site {
 	logger := slog.New(slog.Default().Handler())
 	site := &Site{
 		bindings:      NewExtendedBindings(eventProcessor, SSL_PROFILE_PATH),
@@ -79,7 +80,8 @@ func NewSite(namespace string, eventProcessor *watchers.EventProcessor, certs ce
 		logger: logger.With(
 			slog.String("component", "kube.site.site"),
 		),
-		labelling: labelling,
+		labelling:     labelling,
+		disableSecCtx: disableSecCtx,
 	}
 	site.profiles = secrets.NewProfilesWatcher(
 		sslSecretsWatcher(namespace, eventProcessor),
@@ -233,7 +235,7 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 		)
 	}
 	for _, group := range s.groups() {
-		if err := resources.Apply(s.clients, ctxt, s.site, group, size, s.labelling); err != nil {
+		if err := resources.Apply(s.clients, ctxt, s.site, group, size, s.labelling, s.disableSecCtx); err != nil {
 			return err
 		}
 	}
