@@ -11,8 +11,8 @@
         labels:
           e2e.id: "{{ generate_namespaces_namespace_label }}"
     kubeconfig: "{{ kubeconfig }}"
-  register: namespace
+  register: namespace_result
 
 - name: Display namespace name
   ansible.builtin.debug:
-    msg: "Namespace Name: {{ namespace.result.metadata.labels['kubernetes.io/metadata.name'] }}"
+    msg: "Namespace Name: {{ namespace_result.result.metadata.labels['kubernetes.io/metadata.name'] }}"

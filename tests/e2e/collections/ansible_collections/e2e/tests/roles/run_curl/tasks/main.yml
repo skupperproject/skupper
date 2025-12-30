@@ -1,14 +1,14 @@
 ---
 - name: Setting namespace name with prefix
   ansible.builtin.set_fact:
-    namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+    curl_namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
 
 - name: Deploy curl pod
   kubernetes.core.k8s:
     api_version: v1
     kind: Pod
     name: curl
-    namespace: "{{ namespace }}"
+    namespace: "{{ curl_namespace }}"
     kubeconfig: "{{ kubeconfig }}"
     state: present
     definition:
@@ -29,7 +29,7 @@
 
 - name: Run curl command
   kubernetes.core.k8s_exec:
-    namespace: "{{ namespace }}"
+    namespace: "{{ curl_namespace }}"
     kubeconfig: "{{ kubeconfig }}"
     pod: curl
     command: >-

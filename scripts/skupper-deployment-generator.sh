@@ -29,6 +29,9 @@ readonly SKUPPER_TESTING=${SKUPPER_TESTING:-false}
 
 DEBUG=${DEBUG:=false}
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
 skupper::deployment::namespace() {
 		cat << EOF
 apiVersion: v1
@@ -276,7 +279,7 @@ EOF
 }
 
 main () {
-	ktempdir=$(mktemp -d --tmpdir=./)
+	ktempdir=$(mktemp -d --tmpdir="${REPO_ROOT}")
 	if [ "${DEBUG}" != "true" ]; then
 		trap 'rm -rf $ktempdir' EXIT
 	fi

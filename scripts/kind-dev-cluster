@@ -39,6 +39,9 @@ FORCE_RECREATE="false"
 METALLB="false"
 SUBNET="1"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
 verbose_log() {
 	if [ "${VERBOSE}" == "true" ]; then
 		echo "(skdev) $1"
@@ -175,7 +178,7 @@ EOF
 }
 
 skupper::cluster::controller() {
-	SKUPPER_TESTING=true scripts/skupper-deployment-generator.sh cluster ${IMAGE_TAG} ${ROUTER_IMAGE_TAG} false
+	SKUPPER_TESTING=true "${REPO_ROOT}/scripts/skupper-deployment-generator.sh" cluster ${IMAGE_TAG} ${ROUTER_IMAGE_TAG} false
 }
 
 main () {
