@@ -31,7 +31,7 @@ func (p *PerTargetListener) updateListener(l *skupperv2alpha1.Listener) bool {
 }
 
 func (p *PerTargetListener) extractTargets(network []skupperv2alpha1.SiteRecord, mapping *qdr.PortMapping, exposedPorts ExposedPorts, context BindingContext) (bool, error) {
-	p.logger.Info("Extracting targets for listener",
+	p.logger.Debug("Extracting targets for listener",
 		slog.String("namespace", p.definition.Namespace),
 		slog.String("listener", p.definition.Name))
 	targets := extractTargets(p.address(""), network)
