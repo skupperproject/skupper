@@ -407,6 +407,7 @@ type ListenerSpec struct {
 	Port             int               `json:"port"`
 	TlsCredentials   string            `json:"tlsCredentials,omitempty"`
 	Type             string            `json:"type,omitempty"`
+	Observer         string            `json:"observer,omitempty"`
 	ExposePodsByName bool              `json:"exposePodsByName,omitempty"`
 	Settings         map[string]string `json:"settings,omitempty"`
 }

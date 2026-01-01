@@ -14,6 +14,10 @@ func UpdateBridgeConfigForListener(siteId string, listener *skupperv2alpha1.List
 func UpdateBridgeConfigForListenerWithHostAndPort(siteId string, listener *skupperv2alpha1.Listener, host string, port int, config *qdr.BridgeConfig) {
 	name := listener.Name
 	if listener.Spec.Type == "tcp" || listener.Spec.Type == "" {
+		var observer string
+		if listener.Spec.Observer != "" {
+			observer = listener.Spec.Observer
+		}
 		config.AddTcpListener(qdr.TcpEndpoint{
 			Name:       name,
 			SiteId:     siteId,
@@ -21,6 +25,7 @@ func UpdateBridgeConfigForListenerWithHostAndPort(siteId string, listener *skupp
 			Port:       strconv.Itoa(port),
 			Address:    listener.Spec.RoutingKey,
 			SslProfile: listener.Spec.TlsCredentials,
+			Observer:   observer,
 		})
 	}
 }

@@ -22,6 +22,12 @@ spec:
             spec:
               type: object
               properties:
+                observer:
+                  description: Control protocol observation for this listener. Default 'auto'. Set 'none' to disable.
+                  type: string
+                  enum:
+                    - auto
+                    - none
                 routingKey:
                   description: |-
                     The identifier to route traffic from listeners to connectors. To
