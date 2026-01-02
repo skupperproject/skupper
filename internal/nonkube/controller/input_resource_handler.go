@@ -32,7 +32,7 @@ func NewInputResourceHandler(namespace string, inputPath string, bStrap func(con
 		types.SystemReloadTypeManual)
 
 	if systemReloadType == types.SystemReloadTypeManual {
-		slog.Default().Error("Automatic reloading is not configured.")
+		slog.Default().Debug("Automatic reloading is not configured.")
 		return nil
 	}
 
