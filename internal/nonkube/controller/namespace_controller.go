@@ -5,21 +5,27 @@ import (
 	"log/slog"
 
 	"github.com/skupperproject/skupper/internal/filesystem"
+	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
+	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
 type NamespaceController struct {
-	ns      string
-	stopCh  chan struct{}
-	logger  *slog.Logger
-	watcher *filesystem.FileWatcher
-	prepare func()
+	ns           string
+	stopCh       chan struct{}
+	logger       *slog.Logger
+	watcher      *filesystem.FileWatcher
+	prepare      func()
+	pathProvider fs.PathProvider
 }
 
 func NewNamespaceController(namespace string) (*NamespaceController, error) {
 	nsw := &NamespaceController{
 		ns:     namespace,
 		stopCh: make(chan struct{}),
+		pathProvider: fs.PathProvider{
+			Namespace: namespace,
+		},
 	}
 	watcher, err := filesystem.NewWatcher(slog.String("namespace", namespace))
 	if err != nil {
@@ -39,8 +45,14 @@ func (w *NamespaceController) Start() {
 		routerConfigHandler.AddCallback(routerStateHandler)
 		collectorLifecycleHandler := NewCollectorLifecycleHandler(w.ns)
 		routerStateHandler.SetCallback(collectorLifecycleHandler)
+		inputResourceHandler := NewInputResourceHandler(w.ns, w.pathProvider.GetNamespace(), bootstrap.Bootstrap, bootstrap.PostBootstrap)
+
 		w.watcher.Add(api.GetInternalOutputPath(w.ns, api.RouterConfigPath), routerConfigHandler)
 		w.watcher.Add(api.GetInternalOutputPath(w.ns, api.RuntimeSiteStatePath), NewNetworkStatusHandler(w.ns))
+
+		if inputResourceHandler != nil {
+			w.watcher.Add(w.pathProvider.GetNamespace(), inputResourceHandler)
+		}
 	} else {
 		w.prepare()
 	}
