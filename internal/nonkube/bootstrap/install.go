@@ -77,7 +77,7 @@ func Install(platform string) error {
 		"SKUPPER_OUTPUT_PATH": config.hostDataHome,
 		"CONTAINER_ENGINE":    config.containerEngine,
 		"SKUPPER_SYSTEM_RELOAD_TYPE": utils.DefaultStr(os.Getenv(types.ENV_SYSTEM_AUTO_RELOAD),
-			types.SystemReloadTypeAuto),
+			types.SystemReloadTypeManual),
 	}
 
 	//To mount a volume as a bind, the host path must be specified in the Name field
