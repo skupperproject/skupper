@@ -6,7 +6,7 @@ PYTHON ?= python3
 
 # The caller may set a TEST_PREFIX, so they can deal with all namespaces created
 # by these tests with -l e2e.prefix=$TEST_PREFIX.  If not set, we create a random one
-RANDOM != echo $$RANDOM
+RANDOM := $(shell bash -c 'echo $$RANDOM')
 TEST_PREFIX ?= $(RANDOM)
 export TEST_PREFIX
 
