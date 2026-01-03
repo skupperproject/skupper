@@ -82,8 +82,8 @@
             path: "{{ item }}"
             platform: podman
           with_items:
-            - https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/podman-crs/listener-podman.yaml
-            - https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/podman-crs/site-podman.yaml
+            - https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/podman-crs/listener-podman.yaml
+            - https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/podman-crs/site-podman.yaml
 
         - name: Apply token to podman site
           skupper.v2.resource:
@@ -92,7 +92,8 @@
 
         - name: Initialize the default namespace using podman
           skupper.v2.system:
-            action: setup
+            action: start
+            image: "{{ lookup('env', 'SKUPPER_CLI_IMAGE') | default (omit, true) }}"
       when:
         - "'podman' in inventory_hostname"
 
@@ -139,7 +140,7 @@
       block:
         - name: Teardown namespace
           skupper.v2.system:
-            action: teardown
+            action: stop
             namespace: "{{ item }}"
             platform: "podman"
           with_items:
