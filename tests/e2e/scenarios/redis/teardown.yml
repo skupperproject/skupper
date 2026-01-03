@@ -4,7 +4,7 @@
   tasks:
     - name: Teardown namespace
       skupper.v2.system:
-        action: teardown
+        action: stop
         namespace: "{{ item }}"
         platform: "podman"
       with_items:
