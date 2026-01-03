@@ -82,8 +82,8 @@
             path: "{{ item }}"
             platform: podman
           with_items:
-            - https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/podman-crs/listener-podman.yaml
-            - https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/podman-crs/site-podman.yaml
+            - https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/podman-crs/listener-podman.yaml
+            - https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/podman-crs/site-podman.yaml
 
         - name: Apply token to podman site
           skupper.v2.resource:
