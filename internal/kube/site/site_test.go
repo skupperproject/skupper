@@ -337,7 +337,7 @@ func TestSite_CheckListener(t *testing.T) {
 			args: args{
 				name: "listener1",
 				listener: &skupperv2alpha1.Listener{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "listener1",
 						Namespace: "test",
 						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
@@ -353,7 +353,7 @@ func TestSite_CheckListener(t *testing.T) {
 			},
 			skupperObjects: []runtime.Object{
 				&skupperv2alpha1.Listener{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:      "listener1",
 						Namespace: "test",
 					},
@@ -370,7 +370,7 @@ func TestSite_CheckListener(t *testing.T) {
 						Namespace: "test",
 					},
 					Status: corev1.ServiceStatus{
-						Conditions: []v1.Condition{
+						Conditions: []metav1.Condition{
 							{
 								Type:   "Configured",
 								Status: "True",
