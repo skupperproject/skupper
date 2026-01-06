@@ -280,8 +280,9 @@ func TestSite_ExposeUnexpose(t *testing.T) {
 }
 func TestSite_CheckListener(t *testing.T) {
 	type args struct {
-		name     string
-		listener *skupperv2alpha1.Listener
+		name      string
+		listener  *skupperv2alpha1.Listener
+		svcExists bool
 	}
 	tests := []struct {
 		name                string
@@ -317,6 +318,7 @@ func TestSite_CheckListener(t *testing.T) {
 						Host:       "1.2.3.4",
 					},
 				},
+				svcExists: false,
 			},
 			skupperObjects: []runtime.Object{
 				&skupperv2alpha1.Listener{
@@ -329,6 +331,57 @@ func TestSite_CheckListener(t *testing.T) {
 			want:          "initialized",
 			wantErr:       false,
 			wantListeners: 1,
+		},
+		{
+			name: "pre-existing service for listener added",
+			args: args{
+				name: "listener1",
+				listener: &skupperv2alpha1.Listener{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "listener1",
+						Namespace: "test",
+						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						RoutingKey: "backend",
+						Port:       8080,
+						Type:       "tcp",
+						Host:       "backend",
+					},
+				},
+				svcExists: true,
+			},
+			skupperObjects: []runtime.Object{
+				&skupperv2alpha1.Listener{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "listener1",
+						Namespace: "test",
+					},
+				},
+			},
+			k8sObjects: []runtime.Object{
+				&corev1.Service{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "v1",
+						Kind:       "Service",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "backend",
+						Namespace: "test",
+					},
+					Status: corev1.ServiceStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   "Configured",
+								Status: "True",
+							},
+						},
+					},
+				},
+			},
+			want:          "initialized",
+			wantErr:       false,
+			wantListeners: 0,
 		},
 		/* TBD updateListenerStatus if kube command err == nil it just
 		   returns and doesn't update s.bindings.UpdateListener ???
@@ -368,7 +421,7 @@ func TestSite_CheckListener(t *testing.T) {
 				assert.Assert(t, err)
 			}
 
-			if err := s.CheckListener(tt.args.name, tt.args.listener); (err != nil) != tt.wantErr {
+			if err := s.CheckListener(tt.args.name, tt.args.listener, tt.args.svcExists); (err != nil) != tt.wantErr {
 				t.Errorf("Site.CheckListener() error = %v", err)
 			}
 

@@ -40,6 +40,7 @@ type Controller struct {
 	connectorWatcher     *watchers.ConnectorWatcher
 	linkAccessWatcher    *watchers.RouterAccessWatcher
 	grantWatcher         *watchers.AccessGrantWatcher
+	serviceWatcher       *watchers.ServiceWatcher
 	sites                map[string]*site.Site
 	startGrantServer     func()
 	accessMgr            *securedaccess.SecuredAccessManager
@@ -52,6 +53,7 @@ type Controller struct {
 	attachableConnectors map[string]*skupperv2alpha1.AttachedConnector
 	log                  *slog.Logger
 	namespaces           *NamespaceConfig
+	observedServices     map[string]string
 }
 
 func skupperRouterConfig() internalinterfaces.TweakListOptionsFunc {
@@ -68,6 +70,12 @@ func skupperNetworkStatus() internalinterfaces.TweakListOptionsFunc {
 func listenerServices() internalinterfaces.TweakListOptionsFunc {
 	return func(options *metav1.ListOptions) {
 		options.LabelSelector = "internal.skupper.io/listener"
+	}
+}
+
+func sansSkupperListenerServices() internalinterfaces.TweakListOptionsFunc {
+	return func(options *metav1.ListOptions) {
+		options.LabelSelector = "!internal.skupper.io/listener"
 	}
 }
 
@@ -91,6 +99,7 @@ func NewController(cli internalclient.Clients, config *Config, options ...watche
 		labelling:            labels.NewLabelsAndAnnotations(config.Namespace),
 		attachableConnectors: map[string]*skupperv2alpha1.AttachedConnector{},
 		log:                  slog.New(slog.Default().Handler()).With(slog.String("component", "kube.controller")),
+		observedServices:     map[string]string{},
 	}
 
 	hostname := os.Getenv("HOSTNAME")
@@ -120,6 +129,7 @@ func NewController(cli internalclient.Clients, config *Config, options ...watche
 	controller.siteWatcher = controller.eventProcessor.WatchSites(config.WatchNamespace, filter(controller, controller.checkSite))
 	controller.listenerWatcher = controller.eventProcessor.WatchListeners(config.WatchNamespace, filter(controller, controller.checkListener))
 	controller.eventProcessor.WatchServices(listenerServices(), config.WatchNamespace, filter(controller, controller.checkListenerService))
+	controller.serviceWatcher = controller.eventProcessor.WatchServices(sansSkupperListenerServices(), config.WatchNamespace, filter(controller, controller.checkObservedService))
 	controller.connectorWatcher = controller.eventProcessor.WatchConnectors(config.WatchNamespace, filter(controller, controller.checkConnector))
 	controller.linkAccessWatcher = controller.eventProcessor.WatchRouterAccesses(config.WatchNamespace, filter(controller, controller.checkRouterAccess))
 	controller.eventProcessor.WatchAttachedConnectors(config.WatchNamespace, filter(controller, controller.checkAttachedConnector))
@@ -220,6 +230,10 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		)
 		c.labelling.Update(config.Namespace+"/"+config.Name, config)
 	}
+	// get observed services prior to restoring listeners
+	for _, svc := range c.serviceWatcher.List() {
+		c.observedServices[svc.Namespace+"/"+svc.ObjectMeta.Name] = svc.ObjectMeta.Name
+	}
 	//recover existing sites & bindings
 	siteRecovery := site.NewSiteRecovery(c.eventProcessor.GetKubeClient())
 	for _, site := range c.siteWatcher.List() {
@@ -266,7 +280,8 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 			slog.String("name", listener.Name),
 			slog.String("namespace", listener.Namespace),
 		)
-		site.CheckListener(listener.ObjectMeta.Name, listener)
+		_, svcExists := c.observedServices[listener.ObjectMeta.Namespace+"/"+listener.Spec.Host]
+		site.CheckListener(listener.ObjectMeta.Name, listener, svcExists)
 	}
 	for _, la := range c.linkAccessWatcher.List() {
 		if !c.namespaces.isControlled(la.Namespace) {
@@ -367,7 +382,11 @@ func (c *Controller) checkListener(key string, listener *skupperv2alpha1.Listene
 	if err != nil {
 		return err
 	}
-	return c.getSite(namespace).CheckListener(name, listener)
+	svcExists := false
+	if listener != nil {
+		_, svcExists = c.observedServices[namespace+"/"+listener.Spec.Host]
+	}
+	return c.getSite(namespace).CheckListener(name, listener, svcExists)
 }
 
 func (c *Controller) checkListenerService(key string, svc *corev1.Service) error {
@@ -376,6 +395,17 @@ func (c *Controller) checkListenerService(key string, svc *corev1.Service) error
 		return nil
 	}
 	return c.getSite(svc.Namespace).CheckListenerService(svc)
+}
+
+func (c *Controller) checkObservedService(key string, svc *corev1.Service) error {
+	c.log.Debug("checkObservedService", slog.String("key", key))
+
+	if svc == nil {
+		delete(c.observedServices, key)
+	} else {
+		c.observedServices[key] = svc.ObjectMeta.Name
+	}
+	return nil
 }
 
 func (c *Controller) checkLink(key string, linkconfig *skupperv2alpha1.Link) error {
