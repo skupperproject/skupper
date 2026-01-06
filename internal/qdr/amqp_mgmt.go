@@ -130,6 +130,7 @@ func asTcpEndpoint(record Record) TcpEndpoint {
 		Address:    record.AsString("address"),
 		SiteId:     record.AsString("siteId"),
 		SslProfile: record.AsString("sslProfile"),
+		Observer:   record.AsString("observer"),
 		ProcessID:  record.AsString("processId"),
 	}
 	if value, ok := record["verifyHostname"]; ok {
