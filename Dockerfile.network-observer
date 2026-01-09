@@ -1,28 +1,31 @@
 ARG GO_IMAGE_BASE_TAG=1.24
+ARG CONSOLE_VERSION=development
 FROM --platform=$BUILDPLATFORM golang:${GO_IMAGE_BASE_TAG} AS builder
 
 ARG TARGETARCH
+ARG CONSOLE_VERSION
 
-RUN apt update && apt install -y jq
+RUN apt-get update && apt-get install -y jq wget && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /go/src/app
 
 COPY go.mod .
 COPY go.sum .
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
 COPY . .
 
 ENV CGO_ENABLED=0
-RUN make -B GOARCH=$TARGETARCH build-network-observer
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    make -B GOARCH=$TARGETARCH build-network-observer
 
-FROM --platform=$BUILDPLATFORM node:20.18.0 AS console-builder
-
-WORKDIR /skupper-console/
-ADD https://github.com/skupperproject/skupper-console/archive/main.tar.gz .
-RUN tar -zxf main.tar.gz
-WORKDIR ./skupper-console-main
-RUN yarn install && yarn build
+# Download console release
+WORKDIR /console
+RUN wget --progress=dot:giga -O /tmp/console.tgz \
+    "https://github.com/skupperproject/skupper-console/releases/download/${CONSOLE_VERSION}/console.tgz" && \
+    tar -xzf /tmp/console.tgz && rm /tmp/console.tgz
 
 # Use scratch for minimal image size
 FROM scratch
@@ -34,7 +37,7 @@ WORKDIR /app
 
 # Copy the statically linked binary
 COPY --from=builder /go/src/app/network-observer .
-COPY --from=console-builder /skupper-console/skupper-console-main/build/ console
+COPY --from=builder /console/ console
 
 # Use numeric user ID (no need to create user in scratch)
 USER 10000

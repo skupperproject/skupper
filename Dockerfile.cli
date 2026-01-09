@@ -8,11 +8,14 @@ RUN apt update && apt install -y jq
 WORKDIR /go/src/app
 COPY go.mod .
 COPY go.sum .
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 COPY . .
 
 ENV CGO_ENABLED=0
-RUN make -B build-cli GOARCH=$TARGETARCH
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    make -B build-cli GOARCH=$TARGETARCH
 
 # Use scratch for minimal image size
 FROM scratch
