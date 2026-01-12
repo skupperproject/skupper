@@ -1,0 +1,36 @@
+# Misc CI/CD
+.circleci
+.github
+.codespellrc
+
+# Documentation
+README.md
+LICENSE
+PROJECT
+doc/
+
+# Build artifacts and binaries
+skupper
+controller
+kube-adaptor
+network-observer
+system-controller
+generate-doc
+oci-archives/
+cover.out
+bundle/
+bundle.Dockerfile
+*.tgz
+artifacthub-repo.yml
+must-gather.local.*
+
+# Test files
+tests/
+*_test.go
+
+# Top-level generated manifests
+skupper-*-scope.yaml
+skupper-network-observer.yaml
+skupper-network-observer-*.yaml
+manifest.json
+network-observer-operator/
