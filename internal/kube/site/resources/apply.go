@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 
@@ -27,6 +28,7 @@ var routerLocalServiceTemplate string
 type Labelling interface {
 	SetLabels(namespace string, name string, kind string, labels map[string]string) bool
 	SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool
+	SetObjectMetadata(namespace string, name string, kind string, meta *metav1.ObjectMeta) bool
 }
 
 func resourceTemplates(site *skupperv2alpha1.Site, group string, size sizing.Sizing, labelling Labelling) []resource.Template {
@@ -76,8 +78,11 @@ func (p *CoreParams) setLabelsAndAnnotations(labelling Labelling, namespace stri
 	}
 	p.Labels = map[string]string{}
 	p.Annotations = map[string]string{}
-	labelling.SetLabels(namespace, name, kind, p.Labels)
-	labelling.SetAnnotations(namespace, name, kind, p.Annotations)
+	meta := &metav1.ObjectMeta{
+		Labels:      p.Labels,
+		Annotations: p.Annotations,
+	}
+	labelling.SetObjectMetadata(namespace, name, kind, meta)
 	quoteValues(p.Labels)
 	quoteValues(p.Annotations)
 	return p

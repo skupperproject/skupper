@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8slabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -42,11 +44,11 @@ func (l *LabelsAndAnnotations) Update(key string, cm *corev1.ConfigMap) error {
 func (l *LabelsAndAnnotations) SetLabels(namespace string, name string, kind string, labels map[string]string) bool {
 	desired := map[string]string{}
 	if registry, ok := l.namespaces[namespace]; ok {
-		registry.setLabels(name, kind, desired)
+		registry.setLabels(name, kind, labels, desired)
 	}
 	if namespace != l.controllerNamespace {
 		if registry, ok := l.namespaces[l.controllerNamespace]; ok {
-			registry.setLabels(name, kind, desired)
+			registry.setLabels(name, kind, labels, desired)
 		}
 	}
 	return setValues(desired, labels)
@@ -55,24 +57,56 @@ func (l *LabelsAndAnnotations) SetLabels(namespace string, name string, kind str
 func (l *LabelsAndAnnotations) SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool {
 	desired := map[string]string{}
 	if registry, ok := l.namespaces[namespace]; ok {
-		registry.setAnnotations(name, kind, desired)
+		registry.setAnnotations(name, kind, annotations, desired)
 	}
 	if namespace != l.controllerNamespace {
 		if registry, ok := l.namespaces[l.controllerNamespace]; ok {
-			registry.setAnnotations(name, kind, desired)
+			registry.setAnnotations(name, kind, annotations, desired)
 		}
 	}
 	return setValues(desired, annotations)
 }
 
+func (l *LabelsAndAnnotations) SetObjectMetadata(namespace string, name string, kind string, meta *metav1.ObjectMeta) bool {
+	if meta == nil {
+		return false
+	}
+	if meta.Labels == nil {
+		meta.Labels = map[string]string{}
+	}
+	if meta.Annotations == nil {
+		meta.Annotations = map[string]string{}
+	}
+	changed := false
+	if registry, ok := l.namespaces[namespace]; ok {
+		if registry.filter(name, kind, meta.Labels, meta.Labels, meta.Annotations) {
+			changed = true
+		}
+	}
+	if namespace != l.controllerNamespace {
+		if registry, ok := l.namespaces[l.controllerNamespace]; ok {
+			if registry.filter(name, kind, meta.Labels, meta.Labels, meta.Annotations) {
+				changed = true
+			}
+		}
+	}
+	return changed
+}
+
 type Registry struct {
-	config map[string]*corev1.ConfigMap
+	config map[string]*templateEntry
 	log    *slog.Logger
+}
+
+type templateEntry struct {
+	cm       *corev1.ConfigMap
+	selector k8slabels.Selector
+	invalid  bool
 }
 
 func newRegistry(log *slog.Logger) *Registry {
 	return &Registry{
-		config: map[string]*corev1.ConfigMap{},
+		config: map[string]*templateEntry{},
 		log:    log,
 	}
 }
@@ -94,26 +128,52 @@ func (r *Registry) update(key string, cm *corev1.ConfigMap) error {
 			slog.String("namespace", cm.Namespace),
 		)
 	}
-	r.config[key] = cm
+	entry := &templateEntry{cm: cm}
+	if cm.Data != nil {
+		if selector, ok := cm.Data["labelSelector"]; ok && selector != "" {
+			req, err := k8slabels.Parse(selector)
+			if err != nil {
+				r.log.Info("Ignoring label-template due to invalid labelSelector",
+					slog.String("name", cm.Name),
+					slog.String("namespace", cm.Namespace),
+					slog.String("labelSelector", selector),
+					slog.Any("error", err),
+				)
+				entry.invalid = true
+			} else {
+				entry.selector = req
+			}
+		}
+	}
+	r.config[key] = entry
 	return nil
 }
 
-func (r *Registry) setLabels(name string, kind string, labels map[string]string) bool {
-	return r.filter(name, kind, labels, nil)
+func (r *Registry) setLabels(name string, kind string, target map[string]string, labels map[string]string) bool {
+	return r.filter(name, kind, target, labels, nil)
 }
 
-func (r *Registry) setAnnotations(name string, kind string, annotations map[string]string) bool {
-	return r.filter(name, kind, nil, annotations)
+func (r *Registry) setAnnotations(name string, kind string, target map[string]string, annotations map[string]string) bool {
+	return r.filter(name, kind, target, nil, annotations)
 }
 
-func (r *Registry) filter(name string, kind string, labels map[string]string, annotations map[string]string) bool {
+func (r *Registry) filter(name string, kind string, target map[string]string, labels map[string]string, annotations map[string]string) bool {
 	changed := false
-	for _, cm := range r.config {
+	for _, entry := range r.config {
+		if entry.invalid {
+			continue
+		}
+		cm := entry.cm
 		if !matchKey(cm, "name", name) {
 			continue
 		}
 		if !matchKey(cm, "kind", kind) {
 			continue
+		}
+		if entry.selector != nil {
+			if target == nil || !entry.selector.Matches(k8slabels.Set(target)) {
+				continue
+			}
 		}
 		excludes := exclude(cm)
 		if labels != nil {

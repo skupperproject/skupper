@@ -39,6 +39,7 @@ type SecuredAccessFactory interface {
 type Labelling interface {
 	SetLabels(namespace string, name string, kind string, labels map[string]string) bool
 	SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool
+	SetObjectMetadata(namespace string, name string, kind string, meta *metav1.ObjectMeta) bool
 }
 
 type Site struct {
@@ -526,6 +527,11 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 	ctxt := context.TODO()
 	current, err := s.clients.GetKubeClient().CoreV1().Services(s.namespace).Get(ctxt, exposed.Host, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
+		listenerName := ""
+		for name := range exposed.Ports {
+			listenerName = name
+			break
+		}
 		service := &corev1.Service{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
@@ -534,7 +540,7 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: exposed.Host,
 				Labels: map[string]string{
-					"internal.skupper.io/listener": "true",
+					"internal.skupper.io/listener": listenerName,
 				},
 				Annotations: map[string]string{
 					"internal.skupper.io/controlled": "true",
@@ -546,8 +552,7 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 			},
 		}
 		if s.labelling != nil {
-			s.labelling.SetLabels(s.namespace, service.Name, "Service", service.ObjectMeta.Labels)
-			s.labelling.SetAnnotations(s.namespace, service.Name, "Service", service.ObjectMeta.Annotations)
+			s.labelling.SetObjectMetadata(s.namespace, service.Name, "Service", &service.ObjectMeta)
 		}
 		updatePorts(&service.Spec, exposed.Ports)
 		if len(service.Spec.Ports) == 0 {
@@ -583,6 +588,18 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 		if updatePorts(&current.Spec, exposed.Ports) {
 			updated = true
 		}
+		if current.ObjectMeta.Labels == nil {
+			current.ObjectMeta.Labels = map[string]string{}
+		}
+		newListenerName := ""
+		for name := range exposed.Ports {
+			newListenerName = name
+			break
+		}
+		if val, ok := current.ObjectMeta.Labels["internal.skupper.io/listener"]; !ok || val != newListenerName {
+			current.ObjectMeta.Labels["internal.skupper.io/listener"] = newListenerName
+			updated = true
+		}
 		if s.labelling != nil {
 			if current.ObjectMeta.Labels == nil {
 				current.ObjectMeta.Labels = map[string]string{}
@@ -590,10 +607,7 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 			if current.ObjectMeta.Annotations == nil {
 				current.ObjectMeta.Annotations = map[string]string{}
 			}
-			if s.labelling.SetLabels(s.namespace, current.Name, "Service", current.ObjectMeta.Labels) {
-				updated = true
-			}
-			if s.labelling.SetAnnotations(s.namespace, current.Name, "Service", current.ObjectMeta.Annotations) {
+			if s.labelling.SetObjectMetadata(s.namespace, current.Name, "Service", &current.ObjectMeta) {
 				updated = true
 			}
 		}
