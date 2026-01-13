@@ -668,3 +668,49 @@ func TestRecordTypes_GH2081(t *testing.T) {
 		})
 	}
 }
+
+func TestTcpEndpointObserverToRecord(t *testing.T) {
+	// empty observer -> omitted
+	e := TcpEndpoint{
+		Name:     "t1",
+		Address:  "a",
+		Host:     "h",
+		Port:     "1234",
+		SiteId:   "s",
+		Observer: "",
+	}
+	r := e.toRecord()
+	_, ok := r["observer"]
+	assert.Assert(t, !ok, "observer should be omitted when empty")
+
+	// non-empty observer -> included
+	for _, val := range []string{"auto", "none"} {
+		e.Observer = val
+		r = e.toRecord()
+		got, ok := r["observer"]
+		assert.Assert(t, ok, "observer should be present when set")
+		assert.Equal(t, got, val)
+	}
+}
+
+func TestTcpEndpointEquivalentObserverAutoVsEmpty(t *testing.T) {
+	a := TcpEndpoint{
+		Name:     "t1",
+		Address:  "a",
+		Host:     "",
+		Port:     "1234",
+		SiteId:   "s",
+		Observer: "auto",
+	}
+	b := TcpEndpoint{
+		Name:     "t1",
+		Address:  "a",
+		Host:     "",
+		Port:     "1234",
+		SiteId:   "s",
+		Observer: "",
+	}
+	if !a.Equivalent(b) {
+		t.Errorf("expected endpoints to be equivalent when comparing observer 'auto' vs empty")
+	}
+}
