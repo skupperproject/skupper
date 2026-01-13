@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	k8slabels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -42,11 +43,11 @@ func (l *LabelsAndAnnotations) Update(key string, cm *corev1.ConfigMap) error {
 func (l *LabelsAndAnnotations) SetLabels(namespace string, name string, kind string, labels map[string]string) bool {
 	desired := map[string]string{}
 	if registry, ok := l.namespaces[namespace]; ok {
-		registry.setLabels(name, kind, desired)
+		registry.setLabels(name, kind, labels, desired)
 	}
 	if namespace != l.controllerNamespace {
 		if registry, ok := l.namespaces[l.controllerNamespace]; ok {
-			registry.setLabels(name, kind, desired)
+			registry.setLabels(name, kind, labels, desired)
 		}
 	}
 	return setValues(desired, labels)
@@ -55,11 +56,11 @@ func (l *LabelsAndAnnotations) SetLabels(namespace string, name string, kind str
 func (l *LabelsAndAnnotations) SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool {
 	desired := map[string]string{}
 	if registry, ok := l.namespaces[namespace]; ok {
-		registry.setAnnotations(name, kind, desired)
+		registry.setAnnotations(name, kind, annotations, desired)
 	}
 	if namespace != l.controllerNamespace {
 		if registry, ok := l.namespaces[l.controllerNamespace]; ok {
-			registry.setAnnotations(name, kind, desired)
+			registry.setAnnotations(name, kind, annotations, desired)
 		}
 	}
 	return setValues(desired, annotations)
@@ -98,15 +99,15 @@ func (r *Registry) update(key string, cm *corev1.ConfigMap) error {
 	return nil
 }
 
-func (r *Registry) setLabels(name string, kind string, labels map[string]string) bool {
-	return r.filter(name, kind, labels, nil)
+func (r *Registry) setLabels(name string, kind string, target map[string]string, labels map[string]string) bool {
+	return r.filter(name, kind, target, labels, nil)
 }
 
-func (r *Registry) setAnnotations(name string, kind string, annotations map[string]string) bool {
-	return r.filter(name, kind, nil, annotations)
+func (r *Registry) setAnnotations(name string, kind string, target map[string]string, annotations map[string]string) bool {
+	return r.filter(name, kind, target, nil, annotations)
 }
 
-func (r *Registry) filter(name string, kind string, labels map[string]string, annotations map[string]string) bool {
+func (r *Registry) filter(name string, kind string, target map[string]string, labels map[string]string, annotations map[string]string) bool {
 	changed := false
 	for _, cm := range r.config {
 		if !matchKey(cm, "name", name) {
@@ -114,6 +115,26 @@ func (r *Registry) filter(name string, kind string, labels map[string]string, an
 		}
 		if !matchKey(cm, "kind", kind) {
 			continue
+		}
+		if cm.Data != nil {
+			if selector, ok := cm.Data["labelSelector"]; ok && selector != "" {
+				if target == nil {
+					continue
+				}
+				req, err := k8slabels.Parse(selector)
+				if err != nil {
+					r.log.Info("Ignoring label-template due to invalid labelSelector",
+						slog.String("name", cm.Name),
+						slog.String("namespace", cm.Namespace),
+						slog.String("labelSelector", selector),
+						slog.Any("error", err),
+					)
+					continue
+				}
+				if !req.Matches(k8slabels.Set(target)) {
+					continue
+				}
+			}
 		}
 		excludes := exclude(cm)
 		if labels != nil {
