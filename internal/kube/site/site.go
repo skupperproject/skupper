@@ -526,6 +526,11 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 	ctxt := context.TODO()
 	current, err := s.clients.GetKubeClient().CoreV1().Services(s.namespace).Get(ctxt, exposed.Host, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
+		listenerName := ""
+		for name := range exposed.Ports {
+			listenerName = name
+			break
+		}
 		service := &corev1.Service{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
@@ -534,7 +539,7 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: exposed.Host,
 				Labels: map[string]string{
-					"internal.skupper.io/listener": "true",
+					"internal.skupper.io/listener": listenerName,
 				},
 				Annotations: map[string]string{
 					"internal.skupper.io/controlled": "true",
@@ -581,6 +586,18 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 			updated = true
 		}
 		if updatePorts(&current.Spec, exposed.Ports) {
+			updated = true
+		}
+		if current.ObjectMeta.Labels == nil {
+			current.ObjectMeta.Labels = map[string]string{}
+		}
+		newListenerName := ""
+		for name := range exposed.Ports {
+			newListenerName = name
+			break
+		}
+		if val, ok := current.ObjectMeta.Labels["internal.skupper.io/listener"]; !ok || val != newListenerName {
+			current.ObjectMeta.Labels["internal.skupper.io/listener"] = newListenerName
 			updated = true
 		}
 		if s.labelling != nil {
