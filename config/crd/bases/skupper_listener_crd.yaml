@@ -23,11 +23,13 @@ spec:
               type: object
               properties:
                 observer:
-                  description: Control protocol observation for this listener. Default 'auto'. Set 'none' to disable.
+                  description: Control protocol observation for this listener. Default 'auto'. Use 'none' to disable, or 'http1'/'http2' to force a specific observer.
                   type: string
                   enum:
                     - auto
                     - none
+                    - http1
+                    - http2
                 routingKey:
                   description: |-
                     The identifier to route traffic from listeners to connectors. To

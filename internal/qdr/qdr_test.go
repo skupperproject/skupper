@@ -684,7 +684,7 @@ func TestTcpEndpointObserverToRecord(t *testing.T) {
 	assert.Assert(t, !ok, "observer should be omitted when empty")
 
 	// non-empty observer -> included
-	for _, val := range []string{"auto", "none"} {
+	for _, val := range []string{"auto", "none", "http1", "http2"} {
 		e.Observer = val
 		r = e.toRecord()
 		got, ok := r["observer"]
@@ -712,5 +712,47 @@ func TestTcpEndpointEquivalentObserverAutoVsEmpty(t *testing.T) {
 	}
 	if !a.Equivalent(b) {
 		t.Errorf("expected endpoints to be equivalent when comparing observer 'auto' vs empty")
+	}
+}
+
+func TestTcpEndpointEquivalentHttpModes(t *testing.T) {
+	base := TcpEndpoint{
+		Name:    "t1",
+		Address: "a",
+		Host:    "",
+		Port:    "1234",
+		SiteId:  "s",
+	}
+	// Equal http1/http1
+	a := base
+	b := base
+	a.Observer = "http1"
+	b.Observer = "http1"
+	if !a.Equivalent(b) {
+		t.Errorf("expected http1 vs http1 to be equivalent")
+	}
+	// Equal http2/http2
+	a.Observer = "http2"
+	b.Observer = "http2"
+	if !a.Equivalent(b) {
+		t.Errorf("expected http2 vs http2 to be equivalent")
+	}
+	// Different http1 vs auto
+	a.Observer = "http1"
+	b.Observer = "auto"
+	if a.Equivalent(b) {
+		t.Errorf("expected http1 vs auto to be not equivalent")
+	}
+	// Different http2 vs empty (router default)
+	a.Observer = "http2"
+	b.Observer = ""
+	if a.Equivalent(b) {
+		t.Errorf("expected http2 vs empty to be not equivalent")
+	}
+	// Different http1 vs none
+	a.Observer = "http1"
+	b.Observer = "none"
+	if a.Equivalent(b) {
+		t.Errorf("expected http1 vs none to be not equivalent")
 	}
 }
