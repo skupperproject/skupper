@@ -59,13 +59,13 @@ func (a *AttachedConnector) Attr() slog.Attr {
 	if definition := a.activeDefinition(); definition != nil {
 		return slog.Group("AttachedConnector",
 			slog.Bool("Active", true),
-			slog.String("Name", definition.Name),
-			slog.String("Namespace", definition.Namespace))
+			slog.String("namespace", definition.Namespace),
+			slog.String("name", definition.Name))
 	}
 	return slog.Group("AttachedConnector",
 		slog.Bool("Active", false),
-		slog.String("Name", a.name),
-		slog.String("Namespace", a.namespace))
+		slog.String("namespace", a.namespace),
+		slog.String("name", a.name))
 }
 
 func error_(errors []string) error {
@@ -145,8 +145,8 @@ func (a *AttachedConnector) Updated(pods []skupperv2alpha1.PodDetails) error {
 		return a.updateStatusNoBinding()
 	}
 	a.parent.logger.Debug("Updated AttachedConnector pods",
-		slog.String("Namespace", a.binding.Namespace),
-		slog.String("Name", a.binding.Name),
+		slog.String("namespace", a.binding.Namespace),
+		slog.String("name", a.binding.Name),
 		slog.String("siteId", a.parent.bindings.SiteId),
 		slog.String("memory", fmt.Sprintf("%p", a)),
 	)

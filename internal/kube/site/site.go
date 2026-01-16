@@ -1020,8 +1020,8 @@ func (s *Site) link(linkconfig *skupperv2alpha1.Link) error {
 func (s *Site) unlink(name string) error {
 	if _, ok := s.links[name]; ok {
 		s.logger.Info("Disconnecting connector from site",
-			slog.String("name", name),
-			slog.String("namespace", s.namespace))
+			slog.String("namespace", s.namespace),
+			slog.String("name", name))
 		delete(s.links, name)
 		if s.initialised {
 			return s.updateRouterConfig(site.NewRemoveConnector(name))
