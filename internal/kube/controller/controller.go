@@ -208,15 +208,15 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 
 	for _, config := range c.siteSizingWatcher.List() {
 		c.log.Info("Recovering site sizing",
-			slog.String("name", config.Name),
 			slog.String("namespace", config.Namespace),
+			slog.String("name", config.Name),
 		)
 		c.siteSizing.Update(config.Namespace+"/"+config.Name, config)
 	}
 	for _, config := range c.labellingWatcher.List() {
 		c.log.Info("Recovering label and annotation configuration",
-			slog.String("name", config.Name),
 			slog.String("namespace", config.Namespace),
+			slog.String("name", config.Name),
 		)
 		c.labelling.Update(config.Namespace+"/"+config.Name, config)
 	}
@@ -228,20 +228,20 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		}
 		if !siteRecovery.IsActive(site) {
 			c.log.Info("Skipping site recovery as it is not the active site",
-				slog.String("name", site.Name),
 				slog.String("namespace", site.Namespace),
+				slog.String("name", site.Name),
 			)
 			continue
 		}
 		c.log.Info("Recovering site",
-			slog.String("name", site.Name),
 			slog.String("namespace", site.Namespace),
+			slog.String("name", site.Name),
 		)
 		err := c.getSite(site.ObjectMeta.Namespace).StartRecovery(site)
 		if err != nil {
 			c.log.Error("Error recovering site",
-				slog.String("name", site.Name),
 				slog.String("namespace", site.Namespace),
+				slog.String("name", site.Name),
 				slog.Any("error", err),
 			)
 		}
@@ -252,8 +252,8 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		}
 		site := c.getSite(connector.ObjectMeta.Namespace)
 		c.log.Info("Recovering connector",
-			slog.String("name", connector.Name),
 			slog.String("namespace", connector.Namespace),
+			slog.String("name", connector.Name),
 		)
 		site.CheckConnector(connector.ObjectMeta.Name, connector)
 	}
@@ -263,8 +263,8 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		}
 		site := c.getSite(listener.ObjectMeta.Namespace)
 		c.log.Info("Recovering listener",
-			slog.String("name", listener.Name),
 			slog.String("namespace", listener.Namespace),
+			slog.String("name", listener.Name),
 		)
 		site.CheckListener(listener.ObjectMeta.Name, listener)
 	}
@@ -274,8 +274,8 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		}
 		site := c.getSite(la.ObjectMeta.Namespace)
 		c.log.Info("Recovering router access",
-			slog.String("name", la.Name),
 			slog.String("namespace", la.Namespace),
+			slog.String("name", la.Name),
 		)
 		site.CheckRouterAccess(la.ObjectMeta.Name, la)
 	}
@@ -287,14 +287,14 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		err := c.getSite(site.ObjectMeta.Namespace).Reconcile(site)
 		if err != nil {
 			c.log.Error("Error recovering site",
-				slog.String("name", site.Name),
 				slog.String("namespace", site.Namespace),
+				slog.String("name", site.Name),
 				slog.Any("error", err),
 			)
 		} else {
 			c.log.Info("Recovered site",
-				slog.String("name", site.Name),
 				slog.String("namespace", site.Namespace),
+				slog.String("name", site.Name),
 			)
 		}
 	}

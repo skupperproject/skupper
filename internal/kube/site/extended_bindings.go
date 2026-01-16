@@ -396,8 +396,8 @@ func (b *ExtendedBindings) networkUpdated(network []skupperv2alpha1.SiteRecord) 
 			if err := b.site.updateListenerStatus(ptl.definition, err); err != nil {
 				bindings_logger.Error("Error handling network update for listener",
 					slog.String("namespace", ptl.definition.Namespace),
-					slog.String("name", ptl.definition.Name))
-				slog.Any("error", err)
+					slog.String("name", ptl.definition.Name),
+					slog.Any("error", err))
 			}
 		}
 		if update {

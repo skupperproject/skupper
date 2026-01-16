@@ -53,8 +53,8 @@ func (w *TargetSelectionImpl) IncludeNotReadyPods() bool {
 
 func (w *TargetSelectionImpl) Attr() slog.Attr {
 	return slog.Group("Connector",
-		slog.String("Name", w.name),
-		slog.String("Namespace", w.namespace))
+		slog.String("namespace", w.namespace),
+		slog.String("name", w.name))
 }
 
 func (w *TargetSelectionImpl) List() []skupperv2alpha1.PodDetails {

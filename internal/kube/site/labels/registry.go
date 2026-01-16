@@ -83,15 +83,15 @@ func (r *Registry) update(key string, cm *corev1.ConfigMap) error {
 		delete(r.config, key)
 		namespace, name, _ := cache.SplitMetaNamespaceKey(key)
 		r.log.Info("Removing label and annotation configuration",
-			slog.String("name", name),
 			slog.String("namespace", namespace),
+			slog.String("name", name),
 		)
 		return nil
 	}
 	if _, ok := r.config[key]; !ok {
 		r.log.Info("Loading label and annotation configuration",
-			slog.String("name", cm.Name),
 			slog.String("namespace", cm.Namespace),
+			slog.String("name", cm.Name),
 		)
 	}
 	r.config[key] = cm
