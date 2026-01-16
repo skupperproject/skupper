@@ -559,6 +559,7 @@ type TcpEndpoint struct {
 	Address        string `json:"address,omitempty"`
 	SiteId         string `json:"siteId,omitempty"`
 	SslProfile     string `json:"sslProfile,omitempty"`
+	Observer       string `json:"observer,omitempty"`
 	VerifyHostname *bool  `json:"verifyHostname,omitempty"`
 	ProcessID      string `json:"processId,omitempty"`
 }
@@ -582,6 +583,9 @@ func (e TcpEndpoint) toRecord() Record {
 	}
 	if e.SslProfile != "" {
 		result["sslProfile"] = e.SslProfile
+	}
+	if e.Observer != "" {
+		result["observer"] = e.Observer
 	}
 	if e.VerifyHostname != nil {
 		result["verifyHostname"] = e.VerifyHostname
@@ -948,8 +952,17 @@ func (a TcpEndpoint) equivalentVerifyHostname(b TcpEndpoint) bool {
 }
 
 func (a TcpEndpoint) Equivalent(b TcpEndpoint) bool {
+	obsA := a.Observer
+	if obsA == "" {
+		obsA = "auto"
+	}
+	obsB := b.Observer
+	if obsB == "" {
+		obsB = "auto"
+	}
 	if !equivalentHost(a.Host, b.Host) || a.Port != b.Port || a.Address != b.Address ||
-		a.SiteId != b.SiteId || a.ProcessID != b.ProcessID || !a.equivalentVerifyHostname(b) {
+		a.SiteId != b.SiteId || a.ProcessID != b.ProcessID || !a.equivalentVerifyHostname(b) ||
+		obsA != obsB {
 		return false
 	}
 	return true
