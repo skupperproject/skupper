@@ -8,8 +8,10 @@ import (
 	"sync"
 
 	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	cmd "github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
+	"github.com/skupperproject/skupper/internal/nonkube/common"
+	"github.com/skupperproject/skupper/internal/nonkube/compat"
 	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
@@ -17,13 +19,15 @@ import (
 // This feature is responsible for handling the creation of input resources and
 // execute the start/reload of the site configuration automatically.
 type InputResourceHandler struct {
-	logger          *slog.Logger
-	namespace       string
-	inputPath       string
-	Bootstrap       func(config *bootstrap.Config) (*api.SiteState, error)
-	PostExec        func(config *bootstrap.Config, siteState *api.SiteState)
-	ConfigBootstrap bootstrap.Config
-	lock            sync.Mutex
+	logger            *slog.Logger
+	namespace         string
+	inputPath         string
+	Bootstrap         func(config *bootstrap.Config) (*api.SiteState, error)
+	PostExec          func(config *bootstrap.Config, siteState *api.SiteState)
+	ConfigBootstrap   bootstrap.Config
+	lock              sync.Mutex
+	siteStateRenderer *compat.SiteStateRenderer
+	siteStateLoader   api.SiteStateLoader
 }
 
 func NewInputResourceHandler(namespace string, inputPath string, bStrap func(config *bootstrap.Config) (*api.SiteState, error), postBootStrap func(config *bootstrap.Config, siteState *api.SiteState)) *InputResourceHandler {
@@ -50,12 +54,12 @@ func NewInputResourceHandler(namespace string, inputPath string, bStrap func(con
 		string(types.PlatformPodman)))
 
 	// TODO: add support for linux platform
-	switch common.Platform(platform) {
-	case common.PlatformDocker:
+	switch cmd.Platform(platform) {
+	case cmd.PlatformDocker:
 		binary = "docker"
-	case common.PlatformPodman:
+	case cmd.PlatformPodman:
 		binary = "podman"
-	case common.PlatformLinux:
+	case cmd.PlatformLinux:
 		slog.Default().Error("Linux platform is not supported yet")
 		return nil
 	default:
@@ -68,6 +72,15 @@ func NewInputResourceHandler(namespace string, inputPath string, bStrap func(con
 		InputPath: inputPath,
 		Platform:  platform,
 		Binary:    binary,
+	}
+
+	handler.siteStateRenderer = &compat.SiteStateRenderer{
+		Platform: platform,
+	}
+
+	handler.siteStateLoader = &common.FileSystemSiteStateLoader{
+		Path:   api.GetInternalOutputPath(namespace, api.InputSiteStatePath),
+		Bundle: false,
 	}
 
 	handler.logger = slog.Default().With("component", "input.resource.handler", "namespace", namespace)
@@ -94,6 +107,8 @@ func (h *InputResourceHandler) OnRemove(name string) {
 	if err != nil {
 		h.logger.Error(err.Error())
 	}
+
+	//TODO: if there is no site, call teardown
 }
 func (h *InputResourceHandler) Filter(name string) bool {
 	return strings.HasSuffix(name, ".json") || strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml")
@@ -105,12 +120,21 @@ func (h *InputResourceHandler) processInputFile() error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
-	siteState, err := h.Bootstrap(&h.ConfigBootstrap)
-	if err != nil {
-		return fmt.Errorf("Failed to bootstrap: %s", err)
+	_, err := os.Stat(api.GetInternalOutputPath(h.namespace, api.RuntimeSiteStatePath))
+	if err == nil {
+		//a site has already been created, no need to bootstrap
+		siteState, err := h.siteStateLoader.Load()
+		if err != nil {
+			return fmt.Errorf("Failed to load site: %s", err)
+		}
+		h.siteStateRenderer.Refresh(siteState)
+	} else {
+		siteState, err := h.Bootstrap(&h.ConfigBootstrap)
+		if err != nil {
+			return fmt.Errorf("Failed to bootstrap: %s", err)
+		}
+		h.PostExec(&h.ConfigBootstrap, siteState)
 	}
-
-	h.PostExec(&h.ConfigBootstrap, siteState)
 
 	return nil
 }
