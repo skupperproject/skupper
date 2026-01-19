@@ -83,15 +83,21 @@ func (cmd *CmdSystemUninstall) Run() error {
 			return err
 		}
 
+		if len(entries) == 0 {
+			fmt.Println("No namespaces found to remove")
+		}
+
 		for _, entry := range entries {
 			if entry.IsDir() {
 				runtimeDir := "namespaces/" + entry.Name() + "/runtime/"
 				_, err := os.ReadDir(path.Join(api.GetHostDataHome(), runtimeDir))
 				if err == nil {
+					fmt.Printf("Removing active site namespace \"%s\"\n", entry.Name())
 					err := cmd.TearDown(entry.Name())
 					if err != nil {
 						return fmt.Errorf("failed to remove site \"%s\": %s", entry.Name(), err)
 					}
+					fmt.Printf("Namespace \"%s\" has been removed\n", entry.Name())
 				} else {
 					// site not active so just remove directory
 					err := os.RemoveAll(api.GetHostNamespaceHome(entry.Name()))
