@@ -152,7 +152,7 @@ cover:
 		./...
 
 generate-manifest: skupper
-	./skupper version -o json > manifest.json
+	./skupper image-versions -o json > manifest.json
 
 generate-docs: generate-doc
 	./generate-doc ./doc/cli

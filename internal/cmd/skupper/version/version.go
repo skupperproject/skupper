@@ -23,14 +23,15 @@ func CmdVersionFactory(configuredPlatform common.Platform) *cobra.Command {
 	nonKubeCommand := nonkube.NewCmdVersion()
 
 	cmdVersionDesc := common.SkupperCmdDescription{
-		Use:   "version",
-		Short: "Display versions of Skupper components.",
-		Long:  "Report the version of the Skupper components",
-		Example: `skupper version
-skupper version -o yaml > manifest.yaml`,
+		Use:   "image-versions",
+		Short: "Display image versions of Skupper components.",
+		Long:  "Report the image versions of the Skupper components.",
+		Example: `skupper image-versions
+skupper image-versions -o yaml > manifest.yaml`,
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdVersionDesc, kubeCommand, nonKubeCommand)
+	cmd.Hidden = true
 
 	cmdFlags := common.CommandVersionFlags{}
 	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagVerboseOutput)
