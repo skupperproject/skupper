@@ -44,7 +44,7 @@ func Uninstall(platform string) error {
 
 	cli, err := internalclient.NewCompatClient(endpoint, "")
 	if err != nil {
-		return fmt.Errorf("failed to create container client: %v", err)
+		return fmt.Errorf("failed to create container client: %w", err)
 	}
 
 	container, err := cli.ContainerInspect(containerName)
