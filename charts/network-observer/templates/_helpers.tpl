@@ -94,3 +94,27 @@ Create the nginx configmap name
 {{- define "network-observer.setupJobName" -}}
 {{- printf "%s-setup" (include "network-observer.fullname" .) }}
 {{- end }}
+
+{{- define "network-observer.clusterRoleName" -}}
+{{- .Values.auth.openshift.bearerTokenAuth.clusterRoleName | default (include "network-observer.fullname" .) }}
+{{- end }}
+
+{{- define "network-observer.bearerTokenSecret" -}}
+{{- printf "%s-servicemonitor" (include "network-observer.fullname" .) | trunc 63 | trimSuffix "-"}}
+{{- end }}
+
+{{- define "network-observer.serviceMonitorName" -}}
+{{- .Values.serviceMonitor.nameOverride | default (include "network-observer.fullname" .) }}
+{{- end }}
+
+{{- define "network-observer.bearerTokenAuth" -}}
+{{- with .Values.auth.openshift.bearerTokenAuth -}}
+{{- if .enabled -}}
+"/":
+{{ if .resourceAttributes.namespaced }}  namespace: {{ $.Release.Namespace }}{{- end }}
+{{ if .resourceAttributes.group }}  group: {{ .resourceAttributes.group }}{{- end }}
+{{ if .resourceAttributes.resource }}  resource: {{ .resourceAttributes.resource }}{{- end }}
+{{ if .resourceAttributes.verb }}  verb: {{ .resourceAttributes.verb }}{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
