@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"io/fs"
 	"os"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -81,15 +82,27 @@ func (s *ListenerHandler) Delete(name string) error {
 	return nil
 }
 
-func (s *ListenerHandler) List() ([]*v2alpha1.Listener, error) {
+func (s *ListenerHandler) List(opts GetOptions) ([]*v2alpha1.Listener, error) {
 	var listeners []*v2alpha1.Listener
+	var path string
+	var files []fs.DirEntry
+	var err error
 
 	// First read from runtime directory, where output is found after bootstrap
 	// has run.  If no runtime listeners try and display configured listeners
-	path := s.pathProvider.GetRuntimeNamespace()
-	err, files := s.ReadDir(path, common.Listeners)
-	if err != nil {
-		os.Stderr.WriteString("Site not initialized yet\n")
+	if opts.RuntimeFirst {
+		path = s.pathProvider.GetRuntimeNamespace()
+		err, files = s.ReadDir(path, common.Listeners)
+		if err != nil {
+			os.Stderr.WriteString("Site not initialized yet\n")
+			path = s.pathProvider.GetNamespace()
+			err, files = s.ReadDir(path, common.Listeners)
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		// just get configured values
 		path = s.pathProvider.GetNamespace()
 		err, files = s.ReadDir(path, common.Listeners)
 		if err != nil {

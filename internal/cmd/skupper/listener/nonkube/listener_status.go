@@ -3,9 +3,10 @@ package nonkube
 import (
 	"errors"
 	"fmt"
-	k8serrs "k8s.io/apimachinery/pkg/api/errors"
 	"os"
 	"text/tabwriter"
+
+	k8serrs "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -79,7 +80,7 @@ func (cmd *CmdListenerStatus) ValidateInput(args []string) error {
 func (cmd *CmdListenerStatus) Run() error {
 	opts := fs.GetOptions{RuntimeFirst: true, LogWarning: true}
 	if cmd.listenerName == "" {
-		resources, err := cmd.listenerHandler.List()
+		resources, err := cmd.listenerHandler.List(fs.GetOptions{RuntimeFirst: true})
 		if err != nil || resources == nil || len(resources) == 0 {
 			fmt.Println("No listeners found")
 			return err

@@ -93,15 +93,27 @@ func (s *SiteHandler) Delete(name string) error {
 
 func (s *SiteHandler) List(opts GetOptions) ([]*v2alpha1.Site, error) {
 	var sites []*v2alpha1.Site
+	var path string
+	var files []fs.DirEntry
+	var err error
 
 	// First read from runtime directory, where output is found after bootstrap
 	// has run.  If no runtime sites try and display configured sites
-	path := s.pathProvider.GetRuntimeNamespace()
-	err, files := s.ReadDir(path, common.Sites)
-	if err != nil {
-		if opts.LogWarning {
-			os.Stderr.WriteString("Site not initialized yet\n")
+	if opts.RuntimeFirst {
+		path = s.pathProvider.GetRuntimeNamespace()
+		err, files = s.ReadDir(path, common.Sites)
+		if err != nil {
+			if opts.LogWarning {
+				os.Stderr.WriteString("Site not initialized yet\n")
+			}
+			path = s.pathProvider.GetNamespace()
+			err, files = s.ReadDir(path, common.Sites)
+			if err != nil {
+				return nil, err
+			}
 		}
+	} else {
+		// just get configured values
 		path = s.pathProvider.GetNamespace()
 		err, files = s.ReadDir(path, common.Sites)
 		if err != nil {

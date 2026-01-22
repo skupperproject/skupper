@@ -61,6 +61,18 @@ func TestCmdLinkStatus_ValidateInput(t *testing.T) {
 			name:  "no args",
 			flags: &common.CommandLinkStatusFlags{},
 		},
+		{
+			name:          "good output status",
+			args:          []string{"my-link"},
+			flags:         &common.CommandLinkStatusFlags{Output: "json"},
+			expectedError: "",
+		},
+		{
+			name:          "bad output status",
+			args:          []string{"my-link"},
+			flags:         &common.CommandLinkStatusFlags{Output: "invalid"},
+			expectedError: "format bad-value not supported",
+		},
 	}
 
 	//Add a temp file so link exists for status tests
@@ -272,6 +284,7 @@ func TestCmdLinkStatus_Run(t *testing.T) {
 	for _, test := range testTable {
 		command.linkName = test.linkName
 		command.Flags = &test.flags
+		command.output = command.Flags.Output
 
 		t.Run(test.name, func(t *testing.T) {
 			err := command.Run()

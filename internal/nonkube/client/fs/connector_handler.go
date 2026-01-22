@@ -1,6 +1,7 @@
 package fs
 
 import (
+	"io/fs"
 	"os"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -80,15 +81,27 @@ func (s *ConnectorHandler) Delete(name string) error {
 	return nil
 }
 
-func (s *ConnectorHandler) List() ([]*v2alpha1.Connector, error) {
+func (s *ConnectorHandler) List(opts GetOptions) ([]*v2alpha1.Connector, error) {
 	var connectors []*v2alpha1.Connector
+	var path string
+	var files []fs.DirEntry
+	var err error
 
 	// First read from runtime directory, where output is found after bootstrap
 	// has run.  If no runtime connectors try and display configured connectors
-	path := s.pathProvider.GetRuntimeNamespace()
-	err, files := s.ReadDir(path, common.Connectors)
-	if err != nil {
-		os.Stderr.WriteString("Site not initialized yet\n")
+	if opts.RuntimeFirst {
+		path = s.pathProvider.GetRuntimeNamespace()
+		err, files = s.ReadDir(path, common.Connectors)
+		if err != nil {
+			os.Stderr.WriteString("Site not initialized yet\n")
+			path = s.pathProvider.GetNamespace()
+			err, files = s.ReadDir(path, common.Connectors)
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		// just get configured values
 		path = s.pathProvider.GetNamespace()
 		err, files = s.ReadDir(path, common.Connectors)
 		if err != nil {

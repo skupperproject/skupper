@@ -258,12 +258,12 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 					opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
 					site, _ := command.siteHandler.Get(command.siteName, opts)
 					assert.Check(t, site == nil)
-					listeners, _ := listenerHandler.List()
+					listeners, _ := listenerHandler.List(opts)
 					for _, listener := range listeners {
 						resource, _ := listenerHandler.Get(listener.Name, opts)
 						assert.Check(t, resource == nil)
 					}
-					connectors, _ := connectorHandler.List()
+					connectors, _ := connectorHandler.List(opts)
 					for _, connector := range connectors {
 						resource, _ := connectorHandler.Get(connector.Name, opts)
 						assert.Check(t, resource == nil)
