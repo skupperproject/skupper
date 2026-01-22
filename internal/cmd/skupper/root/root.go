@@ -1,6 +1,9 @@
 package root
 
 import (
+	"os"
+	"slices"
+
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/connector"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/debug"
@@ -37,6 +40,11 @@ func NewSkupperRootCommand() *cobra.Command {
 	rootCmd.AddCommand(system.NewCmdSystem())
 
 	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
+
+	completionCommands := []string{"completion", cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd}
+	if slices.Contains(completionCommands, os.Args[1]) && len(os.Args) <= 2 {
+		rootCmd.SetOut(os.Stderr)
+	}
 
 	return rootCmd
 }
