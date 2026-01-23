@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -65,7 +65,7 @@ func GetSiteMetadata(metadata string) SiteMetadata {
 	result := SiteMetadata{}
 	err := json.Unmarshal([]byte(metadata), &result)
 	if err != nil {
-		log.Printf("Assuming old format for router metadata %s: %s", metadata, err)
+		slog.Error("Assuming old format for router metadata", slog.String("metadata", metadata), slog.Any("error", err))
 		// assume old format, where metadata just holds site id
 		result.Id = metadata
 	}
@@ -382,13 +382,19 @@ func (a *Agent) request(operation string, typename string, name string, attribut
 
 func (a *Agent) Create(typename string, name string, entity recordType) error {
 	attributes := entity.toRecord()
-	log.Println("CREATE", typename, name, attributes)
+	slog.Info("CREATE", 
+		slog.String("typename", typename), 
+		slog.String("name", name), 
+		slog.Any("attributes", attributes))
 	return a.request("CREATE", typename, name, attributes)
 }
 
 func (a *Agent) Update(typename string, name string, entity recordType) error {
 	attributes := entity.toRecord()
-	log.Println("UPDATE", typename, name, attributes)
+	slog.Info("UPDATE", 
+		slog.String("typename", typename), 
+		slog.String("name", name), 
+		slog.Any("attributes", attributes))
 	return a.request("UPDATE", typename, name, attributes)
 }
 
@@ -396,7 +402,7 @@ func (a *Agent) Delete(typename string, name string) error {
 	if name == "" {
 		return fmt.Errorf("Cannot delete entity of type %s with no name", typename)
 	}
-	log.Println("DELETE", typename, name)
+	slog.Info("DELETE", slog.String("typename", typename), slog.String("name", name))
 	return a.request("DELETE", typename, name, nil)
 }
 

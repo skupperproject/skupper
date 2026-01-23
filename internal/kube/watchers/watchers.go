@@ -3,7 +3,7 @@
 package watchers
 
 import (
-	"log"
+	"log/slog"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -215,10 +215,13 @@ func (c *EventProcessor) process() bool {
 		err := evt.Handler.Handle(evt)
 		if err != nil {
 			hasError = true
-			log.Printf("[%s] Error while handling %s: %s", c.errorKey, evt.Handler.Describe(evt), err)
+			slog.Error("Error while handling event", 
+				slog.String("errorKey", c.errorKey), 
+				slog.String("eventDescription", evt.Handler.Describe(evt)),
+				slog.Any("error", err))
 		}
 	} else {
-		log.Printf("Invalid object on event queue for %q: %#v", c.errorKey, obj)
+		slog.Error("Invalid object on event queue", slog.String("errorKey", c.errorKey), slog.Any("object", obj))
 	}
 
 	if hasError && c.queue.NumRequeues(obj) < 5 {
@@ -366,7 +369,7 @@ func (c *EventProcessor) WatchPods(selector string, namespace string, handler Po
 
 func (c *EventProcessor) WatchContourHttpProxies(options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
 	if !c.HasContourHttpProxy() {
-		log.Println("Cannot watch HttpProxies; resource not installed")
+		slog.Info("Cannot watch HttpProxies; resource not installed")
 		return nil
 	}
 	return c.WatchDynamic(resource.ContourHttpProxyResource(), options, namespace, handler)
@@ -374,7 +377,7 @@ func (c *EventProcessor) WatchContourHttpProxies(options dynamicinformer.TweakLi
 
 func (c *EventProcessor) WatchGateways(options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
 	if !c.HasGateway() {
-		log.Println("Cannot watch Gateways; resource not installed")
+		slog.Info("Cannot watch Gateways; resource not installed")
 		return nil
 	}
 	return c.WatchDynamic(resource.GatewayResource(), options, namespace, handler)
@@ -382,7 +385,7 @@ func (c *EventProcessor) WatchGateways(options dynamicinformer.TweakListOptionsF
 
 func (c *EventProcessor) WatchTlsRoutes(options dynamicinformer.TweakListOptionsFunc, namespace string, handler DynamicHandler) *DynamicWatcher {
 	if !c.HasTlsRoute() {
-		log.Println("Cannot watch TLSRoutes; resource not installed")
+		slog.Info("Cannot watch TLSRoutes; resource not installed")
 		return nil
 	}
 	return c.WatchDynamic(resource.TlsRouteResource(), options, namespace, handler)

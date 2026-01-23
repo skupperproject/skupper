@@ -2,7 +2,7 @@ package securedaccess
 
 import (
 	"errors"
-	"log"
+	"log/slog"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -20,6 +20,9 @@ func newUnsupportedAccess(m *SecuredAccessManager) AccessType {
 }
 
 func (o *UnsupportedAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAccess, service *corev1.Service) ([]skupperv2alpha1.Endpoint, error) {
-	log.Printf("Unsupported access type %q in SecuredAccess %s/%s", access.Spec.AccessType, access.Namespace, access.Name)
+	slog.Info("Unsupported access type in SecuredAccess", 
+		slog.String("accessType", access.Spec.AccessType), 
+		slog.String("namespace", access.Namespace), 
+		slog.String("name", access.Name))
 	return nil, errors.New("unsupported access type")
 }

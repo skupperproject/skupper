@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"time"
@@ -66,9 +66,9 @@ func (s *Server) Start(stopCh <-chan struct{}) error {
 	}
 	go func() {
 		if err := s.server.Serve(ln); err != nil {
-			log.Printf("metrics server error: %s", err)
+			slog.Error("metrics server error", slog.Any("error", err))
 		}
 	}()
-	log.Printf("Started metrics server at: %s", s.config.Address)
+	slog.Info("Started metrics server", slog.String("address", s.config.Address))
 	return nil
 }

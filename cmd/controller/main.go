@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -55,11 +55,11 @@ func main() {
 		fmt.Println(version.Version)
 		os.Exit(0)
 	}
-	log.Printf("Version: %s", version.Version)
+	slog.Info("Version info:", slog.String("version", version.Version))
 	if config.WatchingAllNamespaces() {
-		log.Println("Skupper controller watching all namespaces")
+		slog.Info("Skupper controller watching all namespaces")
 	} else {
-		log.Println("Skupper controller watching namespace", config.WatchNamespace)
+		slog.Info("Skupper controller watching namespace", slog.String("namespace", config.WatchNamespace))
 	}
 
 	// set up signals so we handle the first shutdown signal gracefully
@@ -67,7 +67,8 @@ func main() {
 
 	cli, err := internalclient.NewClient(config.Namespace, "", config.Kubeconfig)
 	if err != nil {
-		log.Fatal("Error getting van client ", err.Error())
+		slog.Error("Error getting van client", slog.Any("error", err))
+		os.Exit(1)
 	}
 	config.Namespace = cli.Namespace
 
@@ -78,16 +79,19 @@ func main() {
 		eventProcessorMetrics = metrics.MustRegisterEventProcessorMetrics(reg)
 		srv := metrics.NewServer(config.MetricsConfig, reg)
 		if err := srv.Start(stopCh); err != nil {
-			log.Fatalf("Error starting metrics server: %s", err)
+			slog.Error("Error starting metrics server", slog.Any("error", err))
+			os.Exit(1)
 		}
 	}
 
 	controller, err := controller.NewController(cli, config, watchers.WithMetricsProvider(eventProcessorMetrics))
 	if err != nil {
-		log.Fatal("Error getting new site controller ", err.Error())
+		slog.Error("Error getting new site controller", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	if err = controller.Run(stopCh); err != nil {
-		log.Fatal("Error running site controller: ", err.Error())
+		slog.Error("Error running site controller", slog.Any("error", err))
+		os.Exit(1)
 	}
 }
