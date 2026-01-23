@@ -20,13 +20,3 @@ func Modern() *tls.Config {
 		MinVersion: tls.VersionTLS13,
 	}
 }
-
-// Default TLS Configuration excludes cipher suites implemented in crypto/tls
-// that have been marked insecure.
-func Default() *tls.Config {
-	suites := make([]uint16, len(tlsCiphers))
-	copy(suites, tlsCiphers)
-	return &tls.Config{
-		CipherSuites: suites,
-	}
-}

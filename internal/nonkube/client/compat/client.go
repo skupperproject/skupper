@@ -11,6 +11,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -91,7 +92,7 @@ func NewCompatClient(endpoint, basePath string) (*CompatClient, error) {
 			return nil, fmt.Errorf("unable to resolve hostname: %s", u.Hostname())
 		}
 		for _, addr := range addresses {
-			if utils.StringSliceContains(localAddresses, addr) {
+			if slices.Contains(localAddresses, addr) {
 				return nil, fmt.Errorf("local addresses cannot be used, got: %s", u.Hostname())
 			}
 		}
