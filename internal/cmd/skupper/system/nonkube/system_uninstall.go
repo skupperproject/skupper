@@ -97,7 +97,6 @@ func (cmd *CmdSystemUninstall) Run() error {
 					if err != nil {
 						return fmt.Errorf("failed to remove site \"%s\": %s", entry.Name(), err)
 					}
-					fmt.Printf("Namespace \"%s\" has been removed\n", entry.Name())
 				} else {
 					// site not active so just remove directory
 					err := os.RemoveAll(api.GetHostNamespaceHome(entry.Name()))
