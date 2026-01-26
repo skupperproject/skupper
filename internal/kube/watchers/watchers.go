@@ -215,8 +215,8 @@ func (c *EventProcessor) process() bool {
 		err := evt.Handler.Handle(evt)
 		if err != nil {
 			hasError = true
-			slog.Error("Error while handling event", 
-				slog.String("errorKey", c.errorKey), 
+			slog.Error("Error while handling event",
+				slog.String("errorKey", c.errorKey),
 				slog.String("eventDescription", evt.Handler.Describe(evt)),
 				slog.Any("error", err))
 		}

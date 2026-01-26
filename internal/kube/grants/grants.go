@@ -265,9 +265,9 @@ func (g *Grants) checkAndUpdateAccessToken(key string, data []byte) (*skupperv2a
 
 	expiration, err := time.Parse(time.RFC3339, grant.Status.ExpirationTime)
 	if err != nil {
-		slog.Error("Cannot determine expiration for grant", 
+		slog.Error("Cannot determine expiration for grant",
 			slog.String("namespace", grant.Namespace),
-			slog.String("name", grant.Name), 
+			slog.String("name", grant.Name),
 			slog.Any("error", err))
 		return nil, httpError("Corrupted claim", http.StatusInternalServerError)
 	}
@@ -285,8 +285,8 @@ func (g *Grants) checkAndUpdateAccessToken(key string, data []byte) (*skupperv2a
 	grant.Status.Redemptions += 1
 	err = g.updateGrantStatus(grant)
 	if err != nil {
-		slog.Error("Error updating access grant", 
-			slog.String("namespace", grant.Namespace), 
+		slog.Error("Error updating access grant",
+			slog.String("namespace", grant.Namespace),
 			slog.String("name", grant.Name),
 			slog.Any("error", err))
 		return nil, httpError("Internal error", http.StatusServiceUnavailable)
@@ -316,8 +316,8 @@ func (g *Grants) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	name := r.Header.Get("name")
 	if name == "" {
-		slog.Info("No name specified when redeeming access token using access grant name", 
-			slog.String("namespace", grant.Namespace), 
+		slog.Info("No name specified when redeeming access token using access grant name",
+			slog.String("namespace", grant.Namespace),
 			slog.String("name", grant.Name))
 		name = grant.Name
 	}
@@ -326,7 +326,7 @@ func (g *Grants) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		subject = name
 	}
 	if err := g.generator(grant.Namespace, name, subject, w); err != nil {
-		slog.Error("Failed to create token for grant", 
+		slog.Error("Failed to create token for grant",
 			slog.String("namespace", grant.Namespace),
 			slog.String("name", grant.Name),
 			slog.Any("error", err))

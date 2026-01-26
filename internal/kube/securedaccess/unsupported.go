@@ -20,9 +20,9 @@ func newUnsupportedAccess(m *SecuredAccessManager) AccessType {
 }
 
 func (o *UnsupportedAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAccess, service *corev1.Service) ([]skupperv2alpha1.Endpoint, error) {
-	slog.Info("Unsupported access type in SecuredAccess", 
-		slog.String("accessType", access.Spec.AccessType), 
-		slog.String("namespace", access.Namespace), 
+	slog.Info("Unsupported access type in SecuredAccess",
+		slog.String("accessType", access.Spec.AccessType),
+		slog.String("namespace", access.Namespace),
 		slog.String("name", access.Name))
 	return nil, errors.New("unsupported access type")
 }

@@ -309,7 +309,7 @@ func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv2
 
 		regenerated, err := m.generateSecret(certificate)
 		if err != nil {
-			slog.Error("Error generating Secret for Certificate", 
+			slog.Error("Error generating Secret for Certificate",
 				slog.String("namespace", certificate.Namespace),
 				slog.String("name", secret.Name),
 				slog.String("key", key))
@@ -342,15 +342,15 @@ func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv2
 
 	updated, err := m.processor.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
 	if err != nil {
-		slog.Error("Error updating Secret for Certificate", 
+		slog.Error("Error updating Secret for Certificate",
 			slog.String("namespace", secret.Namespace),
-			slog.String("name", secret.Name), 
-			slog.String("key", key), 
+			slog.String("name", secret.Name),
+			slog.String("key", key),
 			slog.Any("error", err))
 		return err
 	}
 	m.secrets[key] = updated
-	slog.Info("Updated Secret for Certificate", 
+	slog.Info("Updated Secret for Certificate",
 		slog.String("namespace", secret.Namespace),
 		slog.String("name", secret.Name),
 		slog.String("key", key),
@@ -387,7 +387,7 @@ func (m *CertificateManagerImpl) generateSecret(certificate *skupperv2alpha1.Cer
 func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv2alpha1.Certificate) error {
 	secret, err := m.generateSecret(certificate)
 	if err != nil {
-		slog.Error("Error generating secret for Certificate", 
+		slog.Error("Error generating secret for Certificate",
 			slog.String("key", key),
 			slog.Any("error", err))
 		return err
@@ -403,25 +403,25 @@ func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv2
 		m.context.SetLabels(certificate.Namespace, secret.Name, "Secret", secret.Labels)
 		m.context.SetAnnotations(certificate.Namespace, secret.Name, "Secret", secret.Annotations)
 	}
-	slog.Info("Creating Secret for Certificate", 
+	slog.Info("Creating Secret for Certificate",
 		slog.String("namespace", certificate.Namespace),
-		slog.String("name", secret.Name), 
-		slog.String("key", key), 
+		slog.String("name", secret.Name),
+		slog.String("key", key),
 		slog.Any("hosts", certificate.Spec.Hosts))
 	created, err := m.processor.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
-		slog.Error("Error creating Secret for Certificate", 
+		slog.Error("Error creating Secret for Certificate",
 			slog.String("namespace", certificate.Namespace),
-			slog.String("name", secret.Name), 
-			slog.String("key", key), 
+			slog.String("name", secret.Name),
+			slog.String("key", key),
 			slog.Any("error", err))
 		return err
 	}
 	m.secrets[key] = created
-	slog.Info("Created Secret for Certificate", 
+	slog.Info("Created Secret for Certificate",
 		slog.String("namespace", certificate.Namespace),
-		slog.String("name", secret.Name), 
-		slog.String("key", key), 
+		slog.String("name", secret.Name),
+		slog.String("key", key),
 		slog.Any("hosts", certificate.Spec.Hosts))
 	return nil
 }

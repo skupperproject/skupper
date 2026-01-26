@@ -28,9 +28,9 @@ func RedeemAccessToken(token *skupperv2alpha1.AccessToken, site *skupperv2alpha1
 	if err != nil {
 		return updateAccessTokenStatus(token, err, clients)
 	}
-	slog.Info("HTTP Post was successful, decoding response body", 
-		slog.String("URL", token.Spec.Url), 
-		slog.String("namespace", token.Namespace), 
+	slog.Info("HTTP Post was successful, decoding response body",
+		slog.String("URL", token.Spec.Url),
+		slog.String("namespace", token.Namespace),
 		slog.String("name", token.Name))
 	return handleTokenResponse(body, token, site, clients)
 }
@@ -70,7 +70,7 @@ func postTokenRequest(token *skupperv2alpha1.AccessToken, site *skupperv2alpha1.
 func handleTokenResponse(body io.Reader, token *skupperv2alpha1.AccessToken, site *skupperv2alpha1.Site, clients internalclient.Clients) error {
 	decoder := newLinkDecoder(body)
 	if err := decoder.decodeAll(); err != nil {
-		slog.Error("Could not decode response for AccessToken", 
+		slog.Error("Could not decode response for AccessToken",
 			slog.String("namespace", token.Namespace),
 			slog.String("name", token.Name),
 			slog.Any("error", err))

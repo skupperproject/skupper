@@ -415,8 +415,8 @@ func (m *SecuredAccessManager) CheckRoute(key string, route *routev1.Route) erro
 			if !canDelete(&route.ObjectMeta) {
 				return nil
 			}
-			slog.Info("Deleting redundant route as no matching ServiceAccess definition found", 
-				slog.String("namespace", route.Namespace), 
+			slog.Info("Deleting redundant route as no matching ServiceAccess definition found",
+				slog.String("namespace", route.Namespace),
 				slog.String("name", route.Name))
 			return m.clients.GetRouteClient().Routes(route.Namespace).Delete(context.Background(), route.Name, metav1.DeleteOptions{})
 		}

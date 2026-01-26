@@ -63,9 +63,9 @@ func (o *IngressAccessType) ensureIngress(namespace string, ingress *networkingv
 			if domain == "" {
 				slog.Info("No domain can be inferred yet for ingress", slog.String("namespace", namespace), slog.String("name", ingress.Name))
 			} else if qualifyIngressHosts(domain, ingress) {
-				slog.Info("Updated hosts for ingress by appending domain", 
-					slog.String("namespace", namespace), 
-					slog.String("name", ingress.Name), 
+				slog.Info("Updated hosts for ingress by appending domain",
+					slog.String("namespace", namespace),
+					slog.String("name", ingress.Name),
 					slog.String("domain", domain))
 			}
 		}
@@ -95,8 +95,8 @@ func (o *IngressAccessType) ensureIngress(namespace string, ingress *networkingv
 		}
 		updated, err := o.manager.clients.GetKubeClient().NetworkingV1().Ingresses(namespace).Update(context.Background(), &copy, metav1.UpdateOptions{})
 		if err != nil {
-			slog.Error("Error on update for ingress", 
-				slog.String("namespace", namespace), 
+			slog.Error("Error on update for ingress",
+				slog.String("namespace", namespace),
 				slog.String("name", ingress.Name),
 				slog.Any("error", err))
 			return existing, false, err
@@ -111,8 +111,8 @@ func (o *IngressAccessType) ensureIngress(namespace string, ingress *networkingv
 	}
 	created, err := o.manager.clients.GetKubeClient().NetworkingV1().Ingresses(namespace).Create(context.Background(), ingress, metav1.CreateOptions{})
 	if err != nil {
-		slog.Error("Error on create for ingress", 
-			slog.String("namespace", namespace), 
+		slog.Error("Error on create for ingress",
+			slog.String("namespace", namespace),
 			slog.String("name", ingress.Name),
 			slog.Any("error", err))
 		return nil, false, err

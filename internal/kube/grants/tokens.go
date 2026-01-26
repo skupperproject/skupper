@@ -43,10 +43,10 @@ func NewTokenGenerator(site *skupperv2alpha1.Site, clients internalclient.Client
 		clients:   clients,
 	}
 	if err := generator.loadCA(site.DefaultIssuer()); err != nil {
-		slog.Error("Error retrieving default issuer for site", 
-			slog.String("defaultIssuer", site.DefaultIssuer()), 
-			slog.String("namespace", site.Namespace), 
-			slog.String("name", site.Name), 
+		slog.Error("Error retrieving default issuer for site",
+			slog.String("defaultIssuer", site.DefaultIssuer()),
+			slog.String("namespace", site.Namespace),
+			slog.String("name", site.Name),
 			slog.Any("error", err))
 		return nil, errors.New("Could not get issuer for requested certificate")
 	}

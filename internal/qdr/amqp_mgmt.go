@@ -382,18 +382,18 @@ func (a *Agent) request(operation string, typename string, name string, attribut
 
 func (a *Agent) Create(typename string, name string, entity recordType) error {
 	attributes := entity.toRecord()
-	slog.Info("CREATE", 
-		slog.String("typename", typename), 
-		slog.String("name", name), 
+	slog.Info("CREATE",
+		slog.String("typename", typename),
+		slog.String("name", name),
 		slog.Any("attributes", attributes))
 	return a.request("CREATE", typename, name, attributes)
 }
 
 func (a *Agent) Update(typename string, name string, entity recordType) error {
 	attributes := entity.toRecord()
-	slog.Info("UPDATE", 
-		slog.String("typename", typename), 
-		slog.String("name", name), 
+	slog.Info("UPDATE",
+		slog.String("typename", typename),
+		slog.String("name", name),
 		slog.Any("attributes", attributes))
 	return a.request("UPDATE", typename, name, attributes)
 }

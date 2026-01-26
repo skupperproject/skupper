@@ -74,10 +74,10 @@ func (o *RouteAccessType) ensureRoute(namespace string, route *routev1.Route) (e
 		}
 		updated, err := o.manager.clients.GetRouteClient().Routes(namespace).Update(context.Background(), &copy, metav1.UpdateOptions{})
 		if err != nil {
-			slog.Error("Error on update for route", 
-				slog.String("namespace", namespace), 
+			slog.Error("Error on update for route",
+				slog.String("namespace", namespace),
 				slog.String("name", route.Name),
-				slog.Any("error", err)) 
+				slog.Any("error", err))
 			return err, nil
 		}
 		o.manager.routes[key] = updated
@@ -89,8 +89,8 @@ func (o *RouteAccessType) ensureRoute(namespace string, route *routev1.Route) (e
 	}
 	created, err := o.manager.clients.GetRouteClient().Routes(namespace).Create(context.Background(), route, metav1.CreateOptions{})
 	if err != nil {
-		slog.Error("Error on create for route", 
-			slog.String("namespace", namespace), 
+		slog.Error("Error on create for route",
+			slog.String("namespace", namespace),
 			slog.String("name", route.Name),
 			slog.Any("error", err))
 		return err, nil
