@@ -18,7 +18,7 @@ func TestConnectJson(t *testing.T) {
 		{name: "domain with numbers", host: "12345.example.com"},
 		{name: "kubernetes service DNS", host: "my-svc.my-namespace.svc.cluster-domain.example"},
 		{name: "empty string", host: ""},
-	}{
+	} {
 		t.Run(test.name, func(t *testing.T) {
 			cj := ConnectJson(test.host)
 			assertConnectJsonResult(t, cj, test.host)

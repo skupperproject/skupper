@@ -73,7 +73,7 @@ func TestSliceEquals(t *testing.T) {
 
 func TestDefaultStr(t *testing.T) {
 	testTable := []struct {
-		name 	 string
+		name   string
 		values []string
 		result string
 	}{
@@ -89,7 +89,7 @@ func TestDefaultStr(t *testing.T) {
 	}
 
 	for _, test := range testTable {
-		t.Run(test.name, func(t * testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			expectedResult := test.result
 			actualResult := DefaultStr(test.values...)
 			assert.Equal(t, expectedResult, actualResult)

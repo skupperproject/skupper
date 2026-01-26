@@ -83,7 +83,6 @@ type Result struct {
 	Error error
 }
 
-
 // RetryWithContext retries f every interval until the specified context times out.
 func RetryWithContext(ctx context.Context, interval time.Duration, f ConditionFunc) error {
 	tick := time.NewTicker(interval)
