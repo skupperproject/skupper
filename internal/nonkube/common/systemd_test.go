@@ -5,10 +5,10 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"slices"
 	"strings"
 	"testing"
 
-	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/v3/assert"
 )
@@ -39,7 +39,7 @@ func TestSystemdService(t *testing.T) {
 			assert.Equal(t, systemdServiceImpl.SiteScriptPath, path.Join(outputPath, "namespaces/default", string(api.ScriptsPath)))
 			assert.Equal(t, systemdServiceImpl.SiteConfigPath, path.Join(outputPath, "namespaces/default", string(api.RouterConfigPath)))
 			systemdServiceImpl.command = func(name string, arg ...string) *exec.Cmd {
-				assert.Assert(t, utils.StringSliceContains(arg, "--user") == (uid != 0))
+				assert.Assert(t, slices.Contains(arg, "--user") == (uid != 0))
 				t.Logf("mocking command: %s %s", name, strings.Join(arg, " "))
 				return exec.Command("echo", "mock")
 			}

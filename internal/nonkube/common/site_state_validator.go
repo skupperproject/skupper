@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"slices"
 
-	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	corev1 "k8s.io/api/core/v1"
@@ -82,7 +82,7 @@ func (s *SiteStateValidator) validateRouterAccesses(routerAccesses map[string]*v
 			return fmt.Errorf("invalid router access: %s - roles are required", routerAccess.Name)
 		}
 		for _, role := range routerAccess.Spec.Roles {
-			if !utils.StringSliceContains(validLinkAccessRoles, role.Name) {
+			if !slices.Contains(validLinkAccessRoles, role.Name) {
 				return fmt.Errorf("invalid router access: %s - invalid role: %s (valid roles: %s)",
 					routerAccess.Name, role.Name, validLinkAccessRoles)
 			}
@@ -142,7 +142,7 @@ func (s *SiteStateValidator) validateListeners(listeners map[string]*v2alpha1.Li
 		if ip == nil && !validHostname {
 			return fmt.Errorf("invalid listener host: %s - a valid IP address or hostname is expected (listener: %q)", listener.Spec.Host, name)
 		}
-		if utils.IntSliceContains(hostPorts[listener.Spec.Host], listener.Spec.Port) {
+		if slices.Contains(hostPorts[listener.Spec.Host], listener.Spec.Port) {
 			return fmt.Errorf("port %d is already mapped for host %q (listener: %q)", listener.Spec.Port, listener.Spec.Host, name)
 		}
 		if listener.Spec.RoutingKey == "" {

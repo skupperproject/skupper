@@ -13,7 +13,6 @@ import (
 	"github.com/skupperproject/skupper/internal/network"
 	"github.com/skupperproject/skupper/internal/qdr"
 	"github.com/skupperproject/skupper/internal/site"
-	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/internal/version"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -154,7 +153,7 @@ func (s *SiteState) CreateLinkAccessesCertificates() {
 	for name, linkAccess := range s.RouterAccesses {
 		create := false
 		for _, role := range linkAccess.Spec.Roles {
-			if utils.StringSliceContains([]string{"edge", "inter-router"}, role.Name) {
+			if slices.Contains([]string{"edge", "inter-router"}, role.Name) {
 				create = true
 				break
 			}
@@ -163,7 +162,7 @@ func (s *SiteState) CreateLinkAccessesCertificates() {
 			continue
 		}
 		hosts := linkAccess.Spec.SubjectAlternativeNames
-		if linkAccess.Spec.BindHost != "" && !utils.StringSliceContains(hosts, linkAccess.Spec.BindHost) {
+		if linkAccess.Spec.BindHost != "" && !slices.Contains(hosts, linkAccess.Spec.BindHost) {
 			hosts = append(hosts, linkAccess.Spec.BindHost)
 		}
 		linkAccessCaName := caName

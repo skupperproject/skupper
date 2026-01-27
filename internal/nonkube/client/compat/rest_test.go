@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -144,7 +145,7 @@ func localInterfaceIP() string {
 				continue
 			}
 			addr := addrNet[0]
-			if utils.StringSliceContains(localAddresses, addr) {
+			if slices.Contains(localAddresses, addr) {
 				continue
 			}
 			return addr
