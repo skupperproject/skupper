@@ -351,3 +351,41 @@ func configmap(key string, data map[string]string, labels map[string]string, ann
 		},
 	}
 }
+
+func updateWithSelector(key string, labels map[string]string, annotations map[string]string, selector string) Update {
+	data := map[string]string{}
+	if selector != "" {
+		data["labelSelector"] = selector
+	}
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	labels["skupper.io/label-template"] = "true"
+	if len(data) == 0 {
+		data = nil
+	}
+	return configmap(key, data, labels, annotations)
+}
+
+func TestLabelSelectorFiltering(t *testing.T) {
+	registry := NewLabelsAndAnnotations("default")
+	// apply a configmap with a selector that matches listener=my-listener
+	registry.Update("test/selector", updateWithSelector("test/selector", map[string]string{"acme.com/foo": "bar"}, nil, "internal.skupper.io/listener in (my-listener)").config)
+	// Case 1: labels match selector
+	actual := map[string]string{"internal.skupper.io/listener": "my-listener"}
+	changed := registry.SetLabels("test", "svc-a", "Service", actual)
+	assert.Assert(t, changed)
+	assert.Equal(t, actual["acme.com/foo"], "bar")
+	// Case 2: labels do not match selector
+	actual2 := map[string]string{"internal.skupper.io/listener": "other"}
+	changed2 := registry.SetLabels("test", "svc-b", "Service", actual2)
+	assert.Assert(t, !changed2)
+	_, present := actual2["acme.com/foo"]
+	assert.Assert(t, !present)
+	// Case 3: invalid selector should be ignored (no application)
+	registry.Update("test/invalid", updateWithSelector("test/invalid", map[string]string{"acme.com/bar": "baz"}, nil, "this is not a valid selector").config)
+	actual3 := map[string]string{"internal.skupper.io/listener": "my-listener"}
+	_ = registry.SetLabels("test", "svc-c", "Service", actual3)
+	_, present = actual3["acme.com/bar"]
+	assert.Assert(t, !present)
+}
