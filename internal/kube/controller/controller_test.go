@@ -1200,7 +1200,7 @@ func (f *factory) routerDeployment(name string, namespace string) *unstructured.
 	content := map[string]interface{}{
 		"spec": map[string]interface{}{
 			"selector": map[string]interface{}{
-				"matchLabels": f.routerSelector(false),
+				"matchLabels": f.routerSelectorWithGroup(name),
 			},
 			"template": map[string]interface{}{
 				"spec": map[string]interface{}{
@@ -1325,7 +1325,7 @@ func (r *ExpectedResources) deployment(name string, namespace string) *unstructu
 	content := map[string]interface{}{
 		"spec": map[string]interface{}{
 			"selector": map[string]interface{}{
-				"matchLabels": f.routerSelector(false),
+				"matchLabels": f.routerSelectorWithGroup(name),
 			},
 			"template": map[string]interface{}{
 				"spec": map[string]interface{}{
