@@ -1,28 +1,25 @@
-package nonkube
+package kube
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
+	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/internal/utils/configs"
-	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"gotest.tools/v3/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
 var (
-	nonkubeComponents = []string{"router"}
+	kubeComponents = []string{"router"}
 )
 
-func TestCmdVersion_ValidateInput(t *testing.T) {
+func TestCmdManifest_ValidateInput(t *testing.T) {
 	type test struct {
 		name           string
 		args           []string
 		flags          common.CommandVersionFlags
-		namespace      string
 		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
 		expectedError  string
@@ -30,54 +27,27 @@ func TestCmdVersion_ValidateInput(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:          "incorrect output type",
+			name:          "bad output",
 			args:          []string{""},
-			namespace:     "test",
 			flags:         common.CommandVersionFlags{Output: "not-supported"},
 			expectedError: "output type is not valid: value not-supported not allowed. It should be one of this options: [json yaml]",
 		},
 		{
-			name:          "valid output type",
-			namespace:     "test",
+			name:          "good output",
 			flags:         common.CommandVersionFlags{Output: "json"},
 			expectedError: "",
 		},
 		{
-			name:          "unspecified output type",
-			namespace:     "test",
+			name:          "ok no output",
 			flags:         common.CommandVersionFlags{},
 			expectedError: "",
-		},
-		{
-			name:          "unknown namespace",
-			namespace:     "unknown",
-			flags:         common.CommandVersionFlags{},
-			expectedError: "there is no definition for namespace \"unknown\"",
-		},
-		{
-			name:          "invalid-namespace",
-			namespace:     "Invalid",
-			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$\nthere is no definition for namespace \"Invalid\"",
 		},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			if os.Getuid() == 0 {
-				api.DefaultRootDataHome = t.TempDir()
-			} else {
-				t.Setenv("XDG_DATA_HOME", t.TempDir())
-			}
-			tmpDir := api.GetDataHome()
-
-			nestedDir := filepath.Join(tmpDir, "namespaces", "test")
-			err := os.MkdirAll(nestedDir, os.ModePerm)
-			if err != nil {
-				t.Fatalf("failed to create directories: %v", err)
-			}
-
-			cmd, err := newCmdVersionWithMocks(test.namespace)
+			cmd, err := newCmdManifestWithMocks("test", test.k8sObjects, test.skupperObjects, "")
 			assert.Assert(t, err)
 
 			cmd.Flags = &test.flags
@@ -87,7 +57,7 @@ func TestCmdVersion_ValidateInput(t *testing.T) {
 	}
 }
 
-func TestCmdVersion_InputToOptions(t *testing.T) {
+func TestCmdManifest_InputToOptions(t *testing.T) {
 	type test struct {
 		name           string
 		output         string
@@ -98,12 +68,12 @@ func TestCmdVersion_InputToOptions(t *testing.T) {
 
 	testTable := []test{
 		{
-			name:     "output type selected is json",
+			name:     "good json",
 			output:   "json",
 			expected: true,
 		},
 		{
-			name:     "output type selected is the default one",
+			name:     "good default",
 			expected: false,
 		},
 	}
@@ -111,7 +81,7 @@ func TestCmdVersion_InputToOptions(t *testing.T) {
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 
-			cmd, err := newCmdVersionWithMocks("test")
+			cmd, err := newCmdManifestWithMocks("test", test.k8sObjects, test.skupperObjects, "")
 			assert.Assert(t, err)
 
 			cmd.output = test.output
@@ -122,7 +92,7 @@ func TestCmdVersion_InputToOptions(t *testing.T) {
 	}
 }
 
-func TestCmdVersion_Run(t *testing.T) {
+func TestCmdManifest_Run(t *testing.T) {
 	type test struct {
 		name                string
 		VersionName         string
@@ -147,15 +117,20 @@ func TestCmdVersion_Run(t *testing.T) {
 			flags:        common.CommandVersionFlags{Output: "not-valid"},
 			errorMessage: "format not-valid not supported",
 		},
+		{
+			name:         "no cluster",
+			flags:        common.CommandVersionFlags{},
+			errorMessage: "Cluster is not accessible",
+		},
 	}
 
 	for _, test := range testTable {
-		cmd, err := newCmdVersionWithMocks("test")
+		cmd, err := newCmdManifestWithMocks("test", test.k8sObjects, test.skupperObjects, test.skupperErrorMessage)
 		assert.Assert(t, err)
 		cmd.Flags = &test.flags
 		cmd.output = cmd.Flags.Output
 		cmd.namespace = "test"
-		cmd.manifest = configs.ManifestManager{Components: nonkubeComponents, EnableSHA: false}
+		cmd.manifest = configs.ManifestManager{Components: kubeComponents, EnableSHA: false}
 
 		t.Run(test.name, func(t *testing.T) {
 
@@ -171,11 +146,17 @@ func TestCmdVersion_Run(t *testing.T) {
 
 // --- helper methods
 
-func newCmdVersionWithMocks(namespace string) (*CmdVersion, error) {
+func newCmdManifestWithMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*CmdManifest, error) {
 
-	cmdVersion := &CmdVersion{
-		namespace: namespace,
+	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
+	if err != nil {
+		return nil, err
+	}
+	cmdManifest := &CmdManifest{
+		Client:     client.GetSkupperClient().SkupperV2alpha1(),
+		namespace:  namespace,
+		KubeClient: client.GetKubeClient(),
 	}
 
-	return cmdVersion, nil
+	return cmdManifest, nil
 }

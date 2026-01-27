@@ -1,4 +1,4 @@
-package version
+package manifest
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestCmdVersionFactory(t *testing.T) {
+func TestCmdManifestFactory(t *testing.T) {
 
 	type test struct {
 		name                          string
@@ -20,11 +20,11 @@ func TestCmdVersionFactory(t *testing.T) {
 
 	testTable := []test{
 		{
-			name: "CmdVersionFactory",
+			name: "CmdManifestFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameOutput: "",
 			},
-			command: CmdVersionFactory(common.PlatformKubernetes),
+			command: CmdManifestFactory(common.PlatformKubernetes),
 		},
 	}
 
