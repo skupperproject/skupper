@@ -75,6 +75,9 @@ spec:
           args:
             - --config.file=/etc/prometheus/prometheus.yml
             - --storage.tsdb.path=/prometheus/
+            {{- range .Values.prometheus.extraArgs }}
+            - {{ . }}
+            {{- end }}
           ports:
             - name: prom
               containerPort: 9090
