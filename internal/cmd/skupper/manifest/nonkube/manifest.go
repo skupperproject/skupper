@@ -19,7 +19,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type CmdVersion struct {
+type CmdManifest struct {
 	Client     skupperv2alpha1.SkupperV2alpha1Interface
 	KubeClient kubernetes.Interface
 	CobraCmd   *cobra.Command
@@ -29,20 +29,20 @@ type CmdVersion struct {
 	manifest   configs.ManifestManager
 }
 
-func NewCmdVersion() *CmdVersion {
+func NewCmdManifest() *CmdManifest {
 
-	skupperCmd := CmdVersion{}
+	skupperCmd := CmdManifest{}
 
 	return &skupperCmd
 }
 
-func (cmd *CmdVersion) NewClient(cobraCommand *cobra.Command, args []string) {
+func (cmd *CmdManifest) NewClient(cobraCommand *cobra.Command, args []string) {
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace) != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String() != "" {
 		cmd.namespace = cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String()
 	}
 }
 
-func (cmd *CmdVersion) ValidateInput(args []string) error {
+func (cmd *CmdManifest) ValidateInput(args []string) error {
 	var validationErrors []error
 	outputTypeValidator := validator.NewOptionValidator(common.OutputTypes)
 	namespaceStringValidator := validator.NamespaceStringValidator()
@@ -71,7 +71,7 @@ func (cmd *CmdVersion) ValidateInput(args []string) error {
 	return errors.Join(validationErrors...)
 }
 
-func (cmd *CmdVersion) InputToOptions() {
+func (cmd *CmdManifest) InputToOptions() {
 
 	mapRunningPods := make(map[string]string)
 
@@ -96,7 +96,7 @@ func (cmd *CmdVersion) InputToOptions() {
 
 }
 
-func (cmd *CmdVersion) Run() error {
+func (cmd *CmdManifest) Run() error {
 	files := cmd.manifest.GetConfiguredManifest()
 	if cmd.output != "" {
 		encodedOutput, err := utils.Encode(cmd.output, files)
@@ -116,4 +116,4 @@ func (cmd *CmdVersion) Run() error {
 	return nil
 }
 
-func (cmd *CmdVersion) WaitUntil() error { return nil }
+func (cmd *CmdManifest) WaitUntil() error { return nil }

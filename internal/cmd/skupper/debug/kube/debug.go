@@ -148,7 +148,7 @@ func (cmd *CmdDebug) Run() error {
 		writeTar("/versions/kubernetes.yaml.txt", kv, time.Now(), tw)
 	}
 
-	manifest, err := runCommand("skupper", "version", "-o", "yaml")
+	manifest, err := runCommand("skupper", "manifest", "-o", "yaml")
 	if err == nil {
 		writeTar("/versions/skupper.yaml", manifest, time.Now(), tw)
 		writeTar("/versions/skupper.yaml.txt", manifest, time.Now(), tw)
