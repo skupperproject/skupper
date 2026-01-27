@@ -11,7 +11,7 @@ consistently evaluate trends in component behavior.
 
 ## Usage
 
-To deploy the Skupper Network Observer to a namespace using Helm, printing the
+To deploy the Skupper Monitoring Stack to a namespace using Helm, printing the
 useful kube-prometheus-stack subchart notes which can be useful.
 
 ```
