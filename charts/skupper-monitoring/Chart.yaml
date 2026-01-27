@@ -1,0 +1,10 @@
+apiVersion: v2
+name: skupper-monitoring
+description: Helm chart for deploying a kube-prometheus-stack for Skupper
+
+type: application
+version: 0.1.0
+dependencies:
+- name: kube-prometheus-stack
+  version: "70.1.1"
+  repository: "https://prometheus-community.github.io/helm-charts"

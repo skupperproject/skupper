@@ -1,0 +1,30 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: skupper-controller
+  labels:
+    skupper-monitoring: "true"
+spec:
+  namespaceSelector:
+    any: true
+  podMetricsEndpoints:
+  - port: metrics
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: skupper-controller
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: skupper-routers
+  labels:
+    skupper-monitoring: "true"
+spec:
+  namespaceSelector:
+    any: true
+  podMetricsEndpoints:
+  - port: metrics
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: skupper-router
