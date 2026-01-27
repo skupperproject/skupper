@@ -22,20 +22,7 @@ func Teardown(namespace string) error {
 	if err != nil {
 		return err
 	}
-	if err := removeRouter(namespace, platform); err != nil {
-		return err
-	}
-
-	if err := removeService(namespace, platform); err != nil {
-		return err
-	}
-
-	if err := removeDefinition(namespace); err != nil {
-		return err
-	}
-
-	fmt.Printf("Namespace \"%s\" has been removed\n", namespace)
-	return nil
+	return RemoveAll(namespace, platform)
 
 }
 
@@ -52,10 +39,19 @@ func removeDefinition(namespace string) error {
 func removeRouter(namespace string, platform string) error {
 
 	endpoint := os.Getenv("CONTAINER_ENDPOINT")
-	if endpoint == "" {
-		endpoint = fmt.Sprintf("unix://%s/podman/podman.sock", api.GetRuntimeDir())
+
+	// the container endpoint is mapped to the podman socket inside the container
+	if api.IsRunningInContainer() {
+		endpoint = "unix:///var/run/podman.sock"
 		if platform == "docker" {
-			endpoint = "unix:///run/docker.sock"
+			endpoint = "unix:///var/run/docker.sock"
+		}
+	} else {
+		if endpoint == "" {
+			endpoint = fmt.Sprintf("unix://%s/podman/podman.sock", api.GetRuntimeDir())
+			if platform == "docker" {
+				endpoint = "unix:///run/docker.sock"
+			}
 		}
 	}
 
@@ -101,4 +97,23 @@ func removeService(namespace string, platform string) error {
 	}
 
 	return nil
+}
+
+func RemoveAll(namespace string, platform string) error {
+
+	if err := removeRouter(namespace, platform); err != nil {
+		return err
+	}
+
+	if err := removeService(namespace, platform); err != nil {
+		return err
+	}
+
+	if err := removeDefinition(namespace); err != nil {
+		return err
+	}
+
+	fmt.Printf("Namespace \"%s\" has been removed\n", namespace)
+	return nil
+
 }
