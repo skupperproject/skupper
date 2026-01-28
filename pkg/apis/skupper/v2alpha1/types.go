@@ -223,6 +223,30 @@ func (s *SiteSpec) GetRouterDataConnectionCount() string {
 	return ""
 }
 
+func (s *SiteSpec) GetCertificateController() string {
+	if s.Settings == nil {
+		return ""
+	}
+	if value, ok := s.Settings["certificate-controller"]; ok {
+		return value
+	}
+	return ""
+}
+
+func (s *SiteSpec) SetCertificateController(controller string) {
+	if s.Settings == nil {
+		if controller == "" {
+			return
+		}
+		s.Settings = make(map[string]string)
+	}
+	if controller != "" {
+		s.Settings["certificate-controller"] = controller
+	} else {
+		delete(s.Settings, "certificate-controller")
+	}
+}
+
 func (s *Site) SetConfigured(err error) bool {
 	if s.Status.SetCondition(CONDITION_TYPE_CONFIGURED, ErrorOrReadyCondition(err), s.ObjectMeta.Generation) {
 		s.Status.setReady(s.requiredConditions(), s.ObjectMeta.Generation)
@@ -776,6 +800,30 @@ type SecuredAccessSpec struct {
 	Settings    map[string]string   `json:"settings,omitempty"`
 }
 
+func (s *SecuredAccessSpec) GetCertificateController() string {
+	if s.Settings == nil {
+		return ""
+	}
+	if value, ok := s.Settings["certificate-controller"]; ok {
+		return value
+	}
+	return ""
+}
+
+func (s *SecuredAccessSpec) SetCertificateController(controller string) {
+	if s.Settings == nil {
+		if controller == "" {
+			return
+		}
+		s.Settings = map[string]string{}
+	}
+	if controller != "" {
+		s.Settings["certificate-controller"] = controller
+	} else {
+		delete(s.Settings, "certificate-controller")
+	}
+}
+
 type SecuredAccessStatus struct {
 	Status    `json:",inline"`
 	Endpoints []Endpoint `json:"endpoints,omitempty"`
@@ -844,6 +892,34 @@ func (c *Certificate) Key() string {
 
 func (c *Certificate) SetReady(err error) bool {
 	return c.Status.SetCondition(CONDITION_TYPE_READY, ErrorOrReadyCondition(err), c.ObjectMeta.Generation)
+}
+
+func (c *CertificateSpec) HasCertificateController() bool {
+	return c.GetCertificateController() != ""
+}
+
+func (c *CertificateSpec) GetCertificateController() string {
+	if c.Settings == nil {
+		return ""
+	}
+	if value, ok := c.Settings["certificate-controller"]; ok {
+		return value
+	}
+	return ""
+}
+
+func (c *CertificateSpec) SetCertificateController(controller string) {
+	if c.Settings == nil {
+		if controller == "" {
+			return
+		}
+		c.Settings = make(map[string]string)
+	}
+	if controller != "" {
+		c.Settings["certificate-controller"] = controller
+	} else {
+		delete(c.Settings, "certificate-controller")
+	}
 }
 
 // +genclient
@@ -962,6 +1038,30 @@ type RouterAccessSpec struct {
 	BindHost                string             `json:"bindHost,omitempty"`
 	SubjectAlternativeNames []string           `json:"subjectAlternativeNames,omitempty"`
 	Settings                map[string]string  `json:"settings,omitempty"`
+}
+
+func (r *RouterAccessSpec) GetCertificateController() string {
+	if r.Settings == nil {
+		return ""
+	}
+	if value, ok := r.Settings["certificate-controller"]; ok {
+		return value
+	}
+	return ""
+}
+
+func (r *RouterAccessSpec) SetCertificateController(controller string) {
+	if r.Settings == nil {
+		if controller == "" {
+			return
+		}
+		r.Settings = make(map[string]string)
+	}
+	if controller != "" {
+		r.Settings["certificate-controller"] = controller
+	} else {
+		delete(r.Settings, "certificate-controller")
+	}
 }
 
 type RouterAccessStatus struct {

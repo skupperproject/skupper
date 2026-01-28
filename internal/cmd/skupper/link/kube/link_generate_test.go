@@ -9,11 +9,13 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	fakeskupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1/fake"
 	"gotest.tools/v3/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 func TestCmdLinkGenerate_ValidateInput(t *testing.T) {
@@ -1004,6 +1006,24 @@ func newCmdLinkGenerateWithMocks(namespace string, k8sObjects []runtime.Object, 
 	if err != nil {
 		return nil, err
 	}
+	defaultIssuer := &v2alpha1.Certificate{
+		TypeMeta: v1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "Certificate",
+		},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "skupper-site-ca",
+			Namespace: namespace,
+		},
+	}
+	fakeSkupperCli := client.Skupper.SkupperV2alpha1().(*fakeskupperv2alpha1.FakeSkupperV2alpha1)
+	fakeSkupperCli.PrependReactor("get", "certificates", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		getAction := action.(k8stesting.GetAction)
+		if getAction.GetName() == "skupper-site-ca" {
+			return true, defaultIssuer, nil
+		}
+		return false, nil, nil
+	})
 	CmdLinkGenerate := &CmdLinkGenerate{
 		Client:     client.GetSkupperClient().SkupperV2alpha1(),
 		KubeClient: client.GetKubeClient(),

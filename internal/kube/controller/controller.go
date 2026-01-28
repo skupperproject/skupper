@@ -133,7 +133,11 @@ func NewController(cli internalclient.Clients, config *Config, options ...watche
 	controller.namespaces.watch(controller.eventProcessor, config.WatchNamespace)
 	controller.labellingWatcher = controller.eventProcessor.WatchConfigMaps(labelling(), config.WatchNamespace, controller.labelling.Update)
 
-	controller.certMgr = certificates.NewCertificateManager(controller.eventProcessor)
+	controller.certMgr = certificates.NewCertificateManager(controller.eventProcessor, config.CertificateController)
+	if config.CertificateController != "" {
+		controller.log.Info("Certificate management has been delegated",
+			slog.String("certificate-controller", config.CertificateController))
+	}
 	controller.certMgr.SetControllerContext(controller)
 	controller.certMgr.Watch(config.WatchNamespace)
 
@@ -318,7 +322,7 @@ func (c *Controller) getSite(namespace string) *site.Site {
 	if existing, ok := c.sites[namespace]; ok {
 		return existing
 	}
-	site := site.NewSite(namespace, c.eventProcessor, c.certMgr, c.accessMgr, c.siteSizing, c)
+	site := site.NewSite(namespace, c.eventProcessor, c.certMgr, c.accessMgr, c.siteSizing, c, c.certMgr.GetCertificateController())
 	c.sites[namespace] = site
 	return site
 }

@@ -11,7 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/skupperproject/skupper/internal/utils"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -39,26 +41,31 @@ type ControllerContext interface {
 // the existence of a particular Certificate resource can be
 // ensured. It is currently used by package internal/kube/site.
 type CertificateManager interface {
-	EnsureCA(namespace string, name string, subject string, refs []metav1.OwnerReference) error
-	Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error
+	EnsureCA(namespace string, name string, subject string, controller string, refs []metav1.OwnerReference) error
+	Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, controller string, refs []metav1.OwnerReference) error
 }
 
 type CertificateManagerImpl struct {
-	definitions        map[string]*skupperv2alpha1.Certificate
-	secrets            map[string]*corev1.Secret
-	certificateWatcher *watchers.CertificateWatcher
-	secretWatcher      *watchers.SecretWatcher
-	processor          *watchers.EventProcessor
-	context            ControllerContext
+	certificateController string
+	delegated             map[string]*skupperv2alpha1.Certificate
+	definitions           map[string]*skupperv2alpha1.Certificate
+	secrets               map[string]*corev1.Secret
+	certificateWatcher    *watchers.CertificateWatcher
+	secretWatcher         *watchers.SecretWatcher
+	processor             *watchers.EventProcessor
+	context               ControllerContext
 }
 
 // Returns a correctly initialised CertificateManager.
-func NewCertificateManager(processor *watchers.EventProcessor) *CertificateManagerImpl {
-	return &CertificateManagerImpl{
-		definitions: map[string]*skupperv2alpha1.Certificate{},
-		secrets:     map[string]*corev1.Secret{},
-		processor:   processor,
+func NewCertificateManager(processor *watchers.EventProcessor, certificateController string) *CertificateManagerImpl {
+	certMgr := &CertificateManagerImpl{
+		definitions:           map[string]*skupperv2alpha1.Certificate{},
+		delegated:             map[string]*skupperv2alpha1.Certificate{},
+		secrets:               map[string]*corev1.Secret{},
+		processor:             processor,
+		certificateController: certificateController,
 	}
+	return certMgr
 }
 
 // Allows a ControllerContext to be set for this CertificateManager.
@@ -70,6 +77,10 @@ func (m *CertificateManagerImpl) SetControllerContext(context ControllerContext)
 func (m *CertificateManagerImpl) Watch(watchNamespace string) {
 	m.certificateWatcher = m.processor.WatchCertificates(watchNamespace, watchers.FilterByNamespace(m.isControlled, m.checkCertificate))
 	m.secretWatcher = m.processor.WatchAllSecrets(watchNamespace, watchers.FilterByNamespace(m.isControlled, m.checkSecret))
+}
+
+func (m *CertificateManagerImpl) GetCertificateController() string {
+	return m.certificateController
 }
 
 func (m *CertificateManagerImpl) isControlled(namespace string) bool {
@@ -102,11 +113,12 @@ func (m *CertificateManagerImpl) Recover() {
 // This method is called to ensure that a Certificate resource exists
 // to represent a CA (i.e. certificate issuer) with the properties
 // specified in the arguments.
-func (m *CertificateManagerImpl) EnsureCA(namespace string, name string, subject string, refs []metav1.OwnerReference) error {
+func (m *CertificateManagerImpl) EnsureCA(namespace string, name string, subject string, controller string, refs []metav1.OwnerReference) error {
 	spec := skupperv2alpha1.CertificateSpec{
 		Subject: subject,
 		Signing: true,
 	}
+	spec.SetCertificateController(utils.DefaultStr(controller, m.certificateController))
 	return m.ensure(namespace, name, spec, refs)
 }
 
@@ -118,7 +130,7 @@ func (m *CertificateManagerImpl) EnsureCA(namespace string, name string, subject
 // if the same owner changes the hosts then they will be changed on
 // the certificate. This allows the same certificate to be used for
 // multiple resources such as Routes.
-func (m *CertificateManagerImpl) Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error {
+func (m *CertificateManagerImpl) Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, controller string, refs []metav1.OwnerReference) error {
 	spec := skupperv2alpha1.CertificateSpec{
 		Ca:      ca,
 		Subject: subject,
@@ -126,6 +138,7 @@ func (m *CertificateManagerImpl) Ensure(namespace string, name string, ca string
 		Client:  client,
 		Server:  server,
 	}
+	spec.SetCertificateController(utils.DefaultStr(controller, m.certificateController))
 	return m.ensure(namespace, name, spec, refs)
 }
 
@@ -135,6 +148,7 @@ var compareSpecUnordered []cmp.Option = []cmp.Option{
 }
 
 func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skupperv2alpha1.CertificateSpec, refs []metav1.OwnerReference) error {
+	certsCli := m.processor.GetSkupperClient().SkupperV2alpha1().Certificates(namespace)
 	key := fmt.Sprintf("%s/%s", namespace, name)
 	if current, ok := m.definitions[key]; ok {
 		changed := false
@@ -184,8 +198,19 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 		if !changed {
 			return nil
 		}
-		updated, err := m.processor.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Update(context.Background(), current, metav1.UpdateOptions{})
+		m.setLatestResourceVersion(current)
+		updated, err := certsCli.Update(context.Background(), current, metav1.UpdateOptions{})
 		if err != nil {
+			log.Printf("Error updating certificate %s: %s", key, err)
+			if apierrors.IsConflict(err) {
+				latest, getErr := certsCli.Get(context.Background(), current.Name, metav1.GetOptions{})
+				if getErr != nil {
+					log.Printf("Error getting latest certificate state for %s: %s", key, err)
+				} else {
+					log.Printf("Restoring latest certificate state for %s", key)
+					m.definitions[key] = latest
+				}
+			}
 			return err
 		}
 		log.Printf("Updated certificate %s/%s", updated.Namespace, updated.Name)
@@ -214,12 +239,36 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 			m.context.SetAnnotations(namespace, cert.Name, "Certificate", cert.ObjectMeta.Annotations)
 		}
 
-		created, err := m.processor.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Create(context.Background(), cert, metav1.CreateOptions{})
+		created, err := certsCli.Create(context.Background(), cert, metav1.CreateOptions{})
 		if err != nil {
-			return err
+			if apierrors.IsAlreadyExists(err) {
+				log.Printf("Certificate %s/%s already exists - loading latest", namespace, name)
+				created, err = certsCli.Get(context.Background(), cert.Name, metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
+			} else {
+				log.Printf("Error creating certificate %s: %s", key, err)
+				return err
+			}
 		}
 		m.definitions[key] = created
 		return nil
+	}
+}
+
+func (m *CertificateManagerImpl) setLatestResourceVersion(current *skupperv2alpha1.Certificate) {
+	if !current.Spec.HasCertificateController() {
+		return
+	}
+	certsCli := m.processor.GetSkupperClient().SkupperV2alpha1().Certificates(current.GetNamespace())
+	latest, err := certsCli.Get(context.Background(), current.Name, metav1.GetOptions{})
+	if err != nil {
+		log.Printf("Unable to retrieve latest certificate for %q: %v", current.Key(), err)
+	} else if current.GetResourceVersion() != latest.GetResourceVersion() {
+		log.Printf("Updating certificate generation for %q", current.Key())
+		current.ObjectMeta.Generation = latest.GetGeneration()
+		current.ObjectMeta.ResourceVersion = latest.GetResourceVersion()
 	}
 }
 
@@ -259,6 +308,9 @@ func (m *CertificateManagerImpl) checkCertificate(key string, certificate *skupp
 func (m *CertificateManagerImpl) reconcileSecret(key string, certificate *skupperv2alpha1.Certificate, secret *corev1.Secret) error {
 
 	var err error
+	if m.ensureDelegated(certificate) {
+		return nil
+	}
 	if secret != nil {
 		err = m.updateSecret(key, certificate, secret)
 	} else {
@@ -464,6 +516,33 @@ func hasControlledAnnotation(secret *corev1.Secret) bool {
 	}
 	_, ok := secret.Annotations["internal.skupper.io/controlled"]
 	return ok
+}
+
+func (m *CertificateManagerImpl) ensureDelegated(certificate *skupperv2alpha1.Certificate) bool {
+	var controller string
+	var delegate bool
+
+	if m.certificateController != "" {
+		controller = m.certificateController
+		delegate = true
+	} else if controller = certificate.Spec.GetCertificateController(); controller != "" {
+		delegate = true
+	}
+
+	key := certificate.Key()
+	_, isDelegated := m.delegated[key]
+	if delegate {
+		if !isDelegated {
+			log.Printf("Certificate '%s' has been delegated to '%s'", key, controller)
+			m.delegated[key] = certificate
+		}
+	} else {
+		if isDelegated {
+			log.Printf("Certificate '%s' is no longer delegated", key)
+			delete(m.delegated, key)
+		}
+	}
+	return delegate
 }
 
 func hasCertificateOwner(secret *corev1.Secret) bool {
