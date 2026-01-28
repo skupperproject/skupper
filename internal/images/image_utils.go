@@ -2,7 +2,7 @@ package images
 
 import (
 	"bytes"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -209,7 +209,7 @@ func CreateMapImageDigest(runningPods map[string]string) map[string]string {
 				// Pull the image only if it's not present locally or if it's an image that could be overwritten.
 				pullCmd := exec.Command("docker", "pull", skImage)
 				if pullErr = pullCmd.Run(); pullErr != nil {
-					log.Printf("Error pulling image: %v\n", output.String())
+					slog.Error("Error pulling image", slog.String("error", output.String()))
 				}
 
 				// Retry inspection after pulling
@@ -218,7 +218,7 @@ func CreateMapImageDigest(runningPods map[string]string) map[string]string {
 				checkCmd.Stdout = &output
 				checkCmd.Stderr = &output
 				if inspectErr = checkCmd.Run(); inspectErr != nil {
-					log.Printf("Error getting image digest: %v\n", output.String())
+					slog.Error("Error getting image digest", slog.String("error", output.String()))
 				}
 			}
 

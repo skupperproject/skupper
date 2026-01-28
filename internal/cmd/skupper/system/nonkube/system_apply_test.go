@@ -3,7 +3,7 @@ package nonkube
 import (
 	"bufio"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"testing"
 
@@ -187,7 +187,8 @@ func mockCmdSystemApplyFactory(configuredPlatform common.Platform) *cobra.Comman
 
 	r, w, err := os.Pipe()
 	if err != nil {
-		log.Fatalf("failed to create pipe: %v", err)
+		slog.Error("failed to create pipe", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// Write to pipe in a goroutine to avoid blocking

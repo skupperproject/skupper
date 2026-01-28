@@ -3,7 +3,7 @@ package qdr
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	path_ "path"
 	"reflect"
@@ -1057,9 +1057,9 @@ func (a *BridgeConfigDifference) Empty() bool {
 }
 
 func (a *BridgeConfigDifference) Print() {
-	log.Printf("TcpConnectors added=%v, deleted=%v", a.TcpConnectors.Added, a.TcpConnectors.Deleted)
-	log.Printf("TcpListeners added=%v, deleted=%v", a.TcpListeners.Added, a.TcpListeners.Deleted)
-	log.Printf("SslProfiles added=%v, deleted=%v", a.AddedSslProfiles, a.DeletedSSlProfiles)
+	slog.Info("TcpConnectors", slog.Any("added", a.TcpConnectors.Added), slog.Any("deleted", a.TcpConnectors.Deleted))
+	slog.Info("TcpListeners", slog.Any("added", a.TcpListeners.Added), slog.Any("deleted", a.TcpListeners.Deleted))
+	slog.Info("SslProfiles", slog.Any("added", a.AddedSslProfiles), slog.Any("deleted", a.DeletedSSlProfiles))
 }
 
 func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ignorePrefix *string) *ConnectorDifference {
@@ -1139,7 +1139,7 @@ func ListenersDifference(actual map[string]Listener, desired map[string]Listener
 	for key, desiredValue := range desired {
 		if actualValue, ok := actual[key]; ok {
 			if !desiredValue.Equivalent(actualValue) {
-				log.Printf("Listener definition does not match. Have %v want %v", actualValue, desiredValue)
+				slog.Info("Listener definition does not match", slog.Any("actual", actualValue), slog.Any("desired", desiredValue))
 				// handle change as delete then add, so it also works over management protocol
 				result.Deleted = append(result.Deleted, desiredValue)
 				result.Added = append(result.Added, desiredValue)

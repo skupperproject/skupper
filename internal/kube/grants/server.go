@@ -3,7 +3,7 @@ package grants
 import (
 	"crypto/tls"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"sync"
@@ -65,7 +65,7 @@ func (s *Server) listen() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Grant server listening on %s", listener.Addr())
+	slog.Info("Grant server listening", slog.Any("address", listener.Addr()))
 	s.listener = listener
 	return nil
 }
@@ -84,7 +84,7 @@ func (s *Server) serve() error {
 
 func (s *Server) listenAndServe() error {
 	if err := s.listen(); err != nil {
-		log.Printf("Grant server failed to listen on %s: %s", s.server.Addr, err)
+		slog.Error("Grant server failed to listen", slog.Any("address", err), slog.Any("error", err))
 		return err
 	}
 	defer s.listener.Close()

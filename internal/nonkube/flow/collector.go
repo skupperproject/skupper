@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"log"
 	"log/slog"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -103,7 +102,7 @@ func getLocalTLSConfig(namespace string) (*tls.Config, error) {
 }
 
 func StartCollector(ctx context.Context, namespace string) error {
-	log.Println("COLLECTOR: Starting site collection for:", namespace)
+	slog.Info("COLLECTOR: Starting site collection", slog.String("namespace", namespace))
 	if err := siteCollector(ctx, namespace); err != nil {
 		return err
 	}

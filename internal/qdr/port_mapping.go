@@ -1,7 +1,7 @@
 package qdr
 
 import (
-	"log"
+	"log/slog"
 	"strconv"
 
 	"github.com/skupperproject/skupper/internal/ports"
@@ -21,7 +21,7 @@ func (p *PortMapping) GetPortForKey(key string) (int, error) {
 		return 0, err
 	}
 	p.mappings[key] = allocated
-	log.Printf("Allocated port %d for key %s", allocated, key)
+	slog.Info("Allocated port for key", slog.Int("port", allocated), slog.String("key", key))
 	return allocated, err
 }
 
@@ -35,7 +35,7 @@ func (p *PortMapping) ReleasePortForKey(key string) {
 func (p *PortMapping) recovered(key string, portstr string) {
 	port, err := strconv.Atoi(portstr)
 	if err != nil {
-		log.Printf("Failed to convert port %q to int: %s", portstr, err)
+		slog.Error("Failed to convert port to int", slog.String("port", portstr), slog.Any("error", err))
 		return
 	}
 	p.pool.InUse(port)

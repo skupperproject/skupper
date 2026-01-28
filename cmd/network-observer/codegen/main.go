@@ -6,7 +6,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"log"
+	"log/slog"
 	"os"
 	"regexp"
 	"strings"
@@ -77,13 +77,15 @@ func main() {
 	}
 	target := input[0]
 	if _, err := os.Stat(target); err != nil {
-		log.Fatalf("error opening input file: %s", err)
+		slog.Error("error opening input file", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, target, nil, parser.ParseComments)
 	if err != nil {
-		log.Fatalf("could not parse go file: %s", err)
+		slog.Error("could not parse go file", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	codegen := Codegen{
@@ -128,7 +130,8 @@ func main() {
 		of, err := os.Create(output)
 		if err != nil {
 			flags.Usage()
-			log.Fatalf("could not open output file: %s", err)
+			slog.Error("could not open output file", slog.Any("error", err))
+			os.Exit(1)
 		}
 		f = of
 	}
@@ -157,7 +160,8 @@ func fieldsMatchingType(st *ast.StructType, re *regexp.Regexp) []FieldInfo {
 						rt += "*"
 						typ = f.X
 					default:
-						log.Fatalf("unexpected field type: %s %T", field.Names[0], f)
+						slog.Error("unexpected field type", slog.Any("field", field.Names[0]), slog.Any("type", f))
+						os.Exit(1)
 					}
 				}
 				fields = append(fields, FieldInfo{

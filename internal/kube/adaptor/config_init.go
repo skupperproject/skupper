@@ -3,7 +3,6 @@ package adaptor
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	paths "path"
@@ -29,10 +28,10 @@ func InitialiseConfig(cli internalclient.Clients, namespace string, path string,
 	)
 	stop := make(chan struct{})
 	defer close(stop)
-	log.Println("Starting secret watcher")
+	slog.Info("Starting secret watcher")
 	controller.StartWatchers(stop)
 	configMaps := cli.GetKubeClient().CoreV1().ConfigMaps(namespace)
-	log.Println("Waiting for secret watcher cache")
+	slog.Info("Waiting for secret watcher cache")
 	controller.WaitForCacheSync(stop)
 	secretsSync.Recover()
 	controller.Start(stop)
@@ -41,7 +40,7 @@ func InitialiseConfig(cli internalclient.Clients, namespace string, path string,
 		err                 error
 	)
 	retryErr := backoff.Retry(func() error {
-		log.Println("Synchroninzing Secrets with router configuration")
+		slog.Info("Synchroninzing Secrets with router configuration")
 		routerConfiguration, err = getRouterConfig(ctxt, configMaps, routerConfigMap)
 		if err != nil {
 			return err
@@ -51,17 +50,17 @@ func InitialiseConfig(cli internalclient.Clients, namespace string, path string,
 		}
 		delta := secretsSync.Expect(routerConfiguration.SslProfiles)
 		if len(delta.Missing) > 0 {
-			log.Printf("Waiting for Secrets to be created for SslProfiles %v", delta.Missing)
+			slog.Info("Waiting for Secrets to be created for SslProfiles", slog.Any("sslProfiles", delta.Missing))
 		}
 		for name, diff := range delta.PendingOrdinals {
-			log.Printf("Secret %q has outdated ordinal %d. Profile %q wants %d", diff.SecretName, diff.Current, name, diff.Expect)
+			slog.Info("Secret has outdated ordinal", slog.String("secret", diff.SecretName), slog.Uint64("ordinal", diff.Current), slog.String("profile", name), slog.Uint64("expected", diff.Expect))
 		}
 		return delta.Error()
 	}, backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(time.Second*60)))
 	if retryErr != nil {
 		return retryErr
 	}
-	log.Printf("Finished synchronizing Secrets with router configuration")
+	slog.Info("Finished synchronizing Secrets with router configuration")
 	value, err := qdr.MarshalRouterConfig(*routerConfiguration)
 	if err != nil {
 		return err
@@ -70,7 +69,7 @@ func InitialiseConfig(cli internalclient.Clients, namespace string, path string,
 	if err := os.WriteFile(configFile, []byte(value), 0777); err != nil {
 		return err
 	}
-	log.Printf("Router configuration written to %s", configFile)
+	slog.Info("Router configuration written to config file", slog.String("configFile", configFile))
 	return nil
 }
 

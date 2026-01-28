@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,11 +43,15 @@ func NewTokenGenerator(site *skupperv2alpha1.Site, clients internalclient.Client
 		clients:   clients,
 	}
 	if err := generator.loadCA(site.DefaultIssuer()); err != nil {
-		log.Printf("Error retrieving default issuer %s for site %s in %s: %s", site.DefaultIssuer(), site.Name, site.Namespace, err)
+		slog.Error("Error retrieving default issuer for site",
+			slog.String("defaultIssuer", site.DefaultIssuer()),
+			slog.String("namespace", site.Namespace),
+			slog.String("name", site.Name),
+			slog.Any("error", err))
 		return nil, errors.New("Could not get issuer for requested certificate")
 	}
 	if ok := generator.setValidHostsFromSite(site); !ok {
-		log.Printf("Could not resolve any target endpoints for site %s in %s", site.Name, site.Namespace)
+		slog.Info("Could not resolve any target endpoints for site", slog.String("namespace", site.Namespace), slog.String("name", site.Name))
 		return nil, errors.New("Could not resolve any endpoints for requested link")
 	}
 	return generator, nil
@@ -82,7 +86,7 @@ func (g *TokenGenerator) setValidHostsFromSite(site *skupperv2alpha1.Site) bool 
 	for _, endpoints := range byGroup {
 		g.endpoints = append(g.endpoints, endpoints)
 	}
-	log.Printf("Endpoints for grant: %v (by group: %v)", g.endpoints, byGroup)
+	slog.Info("Endpoints for grant by group", slog.Any("endpoints", g.endpoints), slog.Any("byGroup", byGroup))
 	g.hosts = hosts
 	return true
 }

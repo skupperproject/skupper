@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"sync"
@@ -17,19 +17,21 @@ import (
 
 func main() {
 	parseFlags()
-	log.Printf("Version: %s", version.Version)
+	slog.Info("Version info:", slog.String("version", version.Version))
 	namespacesPath := api.GetDefaultOutputNamespacesPath()
-	log.Printf("Skupper System Controller watching %s", namespacesPath)
+	slog.Info("Skupper System Controller watching:", slog.String("path", namespacesPath))
 	if api.IsRunningInContainer() {
-		log.Printf("Host path %s", api.GetHostNamespacesPath())
+		slog.Info("Host path info:", slog.String("path", api.GetHostNamespacesPath()))
 	}
 	if err := os.MkdirAll(namespacesPath, 0755); err != nil {
-		log.Fatalf("Error creating skupper namespaces directory %q: %v", namespacesPath, err)
+		slog.Error("Error creating skupper namespaces directory", slog.String("path", namespacesPath), slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	c, err := controller.NewController()
 	if err != nil {
-		log.Fatalf("Error creating controller: %v", err)
+		slog.Error("Error creating controller", slog.Any("error", err))
+		os.Exit(1)
 	}
 	stop, wait := c.Start()
 
@@ -41,7 +43,7 @@ func handleShutdown(stop chan struct{}, wait *sync.WaitGroup) {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	<-sigs
-	log.Println("Shutting down system controller")
+	slog.Info("Shutting down system controller")
 
 	close(stop)
 
@@ -55,13 +57,13 @@ func handleShutdown(stop chan struct{}, wait *sync.WaitGroup) {
 	for {
 		select {
 		case <-sigs:
-			log.Println("Second interrupt, forcing system controller shutdown")
+			slog.Info("Second interrupt, forcing system controller shutdown")
 			os.Exit(1)
 		case <-gracefulTimeout.C:
-			log.Println("Graceful shutdown timed out, exiting now")
+			slog.Info("Graceful shutdown timed out, exiting now")
 			os.Exit(1)
 		case <-graceful:
-			log.Println("System controller shutdown completed")
+			slog.Info("System controller shutdown completed")
 			os.Exit(0)
 		}
 	}

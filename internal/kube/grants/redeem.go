@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -28,7 +28,10 @@ func RedeemAccessToken(token *skupperv2alpha1.AccessToken, site *skupperv2alpha1
 	if err != nil {
 		return updateAccessTokenStatus(token, err, clients)
 	}
-	log.Printf("HTTP Post to %s for %s/%s was successful, decoding response body", token.Spec.Url, token.Namespace, token.Name)
+	slog.Info("HTTP Post was successful, decoding response body",
+		slog.String("URL", token.Spec.Url),
+		slog.String("namespace", token.Namespace),
+		slog.String("name", token.Name))
 	return handleTokenResponse(body, token, site, clients)
 }
 
@@ -67,7 +70,10 @@ func postTokenRequest(token *skupperv2alpha1.AccessToken, site *skupperv2alpha1.
 func handleTokenResponse(body io.Reader, token *skupperv2alpha1.AccessToken, site *skupperv2alpha1.Site, clients internalclient.Clients) error {
 	decoder := newLinkDecoder(body)
 	if err := decoder.decodeAll(); err != nil {
-		log.Printf("Could not decode response for AccessToken %s/%s: %s", token.Namespace, token.Name, err)
+		slog.Error("Could not decode response for AccessToken",
+			slog.String("namespace", token.Namespace),
+			slog.String("name", token.Name),
+			slog.Any("error", err))
 		return updateAccessTokenStatus(token, errors.New("Controller could not decode response"), clients)
 	}
 	refs := []metav1.OwnerReference{

@@ -2,7 +2,7 @@ package nonkube
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"testing"
 
@@ -176,7 +176,8 @@ func mockCmdSystemDeleteFactory(configuredPlatform common.Platform) *cobra.Comma
 
 	r, w, err := os.Pipe()
 	if err != nil {
-		log.Fatalf("failed to create pipe: %v", err)
+		slog.Error("failed to create pipe", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// Write to pipe in a goroutine to avoid blocking
