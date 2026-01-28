@@ -1,0 +1,14 @@
+{{- range $index, $volume := .Values.prometheus.extraVolumes }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $volume.persistentVolumeClaim.claimName }}
+spec:
+  {{- if $volume.persistentVolumeClaim.storageClass }}
+  storageClassName: {{ $volume.persistentVolumeClaim.storageClass }}
+  {{- end }}
+  accessModes: {{ $volume.persistentVolumeClaim.accessModes | toYaml | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ $volume.persistentVolumeClaim.size }}
+{{- end }}

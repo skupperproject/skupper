@@ -28,7 +28,7 @@ prometheus:
   # Additional arguments for the Prometheus container
   extraArgs:
   # - --storage.tsdb.retention.time=15d
-  # - --storage.tsdb.retention.size=10Gi
+  # - --storage.tsdb.retention.size=10GB
 
   # Persistence configuration for Prometheus data
   persistence:
