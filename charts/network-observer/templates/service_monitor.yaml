@@ -1,0 +1,73 @@
+{{- if .Values.serviceMonitor.create }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ (include "network-observer.serviceMonitorName" .) }}
+  labels:
+    {{- include "network-observer.labels" . | nindent 4 }}
+spec:
+  endpoints:
+  - port: https
+    scheme: https
+    tlsConfig:
+      insecureSkipVerify: true
+    {{- if .Values.serviceMonitor.bearerTokenSecret.enabled }}
+    {{- if ne .Values.auth.strategy "openshift" }}
+      {{- fail "Configuration Error: serviceMonitor.bearerTokenSecret.enabled can only be set when auth.strategy is 'openshift'" }}
+    {{- end }}
+    bearerTokenSecret:
+      key: {{ .Values.serviceMonitor.bearerTokenSecret.key }}
+      name: {{ (include "network-observer.bearerTokenSecret" .) }}
+    {{- end }}
+  selector:
+    matchLabels:
+      {{- include "network-observer.selectorLabels" . | nindent 6 }}
+{{- if .Values.serviceMonitor.bearerTokenSecret.create }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ (include "network-observer.bearerTokenSecret" .) }}
+  labels:
+    {{- include "network-observer.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ (include "network-observer.bearerTokenSecret" .) }}
+  labels:
+    {{- include "network-observer.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - "skupper.io"
+  resources:
+  - sites
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ (include "network-observer.bearerTokenSecret" .) }}
+  labels:
+    {{- include "network-observer.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ (include "network-observer.bearerTokenSecret" .) }}
+subjects:
+- kind: ServiceAccount
+  name: {{ (include "network-observer.bearerTokenSecret" .) }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    kubernetes.io/service-account.name: {{ (include "network-observer.bearerTokenSecret" .) }}
+  labels:
+    {{- include "network-observer.labels" . | nindent 4 }}
+  name: {{ (include "network-observer.bearerTokenSecret" .) }}
+type: kubernetes.io/service-account-token
+{{- end }}
+{{- end }}

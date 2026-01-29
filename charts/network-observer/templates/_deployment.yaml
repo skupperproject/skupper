@@ -65,6 +65,9 @@ args:
   - -tls-cert=/etc/certificates/tls.crt
   - -tls-key=/etc/certificates/tls.key
   - -cookie-secret-file=/etc/session-secrets/secret
+  {{ if .Values.auth.openshift.bearerTokenAuth.enabled -}}
+  - -openshift-delegate-urls={{ include "network-observer.bearerTokenAuth" . | fromYaml | toJson }}
+  {{- end }}
 ports:
   - name: https
     containerPort: 8443
