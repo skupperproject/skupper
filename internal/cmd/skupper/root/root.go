@@ -2,7 +2,6 @@ package root
 
 import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/version"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/connector"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/debug"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/link"
@@ -11,6 +10,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/site"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/system"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/token"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/version"
 	"github.com/skupperproject/skupper/internal/config"
 	"github.com/spf13/cobra"
 )
