@@ -105,8 +105,10 @@ spec:
       - emptyDir: {}
         name: prometheus-storage-volume
       {{- end }}
-      {{- with .Values.prometheus.extraVolumes }}
-      {{- toYaml . | nindent 6 }}
+      {{- range .Values.prometheus.extraVolumes }}
+      - name: {{ .name }}
+        persistentVolumeClaim:
+          claimName: {{ .persistentVolumeClaim.claimName }}
       {{- end }}
       - name: skupper-management-client
         secret:

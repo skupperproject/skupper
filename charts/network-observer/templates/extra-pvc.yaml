@@ -3,6 +3,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ $volume.persistentVolumeClaim.claimName }}
+  labels:
+    {{- include "network-observer.labels" $ | nindent 4 }}
 spec:
   {{- if $volume.persistentVolumeClaim.storageClass }}
   storageClassName: {{ $volume.persistentVolumeClaim.storageClass }}
