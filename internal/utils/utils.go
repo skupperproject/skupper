@@ -16,10 +16,9 @@ package utils
 
 import (
 	"crypto/rand"
-	"io"
 	"os"
 	"os/user"
-	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -48,81 +47,12 @@ func StringifySelector(labels map[string]string) string {
 	return result
 }
 
-// LabelToMap expects label string to be a comma separated
-// list of key and value pairs delimited by equals.
-func LabelToMap(label string) map[string]string {
-	m := map[string]string{}
-	labels := strings.Split(label, ",")
-	for _, l := range labels {
-		if !strings.Contains(l, "=") {
-			continue
-		}
-		entry := strings.Split(l, "=")
-		m[entry[0]] = entry[1]
-	}
-	return m
-}
-
-func StringSliceContains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
-
-func StringSliceEndsWith(s []string, e string) bool {
-	for _, a := range s {
-		if strings.HasSuffix(a, e) {
-			return true
-		}
-	}
-	return false
-}
-
-func RegexpStringSliceContains(s []string, e string) bool {
-	for _, re := range s {
-		match, err := regexp.Match(re, []byte(e))
-		if err == nil && match {
-			return true
-		}
-	}
-	return false
-}
-
-func IntSliceContains(s []int, e int) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
-}
-
-func IsDirEmpty(name string) (bool, error) {
-	file, err := os.Open(name)
-
-	if err != nil {
-		return false, err
-	}
-	defer file.Close()
-
-	_, err = file.Readdir(1)
-
-	if err == io.EOF {
-		return true, nil
-	}
-
-	return false, err
-}
-
 func StringSlicesEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
 	for _, v := range a {
-		if !StringSliceContains(b, v) {
+		if !slices.Contains(b, v) {
 			return false
 		}
 	}
@@ -138,30 +68,6 @@ func DefaultStr(values ...string) string {
 		return values[0]
 	}
 	return DefaultStr(values[1:]...)
-}
-
-func GetOrDefault(str string, defaultStr string) string {
-	var result string
-	if len(str) > 0 {
-		result = str
-	} else {
-		result = defaultStr
-	}
-	return result
-}
-
-type Number interface {
-	int | int32 | int64 | float32 | float64
-}
-
-func DefaultNumber[T Number](values ...T) T {
-	if len(values) == 1 {
-		return values[0]
-	}
-	if values[0] > 0 {
-		return values[0]
-	}
-	return DefaultNumber(values[1:]...)
 }
 
 func ReadUsername() string {

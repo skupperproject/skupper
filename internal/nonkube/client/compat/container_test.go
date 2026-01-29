@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -293,7 +294,7 @@ func ValidateMaps(t *testing.T, originalMap map[string]string, finalMap map[stri
 
 func ValidateStrings(t *testing.T, original []string, final []string) {
 	for _, v := range original {
-		assert.Assert(t, utils.StringSliceContains(final, v), "string not found %s", v)
+		assert.Assert(t, slices.Contains(final, v), "string not found %s", v)
 	}
 }
 

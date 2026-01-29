@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -13,7 +14,6 @@ import (
 	amqp "github.com/interconnectedcloud/go-amqp"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/config"
-	"github.com/skupperproject/skupper/internal/utils"
 )
 
 type RouterNode struct {
@@ -1394,7 +1394,7 @@ func ConnectedSitesInfo(selfId string, routers []Router) types.TransportConnecte
 		if r.Edge && len(r.ConnectedTo) > 1 {
 			connectedSites.Warnings = append(connectedSites.Warnings, "There are edge uplinks to distinct networks, please verify topology (connected counts may not be accurate).")
 		}
-		if utils.StringSliceContains(r.ConnectedTo, self.Id) {
+		if slices.Contains(r.ConnectedTo, self.Id) {
 			connectedSites.Direct += 1
 		}
 	}

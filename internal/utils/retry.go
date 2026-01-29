@@ -83,23 +83,6 @@ type Result struct {
 	Error error
 }
 
-type ResultFunc func() Result
-
-func TryUntil(maxWindowTime time.Duration, f ResultFunc) (interface{}, error) {
-
-	result := make(chan Result, 1)
-
-	go func() {
-		result <- f()
-	}()
-	select {
-	case <-time.After(maxWindowTime):
-		return nil, fmt.Errorf("timed out")
-	case result := <-result:
-		return result.Value, result.Error
-	}
-}
-
 // RetryWithContext retries f every interval until the specified context times out.
 func RetryWithContext(ctx context.Context, interval time.Duration, f ConditionFunc) error {
 	tick := time.NewTicker(interval)
