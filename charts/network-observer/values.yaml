@@ -27,8 +27,8 @@ prometheus:
 
   # Additional arguments for the Prometheus container
   extraArgs:
-  # - --storage.tsdb.retention.time=15d
-  # - --storage.tsdb.retention.size=10GB
+    # - --storage.tsdb.retention.time=15d
+    # - --storage.tsdb.retention.size=10GB
 
   # Persistence configuration for Prometheus data
   persistence:
@@ -40,8 +40,11 @@ prometheus:
   # extra persistent volumes for Prometheus
   extraVolumes:
     # - name: ""
-      # persistentVolumeClaim:
-        # claimName: ""
+    #   persistentVolumeClaim:
+    #     claimName: ""
+    #     storageClass: ""
+    #     accessModes: ["ReadWriteOnce"]
+    #     size: 8Gi
 
   # extra persistent volume mounts for Prometheus
   extraVolumeMounts:
