@@ -37,11 +37,13 @@ prometheus:
     accessModes: ["ReadWriteOnce"]
     size: 8Gi
 
+  # extra persistent volumes for Prometheus
   extraVolumes:
     # - name: ""
       # persistentVolumeClaim:
         # claimName: ""
 
+  # extra persistent volume mounts for Prometheus
   extraVolumeMounts:
     # - mountPath: ""
       # name: ""
