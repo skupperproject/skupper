@@ -1,0 +1,16 @@
+{{- if .Values.prometheus.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "network-observer.fullname" . }}-prometheus
+  labels:
+    {{- include "network-observer.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.prometheus.persistence.storageClass }}
+  storageClassName: {{ .Values.prometheus.persistence.storageClass }}
+  {{- end }}
+  accessModes: {{ .Values.prometheus.persistence.accessModes | toYaml | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.prometheus.persistence.size }}
+{{- end }}

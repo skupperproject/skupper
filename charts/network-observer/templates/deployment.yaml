@@ -75,6 +75,9 @@ spec:
           args:
             - --config.file=/etc/prometheus/prometheus.yml
             - --storage.tsdb.path=/prometheus/
+            {{- range .Values.prometheus.extraArgs }}
+            - {{ . }}
+            {{- end }}
           ports:
             - name: prom
               containerPort: 9090
@@ -86,13 +89,27 @@ spec:
               name: prometheus-config
             - mountPath: /prometheus
               name: prometheus-storage-volume
+            {{- with .Values.prometheus.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
       - configMap:
           defaultMode: 420
           name: {{ include "network-observer.fullname" . }}-prometheus
         name: prometheus-config
+      {{- if .Values.prometheus.persistence.enabled }}
+      - name: prometheus-storage-volume
+        persistentVolumeClaim:
+          claimName: {{ include "network-observer.fullname" . }}-prometheus
+      {{- else }}
       - emptyDir: {}
         name: prometheus-storage-volume
+      {{- end }}
+      {{- range .Values.prometheus.extraVolumes }}
+      - name: {{ .name }}
+        persistentVolumeClaim:
+          claimName: {{ .persistentVolumeClaim.claimName }}
+      {{- end }}
       - name: skupper-management-client
         secret:
           defaultMode: 420

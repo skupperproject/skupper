@@ -7,17 +7,4 @@ metadata:
     {{- include "network-observer.labels" . | nindent 4 }}
 data:
   prometheus.yml: |
-    global:
-      scrape_interval:     15s
-      evaluation_interval: 15s
-    alerting:
-      alertmanagers:
-        - static_configs:
-            - targets:
-    scrape_configs:
-      - job_name: "network-observer-local"
-        scheme: http
-        follow_redirects: true
-        enable_http2: true
-        static_configs:
-          - targets: [ "localhost:8080" ]
+{{ .Values.prometheus.config | nindent 4 }}
