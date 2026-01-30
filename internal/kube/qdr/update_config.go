@@ -13,6 +13,7 @@ import (
 type Labelling interface {
 	SetLabels(namespace string, name string, kind string, labels map[string]string) bool
 	SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool
+	SetObjectMetadata(namespace string, name string, kind string, meta *metav1.ObjectMeta) bool
 }
 
 func UpdateRouterConfig(client kubernetes.Interface, name string, namespace string, ctxt context.Context, update qdr.ConfigUpdate, labelling Labelling) error {
@@ -43,10 +44,7 @@ func updateRouterConfig(client kubernetes.Interface, name string, namespace stri
 		updated = true
 	}
 	if labelling != nil {
-		if labelling.SetLabels(namespace, name, "ConfigMap", current.ObjectMeta.Labels) {
-			updated = true
-		}
-		if labelling.SetAnnotations(namespace, name, "ConfigMap", current.ObjectMeta.Annotations) {
+		if labelling.SetObjectMetadata(namespace, name, "ConfigMap", &current.ObjectMeta) {
 			updated = true
 		}
 	}

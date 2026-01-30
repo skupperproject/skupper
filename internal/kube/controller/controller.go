@@ -162,6 +162,10 @@ func (c *Controller) SetAnnotations(namespace string, name string, kind string, 
 	return c.labelling.SetAnnotations(namespace, name, kind, annotations)
 }
 
+func (c *Controller) SetObjectMetadata(namespace string, name string, kind string, meta *metav1.ObjectMeta) bool {
+	return c.labelling.SetObjectMetadata(namespace, name, kind, meta)
+}
+
 func (c *Controller) Namespace() string {
 	return c.self.Namespace
 }
