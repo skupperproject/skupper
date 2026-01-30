@@ -80,6 +80,14 @@ spec:
           successThreshold: 1
           timeoutSeconds: 1
         name: router
+{{- if not .DisableSecCtx }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          runAsNonRoot: true
+{{- end }}
         ports:
         - containerPort: 5671
           name: amqps
@@ -126,6 +134,14 @@ spec:
         image: {{ .AdaptorImage.Name }}
         imagePullPolicy: {{ .AdaptorImage.PullPolicy }}
         name: kube-adaptor
+{{- if not .DisableSecCtx }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          runAsNonRoot: true
+{{- end }}
         readinessProbe:
           failureThreshold: 3
           httpGet:
@@ -153,6 +169,14 @@ spec:
         image: {{ .AdaptorImage.Name }}
         imagePullPolicy: {{ .AdaptorImage.PullPolicy }}
         name: config-init
+{{- if not .DisableSecCtx }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          runAsNonRoot: true
+{{- end }}
         command: ["/app/kube-adaptor", "-init"]
         volumeMounts:
         - mountPath: /etc/skupper-router-certs
@@ -164,6 +188,10 @@ spec:
       volumes:
       - emptyDir: {}
         name: skupper-router-certs
+{{- if not .DisableSecCtx }}
+      securityContext:
+        runAsNonRoot: true
+{{- end }}
 {{- if .EnableAntiAffinity}}
       affinity:
         podAntiAffinity:
