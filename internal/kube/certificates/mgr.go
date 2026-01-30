@@ -7,7 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -94,7 +94,7 @@ func (m *CertificateManagerImpl) Recover() {
 			continue
 		}
 		if err := m.checkCertificate(cert.Key(), cert); err != nil {
-			log.Printf("Error trying to reconcile %s: %s", cert.Key(), err)
+			slog.Error("Error trying to reconcile cert key", slog.String("certKey", cert.Key()), slog.Any("error", err))
 		}
 	}
 }
@@ -188,7 +188,7 @@ func (m *CertificateManagerImpl) ensure(namespace string, name string, spec skup
 		if err != nil {
 			return err
 		}
-		log.Printf("Updated certificate %s/%s", updated.Namespace, updated.Name)
+		slog.Info("Updated certificate", slog.String("namespace", updated.Namespace), slog.String("name", updated.Name))
 		m.definitions[key] = updated
 		return nil
 	} else {
@@ -292,7 +292,7 @@ func (m *CertificateManagerImpl) updateStatus(certificate *skupperv2alpha1.Certi
 			return err
 		}
 		certificate = latest
-		log.Printf("Updated certificate status %s/%s", certificate.Namespace, certificate.Name)
+		slog.Info("Updated certificate status", slog.String("namespace", certificate.Namespace), slog.String("name", certificate.Name))
 		m.definitions[certificate.Key()] = latest
 	}
 	m.definitions[certificate.Key()] = certificate
@@ -309,7 +309,10 @@ func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv2
 
 		regenerated, err := m.generateSecret(certificate)
 		if err != nil {
-			log.Printf("Error generating Secret %s/%s for Certificate %s", certificate.Namespace, secret.Name, key)
+			slog.Error("Error generating Secret for Certificate",
+				slog.String("namespace", certificate.Namespace),
+				slog.String("name", secret.Name),
+				slog.String("key", key))
 			return err
 		}
 		changed = true
@@ -339,11 +342,19 @@ func (m *CertificateManagerImpl) updateSecret(key string, certificate *skupperv2
 
 	updated, err := m.processor.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
 	if err != nil {
-		log.Printf("Error updating Secret %s/%s for Certificate %s: %s", secret.Namespace, secret.Name, key, err)
+		slog.Error("Error updating Secret for Certificate",
+			slog.String("namespace", secret.Namespace),
+			slog.String("name", secret.Name),
+			slog.String("key", key),
+			slog.Any("error", err))
 		return err
 	}
 	m.secrets[key] = updated
-	log.Printf("Updated Secret %s/%s for Certificate %s (hosts %v)", secret.Namespace, secret.Name, key, certificate.Spec.Hosts)
+	slog.Info("Updated Secret for Certificate",
+		slog.String("namespace", secret.Namespace),
+		slog.String("name", secret.Name),
+		slog.String("key", key),
+		slog.Any("hosts", certificate.Spec.Hosts))
 	return nil
 }
 
@@ -376,7 +387,9 @@ func (m *CertificateManagerImpl) generateSecret(certificate *skupperv2alpha1.Cer
 func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv2alpha1.Certificate) error {
 	secret, err := m.generateSecret(certificate)
 	if err != nil {
-		log.Printf("Error generating secret for Certificate %s: %s", key, err)
+		slog.Error("Error generating secret for Certificate",
+			slog.String("key", key),
+			slog.Any("error", err))
 		return err
 	}
 	secret.Annotations = map[string]string{
@@ -390,14 +403,26 @@ func (m *CertificateManagerImpl) createSecret(key string, certificate *skupperv2
 		m.context.SetLabels(certificate.Namespace, secret.Name, "Secret", secret.Labels)
 		m.context.SetAnnotations(certificate.Namespace, secret.Name, "Secret", secret.Annotations)
 	}
-	log.Printf("Creating Secret %s/%s for Certificate %s for hosts %v", certificate.Namespace, secret.Name, key, certificate.Spec.Hosts)
+	slog.Info("Creating Secret for Certificate",
+		slog.String("namespace", certificate.Namespace),
+		slog.String("name", secret.Name),
+		slog.String("key", key),
+		slog.Any("hosts", certificate.Spec.Hosts))
 	created, err := m.processor.GetKubeClient().CoreV1().Secrets(certificate.Namespace).Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
-		log.Printf("Error creating Secret %s/%s for Certificate %s: %s", certificate.Namespace, secret.Name, key, err)
+		slog.Error("Error creating Secret for Certificate",
+			slog.String("namespace", certificate.Namespace),
+			slog.String("name", secret.Name),
+			slog.String("key", key),
+			slog.Any("error", err))
 		return err
 	}
 	m.secrets[key] = created
-	log.Printf("Created Secret %s/%s for Certificate %s (hosts %v)", certificate.Namespace, secret.Name, key, certificate.Spec.Hosts)
+	slog.Info("Created Secret for Certificate",
+		slog.String("namespace", certificate.Namespace),
+		slog.String("name", secret.Name),
+		slog.String("key", key),
+		slog.Any("hosts", certificate.Spec.Hosts))
 	return nil
 }
 
@@ -422,11 +447,11 @@ func isSecretCorrect(certificate *skupperv2alpha1.Certificate, secret *corev1.Se
 	}
 	cert, err := certs.DecodeCertificate(data)
 	if err != nil {
-		log.Printf("Bad certificate secret %s: %s", certificate.Key(), err)
+		slog.Error("Bad certificate secret", slog.String("key", certificate.Key()), slog.Any("error", err))
 		return false
 	}
 	if time.Now().After(cert.NotAfter) {
-		log.Printf("Certificate %s has expired", certificate.Key())
+		slog.Info("Certificate has expired", slog.String("key", certificate.Key()))
 		return false
 	}
 	if certificate.Spec.Subject != cert.Subject.CommonName {

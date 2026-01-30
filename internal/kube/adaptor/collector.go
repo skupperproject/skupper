@@ -3,7 +3,6 @@ package adaptor
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"sync"
@@ -57,7 +56,8 @@ func siteCollector(ctx context.Context, cli *internalclient.KubeClient) {
 	}
 	current, err := cli.Kube.AppsV1().Deployments(cli.Namespace).Get(context.TODO(), deploymentName(), metav1.GetOptions{})
 	if err != nil {
-		log.Fatal("Failed to get transport deployment", err.Error())
+		slog.Error("Failed to get transport deployment", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	owner := metav1.OwnerReference{
@@ -69,7 +69,8 @@ func siteCollector(ctx context.Context, cli *internalclient.KubeClient) {
 
 	existing, err := newConfigMap(types.NetworkStatusConfigMapName, &siteData, nil, nil, &owner, cli.Namespace, cli.Kube)
 	if err != nil && existing == nil {
-		log.Fatal("Failed to create site status config map ", err.Error())
+		slog.Error("Failed to create site status config map", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	factory := session.NewContainerFactory("amqp://localhost:5672", session.ContainerConfig{ContainerID: "kube-flow-collector"})
@@ -138,14 +139,14 @@ func runLeaderElection(lock *resourcelock.LeaseLock, id string, cli *internalcli
 					mu.Lock()
 					defer mu.Unlock()
 					leaderCtx, leaderCtxCancel = context.WithCancel(ctx)
-					log.Printf("COLLECTOR: Became leader. Starting status sync and site controller after %s.", strategy.GetElapsedTime())
+					slog.Info("COLLECTOR: Became leader. Starting status sync and site controller", slog.Any("elapsedTime", strategy.GetElapsedTime()))
 					siteCollector(leaderCtx, cli)
 					if err := startFlowController(leaderCtx, cli); err != nil {
-						log.Printf("COLLECTOR: Failed to start controller for emitting site events: %s", err)
+						slog.Error("COLLECTOR: Failed to start controller for emitting site events", slog.Any("error", err))
 					}
 				},
 				OnStoppedLeading: func() {
-					log.Printf("COLLECTOR: Lost leader lock after %s. Stopping status sync and site controller.", strategy.GetElapsedTime())
+					slog.Info("COLLECTOR: Lost leader lock. Stopping status sync and site controller", slog.Any("elapsedTime", strategy.GetElapsedTime()))
 					mu.Lock()
 					defer mu.Unlock()
 					if leaderCtxCancel == nil {
@@ -159,7 +160,7 @@ func runLeaderElection(lock *resourcelock.LeaseLock, id string, cli *internalcli
 						// Remain as the leader
 						return
 					}
-					log.Printf("COLLECTOR: New leader for site collection is %s\n", current_id)
+					slog.Info("COLLECTOR: New leader for site collection", slog.String("newLeader", current_id))
 				},
 			},
 		})
@@ -167,7 +168,7 @@ func runLeaderElection(lock *resourcelock.LeaseLock, id string, cli *internalcli
 	},
 		strategy,
 		func(_ error, d time.Duration) {
-			log.Printf("COLLECTOR: leader election failed. retrying after %s", d)
+			slog.Info("COLLECTOR: leader election failed. retrying after delay", slog.Any("delay", d))
 		})
 }
 

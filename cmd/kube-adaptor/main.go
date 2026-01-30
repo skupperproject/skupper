@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -59,7 +59,8 @@ func main() {
 
 	metricsConfig, err := metrics.BoundConfig(flags)
 	if err != nil {
-		log.Fatalf("Error reading metrics configuration: %s", err)
+		slog.Error("Error reading metrics configuration", slog.Any("error", err))
+		os.Exit(1)
 	}
 	flags.Parse(os.Args[1:])
 	if *isVersion {
@@ -68,19 +69,21 @@ func main() {
 	}
 
 	// Startup message
-	log.Printf("Version: %s", version.Version)
+	slog.Info("Version info", slog.Any("version", version.Version))
 
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := SetupSignalHandler()
 
 	cli, err := internalclient.NewClient(namespace, "", kubeconfig)
 	if err != nil {
-		log.Fatal("Error getting van client: ", err.Error())
+		slog.Error("Error getting van client", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	if *isInit {
 		if err := adaptor.InitialiseConfig(cli, cli.GetNamespace(), configDir, configMapName); err != nil {
-			log.Fatal("Error initialising config ", err.Error())
+			slog.Error("Error initialising config", slog.Any("error", err))
+			os.Exit(1)
 		}
 		os.Exit(0)
 	}
@@ -92,16 +95,18 @@ func main() {
 		eventProcessorMetrics = metrics.MustRegisterEventProcessorMetrics(reg)
 		srv := metrics.NewServer(metricsConfig, reg)
 		if err := srv.Start(stopCh); err != nil {
-			log.Fatalf("Error starting metrics server: %s", err)
+			slog.Error("Error starting metrics server", slog.Any("error", err))
+			os.Exit(1)
 		}
 	}
 
-	log.Println("Waiting for Skupper router to be ready")
+	slog.Info("Waiting for Skupper router to be ready")
 	if err := waitForAMQPConnection("amqp://localhost:5672", time.Second*180, time.Second*5); err != nil {
-		log.Fatal("Error waiting for router ", err.Error())
+		slog.Error("Error waiting for router", slog.Any("error", err))
+		os.Exit(1)
 	}
 
-	log.Println("Starting collector...")
+	slog.Info("Starting collector...")
 	go adaptor.StartCollector(cli)
 
 	//start health check
@@ -112,11 +117,11 @@ func main() {
 	go http.ListenAndServe(":9191", nil)
 
 	configSync := adaptor.NewConfigSync(cli, cli.GetNamespace(), configDir, configMapName, eventProcessorMetrics)
-	log.Println("Starting controller loop...")
+	slog.Info("Starting controller loop...")
 	configSync.Start(stopCh)
 
 	<-stopCh
-	log.Println("Shutting down...")
+	slog.Info("Shutting down...")
 	configSync.Stop()
 }
 
@@ -131,7 +136,7 @@ func waitForAMQPConnection(address string, timeout, interval time.Duration) erro
 				return err
 			}
 			agent.Close()
-			log.Printf("Connected to router at %q", address)
+			slog.Info("Connected to router", slog.Any("address", address))
 			return nil
 		}, b)
 }

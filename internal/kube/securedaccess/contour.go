@@ -3,7 +3,7 @@ package securedaccess
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -103,7 +103,7 @@ func (o *ContourHttpProxyAccessType) ensureHttpProxy(namespace string, desired H
 	annotations := map[string]string{
 		"internal.skupper.io/controlled": "true",
 	}
-	log.Printf("Creating contour httpproxy")
+	slog.Info("Creating contour httpproxy")
 	if o.manager.context != nil {
 		o.manager.context.SetLabels(namespace, desired.Name, "HTTPProxy", labels)
 		o.manager.context.SetAnnotations(namespace, desired.Name, "HTTPProxy", annotations)

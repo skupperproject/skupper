@@ -5,7 +5,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -96,7 +96,7 @@ func (o *GatewayAccessType) init() error {
 			o.domain = domain //TODO: or keep configured v deduced domain separate?
 			o.processUnreconciled()
 		} else {
-			log.Printf("Could not determine base domain for gateway %s/%s", gateway.GetNamespace(), gateway.GetName())
+			slog.Info("Could not determine base domain for gateway", slog.String("namespace", gateway.GetNamespace()), slog.String("name", gateway.GetName()))
 		}
 	}
 	return nil

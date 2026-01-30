@@ -2,7 +2,6 @@ package adaptor
 
 import (
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 
@@ -58,7 +57,7 @@ func (c *ConfigSync) recheckProfile(_ string) {
 		return
 	}
 	if err := c.configEvent(key, configmap); err != nil {
-		log.Printf("CONFIG_SYNC: Error handling configuration after secret change: %s", err)
+		slog.Error("CONFIG_SYNC: Error handling configuration after secret change", slog.Any("error", err))
 	}
 }
 
@@ -68,12 +67,12 @@ func (c *ConfigSync) Start(stopCh <-chan struct{}) error {
 	}
 	c.config = c.controller.WatchConfigMaps(watchers.ByName(c.routerConfigMap), c.namespace, c.configEvent)
 	c.controller.StartWatchers(stopCh)
-	log.Printf("CONFIG_SYNC: Waiting for informers to sync...")
+	slog.Info("CONFIG_SYNC: Waiting for informers to sync...")
 	if ok := c.controller.WaitForCacheSync(stopCh); !ok {
-		log.Print("CONFIG_SYNC: Failed to wait for caches to sync")
+		slog.Error("CONFIG_SYNC: Failed to wait for caches to sync")
 	}
 	if err := c.recoverTracking(); err != nil {
-		log.Printf("CONFIG_SYNC: Error recovering tracked ssl profiles: %s", err)
+		slog.Error("CONFIG_SYNC: Error recovering tracked ssl profiles", slog.Any("error", err))
 	}
 	c.controller.Start(stopCh)
 	return nil
@@ -102,11 +101,11 @@ func (c *ConfigSync) configEvent(key string, configmap *corev1.ConfigMap) error 
 		return err
 	}
 	if err := c.syncBridgeConfig(&desired.Bridges); err != nil {
-		log.Printf("sync failed: %s", err)
+		slog.Error("sync failed", slog.Any("error", err))
 		return err
 	}
 	if err := c.syncRouterConfig(desired); err != nil {
-		log.Printf("sync failed: %s", err)
+		slog.Error("sync failed", slog.Any("error", err))
 		return err
 	}
 	return nil
