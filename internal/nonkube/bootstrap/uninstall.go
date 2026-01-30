@@ -101,7 +101,17 @@ func CheckActiveSites() (bool, error) {
 			_, err := os.ReadDir(path.Join(api.GetHostDataHome(), runtimeDir))
 			if err == nil {
 				activeSites = true
-				fmt.Printf("site %s active\n", entry.Name())
+				siteName := ""
+				runtimeSiteStatePath := path.Join(api.GetHostNamespaceHome(entry.Name()), string(api.RuntimeSiteStatePath))
+				siteStateLoader := &common.FileSystemSiteStateLoader{Path: runtimeSiteStatePath}
+				if siteState, loadErr := siteStateLoader.Load(); loadErr == nil && siteState != nil && siteState.Site != nil {
+					siteName = siteState.Site.Name
+				}
+				if siteName != "" {
+					fmt.Printf("The %s site is active (namespace %s)\n", siteName, entry.Name())
+				} else {
+					fmt.Printf("The %s site is active\n", entry.Name())
+				}
 			}
 
 		}
