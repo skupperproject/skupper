@@ -3,12 +3,15 @@ package controller
 import (
 	"log"
 	"log/slog"
+	"os"
 	"sync"
 	"time"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/nonkube/client/runtime"
 	"github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/internal/qdr"
+	"github.com/skupperproject/skupper/internal/utils"
 )
 
 type SystemAdaptorHandler struct {
@@ -21,6 +24,14 @@ type SystemAdaptorHandler struct {
 }
 
 func NewSystemAdaptorHandler(namespace string) *SystemAdaptorHandler {
+
+	systemReloadType := utils.DefaultStr(os.Getenv(types.ENV_SYSTEM_AUTO_RELOAD),
+		types.SystemReloadTypeManual)
+
+	if systemReloadType == types.SystemReloadTypeManual {
+		slog.Default().Debug("Automatic reloading is not configured.")
+		return nil
+	}
 
 	handler := &SystemAdaptorHandler{
 		namespace: namespace,
@@ -95,7 +106,7 @@ func (s *SystemAdaptorHandler) processRouterConfig(stopCh <-chan struct{}) {
 
 			err = s.systemAdaptor.syncWithRouter(desired)
 			if err != nil {
-				s.logger.Error(err.Error())
+				s.logger.Debug(err.Error())
 			}
 
 		}

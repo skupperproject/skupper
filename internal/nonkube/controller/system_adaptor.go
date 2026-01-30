@@ -8,7 +8,6 @@ import (
 
 	"github.com/skupperproject/skupper/internal/nonkube/client/runtime"
 	"github.com/skupperproject/skupper/internal/qdr"
-	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
 type SystemAdaptor struct {
@@ -33,14 +32,17 @@ func (s *SystemAdaptor) syncWithRouter(desired *qdr.RouterConfig) error {
 	if err := s.syncSslProfileCredentialsToDisk(desired.SslProfiles); err != nil {
 		return err
 	}
-	if err := qdr.SyncSslProfilesToRouter(s.agentPool, desired.SslProfiles); err != nil {
+	if err := qdr.SyncSslProfilesToRouter(s.agentPool, s.addSslPathToProfileCredentials(desired.SslProfiles)); err != nil {
 		return err
 	}
 	if err := qdr.SyncBridgeConfig(s.agentPool, &desired.Bridges); err != nil {
 		log.Printf("sync failed: %s", err)
 		return err
 	}
-	if err := qdr.SyncRouterConfig(s.agentPool, desired); err != nil {
+
+	//Do not double-check that certificates exist; it has been done by previous syncSslProfileCredentialsToDisk
+	// Also, the paths included in the ssl profiles are relative to the router instead of the runtime directory
+	if err := qdr.SyncRouterConfig(s.agentPool, desired, false); err != nil {
 		log.Printf("sync failed: %s", err)
 		return err
 	}
@@ -51,14 +53,8 @@ func (s *SystemAdaptor) syncWithRouter(desired *qdr.RouterConfig) error {
 // TODO: implement certificate rotation like in kube environments
 func (s *SystemAdaptor) syncSslProfileCredentialsToDisk(profiles map[string]qdr.SslProfile) error {
 
-	namespacesPath := api.GetDefaultOutputNamespacesPath()
 	for certificateName, _ := range profiles {
-		tlsCertPath := path.Join(namespacesPath, s.namespace, string(api.CertificatesPath), certificateName)
-		tlsCert := &runtime.TlsCert{
-			CaPath:   path.Join(tlsCertPath, "ca.crt"),
-			CertPath: path.Join(tlsCertPath, "tls.crt"),
-			KeyPath:  path.Join(tlsCertPath, "tls.key"),
-		}
+		tlsCert := runtime.GetRuntimeTlsCert(s.namespace, certificateName)
 
 		_, err := os.Stat(tlsCert.CaPath)
 		if err != nil {
@@ -75,5 +71,23 @@ func (s *SystemAdaptor) syncSslProfileCredentialsToDisk(profiles map[string]qdr.
 	}
 
 	return nil
+
+}
+
+func (s *SystemAdaptor) addSslPathToProfileCredentials(profiles map[string]qdr.SslProfile) map[string]qdr.SslProfile {
+
+	completedProfiles := make(map[string]qdr.SslProfile)
+	sslProfilePath := "/etc/skupper-router/runtime/certs"
+
+	for certificateName, profile := range profiles {
+
+		profile.CaCertFile = path.Join(sslProfilePath, certificateName, "ca.crt")
+		profile.CertFile = path.Join(sslProfilePath, certificateName, "tls.crt")
+		profile.PrivateKeyFile = path.Join(sslProfilePath, certificateName, "tls.key")
+
+		completedProfiles[certificateName] = profile
+	}
+
+	return completedProfiles
 
 }

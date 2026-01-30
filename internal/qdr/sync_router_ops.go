@@ -61,8 +61,8 @@ func SyncBridgeConfig(agentPool *AgentPool, desired *BridgeConfig) error {
 	return nil
 }
 
-func SyncRouterConfig(agentPool *AgentPool, desired *RouterConfig) error {
-	if err := syncConnectors(agentPool, desired); err != nil {
+func SyncRouterConfig(agentPool *AgentPool, desired *RouterConfig, checkCertFilesExist bool) error {
+	if err := syncConnectors(agentPool, desired, checkCertFilesExist); err != nil {
 		return err
 	}
 	if err := syncListeners(agentPool, desired); err != nil {
@@ -71,7 +71,7 @@ func SyncRouterConfig(agentPool *AgentPool, desired *RouterConfig) error {
 	return nil
 }
 
-func syncConnectors(agentPool *AgentPool, desired *RouterConfig) error {
+func syncConnectors(agentPool *AgentPool, desired *RouterConfig, checkCertFilesExist bool) error {
 	agent, err := agentPool.Get()
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func syncConnectors(agentPool *AgentPool, desired *RouterConfig) error {
 
 	ignorePrefix := "auto-mesh"
 	if differences := ConnectorsDifference(actual, desired, &ignorePrefix); !differences.Empty() {
-		if err = agent.UpdateConnectorConfig(differences); err != nil {
+		if err = agent.UpdateConnectorConfig(differences, checkCertFilesExist); err != nil {
 			return fmt.Errorf("Error syncing connectors: %s", err)
 		}
 	}
