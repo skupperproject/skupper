@@ -124,10 +124,13 @@ func (h *InputResourceHandler) processInputFile() error {
 	if err == nil {
 		//a site has already been created, no need to bootstrap
 		siteState, err := h.siteStateLoader.Load()
-		if err != nil {
-			return fmt.Errorf("Failed to load site: %s", err)
+		if !siteState.IsBundle() {
+			if err != nil {
+				return fmt.Errorf("Failed to load site: %s", err)
+			}
+			h.siteStateRenderer.Refresh(siteState)
 		}
-		h.siteStateRenderer.Refresh(siteState)
+
 	} else {
 		siteState, err := h.Bootstrap(&h.ConfigBootstrap)
 		if err != nil {
