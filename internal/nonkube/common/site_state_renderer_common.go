@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 
+	"github.com/skupperproject/skupper/internal/qdr"
 	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
@@ -78,6 +79,25 @@ func CreateRouterAccess(siteState *api.SiteState) error {
 			logger.Debug("Free TCP port discovered", "port", port)
 		}
 		siteState.CreateRouterAccess(name, port)
+	}
+	return nil
+}
+
+func UpdateRouterAccess(siteState *api.SiteState, config *qdr.RouterConfig) error {
+	if !siteState.HasRouterAccess() {
+		logger := NewLogger()
+		logger.Debug("Updating skupper-local RouterAccess")
+		name := fmt.Sprintf("skupper-local")
+		if config == nil {
+			return fmt.Errorf("skupper-local RouterAccess cannot be created without a router config")
+		}
+
+		if config.Listeners == nil {
+			return fmt.Errorf("skupper-local RouterAccess cannot be updated without listeners")
+		}
+
+		port := config.Listeners["skupper-local-normal"].Port
+		siteState.CreateRouterAccess(name, int(port))
 	}
 	return nil
 }

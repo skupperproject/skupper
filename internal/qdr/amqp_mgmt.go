@@ -1159,7 +1159,7 @@ func asSslProfile(record Record) SslProfile {
 	}
 }
 
-func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference) error {
+func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference, checkCertFilesExist bool) error {
 	for _, deleted := range changes.Deleted {
 		if err := a.Delete("io.skupper.router.connector", deleted.Name); err != nil {
 			return fmt.Errorf("Error deleting connectors: %s", err)
@@ -1176,7 +1176,7 @@ func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference) error {
 			return fmt.Errorf("No port specified while creating a connector")
 		}
 
-		if len(added.SslProfile) > 0 {
+		if len(added.SslProfile) > 0 && checkCertFilesExist {
 			sslProfile, err := a.GetSslProfileByName(added.SslProfile)
 			if err != nil {
 				return err

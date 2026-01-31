@@ -38,10 +38,19 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	}
 	s.loadedSiteState = loadedSiteState
 	endpoint := os.Getenv("CONTAINER_ENDPOINT")
-	if endpoint == "" {
-		endpoint = fmt.Sprintf("unix://%s/podman/podman.sock", api.GetRuntimeDir())
+
+	// the container endpoint is mapped to the podman socket inside the container
+	if api.IsRunningInContainer() {
+		endpoint = "unix:///var/run/podman.sock"
 		if s.Platform == "docker" {
-			endpoint = "unix:///run/docker.sock"
+			endpoint = "unix:///var/run/docker.sock"
+		}
+	} else {
+		if endpoint == "" {
+			endpoint = fmt.Sprintf("unix://%s/podman/podman.sock", api.GetRuntimeDir())
+			if s.Platform == "docker" {
+				endpoint = "unix:///run/docker.sock"
+			}
 		}
 	}
 	s.cli, err = internalclient.NewCompatClient(endpoint, "")
@@ -372,5 +381,52 @@ func (s *SiteStateRenderer) preventContainersConflict() error {
 			return fmt.Errorf("container %q already exists", containerName)
 		}
 	}
+	return nil
+}
+
+func (s *SiteStateRenderer) Refresh(loadedSiteState *api.SiteState) error {
+	var err error
+
+	var validator api.SiteStateValidator = &common.SiteStateValidator{}
+	err = validator.Validate(loadedSiteState)
+	if err != nil {
+		return err
+	}
+	s.loadedSiteState = loadedSiteState
+
+	err = s.loadExistingSiteId(loadedSiteState)
+	if err != nil {
+		return err
+	}
+
+	// active (runtime) SiteState
+	s.siteState = common.CopySiteState(s.loadedSiteState)
+	routerConfig, err := common.LoadRouterConfig(s.siteState.GetNamespace())
+
+	err = common.UpdateRouterAccess(s.siteState, routerConfig)
+	if err != nil {
+		return err
+	}
+	s.siteState.CreateLinkAccessesCertificates()
+	s.siteState.CreateBridgeCertificates()
+
+	// rendering non-kube configuration files and certificates
+	platform := types.PlatformPodman
+	if s.Platform == types.PlatformDocker {
+		platform = types.PlatformDocker
+	}
+	s.configRenderer = &common.FileSystemConfigurationRenderer{
+		Platform: string(platform),
+	}
+	err = s.configRenderer.Render(s.siteState)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	// Serializing loaded and runtime site states
+	if err = s.configRenderer.MarshalSiteStates(loadedSiteState, s.siteState); err != nil {
+		return err
+	}
+
 	return nil
 }

@@ -3,9 +3,12 @@ package nonkube
 import (
 	"errors"
 	"fmt"
+	"os"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
+	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/spf13/cobra"
 )
@@ -33,6 +36,13 @@ func (cmd *CmdSystemStop) NewClient(cobraCommand *cobra.Command, args []string) 
 func (cmd *CmdSystemStop) ValidateInput(args []string) error {
 	var validationErrors []error
 	namespaceStringValidator := validator.NamespaceStringValidator()
+
+	systemReloadType := utils.DefaultStr(os.Getenv(types.ENV_SYSTEM_AUTO_RELOAD),
+		types.SystemReloadTypeManual)
+
+	if systemReloadType == types.SystemReloadTypeAuto {
+		validationErrors = append(validationErrors, fmt.Errorf("this command is disabled because automatic reloading is configured"))
+	}
 
 	if len(args) > 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("this command does not accept arguments"))

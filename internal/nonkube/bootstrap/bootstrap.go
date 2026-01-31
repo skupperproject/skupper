@@ -109,7 +109,7 @@ func Bootstrap(config *Config) (*api.SiteState, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load site state: %v", err)
 	}
-	// if sources are being consume from namespace sources, they must be properly set
+	// if sources are being consumed from namespace sources, they must be properly set
 	crNamespace := siteState.GetNamespace()
 	targetNamespace := utils.DefaultStr(config.Namespace, "default")
 	if config.InputPath == sourcesPath {
