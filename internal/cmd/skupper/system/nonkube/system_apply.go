@@ -221,7 +221,7 @@ func (cmd *CmdSystemApply) Run() error {
 	}
 
 	if crApplied {
-		fmt.Println("Custom resources are applied. If a site is already running, run `skupper system reload` to make effective the changes.")
+		fmt.Println("Custom resources are applied.")
 	}
 
 	return nil
