@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"log"
+	"fmt"
 	"log/slog"
 	"os"
 	"sync"
@@ -56,7 +56,7 @@ func (s *SystemAdaptorHandler) Start(stopCh <-chan struct{}) {
 	tls := runtime.GetRuntimeTlsCert(s.namespace, "skupper-local-client")
 	address, err := runtime.GetLocalRouterAddress(s.namespace)
 	if err != nil {
-		log.Fatal("Error getting local router address: %s", err)
+		s.logger.Error(fmt.Sprintf("Error getting local router address: %s", err))
 		return
 	}
 
