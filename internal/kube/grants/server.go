@@ -20,6 +20,7 @@ type Server struct {
 	cert       *tls.Certificate
 	server     *http.Server
 	listener   net.Listener
+	logger     *slog.Logger
 }
 
 func newServer(addr string, tlsEnabled bool, handler http.Handler) *Server {
@@ -32,6 +33,7 @@ func newServer(addr string, tlsEnabled bool, handler http.Handler) *Server {
 			TLSConfig:    tlscfg.Modern(),
 		},
 		tlsEnabled: tlsEnabled,
+		logger:     slog.New(slog.Default().Handler()).With(slog.String("component", "kube.grants.server")),
 	}
 }
 
@@ -65,7 +67,7 @@ func (s *Server) listen() error {
 	if err != nil {
 		return err
 	}
-	slog.Info("Grant server listening", slog.Any("address", listener.Addr()))
+	s.logger.Info("Grant server listening", slog.Any("address", listener.Addr()))
 	s.listener = listener
 	return nil
 }
@@ -84,7 +86,7 @@ func (s *Server) serve() error {
 
 func (s *Server) listenAndServe() error {
 	if err := s.listen(); err != nil {
-		slog.Error("Grant server failed to listen", slog.Any("address", err), slog.Any("error", err))
+		s.logger.Error("Grant server failed to listen", slog.String("address", s.server.Addr), slog.Any("error", err))
 		return err
 	}
 	defer s.listener.Close()

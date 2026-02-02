@@ -922,6 +922,7 @@ type BridgeConfigDifference struct {
 	TcpConnectors      TcpEndpointDifference
 	AddedSslProfiles   []string
 	DeletedSSlProfiles []string
+	logger						 *slog.Logger
 }
 
 func isAddrAny(host string) bool {
@@ -990,6 +991,7 @@ func (a TcpEndpointMap) Difference(b TcpEndpointMap) TcpEndpointDifference {
 
 func (a *BridgeConfig) Difference(b *BridgeConfig) *BridgeConfigDifference {
 	result := BridgeConfigDifference{
+		logger: 			 slog.New(slog.Default().Handler()).With("component", "qdr.bridgeConfigDifference"),
 		TcpConnectors: a.TcpConnectors.Difference(b.TcpConnectors),
 		TcpListeners:  a.TcpListeners.Difference(b.TcpListeners),
 	}
@@ -1057,9 +1059,9 @@ func (a *BridgeConfigDifference) Empty() bool {
 }
 
 func (a *BridgeConfigDifference) Print() {
-	slog.Info("TcpConnectors", slog.Any("added", a.TcpConnectors.Added), slog.Any("deleted", a.TcpConnectors.Deleted))
-	slog.Info("TcpListeners", slog.Any("added", a.TcpListeners.Added), slog.Any("deleted", a.TcpListeners.Deleted))
-	slog.Info("SslProfiles", slog.Any("added", a.AddedSslProfiles), slog.Any("deleted", a.DeletedSSlProfiles))
+	a.logger.Info("TcpConnectors", slog.Any("added", a.TcpConnectors.Added), slog.Any("deleted", a.TcpConnectors.Deleted))
+	a.logger.Info("TcpListeners", slog.Any("added", a.TcpListeners.Added), slog.Any("deleted", a.TcpListeners.Deleted))
+	a.logger.Info("SslProfiles", slog.Any("added", a.AddedSslProfiles), slog.Any("deleted", a.DeletedSSlProfiles))
 }
 
 func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ignorePrefix *string) *ConnectorDifference {

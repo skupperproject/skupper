@@ -33,11 +33,14 @@ type CmdSystemDelete struct {
 	securedAccessHandler *fs.SecuredAccessHandler
 	secretHandler        *fs.SecretHandler
 	file                 string
+	logger 						 	 *slog.Logger
 }
 
 func NewCmdSystemDelete() *CmdSystemDelete {
 
-	skupperCmd := CmdSystemDelete{}
+	skupperCmd := CmdSystemDelete{
+		logger: slog.New(slog.Default().Handler()).With("component", "nonkube.systemDelete"),
+	}
 
 	return &skupperCmd
 }
@@ -133,7 +136,7 @@ func (cmd *CmdSystemDelete) Run() error {
 		if site.Name != "" {
 			err := cmd.siteHandler.Delete(site.Name)
 			if err != nil {
-				slog.Error("Error while deleting site", slog.String("site", site.Name), slog.Any("error", err))
+				cmd.logger.Error("Error while deleting site", slog.String("site", site.Name), slog.Any("error", err))
 			} else {
 				crDeleted = true
 				fmt.Printf("Site %s deleted\n", site.Name)
@@ -145,7 +148,7 @@ func (cmd *CmdSystemDelete) Run() error {
 		if connector.Name != "" {
 			err := cmd.connectorHandler.Delete(connector.Name)
 			if err != nil {
-				slog.Error("Error while deleting connector", slog.String("connector", connector.Name), slog.Any("error", err))
+				cmd.logger.Error("Error while deleting connector", slog.String("connector", connector.Name), slog.Any("error", err))
 			} else {
 				crDeleted = true
 				fmt.Printf("Connector %s deleted\n", connector.Name)
@@ -157,7 +160,7 @@ func (cmd *CmdSystemDelete) Run() error {
 		if listener.Name != "" {
 			err := cmd.listenerHandler.Delete(listener.Name)
 			if err != nil {
-				slog.Error("Error while deleting listener", slog.String("listener", listener.Name), slog.Any("error", err))
+				cmd.logger.Error("Error while deleting listener", slog.String("listener", listener.Name), slog.Any("error", err))
 			} else {
 				crDeleted = true
 				fmt.Printf("Listener %s deleted\n", listener.Name)
@@ -169,7 +172,7 @@ func (cmd *CmdSystemDelete) Run() error {
 		if link.Name != "" {
 			err := cmd.linkHandler.Delete(link.Name)
 			if err != nil {
-				slog.Error("Error while deleting link", slog.String("link", link.Name), slog.Any("error", err))
+				cmd.logger.Error("Error while deleting link", slog.String("link", link.Name), slog.Any("error", err))
 			} else {
 				crDeleted = true
 				fmt.Printf("Link %s deleted\n", link.Name)
@@ -182,7 +185,7 @@ func (cmd *CmdSystemDelete) Run() error {
 		if routerAccess.Name != "" {
 			err := cmd.routerAccessHandler.Delete(routerAccess.Name)
 			if err != nil {
-				slog.Error("Error while deleting router access", slog.String("router access", routerAccess.Name), slog.Any("error", err))
+				cmd.logger.Error("Error while deleting router access", slog.String("router access", routerAccess.Name), slog.Any("error", err))
 			} else {
 				crDeleted = true
 				fmt.Printf("RouterAccess %s deleted\n", routerAccess.Name)
@@ -195,7 +198,7 @@ func (cmd *CmdSystemDelete) Run() error {
 		if accessToken.Name != "" {
 			err := cmd.accessTokenHandler.Delete(accessToken.Name)
 			if err != nil {
-				slog.Error("Error while deleting access token", slog.String("access token", accessToken.Name), slog.Any("error", err))
+				cmd.logger.Error("Error while deleting access token", slog.String("access token", accessToken.Name), slog.Any("error", err))
 			} else {
 				crDeleted = true
 				fmt.Printf("AccessToken %s deleted\n", accessToken.Name)
@@ -207,7 +210,7 @@ func (cmd *CmdSystemDelete) Run() error {
 		if secret.Name != "" {
 			err := cmd.secretHandler.Delete(secret.Name)
 			if err != nil {
-				slog.Error("Error while deleting secret", slog.String("secret", secret.Name), slog.Any("error", err))
+				cmd.logger.Error("Error while deleting secret", slog.String("secret", secret.Name), slog.Any("error", err))
 			} else {
 				crDeleted = true
 				fmt.Printf("Secret %s deleted\n", secret.Name)
@@ -219,7 +222,7 @@ func (cmd *CmdSystemDelete) Run() error {
 		if certificate.Name != "" {
 			err := cmd.certificateHandler.Delete(certificate.Name)
 			if err != nil {
-				slog.Error("Error while deleting certificate", slog.String("certificate", certificate.Name), slog.Any("error", err))
+				cmd.logger.Error("Error while deleting certificate", slog.String("certificate", certificate.Name), slog.Any("error", err))
 			} else {
 				crDeleted = true
 				fmt.Printf("Certificate %s deleted\n", certificate.Name)
@@ -231,7 +234,7 @@ func (cmd *CmdSystemDelete) Run() error {
 		if securedAccess.Name != "" {
 			err := cmd.securedAccessHandler.Delete(securedAccess.Name)
 			if err != nil {
-				slog.Error("Error while deleting secured access", slog.String("secured access", securedAccess.Name), slog.Any("error", err))
+				cmd.logger.Error("Error while deleting secured access", slog.String("secured access", securedAccess.Name), slog.Any("error", err))
 			} else {
 				crDeleted = true
 				fmt.Printf("SecuredAccess %s deleted\n", securedAccess.Name)

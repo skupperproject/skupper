@@ -23,6 +23,7 @@ type ConfigSync struct {
 	config          *watchers.ConfigMapWatcher
 	path            string
 	routerConfigMap string
+	logger          *slog.Logger
 }
 
 func sslSecretsWatcher(namespace string, eventProcessor *watchers.EventProcessor) secrets.SecretsCacheFactory {
@@ -41,6 +42,7 @@ func NewConfigSync(cli internalclient.Clients, namespace string, path string, ro
 		namespace:       namespace,
 		path:            path,
 		routerConfigMap: routerConfigMap,
+		logger:          slog.New(slog.Default().Handler()).With(slog.String("component", "kube.adaptor.configSync")),
 	}
 	configSync.profileSyncer = secrets.NewSync(
 		sslSecretsWatcher(namespace, controller),
@@ -57,7 +59,7 @@ func (c *ConfigSync) recheckProfile(_ string) {
 		return
 	}
 	if err := c.configEvent(key, configmap); err != nil {
-		slog.Error("CONFIG_SYNC: Error handling configuration after secret change", slog.Any("error", err))
+		c.logger.Error("CONFIG_SYNC: Error handling configuration after secret change", slog.Any("error", err))
 	}
 }
 
@@ -67,12 +69,12 @@ func (c *ConfigSync) Start(stopCh <-chan struct{}) error {
 	}
 	c.config = c.controller.WatchConfigMaps(watchers.ByName(c.routerConfigMap), c.namespace, c.configEvent)
 	c.controller.StartWatchers(stopCh)
-	slog.Info("CONFIG_SYNC: Waiting for informers to sync...")
+	c.logger.Info("CONFIG_SYNC: Waiting for informers to sync...")
 	if ok := c.controller.WaitForCacheSync(stopCh); !ok {
-		slog.Error("CONFIG_SYNC: Failed to wait for caches to sync")
+		c.logger.Error("CONFIG_SYNC: Failed to wait for caches to sync")
 	}
 	if err := c.recoverTracking(); err != nil {
-		slog.Error("CONFIG_SYNC: Error recovering tracked ssl profiles", slog.Any("error", err))
+		c.logger.Error("CONFIG_SYNC: Error recovering tracked ssl profiles", slog.Any("error", err))
 	}
 	c.controller.Start(stopCh)
 	return nil
@@ -101,11 +103,11 @@ func (c *ConfigSync) configEvent(key string, configmap *corev1.ConfigMap) error 
 		return err
 	}
 	if err := c.syncBridgeConfig(&desired.Bridges); err != nil {
-		slog.Error("sync failed", slog.Any("error", err))
+		c.logger.Error("sync failed", slog.Any("error", err))
 		return err
 	}
 	if err := c.syncRouterConfig(desired); err != nil {
-		slog.Error("sync failed", slog.Any("error", err))
+		c.logger.Error("sync failed", slog.Any("error", err))
 		return err
 	}
 	return nil

@@ -69,7 +69,7 @@ func InitialiseConfig(cli internalclient.Clients, namespace string, path string,
 	if err := os.WriteFile(configFile, []byte(value), 0777); err != nil {
 		return err
 	}
-	slog.Info("Router configuration written to config file", slog.String("configFile", configFile))
+	slog.Info("Router configuration has been written", slog.String("configFile", configFile))
 	return nil
 }
 

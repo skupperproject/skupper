@@ -18,12 +18,14 @@ import (
 type ContourHttpProxyAccessType struct {
 	manager *SecuredAccessManager
 	domain  string
+	logger  *slog.Logger
 }
 
 func newContourHttpProxyAccess(manager *SecuredAccessManager, domain string) AccessType {
 	return &ContourHttpProxyAccessType{
 		manager: manager,
 		domain:  domain,
+		logger:	 slog.New(slog.Default().Handler()).With(slog.String("component", "kube.securedaccess.contourHttpProxy.accessType")),
 	}
 }
 
@@ -103,7 +105,7 @@ func (o *ContourHttpProxyAccessType) ensureHttpProxy(namespace string, desired H
 	annotations := map[string]string{
 		"internal.skupper.io/controlled": "true",
 	}
-	slog.Info("Creating contour httpproxy")
+	o.logger.Info("Creating contour httpproxy")
 	if o.manager.context != nil {
 		o.manager.context.SetLabels(namespace, desired.Name, "HTTPProxy", labels)
 		o.manager.context.SetAnnotations(namespace, desired.Name, "HTTPProxy", annotations)

@@ -27,10 +27,13 @@ type CmdSiteCreate struct {
 	namespace               string
 	routerAccessName        string
 	subjectAlternativeNames []string
+	logger									*slog.Logger
 }
 
 func NewCmdSiteCreate() *CmdSiteCreate {
-	return &CmdSiteCreate{}
+	return &CmdSiteCreate{
+		logger: slog.New(slog.Default().Handler()).With("component", "nonkube.siteCreate"),
+	}
 }
 
 func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) {
@@ -83,7 +86,7 @@ func (cmd *CmdSiteCreate) InputToOptions() {
 	if cmd.Flags.EnableLinkAccess {
 		sanByDefault, err := utils.GetSansByDefault()
 		if err != nil {
-			slog.Error("Error getting SANs by default")
+			cmd.logger.Error("Error getting SANs by default")
 		}
 
 		cmd.linkAccessEnabled = true

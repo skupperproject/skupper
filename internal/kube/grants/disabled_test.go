@@ -2,6 +2,7 @@ package grants
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -41,6 +42,7 @@ func Test_markGrantNotEnabled(t *testing.T) {
 	}
 	disabled := &GrantsDisabled{
 		clients: client,
+		logger: slog.Default(),
 	}
 
 	err = disabled.markGrantNotEnabled("", grant)

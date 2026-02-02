@@ -47,6 +47,7 @@ type SecuredAccessManager struct {
 	defaultAccessType  string
 	gatewayInit        func() error
 	context            ControllerContext
+	logger						*slog.Logger
 }
 
 func NewSecuredAccessManager(clients internalclient.Clients, certMgr certificates.CertificateManager, config *Config, context ControllerContext) *SecuredAccessManager {
@@ -62,6 +63,7 @@ func NewSecuredAccessManager(clients internalclient.Clients, certMgr certificate
 		enabledAccessTypes: map[string]AccessType{},
 		defaultAccessType:  config.getDefaultAccessType(clients),
 		context:            context,
+		logger:	            slog.New(slog.Default().Handler()).With(slog.String("component", "kube.securedaccess.manager")),
 	}
 	for _, accessType := range config.EnabledAccessTypes {
 		if accessType == ACCESS_TYPE_ROUTE {
@@ -75,7 +77,7 @@ func NewSecuredAccessManager(clients internalclient.Clients, certMgr certificate
 		} else if accessType == ACCESS_TYPE_GATEWAY {
 			at, init, err := newGatewayAccess(mgr, config.GatewayClass, config.GatewayDomain, config.GatewayPort, context)
 			if err != nil {
-				slog.Error("Failed to create gateway, gateway access type will not be enabled", slog.Any("error", err))
+				mgr.logger.Error("Failed to create gateway, gateway access type will not be enabled", slog.Any("error", err))
 			} else {
 				mgr.enabledAccessTypes[accessType] = at
 				mgr.gatewayInit = init
@@ -196,7 +198,7 @@ func (m *SecuredAccessManager) checkLabelsAndAnnotations(key string, current *sk
 		if update {
 			updated, err := m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(current.Namespace).Update(context.Background(), current, metav1.UpdateOptions{})
 			if err != nil {
-				slog.Error("Error updating labels/annotations for SecuredAccess", slog.String("key", key), slog.Any("error", err))
+				m.logger.Error("Error updating labels/annotations for SecuredAccess", slog.String("key", key), slog.Any("error", err))
 			} else {
 				return updated
 			}
@@ -242,7 +244,7 @@ func (m *SecuredAccessManager) reconcile(sa *skupperv2alpha1.SecuredAccess) erro
 
 	if sa.SetResolved(endpoints) {
 		if len(endpoints) > 0 {
-			slog.Info("Resolved endpoints", slog.String("key", sa.Key()), slog.Any("endpoints", endpoints))
+			m.logger.Info("Resolved endpoints", slog.String("key", sa.Key()), slog.Any("endpoints", endpoints))
 		}
 		updated = true
 	}
@@ -415,7 +417,7 @@ func (m *SecuredAccessManager) CheckRoute(key string, route *routev1.Route) erro
 			if !canDelete(&route.ObjectMeta) {
 				return nil
 			}
-			slog.Info("Deleting redundant route as no matching ServiceAccess definition found",
+			m.logger.Info("Deleting redundant route as no matching ServiceAccess definition found",
 				slog.String("namespace", route.Namespace),
 				slog.String("name", route.Name))
 			return m.clients.GetRouteClient().Routes(route.Namespace).Delete(context.Background(), route.Name, metav1.DeleteOptions{})
@@ -434,7 +436,7 @@ func (m *SecuredAccessManager) CheckHttpProxy(key string, o *unstructured.Unstru
 	} else {
 		m.httpProxies[key] = o
 		if sa == nil {
-			slog.Info("Deleting redundant HttpProxy", slog.String("namespace", o.GetNamespace()), slog.String("name", o.GetName()))
+			m.logger.Info("Deleting redundant HttpProxy", slog.String("namespace", o.GetNamespace()), slog.String("name", o.GetName()))
 			return m.clients.GetDynamicClient().Resource(httpProxyResource).Namespace(o.GetNamespace()).Delete(context.Background(), o.GetName(), metav1.DeleteOptions{})
 		}
 	}
@@ -451,7 +453,7 @@ func (m *SecuredAccessManager) CheckTlsRoute(key string, o *unstructured.Unstruc
 	} else {
 		m.tlsRoutes[key] = o
 		if sa == nil {
-			slog.Info("Deleting redundant TLSRoute", slog.String("namespace", o.GetNamespace()), slog.String("name", o.GetName()))
+			m.logger.Info("Deleting redundant TLSRoute", slog.String("namespace", o.GetNamespace()), slog.String("name", o.GetName()))
 			return m.clients.GetDynamicClient().Resource(resource.TlsRouteResource()).Namespace(o.GetNamespace()).Delete(context.Background(), o.GetName(), metav1.DeleteOptions{})
 		}
 	}
@@ -472,7 +474,7 @@ func (m *SecuredAccessManager) CheckIngress(key string, ingress *networkingv1.In
 				return nil
 			}
 			// delete this ingress as there is no corresponding securedaccess resource
-			slog.Info("Deleting redundant Ingress", slog.String("namespace", ingress.Namespace), slog.String("name", ingress.Name))
+			m.logger.Info("Deleting redundant Ingress", slog.String("namespace", ingress.Namespace), slog.String("name", ingress.Name))
 			return m.clients.GetKubeClient().NetworkingV1().Ingresses(ingress.Namespace).Delete(context.Background(), ingress.Name, metav1.DeleteOptions{})
 		}
 	}
@@ -502,7 +504,7 @@ func (m *SecuredAccessManager) CheckService(key string, svc *corev1.Service) err
 			return nil
 		}
 		// delete this service as there is no corresponding securedaccess resource
-		slog.Info("Deleting redundant service", slog.String("namespace", svc.Namespace), slog.String("name", svc.Name))
+		m.logger.Info("Deleting redundant service", slog.String("namespace", svc.Namespace), slog.String("name", svc.Name))
 		return m.clients.GetKubeClient().CoreV1().Services(svc.Namespace).Delete(context.Background(), svc.Name, metav1.DeleteOptions{})
 	}
 	m.services[key] = svc

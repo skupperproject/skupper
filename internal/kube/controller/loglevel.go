@@ -51,6 +51,6 @@ func (c *Controller) logConfigUpdate(key string, cm *corev1.ConfigMap) error {
 	if slogLevel != controllerLogLevel.Level() {
 		controllerLogLevel.Set(slogLevel)
 	}
-	slog.Info("Updating log level", slog.String("logLevel", slogLevel.String()))
+	c.log.Info("Updating log level", slog.String("logLevel", slogLevel.String()))
 	return nil
 }

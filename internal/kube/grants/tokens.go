@@ -35,15 +35,17 @@ type TokenGenerator struct {
 	ca        *corev1.Secret
 	endpoints [][]skupperv2alpha1.Endpoint
 	hosts     []string
+	logger    *slog.Logger
 }
 
 func NewTokenGenerator(site *skupperv2alpha1.Site, clients internalclient.Clients) (*TokenGenerator, error) {
 	generator := &TokenGenerator{
 		namespace: site.Namespace,
 		clients:   clients,
+		logger:    slog.New(slog.Default().Handler()).With(slog.String("component", "kube.grants.tokenGenerator")),
 	}
 	if err := generator.loadCA(site.DefaultIssuer()); err != nil {
-		slog.Error("Error retrieving default issuer for site",
+		generator.logger.Error("Error retrieving default issuer for site",
 			slog.String("defaultIssuer", site.DefaultIssuer()),
 			slog.String("namespace", site.Namespace),
 			slog.String("name", site.Name),
@@ -51,7 +53,7 @@ func NewTokenGenerator(site *skupperv2alpha1.Site, clients internalclient.Client
 		return nil, errors.New("Could not get issuer for requested certificate")
 	}
 	if ok := generator.setValidHostsFromSite(site); !ok {
-		slog.Info("Could not resolve any target endpoints for site", slog.String("namespace", site.Namespace), slog.String("name", site.Name))
+		generator.logger.Error("Could not resolve any target endpoints for site", slog.String("namespace", site.Namespace), slog.String("name", site.Name))
 		return nil, errors.New("Could not resolve any endpoints for requested link")
 	}
 	return generator, nil
@@ -86,7 +88,7 @@ func (g *TokenGenerator) setValidHostsFromSite(site *skupperv2alpha1.Site) bool 
 	for _, endpoints := range byGroup {
 		g.endpoints = append(g.endpoints, endpoints)
 	}
-	slog.Info("Endpoints for grant by group", slog.Any("endpoints", g.endpoints), slog.Any("byGroup", byGroup))
+	g.logger.Info("Endpoints for grant by group", slog.Any("endpoints", g.endpoints), slog.Any("byGroup", byGroup))
 	g.hosts = hosts
 	return true
 }

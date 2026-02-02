@@ -10,6 +10,7 @@ import (
 type PortMapping struct {
 	mappings map[string]int
 	pool     *ports.FreePorts
+	logger	 *slog.Logger
 }
 
 func (p *PortMapping) GetPortForKey(key string) (int, error) {
@@ -21,7 +22,7 @@ func (p *PortMapping) GetPortForKey(key string) (int, error) {
 		return 0, err
 	}
 	p.mappings[key] = allocated
-	slog.Info("Allocated port for key", slog.Int("port", allocated), slog.String("key", key))
+	p.logger.Info("Allocated port for key", slog.Int("port", allocated), slog.String("key", key))
 	return allocated, err
 }
 
@@ -35,7 +36,7 @@ func (p *PortMapping) ReleasePortForKey(key string) {
 func (p *PortMapping) recovered(key string, portstr string) {
 	port, err := strconv.Atoi(portstr)
 	if err != nil {
-		slog.Error("Failed to convert port to int", slog.String("port", portstr), slog.Any("error", err))
+		p.logger.Error("Failed to convert port to int", slog.String("port", portstr), slog.Any("error", err))
 		return
 	}
 	p.pool.InUse(port)
@@ -50,6 +51,7 @@ func RecoverPortMapping(config *RouterConfig) *PortMapping {
 	mapping := &PortMapping{
 		mappings: map[string]int{},
 		pool:     ports.NewFreePorts(),
+		logger:	 	slog.New(slog.Default().Handler()).With(slog.String("component", "qdr.portMapping")),
 	}
 	if config != nil {
 		for _, listener := range config.Listeners {

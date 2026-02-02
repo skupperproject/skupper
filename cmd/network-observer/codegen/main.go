@@ -160,7 +160,7 @@ func fieldsMatchingType(st *ast.StructType, re *regexp.Regexp) []FieldInfo {
 						rt += "*"
 						typ = f.X
 					default:
-						slog.Error("unexpected field type", slog.Any("field", field.Names[0]), slog.Any("type", f))
+						slog.Error("unexpected field type", slog.Any("field", field.Names[0]), slog.String("type", fmt.Sprintf("%T", f)))
 						os.Exit(1)
 					}
 				}

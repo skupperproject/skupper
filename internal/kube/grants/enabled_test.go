@@ -1,6 +1,7 @@
 package grants
 
 import (
+	"log/slog"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -36,6 +37,7 @@ func Test_tlsCredentialsUpdated(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gc := &GrantsEnabled{
 				grants: newGrants(nil, nil, "https", ""),
+				logger: slog.Default(),
 			}
 			gc.server = newServer(":0", true, gc.grants)
 			err := gc.tlsCredentialsUpdated(tt.key, tt.secret)

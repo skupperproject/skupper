@@ -44,6 +44,7 @@ type Agent struct {
 	receiver   *amqp.Receiver
 	local      *Router
 	closed     bool
+	logger     *slog.Logger
 }
 
 type Router struct {
@@ -65,7 +66,7 @@ func GetSiteMetadata(metadata string) SiteMetadata {
 	result := SiteMetadata{}
 	err := json.Unmarshal([]byte(metadata), &result)
 	if err != nil {
-		slog.Error("Assuming old format for router metadata", slog.String("metadata", metadata), slog.Any("error", err))
+		slog.Warn("Assuming old format for router metadata", slog.String("metadata", metadata), slog.Any("error", err))
 		// assume old format, where metadata just holds site id
 		result.Id = metadata
 	}
@@ -271,6 +272,7 @@ func newAgent(factory *ConnectionFactory) (*Agent, error) {
 		sender:     sender,
 		anonymous:  anonymous,
 		receiver:   receiver,
+		logger:     slog.New(slog.Default().Handler()).With(slog.String("component", "qdr.agent")),
 	}
 	a.local, err = a.GetLocalRouter()
 	if err != nil {
@@ -382,7 +384,8 @@ func (a *Agent) request(operation string, typename string, name string, attribut
 
 func (a *Agent) Create(typename string, name string, entity recordType) error {
 	attributes := entity.toRecord()
-	slog.Info("CREATE",
+	a.logger.Info("Management request",
+		slog.String("action", "CREATE"),
 		slog.String("typename", typename),
 		slog.String("name", name),
 		slog.Any("attributes", attributes))
@@ -391,7 +394,8 @@ func (a *Agent) Create(typename string, name string, entity recordType) error {
 
 func (a *Agent) Update(typename string, name string, entity recordType) error {
 	attributes := entity.toRecord()
-	slog.Info("UPDATE",
+	a.logger.Info("Management request",
+		slog.String("action", "UPDATE"),
 		slog.String("typename", typename),
 		slog.String("name", name),
 		slog.Any("attributes", attributes))
@@ -402,7 +406,10 @@ func (a *Agent) Delete(typename string, name string) error {
 	if name == "" {
 		return fmt.Errorf("Cannot delete entity of type %s with no name", typename)
 	}
-	slog.Info("DELETE", slog.String("typename", typename), slog.String("name", name))
+	a.logger.Info("Management request", 
+		slog.String("action", "DELETE"), 
+		slog.String("typename", typename), 
+		slog.String("name", name))
 	return a.request("DELETE", typename, name, nil)
 }
 
