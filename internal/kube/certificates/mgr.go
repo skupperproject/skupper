@@ -50,7 +50,7 @@ type CertificateManagerImpl struct {
 	secretWatcher      *watchers.SecretWatcher
 	processor          *watchers.EventProcessor
 	context            ControllerContext
-	logger						 *slog.Logger
+	logger             *slog.Logger
 }
 
 // Returns a correctly initialised CertificateManager.

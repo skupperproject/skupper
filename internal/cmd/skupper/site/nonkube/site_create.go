@@ -27,7 +27,7 @@ type CmdSiteCreate struct {
 	namespace               string
 	routerAccessName        string
 	subjectAlternativeNames []string
-	logger									*slog.Logger
+	logger                  *slog.Logger
 }
 
 func NewCmdSiteCreate() *CmdSiteCreate {

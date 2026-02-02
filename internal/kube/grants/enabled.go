@@ -40,7 +40,7 @@ type GrantsEnabled struct {
 	autoConfigure *AutoConfigure
 	started       bool
 	filter        NamespaceFilter
-	logger				*slog.Logger
+	logger        *slog.Logger
 }
 
 func (c *GrantsEnabled) Start() {

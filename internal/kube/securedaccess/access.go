@@ -47,7 +47,7 @@ type SecuredAccessManager struct {
 	defaultAccessType  string
 	gatewayInit        func() error
 	context            ControllerContext
-	logger						*slog.Logger
+	logger             *slog.Logger
 }
 
 func NewSecuredAccessManager(clients internalclient.Clients, certMgr certificates.CertificateManager, config *Config, context ControllerContext) *SecuredAccessManager {
@@ -63,7 +63,7 @@ func NewSecuredAccessManager(clients internalclient.Clients, certMgr certificate
 		enabledAccessTypes: map[string]AccessType{},
 		defaultAccessType:  config.getDefaultAccessType(clients),
 		context:            context,
-		logger:	            slog.New(slog.Default().Handler()).With(slog.String("component", "kube.securedaccess.manager")),
+		logger:             slog.New(slog.Default().Handler()).With(slog.String("component", "kube.securedaccess.manager")),
 	}
 	for _, accessType := range config.EnabledAccessTypes {
 		if accessType == ACCESS_TYPE_ROUTE {

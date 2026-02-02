@@ -406,9 +406,9 @@ func (a *Agent) Delete(typename string, name string) error {
 	if name == "" {
 		return fmt.Errorf("Cannot delete entity of type %s with no name", typename)
 	}
-	a.logger.Info("Management request", 
-		slog.String("action", "DELETE"), 
-		slog.String("typename", typename), 
+	a.logger.Info("Management request",
+		slog.String("action", "DELETE"),
+		slog.String("typename", typename),
 		slog.String("name", name))
 	return a.request("DELETE", typename, name, nil)
 }

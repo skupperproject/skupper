@@ -922,7 +922,7 @@ type BridgeConfigDifference struct {
 	TcpConnectors      TcpEndpointDifference
 	AddedSslProfiles   []string
 	DeletedSSlProfiles []string
-	logger						 *slog.Logger
+	logger             *slog.Logger
 }
 
 func isAddrAny(host string) bool {
@@ -991,7 +991,7 @@ func (a TcpEndpointMap) Difference(b TcpEndpointMap) TcpEndpointDifference {
 
 func (a *BridgeConfig) Difference(b *BridgeConfig) *BridgeConfigDifference {
 	result := BridgeConfigDifference{
-		logger: 			 slog.New(slog.Default().Handler()).With("component", "qdr.bridgeConfigDifference"),
+		logger:        slog.New(slog.Default().Handler()).With("component", "qdr.bridgeConfigDifference"),
 		TcpConnectors: a.TcpConnectors.Difference(b.TcpConnectors),
 		TcpListeners:  a.TcpListeners.Difference(b.TcpListeners),
 	}

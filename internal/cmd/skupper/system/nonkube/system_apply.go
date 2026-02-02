@@ -33,7 +33,7 @@ type CmdSystemApply struct {
 	securedAccessHandler *fs.SecuredAccessHandler
 	secretHandler        *fs.SecretHandler
 	file                 string
-	logger 						 	 *slog.Logger
+	logger               *slog.Logger
 }
 
 func NewCmdSystemApply() *CmdSystemApply {

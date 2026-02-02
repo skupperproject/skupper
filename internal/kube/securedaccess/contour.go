@@ -25,7 +25,7 @@ func newContourHttpProxyAccess(manager *SecuredAccessManager, domain string) Acc
 	return &ContourHttpProxyAccessType{
 		manager: manager,
 		domain:  domain,
-		logger:	 slog.New(slog.Default().Handler()).With(slog.String("component", "kube.securedaccess.contourHttpProxy.accessType")),
+		logger:  slog.New(slog.Default().Handler()).With(slog.String("component", "kube.securedaccess.contourHttpProxy.accessType")),
 	}
 }
 

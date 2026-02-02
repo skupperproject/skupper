@@ -83,7 +83,7 @@ type EventProcessor struct {
 	resync          time.Duration
 	resyncShort     time.Duration
 	watchers        []Watcher
-	logger					*slog.Logger
+	logger          *slog.Logger
 }
 
 type EventProcessorCustomizer func(e *EventProcessor)

@@ -50,7 +50,7 @@ type GatewayAccessType struct {
 	controllerName   string
 	controllerUID    string
 	unreconciled     map[string]*skupperv2alpha1.SecuredAccess
-	logger 				 	 *slog.Logger	
+	logger           *slog.Logger
 }
 
 func newGatewayAccess(manager *SecuredAccessManager, class string, domain string, port int, context ControllerContext) (AccessType, func() error, error) {

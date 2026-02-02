@@ -10,7 +10,7 @@ import (
 type PortMapping struct {
 	mappings map[string]int
 	pool     *ports.FreePorts
-	logger	 *slog.Logger
+	logger   *slog.Logger
 }
 
 func (p *PortMapping) GetPortForKey(key string) (int, error) {
@@ -51,7 +51,7 @@ func RecoverPortMapping(config *RouterConfig) *PortMapping {
 	mapping := &PortMapping{
 		mappings: map[string]int{},
 		pool:     ports.NewFreePorts(),
-		logger:	 	slog.New(slog.Default().Handler()).With(slog.String("component", "qdr.portMapping")),
+		logger:   slog.New(slog.Default().Handler()).With(slog.String("component", "qdr.portMapping")),
 	}
 	if config != nil {
 		for _, listener := range config.Listeners {
