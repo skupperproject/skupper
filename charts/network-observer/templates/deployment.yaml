@@ -8,6 +8,10 @@ spec:
   selector:
     matchLabels:
       {{- include "network-observer.selectorLabels" . | nindent 6 }}
+  {{- if .Values.prometheus.persistence.enabled }}
+  strategy:
+    type: Recreate
+  {{- end }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -105,10 +109,8 @@ spec:
       - emptyDir: {}
         name: prometheus-storage-volume
       {{- end }}
-      {{- range .Values.prometheus.extraVolumes }}
-      - name: {{ .name }}
-        persistentVolumeClaim:
-          claimName: {{ .persistentVolumeClaim.claimName }}
+      {{- with .Values.prometheus.extraVolumes }}
+      {{- toYaml . | nindent 6 }}
       {{- end }}
       - name: skupper-management-client
         secret:
