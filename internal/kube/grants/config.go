@@ -15,6 +15,7 @@ type GrantConfig struct {
 	Port                 int
 	TlsCredentialsSecret string
 	Hostname             string
+	RedeemByKey          bool
 }
 
 func BoundGrantConfig(flags *flag.FlagSet) (*GrantConfig, error) {
@@ -32,6 +33,9 @@ func BoundGrantConfig(flags *flag.FlagSet) (*GrantConfig, error) {
 	}
 	iflag.StringVar(flags, &c.TlsCredentialsSecret, "grant-server-tls-credentials", "SKUPPER_GRANT_SERVER_TLS_CREDENTIALS", "skupper-grant-server", "The name of a secret in which TLS credentials for the AccessGrant server are found.")
 	iflag.StringVar(flags, &c.Hostname, "grant-server-podname", "HOSTNAME", "", "The name of the pod in which the AccessGrant server is running (defaults to $HOSTNAME).")
+	if err := iflag.BoolVar(flags, &c.RedeemByKey, "allow-redeem-by-key", "SKUPPER_ALLOW_REDEEM_BY_KEY", false, "Allow AccessGrant redemption using a predictable key."); err != nil {
+		errors = append(errors, err.Error())
+	}
 	if len(errors) > 0 {
 		return c, fmt.Errorf("Invalid environment variable(s): %s", strings.Join(errors, ", "))
 	}
