@@ -1,3 +1,4 @@
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -15,5 +16,22 @@ spec:
       targetPort: https
       protocol: TCP
       name: https
+  selector:
+    {{- include "network-observer.selectorLabels" . | nindent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "network-observer.fullname" . }}-metrics
+  labels:
+    {{ include "network-observer.labels" . | nindent 4 }}
+    app: metrics
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9000
+      targetPort: metrics
+      protocol: TCP
   selector:
     {{- include "network-observer.selectorLabels" . | nindent 4 }}

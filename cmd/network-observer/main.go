@@ -178,6 +178,39 @@ func run(cfg Config) error {
 		})
 	}
 
+	// serve metrics on a separate server if listen-metrics is set
+	if cfg.MetricsListenAddress != "" {
+		metricsMux := http.NewServeMux()
+		metricsMux.Handle("/metrics", handleMetrics(reg))
+		metricsSrv := &http.Server{
+			Addr:         cfg.MetricsListenAddress,
+			Handler:      metricsMux,
+			ReadTimeout:  5 * time.Second,
+			WriteTimeout: 10 * time.Second,
+		}
+		g.Go(func() error {
+			logger.Info("Starting Network Observer Metrics Server",
+				slog.String("address", cfg.MetricsListenAddress))
+
+			err := metricsSrv.ListenAndServe()
+			if err != nil && !errors.Is(err, http.ErrServerClosed) {
+				return fmt.Errorf("server error running metrics server: %s", err)
+			}
+			return nil
+		})
+		g.Go(func() error {
+			<-runCtx.Done()
+			logger.Debug("Shutting down Network Observer Metrics Server")
+			shutdownCtx, sCancel := context.WithTimeout(context.Background(), time.Second)
+			defer sCancel()
+			if err := metricsSrv.Shutdown(shutdownCtx); err != nil {
+				return fmt.Errorf("metrics server shutdown did not complete gracefully: %s", err)
+			}
+			logger.Debug("Network Observer Metrics Server shutdown clean")
+			return nil
+		})
+	}
+
 	g.Go(func() error {
 		logger.Debug("Starting Network Observer Collector")
 		if err := collector.Run(runCtx); err != nil {
@@ -218,6 +251,8 @@ func main() {
 	flags.BoolVar(&cfg.EnableProfile, "profile", false, "Exposes the runtime profiling facilities from net/http/pprof on http://localhost:9970")
 
 	flags.StringVar(&cfg.VanflowLoggingProfile, "vanflow-logging-profile", "silent", "Controls low level vanflow record logging. Options are silent, minimal, moderate and all")
+
+	flags.StringVar(&cfg.MetricsListenAddress, "listen-metrics", ":9000", "The address that the Metrics Server will listen on.")
 
 	flags.Parse(os.Args[1:])
 	if *isVersion {

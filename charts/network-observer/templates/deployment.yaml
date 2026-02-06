@@ -47,12 +47,16 @@ spec:
             - -router-tls-ca=/etc/messaging/ca.crt
             - -router-tls-cert=/etc/messaging/tls.crt
             - -router-tls-key=/etc/messaging/tls.key
+            - -listen-metrics=:9000
             {{- range .Values.extraArgs }}
             - {{ . }}
             {{- end }}
           ports:
             - name: api
               containerPort: 8080
+              protocol: TCP
+            - name: metrics
+              containerPort: 9000
               protocol: TCP
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

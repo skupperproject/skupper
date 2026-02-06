@@ -28,6 +28,8 @@ type Config struct {
 
 	EnableProfile bool
 	CORSAllowAll  bool
+
+	MetricsListenAddress string
 }
 
 type TLSSpec struct {
