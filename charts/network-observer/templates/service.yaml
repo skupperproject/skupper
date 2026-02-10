@@ -25,7 +25,7 @@ metadata:
   name: {{ include "network-observer.fullname" . }}-metrics
   labels:
     {{ include "network-observer.labels" . | nindent 4 }}
-    app: metrics
+    app.kubernetes.io/component: metrics
 spec:
   type: ClusterIP
   ports:

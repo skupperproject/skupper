@@ -252,7 +252,7 @@ func main() {
 
 	flags.StringVar(&cfg.VanflowLoggingProfile, "vanflow-logging-profile", "silent", "Controls low level vanflow record logging. Options are silent, minimal, moderate and all")
 
-	flags.StringVar(&cfg.MetricsListenAddress, "listen-metrics", ":9000", "The address that the Metrics Server will listen on.")
+	flags.StringVar(&cfg.MetricsListenAddress, "listen-metrics", "", "The address that the Metrics Server will listen on.")
 
 	flags.Parse(os.Args[1:])
 	if *isVersion {
