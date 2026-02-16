@@ -83,10 +83,6 @@ func (cmd *CmdSystemUninstall) Run() error {
 			return err
 		}
 
-		if len(entries) == 0 {
-			fmt.Println("No namespaces found to remove")
-		}
-
 		for _, entry := range entries {
 			if entry.IsDir() {
 				runtimeDir := "namespaces/" + entry.Name() + "/runtime/"
