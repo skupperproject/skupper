@@ -28,7 +28,7 @@ type ControllerConfig struct {
 	containerEndpoint        string
 }
 
-func Install(platform string) error {
+func Install(platform string, reloadType string) error {
 
 	systemdGlobal, err := common.NewSystemdGlobal(platform)
 	if err != nil {
@@ -72,12 +72,16 @@ func Install(platform string) error {
 	}
 	fmt.Printf("Pulled system-controller image: %s\n", images.GetSystemControllerImageName())
 
+	if reloadType == "" {
+		reloadType = utils.DefaultStr(os.Getenv(types.ENV_SYSTEM_AUTO_RELOAD),
+			types.SystemReloadTypeManual)
+	}
+
 	env := map[string]string{
-		"CONTAINER_ENDPOINT":  config.containerEndpoint,
-		"SKUPPER_OUTPUT_PATH": config.hostDataHome,
-		"CONTAINER_ENGINE":    config.containerEngine,
-		"SKUPPER_SYSTEM_RELOAD_TYPE": utils.DefaultStr(os.Getenv(types.ENV_SYSTEM_AUTO_RELOAD),
-			types.SystemReloadTypeManual),
+		"CONTAINER_ENDPOINT":         config.containerEndpoint,
+		"SKUPPER_OUTPUT_PATH":        config.hostDataHome,
+		"CONTAINER_ENGINE":           config.containerEngine,
+		"SKUPPER_SYSTEM_RELOAD_TYPE": reloadType,
 	}
 
 	//To mount a volume as a bind, the host path must be specified in the Name field

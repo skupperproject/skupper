@@ -8,6 +8,7 @@ var (
 	WorkloadTypes   = []string{"deployment", "service", "daemonset", "statefulset"}
 	WaitStatusTypes = []string{"ready", "configured", "none"}
 	BundleTypes     = []string{"tarball", "shell-script"}
+	ReloadTypes     = []string{"manual", "auto"}
 )
 
 const (

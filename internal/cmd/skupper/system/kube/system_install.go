@@ -2,6 +2,8 @@ package kube
 
 import (
 	"fmt"
+
+	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -12,6 +14,7 @@ type CmdSystemInstall struct {
 	KubeClient kubernetes.Interface
 	CobraCmd   *cobra.Command
 	Namespace  string
+	Flags      *common.CommandSystemInstallFlags
 }
 
 func NewCmdSystemInstall() *CmdSystemInstall {
