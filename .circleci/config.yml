@@ -166,6 +166,10 @@ workflows:
             - generate-network-observer-operator-bundle
           context:
             - skupper-org
+      - generate-must-gather:
+          <<: *run_for_numeric_tags
+          requires:
+            - publish-oci-images
   build:
     jobs:
       - build-all:
@@ -355,6 +359,14 @@ jobs:
           root: .
           paths:
             - skupper-manifest
+   generate-must-gather:
+    executor:
+      name: go_cimg
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: make docker-build-must-gather IMAGE_TAG="<< parameters.image_tag >>"
+      - run: make docker-push-must-gather IMAGE_TAG="<< parameters.image_tag >>"
   generate-operator-bundle:
     executor:
       name: go_cimg
