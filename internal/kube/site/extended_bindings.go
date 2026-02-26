@@ -111,13 +111,7 @@ func (a *ExtendedBindings) ListenerUpdated(listener *skupperv2alpha1.Listener) {
 		TargetPort: allocatedRouterPort,
 		Protocol:   listener.Protocol(),
 	}
-	exposed := a.exposed.Expose(listener.Spec.Host, port)
-	if exposed == nil {
-		if existing, ok := a.exposed[listener.Spec.Host]; ok {
-			exposed = existing
-		}
-	}
-	if exposed != nil {
+	if exposed := a.exposed.Expose(listener.Spec.Host, port); exposed != nil {
 		if err := a.context.Expose(exposed); err != nil {
 			bindings_logger.Error("Error exposing listener",
 				slog.String("namespace", listener.Namespace),
@@ -129,6 +123,13 @@ func (a *ExtendedBindings) ListenerUpdated(listener *skupperv2alpha1.Listener) {
 				slog.String("name", listener.Name))
 		}
 	}
+}
+
+func (a *ExtendedBindings) GetExposedPortSet(host string) *ExposedPortSet {
+	if existing, ok := a.exposed[host]; ok && !existing.empty() {
+		return existing
+	}
+	return nil
 }
 
 func (a *ExtendedBindings) ListenerDeleted(listener *skupperv2alpha1.Listener) {
