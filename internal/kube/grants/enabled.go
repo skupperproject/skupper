@@ -94,6 +94,5 @@ func (s *GrantsEnabled) tlsCredentialsUpdated(key string, secret *corev1.Secret)
 	if s.grants.setCA(string(secret.Data["ca.crt"])) {
 		s.grants.recheckCa()
 	}
-	s.logger.Info("Grant server tls credentials updated")
 	return nil
 }
