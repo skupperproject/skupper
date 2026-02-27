@@ -159,6 +159,9 @@ func NewCompatClient(endpoint, basePath string) (*CompatClient, error) {
 
 func GetDefaultContainerEndpoint() string {
 	platform := os.Getenv(types.ENV_PLATFORM)
+	if platform == "" {
+		platform = os.Getenv("CONTAINER_ENGINE")
+	}
 	// the container endpoint is mapped to the podman socket inside the container
 	if api.IsRunningInContainer() {
 		if platform == "docker" {
