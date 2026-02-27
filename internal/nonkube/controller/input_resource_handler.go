@@ -147,7 +147,6 @@ func (h *InputResourceHandler) Filter(name string) bool {
 func (h *InputResourceHandler) OnBasePathAdded(basePath string) {}
 
 func (h *InputResourceHandler) processInputFile() error {
-	needsBootstrap := false
 	var siteState *api.SiteState
 	var inputSiteNames []string
 	var runtimeSiteNames []string
@@ -171,15 +170,6 @@ func (h *InputResourceHandler) processInputFile() error {
 	inputSitesMatchRuntimeSites := utils.StringSlicesEqual(inputSiteNames, runtimeSiteNames)
 
 	if !inputSitesMatchRuntimeSites {
-		needsBootstrap = true
-	} else {
-		siteState, err = h.siteStateLoader.Load()
-		if err != nil || siteState == nil {
-			needsBootstrap = true
-		}
-	}
-
-	if needsBootstrap {
 		siteState, err = h.Bootstrap(&h.ConfigBootstrap)
 		if err != nil {
 			return fmt.Errorf("Failed to bootstrap: %s", err)
@@ -187,7 +177,12 @@ func (h *InputResourceHandler) processInputFile() error {
 		h.PostExec(&h.ConfigBootstrap, siteState)
 		return nil
 	}
-	if siteState != nil && !siteState.IsBundle() {
+
+	siteState, err = h.siteStateLoader.Load()
+	if err != nil || siteState == nil {
+		return fmt.Errorf("Failed to load site state: %s", err)
+	}
+	if !siteState.IsBundle() {
 		err = h.siteStateRenderer.Refresh(siteState)
 		if err != nil {
 			return fmt.Errorf("Failed to refresh site state: %s", err)

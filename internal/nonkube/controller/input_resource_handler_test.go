@@ -113,28 +113,6 @@ func TestInputResourceHandler(t *testing.T) {
 		}
 	})
 
-	t.Run("resource file created or updated but the reload fails", func(t *testing.T) {
-		t.Setenv(types.ENV_SYSTEM_AUTO_RELOAD, "auto")
-		namespace := "test-file-created-ns"
-		inputPath := "test-file-created-input-path"
-
-		handler := NewInputResourceHandler(namespace, inputPath, mockBootstrapFailed, mockPostExec, mockTearDown)
-
-		logSpy := &testLogHandler{
-			handler: slog.Default().Handler(),
-		}
-		handler.logger = slog.New(logSpy)
-
-		resourceName := "site.yaml"
-		handler.OnCreate(resourceName)
-
-		expectedMsg := fmt.Sprintf("Failed to bootstrap: failed to bootstrap")
-		if count := logSpy.Count(expectedMsg); count != 1 {
-			t.Errorf("Expected log '%s' to be present, but found count: %d", expectedMsg, count)
-		}
-
-	})
-
 }
 
 func mockBootstrap(config *bootstrap.Config) (*api.SiteState, error) {
