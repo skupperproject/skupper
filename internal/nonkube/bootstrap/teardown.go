@@ -42,12 +42,18 @@ func Teardown(namespace string) error {
 
 func removeDefinition(namespace string) error {
 
-	_, err := os.Stat(api.GetHostNamespaceHome(namespace))
+	path := api.GetHostNamespaceHome(namespace)
+
+	if api.IsRunningInContainer() {
+		path = api.GetDefaultOutputPath(namespace)
+	}
+
+	_, err := os.Stat(path)
 	if err != nil {
 		return err
 	}
 
-	return os.RemoveAll(api.GetHostNamespaceHome(namespace))
+	return os.RemoveAll(path)
 }
 
 func removeRouter(namespace string, platform string) error {
