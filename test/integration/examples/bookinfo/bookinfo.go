@@ -6,6 +6,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/skupperproject/skupper/test/utils/arch"
 	"github.com/skupperproject/skupper/test/utils/base"
 	"github.com/skupperproject/skupper/test/utils/constants"
 	"github.com/skupperproject/skupper/test/utils/k8s"
@@ -48,11 +49,15 @@ func TearDown(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) 
 }
 
 func Setup(ctx context.Context, t *testing.T, r *base.ClusterTestRunnerBase) {
+
 	pub1Cluster, err := r.GetPublicContext(1)
 	assert.Assert(t, err)
 
 	prv1Cluster, err := r.GetPrivateContext(1)
 	assert.Assert(t, err)
+
+	// skip only on s390x
+	assert.Assert(t, arch.SkipOnlyS390x(t, pub1Cluster, prv1Cluster))
 
 	_, err = pub1Cluster.KubectlExec("apply -f https://raw.githubusercontent.com/skupperproject/skupper-example-bookinfo/master/public-cloud.yaml")
 	assert.Assert(t, err)

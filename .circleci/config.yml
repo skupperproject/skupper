@@ -111,7 +111,8 @@ commands:
       - run:
           name: cleanup previous go installation
           command: sudo rm -rf /usr/local/go
-      - docker/install-docker
+      - docker/install-docker:
+          version: "v26.0.1"
       - go/install:
           version: "1.22.0"
       - kube-orb/install-kubectl
@@ -480,7 +481,8 @@ jobs:
   build_and_save_test_images:
     executor: local_cluster_test_executor
     steps:
-      - docker/install-docker
+      - docker/install-docker:
+          version: "v26.0.1"
       - checkout
       - run: docker buildx create --use --name skupper-buildx --bootstrap
       - run: make -e docker-build
