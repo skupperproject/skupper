@@ -16,11 +16,10 @@ import (
 
 func TestCmdSystemSetup_ValidateInput(t *testing.T) {
 	type test struct {
-		name            string
-		args            []string
-		envSystemReload string
-		namespace       string
-		expectedError   string
+		name          string
+		args          []string
+		namespace     string
+		expectedError string
 	}
 
 	testTable := []test{
@@ -36,21 +35,11 @@ func TestCmdSystemSetup_ValidateInput(t *testing.T) {
 			namespace:     "Invalid",
 			expectedError: "namespace is not valid: value does not match this regular expression: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
 		},
-		{
-			name:            "command-is-disabled",
-			args:            []string{},
-			namespace:       "ns",
-			envSystemReload: types.SystemReloadTypeAuto,
-			expectedError:   "this command is disabled because automatic reloading is configured",
-		},
 	}
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv(types.ENV_SYSTEM_AUTO_RELOAD, types.SystemReloadTypeManual)
-			if test.envSystemReload != "" {
-				t.Setenv(types.ENV_SYSTEM_AUTO_RELOAD, test.envSystemReload)
-			}
 			command := &CmdSystemStart{}
 			command.CobraCmd = common.ConfigureCobraCommand(common.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
 			command.Namespace = test.namespace

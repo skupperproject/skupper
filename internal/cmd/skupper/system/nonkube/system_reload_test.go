@@ -15,11 +15,10 @@ import (
 
 func TestCmdSystemReload_ValidateInput(t *testing.T) {
 	type test struct {
-		name            string
-		namespace       string
-		envSystemReload string
-		args            []string
-		expectedError   string
+		name          string
+		namespace     string
+		args          []string
+		expectedError string
 	}
 
 	testTable := []test{
