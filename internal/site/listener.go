@@ -12,7 +12,7 @@ func UpdateBridgeConfigForListener(siteId string, listener *skupperv2alpha1.List
 }
 
 func UpdateBridgeConfigForListenerWithHostAndPort(siteId string, listener *skupperv2alpha1.Listener, host string, port int, config *qdr.BridgeConfig) {
-	name := listener.Name
+	name := qdr.TcpListenerNamePrefix + listener.Name
 	if listener.Spec.Type == "tcp" || listener.Spec.Type == "" {
 		config.AddTcpListener(qdr.TcpEndpoint{
 			Name:       name,

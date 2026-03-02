@@ -130,7 +130,7 @@ func (p *PerTargetListener) updateBridgeConfig(siteId string, config *qdr.Bridge
 	for target, port := range p.targets {
 		if p.definition.Spec.Type == "tcp" || p.definition.Spec.Type == "" {
 			if config.AddTcpListener(qdr.TcpEndpoint{
-				Name:       p.definition.Name + "@" + target,
+				Name:       qdr.TcpListenerNamePrefix + p.definition.Name + "@" + target,
 				SiteId:     siteId,
 				Port:       strconv.Itoa(port),
 				Address:    p.address(target),

@@ -33,6 +33,11 @@ type RouterConfigHandler interface {
 
 type TcpEndpointMap map[string]TcpEndpoint
 
+const (
+	TcpListenerNamePrefix  = "listener/"
+	TcpConnectorNamePrefix = "connector/"
+)
+
 type BridgeConfig struct {
 	TcpListeners  TcpEndpointMap
 	TcpConnectors TcpEndpointMap
@@ -1196,7 +1201,7 @@ func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId s
 	for iPort, ePort := range ports {
 		address := fmt.Sprintf("%s-%s:%d", definition.Address, "${POD_ID}", iPort)
 		if definition.IsOfLocalOrigin() {
-			name := fmt.Sprintf("egress:%d", ePort)
+			name := TcpConnectorNamePrefix + fmt.Sprintf("egress:%d", ePort)
 			host := definition.Headless.Name + "-${POD_ID}." + definition.Address + "." + namespace
 			// in the originating site, just have egress bindings
 			switch definition.Protocol {
@@ -1211,7 +1216,7 @@ func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId s
 			default:
 			}
 		} else {
-			name := fmt.Sprintf("ingress:%d", ePort)
+			name := TcpListenerNamePrefix + fmt.Sprintf("ingress:%d", ePort)
 			// in all other sites, just have ingress bindings
 			switch definition.Protocol {
 			case "tcp":

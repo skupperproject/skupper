@@ -60,8 +60,8 @@ func TestBindings_Apply(t *testing.T) {
 			},
 			expected: expected{
 				tcpListeners: qdr.TcpEndpointMap{
-					"listener1": {
-						Name:    "listener1",
+					"listener/listener1": {
+						Name:    "listener/listener1",
 						Host:    "10.10.10.1",
 						Port:    "9090",
 						Address: "echo:9090",
@@ -101,8 +101,8 @@ func TestBindings_Apply(t *testing.T) {
 			expected: expected{
 				tcpListeners: qdr.TcpEndpointMap{},
 				tcpConnectors: qdr.TcpEndpointMap{
-					"connector1@10.10.10.1": {
-						Name:    "connector1@10.10.10.1",
+					"connector/connector1@10.10.10.1": {
+						Name:    "connector/connector1@10.10.10.1",
 						Host:    "10.10.10.1",
 						Port:    "9090",
 						Address: "echo:9090",
@@ -120,8 +120,8 @@ func TestBindings_Apply(t *testing.T) {
 			config: &qdr.RouterConfig{
 				Bridges: qdr.BridgeConfig{
 					TcpListeners: map[string]qdr.TcpEndpoint{
-						"listener1": qdr.TcpEndpoint{
-							Name:   "listener1",
+						"listener/listener1": qdr.TcpEndpoint{
+							Name:   "listener/listener1",
 							Host:   "10.10.10.1",
 							Port:   "9090",
 							SiteId: "site-1",
@@ -146,8 +146,8 @@ func TestBindings_Apply(t *testing.T) {
 				Bridges: qdr.BridgeConfig{
 					TcpListeners: map[string]qdr.TcpEndpoint{},
 					TcpConnectors: map[string]qdr.TcpEndpoint{
-						"connector1": qdr.TcpEndpoint{
-							Name:   "connector1",
+						"connector/connector1@10.10.10.1": qdr.TcpEndpoint{
+							Name:   "connector/connector1@10.10.10.1",
 							Host:   "10.10.10.1",
 							Port:   "9090",
 							SiteId: "site-1",
@@ -192,8 +192,8 @@ func TestBindings_Apply(t *testing.T) {
 			},
 			expected: expected{
 				tcpListeners: qdr.TcpEndpointMap{
-					"listener1": {
-						Name:       "listener1",
+					"listener/listener1": {
+						Name:       "listener/listener1",
 						Host:       "10.10.10.1",
 						Port:       "9090",
 						Address:    "echo:9090",
@@ -243,8 +243,8 @@ func TestBindings_Apply(t *testing.T) {
 			expected: expected{
 				tcpListeners: qdr.TcpEndpointMap{},
 				tcpConnectors: qdr.TcpEndpointMap{
-					"connector1@10.10.10.1": {
-						Name:           "connector1@10.10.10.1",
+					"connector/connector1@10.10.10.1": {
+						Name:           "connector/connector1@10.10.10.1",
 						Host:           "10.10.10.1",
 						Port:           "9090",
 						Address:        "echo:9090",
@@ -294,8 +294,8 @@ func TestBindings_Apply(t *testing.T) {
 			expected: expected{
 				tcpListeners: qdr.TcpEndpointMap{},
 				tcpConnectors: qdr.TcpEndpointMap{
-					"connector1@10.10.10.1": {
-						Name:           "connector1@10.10.10.1",
+					"connector/connector1@10.10.10.1": {
+						Name:           "connector/connector1@10.10.10.1",
 						Host:           "10.10.10.1",
 						Port:           "9090",
 						Address:        "echo:9090",
@@ -350,16 +350,16 @@ func TestBindings_Apply(t *testing.T) {
 			expected: expected{
 				tcpListeners: qdr.TcpEndpointMap{},
 				tcpConnectors: qdr.TcpEndpointMap{
-					"connector1@11.5.6.21": {
-						Name:      "connector1@11.5.6.21",
+					"connector/connector1@11.5.6.21": {
+						Name:      "connector/connector1@11.5.6.21",
 						Host:      "11.5.6.21",
 						Port:      "9090",
 						Address:   "echo:9090",
 						SiteId:    "site-1",
 						ProcessID: "pod1",
 					},
-					"connector1@11.5.6.22": {
-						Name:      "connector1@11.5.6.22",
+					"connector/connector1@11.5.6.22": {
+						Name:      "connector/connector1@11.5.6.22",
 						Host:      "11.5.6.22",
 						Port:      "9090",
 						Address:   "echo:9090",
@@ -399,8 +399,8 @@ func TestBindings_Apply(t *testing.T) {
 			},
 			expected: expected{
 				tcpListeners: qdr.TcpEndpointMap{
-					"listener1": {
-						Name:    "listener1",
+					"listener/listener1": {
+						Name:    "listener/listener1",
 						Host:    "my-host",
 						Port:    "5678",
 						Address: "echo:9090",
@@ -440,8 +440,8 @@ func TestBindings_Apply(t *testing.T) {
 			},
 			expected: expected{
 				tcpListeners: qdr.TcpEndpointMap{
-					"listener1": {
-						Name:    "listener1",
+					"listener/listener1": {
+						Name:    "listener/listener1",
 						Host:    "10.10.10.1",
 						Port:    "9090",
 						Address: "foo",
@@ -482,8 +482,8 @@ func TestBindings_Apply(t *testing.T) {
 			expected: expected{
 				tcpListeners: qdr.TcpEndpointMap{},
 				tcpConnectors: qdr.TcpEndpointMap{
-					"connector1@10.10.10.1": {
-						Name:    "connector1@10.10.10.1",
+					"connector/connector1@10.10.10.1": {
+						Name:    "connector/connector1@10.10.10.1",
 						Host:    "10.10.10.1",
 						Port:    "9090",
 						Address: "foo",

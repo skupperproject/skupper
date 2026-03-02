@@ -258,7 +258,7 @@ func TestGeneral(t *testing.T) {
 				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
 			},
 			expectedRouterConfig: []*RouterConfig{
-				f.routerConfig("skupper-router", "test").tcpListener("mylistener", "1024", "", ""),
+				f.routerConfig("skupper-router", "test").tcpListener("listener/mylistener", "1024", "", ""),
 			},
 			expectedServices: []*corev1.Service{
 				f.service("mysvc", "test", f.routerSelector(true), f.servicePort("mylistener", 8080, 1024)),
@@ -291,25 +291,63 @@ func TestGeneral(t *testing.T) {
 					"skupper-router",
 					"test",
 				).tcpListener(
-					"mylistener", "1024", "mysvc", "",
+					"listener/mylistener", "1024", "mysvc", "",
 				).tcpListener(
-					"mylistener@mypod-1", "*", "mysvc.mypod-1", "",
+					"listener/mylistener@mypod-1", "*", "mysvc.mypod-1", "",
 				).tcpListener(
-					"mylistener@mypod-2", "*", "mysvc.mypod-2", "",
+					"listener/mylistener@mypod-2", "*", "mysvc.mypod-2", "",
 				).tcpConnector(
-					"myconnector@10.1.1.10", "10.1.1.10", "8080", "mysvc", "",
+					"connector/myconnector@10.1.1.10", "10.1.1.10", "8080", "mysvc", "",
 				).tcpConnector(
-					"myconnector@10.1.1.11", "10.1.1.11", "8080", "mysvc", "",
+					"connector/myconnector@10.1.1.11", "10.1.1.11", "8080", "mysvc", "",
 				).tcpConnector(
-					"myconnector@mypod-1", "10.1.1.10", "8080", "mysvc.mypod-1", "",
+					"connector/myconnector@mypod-1", "10.1.1.10", "8080", "mysvc.mypod-1", "",
 				).tcpConnector(
-					"myconnector@mypod-2", "10.1.1.11", "8080", "mysvc.mypod-2", "",
+					"connector/myconnector@mypod-2", "10.1.1.11", "8080", "mysvc.mypod-2", "",
 				),
 			},
 			expectedServices: []*corev1.Service{
 				f.service("mysvc", "test", f.routerSelector(true), f.servicePort("mylistener", 8080, 1024)),
 				f.service("mypod-1", "test", f.routerSelector(true), f.servicePortU("mylistener", 8080)),
 				f.service("mypod-2", "test", f.routerSelector(true), f.servicePortU("mylistener", 8080)),
+			},
+		},
+		{
+			name: "expose pods by name with same name",
+			k8sObjects: []runtime.Object{
+				f.skupperNetworkStatus("test", f.networkStatusInfo("mysite", "test", nil, map[string]string{"mysvc": "mysvc", "mysvc.mypod-1": "10.1.1.10", "mysvc.mypod-2": "10.1.1.11"}).info()),
+				f.pod("mypod-1", "test", map[string]string{"app": "foo"}, nil, f.podStatus("10.1.1.10", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue))),
+				f.pod("mypod-2", "test", map[string]string{"app": "foo"}, nil, f.podStatus("10.1.1.11", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue))),
+			},
+			skupperObjects: []runtime.Object{
+				f.site("mysite", "test", "", false, false),
+				f.connectorWithExposePodsByName("backend", "test", "mysvc", "app=foo", 8080),
+				f.listenerWithExposePodsByName("backend", "test", "mysvc", "mysvc", 8080),
+			},
+			waitFunctions: []WaitFunction{
+				isConnectorStatusConditionTrue("backend", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED),
+				isListenerStatusConditionTrue("backend", "test", skupperv2alpha1.CONDITION_TYPE_CONFIGURED),
+			},
+			expectedSiteStatuses: []*skupperv2alpha1.Site{
+				f.siteStatus("mysite", "test", skupperv2alpha1.StatusPending, "Not Running", f.condition(skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionTrue, "Ready", "OK")),
+			},
+			expectedDynamicResources: map[schema.GroupVersionResource]*unstructured.Unstructured{
+				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
+			},
+			expectedRouterConfig: []*RouterConfig{
+				f.routerConfig("skupper-router", "test").
+					tcpListener("listener/backend", "1024", "mysvc", "").
+					tcpListener("listener/backend@mypod-1", "*", "mysvc.mypod-1", "").
+					tcpListener("listener/backend@mypod-2", "*", "mysvc.mypod-2", "").
+					tcpConnector("connector/backend@10.1.1.10", "10.1.1.10", "8080", "mysvc", "").
+					tcpConnector("connector/backend@10.1.1.11", "10.1.1.11", "8080", "mysvc", "").
+					tcpConnector("connector/backend@mypod-1", "10.1.1.10", "8080", "mysvc.mypod-1", "").
+					tcpConnector("connector/backend@mypod-2", "10.1.1.11", "8080", "mysvc.mypod-2", ""),
+			},
+			expectedServices: []*corev1.Service{
+				f.service("mysvc", "test", f.routerSelector(true), f.servicePort("backend", 8080, 1024)),
+				f.service("mypod-1", "test", f.routerSelector(true), f.servicePortU("backend", 8080)),
+				f.service("mypod-2", "test", f.routerSelector(true), f.servicePortU("backend", 8080)),
 			},
 		},
 		{
@@ -335,7 +373,7 @@ func TestGeneral(t *testing.T) {
 				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
 			},
 			expectedRouterConfig: []*RouterConfig{
-				f.routerConfig("skupper-router", "test").tcpConnector("myconnector@mysvc", "mysvc", "8080", "", ""),
+				f.routerConfig("skupper-router", "test").tcpConnector("connector/myconnector@mysvc", "mysvc", "8080", "", ""),
 			},
 		},
 		{
@@ -359,7 +397,7 @@ func TestGeneral(t *testing.T) {
 				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
 			},
 			expectedRouterConfig: []*RouterConfig{
-				f.routerConfig("skupper-router", "test").tcpConnector("myconnector@10.1.1.10", "10.1.1.10", "8080", "", ""),
+				f.routerConfig("skupper-router", "test").tcpConnector("connector/myconnector@10.1.1.10", "10.1.1.10", "8080", "", ""),
 			},
 		},
 		{
@@ -394,7 +432,7 @@ func TestGeneral(t *testing.T) {
 				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
 			},
 			expectedRouterConfig: []*RouterConfig{
-				f.routerConfig("skupper-router", "test").tcpConnector("myconnector@10.1.1.10", "10.1.1.10", "8080", "", ""),
+				f.routerConfig("skupper-router", "test").tcpConnector("connector/myconnector@10.1.1.10", "10.1.1.10", "8080", "", ""),
 			},
 		},
 		/* TODO: Fix
@@ -486,7 +524,7 @@ func TestGeneral(t *testing.T) {
 				resource.DeploymentResource(): f.routerDeployment("skupper-router", "test"),
 			},
 			expectedRouterConfig: []*RouterConfig{
-				f.routerConfig("skupper-router", "test").tcpListener("mylistener", "1024", "", ""),
+				f.routerConfig("skupper-router", "test").tcpListener("listener/mylistener", "1024", "", ""),
 			},
 			expectedServices: []*corev1.Service{
 				f.serviceWithMetadata(f.service("mysvc", "test", f.routerSelector(true), f.servicePort("mylistener", 8080, 1024)), map[string]string{"acme.com/foo": "bar"}, nil),
@@ -1707,6 +1745,11 @@ func (rc *RouterConfig) asConfigMapWithOwner(name string, uid string) *corev1.Co
 func (rc *RouterConfig) verify(t *testing.T, cm *corev1.ConfigMap) error {
 	config, err := qdr.GetRouterConfigFromConfigMap(cm)
 	assert.Assert(t, err)
+	for name := range config.Bridges.TcpListeners {
+		if _, ok := config.Bridges.TcpConnectors[name]; ok {
+			assert.Assert(t, false, "bridge resource name %q used as both tcpListener and tcpConnector", name)
+		}
+	}
 	for key, expected := range rc.config.Addresses {
 		actual, ok := config.Addresses[key]
 		assert.Assert(t, ok, "No address found for %s", key)
