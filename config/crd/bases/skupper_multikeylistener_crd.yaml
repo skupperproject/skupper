@@ -1,0 +1,230 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+  name: multikeylisteners.skupper.io
+spec:
+  group: skupper.io
+  names:
+    kind: MultiKeyListener
+    listKind: MultiKeyListenerList
+    plural: multikeylisteners
+    singular: multikeylistener
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - description: The status of the multikeylistener
+      jsonPath: .status.status
+      name: Status
+      type: string
+    - description: Any human reandable message relevant to the multikeylistener
+      jsonPath: .status.message
+      name: Message
+      type: string
+    - description: Whether there is at least one connector in the network matched
+        by the strategy
+      jsonPath: .status.hasDestination
+      name: HasDestination
+      type: boolean
+    name: v2alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          MultiKeyListeners bind a local connection endpoint to Connectors across the
+          Skupper network. A MultiKeyListener has a strategy that matches it to
+          Connector routing keys.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              host:
+                description: |-
+                  host is the hostname or IP address of the local listener. Clients at
+                  this site use the listener host and port to establish connections to the
+                  remote service.
+                type: string
+              port:
+                description: |-
+                  port of the local listener. Clients at this site use the listener host
+                  and port to establish connections to the remote service.
+                type: integer
+              requireClientCert:
+                description: |-
+                  requireClientCert indicates that clients must present valid certificates
+                  to the listener to connect.
+                type: boolean
+              settings:
+                additionalProperties:
+                  type: string
+                description: |-
+                  settings is a map containing additional settings.
+
+                  **Note:** In general, we recommend not changing settings from
+                  their default values.
+                type: object
+              strategy:
+                description: |-
+                  strategy for routing traffic from the local listener endpoint to one or
+                  more connector instances by routing key.
+                properties:
+                  priority:
+                    description: |-
+                      PriorityStrategySpec specifies an ordered set of routing keys to
+                      route traffic to.
+
+                      With this strategy 100% of traffic will be directed to the first routing key
+                      with a reachable connector.
+                    properties:
+                      routingKeys:
+                        description: routingKeys to route traffic to in order of highest
+                          to lowest priority.
+                        items:
+                          type: string
+                        maxItems: 256
+                        minItems: 1
+                        type: array
+                        x-kubernetes-list-type: set
+                    required:
+                    - routingKeys
+                    type: object
+                type: object
+                x-kubernetes-validations:
+                - message: exactly one of the fields in [priority] must be
+                    set
+                  rule: '[has(self.priority)].filter(x,x==true).size() ==
+                    1'
+              tlsCredentials:
+                description: tlsCredentials for client-to-listener
+                type: string
+            required:
+            - host
+            - port
+            - strategy
+            type: object
+          status:
+            properties:
+              conditions:
+                description: |-
+                  conditions describing the current state of the multikeylistener
+
+                  - `Configured`: The multikeylistener configuration has been applied to the router.
+                  - `Operational`: There is at least one connector corresponding to the multikeylistener strategy.
+                  - `Ready`: The multikeylistener is ready to use. All other conditions are true..
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              hasDestination:
+                description: |-
+                  hasDestination is set true when there is at least one connector in the
+                  network with a routing key matched by the strategy.
+                type: boolean
+              message:
+                description: A human-readable status message. Error messages are reported
+                  here.
+                type: string
+              status:
+                description: |-
+                  The current state of the resource.
+                  - `Pending`: The resource is being processed.
+                  - `Error`: There was an error processing the resource. See `message` for more information.
+                  - `Ready`: The resource is ready to use.
+                type: string
+              strategy:
+                properties:
+                  priority:
+                    description: priority status
+                    properties:
+                      routingKeysReachable:
+                        description: |-
+                          routingKeysReachable is a list of routingKeys with at least one
+                          reachable connector given in priority order.
+                        items:
+                          type: string
+                        type: array
+                    required:
+                    - routingKeysReachable
+                    type: object
+                type: object
+                x-kubernetes-validations:
+                - message: exactly one of the fields in [priority] must be
+                    set
+                  rule: '[has(self.priority)].filter(x,x==true).size() ==
+                    1'
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

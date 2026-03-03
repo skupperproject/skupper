@@ -30,31 +30,32 @@ import (
 )
 
 type Controller struct {
-	self                 skupperv2alpha1.Controller
-	deploymentName       string
-	deploymentUid        string
-	eventProcessor       *watchers.EventProcessor
-	stopCh               <-chan struct{}
-	siteWatcher          *watchers.SiteWatcher
-	listenerWatcher      *watchers.ListenerWatcher
-	connectorWatcher     *watchers.ConnectorWatcher
-	linkAccessWatcher    *watchers.RouterAccessWatcher
-	grantWatcher         *watchers.AccessGrantWatcher
-	serviceWatcher       *watchers.ServiceWatcher
-	sites                map[string]*site.Site
-	startGrantServer     func()
-	accessMgr            *securedaccess.SecuredAccessManager
-	accessRecovery       *securedaccess.SecuredAccessResourceWatcher
-	certMgr              *certificates.CertificateManagerImpl
-	siteSizing           *sizing.Registry
-	siteSizingWatcher    *watchers.ConfigMapWatcher
-	labelling            *labels.LabelsAndAnnotations
-	labellingWatcher     *watchers.ConfigMapWatcher
-	attachableConnectors map[string]*skupperv2alpha1.AttachedConnector
-	disableSecContext    bool
-	log                  *slog.Logger
-	namespaces           *NamespaceConfig
-	observedServices     map[string]string
+	self                    skupperv2alpha1.Controller
+	deploymentName          string
+	deploymentUid           string
+	eventProcessor          *watchers.EventProcessor
+	stopCh                  <-chan struct{}
+	siteWatcher             *watchers.SiteWatcher
+	listenerWatcher         *watchers.ListenerWatcher
+	connectorWatcher        *watchers.ConnectorWatcher
+	multiKeyListenerWatcher *watchers.MultiKeyListenerWatcher
+	linkAccessWatcher       *watchers.RouterAccessWatcher
+	grantWatcher            *watchers.AccessGrantWatcher
+	serviceWatcher          *watchers.ServiceWatcher
+	sites                   map[string]*site.Site
+	startGrantServer        func()
+	accessMgr               *securedaccess.SecuredAccessManager
+	accessRecovery          *securedaccess.SecuredAccessResourceWatcher
+	certMgr                 *certificates.CertificateManagerImpl
+	siteSizing              *sizing.Registry
+	siteSizingWatcher       *watchers.ConfigMapWatcher
+	labelling               *labels.LabelsAndAnnotations
+	labellingWatcher        *watchers.ConfigMapWatcher
+	attachableConnectors    map[string]*skupperv2alpha1.AttachedConnector
+	disableSecContext       bool
+	log                     *slog.Logger
+	namespaces              *NamespaceConfig
+	observedServices        map[string]string
 }
 
 func skupperRouterConfig() internalinterfaces.TweakListOptionsFunc {
@@ -130,6 +131,7 @@ func NewController(cli internalclient.Clients, config *Config, options ...watche
 
 	controller.siteWatcher = controller.eventProcessor.WatchSites(config.WatchNamespace, filter(controller, controller.checkSite))
 	controller.listenerWatcher = controller.eventProcessor.WatchListeners(config.WatchNamespace, filter(controller, controller.checkListener))
+	controller.multiKeyListenerWatcher = controller.eventProcessor.WatchMultiKeyListeners(config.WatchNamespace, filter(controller, controller.checkMultiKeyListener))
 	controller.eventProcessor.WatchServices(listenerServices(), config.WatchNamespace, filter(controller, controller.checkListenerService))
 	controller.serviceWatcher = controller.eventProcessor.WatchServices(sansSkupperListenerServices(), config.WatchNamespace, filter(controller, controller.checkObservedService))
 	controller.connectorWatcher = controller.eventProcessor.WatchConnectors(config.WatchNamespace, filter(controller, controller.checkConnector))
@@ -289,6 +291,19 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		_, svcExists := c.observedServices[listener.ObjectMeta.Namespace+"/"+listener.Spec.Host]
 		site.CheckListener(listener.ObjectMeta.Name, listener, svcExists)
 	}
+	if c.multiKeyListenerWatcher != nil {
+		for _, mkl := range c.multiKeyListenerWatcher.List() {
+			if !c.namespaces.isControlled(mkl.Namespace) {
+				continue
+			}
+			site := c.getSite(mkl.ObjectMeta.Namespace)
+			c.log.Info("Recovering multikeylistener",
+				slog.String("namespace", mkl.Namespace),
+				slog.String("name", mkl.Name),
+			)
+			site.CheckMultiKeyListener(mkl.ObjectMeta.Name, mkl)
+		}
+	}
 	for _, la := range c.linkAccessWatcher.List() {
 		if !c.namespaces.isControlled(la.Namespace) {
 			continue
@@ -393,6 +408,15 @@ func (c *Controller) checkListener(key string, listener *skupperv2alpha1.Listene
 		_, svcExists = c.observedServices[namespace+"/"+listener.Spec.Host]
 	}
 	return c.getSite(namespace).CheckListener(name, listener, svcExists)
+}
+
+func (c *Controller) checkMultiKeyListener(key string, mkl *skupperv2alpha1.MultiKeyListener) error {
+	c.log.Debug("checkMultiKeyListener", slog.String("key", key))
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return err
+	}
+	return c.getSite(namespace).CheckMultiKeyListener(name, mkl)
 }
 
 func (c *Controller) checkListenerService(key string, svc *corev1.Service) error {

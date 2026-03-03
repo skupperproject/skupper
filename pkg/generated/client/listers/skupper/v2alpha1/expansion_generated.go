@@ -82,6 +82,14 @@ type ListenerListerExpansion interface{}
 // ListenerNamespaceLister.
 type ListenerNamespaceListerExpansion interface{}
 
+// MultiKeyListenerListerExpansion allows custom methods to be added to
+// MultiKeyListenerLister.
+type MultiKeyListenerListerExpansion interface{}
+
+// MultiKeyListenerNamespaceListerExpansion allows custom methods to be added to
+// MultiKeyListenerNamespaceLister.
+type MultiKeyListenerNamespaceListerExpansion interface{}
+
 // RouterAccessListerExpansion allows custom methods to be added to
 // RouterAccessLister.
 type RouterAccessListerExpansion interface{}

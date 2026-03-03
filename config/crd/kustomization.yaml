@@ -9,6 +9,7 @@ resources:
 - bases/skupper_connector_crd.yaml
 - bases/skupper_link_crd.yaml
 - bases/skupper_listener_crd.yaml
+- bases/skupper_multikeylistener_crd.yaml
 - bases/skupper_router_access_crd.yaml
 - bases/skupper_secured_access_crd.yaml
 - bases/skupper_site_crd.yaml

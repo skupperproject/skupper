@@ -32,6 +32,7 @@ type RouterConfigHandler interface {
 }
 
 type TcpEndpointMap map[string]TcpEndpoint
+type ListenerAddressMap map[string]ListenerAddress
 
 const (
 	TcpListenerNamePrefix  = "listener/"
@@ -39,8 +40,9 @@ const (
 )
 
 type BridgeConfig struct {
-	TcpListeners  TcpEndpointMap
-	TcpConnectors TcpEndpointMap
+	TcpListeners      TcpEndpointMap
+	TcpConnectors     TcpEndpointMap
+	ListenerAddresses ListenerAddressMap
 }
 
 func InitialConfig(id string, siteId string, version string, edge bool, helloAge int) RouterConfig {
@@ -56,8 +58,9 @@ func InitialConfig(id string, siteId string, version string, edge bool, helloAge
 		Connectors:  map[string]Connector{},
 		LogConfig:   map[string]LogConfig{},
 		Bridges: BridgeConfig{
-			TcpListeners:  map[string]TcpEndpoint{},
-			TcpConnectors: map[string]TcpEndpoint{},
+			TcpListeners:      map[string]TcpEndpoint{},
+			TcpConnectors:     map[string]TcpEndpoint{},
+			ListenerAddresses: map[string]ListenerAddress{},
 		},
 	}
 	if edge {
@@ -82,8 +85,9 @@ func (r *RouterConfig) AddHealthAndMetricsListener(port int32) {
 
 func NewBridgeConfig() BridgeConfig {
 	return BridgeConfig{
-		TcpListeners:  map[string]TcpEndpoint{},
-		TcpConnectors: map[string]TcpEndpoint{},
+		TcpListeners:      map[string]TcpEndpoint{},
+		TcpConnectors:     map[string]TcpEndpoint{},
+		ListenerAddresses: map[string]ListenerAddress{},
 	}
 }
 
@@ -94,6 +98,9 @@ func NewBridgeConfigCopy(src BridgeConfig) BridgeConfig {
 	}
 	for k, v := range src.TcpConnectors {
 		newBridges.TcpConnectors[k] = v
+	}
+	for k, v := range src.ListenerAddresses {
+		newBridges.ListenerAddresses[k] = v
 	}
 	return newBridges
 }
@@ -283,6 +290,26 @@ func (bc *BridgeConfig) RemoveTcpListener(name string) (bool, TcpEndpoint) {
 	} else {
 		return false, TcpEndpoint{}
 	}
+}
+
+func (bc *BridgeConfig) AddListenerAddress(la ListenerAddress) bool {
+	var updated = true
+	if existing, ok := bc.ListenerAddresses[la.Name]; ok {
+		if la == existing {
+			updated = false
+		}
+	}
+	bc.ListenerAddresses[la.Name] = la
+	return updated
+}
+
+func (bc *BridgeConfig) RemoveListenerAddress(name string) (bool, ListenerAddress) {
+	la, ok := bc.ListenerAddresses[name]
+	if !ok {
+		return false, ListenerAddress{}
+	}
+	delete(bc.ListenerAddresses, name)
+	return true, la
 }
 
 func GetTcpConnectors(bridges []BridgeConfig) []TcpEndpoint {
@@ -558,15 +585,39 @@ type Address struct {
 }
 
 type TcpEndpoint struct {
-	Name           string `json:"name,omitempty"`
-	Host           string `json:"host,omitempty"`
-	Port           string `json:"port,omitempty"`
-	Address        string `json:"address,omitempty"`
-	SiteId         string `json:"siteId,omitempty"`
-	SslProfile     string `json:"sslProfile,omitempty"`
-	Observer       string `json:"observer,omitempty"`
-	VerifyHostname *bool  `json:"verifyHostname,omitempty"`
-	ProcessID      string `json:"processId,omitempty"`
+	Name                 string `json:"name,omitempty"`
+	Host                 string `json:"host,omitempty"`
+	Port                 string `json:"port,omitempty"`
+	Address              string `json:"address,omitempty"`
+	SiteId               string `json:"siteId,omitempty"`
+	SslProfile           string `json:"sslProfile,omitempty"`
+	Observer             string `json:"observer,omitempty"`
+	VerifyHostname       *bool  `json:"verifyHostname,omitempty"`
+	ProcessID            string `json:"processId,omitempty"`
+	MultiAddressStrategy string `json:"multiAddressStrategy,omitempty"`
+	AuthenticatePeer     bool   `json:"authenticatePeer,omitempty"`
+}
+
+type ListenerAddress struct {
+	Name     string `json:"name,omitempty"`
+	Address  string `json:"address,omitempty"`
+	Value    int    `json:"value"`
+	Listener string `json:"listener,omitempty"`
+}
+
+func (e ListenerAddress) toRecord() Record {
+	result := make(map[string]any)
+	if e.Name != "" {
+		result["name"] = e.Name
+	}
+	if e.Address != "" {
+		result["address"] = e.Address
+	}
+	result["value"] = e.Value
+	if e.Listener != "" {
+		result["listener"] = e.Listener
+	}
+	return result
 }
 
 func (e TcpEndpoint) toRecord() Record {
@@ -597,6 +648,12 @@ func (e TcpEndpoint) toRecord() Record {
 	}
 	if e.ProcessID != "" {
 		result["processId"] = e.ProcessID
+	}
+	if e.MultiAddressStrategy != "" {
+		result["multiAddressStrategy"] = e.MultiAddressStrategy
+	}
+	if e.AuthenticatePeer {
+		result["authenticatePeer"] = true
 	}
 	return result
 }
@@ -643,8 +700,9 @@ func UnmarshalRouterConfig(config string) (RouterConfig, error) {
 		Connectors:  map[string]Connector{},
 		LogConfig:   map[string]LogConfig{},
 		Bridges: BridgeConfig{
-			TcpListeners:  map[string]TcpEndpoint{},
-			TcpConnectors: map[string]TcpEndpoint{},
+			TcpListeners:      map[string]TcpEndpoint{},
+			TcpConnectors:     map[string]TcpEndpoint{},
+			ListenerAddresses: map[string]ListenerAddress{},
 		},
 	}
 	var obj interface{}
@@ -729,6 +787,13 @@ func UnmarshalRouterConfig(config string) (RouterConfig, error) {
 				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
 			}
 			result.Bridges.TcpListeners[listener.Name] = listener
+		case "listenerAddress":
+			la := ListenerAddress{}
+			err = convert(element[1], &la)
+			if err != nil {
+				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
+			}
+			result.Bridges.ListenerAddresses[la.Name] = la
 		default:
 		}
 	}
@@ -780,6 +845,13 @@ func MarshalRouterConfig(config RouterConfig) (string, error) {
 	for _, e := range config.Bridges.TcpListeners {
 		tuple := []interface{}{
 			"tcpListener",
+			e,
+		}
+		elements = append(elements, tuple)
+	}
+	for _, e := range config.Bridges.ListenerAddresses {
+		tuple := []interface{}{
+			"listenerAddress",
 			e,
 		}
 		elements = append(elements, tuple)
@@ -922,9 +994,15 @@ type TcpEndpointDifference struct {
 	Added   []TcpEndpoint
 }
 
+type ListenerAddressDifference struct {
+	Deleted []string
+	Added   []ListenerAddress
+}
+
 type BridgeConfigDifference struct {
 	TcpListeners       TcpEndpointDifference
 	TcpConnectors      TcpEndpointDifference
+	ListenerAddresses  ListenerAddressDifference
 	AddedSslProfiles   []string
 	DeletedSSlProfiles []string
 	logger             *slog.Logger
@@ -968,7 +1046,7 @@ func (a TcpEndpoint) Equivalent(b TcpEndpoint) bool {
 	}
 	if !equivalentHost(a.Host, b.Host) || a.Port != b.Port || a.Address != b.Address ||
 		a.SiteId != b.SiteId || a.ProcessID != b.ProcessID || !a.equivalentVerifyHostname(b) ||
-		obsA != obsB {
+		obsA != obsB || a.AuthenticatePeer != b.AuthenticatePeer || a.SslProfile != b.SslProfile {
 		return false
 	}
 	return true
@@ -994,11 +1072,62 @@ func (a TcpEndpointMap) Difference(b TcpEndpointMap) TcpEndpointDifference {
 	return result
 }
 
+func (a ListenerAddressMap) Difference(b ListenerAddressMap) ListenerAddressDifference {
+	result := ListenerAddressDifference{}
+	for key, v1 := range b {
+		v2, ok := a[key]
+		if !ok {
+			result.Added = append(result.Added, v1)
+		} else if v1 != v2 {
+			result.Deleted = append(result.Deleted, v1.Name)
+			result.Added = append(result.Added, v1)
+		}
+	}
+	for key, v1 := range a {
+		_, ok := b[key]
+		if !ok {
+			result.Deleted = append(result.Deleted, v1.Name)
+		}
+	}
+	return result
+}
+
 func (a *BridgeConfig) Difference(b *BridgeConfig) *BridgeConfigDifference {
 	result := BridgeConfigDifference{
-		logger:        slog.New(slog.Default().Handler()).With("component", "qdr.bridgeConfigDifference"),
-		TcpConnectors: a.TcpConnectors.Difference(b.TcpConnectors),
-		TcpListeners:  a.TcpListeners.Difference(b.TcpListeners),
+		logger:            slog.New(slog.Default().Handler()).With("component", "qdr.bridgeConfigDifference"),
+		TcpConnectors:     a.TcpConnectors.Difference(b.TcpConnectors),
+		TcpListeners:      a.TcpListeners.Difference(b.TcpListeners),
+		ListenerAddresses: a.ListenerAddresses.Difference(b.ListenerAddresses),
+	}
+
+	// When a tcpListener is being replaced (deleted then re-added), the
+	// router requires all referencing listenerAddresses to be deleted
+	// before the tcpListener can be deleted. Ensure those dependent
+	// listenerAddresses are included in the diff even if they themselves
+	// haven't changed.
+	deletedListeners := make(map[string]bool, len(result.TcpListeners.Deleted))
+	for _, name := range result.TcpListeners.Deleted {
+		deletedListeners[name] = true
+	}
+	if len(deletedListeners) > 0 {
+		alreadyDeletedLA := make(map[string]bool, len(result.ListenerAddresses.Deleted))
+		for _, name := range result.ListenerAddresses.Deleted {
+			alreadyDeletedLA[name] = true
+		}
+		alreadyAddedLA := make(map[string]bool, len(result.ListenerAddresses.Added))
+		for _, la := range result.ListenerAddresses.Added {
+			alreadyAddedLA[la.Name] = true
+		}
+		for _, la := range a.ListenerAddresses {
+			if deletedListeners[la.Listener] && !alreadyDeletedLA[la.Name] {
+				result.ListenerAddresses.Deleted = append(result.ListenerAddresses.Deleted, la.Name)
+			}
+		}
+		for _, la := range b.ListenerAddresses {
+			if deletedListeners[la.Listener] && !alreadyAddedLA[la.Name] {
+				result.ListenerAddresses.Added = append(result.ListenerAddresses.Added, la)
+			}
+		}
 	}
 
 	result.AddedSslProfiles, result.DeletedSSlProfiles = getSslProfilesDifference(a, b)
@@ -1059,13 +1188,18 @@ func (a *TcpEndpointDifference) Empty() bool {
 	return len(a.Deleted) == 0 && len(a.Added) == 0
 }
 
+func (a *ListenerAddressDifference) Empty() bool {
+	return len(a.Deleted) == 0 && len(a.Added) == 0
+}
+
 func (a *BridgeConfigDifference) Empty() bool {
-	return a.TcpConnectors.Empty() && a.TcpListeners.Empty()
+	return a.TcpConnectors.Empty() && a.TcpListeners.Empty() && a.ListenerAddresses.Empty()
 }
 
 func (a *BridgeConfigDifference) Print() {
 	a.logger.Info("TcpConnectors", slog.Any("added", a.TcpConnectors.Added), slog.Any("deleted", a.TcpConnectors.Deleted))
 	a.logger.Info("TcpListeners", slog.Any("added", a.TcpListeners.Added), slog.Any("deleted", a.TcpListeners.Deleted))
+	a.logger.Info("ListenerAddresses", slog.Any("added", a.ListenerAddresses.Added), slog.Any("deleted", a.ListenerAddresses.Deleted))
 	a.logger.Info("SslProfiles", slog.Any("added", a.AddedSslProfiles), slog.Any("deleted", a.DeletedSSlProfiles))
 }
 

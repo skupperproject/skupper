@@ -84,6 +84,37 @@ func (s *BindingStatus) updateMatchingListenerCountForAttachedConnector(connecto
 	}
 }
 
+func (s *BindingStatus) updateMultiKeyListenerDestination(mkl *skupperv2alpha1.MultiKeyListener) *skupperv2alpha1.MultiKeyListener {
+	routingKeys := mkl.GetRoutingKeys()
+
+	// Find which routing keys have matching connectors, preserving priority order
+	var reachable []string
+	for _, key := range routingKeys {
+		if len(s.connectors[key]) > 0 {
+			reachable = append(reachable, key)
+		}
+	}
+
+	hasDestination := len(reachable) > 0
+	changed := mkl.SetHasDestination(hasDestination)
+	if mkl.SetRoutingKeysReachable(reachable) {
+		changed = true
+	}
+
+	if changed {
+		updated, err := updateMultiKeyListenerStatus(s.client, mkl)
+		if err != nil {
+			s.logger.Error("Failed to update status for multikeylistener",
+				slog.String("namespace", mkl.Namespace),
+				slog.String("name", mkl.Name))
+			s.errors = append(s.errors, err.Error())
+			return nil
+		}
+		return updated
+	}
+	return nil
+}
+
 func (s *BindingStatus) error() error {
 	if len(s.errors) > 0 {
 		return fmt.Errorf("%s", strings.Join(s.errors, ", "))

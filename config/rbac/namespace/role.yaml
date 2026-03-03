@@ -143,6 +143,8 @@ rules:
       - accessgrants/status
       - listeners
       - listeners/status
+      - multikeylisteners
+      - multikeylisteners/status
       - connectors
       - connectors/status
       - attachedconnectors

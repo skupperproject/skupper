@@ -28,35 +28,37 @@ type StaticSiteStateRenderer interface {
 }
 
 type SiteState struct {
-	SiteId          string
-	Site            *v2alpha1.Site
-	Listeners       map[string]*v2alpha1.Listener
-	Connectors      map[string]*v2alpha1.Connector
-	RouterAccesses  map[string]*v2alpha1.RouterAccess
-	Grants          map[string]*v2alpha1.AccessGrant
-	Links           map[string]*v2alpha1.Link
-	Claims          map[string]*v2alpha1.AccessToken
-	Certificates    map[string]*v2alpha1.Certificate
-	SecuredAccesses map[string]*v2alpha1.SecuredAccess
-	Secrets         map[string]*corev1.Secret
-	ConfigMaps      map[string]*corev1.ConfigMap
-	bundle          bool
+	SiteId            string
+	Site              *v2alpha1.Site
+	Listeners         map[string]*v2alpha1.Listener
+	Connectors        map[string]*v2alpha1.Connector
+	RouterAccesses    map[string]*v2alpha1.RouterAccess
+	Grants            map[string]*v2alpha1.AccessGrant
+	Links             map[string]*v2alpha1.Link
+	Claims            map[string]*v2alpha1.AccessToken
+	Certificates      map[string]*v2alpha1.Certificate
+	SecuredAccesses   map[string]*v2alpha1.SecuredAccess
+	MultiKeyListeners map[string]*v2alpha1.MultiKeyListener
+	Secrets           map[string]*corev1.Secret
+	ConfigMaps        map[string]*corev1.ConfigMap
+	bundle            bool
 }
 
 func NewSiteState(bundle bool) *SiteState {
 	return &SiteState{
-		Site:            &v2alpha1.Site{},
-		Listeners:       make(map[string]*v2alpha1.Listener),
-		Connectors:      make(map[string]*v2alpha1.Connector),
-		RouterAccesses:  make(map[string]*v2alpha1.RouterAccess),
-		Grants:          make(map[string]*v2alpha1.AccessGrant),
-		Links:           make(map[string]*v2alpha1.Link),
-		Claims:          make(map[string]*v2alpha1.AccessToken),
-		Certificates:    make(map[string]*v2alpha1.Certificate),
-		SecuredAccesses: make(map[string]*v2alpha1.SecuredAccess),
-		Secrets:         make(map[string]*corev1.Secret),
-		ConfigMaps:      make(map[string]*corev1.ConfigMap),
-		bundle:          bundle,
+		Site:              &v2alpha1.Site{},
+		Listeners:         make(map[string]*v2alpha1.Listener),
+		Connectors:        make(map[string]*v2alpha1.Connector),
+		RouterAccesses:    make(map[string]*v2alpha1.RouterAccess),
+		Grants:            make(map[string]*v2alpha1.AccessGrant),
+		Links:             make(map[string]*v2alpha1.Link),
+		Claims:            make(map[string]*v2alpha1.AccessToken),
+		Certificates:      make(map[string]*v2alpha1.Certificate),
+		SecuredAccesses:   make(map[string]*v2alpha1.SecuredAccess),
+		MultiKeyListeners: make(map[string]*v2alpha1.MultiKeyListener),
+		Secrets:           make(map[string]*corev1.Secret),
+		ConfigMaps:        make(map[string]*corev1.ConfigMap),
+		bundle:            bundle,
 	}
 }
 
@@ -224,6 +226,16 @@ func (s *SiteState) CreateBridgeCertificates() {
 			})
 		}
 	}
+	for _, mkl := range s.MultiKeyListeners {
+		if mkl.Spec.TlsCredentials != "" {
+			s.Certificates[mkl.Spec.TlsCredentials] = s.newCertificate(mkl.Spec.TlsCredentials, &v2alpha1.CertificateSpec{
+				Ca:      caName,
+				Subject: mkl.Spec.Host,
+				Hosts:   []string{mkl.Spec.Host},
+				Server:  true,
+			})
+		}
+	}
 }
 
 func (s *SiteState) newCertificate(name string, spec *v2alpha1.CertificateSpec) *v2alpha1.Certificate {
@@ -272,6 +284,10 @@ func (s *SiteState) bindings(sslProfileBasePath string) *site.Bindings {
 	for name, listener := range s.Listeners {
 		listener.SetConfigured(nil)
 		_ = b.UpdateListener(name, listener)
+	}
+	for name, mkl := range s.MultiKeyListeners {
+		mkl.SetConfigured(nil)
+		b.UpdateMultiKeyListener(name, mkl)
 	}
 	return b
 }
@@ -348,6 +364,7 @@ func (s *SiteState) SetNamespace(namespace string) {
 	setNamespaceOnMap(s.Claims, namespace)
 	setNamespaceOnMap(s.Certificates, namespace)
 	setNamespaceOnMap(s.SecuredAccesses, namespace)
+	setNamespaceOnMap(s.MultiKeyListeners, namespace)
 	setNamespaceOnMap(s.ConfigMaps, namespace)
 }
 
@@ -380,6 +397,21 @@ func (s *SiteState) UpdateStatus(networkStatus network.NetworkStatusInfo) {
 	}
 	for _, connector := range s.Connectors {
 		connector.SetHasMatchingListener(network.HasMatchingPair(networkStatus, connector.Spec.RoutingKey))
+	}
+	for _, mkl := range s.MultiKeyListeners {
+		hasDestination := false
+		var reachableKeys []string
+		for _, routingKey := range mkl.GetRoutingKeys() {
+			for _, addr := range networkStatus.Addresses {
+				if addr.Name == routingKey && addr.ConnectorCount > 0 {
+					hasDestination = true
+					reachableKeys = append(reachableKeys, routingKey)
+					break
+				}
+			}
+		}
+		mkl.SetHasDestination(hasDestination)
+		mkl.SetRoutingKeysReachable(reachableKeys)
 	}
 }
 
@@ -443,6 +475,9 @@ func MarshalSiteState(siteState SiteState, outputDirectory string) error {
 		return err
 	}
 	if err = marshalMap(outputDirectory, "SecuredAccess", siteState.SecuredAccesses); err != nil {
+		return err
+	}
+	if err = marshalMap(outputDirectory, "MultiKeyListener", siteState.MultiKeyListeners); err != nil {
 		return err
 	}
 	if err = marshalMap(outputDirectory, "Secret", siteState.Secrets); err != nil {

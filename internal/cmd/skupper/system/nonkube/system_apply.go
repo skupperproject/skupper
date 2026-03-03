@@ -17,23 +17,24 @@ import (
 )
 
 type CmdSystemApply struct {
-	Client               skupperv2alpha1.SkupperV2alpha1Interface
-	KubeClient           kubernetes.Interface
-	CobraCmd             *cobra.Command
-	Namespace            string
-	Flags                *common.CommandSystemApplyFlags
-	ParseInput           func(namespace string, reader *bufio.Reader, result *fs.InputFileResource) error
-	siteHandler          *fs.SiteHandler
-	connectorHandler     *fs.ConnectorHandler
-	listenerHandler      *fs.ListenerHandler
-	linkHandler          *fs.LinkHandler
-	routerAccessHandler  *fs.RouterAccessHandler
-	accessTokenHandler   *fs.AccessTokenHandler
-	certificateHandler   *fs.CertificateHandler
-	securedAccessHandler *fs.SecuredAccessHandler
-	secretHandler        *fs.SecretHandler
-	file                 string
-	logger               *slog.Logger
+	Client                  skupperv2alpha1.SkupperV2alpha1Interface
+	KubeClient              kubernetes.Interface
+	CobraCmd                *cobra.Command
+	Namespace               string
+	Flags                   *common.CommandSystemApplyFlags
+	ParseInput              func(namespace string, reader *bufio.Reader, result *fs.InputFileResource) error
+	siteHandler             *fs.SiteHandler
+	connectorHandler        *fs.ConnectorHandler
+	listenerHandler         *fs.ListenerHandler
+	multiKeyListenerHandler *fs.MultiKeyListenerHandler
+	linkHandler             *fs.LinkHandler
+	routerAccessHandler     *fs.RouterAccessHandler
+	accessTokenHandler      *fs.AccessTokenHandler
+	certificateHandler      *fs.CertificateHandler
+	securedAccessHandler    *fs.SecuredAccessHandler
+	secretHandler           *fs.SecretHandler
+	file                    string
+	logger                  *slog.Logger
 }
 
 func NewCmdSystemApply() *CmdSystemApply {
@@ -52,6 +53,7 @@ func (cmd *CmdSystemApply) NewClient(cobraCommand *cobra.Command, args []string)
 
 	cmd.connectorHandler = fs.NewConnectorHandler(cmd.Namespace)
 	cmd.listenerHandler = fs.NewListenerHandler(cmd.Namespace)
+	cmd.multiKeyListenerHandler = fs.NewMultiKeyListenerHandler(cmd.Namespace)
 	cmd.linkHandler = fs.NewLinkHandler(cmd.Namespace)
 	cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.Namespace)
 	cmd.accessTokenHandler = fs.NewAccessTokenHandler(cmd.Namespace)
@@ -160,6 +162,16 @@ func (cmd *CmdSystemApply) Run() error {
 		} else {
 			crApplied = true
 			fmt.Printf("Listener %s added\n", listener.Name)
+		}
+	}
+
+	for _, multiKeyListener := range parsedInput.MultiKeyListener {
+		err := cmd.multiKeyListenerHandler.Add(multiKeyListener)
+		if err != nil {
+			cmd.logger.Error("Error while adding multi key listener", slog.String("multikeylistener", multiKeyListener.Name), slog.Any("error", err))
+		} else {
+			crApplied = true
+			fmt.Printf("MultiKeyListener %s added\n", multiKeyListener.Name)
 		}
 	}
 

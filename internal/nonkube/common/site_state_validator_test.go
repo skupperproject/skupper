@@ -234,6 +234,67 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 			errorContains: "invalid grant name: ",
 		},
 		{
+			info: "invalid-multikeylistener-name",
+			siteState: customize(func(siteState *api.SiteState) {
+				for _, mkl := range siteState.MultiKeyListeners {
+					mkl.Name = "bad_name"
+				}
+			}),
+			valid:         false,
+			errorContains: "invalid multikeylistener name:",
+		},
+		{
+			info: "invalid-multikeylistener-missing-host",
+			siteState: customize(func(siteState *api.SiteState) {
+				for _, mkl := range siteState.MultiKeyListeners {
+					mkl.Spec.Host = ""
+				}
+			}),
+			valid:         false,
+			errorContains: "host and port are required",
+		},
+		{
+			info: "invalid-multikeylistener-missing-port",
+			siteState: customize(func(siteState *api.SiteState) {
+				for _, mkl := range siteState.MultiKeyListeners {
+					mkl.Spec.Port = 0
+				}
+			}),
+			valid:         false,
+			errorContains: "host and port are required",
+		},
+		{
+			info: "invalid-multikeylistener-missing-strategy",
+			siteState: customize(func(siteState *api.SiteState) {
+				for _, mkl := range siteState.MultiKeyListeners {
+					mkl.Spec.Strategy.Priority = nil
+				}
+			}),
+			valid:         false,
+			errorContains: "strategy.priority is required",
+		},
+		{
+			info: "invalid-multikeylistener-empty-routing-keys",
+			siteState: customize(func(siteState *api.SiteState) {
+				for _, mkl := range siteState.MultiKeyListeners {
+					mkl.Spec.Strategy.Priority.RoutingKeys = []string{}
+				}
+			}),
+			valid:         false,
+			errorContains: "routingKeys must not be empty",
+		},
+		{
+			info: "invalid-multikeylistener-port-conflict-with-listener",
+			siteState: customize(func(siteState *api.SiteState) {
+				for _, mkl := range siteState.MultiKeyListeners {
+					mkl.Spec.Host = "10.0.0.1"
+					mkl.Spec.Port = 1234
+				}
+			}),
+			valid:         false,
+			errorContains: "is already mapped for host",
+		},
+		{
 			info:      "valid-site-state",
 			siteState: fakeSiteState(),
 			valid:     true,

@@ -21,6 +21,7 @@ func TestCopySiteState(t *testing.T) {
 	assert.DeepEqual(t, ss.Claims, newSs.Claims)
 	assert.DeepEqual(t, ss.Certificates, newSs.Certificates)
 	assert.DeepEqual(t, ss.SecuredAccesses, newSs.SecuredAccesses)
+	assert.DeepEqual(t, ss.MultiKeyListeners, newSs.MultiKeyListeners)
 	assert.DeepEqual(t, ss.ConfigMaps, newSs.ConfigMaps)
 	assert.Assert(t, equalsButNotShallowCopy(ss.Listeners, newSs.Listeners))
 	assert.Assert(t, equalsButNotShallowCopy(ss.Connectors, newSs.Connectors))
@@ -31,6 +32,7 @@ func TestCopySiteState(t *testing.T) {
 	assert.Assert(t, equalsButNotShallowCopy(ss.Claims, newSs.Claims))
 	assert.Assert(t, equalsButNotShallowCopy(ss.Certificates, newSs.Certificates))
 	assert.Assert(t, equalsButNotShallowCopy(ss.SecuredAccesses, newSs.SecuredAccesses))
+	assert.Assert(t, equalsButNotShallowCopy(ss.MultiKeyListeners, newSs.MultiKeyListeners))
 	assert.Assert(t, equalsButNotShallowCopy(ss.ConfigMaps, newSs.ConfigMaps))
 }
 

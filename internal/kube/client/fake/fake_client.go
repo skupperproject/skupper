@@ -128,5 +128,18 @@ func fakedApiResources() []*metav1.APIResourceList {
 				},
 			},
 		},
+		{
+			GroupVersion: "skupper.io/v2alpha1",
+			APIResources: []metav1.APIResource{
+				{
+					Name:         "multikeylisteners",
+					SingularName: "multikeylistener",
+					Namespaced:   true,
+					Group:        "skupper.io",
+					Version:      "v2alpha1",
+					Kind:         "MultiKeyListener",
+				},
+			},
+		},
 	}
 }

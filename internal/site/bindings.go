@@ -9,6 +9,7 @@ import (
 
 type ListenerConfiguration func(siteId string, listener *skupperv2alpha1.Listener, config *qdr.BridgeConfig)
 type ConnectorConfiguration func(siteId string, connector *skupperv2alpha1.Connector, config *qdr.BridgeConfig)
+type MultiKeyListenerConfiguration func(siteId string, mkl *skupperv2alpha1.MultiKeyListener, config *qdr.BridgeConfig)
 
 type BindingEventHandler interface {
 	ListenerUpdated(listener *skupperv2alpha1.Listener)
@@ -19,27 +20,32 @@ type BindingEventHandler interface {
 
 type ConnectorFunction func(*skupperv2alpha1.Connector) *skupperv2alpha1.Connector
 type ListenerFunction func(*skupperv2alpha1.Listener) *skupperv2alpha1.Listener
+type MultiKeyListenerFunction func(*skupperv2alpha1.MultiKeyListener) *skupperv2alpha1.MultiKeyListener
 
 type Bindings struct {
-	SiteId      string
-	ProfilePath string
-	connectors  map[string]*skupperv2alpha1.Connector
-	listeners   map[string]*skupperv2alpha1.Listener
-	handler     BindingEventHandler
-	configure   struct {
-		listener  ListenerConfiguration
-		connector ConnectorConfiguration
+	SiteId            string
+	ProfilePath       string
+	connectors        map[string]*skupperv2alpha1.Connector
+	listeners         map[string]*skupperv2alpha1.Listener
+	multiKeyListeners map[string]*skupperv2alpha1.MultiKeyListener
+	handler           BindingEventHandler
+	configure         struct {
+		listener         ListenerConfiguration
+		connector        ConnectorConfiguration
+		multiKeyListener MultiKeyListenerConfiguration
 	}
 }
 
 func NewBindings(profilePath string) *Bindings {
 	bindings := &Bindings{
-		ProfilePath: profilePath,
-		connectors:  map[string]*skupperv2alpha1.Connector{},
-		listeners:   map[string]*skupperv2alpha1.Listener{},
+		ProfilePath:       profilePath,
+		connectors:        map[string]*skupperv2alpha1.Connector{},
+		listeners:         map[string]*skupperv2alpha1.Listener{},
+		multiKeyListeners: map[string]*skupperv2alpha1.MultiKeyListener{},
 	}
 	bindings.configure.listener = UpdateBridgeConfigForListener
 	bindings.configure.connector = UpdateBridgeConfigForConnector
+	bindings.configure.multiKeyListener = UpdateBridgeConfigForMultiKeyListener
 	return bindings
 }
 
@@ -77,6 +83,16 @@ func (b *Bindings) Map(cf ConnectorFunction, lf ListenerFunction) {
 		for key, listener := range b.listeners {
 			if updated := lf(listener); updated != nil {
 				b.listeners[key] = updated
+			}
+		}
+	}
+}
+
+func (b *Bindings) MapOverMultiKeyListeners(mkf MultiKeyListenerFunction) {
+	if mkf != nil {
+		for key, mkl := range b.multiKeyListeners {
+			if updated := mkf(mkl); updated != nil {
+				b.multiKeyListeners[key] = updated
 			}
 		}
 	}
@@ -159,16 +175,56 @@ func (b *Bindings) deleteListener(name string) qdr.ConfigUpdate {
 	return nil
 }
 
+func (b *Bindings) GetMultiKeyListener(name string) *skupperv2alpha1.MultiKeyListener {
+	if existing, ok := b.multiKeyListeners[name]; ok {
+		return existing
+	}
+	return nil
+}
+
+func (b *Bindings) UpdateMultiKeyListener(name string, mkl *skupperv2alpha1.MultiKeyListener) qdr.ConfigUpdate {
+	if mkl == nil {
+		return b.deleteMultiKeyListener(name)
+	}
+	return b.updateMultiKeyListener(mkl)
+}
+
+func (b *Bindings) updateMultiKeyListener(mkl *skupperv2alpha1.MultiKeyListener) qdr.ConfigUpdate {
+	name := mkl.ObjectMeta.Name
+	existing, ok := b.multiKeyListeners[name]
+	b.multiKeyListeners[name] = mkl
+	if ok && reflect.DeepEqual(existing.Spec, mkl.Spec) {
+		return nil
+	}
+	return b
+}
+
+func (b *Bindings) deleteMultiKeyListener(name string) qdr.ConfigUpdate {
+	if _, ok := b.multiKeyListeners[name]; !ok {
+		return nil
+	}
+	delete(b.multiKeyListeners, name)
+	return b
+}
+
+func (b *Bindings) SetMultiKeyListenerConfiguration(configuration MultiKeyListenerConfiguration) {
+	b.configure.multiKeyListener = configuration
+}
+
 func (b *Bindings) ToBridgeConfig() qdr.BridgeConfig {
 	config := qdr.BridgeConfig{
-		TcpListeners:  qdr.TcpEndpointMap{},
-		TcpConnectors: qdr.TcpEndpointMap{},
+		TcpListeners:      qdr.TcpEndpointMap{},
+		TcpConnectors:     qdr.TcpEndpointMap{},
+		ListenerAddresses: qdr.ListenerAddressMap{},
 	}
 	for _, c := range b.connectors {
 		b.configure.connector(b.SiteId, c, &config)
 	}
 	for _, l := range b.listeners {
 		b.configure.listener(b.SiteId, l, &config)
+	}
+	for _, mkl := range b.multiKeyListeners {
+		b.configure.multiKeyListener(b.SiteId, mkl, &config)
 	}
 
 	return config
@@ -195,6 +251,11 @@ func (b *Bindings) AddSslProfiles(config *qdr.RouterConfig) bool {
 	for _, l := range b.listeners {
 		if _, ok := profiles[l.Spec.TlsCredentials]; l.Spec.TlsCredentials != "" && !ok {
 			profiles[l.Spec.TlsCredentials] = qdr.ConfigureSslProfile(l.Spec.TlsCredentials, b.ProfilePath, true)
+		}
+	}
+	for _, mkl := range b.multiKeyListeners {
+		if _, ok := profiles[mkl.Spec.TlsCredentials]; mkl.Spec.TlsCredentials != "" && !ok {
+			profiles[mkl.Spec.TlsCredentials] = qdr.ConfigureSslProfile(mkl.Spec.TlsCredentials, b.ProfilePath, true)
 		}
 	}
 	changed := false

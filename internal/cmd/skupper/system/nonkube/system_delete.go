@@ -17,23 +17,24 @@ import (
 )
 
 type CmdSystemDelete struct {
-	Client               skupperv2alpha1.SkupperV2alpha1Interface
-	KubeClient           kubernetes.Interface
-	CobraCmd             *cobra.Command
-	Namespace            string
-	Flags                *common.CommandSystemDeleteFlags
-	ParseInput           func(namespace string, reader *bufio.Reader, result *fs.InputFileResource) error
-	siteHandler          *fs.SiteHandler
-	connectorHandler     *fs.ConnectorHandler
-	listenerHandler      *fs.ListenerHandler
-	linkHandler          *fs.LinkHandler
-	routerAccessHandler  *fs.RouterAccessHandler
-	accessTokenHandler   *fs.AccessTokenHandler
-	certificateHandler   *fs.CertificateHandler
-	securedAccessHandler *fs.SecuredAccessHandler
-	secretHandler        *fs.SecretHandler
-	file                 string
-	logger               *slog.Logger
+	Client                  skupperv2alpha1.SkupperV2alpha1Interface
+	KubeClient              kubernetes.Interface
+	CobraCmd                *cobra.Command
+	Namespace               string
+	Flags                   *common.CommandSystemDeleteFlags
+	ParseInput              func(namespace string, reader *bufio.Reader, result *fs.InputFileResource) error
+	siteHandler             *fs.SiteHandler
+	connectorHandler        *fs.ConnectorHandler
+	listenerHandler         *fs.ListenerHandler
+	multiKeyListenerHandler *fs.MultiKeyListenerHandler
+	linkHandler             *fs.LinkHandler
+	routerAccessHandler     *fs.RouterAccessHandler
+	accessTokenHandler      *fs.AccessTokenHandler
+	certificateHandler      *fs.CertificateHandler
+	securedAccessHandler    *fs.SecuredAccessHandler
+	secretHandler           *fs.SecretHandler
+	file                    string
+	logger                  *slog.Logger
 }
 
 func NewCmdSystemDelete() *CmdSystemDelete {
@@ -52,6 +53,7 @@ func (cmd *CmdSystemDelete) NewClient(cobraCommand *cobra.Command, args []string
 
 	cmd.connectorHandler = fs.NewConnectorHandler(cmd.Namespace)
 	cmd.listenerHandler = fs.NewListenerHandler(cmd.Namespace)
+	cmd.multiKeyListenerHandler = fs.NewMultiKeyListenerHandler(cmd.Namespace)
 	cmd.linkHandler = fs.NewLinkHandler(cmd.Namespace)
 	cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.Namespace)
 	cmd.accessTokenHandler = fs.NewAccessTokenHandler(cmd.Namespace)
@@ -164,6 +166,18 @@ func (cmd *CmdSystemDelete) Run() error {
 			} else {
 				crDeleted = true
 				fmt.Printf("Listener %s deleted\n", listener.Name)
+			}
+		}
+	}
+
+	for _, multiKeyListener := range parsedInput.MultiKeyListener {
+		if multiKeyListener.Name != "" {
+			err := cmd.multiKeyListenerHandler.Delete(multiKeyListener.Name)
+			if err != nil {
+				cmd.logger.Error("Error while deleting multi key listener", slog.String("multikeylistener", multiKeyListener.Name), slog.Any("error", err))
+			} else {
+				crDeleted = true
+				fmt.Printf("MultiKeyListener %s deleted\n", multiKeyListener.Name)
 			}
 		}
 	}

@@ -40,6 +40,8 @@ type Interface interface {
 	Links() LinkInformer
 	// Listeners returns a ListenerInformer.
 	Listeners() ListenerInformer
+	// MultiKeyListeners returns a MultiKeyListenerInformer.
+	MultiKeyListeners() MultiKeyListenerInformer
 	// RouterAccesses returns a RouterAccessInformer.
 	RouterAccesses() RouterAccessInformer
 	// SecuredAccesses returns a SecuredAccessInformer.
@@ -97,6 +99,11 @@ func (v *version) Links() LinkInformer {
 // Listeners returns a ListenerInformer.
 func (v *version) Listeners() ListenerInformer {
 	return &listenerInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// MultiKeyListeners returns a MultiKeyListenerInformer.
+func (v *version) MultiKeyListeners() MultiKeyListenerInformer {
+	return &multiKeyListenerInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // RouterAccesses returns a RouterAccessInformer.

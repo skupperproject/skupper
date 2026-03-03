@@ -16,16 +16,17 @@ import (
 )
 
 type InputFileResource struct {
-	Site          []v2alpha1.Site
-	Listener      []v2alpha1.Listener
-	Connector     []v2alpha1.Connector
-	RouterAccess  []v2alpha1.RouterAccess
-	AccessGrant   []v2alpha1.AccessGrant
-	Link          []v2alpha1.Link
-	AccessToken   []v2alpha1.AccessToken
-	Certificate   []v2alpha1.Certificate
-	SecuredAccess []v2alpha1.SecuredAccess
-	Secret        []corev1.Secret
+	Site             []v2alpha1.Site
+	Listener         []v2alpha1.Listener
+	Connector        []v2alpha1.Connector
+	RouterAccess     []v2alpha1.RouterAccess
+	AccessGrant      []v2alpha1.AccessGrant
+	Link             []v2alpha1.Link
+	AccessToken      []v2alpha1.AccessToken
+	Certificate      []v2alpha1.Certificate
+	SecuredAccess    []v2alpha1.SecuredAccess
+	MultiKeyListener []v2alpha1.MultiKeyListener
+	Secret           []corev1.Secret
 }
 
 func ParseInput(namespace string, reader *bufio.Reader, result *InputFileResource) error {
@@ -98,6 +99,11 @@ func ParseInput(namespace string, reader *bufio.Reader, result *InputFileResourc
 				convertTo(obj, &securedAccess)
 				securedAccess.Namespace = namespace
 				result.SecuredAccess = append(result.SecuredAccess, securedAccess)
+			case "MultiKeyListener":
+				var multiKeyListener v2alpha1.MultiKeyListener
+				convertTo(obj, &multiKeyListener)
+				multiKeyListener.Namespace = namespace
+				result.MultiKeyListener = append(result.MultiKeyListener, multiKeyListener)
 			default:
 				logInvalidResource(gvk)
 			}

@@ -295,6 +295,26 @@ func fakeSiteState() *api.SiteState {
 		Claims:          make(map[string]*v2alpha1.AccessToken),
 		Certificates:    make(map[string]*v2alpha1.Certificate),
 		SecuredAccesses: make(map[string]*v2alpha1.SecuredAccess),
-		ConfigMaps:      make(map[string]*corev1.ConfigMap),
+		MultiKeyListeners: map[string]*v2alpha1.MultiKeyListener{
+			"mkl-one": {
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MultiKeyListener",
+					APIVersion: "skupper.io/v2alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "mkl-one",
+				},
+				Spec: v2alpha1.MultiKeyListenerSpec{
+					Host: "10.0.0.3",
+					Port: 5678,
+					Strategy: v2alpha1.MultiKeyListenerStrategy{
+						Priority: &v2alpha1.PriorityStrategySpec{
+							RoutingKeys: []string{"key-primary", "key-secondary"},
+						},
+					},
+				},
+			},
+		},
+		ConfigMaps: make(map[string]*corev1.ConfigMap),
 	}
 }

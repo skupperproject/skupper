@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/rand"
+	discoveryfake "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic"
 	fakedynamic "k8s.io/client-go/dynamic/fake"
 	k8stesting "k8s.io/client-go/testing"
@@ -2023,4 +2024,70 @@ func deleteTargetPod(name string, namespace string) WaitFunction {
 		assert.Assert(t, err)
 		return true
 	}
+}
+
+func TestMultiKeyListenerCRDNotInstalled(t *testing.T) {
+	flags := &flag.FlagSet{}
+	config, err := BoundConfig(flags)
+	assert.Assert(t, err)
+
+	clients, err := fakeclient.NewFakeClient(config.Namespace, nil, []runtime.Object{
+		f.site("mysite", "test", "", false, false),
+		f.listener("mylistener", "test", "mysvc", 8080),
+	}, "")
+	assert.Assert(t, err)
+	enableSSA(clients.GetDynamicClient())
+
+	// Remove MultiKeyListener from the fake discovery client to simulate
+	// the CRD not being installed.
+	if fd, ok := clients.Discovery.(*discoveryfake.FakeDiscovery); ok {
+		var filtered []*metav1.APIResourceList
+		for _, rl := range fd.Resources {
+			if rl.GroupVersion == "skupper.io/v2alpha1" {
+				var apis []metav1.APIResource
+				for _, r := range rl.APIResources {
+					if r.Name != "multikeylisteners" {
+						apis = append(apis, r)
+					}
+				}
+				if len(apis) > 0 {
+					filtered = append(filtered, &metav1.APIResourceList{
+						GroupVersion: rl.GroupVersion,
+						APIResources: apis,
+					})
+				}
+			} else {
+				filtered = append(filtered, rl)
+			}
+		}
+		fd.Resources = filtered
+	}
+
+	controller, err := NewController(clients, config)
+	assert.Assert(t, err)
+	assert.Assert(t, controller.multiKeyListenerWatcher == nil)
+
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+	err = controller.init(stopCh)
+	assert.Assert(t, err)
+
+	// Process events for the skupper objects (site + listener).
+	for i := 0; i < 2; i++ {
+		controller.eventProcessor.TestProcess()
+	}
+
+	// Verify the site was configured successfully.
+	site, err := clients.GetSkupperClient().SkupperV2alpha1().Sites("test").Get(context.Background(), "mysite", metav1.GetOptions{})
+	assert.Assert(t, err)
+	configured := meta.FindStatusCondition(site.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
+	assert.Assert(t, configured != nil)
+	assert.Equal(t, configured.Status, metav1.ConditionTrue)
+
+	// Verify the listener was configured successfully.
+	listener, err := clients.GetSkupperClient().SkupperV2alpha1().Listeners("test").Get(context.Background(), "mylistener", metav1.GetOptions{})
+	assert.Assert(t, err)
+	listenerConfigured := meta.FindStatusCondition(listener.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
+	assert.Assert(t, listenerConfigured != nil)
+	assert.Equal(t, listenerConfigured.Status, metav1.ConditionTrue)
 }

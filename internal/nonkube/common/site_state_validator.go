@@ -51,6 +51,9 @@ func (s *SiteStateValidator) Validate(siteState *api.SiteState) error {
 	if err = s.validateConnectors(siteState.Connectors); err != nil {
 		return err
 	}
+	if err = s.validateMultiKeyListeners(siteState.MultiKeyListeners, siteState.Listeners); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -168,6 +171,43 @@ func (s *SiteStateValidator) validateConnectors(connectors map[string]*v2alpha1.
 		}
 		if connector.Spec.RoutingKey == "" {
 			return fmt.Errorf("routingKey is missing for connector: %s", connector.Name)
+		}
+	}
+	return nil
+}
+
+func (s *SiteStateValidator) validateMultiKeyListeners(multiKeyListeners map[string]*v2alpha1.MultiKeyListener, listeners map[string]*v2alpha1.Listener) error {
+	// collect host:port pairs already used by listeners
+	hostPorts := map[string][]int{}
+	for _, listener := range listeners {
+		hostPorts[listener.Spec.Host] = append(hostPorts[listener.Spec.Host], listener.Spec.Port)
+	}
+	for name, mkl := range multiKeyListeners {
+		if err := ValidateName(mkl.Name); err != nil {
+			return fmt.Errorf("invalid multikeylistener name: %w", err)
+		}
+		if mkl.Spec.Host == "" || mkl.Spec.Port == 0 {
+			return fmt.Errorf("invalid multikeylistener: %s - host and port are required", mkl.Name)
+		}
+		ip := net.ParseIP(mkl.Spec.Host)
+		validHostname := hostnameRfc1123Regex.MatchString(mkl.Spec.Host)
+		if ip == nil && !validHostname {
+			return fmt.Errorf("invalid multikeylistener host: %s - a valid IP address or hostname is expected (multikeylistener: %q)", mkl.Spec.Host, name)
+		}
+		if slices.Contains(hostPorts[mkl.Spec.Host], mkl.Spec.Port) {
+			return fmt.Errorf("port %d is already mapped for host %q (multikeylistener: %q)", mkl.Spec.Port, mkl.Spec.Host, name)
+		}
+		hostPorts[mkl.Spec.Host] = append(hostPorts[mkl.Spec.Host], mkl.Spec.Port)
+		if mkl.Spec.Strategy.Priority == nil {
+			return fmt.Errorf("invalid multikeylistener: %s - strategy.priority is required", mkl.Name)
+		}
+		if len(mkl.Spec.Strategy.Priority.RoutingKeys) == 0 {
+			return fmt.Errorf("invalid multikeylistener: %s - routingKeys must not be empty", mkl.Name)
+		}
+		for _, key := range mkl.Spec.Strategy.Priority.RoutingKeys {
+			if key == "" {
+				return fmt.Errorf("invalid multikeylistener: %s - routingKey must not be empty", mkl.Name)
+			}
 		}
 	}
 	return nil

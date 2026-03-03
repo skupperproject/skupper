@@ -60,6 +60,10 @@ func (c *FakeSkupperV2alpha1) Listeners(namespace string) v2alpha1.ListenerInter
 	return newFakeListeners(c, namespace)
 }
 
+func (c *FakeSkupperV2alpha1) MultiKeyListeners(namespace string) v2alpha1.MultiKeyListenerInterface {
+	return newFakeMultiKeyListeners(c, namespace)
+}
+
 func (c *FakeSkupperV2alpha1) RouterAccesses(namespace string) v2alpha1.RouterAccessInterface {
 	return newFakeRouterAccesses(c, namespace)
 }

@@ -21,6 +21,7 @@ func CopySiteState(siteState *api.SiteState) *api.SiteState {
 	activeSiteState.Links = copySiteStateMap(siteState.Links)
 	activeSiteState.Grants = copySiteStateMap(siteState.Grants)
 	activeSiteState.SecuredAccesses = copySiteStateMap(siteState.SecuredAccesses)
+	activeSiteState.MultiKeyListeners = copySiteStateMap(siteState.MultiKeyListeners)
 	activeSiteState.Certificates = copySiteStateMap(siteState.Certificates)
 	activeSiteState.Secrets = copySiteStateMap(siteState.Secrets)
 	activeSiteState.ConfigMaps = copySiteStateMap(siteState.ConfigMaps)
@@ -50,6 +51,8 @@ func copySiteStateMap[T any](m map[string]T) map[string]T {
 		case *v2alpha1.Certificate:
 			c = vv.DeepCopy()
 		case *v2alpha1.SecuredAccess:
+			c = vv.DeepCopy()
+		case *v2alpha1.MultiKeyListener:
 			c = vv.DeepCopy()
 		case *corev1.Secret:
 			c = vv.DeepCopy()

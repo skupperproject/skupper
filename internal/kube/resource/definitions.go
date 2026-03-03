@@ -29,6 +29,14 @@ func TlsRouteResource() schema.GroupVersionResource {
 	}
 }
 
+func MultiKeyListenerResource() schema.GroupVersionResource {
+	return schema.GroupVersionResource{
+		Group:    "skupper.io",
+		Version:  "v2alpha1",
+		Resource: "multikeylisteners",
+	}
+}
+
 func DeploymentResource() schema.GroupVersionResource {
 	return schema.GroupVersionResource{
 		Group:    "apps",

@@ -11,16 +11,17 @@ var (
 )
 
 const (
-	Connectors      string = "Connector"
-	Listeners       string = "Listener"
-	Sites           string = "Site"
-	RouterAccesses  string = "RouterAccess"
-	Links           string = "Link"
-	AccessTokens    string = "AccessToken"
-	Secrets         string = "Secret"
-	ConfigMaps      string = "ConfigMap"
-	Certificates    string = "Certificate"
-	SecuredAccesses string = "SecuredAccess"
+	Connectors        string = "Connector"
+	Listeners         string = "Listener"
+	Sites             string = "Site"
+	RouterAccesses    string = "RouterAccess"
+	Links             string = "Link"
+	AccessTokens      string = "AccessToken"
+	Secrets           string = "Secret"
+	ConfigMaps        string = "ConfigMap"
+	Certificates      string = "Certificate"
+	SecuredAccesses   string = "SecuredAccess"
+	MultiKeyListeners string = "MultiKeyListener"
 )
 
 const (

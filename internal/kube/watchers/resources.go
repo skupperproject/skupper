@@ -58,6 +58,8 @@ type (
 	LinkWatcher                     = ResourceWatcher[*v2alpha1.Link]
 	ListenerHandler                 = Handler[*v2alpha1.Listener]
 	ListenerWatcher                 = ResourceWatcher[*v2alpha1.Listener]
+	MultiKeyListenerHandler         = Handler[*v2alpha1.MultiKeyListener]
+	MultiKeyListenerWatcher         = ResourceWatcher[*v2alpha1.MultiKeyListener]
 	RouterAccessHandler             = Handler[*v2alpha1.RouterAccess]
 	RouterAccessWatcher             = ResourceWatcher[*v2alpha1.RouterAccess]
 	SecuredAccessHandler            = Handler[*v2alpha1.SecuredAccess]

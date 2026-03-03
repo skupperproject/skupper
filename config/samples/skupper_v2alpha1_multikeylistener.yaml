@@ -1,0 +1,12 @@
+apiVersion: skupper.io/v2alpha1
+kind: MultiKeyListener
+metadata:
+  name: backend
+spec:
+  host: backend
+  port: 8080
+  strategy:
+    priority:
+      routingKeys:
+        - backend-primary
+        - backend-secondary

@@ -8,6 +8,7 @@ resources:
 - skupper_v2alpha1_connector.yaml
 - skupper_v2alpha1_link.yaml
 - skupper_v2alpha1_listener.yaml
+- skupper_v2alpha1_multikeylistener.yaml
 - skupper_v2alpha1_router_access.yaml
 - skupper_v2alpha1_secured_access.yaml
 - skupper_v2alpha1_site.yaml

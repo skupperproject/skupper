@@ -85,6 +85,7 @@ func GetNamespacesFound(s *api.SiteState) []string {
 	addNamespacesFromMap(s.Claims, nsMap)
 	addNamespacesFromMap(s.Certificates, nsMap)
 	addNamespacesFromMap(s.SecuredAccesses, nsMap)
+	addNamespacesFromMap(s.MultiKeyListeners, nsMap)
 	addNamespacesFromMap(s.ConfigMaps, nsMap)
 	for ns := range nsMap {
 		namespaces = append(namespaces, ns)
@@ -154,6 +155,10 @@ func LoadIntoSiteState(reader *bufio.Reader, siteState *api.SiteState) error {
 				var securedAccess v2alpha1.SecuredAccess
 				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &securedAccess)
 				siteState.SecuredAccesses[securedAccess.Name] = &securedAccess
+			case "MultiKeyListener":
+				var mkl v2alpha1.MultiKeyListener
+				runtime.DefaultUnstructuredConverter.FromUnstructured(obj.(runtime.Unstructured).UnstructuredContent(), &mkl)
+				siteState.MultiKeyListeners[mkl.Name] = &mkl
 			default:
 				logInvalidResource(gvk)
 			}

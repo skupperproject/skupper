@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/skupperproject/skupper/internal/kube/watchers"
 	"github.com/skupperproject/skupper/internal/qdr"
 	"github.com/skupperproject/skupper/internal/site"
@@ -12,31 +14,34 @@ import (
 )
 
 type ExtendedBindings struct {
-	context            BindingContext
-	mapping            *qdr.PortMapping
-	exposed            ExposedPorts
-	selectors          map[string]TargetSelection
-	bindings           *site.Bindings
-	connectors         map[string]*AttachedConnector
-	perTargetListeners map[string]*PerTargetListener
-	listenerHosts      map[string]string // listener name -> host
-	controller         *watchers.EventProcessor
-	site               *Site
-	logger             *slog.Logger
+	context               BindingContext
+	mapping               *qdr.PortMapping
+	exposed               ExposedPorts
+	selectors             map[string]TargetSelection
+	bindings              *site.Bindings
+	connectors            map[string]*AttachedConnector
+	perTargetListeners    map[string]*PerTargetListener
+	listenerHosts         map[string]string // listener name -> host
+	multiKeyListenerHosts map[string]string // multikeylistener name -> host
+	controller            *watchers.EventProcessor
+	site                  *Site
+	logger                *slog.Logger
 }
 
 func NewExtendedBindings(controller *watchers.EventProcessor, profilePath string) *ExtendedBindings {
 	eb := &ExtendedBindings{
-		bindings:           site.NewBindings(profilePath),
-		connectors:         map[string]*AttachedConnector{},
-		perTargetListeners: map[string]*PerTargetListener{},
-		listenerHosts:      map[string]string{},
-		controller:         controller,
+		bindings:              site.NewBindings(profilePath),
+		connectors:            map[string]*AttachedConnector{},
+		perTargetListeners:    map[string]*PerTargetListener{},
+		listenerHosts:         map[string]string{},
+		multiKeyListenerHosts: map[string]string{},
+		controller:            controller,
 		logger: slog.New(slog.Default().Handler()).With(
 			slog.String("component", "kube.site.attached_connector"),
 		),
 	}
 	eb.bindings.SetListenerConfiguration(eb.updateBridgeConfigForListener)
+	eb.bindings.SetMultiKeyListenerConfiguration(eb.updateBridgeConfigForMultiKeyListener)
 	return eb
 }
 
@@ -50,6 +55,7 @@ func (a *ExtendedBindings) init(context BindingContext, config *qdr.RouterConfig
 	a.bindings.SetBindingEventHandler(a)
 	a.bindings.SetConnectorConfiguration(a.updateBridgeConfigForConnector)
 	a.bindings.SetListenerConfiguration(a.updateBridgeConfigForListener)
+	a.bindings.SetMultiKeyListenerConfiguration(a.updateBridgeConfigForMultiKeyListener)
 }
 
 func (a *ExtendedBindings) cleanup() {
@@ -174,13 +180,90 @@ func (a *ExtendedBindings) updateBridgeConfigForListener(siteId string, listener
 	if a.mapping == nil {
 		a.mapping = qdr.RecoverPortMapping(nil)
 	}
-	if port, err := a.mapping.GetPortForKey(listener.Name); err == nil {
-		site.UpdateBridgeConfigForListenerWithHostAndPort(siteId, listener, "", port, config)
-	} else {
+	port, err := a.mapping.GetPortForKey(listener.Name)
+	if err != nil {
 		bindings_logger.Error("Could not allocate port for %s/%s: %s",
 			slog.String("namespace", listener.Namespace),
 			slog.String("name", listener.Name))
+		return
 	}
+	site.UpdateBridgeConfigForListenerWithHostAndPort(siteId, listener, "", port, config)
+}
+
+func (a *ExtendedBindings) updateBridgeConfigForMultiKeyListener(siteId string, mkl *skupperv2alpha1.MultiKeyListener, config *qdr.BridgeConfig) {
+	if a.mapping == nil {
+		a.mapping = qdr.RecoverPortMapping(nil)
+	}
+	port, err := a.mapping.GetPortForKey(multiKeyListenerPortName(mkl.Name))
+	if err != nil {
+		bindings_logger.Error("Could not allocate port for multikeylistener",
+			slog.String("namespace", mkl.Namespace),
+			slog.String("name", mkl.Name))
+		return
+	}
+	site.UpdateBridgeConfigForMultiKeyListenerWithHostAndPort(siteId, mkl, "", port, config)
+}
+
+func multiKeyListenerPortName(name string) string {
+	return "multiaddress-" + name
+}
+
+func (a *ExtendedBindings) multiKeyListenerUpdated(mkl *skupperv2alpha1.MultiKeyListener) {
+	allocatedRouterPort, err := a.mapping.GetPortForKey(multiKeyListenerPortName(mkl.Name))
+	if err != nil {
+		bindings_logger.Error("Unable to get port for multikeylistener",
+			slog.String("namespace", mkl.Namespace),
+			slog.String("name", mkl.Name),
+			slog.Any("error", err),
+		)
+		return
+	}
+	port := Port{
+		Name:       multiKeyListenerPortName(mkl.Name),
+		Port:       mkl.Spec.Port,
+		TargetPort: allocatedRouterPort,
+		Protocol:   corev1.ProtocolTCP,
+	}
+	if exposed := a.exposed.Expose(mkl.Spec.Host, port); exposed != nil {
+		if err := a.context.Expose(exposed); err != nil {
+			bindings_logger.Error("Error exposing multikeylistener",
+				slog.String("namespace", mkl.Namespace),
+				slog.String("name", mkl.Name),
+				slog.Any("error", err))
+			return
+		}
+		bindings_logger.Info("Exposed multikeylistener",
+			slog.String("namespace", mkl.Namespace),
+			slog.String("name", mkl.Name))
+	}
+}
+
+func (a *ExtendedBindings) multiKeyListenerDeleted(mkl *skupperv2alpha1.MultiKeyListener) {
+
+	exposed := a.exposed.Unexpose(mkl.Spec.Host, multiKeyListenerPortName(mkl.Name))
+	if exposed == nil {
+		return
+	}
+	a.mapping.ReleasePortForKey(multiKeyListenerPortName(mkl.Name))
+	if exposed.empty() {
+		if err := a.context.Unexpose(mkl.Spec.Host); err != nil {
+			bindings_logger.Error("Error unexposing multikeylistener",
+				slog.String("namespace", mkl.Namespace),
+				slog.String("name", mkl.Name),
+				slog.Any("error", err))
+		}
+		return
+	}
+	if err := a.context.Expose(exposed); err != nil {
+		bindings_logger.Error("Error re-exposing service after deleting multikeylistener",
+			slog.String("namespace", mkl.Namespace),
+			slog.String("name", mkl.Name),
+			slog.Any("error", err))
+		return
+	}
+	bindings_logger.Info("Re-exposed service after deleting multikeylistener",
+		slog.String("namespace", mkl.Namespace),
+		slog.String("name", mkl.Name))
 }
 
 func (b *ExtendedBindings) SetListenerConfiguration(configuration site.ListenerConfiguration) {
@@ -242,12 +325,60 @@ func (b *ExtendedBindings) UpdateListener(name string, listener *skupperv2alpha1
 	return b, errors.Join(errs...)
 }
 
+func (b *ExtendedBindings) UpdateMultiKeyListener(name string, mkl *skupperv2alpha1.MultiKeyListener) (qdr.ConfigUpdate, error) {
+	var errs []error
+	updateConfig := false
+
+	if mkl != nil {
+		// Handle host change - unexpose previous host if changed
+		if previousHost, ok := b.multiKeyListenerHosts[name]; ok && previousHost != mkl.Spec.Host {
+			if exposed := b.exposed.Unexpose(previousHost, multiKeyListenerPortName(name)); exposed != nil && exposed.empty() {
+				if err := b.context.Unexpose(previousHost); err != nil {
+					errs = append(errs, err)
+				}
+			}
+		}
+		b.multiKeyListenerHosts[name] = mkl.Spec.Host
+		b.multiKeyListenerUpdated(mkl)
+	} else {
+		// Deletion case
+		if previousHost, ok := b.multiKeyListenerHosts[name]; ok {
+			existingMkl := b.bindings.GetMultiKeyListener(name)
+			if existingMkl != nil {
+				b.multiKeyListenerDeleted(existingMkl)
+			}
+			delete(b.multiKeyListenerHosts, name)
+			if exposed := b.exposed.Unexpose(previousHost, multiKeyListenerPortName(name)); exposed != nil && exposed.empty() {
+				if err := b.context.Unexpose(previousHost); err != nil {
+					errs = append(errs, err)
+				}
+			}
+		}
+	}
+
+	if b.bindings.UpdateMultiKeyListener(name, mkl) != nil {
+		updateConfig = true
+	}
+	if !updateConfig {
+		return nil, errors.Join(errs...)
+	}
+	return b, errors.Join(errs...)
+}
+
+func (b *ExtendedBindings) GetMultiKeyListener(name string) *skupperv2alpha1.MultiKeyListener {
+	return b.bindings.GetMultiKeyListener(name)
+}
+
 func (b *ExtendedBindings) GetConnector(name string) *skupperv2alpha1.Connector {
 	return b.bindings.GetConnector(name)
 }
 
 func (b *ExtendedBindings) Map(cf site.ConnectorFunction, lf site.ListenerFunction) {
 	b.bindings.Map(cf, lf)
+}
+
+func (b *ExtendedBindings) MapOverMultiKeyListeners(mkf site.MultiKeyListenerFunction) {
+	b.bindings.MapOverMultiKeyListeners(mkf)
 }
 
 type AttachedConnectorFunction func(*AttachedConnector)

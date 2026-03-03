@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"slices"
 
 	amqp "github.com/interconnectedcloud/go-amqp"
 	"github.com/skupperproject/skupper/api/types"
@@ -125,14 +126,16 @@ func (r Record) AsRecord(field string) Record {
 
 func asTcpEndpoint(record Record) TcpEndpoint {
 	endpoint := TcpEndpoint{
-		Name:       record.AsString("name"),
-		Host:       record.AsString("host"),
-		Port:       record.AsString("port"),
-		Address:    record.AsString("address"),
-		SiteId:     record.AsString("siteId"),
-		SslProfile: record.AsString("sslProfile"),
-		Observer:   record.AsString("observer"),
-		ProcessID:  record.AsString("processId"),
+		Name:                 record.AsString("name"),
+		Host:                 record.AsString("host"),
+		Port:                 record.AsString("port"),
+		Address:              record.AsString("address"),
+		SiteId:               record.AsString("siteId"),
+		SslProfile:           record.AsString("sslProfile"),
+		Observer:             record.AsString("observer"),
+		ProcessID:            record.AsString("processId"),
+		MultiAddressStrategy: record.AsString("multiAddressStrategy"),
+		AuthenticatePeer:     record.AsBool("authenticatePeer"),
 	}
 	if value, ok := record["verifyHostname"]; ok {
 		if verify, ok := value.(bool); ok {
@@ -140,6 +143,15 @@ func asTcpEndpoint(record Record) TcpEndpoint {
 		}
 	}
 	return endpoint
+}
+
+func asListenerAddress(record Record) ListenerAddress {
+	return ListenerAddress{
+		Name:     record.AsString("name"),
+		Address:  record.AsString("address"),
+		Value:    record.AsInt("value"),
+		Listener: record.AsString("listener"),
+	}
 }
 
 func asConnection(record Record) Connection {
@@ -900,10 +912,38 @@ func (a *Agent) GetLocalBridgeConfig() (*BridgeConfig, error) {
 		config.AddTcpListener(asTcpEndpoint(record))
 	}
 
+	results, err = a.Query("io.skupper.router.listenerAddress", []string{})
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range results {
+		config.AddListenerAddress(asListenerAddress(record))
+	}
+
 	return &config, nil
 }
 
+func (a *Agent) GetLocalListenerAddresses() (map[string]ListenerAddress, error) {
+	results, err := a.Query("io.skupper.router.listenerAddress", []string{})
+	if err != nil {
+		return nil, err
+	}
+	addresses := map[string]ListenerAddress{}
+	for _, record := range results {
+		la := asListenerAddress(record)
+		addresses[la.Name] = la
+	}
+	return addresses, nil
+}
+
 func (a *Agent) UpdateLocalBridgeConfig(changes *BridgeConfigDifference) error {
+	// Delete listenerAddresses before their parent tcpListeners
+	for _, deleted := range changes.ListenerAddresses.Deleted {
+		if err := a.Delete("io.skupper.router.listenerAddress", deleted); err != nil {
+			return fmt.Errorf("Error deleting listener addresses: %s", err)
+		}
+	}
+
 	for _, deleted := range changes.TcpConnectors.Deleted {
 		if err := a.Delete("io.skupper.router.tcpConnector", deleted); err != nil {
 			return fmt.Errorf("Error deleting tcp connectors: %s", err)
@@ -914,6 +954,7 @@ func (a *Agent) UpdateLocalBridgeConfig(changes *BridgeConfigDifference) error {
 			return fmt.Errorf("Error deleting tcp listeners: %s", err)
 		}
 	}
+
 	for _, added := range changes.TcpConnectors.Added {
 		if err := a.Create("io.skupper.router.tcpConnector", added.Name, added); err != nil {
 			return fmt.Errorf("Error adding tcp connectors: %s", err)
@@ -924,6 +965,14 @@ func (a *Agent) UpdateLocalBridgeConfig(changes *BridgeConfigDifference) error {
 			return fmt.Errorf("Error adding tcp listeners: %s", err)
 		}
 	}
+
+	// Add listenerAddresses after their parent tcpListeners
+	for _, added := range changes.ListenerAddresses.Added {
+		if err := a.Create("io.skupper.router.listenerAddress", added.Name, added); err != nil {
+			return fmt.Errorf("Error adding listener addresses: %s", err)
+		}
+	}
+
 	return nil
 }
 

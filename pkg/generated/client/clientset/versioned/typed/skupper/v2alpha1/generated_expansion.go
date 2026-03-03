@@ -34,6 +34,8 @@ type LinkExpansion interface{}
 
 type ListenerExpansion interface{}
 
+type MultiKeyListenerExpansion interface{}
+
 type RouterAccessExpansion interface{}
 
 type SecuredAccessExpansion interface{}

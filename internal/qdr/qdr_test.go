@@ -252,6 +252,7 @@ func TestMarshalUnmarshalRouterConfig(t *testing.T) {
 					SiteId:  "def",
 				},
 			},
+			ListenerAddresses: ListenerAddressMap{},
 		},
 		Addresses: map[string]Address{
 			"happy": Address{

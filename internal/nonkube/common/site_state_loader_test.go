@@ -28,4 +28,9 @@ func TestFileSystemSiteStateLoder(t *testing.T) {
 	assert.Assert(t, err)
 	assert.Assert(t, loadedSiteState != nil)
 	assert.Equal(t, string(loadedSiteState.Site.ObjectMeta.UID), loadedSiteState.SiteId)
+	assert.Equal(t, len(loadedSiteState.MultiKeyListeners), len(ss.MultiKeyListeners))
+	for name := range ss.MultiKeyListeners {
+		_, ok := loadedSiteState.MultiKeyListeners[name]
+		assert.Assert(t, ok, "MultiKeyListener %q not found in loaded state", name)
+	}
 }
