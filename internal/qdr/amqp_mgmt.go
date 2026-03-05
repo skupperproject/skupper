@@ -885,6 +885,38 @@ func (a *Agent) GetSslProfiles() (map[string]SslProfile, error) {
 	return profiles, nil
 }
 
+func (a *Agent) GetProxyProfileByName(name string) (*ProxyProfile, error) {
+
+	results, err := a.Query("io.skupper.router.proxyProfile", []string{})
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range results {
+
+		result := asProxyProfile(record)
+
+		if result.Name == name {
+			return &result, nil
+		}
+	}
+
+	return nil, nil
+}
+
+func (a *Agent) GetProxyProfiles() (map[string]ProxyProfile, error) {
+	results, err := a.Query("io.skupper.router.proxyProfile", []string{})
+	if err != nil {
+		return nil, err
+	}
+	profiles := map[string]ProxyProfile{}
+	for _, record := range results {
+		profile := asProxyProfile(record)
+		profiles[profile.Name] = profile
+	}
+
+	return profiles, nil
+}
+
 func (a *Agent) GetLocalTcpListeners(filter TcpEndpointFilter) ([]TcpEndpoint, error) {
 	return a.getLocalTcpEndpoints("io.skupper.router.tcpListener", filter)
 }
@@ -1178,6 +1210,7 @@ func asConnector(record Record) Connector {
 		RouteContainer: record.AsBool("routeContainer"),
 		VerifyHostname: record.AsBool("verifyHostname"),
 		SslProfile:     record.AsString("sslProfile"),
+		ProxyProfile:   record.AsString("proxyProfile"),
 		Cost:           int32(record.AsInt("cost")),
 		Role:           Role(record.AsString("role")),
 	}
@@ -1218,6 +1251,16 @@ func asSslProfile(record Record) SslProfile {
 		CaCertFile:         record.AsString("caCertFile"),
 		Ordinal:            record.AsUint64("ordinal"),
 		OldestValidOrdinal: record.AsUint64("oldestValidOrdinal"),
+	}
+}
+
+func asProxyProfile(record Record) ProxyProfile {
+	return ProxyProfile{
+		Name:     record.AsString("name"),
+		Host:     record.AsString("host"),
+		Port:     record.AsString("port"),
+		UserName: record.AsString("userName"),
+		Password: record.AsString("password"),
 	}
 }
 
@@ -1263,6 +1306,13 @@ func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference, checkCertFil
 				if err != nil {
 					return err
 				}
+			}
+		}
+
+		if len(added.ProxyProfile) > 0 {
+			_, err := a.GetProxyProfileByName(added.ProxyProfile)
+			if err != nil {
+				return err
 			}
 		}
 
@@ -1435,6 +1485,33 @@ func (a *Agent) ReloadSslProfile(name string) error {
 
 	if err := a.Update("io.skupper.router.sslProfile", profile.Name, profile); err != nil {
 		return fmt.Errorf("Error updating SSL Profile: %s", err)
+	}
+
+	return nil
+}
+
+func (a *Agent) CreateProxyProfile(profile ProxyProfile) error {
+
+	result, err := a.GetProxyProfileByName(profile.Name)
+	if err != nil {
+		return err
+	}
+
+	// Trying to create a proxy profile that already exists will generate an error in the router.
+	if result != nil {
+		return nil
+	}
+
+	if err := a.Create("io.skupper.router.proxyProfile", profile.Name, profile); err != nil {
+		return fmt.Errorf("Error adding Proxy Profile: %s", err)
+	}
+
+	return nil
+}
+
+func (a *Agent) UpdateProxyProfile(profile ProxyProfile) error {
+	if err := a.Update("io.skupper.router.proxyProfile", profile.Name, profile); err != nil {
+		return fmt.Errorf("error updating Proxy Profile: %s", err)
 	}
 
 	return nil

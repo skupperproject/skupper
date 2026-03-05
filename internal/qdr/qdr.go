@@ -15,14 +15,15 @@ import (
 )
 
 type RouterConfig struct {
-	Metadata    RouterMetadata
-	SslProfiles map[string]SslProfile
-	Listeners   map[string]Listener
-	Connectors  map[string]Connector
-	Addresses   map[string]Address
-	LogConfig   map[string]LogConfig
-	SiteConfig  *SiteConfig
-	Bridges     BridgeConfig
+	Metadata      RouterMetadata
+	SslProfiles   map[string]SslProfile
+	ProxyProfiles map[string]ProxyProfile
+	Listeners     map[string]Listener
+	Connectors    map[string]Connector
+	Addresses     map[string]Address
+	LogConfig     map[string]LogConfig
+	SiteConfig    *SiteConfig
+	Bridges       BridgeConfig
 }
 
 type RouterConfigHandler interface {
@@ -52,11 +53,12 @@ func InitialConfig(id string, siteId string, version string, edge bool, helloAge
 			HelloMaxAgeSeconds: strconv.Itoa(helloAge),
 			Metadata:           getSiteMetadataString(siteId, version),
 		},
-		Addresses:   map[string]Address{},
-		SslProfiles: map[string]SslProfile{},
-		Listeners:   map[string]Listener{},
-		Connectors:  map[string]Connector{},
-		LogConfig:   map[string]LogConfig{},
+		Addresses:     map[string]Address{},
+		SslProfiles:   map[string]SslProfile{},
+		ProxyProfiles: map[string]ProxyProfile{},
+		Listeners:     map[string]Listener{},
+		Connectors:    map[string]Connector{},
+		LogConfig:     map[string]LogConfig{},
 		Bridges: BridgeConfig{
 			TcpListeners:      map[string]TcpEndpoint{},
 			TcpConnectors:     map[string]TcpEndpoint{},
@@ -210,6 +212,57 @@ func (r *RouterConfig) UnreferencedSslProfiles() map[string]SslProfile {
 		delete(results, o.SslProfile)
 	}
 
+	return results
+}
+
+func ConfigureProxyProfile(name string, host string, port string, username string, password string) ProxyProfile {
+	profile := ProxyProfile{
+		Name:     name,
+		Host:     host,
+		Port:     port,
+		UserName: username,
+		Password: password,
+	}
+	return profile
+}
+
+func (r *RouterConfig) AddProxyProfile(p ProxyProfile) bool {
+	if original, ok := r.ProxyProfiles[p.Name]; ok && original == p {
+		return false
+	}
+	r.ProxyProfiles[p.Name] = p
+	return true
+}
+
+func (r *RouterConfig) RemoveProxyProfile(name string) bool {
+	_, ok := r.ProxyProfiles[name]
+	if ok {
+		delete(r.ProxyProfiles, name)
+		return true
+	} else {
+		return false
+	}
+}
+
+func (r *RouterConfig) RemoveUnreferencedProxyProfiles() bool {
+	unreferenced := r.UnreferencedProxyProfiles()
+	changed := false
+	for _, profile := range unreferenced {
+		if r.RemoveProxyProfile(profile.Name) {
+			changed = true
+		}
+	}
+	return changed
+}
+
+func (r *RouterConfig) UnreferencedProxyProfiles() map[string]ProxyProfile {
+	results := map[string]ProxyProfile{}
+	for _, profile := range r.ProxyProfiles {
+		results[profile.Name] = profile
+	}
+	for _, o := range r.Connectors {
+		delete(results, o.ProxyProfile)
+	}
 	return results
 }
 
@@ -528,6 +581,34 @@ func (l *Listener) SetMaxSessionFrames(value int) {
 	l.MaxSessionFrames = value
 }
 
+type ProxyProfile struct {
+	Name     string `json:"name,omitempty"`
+	Host     string `json:"host,omitempty"`
+	Port     string `json:"port,omitempty"`
+	UserName string `json:"userName,omitempty"`
+	Password string `json:"password,omitempty"`
+}
+
+func (p ProxyProfile) toRecord() Record {
+	result := make(map[string]any)
+	if p.Name != "" {
+		result["name"] = p.Name
+	}
+	if p.Host != "" {
+		result["host"] = p.Host
+	}
+	if p.Port != "" {
+		result["port"] = p.Port
+	}
+	if p.UserName != "" {
+		result["userName"] = p.UserName
+	}
+	if p.Password != "" {
+		result["password"] = p.Password
+	}
+	return result
+}
+
 type Connector struct {
 	Name             string `json:"name,omitempty"`
 	Role             Role   `json:"role,omitempty"`
@@ -537,6 +618,7 @@ type Connector struct {
 	Cost             int32  `json:"cost,omitempty"`
 	VerifyHostname   bool   `json:"verifyHostname,omitempty"`
 	SslProfile       string `json:"sslProfile,omitempty"`
+	ProxyProfile     string `json:"proxyProfile,omitempty"`
 	LinkCapacity     int32  `json:"linkCapacity,omitempty"`
 	MaxFrameSize     int    `json:"maxFrameSize,omitempty"`
 	MaxSessionFrames int    `json:"maxSessionFrames,omitempty"`
@@ -553,6 +635,9 @@ func (connector Connector) toRecord() Record {
 	}
 	if len(connector.SslProfile) > 0 {
 		record["sslProfile"] = connector.SslProfile
+	}
+	if len(connector.ProxyProfile) > 0 {
+		record["proxyProfile"] = connector.ProxyProfile
 	}
 	if connector.MaxFrameSize > 0 {
 		record["maxFrameSize"] = connector.MaxFrameSize
@@ -693,12 +778,13 @@ func RouterConfigEquals(actual, desired string) bool {
 
 func UnmarshalRouterConfig(config string) (RouterConfig, error) {
 	result := RouterConfig{
-		Metadata:    RouterMetadata{},
-		Addresses:   map[string]Address{},
-		SslProfiles: map[string]SslProfile{},
-		Listeners:   map[string]Listener{},
-		Connectors:  map[string]Connector{},
-		LogConfig:   map[string]LogConfig{},
+		Metadata:      RouterMetadata{},
+		Addresses:     map[string]Address{},
+		SslProfiles:   map[string]SslProfile{},
+		ProxyProfiles: map[string]ProxyProfile{},
+		Listeners:     map[string]Listener{},
+		Connectors:    map[string]Connector{},
+		LogConfig:     map[string]LogConfig{},
 		Bridges: BridgeConfig{
 			TcpListeners:      map[string]TcpEndpoint{},
 			TcpConnectors:     map[string]TcpEndpoint{},
@@ -759,6 +845,13 @@ func UnmarshalRouterConfig(config string) (RouterConfig, error) {
 				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
 			}
 			result.SslProfiles[sslProfile.Name] = sslProfile
+		case "proxyProfile":
+			proxyProfile := ProxyProfile{}
+			err = convert(element[1], &proxyProfile)
+			if err != nil {
+				return result, fmt.Errorf("Invalid %s element got %#v", entityType, element[1])
+			}
+			result.ProxyProfiles[proxyProfile.Name] = proxyProfile
 		case "log":
 			logConfig := LogConfig{}
 			err = convert(element[1], &logConfig)
@@ -810,6 +903,13 @@ func MarshalRouterConfig(config RouterConfig) (string, error) {
 	for _, e := range config.SslProfiles {
 		tuple := []interface{}{
 			"sslProfile",
+			e,
+		}
+		elements = append(elements, tuple)
+	}
+	for _, e := range config.ProxyProfiles {
+		tuple := []interface{}{
+			"proxyProfile",
 			e,
 		}
 		elements = append(elements, tuple)
@@ -984,9 +1084,10 @@ func GetBridgeConfigFromConfigMap(configmap *corev1.ConfigMap) (*BridgeConfig, e
 }
 
 type ConnectorDifference struct {
-	Deleted          []Connector
-	Added            []Connector
-	AddedSslProfiles map[string]SslProfile
+	Deleted            []Connector
+	Added              []Connector
+	AddedSslProfiles   map[string]SslProfile
+	AddedProxyProfiles map[string]ProxyProfile
 }
 
 type TcpEndpointDifference struct {
@@ -1206,11 +1307,13 @@ func (a *BridgeConfigDifference) Print() {
 func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ignorePrefix *string) *ConnectorDifference {
 	result := ConnectorDifference{}
 	result.AddedSslProfiles = make(map[string]SslProfile)
+	result.AddedProxyProfiles = make(map[string]ProxyProfile)
 	for key, v1 := range desired.Connectors {
 		actualValue, ok := actual[key]
 		if !ok {
 			result.Added = append(result.Added, v1)
 			result.AddedSslProfiles[v1.SslProfile] = desired.SslProfiles[v1.SslProfile]
+			result.AddedProxyProfiles[v1.ProxyProfile] = desired.ProxyProfiles[v1.ProxyProfile]
 		}
 
 		//in case the link connector exists but has changed some of its values, it needs to be recreated again
