@@ -22,7 +22,7 @@ In an abundance of caution to avoid contamination from the dev host, we suggest
 running in a container. Example:
 
 ```
-GO_VERSION=1.24.9
+GO_VERSION=1.25
 
 podman run -v $(pwd):/work:rw,Z \
   -w /work \
