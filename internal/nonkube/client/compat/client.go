@@ -20,6 +20,7 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/utils"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
 const (
@@ -157,10 +158,20 @@ func NewCompatClient(endpoint, basePath string) (*CompatClient, error) {
 }
 
 func GetDefaultContainerEndpoint() string {
-	if os.Getenv(types.ENV_PLATFORM) == "docker" {
-		return "unix:///run/docker.sock"
+	platform := os.Getenv(types.ENV_PLATFORM)
+	// the container endpoint is mapped to the podman socket inside the container
+	if api.IsRunningInContainer() {
+		if platform == "docker" {
+			return "unix:///var/run/docker.sock"
+		}
+		return "unix:///var/run/podman.sock"
+	} else {
+		if platform == "docker" {
+			return "unix:///run/docker.sock"
+		}
+
+		return fmt.Sprintf("unix://%s/podman/podman.sock", GetRuntimeDir())
 	}
-	return fmt.Sprintf("unix://%s/podman/podman.sock", GetRuntimeDir())
 }
 
 func GetRuntimeDir() string {

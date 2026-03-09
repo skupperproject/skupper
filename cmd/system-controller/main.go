@@ -10,7 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/nonkube/controller"
+	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/internal/version"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
@@ -23,6 +25,9 @@ func main() {
 	if api.IsRunningInContainer() {
 		slog.Info("Host path info:", slog.String("path", api.GetHostNamespacesPath()))
 	}
+	systemReloadType := utils.DefaultStr(os.Getenv(types.ENV_SYSTEM_AUTO_RELOAD),
+		types.SystemReloadTypeManual)
+	slog.Info("System Reload:", slog.String("type", systemReloadType))
 	if err := os.MkdirAll(namespacesPath, 0755); err != nil {
 		slog.Error("Error creating skupper namespaces directory", slog.String("path", namespacesPath), slog.Any("error", err))
 		os.Exit(1)

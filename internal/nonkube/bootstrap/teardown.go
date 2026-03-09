@@ -22,6 +22,7 @@ func Teardown(namespace string) error {
 	if err != nil {
 		return err
 	}
+
 	if err := removeRouter(namespace, platform); err != nil {
 		return err
 	}
@@ -52,13 +53,10 @@ func removeDefinition(namespace string) error {
 func removeRouter(namespace string, platform string) error {
 
 	endpoint := os.Getenv("CONTAINER_ENDPOINT")
-	if endpoint == "" {
-		endpoint = fmt.Sprintf("unix://%s/podman/podman.sock", api.GetRuntimeDir())
-		if platform == "docker" {
-			endpoint = "unix:///run/docker.sock"
-		}
-	}
 
+	if api.IsRunningInContainer() || endpoint == "" {
+		endpoint = internalclient.GetDefaultContainerEndpoint()
+	}
 	cli, err := internalclient.NewCompatClient(endpoint, "")
 	if err != nil {
 		return fmt.Errorf("failed to create container client: %v", err)
