@@ -936,6 +936,17 @@ func (s *Site) CheckListenerService(svc *corev1.Service) error {
 	return nil
 }
 
+func (s *Site) HandleDeletedListenerService(serviceName string) error {
+	if s.site == nil {
+		return nil
+	}
+	portSet := s.bindings.GetExposedPortSet(serviceName)
+	if portSet == nil {
+		return nil
+	}
+	return s.Expose(portSet)
+}
+
 func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener, svcExists bool) error {
 	if s.site == nil {
 		if listener == nil {
