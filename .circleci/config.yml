@@ -7,21 +7,21 @@ orbs:
 executors:
   go_cimg:
     docker:
-      - image: cimg/go:1.24
+      - image: cimg/go:1.25
     resource_class: large
     environment:
       CGO_ENABLED: 0
 
   local_cluster_test_executor:
     machine:
-      image: ubuntu-2204:2022.10.2
+      image: ubuntu-2204:2023.10.1
     resource_class: large
     environment:
       CGO_ENABLED: 0
 
   local_cluster_policy_test_executor:
     machine:
-      image: ubuntu-2204:2022.10.2
+      image: ubuntu-2204:2023.10.1
     # Policy tests run all in sequence.  So, there is no benefit in adding more
     # CPU or memory.  Within the tests, there is paralellism, but on goroutines,
     # so they'd not use the additional CPUs.  The only thing a running policy
@@ -111,9 +111,8 @@ commands:
       - run:
           name: cleanup previous go installation
           command: sudo rm -rf /usr/local/go
-      - docker/install-docker
       - go/install:
-          version: "1.22.0"
+          version: "1.25.0"
       - kube-orb/install-kubectl
       - run: make
 
@@ -129,7 +128,7 @@ commands:
       - run:
           name: create registry container
           command: |
-            docker run --name registry -d -p 5000:5000 registry
+            docker run --name registry -d -p 5000:5000 registry:2
       - attach_workspace:
           at: /tmp/
       - run:
@@ -480,7 +479,6 @@ jobs:
   build_and_save_test_images:
     executor: local_cluster_test_executor
     steps:
-      - docker/install-docker
       - checkout
       - run: docker buildx create --use --name skupper-buildx --bootstrap
       - run: make -e docker-build
@@ -652,8 +650,6 @@ jobs:
       name: local_cluster_test_executor
     steps:
       - checkout
-      - docker/install-docker:
-          version: "v26.0.1"
       - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run:
           name:
@@ -674,8 +670,6 @@ jobs:
       name: local_cluster_test_executor
     steps:
       - checkout
-      - docker/install-docker:
-          version: "v26.0.1"
       - run: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run:
           name: "Publishing v1 images"
