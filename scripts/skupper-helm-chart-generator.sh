@@ -41,6 +41,21 @@ routerImage: quay.io/skupper/skupper-router:$ROUTER_VERSION
 # available options: cluster, namespace
 scope: cluster
 
+# Access type configuration
+# Set clusterHost to the IP or hostname of any cluster node.
+# Required when nodeport is included in enabledAccessTypes.
+clusterHost: ""
+
+# Comma-separated list of enabled access types.
+# Supported: local, loadbalancer, route, nodeport, ingress-nginx,
+#            contour-http-proxy, gateway
+# Defaults (when empty): local,loadbalancer,route
+enabledAccessTypes: ""
+
+# Default access type used when a Site does not specify one.
+# When empty the controller auto-selects (route on OpenShift, else loadbalancer).
+defaultAccessType: ""
+
 EOF
 
 cat <<EOF >"$TEMPLATES_DIR/NOTES.txt"
@@ -99,17 +114,36 @@ else
 fi
 
 # Substitute "namespace: <name>" with "namespace: {{ .Release.Namespace }}"
-sed -i 's/namespace: [a-zA-Z0-9.-]*/namespace: {{ .Release.Namespace }}/g' "$CLUSTER_TEMPLATE"
+sed 's/namespace: [a-zA-Z0-9.-]*/namespace: {{ .Release.Namespace }}/g' "$CLUSTER_TEMPLATE" > "${CLUSTER_TEMPLATE}.tmp" && mv "${CLUSTER_TEMPLATE}.tmp" "$CLUSTER_TEMPLATE"
 
-sed -i -E 's|quay.io/skupper/controller:[a-zA-Z0-9.-]*|{{ .Values.controllerImage }}|' "$CLUSTER_TEMPLATE"
-sed -i -E 's|quay.io/skupper/controller:[a-zA-Z0-9.-]*|{{ .Values.controllerImage }}|' "$NAMESPACE_TEMPLATE"
+sed -E 's|quay.io/skupper/controller:[a-zA-Z0-9.-]*|{{ .Values.controllerImage }}|' "$CLUSTER_TEMPLATE" > "${CLUSTER_TEMPLATE}.tmp" && mv "${CLUSTER_TEMPLATE}.tmp" "$CLUSTER_TEMPLATE"
+sed -E 's|quay.io/skupper/controller:[a-zA-Z0-9.-]*|{{ .Values.controllerImage }}|' "$NAMESPACE_TEMPLATE" > "${NAMESPACE_TEMPLATE}.tmp" && mv "${NAMESPACE_TEMPLATE}.tmp" "$NAMESPACE_TEMPLATE"
 
-sed -i -E 's|quay.io/skupper/skupper-router:[a-zA-Z0-9.-]*|{{ .Values.routerImage }}|' "$CLUSTER_TEMPLATE"
-sed -i -E 's|quay.io/skupper/skupper-router:[a-zA-Z0-9.-]*|{{ .Values.routerImage }}|' "$NAMESPACE_TEMPLATE"
+sed -E 's|quay.io/skupper/skupper-router:[a-zA-Z0-9.-]*|{{ .Values.routerImage }}|' "$CLUSTER_TEMPLATE" > "${CLUSTER_TEMPLATE}.tmp" && mv "${CLUSTER_TEMPLATE}.tmp" "$CLUSTER_TEMPLATE"
+sed -E 's|quay.io/skupper/skupper-router:[a-zA-Z0-9.-]*|{{ .Values.routerImage }}|' "$NAMESPACE_TEMPLATE" > "${NAMESPACE_TEMPLATE}.tmp" && mv "${NAMESPACE_TEMPLATE}.tmp" "$NAMESPACE_TEMPLATE"
 
+sed 's|quay.io/skupper/kube-adaptor:[a-zA-Z0-9.-]*|{{ .Values.kubeAdaptorImage }}|g' "$CLUSTER_TEMPLATE" > "${CLUSTER_TEMPLATE}.tmp" && mv "${CLUSTER_TEMPLATE}.tmp" "$CLUSTER_TEMPLATE"
+sed 's|quay.io/skupper/kube-adaptor:[a-zA-Z0-9.-]*|{{ .Values.kubeAdaptorImage }}|g' "$NAMESPACE_TEMPLATE" > "${NAMESPACE_TEMPLATE}.tmp" && mv "${NAMESPACE_TEMPLATE}.tmp" "$NAMESPACE_TEMPLATE"
 
-sed -i 's|quay.io/skupper/kube-adaptor:[a-zA-Z0-9.-]*|{{ .Values.kubeAdaptorImage }}|g' "$CLUSTER_TEMPLATE"
-sed -i 's|quay.io/skupper/kube-adaptor:[a-zA-Z0-9.-]*|{{ .Values.kubeAdaptorImage }}|g' "$NAMESPACE_TEMPLATE"
+# Inject Helm conditional env vars for access type configuration before the
+# SKUPPER_KUBE_ADAPTOR_IMAGE env var (used as a stable anchor in both templates).
+for TEMPLATE in "$CLUSTER_TEMPLATE" "$NAMESPACE_TEMPLATE"; do
+  awk '/- name: SKUPPER_KUBE_ADAPTOR_IMAGE$/{
+    print "        {{- if .Values.clusterHost }}"
+    print "        - name: SKUPPER_CLUSTER_HOST"
+    print "          value: {{ .Values.clusterHost | quote }}"
+    print "        {{- end }}"
+    print "        {{- if .Values.enabledAccessTypes }}"
+    print "        - name: SKUPPER_ENABLED_ACCESS_TYPES"
+    print "          value: {{ .Values.enabledAccessTypes | quote }}"
+    print "        {{- end }}"
+    print "        {{- if .Values.defaultAccessType }}"
+    print "        - name: SKUPPER_DEFAULT_ACCESS_TYPE"
+    print "          value: {{ .Values.defaultAccessType | quote }}"
+    print "        {{- end }}"
+  }
+  { print }' "$TEMPLATE" > "${TEMPLATE}.tmp" && mv "${TEMPLATE}.tmp" "$TEMPLATE"
+done
 
 
 echo "Helm chart directory structure created successfully for '$CHART_NAME' with version=$VERSION and appVersion=$APP_VERSION."
