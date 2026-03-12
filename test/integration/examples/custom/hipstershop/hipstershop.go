@@ -20,9 +20,9 @@ import (
 )
 
 const (
-	RESOURCES_PRV1 = "https://raw.githubusercontent.com/skupperproject/skupper-example-grpc/master/deployment-ms-a.yaml"
-	RESOURCES_PUB1 = "https://raw.githubusercontent.com/skupperproject/skupper-example-grpc/master/deployment-ms-b.yaml"
-	RESOURCES_PUB2 = "https://raw.githubusercontent.com/skupperproject/skupper-example-grpc/master/deployment-ms-c.yaml"
+	RESOURCES_PRV1 = "https://raw.githubusercontent.com/skupperproject/skupper-example-grpc/refs/heads/v1/deployment-ms-a.yaml"
+	RESOURCES_PUB1 = "https://raw.githubusercontent.com/skupperproject/skupper-example-grpc/refs/heads/v1/deployment-ms-b.yaml"
+	RESOURCES_PUB2 = "https://raw.githubusercontent.com/skupperproject/skupper-example-grpc/refs/heads/v1/deployment-ms-c.yaml"
 )
 
 var (
