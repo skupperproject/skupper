@@ -105,12 +105,36 @@ spec:
                     required:
                     - routingKeys
                     type: object
+                  weighted:
+                    description: |-
+                      WeightedStrategySpec specifies a map of routing keys to route traffic to.
+                      Each routingKey has a weight value.
+
+                      With this strategy traffic is distributed randomly among the reachable
+                      routing keys. The larger the weight of a routing key - relative to the
+                      weights of the other routing keys - the higher the likelihood of
+                      receiving more traffic. E.g. if all routing keys have equal weights then the
+                      traffic is distributed in a random uniform fashion among the reachable
+                      routing keys.
+                    properties:
+                      routingKeys:
+                        additionalProperties:
+                          type: integer
+                        description: routingKeys to route traffic to according to
+                          their weight values
+                        maxProperties: 256
+                        minProperties: 1
+                        type: object
+                        x-kubernetes-map-type: granular
+                    required:
+                    - routingKeys
+                    type: object
                 type: object
                 x-kubernetes-validations:
-                - message: exactly one of the fields in [priority] must be
+                - message: exactly one of the fields in [priority weighted] must be
                     set
-                  rule: '[has(self.priority)].filter(x,x==true).size() ==
-                    1'
+                  rule: '[has(self.priority),has(self.weighted)].filter(x,x==true).size()
+                    == 1'
               tlsCredentials:
                 description: tlsCredentials for client-to-listener
                 type: string
@@ -214,12 +238,27 @@ spec:
                     required:
                     - routingKeysReachable
                     type: object
+                  weighted:
+                    description: weighted status
+                    properties:
+                      routingKeysReachable:
+                        additionalProperties:
+                          type: integer
+                        description: |-
+                          routingKeysReachable is a map of routingKeys with at least one
+                          reachable connector. The value of each routingKey is the weight in
+                          the map.
+                        type: object
+                        x-kubernetes-map-type: granular
+                    required:
+                    - routingKeysReachable
+                    type: object
                 type: object
                 x-kubernetes-validations:
-                - message: exactly one of the fields in [priority] must be
+                - message: exactly one of the fields in [priority weighted] must be
                     set
-                  rule: '[has(self.priority)].filter(x,x==true).size() ==
-                    1'
+                  rule: '[has(self.priority),has(self.weighted)].filter(x,x==true).size()
+                    == 1'
             type: object
         required:
         - spec
