@@ -314,6 +314,24 @@ func fakeSiteState() *api.SiteState {
 					},
 				},
 			},
+			"mkl-two": {
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "MultiKeyListener",
+					APIVersion: "skupper.io/v2alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "mkl-two",
+				},
+				Spec: v2alpha1.MultiKeyListenerSpec{
+					Host: "10.0.0.3",
+					Port: 5679,
+					Strategy: v2alpha1.MultiKeyListenerStrategy{
+						Weighted: &v2alpha1.WeightedStrategySpec{
+							RoutingKeys: map[string]uint{"key-primary": 1, "key-secondary": 2},
+						},
+					},
+				},
+			},
 		},
 		ConfigMaps: make(map[string]*corev1.ConfigMap),
 	}

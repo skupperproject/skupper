@@ -196,6 +196,19 @@ func (b *Bindings) updateMultiKeyListener(mkl *skupperv2alpha1.MultiKeyListener)
 	if ok && reflect.DeepEqual(existing.Spec, mkl.Spec) {
 		return nil
 	}
+
+	if mkl.Spec.Strategy.Weighted != nil && mkl.Status.Strategy != nil && mkl.Status.Strategy.Weighted != nil {
+		// update weight values in status if they changed in the spec
+		for k, w := range mkl.Status.Strategy.Weighted.RoutingKeysReachable {
+			if ws, ok := mkl.Spec.Strategy.Weighted.RoutingKeys[k]; ok {
+				if w != ws {
+					mkl.Status.Strategy.Weighted.RoutingKeysReachable[k] = ws
+				}
+			} else {
+				delete(mkl.Status.Strategy.Weighted.RoutingKeysReachable, k)
+			}
+		}
+	}
 	return b
 }
 
