@@ -3,6 +3,7 @@ package site
 import (
 	"context"
 	"log/slog"
+	"maps"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/kube/certificates"
@@ -280,9 +281,11 @@ func TestSite_ExposeUnexpose(t *testing.T) {
 }
 func TestSite_CheckListener(t *testing.T) {
 	type args struct {
-		name      string
-		listener  *skupperv2alpha1.Listener
-		svcExists bool
+		name             string
+		listener         *skupperv2alpha1.Listener
+		svcExists        bool
+		leadListenersIn  map[string]string
+		leadListenersOut map[string]string
 	}
 	tests := []struct {
 		name                string
@@ -318,7 +321,11 @@ func TestSite_CheckListener(t *testing.T) {
 						Host:       "1.2.3.4",
 					},
 				},
-				svcExists: false,
+				svcExists:       false,
+				leadListenersIn: map[string]string{},
+				leadListenersOut: map[string]string{
+					"listener1": "1.2.3.4/8080",
+				},
 			},
 			skupperObjects: []runtime.Object{
 				&skupperv2alpha1.Listener{
@@ -349,7 +356,9 @@ func TestSite_CheckListener(t *testing.T) {
 						Host:       "backend",
 					},
 				},
-				svcExists: true,
+				svcExists:        true,
+				leadListenersIn:  map[string]string{},
+				leadListenersOut: map[string]string{},
 			},
 			skupperObjects: []runtime.Object{
 				&skupperv2alpha1.Listener{
@@ -376,6 +385,230 @@ func TestSite_CheckListener(t *testing.T) {
 								Status: "True",
 							},
 						},
+					},
+				},
+			},
+			want:          "not initialized",
+			wantErr:       false,
+			wantListeners: 0,
+		},
+		{
+			name: "pre-existing listener with same host and same port added",
+			args: args{
+				name: "listener2",
+				listener: &skupperv2alpha1.Listener{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "listener2",
+						Namespace: "test",
+						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						RoutingKey: "backend-2",
+						Port:       8080,
+						Type:       "tcp",
+						Host:       "backend",
+					},
+				},
+				svcExists: false,
+				leadListenersIn: map[string]string{
+					"listener1": "backend/8080",
+				},
+				leadListenersOut: map[string]string{
+					"listener1": "backend/8080",
+				},
+			},
+			skupperObjects: []runtime.Object{
+				&skupperv2alpha1.Listener{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "listener1",
+						Namespace: "test",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						RoutingKey: "backend-1",
+						Port:       8080,
+						Type:       "tcp",
+						Host:       "backend",
+					},
+				},
+				&skupperv2alpha1.Listener{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "listener2",
+						Namespace: "test",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						RoutingKey: "backend-2",
+						Port:       8080,
+						Type:       "tcp",
+						Host:       "backend",
+					},
+				},
+			},
+			want:          "initialized",
+			wantErr:       false,
+			wantListeners: 0,
+		},
+		{
+			name: "pre-existing listener with same host,  and different port added",
+			args: args{
+				name: "listener2",
+				listener: &skupperv2alpha1.Listener{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "listener2",
+						Namespace: "test",
+						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						RoutingKey: "backend-2",
+						Port:       8081,
+						Type:       "tcp",
+						Host:       "backend",
+					},
+				},
+				svcExists: false,
+				leadListenersIn: map[string]string{
+					"listener1": "backend/8080",
+				},
+				leadListenersOut: map[string]string{
+					"listener1": "backend/8080",
+					"listener2": "backend/8081",
+				},
+			},
+			skupperObjects: []runtime.Object{
+				&skupperv2alpha1.Listener{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "listener1",
+						Namespace: "test",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						RoutingKey: "backend-1",
+						Port:       8080,
+						Type:       "tcp",
+						Host:       "backend",
+					},
+				},
+				&skupperv2alpha1.Listener{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "listener2",
+						Namespace: "test",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						RoutingKey: "backend-2",
+						Port:       8081,
+						Type:       "tcp",
+						Host:       "backend",
+					},
+				},
+			},
+			want:          "initialized",
+			wantErr:       false,
+			wantListeners: 1,
+		},
+		{
+			name: "pre-existing listener with update to port no conflict",
+			args: args{
+				name: "listener1",
+				listener: &skupperv2alpha1.Listener{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "listener1",
+						Namespace: "test",
+						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						RoutingKey: "backend-1",
+						Port:       8081,
+						Type:       "tcp",
+						Host:       "backend",
+					},
+				},
+				svcExists: false,
+				leadListenersIn: map[string]string{
+					"listener1": "backend/8080",
+					"listener2": "backend/8082",
+				},
+				leadListenersOut: map[string]string{
+					"listener1": "backend/8081",
+					"listener2": "backend/8082",
+				},
+			},
+			skupperObjects: []runtime.Object{
+				&skupperv2alpha1.Listener{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "listener1",
+						Namespace: "test",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						RoutingKey: "backend-1",
+						Port:       8080,
+						Type:       "tcp",
+						Host:       "backend",
+					},
+				},
+				&skupperv2alpha1.Listener{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "listener2",
+						Namespace: "test",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						RoutingKey: "backend-2",
+						Port:       8082,
+						Type:       "tcp",
+						Host:       "backend",
+					},
+				},
+			},
+			want:          "initialized",
+			wantErr:       false,
+			wantListeners: 1,
+		},
+		{
+			name: "pre-existing listener with update to port with conflict",
+			args: args{
+				name: "listener1",
+				listener: &skupperv2alpha1.Listener{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "listener1",
+						Namespace: "test",
+						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						RoutingKey: "backend-1",
+						Port:       8080,
+						Type:       "tcp",
+						Host:       "backend",
+					},
+				},
+				svcExists: false,
+				leadListenersIn: map[string]string{
+					"listener1": "backend/8081",
+					"listener2": "backend/8080",
+				},
+				leadListenersOut: map[string]string{
+					"listener2": "backend/8080",
+				},
+			},
+			skupperObjects: []runtime.Object{
+				&skupperv2alpha1.Listener{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "listener1",
+						Namespace: "test",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						RoutingKey: "backend-1",
+						Port:       8081,
+						Type:       "tcp",
+						Host:       "backend",
+					},
+				},
+				&skupperv2alpha1.Listener{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "listener2",
+						Namespace: "test",
+					},
+					Spec: skupperv2alpha1.ListenerSpec{
+						RoutingKey: "backend-2",
+						Port:       8080,
+						Type:       "tcp",
+						Host:       "backend",
 					},
 				},
 			},
@@ -420,6 +653,7 @@ func TestSite_CheckListener(t *testing.T) {
 				err = createRouterConfigMock(s)
 				assert.Assert(t, err)
 			}
+			s.leadListeners = tt.args.leadListenersIn
 
 			if err := s.CheckListener(tt.args.name, tt.args.listener, tt.args.svcExists); (err != nil) != tt.wantErr {
 				t.Errorf("Site.CheckListener() error = %v", err)
@@ -441,11 +675,14 @@ func TestSite_CheckListener(t *testing.T) {
 						}
 					}
 					if listenerConfigured == false {
-						t.Errorf("Site.CheckListener() link not in expected configured state")
+						t.Errorf("Site.CheckListener() listener not in expected configured state")
 					}
 				}
 			} else if listener != nil {
 				t.Errorf("Site.CheckListener() unexpected listener exists")
+			}
+			if !maps.Equal(s.leadListeners, tt.args.leadListenersOut) {
+				t.Errorf("Site leadListeners not in expected state")
 			}
 		})
 	}
@@ -1192,6 +1429,7 @@ func newSiteMocks(namespace string, k8sObjects []runtime.Object, skupperObjects 
 		logger: slog.New(slog.Default().Handler()).With(
 			slog.String("component", "kube.site.site"),
 		),
+		leadListeners: make(map[string]string),
 	}
 	newSite.bindings.init(NewMockBindingContext(map[string]TargetSelection{}), &qdr.RouterConfig{})
 
