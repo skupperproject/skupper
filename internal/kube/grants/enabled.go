@@ -29,6 +29,9 @@ func enabled(controller *watchers.EventProcessor, currentNamespace string, watch
 		}
 		gc.autoConfigure = ac
 	}
+	if config.RedeemByKey {
+		gc.grants.keyRedeem = true
+	}
 	return gc
 }
 

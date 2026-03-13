@@ -28,6 +28,7 @@ type Grants struct {
 	scheme     string
 	grants     map[kubetypes.UID]*skupperv2alpha1.AccessGrant
 	grantIndex map[string]kubetypes.UID
+	keyRedeem  bool
 	lock       sync.Mutex
 	logger     *slog.Logger
 }
@@ -90,6 +91,11 @@ func (g *Grants) get(key string) *skupperv2alpha1.AccessGrant {
 	g.lock.Lock()
 	defer g.lock.Unlock()
 
+	if g.keyRedeem && strings.Contains(key, "/") {
+		if uid, ok := g.grantIndex[key]; ok {
+			key = string(uid)
+		}
+	}
 	if grant, ok := g.grants[kubetypes.UID(key)]; ok {
 		return grant
 	}
@@ -302,7 +308,12 @@ func (g *Grants) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Only POST is supported", http.StatusMethodNotAllowed)
 		return
 	}
-	key := strings.Join(strings.Split(r.URL.Path, "/"), "")
+	var key string
+	if namespaceName, ok := g.keyFromUrl(r.URL.Path); ok {
+		key = namespaceName
+	} else {
+		key = strings.Join(strings.Split(r.URL.Path, "/"), "")
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		g.logger.Error("Error reading body for path", slog.String("path", r.URL.Path), slog.Any("error", err))
@@ -336,6 +347,13 @@ func (g *Grants) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	g.logger.Info("Redemption of access token succeeded", slog.String("namespace", grant.Namespace), slog.String("name", grant.Name))
+}
+
+func (g *Grants) keyFromUrl(url string) (string, bool) {
+	if g.keyRedeem && len(url) > 0 && strings.Contains(url[1:], "/") {
+		return url[1:], true
+	}
+	return "", false
 }
 
 type HttpError struct {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -336,7 +337,83 @@ func Test_ServeHttp(t *testing.T) {
 			assert.Equal(t, res.Code, tt.expectedCode)
 		})
 	}
+}
 
+func Test_ServeHttpUIDAndKey(t *testing.T) {
+	skupperObjects := []runtime.Object{
+		&v2alpha1.AccessGrant{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "good",
+				Namespace: "test",
+				UID:       "0bde3bc8-a4a2-404a-bfbe-44fdf7bf3231",
+			},
+			Spec: v2alpha1.AccessGrantSpec{
+				RedemptionsAllowed: 3,
+				Code:               "supersecret",
+			},
+			Status: v2alpha1.AccessGrantStatus{
+				Code:           "supersecret",
+				ExpirationTime: time.Date(2124, time.January, 0, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
+			},
+		},
+		&v2alpha1.AccessGrant{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "not-bad",
+				Namespace: "test",
+				UID:       "0bde3bc8-a4a2-404a-bfbe-44fdf7bf3232",
+			},
+			Spec: v2alpha1.AccessGrantSpec{
+				RedemptionsAllowed: 3,
+				Code:               "supersecret",
+			},
+			Status: v2alpha1.AccessGrantStatus{
+				Code:           "supersecret",
+				ExpirationTime: time.Date(2124, time.January, 0, 0, 0, 0, 0, time.UTC).Format(time.RFC3339),
+			},
+		},
+	}
+	scenarioKeys := []struct {
+		valid          []string
+		invalid        []string
+		allowKeyRedeem bool
+	}{
+		{
+			valid:          []string{"0bde3bc8-a4a2-404a-bfbe-44fdf7bf3231", "0bde3bc8-a4a2-404a-bfbe-44fdf7bf3232"},
+			invalid:        []string{"test/good", "test/not-bad", "test/invalid", "really-invalid"},
+			allowKeyRedeem: false,
+		},
+		{
+			valid:          []string{"0bde3bc8-a4a2-404a-bfbe-44fdf7bf3231", "0bde3bc8-a4a2-404a-bfbe-44fdf7bf3232", "test/good", "test/not-bad"},
+			invalid:        []string{"test/invalid", "really-invalid"},
+			allowKeyRedeem: true,
+		},
+	}
+	client, err := fake.NewFakeClient("test", nil, skupperObjects, "")
+	if err != nil {
+		t.Error(err)
+	}
+	registry := newGrants(client, dummyGenerator, "https", "")
+	for _, obj := range skupperObjects {
+		grant := obj.(*v2alpha1.AccessGrant)
+		assert.Assert(t, registry.checkGrant(grant.Namespace+"/"+grant.Name, grant))
+	}
+	for _, scenario := range scenarioKeys {
+		registry.keyRedeem = scenario.allowKeyRedeem
+		for _, key := range scenario.valid {
+			t.Run("redeem_valid_key_"+key, func(t *testing.T) {})
+			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/%s", key), bytes.NewBufferString("supersecret"))
+			res := httptest.NewRecorder()
+			registry.ServeHTTP(res, req)
+			assert.Equal(t, res.Code, http.StatusOK)
+		}
+		for _, key := range scenario.invalid {
+			t.Run("redeem_invalid_key_"+key, func(t *testing.T) {})
+			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/%s", key), bytes.NewBufferString("supersecret"))
+			res := httptest.NewRecorder()
+			registry.ServeHTTP(res, req)
+			assert.Equal(t, res.Code, http.StatusNotFound)
+		}
+	}
 }
 
 type CheckGrantTestInvocation struct {
