@@ -160,11 +160,14 @@ func TestSiteLinkErrorMetrics(t *testing.T) {
 	reg := prometheus.NewPedanticRegistry()
 	metrics := New(reg)
 	interRouter := ptrTo("inter-router")
+	statusUp := ptrTo("up")
 	statusDown := ptrTo("down")
 
 	metrics.Add(vanflow.RouterRecord{
 		BaseRecord: vanflow.NewBase("r01"), Parent: ptrTo("s01"), Mode: interRouter,
 	})
+
+	// Initial Add sets the baseline. Counter stays at zero.
 	metrics.Add(vanflow.LinkRecord{
 		BaseRecord: vanflow.NewBase("l01"),
 		Role:       interRouter,
@@ -174,6 +177,8 @@ func TestSiteLinkErrorMetrics(t *testing.T) {
 	})
 	assert.Equal(t, prom_testutil.CollectAndCount(reg, "skupper_site_link_errors_total"), 1)
 	assert.Equal(t, prom_testutil.ToFloat64(metrics.siteLinkErrors.WithLabelValues("s01", "inter-router")), 0.0)
+
+	// Update increments DownCount 12 -> 15: counter += 3.
 	metrics.Update(
 		vanflow.LinkRecord{
 			BaseRecord: vanflow.NewBase("l01"),
@@ -192,6 +197,11 @@ func TestSiteLinkErrorMetrics(t *testing.T) {
 	)
 	assert.Equal(t, prom_testutil.CollectAndCount(reg, "skupper_site_link_errors_total"), 1)
 	assert.Equal(t, prom_testutil.ToFloat64(metrics.siteLinkErrors.WithLabelValues("s01", "inter-router")), 3.0)
+
+	// Source reconnect with higher DownCount: the collector removes all
+	// records from the source and re-adds them. The re-added record
+	// carries the already-incremented DownCount. The counter must detect
+	// the delta across the Remove+Add boundary.
 	metrics.Remove(vanflow.LinkRecord{
 		BaseRecord: vanflow.NewBase("l01"),
 		Role:       interRouter,
@@ -199,9 +209,29 @@ func TestSiteLinkErrorMetrics(t *testing.T) {
 		Parent:     ptrTo("r01"),
 		DownCount:  ptrTo(uint64(15)),
 	})
-	// cannot decrease
-	assert.Equal(t, prom_testutil.CollectAndCount(reg, "skupper_site_link_errors_total"), 1)
+	// Counter must not decrease after removal.
 	assert.Equal(t, prom_testutil.ToFloat64(metrics.siteLinkErrors.WithLabelValues("s01", "inter-router")), 3.0)
+	metrics.Add(vanflow.LinkRecord{
+		BaseRecord: vanflow.NewBase("l01"),
+		Role:       interRouter,
+		Status:     statusUp,
+		Peer:       ptrTo("ap02"),
+		Parent:     ptrTo("r01"),
+		DownCount:  ptrTo(uint64(17)),
+	})
+	// Delta of 2 (17 - 15): counter = 5.
+	assert.Equal(t, prom_testutil.ToFloat64(metrics.siteLinkErrors.WithLabelValues("s01", "inter-router")), 5.0)
+
+	// Router restart resets DownCount to zero. Remove+Add with a lower
+	// DownCount resets the baseline without incrementing the counter.
+	metrics.Remove(vanflow.LinkRecord{
+		BaseRecord: vanflow.NewBase("l01"),
+		Role:       interRouter,
+		Status:     statusUp,
+		Peer:       ptrTo("ap02"),
+		Parent:     ptrTo("r01"),
+		DownCount:  ptrTo(uint64(17)),
+	})
 	metrics.Add(vanflow.LinkRecord{
 		BaseRecord: vanflow.NewBase("l01"),
 		Role:       interRouter,
@@ -209,6 +239,9 @@ func TestSiteLinkErrorMetrics(t *testing.T) {
 		Parent:     ptrTo("r01"),
 		DownCount:  ptrTo(uint64(0)),
 	})
+	assert.Equal(t, prom_testutil.ToFloat64(metrics.siteLinkErrors.WithLabelValues("s01", "inter-router")), 5.0)
+
+	// After reset, subsequent Updates still increment from the new baseline.
 	metrics.Update(
 		vanflow.LinkRecord{
 			BaseRecord: vanflow.NewBase("l01"),
@@ -225,9 +258,7 @@ func TestSiteLinkErrorMetrics(t *testing.T) {
 			DownCount:  ptrTo(uint64(1)),
 		},
 	)
-	// after delete, can still increment
-	assert.Equal(t, prom_testutil.CollectAndCount(reg, "skupper_site_link_errors_total"), 1)
-	assert.Equal(t, prom_testutil.ToFloat64(metrics.siteLinkErrors.WithLabelValues("s01", "inter-router")), 4.0)
+	assert.Equal(t, prom_testutil.ToFloat64(metrics.siteLinkErrors.WithLabelValues("s01", "inter-router")), 6.0)
 }
 
 func ptrTo[T any](s T) *T {
