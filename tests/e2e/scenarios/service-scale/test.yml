@@ -1,0 +1,283 @@
+---
+- name: Service Scale Test
+  hosts: all
+  roles:
+    - e2e.tests.skupper_test_images
+
+  vars:
+    test_identifier: "Service Scale"
+
+  tasks:
+    - name: "[ {{ test_identifier }} ] - Main block"
+      block:
+        - name: "[ {{ test_identifier }} ] - Environment shakeout"
+          ansible.builtin.include_role:
+            name: e2e.tests.env_shakeout
+
+        - name: "[ {{ test_identifier }} ] - Generate namespaces"
+          ansible.builtin.include_role:
+            name: e2e.tests.generate_namespaces
+        
+ 
+        - name: "[ {{ test_identifier }} ] - Create Skupper resources for west site"
+          include_tasks: skupper-sites.yml
+          vars:
+            site_name: west
+          when:
+            - "'west' in inventory_hostname"
+
+        - name: "[ {{ test_identifier }} ] - Create Skupper resources for east site"
+          include_tasks: skupper-sites.yml
+          vars:
+            site_name: east
+          when:
+            - "'east' in inventory_hostname"
+
+        - name: "[ {{ test_identifier }} ] - Wait for Site Ready on west"
+          kubernetes.core.k8s_info:
+            api_version: skupper.io/v2alpha1
+            kind: Site
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          register: west_site
+          until:
+            - west_site.resources | length >= 1
+            - west_site.resources[0].status is defined
+            - (west_site.resources[0].status.status | default('')) in ['Configured','Running','Ready'] or (((west_site.resources[0].status.conditions | default([])) | selectattr('type','equalto','Ready') | selectattr('status','equalto','True') | list | length) > 0)
+          retries: "{{ (ready_retries | int) if (ready_retries | int) > 0 else (ready_retries_default | int) }}"
+          delay: "{{ ready_delay }}"
+          when:
+            - "'west' in inventory_hostname"
+
+        - name: "[ {{ test_identifier }} ] - Wait for Router Deployment Available on west"
+          kubernetes.core.k8s_info:
+            api_version: apps/v1
+            kind: Deployment
+            name: skupper-router
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          register: west_router_dep
+          until:
+            - west_router_dep.resources | length == 1
+            - (west_router_dep.resources[0].status.availableReplicas | default(0)) | int >= 1
+            - >
+              (((west_router_dep.resources[0].status.conditions | default([]))
+                | selectattr('type','equalto','Available')
+                | selectattr('status','equalto','True')
+                | list | length) > 0)
+          retries: "{{ (ready_retries | int) if (ready_retries | int) > 0 else (ready_retries_default | int) }}"
+          delay: "{{ ready_delay }}"
+          when:
+            - "'west' in inventory_hostname"
+
+        - name: "[ {{ test_identifier }} ] - Wait for Site Ready on east"
+          kubernetes.core.k8s_info:
+            api_version: skupper.io/v2alpha1
+            kind: Site
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          register: east_site
+          until:
+            - east_site.resources | length >= 1
+            - east_site.resources[0].status is defined
+            - (east_site.resources[0].status.status | default('')) in ['Configured','Running','Ready'] or (((east_site.resources[0].status.conditions | default([])) | selectattr('type','equalto','Ready') | selectattr('status','equalto','True') | list | length) > 0)
+          retries: "{{ (ready_retries | int) if (ready_retries | int) > 0 else (ready_retries_default | int) }}"
+          delay: "{{ ready_delay }}"
+          when:
+            - "'east' in inventory_hostname"
+
+        - name: "[ {{ test_identifier }} ] - Wait for Router Deployment Available on east"
+          kubernetes.core.k8s_info:
+            api_version: apps/v1
+            kind: Deployment
+            name: skupper-router
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          register: east_router_dep
+          until:
+            - east_router_dep.resources | length == 1
+            - (east_router_dep.resources[0].status.availableReplicas | default(0)) | int >= 1
+            - >
+              (((east_router_dep.resources[0].status.conditions | default([]))
+                | selectattr('type','equalto','Available')
+                | selectattr('status','equalto','True')
+                | list | length) > 0)
+          retries: "{{ (ready_retries | int) if (ready_retries | int) > 0 else (ready_retries_default | int) }}"
+          delay: "{{ ready_delay }}"
+          when:
+            - "'east' in inventory_hostname"
+
+        - name: "[ {{ test_identifier }} ] - Issue Skupper access link token from west"
+          skupper.v2.token:
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            name: west-grant
+            type: link
+            redemptions_allowed: 1
+            kubeconfig: "{{ kubeconfig }}"
+          register: west
+          when:
+            - "'west' in inventory_hostname"
+
+        - name: "[ {{ test_identifier }} ] - Apply token on east"
+          skupper.v2.resource:
+            def: "{{ hostvars['west']['west']['token'] }}"
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          when:
+            - "'east' in inventory_hostname"
+
+        - name: "[ {{ test_identifier }} ] - Wait for Link Ready on east"
+          kubernetes.core.k8s_info:
+            api_version: skupper.io/v2alpha1
+            kind: Link
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          register: link_list
+          until:
+            - link_list.resources | length >= 1
+            - link_list.resources[0].status is defined
+            - link_list.resources[0].status.status is defined
+            - link_list.resources[0].status.status == "Ready"
+          retries: "{{ (ready_retries | int) if (ready_retries | int) > 0 else (ready_retries_default | int) }}"
+          delay: "{{ ready_delay }}"
+          when:
+            - "'east' in inventory_hostname"
+
+        - name: "[ {{ test_identifier }} ] - Wait for backend pods Running (east)"
+          ansible.builtin.include_role:
+            name: e2e.tests.pod_wait
+          vars:
+            pod_wait_label_selectors: "app in ({{ backend_app_label }})"
+          when:
+            - "'east' in inventory_hostname"
+
+        - name: "[ {{ test_identifier }} ] - Prepare service indices"
+          ansible.builtin.set_fact:
+            service_indices: "{{ range(1, (service_count | int) + 1) | list }}"
+          when:
+            - use_dynamic_creation | default(false) | bool
+ 
+        - name: "[ {{ test_identifier }} ] - Create all Connectors (east)"
+          skupper.v2.resource:
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+            def:
+              apiVersion: skupper.io/v2alpha1
+              kind: Connector
+              metadata:
+                name: "{{ service_name_prefix }}-{{ idx }}"
+              spec:
+                routingKey: "{{ routing_key_prefix }}-{{ idx }}"
+                port: "{{ backend_port | int }}"
+                selector: "app={{ backend_app_label }}"
+          loop: "{{ service_indices }}"
+          loop_control:
+            loop_var: idx
+          when:
+            - use_dynamic_creation | default(false) | bool
+            - "'east' in inventory_hostname"
+
+        - name: "[ {{ test_identifier }} ] - Wait for expected connector count (east) before creating listeners"
+          kubernetes.core.k8s_info:
+            api_version: skupper.io/v2alpha1
+            kind: Connector
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          register: cons_pre_listeners
+          until:
+            - cons_pre_listeners.resources | length == (service_count | int)
+          retries: "{{ (ready_retries | int) if (ready_retries | int) > 0 else (ready_retries_default | int) }}"
+          delay: "{{ ready_delay }}"
+          when:
+            - use_dynamic_creation | default(false) | bool
+            - "'east' in inventory_hostname"
+ 
+
+        - name: "[ {{ test_identifier }} ] - Create all Listeners (west)"
+          skupper.v2.resource:
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+            def:
+              apiVersion: skupper.io/v2alpha1
+              kind: Listener
+              metadata:
+                name: "{{ service_name_prefix }}-{{ idx }}"
+              spec:
+                routingKey: "{{ routing_key_prefix }}-{{ idx }}"
+                host: "{{ service_name_prefix }}-{{ idx }}"
+                port: "{{ (base_listener_port | int) + (idx | int) }}"
+          loop: "{{ service_indices }}"
+          loop_control:
+            loop_var: idx
+          when:
+            - use_dynamic_creation | default(false) | bool
+            - "'west' in inventory_hostname"
+
+
+        - name: "[ {{ test_identifier }} ] - Wait for all Connectors Ready (east)"
+          kubernetes.core.k8s_info:
+            api_version: skupper.io/v2alpha1
+            kind: Connector
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          register: cons
+          until:
+            - cons.resources | length == (service_count | int)
+            - >
+              (((cons.resources
+                  | map(attribute='status') | select('defined')
+                  | map(attribute='conditions') | select('defined') | list | flatten
+                  | selectattr('type','equalto','Ready')
+                  | selectattr('status','equalto','True')
+                  | list | length)) == (service_count | int))
+          retries: "{{ (ready_retries | int) if (ready_retries | int) > 0 else (ready_retries_default | int) }}"
+          delay: "{{ ready_delay }}"
+          when:
+            - "'east' in inventory_hostname"
+
+        - name: "[ {{ test_identifier }} ] - Wait for all Listeners Ready (west)"
+          kubernetes.core.k8s_info:
+            api_version: skupper.io/v2alpha1
+            kind: Listener
+            namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+            kubeconfig: "{{ kubeconfig }}"
+          register: lis
+          until:
+            - lis.resources | length == (service_count | int)
+            - >
+              (((lis.resources
+                  | map(attribute='status') | select('defined')
+                  | map(attribute='conditions') | select('defined') | list | flatten
+                  | selectattr('type','equalto','Ready')
+                  | selectattr('status','equalto','True')
+                  | list | length)) == (service_count | int))
+          retries: "{{ (ready_retries | int) if (ready_retries | int) > 0 else (ready_retries_default | int) }}"
+          delay: "{{ ready_delay }}"
+          when:
+            - "'west' in inventory_hostname"
+
+        - name: "[ {{ test_identifier }} ] - Smoke validate svc-{{ smoke_test_index }} from west"
+          ansible.builtin.include_role:
+            name: e2e.tests.run_curl
+          vars:
+            run_curl_address: "{{ service_name_prefix }}-{{ smoke_test_index }}:{{ (base_listener_port | int) + (smoke_test_index | int) }}/api/hello"
+          when:
+            - "'west' in inventory_hostname"
+
+      rescue:
+        - name: "[ {{ test_identifier }} ] Run the rescue role"
+          ansible.builtin.include_role:
+            name: e2e.tests.rescue
+
+      always:
+        - name: "[ {{ test_identifier }} ] - Delete namespaces"
+          kubernetes.core.k8s:
+            state: absent
+            api_version: v1
+            kind: Namespace
+            label_selectors:
+              - "e2e.id={{ generate_namespaces_namespace_label }}"
+            kubeconfig: "{{ kubeconfig }}"
+          when:
+            - not skip_teardown | default(false) | bool
+

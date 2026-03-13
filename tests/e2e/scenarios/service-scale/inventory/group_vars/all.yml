@@ -1,0 +1,28 @@
+---
+ansible_connection: local
+ansible_user: "{{ lookup('env', 'USER') }}"
+debug: false
+namespace_prefix: "e2e"
+generate_namespaces_namespace_label: "service-scale"
+
+service_count: 50
+service_name_prefix: "svc"
+routing_key_prefix: "svc"
+
+base_listener_port: 10080
+
+backend_app_label: "backend"
+backend_port: 8080
+
+smoke_test_index: 1
+
+ready_retries: 120
+ready_retries_default: 120
+ready_delay: 5
+
+validate_all: false
+validation_sample_size: 1
+
+use_dynamic_creation: true
+
+skip_teardown: false

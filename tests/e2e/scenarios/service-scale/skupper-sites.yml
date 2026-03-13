@@ -1,0 +1,20 @@
+---
+- name: Apply full resources directory (static mode)
+  skupper.v2.resource:
+    path: "{{ playbook_dir }}/resources/{{ site_name }}/"
+    namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+    kubeconfig: "{{ kubeconfig }}"
+  when:
+    - not (use_dynamic_creation | default(false) | bool)
+
+- name: Apply site (and backend on east) only (dynamic mode)
+  skupper.v2.resource:
+    path: "{{ item }}"
+    namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+    kubeconfig: "{{ kubeconfig }}"
+  with_items:
+    - "{{ playbook_dir }}/resources/{{ site_name }}/site.yml"
+    - "{{ (playbook_dir ~ '/resources/' ~ site_name ~ '/backend.yml') if (site_name == 'east') else omit }}"
+  when:
+    - use_dynamic_creation | default(false) | bool
+
