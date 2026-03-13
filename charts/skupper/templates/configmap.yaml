@@ -1,0 +1,10 @@
+{{ if ne (include "skupper.clusterScoped" .) "true" -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skupper
+  labels:
+    {{- include "skupper.labels" . | nindent 4 }}
+data:
+  controller: {{ include "skupper.fullname" . }}
+{{- end }}

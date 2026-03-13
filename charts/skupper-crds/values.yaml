@@ -1,0 +1,2 @@
+# Skupper CRDs have no configurable values.
+# This chart installs CustomResourceDefinitions only.

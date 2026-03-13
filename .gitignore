@@ -34,10 +34,10 @@ oci-archives/
 skupper-cluster-scope.yaml
 skupper-namespace-scope.yaml
 skupper-network-observer*.yaml
+skupper-crds.yaml
+charts/skupper-crds/templates/
 bundle.Dockerfile
 ./bundle/
-!charts/skupper/README.md
-charts/skupper/
 skupper-*.tgz
 artifacthub-repo.yml
 network-observer-*.tgz
