@@ -168,6 +168,7 @@ workflows:
             - skupper-org
       - generate-must-gather:
           <<: *run_for_numeric_tags
+          image_tag: << pipeline.git.tag >>
           requires:
             - publish-oci-images
   build:
@@ -359,9 +360,12 @@ jobs:
           root: .
           paths:
             - skupper-manifest
-   generate-must-gather:
+  generate-must-gather:
     executor:
       name: go_cimg
+    parameters:
+      image_tag:
+        type: string
     steps:
       - checkout
       - setup_remote_docker
