@@ -50,6 +50,43 @@ kubeAdaptorImage:   examplemirror.acme.com/skupper/kube-adaptor:2.0.0
 routerImage:        examplemirror.acme.com/skupper/skupper-router:3.3.0
 ```
 
+### Access Type Configuration
+
+The chart supports configuring how the Skupper router is exposed externally via
+the `accessType` field on `RouterAccess` and `Site` resources. The controller
+supports the following access types: `local`, `loadbalancer`, `route`,
+`nodeport`, `ingress-nginx`, `contour-http-proxy`, and `gateway`.
+
+By default the controller enables `local`, `loadbalancer`, and `route`. Use
+the values below to change this behaviour.
+
+| Value | Default | Description |
+|---|---|---|
+| `clusterHost` | `""` | IP or hostname of any cluster node. **Required** when `nodeport` is enabled. |
+| `enabledAccessTypes` | `""` | Comma-separated list of enabled access types. Defaults to `local,loadbalancer,route` when empty. |
+| `defaultAccessType` | `""` | Default access type for sites that do not specify one. Auto-selected when empty. |
+
+#### Using NodePort
+
+NodePort exposes the router on a high port of every cluster node. Set
+`clusterHost` to the IP or hostname that clients can use to reach a node, and
+include `nodeport` in `enabledAccessTypes`:
+
+```bash
+helm install skupper oci://quay.io/skupper/helm/skupper \
+  --set clusterHost=192.168.1.100 \
+  --set enabledAccessTypes="local,loadbalancer,route,nodeport" \
+  --set defaultAccessType=nodeport
+```
+
+Or with an override `values.yaml` file:
+
+```yaml
+clusterHost: "192.168.1.100"
+enabledAccessTypes: "local,loadbalancer,route,nodeport"
+defaultAccessType: "nodeport"
+```
+
 ## Alternative Installation Methods
 
 In addition to this Helm Chart, Skupper releases static manifest [YAML](../../cmd/controller/README.md) for
