@@ -11,10 +11,11 @@ import (
 
 func TestCmdSystemTearDown_ValidateInput(t *testing.T) {
 	type test struct {
-		name          string
-		namespace     string
-		args          []string
-		expectedError string
+		name            string
+		namespace       string
+		args            []string
+		envSystemReload string
+		expectedError   string
 	}
 
 	testTable := []test{

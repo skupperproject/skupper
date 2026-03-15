@@ -18,7 +18,7 @@ type RouterStateHandler struct {
 	siteId    string
 	logger    *slog.Logger
 	mux       sync.Mutex
-	callback  ActivationCallback
+	callbacks []ActivationCallback
 	heartbeat *heartBeatsClient
 }
 
@@ -33,8 +33,8 @@ func NewRouterStateHandler(namespace string) *RouterStateHandler {
 	return handler
 }
 
-func (h *RouterStateHandler) SetCallback(callback ActivationCallback) {
-	h.callback = callback
+func (h *RouterStateHandler) AddCallback(callback ActivationCallback) {
+	h.callbacks = append(h.callbacks, callback)
 }
 
 func (h *RouterStateHandler) Start(stopCh <-chan struct{}) {
@@ -45,7 +45,7 @@ func (h *RouterStateHandler) Start(stopCh <-chan struct{}) {
 	}
 	h.logger.Info("Starting")
 	h.running = true
-	go h.heartbeat.Start(stopCh, h.callback)
+	go h.heartbeat.Start(stopCh, h.callbacks)
 	go h.handleParentStop(stopCh)
 }
 
@@ -101,11 +101,12 @@ type heartBeatsClient struct {
 	running    bool
 	isRouterUp bool
 	callback   ActivationCallback
+	callbacks  []ActivationCallback
 	receiver   messaging.Receiver
 	factory    func(string, qdr.TlsConfigRetriever) messaging.ConnectionFactory
 }
 
-func (h *heartBeatsClient) Start(stopCh <-chan struct{}, callback ActivationCallback) {
+func (h *heartBeatsClient) Start(stopCh <-chan struct{}, callbacks []ActivationCallback) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
@@ -115,7 +116,7 @@ func (h *heartBeatsClient) Start(stopCh <-chan struct{}, callback ActivationCall
 
 	h.logger.Info("Starting")
 	h.running = true
-	h.callback = callback
+	h.callbacks = callbacks
 	go h.run(stopCh)
 }
 
@@ -135,7 +136,9 @@ func (h *heartBeatsClient) routerDown(reason string) {
 	if h.isRouterUp {
 		h.logger.Info("Router is DOWN", slog.Any("reason", reason))
 		h.isRouterUp = false
-		h.callback.Stop()
+		for _, callback := range h.callbacks {
+			callback.Stop()
+		}
 	}
 }
 
@@ -145,7 +148,9 @@ func (h *heartBeatsClient) routerUp(stopCh <-chan struct{}) {
 	if !h.isRouterUp {
 		h.logger.Info("Router is UP")
 		h.isRouterUp = true
-		h.callback.Start(stopCh)
+		for _, callback := range h.callbacks {
+			callback.Start(stopCh)
+		}
 	}
 }
 

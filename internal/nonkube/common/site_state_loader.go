@@ -46,7 +46,7 @@ func (f *FileSystemSiteStateLoader) Load() (*api.SiteState, error) {
 		reader := bufio.NewReader(yamlFile)
 		err = LoadIntoSiteState(reader, siteState)
 		if err != nil {
-			return siteState, fmt.Errorf("error loading %q: %v", yamlFileName, err)
+			return nil, fmt.Errorf("error loading %q: %v", yamlFileName, err)
 		}
 	}
 	if siteState.Site == nil || siteState.Site.Name == "" {

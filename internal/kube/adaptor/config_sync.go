@@ -181,7 +181,7 @@ func syncConnectors(agent *qdr.Agent, desired *qdr.RouterConfig) error {
 
 	ignorePrefix := "auto-mesh"
 	if differences := qdr.ConnectorsDifference(actual, desired, &ignorePrefix); !differences.Empty() {
-		if err = agent.UpdateConnectorConfig(differences); err != nil {
+		if err = agent.UpdateConnectorConfig(differences, true); err != nil {
 			return fmt.Errorf("Error syncing connectors: %s", err)
 		}
 	}

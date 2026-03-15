@@ -42,9 +42,11 @@ func TestCmdSystemFactory(t *testing.T) {
 			command: CmdSystemGenerateBundleFactory(common.PlatformPodman),
 		},
 		{
-			name:                          "CmdSystemInstallFactory",
-			expectedFlagsWithDefaultValue: map[string]interface{}{},
-			command:                       CmdSystemInstallFactory(common.PlatformKubernetes),
+			name: "CmdSystemInstallFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameReloadType: "manual",
+			},
+			command: CmdSystemInstallFactory(common.PlatformKubernetes),
 		},
 		{
 			name: "CmdSystemUninstallFactory",

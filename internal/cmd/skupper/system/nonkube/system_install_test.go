@@ -2,9 +2,11 @@ package nonkube
 
 import (
 	"fmt"
-	"github.com/skupperproject/skupper/internal/config"
 	"os"
 	"testing"
+
+	cmd "github.com/skupperproject/skupper/internal/cmd/skupper/common"
+	"github.com/skupperproject/skupper/internal/config"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"gotest.tools/v3/assert"
@@ -15,6 +17,7 @@ func TestCmdSystemInstall_ValidateInput(t *testing.T) {
 		name          string
 		args          []string
 		platform      string
+		reloadType    string
 		expectedError string
 	}
 
@@ -30,6 +33,12 @@ func TestCmdSystemInstall_ValidateInput(t *testing.T) {
 			platform:      "linux",
 			expectedError: "the selected platform is not supported by this command. There is nothing to install",
 		},
+		{
+			name:          "reload type not supported",
+			reloadType:    "both",
+			platform:      "podman",
+			expectedError: "reload type is not valid: value both not allowed. It should be one of this options: [manual auto]",
+		},
 	}
 
 	for _, test := range testTable {
@@ -39,7 +48,8 @@ func TestCmdSystemInstall_ValidateInput(t *testing.T) {
 			err := os.Setenv("SKUPPER_PLATFORM", test.platform)
 			assert.Check(t, err == nil)
 
-			command := &CmdSystemInstall{}
+			command := &CmdSystemInstall{Flags: &cmd.CommandSystemInstallFlags{}}
+			command.Flags.ReloadType = test.reloadType
 
 			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
@@ -96,7 +106,7 @@ func newCmdSystemInstallWithMocks(podmanSocketEnablementFails bool) *CmdSystemIn
 	return cmdMock
 }
 
-func mockCmdSystemInstall(platform string) error { return nil }
-func mockCmdSystemInstallSocketEnablementFails(platform string) error {
+func mockCmdSystemInstall(platform string, reloadType string) error { return nil }
+func mockCmdSystemInstallSocketEnablementFails(platform string, reloadType string) error {
 	return fmt.Errorf("systemd failed to enable podman socket")
 }
