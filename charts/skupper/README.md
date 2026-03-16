@@ -75,7 +75,7 @@ include `nodeport` in `enabledAccessTypes`:
 ```bash
 helm install skupper oci://quay.io/skupper/helm/skupper \
   --set clusterHost=192.168.1.100 \
-  --set enabledAccessTypes="local,loadbalancer,route,nodeport" \
+  --set-literal enabledAccessTypes="local,loadbalancer,route,nodeport" \
   --set defaultAccessType=nodeport
 ```
 
@@ -86,6 +86,10 @@ clusterHost: "192.168.1.100"
 enabledAccessTypes: "local,loadbalancer,route,nodeport"
 defaultAccessType: "nodeport"
 ```
+
+> **Note:** `defaultAccessType` is not mandatory. When omitted, the controller
+> auto-selects the default access type (`route` on OpenShift, `loadbalancer`
+> otherwise).
 
 ## Alternative Installation Methods
 

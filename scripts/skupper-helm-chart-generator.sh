@@ -50,7 +50,7 @@ clusterHost: ""
 # Supported: local, loadbalancer, route, nodeport, ingress-nginx,
 #            contour-http-proxy, gateway
 # Defaults (when empty): local,loadbalancer,route
-enabledAccessTypes: ""
+enabledAccessTypes: "local,loadbalancer,route"
 
 # Default access type used when a Site does not specify one.
 # When empty the controller auto-selects (route on OpenShift, else loadbalancer).
