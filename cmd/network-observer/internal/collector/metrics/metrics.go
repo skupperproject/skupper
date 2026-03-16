@@ -109,21 +109,15 @@ type counterMetricByItem struct {
 func (c *counterMetricByItem) Ensure(id string, ct int) {
 	prev, ok := c.Items[id]
 	if !ok {
-		prev = ct
-		c.Items[id] = prev
-	}
-	if ct <= prev {
+		c.Items[id] = ct
 		return
 	}
+	if ct > prev {
+		c.Counter.Add(float64(ct - prev))
+	}
+	// When ct < prev the counter was reset (e.g. router restart). Accept
+	// the new value as the baseline without incrementing.
 	c.Items[id] = ct
-	c.Counter.Add(float64(ct - prev))
-}
-
-func (m *counterMetricByItem) Remove(id string) {
-	if _, ok := m.Items[id]; !ok {
-		return
-	}
-	delete(m.Items, id)
 }
 
 type gaugeMetricByID struct {
@@ -411,15 +405,6 @@ func (a *Adaptor) Remove(record vanflow.Record) {
 			return
 		}
 		metric.Remove(record.ID)
-		linkErrorKey := siteLinkErrors{
-			SiteID: siteLink.SiteID,
-			Role:   siteLink.Role,
-		}
-		counter, ok := a.linkErrors[linkErrorKey]
-		if !ok {
-			return
-		}
-		counter.Remove(record.ID)
 	case vanflow.ListenerRecord:
 		site, wants, ok := a.listenerInfo(record)
 		if !ok {
