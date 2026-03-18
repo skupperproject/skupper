@@ -71,7 +71,9 @@ func NewSecuredAccessManager(clients internalclient.Clients, certMgr certificate
 		} else if accessType == ACCESS_TYPE_LOADBALANCER {
 			mgr.enabledAccessTypes[accessType] = newLoadbalancerAccess(mgr)
 		} else if accessType == ACCESS_TYPE_INGRESS_NGINX {
-			mgr.enabledAccessTypes[accessType] = newIngressAccess(mgr, true, config.IngressDomain)
+			mgr.enabledAccessTypes[accessType] = newIngressAccess(mgr, true, config.IngressDomain, config.IngressClassName)
+		} else if accessType == ACCESS_TYPE_INGRESS {
+			mgr.enabledAccessTypes[accessType] = newIngressAccess(mgr, false, config.IngressDomain, config.IngressClassName)
 		} else if accessType == ACCESS_TYPE_CONTOUR_HTTP_PROXY {
 			mgr.enabledAccessTypes[accessType] = newContourHttpProxyAccess(mgr, config.HttpProxyDomain)
 		} else if accessType == ACCESS_TYPE_GATEWAY {
@@ -460,16 +462,20 @@ func (m *SecuredAccessManager) CheckTlsRoute(key string, o *unstructured.Unstruc
 	return m.reconcile(sa)
 }
 
+func isIngressBackedAccessType(accessType string) bool {
+	return accessType == ACCESS_TYPE_INGRESS_NGINX || accessType == ACCESS_TYPE_INGRESS
+}
+
 func (m *SecuredAccessManager) CheckIngress(key string, ingress *networkingv1.Ingress) error {
 	sa, ok := m.definitions[key]
 	if ingress == nil {
 		delete(m.ingresses, key)
-		if !ok || m.actualAccessType(sa) != ACCESS_TYPE_INGRESS_NGINX {
+		if !ok || !isIngressBackedAccessType(m.actualAccessType(sa)) {
 			return nil
 		}
 	} else {
 		m.ingresses[key] = ingress
-		if !ok || m.actualAccessType(sa) != ACCESS_TYPE_INGRESS_NGINX {
+		if !ok || !isIngressBackedAccessType(m.actualAccessType(sa)) {
 			if !canDelete(&ingress.ObjectMeta) {
 				return nil
 			}

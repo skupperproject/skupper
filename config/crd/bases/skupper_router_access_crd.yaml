@@ -54,10 +54,16 @@ spec:
                     Available access types and the default selection is
                     configured on the Skupper controller for Kubernetes.
 
-                    The options available by default are:
-                      - `local`: No external ingress. Implies a Kubernetes Service with type CluterIP.
+                    Additional options when enabled on the Skupper controller include:
+                      - `local`: No external ingress. Implies a Kubernetes Service with type ClusterIP.
                       - `route`: Exposed via an OpenShift Route.
                       - `loadbalancer`: Exposed via a Kubernetes Service with type LoadBalancer.
+                      - `ingress`: Exposed via a Kubernetes Ingress (no nginx-specific annotations).
+                      - `ingress-nginx`: Exposed via Ingress with the NGINX Ingress Controller annotations.
+
+                    To select which IngressClass handles Skupper-managed Ingress resources, set
+                    controller flag/env `SKUPPER_INGRESS_CLASS_NAME` or per-site
+                    `spec.settings.ingressClassName` on this resource.
                   type: string
                 tlsCredentials:
                   description: |-
@@ -88,8 +94,12 @@ spec:
                     Advanced. A map containing additional settings. Each map
                     entry has a string name and a string value.
 
-                    **Note:** In  general, we recommend not changing `settings`
-                    from their default values.
+                    For access types `ingress` and `ingress-nginx`, the key
+                    `ingressClassName` sets `spec.ingressClassName` on the managed
+                    Ingress (overrides the controller-wide default).
+
+                    **Note:** In general, we recommend not changing `settings`
+                    from their default values except when required.
                   type: object
                   additionalProperties:
                     type: string

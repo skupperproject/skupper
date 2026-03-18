@@ -15,26 +15,46 @@ import (
 )
 
 type IngressAccessType struct {
-	manager *SecuredAccessManager
-	nginx   bool // if true add nginx class and nginx specific annotations
-	domain  string
-	logger  *slog.Logger
+	manager             *SecuredAccessManager
+	nginx               bool // if true add nginx-specific annotations and default class "nginx"
+	domain              string
+	defaultIngressClass string // from SKUPPER_INGRESS_CLASS_NAME / --ingress-class-name
+	logger              *slog.Logger
 }
 
-func newIngressAccess(manager *SecuredAccessManager, nginx bool, domain string) AccessType {
+func newIngressAccess(manager *SecuredAccessManager, nginx bool, domain string, defaultIngressClass string) AccessType {
 	return &IngressAccessType{
-		manager: manager,
-		nginx:   nginx,
-		domain:  domain,
-		logger:  slog.New(slog.Default().Handler()).With(slog.String("component", "kube.securedaccess.ingress")),
+		manager:             manager,
+		nginx:               nginx,
+		domain:              domain,
+		defaultIngressClass: strings.TrimSpace(defaultIngressClass),
+		logger:              slog.New(slog.Default().Handler()).With(slog.String("component", "kube.securedaccess.ingress")),
 	}
+}
+
+// ingressClassNameForDesiredIngress returns the ingressClassName to set on the Ingress.
+// spec.settings[ingressClassName] > operator default > (nginx only) "nginx".
+func ingressClassNameForDesiredIngress(nginx bool, defaultClass string, settings map[string]string) string {
+	if settings != nil {
+		if v := strings.TrimSpace(settings[SettingIngressClassName]); v != "" {
+			return v
+		}
+	}
+	if v := strings.TrimSpace(defaultClass); v != "" {
+		return v
+	}
+	if nginx {
+		return "nginx"
+	}
+	return ""
 }
 
 func (o *IngressAccessType) RealiseAndResolve(access *skupperv2alpha1.SecuredAccess, svc *corev1.Service) ([]skupperv2alpha1.Endpoint, error) {
 	desired := toIngress(qualify(access.Namespace, o.domain), access)
-	if o.nginx {
-		className := "nginx"
+	if className := ingressClassNameForDesiredIngress(o.nginx, o.defaultIngressClass, access.Spec.Settings); className != "" {
 		desired.Spec.IngressClassName = &className
+	}
+	if o.nginx {
 		addNginxIngressAnnotations(desired.ObjectMeta.Annotations)
 	}
 	ingress, qualified, err := o.ensureIngress(access.Namespace, desired)

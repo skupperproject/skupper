@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -277,6 +278,47 @@ func (s *Site) groups() []string {
 	}
 }
 
+// routerAccessSettingsMerge copies existing RouterAccess settings, then applies
+// site.spec.settings.ingressClassName when that key is present (non-empty sets,
+// empty string clears). Other RouterAccess-only settings are preserved.
+func routerAccessSettingsMerge(site *skupperv2alpha1.Site, current *skupperv2alpha1.RouterAccess) map[string]string {
+	const ingressClassKey = "ingressClassName"
+	out := map[string]string{}
+	if current != nil && current.Spec.Settings != nil {
+		for k, v := range current.Spec.Settings {
+			out[k] = v
+		}
+	}
+	if site.Spec.Settings != nil {
+		if v, ok := site.Spec.Settings[ingressClassKey]; ok {
+			v = strings.TrimSpace(v)
+			if v != "" {
+				out[ingressClassKey] = v
+			} else {
+				delete(out, ingressClassKey)
+			}
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// routerAccessSpecEqual compares RouterAccess specs treating nil and empty Settings as equal.
+// Kubernetes/client round-trips often produce map[string]string{} where we use nil, which would
+// otherwise cause endless RouterAccess updates.
+func routerAccessSpecEqual(a, b skupperv2alpha1.RouterAccessSpec) bool {
+	aCopy, bCopy := a, b
+	if len(aCopy.Settings) == 0 {
+		aCopy.Settings = nil
+	}
+	if len(bCopy.Settings) == 0 {
+		bCopy.Settings = nil
+	}
+	return reflect.DeepEqual(aCopy, bCopy)
+}
+
 func (s *Site) checkDefaultRouterAccess(ctxt context.Context, site *skupperv2alpha1.Site) error {
 	if site.Spec.LinkAccess == "" || site.Spec.LinkAccess == "none" {
 		return nil
@@ -286,6 +328,7 @@ func (s *Site) checkDefaultRouterAccess(ctxt context.Context, site *skupperv2alp
 	if site.Spec.LinkAccess == "default" {
 		accessType = ""
 	}
+	current, ok := s.linkAccess[name]
 	desired := &skupperv2alpha1.RouterAccess{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v2alpha1",
@@ -313,11 +356,11 @@ func (s *Site) checkDefaultRouterAccess(ctxt context.Context, site *skupperv2alp
 					Port: 45671,
 				},
 			},
+			Settings: routerAccessSettingsMerge(site, current),
 		},
 	}
-	current, ok := s.linkAccess[name]
 	if ok {
-		if reflect.DeepEqual(current.Spec, desired.Spec) {
+		if routerAccessSpecEqual(current.Spec, desired.Spec) {
 			return nil
 		}
 		current.Spec = desired.Spec
@@ -1170,6 +1213,7 @@ func (s *Site) NetworkStatusUpdated(network []skupperv2alpha1.SiteRecord) error 
 	if s.site == nil || reflect.DeepEqual(s.site.Status.Network, network) {
 		return nil
 	}
+	prev := s.site.DeepCopy()
 	s.site.Status.Network = network
 	s.site.Status.SitesInNetwork = len(network)
 	updated, err := s.UpdateSiteStatus(s.site)
@@ -1177,6 +1221,29 @@ func (s *Site) NetworkStatusUpdated(network []skupperv2alpha1.SiteRecord) error 
 		return err
 	}
 	s.site = updated
+	// UpdateStatus on fake clients (and some responses) can drop unrelated conditions.
+	if meta.FindStatusCondition(s.site.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_RUNNING) == nil ||
+		(len(s.site.Status.Network) == 0 && len(network) > 0) {
+		for _, typ := range []string{
+			skupperv2alpha1.CONDITION_TYPE_CONFIGURED,
+			skupperv2alpha1.CONDITION_TYPE_RUNNING,
+			skupperv2alpha1.CONDITION_TYPE_RESOLVED,
+		} {
+			if meta.FindStatusCondition(s.site.Status.Conditions, typ) == nil {
+				if old := meta.FindStatusCondition(prev.Status.Conditions, typ); old != nil {
+					meta.SetStatusCondition(&s.site.Status.Conditions, *old)
+				}
+			}
+		}
+		s.site.Status.Network = network
+		s.site.Status.SitesInNetwork = len(network)
+		s.site.RefreshAggregatedStatus()
+		updated, err = s.UpdateSiteStatus(s.site)
+		if err != nil {
+			return err
+		}
+		s.site = updated
+	}
 
 	// find the site record for this site, then process the link records it contains
 	linkRecords := internalnetwork.GetLinkRecordsForSite(s.site.GetSiteId(), network)
