@@ -75,9 +75,9 @@ type PriorityStrategyStatus struct {
 }
 
 type WeightedStrategyStatus struct {
-	// routingKeysReachable is a map of routingKeys with at least one
-	// reachable connector. The value of each routingKey is the weight in
-	// the map.
+	// routingKeysReachable is a mapping of routingKeys to weights with at
+	// least one reachable connector. The value of each routingKey is the
+	//  weight in the map.
 	//
 	// +mapType=granular
 	RoutingKeysReachable map[string]uint `json:"routingKeysReachable"`
@@ -131,15 +131,12 @@ type PriorityStrategySpec struct {
 	RoutingKeys []string `json:"routingKeys"`
 }
 
-// WeightedStrategySpec specifies a map of routing keys to route traffic to.
-// Each routingKey has a weight value.
+// WeightedStrategySpec defines a mapping of routing keys to weights.
 //
-// With this strategy traffic is distributed randomly among the reachable
-// routing keys. The larger the weight of a routing key - relative to the
-// weights of the other routing keys - the higher the likelihood of
-// receiving more traffic. E.g. if all routing keys have equal weights then the
-// traffic is distributed in a random uniform fashion among the reachable
-// routing keys.
+// The listener distributes traffic among reachable routing keys according to
+// their weights. Routing keys with higher weights receive a larger portion of
+// the traffic. If all keys are assigned the same weight, traffic is
+// split equally between them.
 type WeightedStrategySpec struct {
 	// +kubebuilder:validation:MinProperties=1
 	// +kubebuilder:validation:MaxProperties=256
