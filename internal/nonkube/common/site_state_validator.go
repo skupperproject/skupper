@@ -199,7 +199,9 @@ func (s *SiteStateValidator) validateMultiKeyListeners(multiKeyListeners map[str
 		}
 		hostPorts[mkl.Spec.Host] = append(hostPorts[mkl.Spec.Host], mkl.Spec.Port)
 		if mkl.Spec.Strategy.Priority == nil && mkl.Spec.Strategy.Weighted == nil {
-			return fmt.Errorf("invalid multikeylistener: %s - strategy.priority or strategy.weighted is required", mkl.Name)
+			return fmt.Errorf("invalid multikeylistener: %s - either strategy.priority or strategy.weighted is required", mkl.Name)
+		} else if mkl.Spec.Strategy.Priority != nil && mkl.Spec.Strategy.Weighted != nil {
+			return fmt.Errorf("invalid multikeylistener: %s - only one of strategy.priority or strategy.weighted must be defined", mkl.Name)
 		}
 		if mkl.Spec.Strategy.Priority != nil {
 			if len(mkl.Spec.Strategy.Priority.RoutingKeys) == 0 {
@@ -220,7 +222,7 @@ func (s *SiteStateValidator) validateMultiKeyListeners(multiKeyListeners map[str
 					return fmt.Errorf("invalid multikeylistener: %s - routingKey must not be empty", mkl.Name)
 				}
 				if weight <= 0 {
-					return fmt.Errorf("invalid multikeylistener: %s - weight value must not be positive", mkl.Name)
+					return fmt.Errorf("invalid multikeylistener: %s - weight value must be positive", mkl.Name)
 				}
 			}
 		}

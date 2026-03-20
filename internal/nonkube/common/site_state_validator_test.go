@@ -272,7 +272,18 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 				}
 			}),
 			valid:         false,
-			errorContains: "strategy.priority or strategy.weighted is required",
+			errorContains: "either strategy.priority or strategy.weighted is required",
+		},
+		{
+			info: "invalid-multikeylistener-too-many-strategies",
+			siteState: customize(func(siteState *api.SiteState) {
+				for _, mkl := range siteState.MultiKeyListeners {
+					mkl.Spec.Strategy.Priority = &v2alpha1.PriorityStrategySpec{}
+					mkl.Spec.Strategy.Weighted = &v2alpha1.WeightedStrategySpec{}
+				}
+			}),
+			valid:         false,
+			errorContains: "only one of strategy.priority or strategy.weighted must be defined",
 		},
 		{
 			info: "invalid-multikeylistener-empty-routing-keys",
@@ -301,7 +312,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 				}
 			}),
 			valid:         false,
-			errorContains: "weight value must not be positive",
+			errorContains: "weight value must be positive",
 		},
 		{
 			info: "invalid-multikeylistener-port-conflict-with-listener",
