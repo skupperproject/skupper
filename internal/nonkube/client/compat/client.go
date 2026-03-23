@@ -19,6 +19,7 @@ import (
 	runtimeclient "github.com/go-openapi/runtime/client"
 	"github.com/go-openapi/strfmt"
 	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
@@ -158,9 +159,9 @@ func NewCompatClient(endpoint, basePath string) (*CompatClient, error) {
 }
 
 func GetDefaultContainerEndpoint() string {
-	platform := os.Getenv(types.ENV_PLATFORM)
+	platform := config.GetPlatform()
 	if platform == "" {
-		platform = os.Getenv("CONTAINER_ENGINE")
+		platform = types.Platform(os.Getenv("CONTAINER_ENGINE"))
 	}
 	// the container endpoint is mapped to the podman socket inside the container
 	if api.IsRunningInContainer() {
