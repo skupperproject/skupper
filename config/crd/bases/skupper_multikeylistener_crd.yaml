@@ -128,6 +128,9 @@ spec:
                     type: object
                 type: object
                 x-kubernetes-validations:
+                - message: strategy is immutable
+                  rule: (!has(oldSelf.priority) || has(self.priority)) && (!has(oldSelf.weighted)
+                    || has(self.weighted))
                 - message: exactly one of the fields in [priority weighted] must be
                     set
                   rule: '[has(self.priority),has(self.weighted)].filter(x,x==true).size()

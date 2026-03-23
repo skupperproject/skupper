@@ -112,6 +112,7 @@ type MultiKeyListenerSpec struct {
 // strategy can be specified at a time.
 //
 // +kubebuilder:validation:ExactlyOneOf=priority;weighted
+// +kubebuilder:validation:XValidation:rule="(!has(oldSelf.priority) || has(self.priority)) && (!has(oldSelf.weighted) || has(self.weighted))",message="strategy is immutable"
 type MultiKeyListenerStrategy struct {
 	Priority *PriorityStrategySpec `json:"priority,omitempty"`
 	Weighted *WeightedStrategySpec `json:"weighted,omitempty"`
@@ -229,6 +230,7 @@ func (m *MultiKeyListener) SetRoutingKeysReachable(keys []string) bool {
 	}
 
 	if m.Spec.Strategy.Priority != nil {
+		m.Status.Strategy.Weighted = nil
 		if m.Status.Strategy.Priority == nil {
 			m.Status.Strategy.Priority = &PriorityStrategyStatus{}
 		}
@@ -238,6 +240,7 @@ func (m *MultiKeyListener) SetRoutingKeysReachable(keys []string) bool {
 			return true
 		}
 	} else if m.Spec.Strategy.Weighted != nil {
+		m.Status.Strategy.Priority = nil
 		if m.Status.Strategy.Weighted == nil {
 			m.Status.Strategy.Weighted = &WeightedStrategyStatus{}
 		}
