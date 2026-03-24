@@ -30,19 +30,18 @@ func UpdateBridgeConfigForMultiKeyListener(siteId string, mkl *skupperv2alpha1.M
 func UpdateBridgeConfigForMultiKeyListenerWithHostAndPort(siteId string, mkl *skupperv2alpha1.MultiKeyListener, host string, port int, config *qdr.BridgeConfig) {
 	name := mkl.Name
 	tcpListenerName := multiAddressTcpListenerName(name)
-
-	config.AddTcpListener(qdr.TcpEndpoint{
-		Name:                 tcpListenerName,
-		SiteId:               siteId,
-		Host:                 host,
-		Port:                 strconv.Itoa(port),
-		SslProfile:           mkl.Spec.TlsCredentials,
-		MultiAddressStrategy: "priority",
-		AuthenticatePeer:     mkl.Spec.RequireClientCert,
-	})
+	tcpListenerConfig := qdr.TcpEndpoint{
+		Name:             tcpListenerName,
+		SiteId:           siteId,
+		Host:             host,
+		Port:             strconv.Itoa(port),
+		SslProfile:       mkl.Spec.TlsCredentials,
+		AuthenticatePeer: mkl.Spec.RequireClientCert,
+	}
 
 	// Create listenerAddress entities for each routing key in the strategy
 	if mkl.Spec.Strategy.Priority != nil {
+		tcpListenerConfig.MultiAddressStrategy = "priority"
 		numKeys := len(mkl.Spec.Strategy.Priority.RoutingKeys)
 		for i, routingKey := range mkl.Spec.Strategy.Priority.RoutingKeys {
 			laName := listenerAddressName(name, routingKey)
@@ -53,7 +52,19 @@ func UpdateBridgeConfigForMultiKeyListenerWithHostAndPort(siteId string, mkl *sk
 				Listener: tcpListenerName,
 			})
 		}
+	} else if mkl.Spec.Strategy.Weighted != nil {
+		tcpListenerConfig.MultiAddressStrategy = "weighted"
+		for routingKey, weight := range mkl.Spec.Strategy.Weighted.RoutingKeys {
+			laName := listenerAddressName(name, routingKey)
+			config.AddListenerAddress(qdr.ListenerAddress{
+				Name:     laName,
+				Address:  routingKey,
+				Value:    int(weight),
+				Listener: tcpListenerName,
+			})
+		}
 	}
+	config.AddTcpListener(tcpListenerConfig)
 }
 
 // RemoveBridgeConfigForMultiKeyListener removes the tcpListener and listenerAddress

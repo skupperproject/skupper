@@ -198,15 +198,32 @@ func (s *SiteStateValidator) validateMultiKeyListeners(multiKeyListeners map[str
 			return fmt.Errorf("port %d is already mapped for host %q (multikeylistener: %q)", mkl.Spec.Port, mkl.Spec.Host, name)
 		}
 		hostPorts[mkl.Spec.Host] = append(hostPorts[mkl.Spec.Host], mkl.Spec.Port)
-		if mkl.Spec.Strategy.Priority == nil {
-			return fmt.Errorf("invalid multikeylistener: %s - strategy.priority is required", mkl.Name)
+		if mkl.Spec.Strategy.Priority == nil && mkl.Spec.Strategy.Weighted == nil {
+			return fmt.Errorf("invalid multikeylistener: %s - either strategy.priority or strategy.weighted is required", mkl.Name)
+		} else if mkl.Spec.Strategy.Priority != nil && mkl.Spec.Strategy.Weighted != nil {
+			return fmt.Errorf("invalid multikeylistener: %s - only one of strategy.priority or strategy.weighted must be defined", mkl.Name)
 		}
-		if len(mkl.Spec.Strategy.Priority.RoutingKeys) == 0 {
-			return fmt.Errorf("invalid multikeylistener: %s - routingKeys must not be empty", mkl.Name)
+		if mkl.Spec.Strategy.Priority != nil {
+			if len(mkl.Spec.Strategy.Priority.RoutingKeys) == 0 {
+				return fmt.Errorf("invalid multikeylistener: %s - routingKeys must not be empty", mkl.Name)
+			}
+			for _, key := range mkl.Spec.Strategy.Priority.RoutingKeys {
+				if key == "" {
+					return fmt.Errorf("invalid multikeylistener: %s - routingKey must not be empty", mkl.Name)
+				}
+			}
 		}
-		for _, key := range mkl.Spec.Strategy.Priority.RoutingKeys {
-			if key == "" {
-				return fmt.Errorf("invalid multikeylistener: %s - routingKey must not be empty", mkl.Name)
+		if mkl.Spec.Strategy.Weighted != nil {
+			if len(mkl.Spec.Strategy.Weighted.RoutingKeys) == 0 {
+				return fmt.Errorf("invalid multikeylistener: %s - routingKeys must not be empty", mkl.Name)
+			}
+			for key, weight := range mkl.Spec.Strategy.Weighted.RoutingKeys {
+				if key == "" {
+					return fmt.Errorf("invalid multikeylistener: %s - routingKey must not be empty", mkl.Name)
+				}
+				if weight <= 0 {
+					return fmt.Errorf("invalid multikeylistener: %s - weight value must be positive", mkl.Name)
+				}
 			}
 		}
 	}

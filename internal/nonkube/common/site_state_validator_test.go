@@ -268,20 +268,51 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 			siteState: customize(func(siteState *api.SiteState) {
 				for _, mkl := range siteState.MultiKeyListeners {
 					mkl.Spec.Strategy.Priority = nil
+					mkl.Spec.Strategy.Weighted = nil
 				}
 			}),
 			valid:         false,
-			errorContains: "strategy.priority is required",
+			errorContains: "either strategy.priority or strategy.weighted is required",
+		},
+		{
+			info: "invalid-multikeylistener-too-many-strategies",
+			siteState: customize(func(siteState *api.SiteState) {
+				for _, mkl := range siteState.MultiKeyListeners {
+					mkl.Spec.Strategy.Priority = &v2alpha1.PriorityStrategySpec{}
+					mkl.Spec.Strategy.Weighted = &v2alpha1.WeightedStrategySpec{}
+				}
+			}),
+			valid:         false,
+			errorContains: "only one of strategy.priority or strategy.weighted must be defined",
 		},
 		{
 			info: "invalid-multikeylistener-empty-routing-keys",
 			siteState: customize(func(siteState *api.SiteState) {
 				for _, mkl := range siteState.MultiKeyListeners {
-					mkl.Spec.Strategy.Priority.RoutingKeys = []string{}
+					if mkl.Spec.Strategy.Priority != nil {
+						mkl.Spec.Strategy.Priority.RoutingKeys = []string{}
+					}
+					if mkl.Spec.Strategy.Weighted != nil {
+						mkl.Spec.Strategy.Weighted.RoutingKeys = map[string]uint{}
+					}
 				}
 			}),
 			valid:         false,
 			errorContains: "routingKeys must not be empty",
+		},
+		{
+			info: "invalid-multikeylistener-zero-weight",
+			siteState: customize(func(siteState *api.SiteState) {
+				for _, mkl := range siteState.MultiKeyListeners {
+					if mkl.Spec.Strategy.Weighted != nil {
+						for key := range mkl.Spec.Strategy.Weighted.RoutingKeys {
+							mkl.Spec.Strategy.Weighted.RoutingKeys[key] = 0
+						}
+					}
+				}
+			}),
+			valid:         false,
+			errorContains: "weight value must be positive",
 		},
 		{
 			info: "invalid-multikeylistener-port-conflict-with-listener",

@@ -60,16 +60,27 @@ type MultiKeyListenerStatus struct {
 	Strategy *StrategyStatus `json:"strategy,omitempty"`
 }
 
-// +kubebuilder:validation:ExactlyOneOf=priority
+// +kubebuilder:validation:ExactlyOneOf=priority;weighted
 type StrategyStatus struct {
 	// priority status
 	Priority *PriorityStrategyStatus `json:"priority,omitempty"`
+	// weighted status
+	Weighted *WeightedStrategyStatus `json:"weighted,omitempty"`
 }
 
 type PriorityStrategyStatus struct {
 	// routingKeysReachable is a list of routingKeys with at least one
 	// reachable connector given in priority order.
 	RoutingKeysReachable []string `json:"routingKeysReachable"`
+}
+
+type WeightedStrategyStatus struct {
+	// routingKeysReachable is a mapping of routingKeys to weights with at
+	// least one reachable connector. The value of each routingKey is the
+	//  weight in the map.
+	//
+	// +mapType=granular
+	RoutingKeysReachable map[string]uint `json:"routingKeysReachable"`
 }
 
 type MultiKeyListenerSpec struct {
@@ -100,11 +111,11 @@ type MultiKeyListenerSpec struct {
 // MultiKeyListenerStrategy contains configuration for each strategy. Only one
 // strategy can be specified at a time.
 //
-// Presently Priority Failover is the only strategy available.
-//
-// +kubebuilder:validation:ExactlyOneOf=priority
+// +kubebuilder:validation:ExactlyOneOf=priority;weighted
+// +kubebuilder:validation:XValidation:rule="(!has(oldSelf.priority) || has(self.priority)) && (!has(oldSelf.weighted) || has(self.weighted))",message="strategy is immutable"
 type MultiKeyListenerStrategy struct {
 	Priority *PriorityStrategySpec `json:"priority,omitempty"`
+	Weighted *WeightedStrategySpec `json:"weighted,omitempty"`
 }
 
 // PriorityStrategySpec specifies an ordered set of routing keys to
@@ -119,6 +130,21 @@ type PriorityStrategySpec struct {
 
 	// routingKeys to route traffic to in order of highest to lowest priority.
 	RoutingKeys []string `json:"routingKeys"`
+}
+
+// WeightedStrategySpec defines a mapping of routing keys to weights.
+//
+// The listener distributes traffic among reachable routing keys according to
+// their weights. Routing keys with higher weights receive a larger portion of
+// the traffic. If all keys are assigned the same weight, traffic is
+// split equally between them.
+type WeightedStrategySpec struct {
+	// +kubebuilder:validation:MinProperties=1
+	// +kubebuilder:validation:MaxProperties=256
+	// +mapType=granular
+	//
+	// routingKeys to route traffic to according to their weight values
+	RoutingKeys map[string]uint `json:"routingKeys"`
 }
 
 func (s *MultiKeyListenerStatus) SetCondition(conditionType string, state ConditionState, generation int64) bool {
@@ -198,15 +224,45 @@ func (m *MultiKeyListener) SetRoutingKeysReachable(keys []string) bool {
 	if m.Status.Strategy == nil {
 		m.Status.Strategy = &StrategyStatus{}
 	}
-	if m.Status.Strategy.Priority == nil {
-		m.Status.Strategy.Priority = &PriorityStrategyStatus{}
-	}
+
 	if keys == nil {
 		keys = []string{}
 	}
-	if !reflect.DeepEqual(m.Status.Strategy.Priority.RoutingKeysReachable, keys) {
-		m.Status.Strategy.Priority.RoutingKeysReachable = keys
-		return true
+
+	if m.Spec.Strategy.Priority != nil {
+		m.Status.Strategy.Weighted = nil
+		if m.Status.Strategy.Priority == nil {
+			m.Status.Strategy.Priority = &PriorityStrategyStatus{}
+		}
+
+		if !reflect.DeepEqual(m.Status.Strategy.Priority.RoutingKeysReachable, keys) {
+			m.Status.Strategy.Priority.RoutingKeysReachable = keys
+			return true
+		}
+	} else if m.Spec.Strategy.Weighted != nil {
+		m.Status.Strategy.Priority = nil
+		if m.Status.Strategy.Weighted == nil {
+			m.Status.Strategy.Weighted = &WeightedStrategyStatus{}
+		}
+		var changed bool = false
+		if len(keys) != len(m.Status.Strategy.Weighted.RoutingKeysReachable) {
+			changed = true
+		} else {
+			for _, k := range keys {
+				if _, ok := m.Status.Strategy.Weighted.RoutingKeysReachable[k]; !ok {
+					changed = true
+					break
+				}
+			}
+		}
+
+		if changed {
+			m.Status.Strategy.Weighted.RoutingKeysReachable = make(map[string]uint, len(keys))
+			for _, k := range keys {
+				m.Status.Strategy.Weighted.RoutingKeysReachable[k] = m.Spec.Strategy.Weighted.RoutingKeys[k]
+			}
+			return true
+		}
 	}
 	return false
 }
@@ -214,6 +270,12 @@ func (m *MultiKeyListener) SetRoutingKeysReachable(keys []string) bool {
 func (m *MultiKeyListener) GetRoutingKeys() []string {
 	if m.Spec.Strategy.Priority != nil {
 		return m.Spec.Strategy.Priority.RoutingKeys
+	} else if m.Spec.Strategy.Weighted != nil {
+		routingKeys := []string{}
+		for k := range m.Spec.Strategy.Weighted.RoutingKeys {
+			routingKeys = append(routingKeys, k)
+		}
+		return routingKeys
 	}
 	return nil
 }
