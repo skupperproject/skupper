@@ -54,41 +54,61 @@ Validate:
 
 ### Step 4: Implement Run - Core Logic
 
-Create tarball structure similar to kube but adapted for non-k8s:
+Create tarball structure consistent with k8s implementation but adapted for non-k8s:
 
 ```
 <filename>.tar.gz
 ├── versions/
-│   ├── skupper.yaml        # skupper version output
-│   └── platform.yaml       # platform, OS, runtime info
-├── site/
-│   ├── resources/          # All CR YAML files
+│   ├── skupper.yaml           # skupper version output
+│   ├── skupper.yaml.txt       # (duplicate for consistency)
+│   ├── platform.yaml          # platform version (podman/docker/systemd)
+│   └── platform.yaml.txt      # (duplicate for consistency)
+├── site-namespace/            # Using same structure as k8s dump
+│   ├── resources/
 │   │   ├── Site-*.yaml
+│   │   ├── Site-*.yaml.txt
 │   │   ├── Connector-*.yaml
+│   │   ├── Connector-*.yaml.txt
 │   │   ├── Listener-*.yaml
+│   │   ├── Listener-*.yaml.txt
 │   │   ├── Link-*.yaml
+│   │   ├── Link-*.yaml.txt
 │   │   ├── Certificate-*.yaml
+│   │   ├── Certificate-*.yaml.txt
 │   │   ├── AccessToken-*.yaml
+│   │   ├── AccessToken-*.yaml.txt
 │   │   ├── RouterAccess-*.yaml
-│   │   └── SecuredAccess-*.yaml
-│   ├── config/
-│   │   └── router-config/  # Router configuration files
-│   └── platform.yaml       # Platform configuration
-├── runtime/
-│   ├── containers/         # (podman/docker only)
-│   │   ├── router-inspect.json
-│   │   ├── controller-inspect.json
-│   │   └── container-list.json
-│   ├── systemd/            # (linux only)
-│   │   ├── service-status.txt
-│   │   └── service-file.txt
-│   └── stats/
-│       └── skstat-*.txt    # Router stats from running container/process
-└── logs/
-    ├── router.log          # Router logs
-    ├── controller.log      # Controller logs (if applicable)
-    └── systemd-journal.log # (linux only) journalctl output
+│   │   ├── RouterAccess-*.yaml.txt
+│   │   ├── SecuredAccess-*.yaml
+│   │   ├── SecuredAccess-*.yaml.txt
+│   │   ├── Configmap-*.yaml        # router config as ConfigMap equivalent
+│   │   ├── Configmap-*.yaml.txt
+│   │   ├── Container-*.json        # (podman/docker) container inspect
+│   │   ├── Container-*.json.txt    # (podman/docker)
+│   │   ├── Systemd-*.txt           # (linux) systemd service status
+│   │   ├── platform.yaml           # Platform configuration
+│   │   └── skstat/                 # Router statistics (same location as k8s)
+│   │       ├── router-skstat-g.txt
+│   │       ├── router-skstat-c.txt
+│   │       ├── router-skstat-l.txt
+│   │       ├── router-skstat-n.txt
+│   │       ├── router-skstat-e.txt
+│   │       ├── router-skstat-a.txt
+│   │       ├── router-skstat-m.txt
+│   │       └── router-skstat-p.txt
+│   ├── logs/
+│   │   ├── router.txt              # Router logs
+│   │   ├── controller.txt          # Controller logs (if applicable)
+│   │   └── systemd-journal.txt     # (linux only) journalctl output
+│   └── containers.json             # (podman/docker) list of all containers
 ```
+
+**Key consistency points with k8s dump:**
+- Duplicate files with `.txt` extension alongside YAML/JSON for easier viewing
+- Use `site-namespace/` as main directory (matches k8s structure)
+- Place `skstat/` under `resources/` (matches k8s pattern)
+- Keep `logs/` at namespace level
+- All resources in `resources/` directory
 
 ### Step 5: Information Collection Functions
 
@@ -101,28 +121,36 @@ Create tarball structure similar to kube but adapted for non-k8s:
 - Read all YAML files from `<datapath>/input/resources/`
 - Read all YAML files from `<datapath>/runtime/resources/`
 - Use existing `fs.*Handler` classes (SiteHandler, ConnectorHandler, ListenerHandler, etc.)
-- Write each resource as YAML to `/site/resources/`
+- Write each resource as YAML to `/site-namespace/resources/`
+- **Important:** Write both `.yaml` and `.yaml.txt` versions of each file (k8s consistency)
 
 #### 5.3 Router Configuration
-- Copy files from `<datapath>/runtime/router/`
-- Write to `/site/config/router-config/`
+- Read router config from `<datapath>/runtime/router/`
+- Write as `Configmap-skupper-router.yaml` to `/site-namespace/resources/`
+- Include both `.yaml` and `.yaml.txt` versions
+- This mirrors how k8s stores router config in a ConfigMap
 
 #### 5.4 Platform-Specific Info
 
 **For Podman/Docker:**
 - Use `internal/nonkube/client/compat` container client
-- `ContainerList()` - List all skupper containers
-- `ContainerInspect()` - Detailed info for router/controller containers
+- `ContainerList()` - List all skupper containers (filter by label `application=skupper`)
+  - Write to `/site-namespace/containers.json`
+- `ContainerInspect()` - Detailed info for each router/controller container
+  - Write as `Container-<name>.json` and `Container-<name>.json.txt` to `/site-namespace/resources/`
 - `ContainerLogs()` - Retrieve container logs
-- Write container info to `/runtime/containers/`
-- Write logs to `/logs/`
+  - Write to `/site-namespace/logs/<container-name>.txt`
+  - Use container name in filename (e.g., `skupper-router-default.txt`)
+- **Note:** Container names replace pod names from k8s implementation
 
 **For Linux:**
 - Use systemd commands via `internal/nonkube/common/systemd.go`
 - `systemctl status skupper-<namespace>.service`
+  - Write to `/site-namespace/resources/Systemd-skupper-<namespace>.txt`
+- Copy systemd service file from `<datapath>/internal/scripts/`
+  - Write to `/site-namespace/resources/Systemd-service-file.txt`
 - `journalctl -u skupper-<namespace>.service` for logs
-- Write systemd info to `/runtime/systemd/`
-- Write logs to `/logs/`
+  - Write to `/site-namespace/logs/systemd-journal.txt`
 
 #### 5.5 Router Statistics
 - If router container/process is running, execute `skstat` commands:
@@ -134,21 +162,28 @@ Create tarball structure similar to kube but adapted for non-k8s:
   - `skstat -a` (addresses)
   - `skstat -m` (memory)
   - `skstat -p` (priorities)
-- For containers: use `ContainerExec()`
-- For linux: execute skstat from router process
-- Write to `/runtime/stats/`
+- For containers: use `ContainerExec(containerName, []string{"skstat", "-<flag>"})`
+  - Find router container from ContainerList() (look for router in name/image)
+  - Write as `/site-namespace/resources/skstat/<container-name>-skstat-<flag>.txt`
+- For linux: execute skstat via the router service
+  - May need to exec into router namespace/environment
+  - Write as `/site-namespace/resources/skstat/skupper-<namespace>-skstat-<flag>.txt`
+- **Note:** Matches k8s location pattern of `resources/skstat/`, using container/service name instead of pod name
 
 ### Step 6: Helper Functions
 
 Create utility functions:
-- `writeTar(name, data, timestamp, tarWriter)` - Add file to tarball
-- `collectSiteResources()` - Gather all CR files
-- `collectContainerInfo()` - Podman/Docker container details
-- `collectSystemdInfo()` - Systemd service details
-- `collectRouterConfig()` - Router configuration files
-- `collectLogs()` - Platform-specific log collection
-- `collectRouterStats()` - Execute skstat commands
-- `detectPlatform(namespace)` - Read platform from config
+- `writeTar(name, data, timestamp, tarWriter)` - Add file to tarball (same as k8s implementation)
+- `writeObject(data, baseName, tarWriter)` - Write both `.yaml` and `.yaml.txt` versions
+- `collectSiteResources(tw)` - Gather all CR files from fs handlers
+- `collectContainerInfo(tw)` - Podman/Docker container list and inspect details
+- `collectSystemdInfo(tw)` - Systemd service status and configuration
+- `collectRouterConfig(tw)` - Router configuration as ConfigMap format
+- `collectLogs(tw)` - Platform-specific log collection (container logs or journalctl)
+- `collectRouterStats(tw)` - Execute skstat commands if router is running
+- `collectVersionInfo(tw)` - Skupper version and platform info
+- `detectPlatform(namespace)` - Read platform from `<datapath>/internal/platform.yaml`
+- `runCommand(name, args...)` - Helper to execute external commands (same as k8s)
 
 ### Step 7: Error Handling
 
@@ -214,6 +249,11 @@ Required imports:
 
 ## Notes
 
+- **Updated after reviewing actual k8s dump:** Structure changed to match k8s implementation more closely
+  - Use `site-namespace/` as main directory (not separate `site/`, `runtime/`, `logs/`)
+  - Place `skstat/` under `resources/` (not separate stats directory)
+  - Duplicate files with `.txt` extension for easier viewing
+  - Flatten hierarchy to match k8s pattern
 - Maintain consistency with kube implementation where possible
 - Adapt tarball structure for non-k8s specifics (containers vs pods, systemd vs deployments)
 - Ensure it works for both root and non-root users
@@ -228,3 +268,60 @@ Required imports:
 - `internal/nonkube/client/compat/container.go` - Container client interface
 - `internal/nonkube/common/systemd.go` - Systemd service management
 - `pkg/nonkube/api/environment.go` - Path and environment utilities
+
+### Actual K8s Dump Structure (for reference)
+
+From examining an actual k8s debug dump (`~/dump.tar.gz`):
+
+```
+/versions/
+├── kubernetes.yaml
+├── kubernetes.yaml.txt
+├── skupper.yaml
+└── skupper.yaml.txt
+
+/site-namespace/
+├── events.txt
+├── resources/
+│   ├── Deployment-skupper-router.yaml
+│   ├── Deployment-skupper-router.yaml.txt
+│   ├── Pod-skupper-router-*.yaml
+│   ├── Pod-skupper-router-*.yaml.txt
+│   ├── Configmap-skupper-router.yaml
+│   ├── Configmap-skupper-router.yaml.txt
+│   ├── Configmap-skupper-network-status.yaml
+│   ├── Services-*.yaml
+│   ├── Endpoints-*.yaml
+│   ├── Role-skupper-router.yaml
+│   ├── RoleBinding-skupper-router.yaml
+│   ├── ReplicaSet-*.yaml
+│   ├── crds.txt
+│   ├── Site-*.yaml / Site-*.yaml.txt
+│   ├── Connector-*.yaml
+│   ├── Listener-*.yaml
+│   ├── Link-*.yaml
+│   ├── Certificate-*.yaml
+│   ├── AccessToken-*.yaml / Accessgrant-*.yaml
+│   ├── RouterAccess-*.yaml
+│   ├── SecuredAccess-*.yaml
+│   └── skstat/
+│       ├── <pod-name>-skstat-g.txt
+│       ├── <pod-name>-skstat-c.txt
+│       ├── <pod-name>-skstat-l.txt
+│       ├── <pod-name>-skstat-n.txt
+│       ├── <pod-name>-skstat-e.txt
+│       ├── <pod-name>-skstat-a.txt
+│       ├── <pod-name>-skstat-m.txt
+│       └── <pod-name>-skstat-p.txt
+└── logs/
+    ├── <pod-name>-router.txt
+    ├── <pod-name>-kube-adaptor.txt
+    └── <pod-name>-kube-adaptor-previous.txt (if container restarted)
+```
+
+**Key observations:**
+- Flat structure under `site-namespace/`
+- Duplicate `.yaml.txt` files for easy viewing
+- `skstat` output under `resources/skstat/`
+- Previous container logs captured when restarts occurred
+- Events at top level of namespace directory

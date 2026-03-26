@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tar -tzf ~/dump.tar.gz)",
+      "Bash(tar -xzf ~/dump.tar.gz -C /tmp)",
+      "Read(//tmp/**)"
+    ]
+  }
+}
