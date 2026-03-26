@@ -33,10 +33,17 @@ Implement `skupper debug dump <filename>` for non-k8s sites (podman, docker, lin
 **File:** `internal/cmd/skupper/debug/nonkube/debug.go`
 
 Add required fields:
-- `siteHandler *fs.SiteHandler` - Access site resources
-- `namespace string` - Target namespace
+- `namespace string` - Target namespace (use lowercase for consistency)
 - `fileName string` - Output tarball name
 - `platform string` - Runtime platform (podman/docker/linux)
+- `siteHandler *fs.SiteHandler` - Access site resources
+- `connectorHandler *fs.ConnectorHandler` - Access connector resources
+- `listenerHandler *fs.ListenerHandler` - Access listener resources
+- `linkHandler *fs.LinkHandler` - Access link resources
+- `routerAccessHandler *fs.RouterAccessHandler` - Access router access resources
+- `certificateHandler *fs.CertificateHandler` - Access certificate resources
+- `secretHandler *fs.SecretHandler` - Access secret resources (if needed)
+- `configMapHandler *fs.ConfigMapHandler` - Access configmap resources (router config)
 
 ### Step 2: Implement ValidateInput
 
@@ -172,18 +179,20 @@ Create tarball structure consistent with k8s implementation but adapted for non-
 
 ### Step 6: Helper Functions
 
-Create utility functions:
-- `writeTar(name, data, timestamp, tarWriter)` - Add file to tarball (same as k8s implementation)
-- `writeObject(data, baseName, tarWriter)` - Write both `.yaml` and `.yaml.txt` versions
+**Use existing utilities from `internal/cmd/skupper/common/utils/debug.go`:**
+- `utils.RunCommand(name, args...)` - Execute external commands (already exists)
+- `utils.WriteTar(name, data, timestamp, tarWriter)` - Add file to tarball (already exists)
+- `utils.WriteObject(object, baseName, tarWriter)` - Write both `.yaml` and `.yaml.txt` (already exists)
+
+**Create new helper methods in debug.go:**
 - `collectSiteResources(tw)` - Gather all CR files from fs handlers
 - `collectContainerInfo(tw)` - Podman/Docker container list and inspect details
 - `collectSystemdInfo(tw)` - Systemd service status and configuration
-- `collectRouterConfig(tw)` - Router configuration as ConfigMap format
+- `collectRouterConfig(tw)` - Router configuration files
 - `collectLogs(tw)` - Platform-specific log collection (container logs or journalctl)
 - `collectRouterStats(tw)` - Execute skstat commands if router is running
 - `collectVersionInfo(tw)` - Skupper version and platform info
-- `detectPlatform(namespace)` - Read platform from `<datapath>/internal/platform.yaml`
-- `runCommand(name, args...)` - Helper to execute external commands (same as k8s)
+- `collectCertificates(tw)` - Certificate files from input/runtime paths
 
 ### Step 7: Error Handling
 
@@ -223,6 +232,13 @@ Required imports:
 **Create:**
 2. `internal/cmd/skupper/debug/nonkube/debug_test.go` - Unit tests (~200-300 lines)
 
+**Create (from PR #2174 pattern, not yet merged):**
+3. `internal/cmd/skupper/common/utils/debug.go` - Shared utility functions
+   - `RunCommand(name, args...)` - Execute external commands
+   - `WriteTar(name, data, timestamp, tarWriter)` - Add file to tarball
+   - `WriteObject(object, baseName, tarWriter)` - Write both `.yaml` and `.yaml.txt`
+   - These will be shared between kube and nonkube implementations
+
 ## Success Criteria
 
 - ✅ Command runs successfully on podman/docker/linux platforms
@@ -237,15 +253,17 @@ Required imports:
 
 ## Implementation Order
 
-1. Basic structure and validation (Steps 1-3)
-2. Tarball creation framework (Step 4 - skeleton)
-3. Resource collection (Step 5.2)
-4. Platform detection and version info (Step 5.1, 5.6)
-5. Container/systemd integration (Step 5.4)
-6. Logs and statistics (Step 5.4, 5.5)
-7. Router config collection (Step 5.3)
-8. Error handling and polish (Step 7)
-9. Testing (Step 8)
+1. ✅ Basic structure and validation (Steps 1-3) - COMPLETED
+   - Need to add missing resource handlers to Step 1
+2. Create utility functions (Step 6a - `debug.go` utilities)
+3. Tarball creation framework (Step 4 - skeleton)
+4. Version info collection (Step 5.1)
+5. Resource collection (Step 5.2)
+6. Router config collection (Step 5.3)
+7. Container/systemd integration (Step 5.4)
+8. Logs and statistics (Step 5.5)
+9. Error handling and polish (Step 7)
+10. Testing (Step 8)
 
 ## Notes
 
@@ -254,6 +272,16 @@ Required imports:
   - Place `skstat/` under `resources/` (not separate stats directory)
   - Duplicate files with `.txt` extension for easier viewing
   - Flatten hierarchy to match k8s pattern
+
+- **Learnings from PR #2174 (open PR attempting same task):**
+  - ✅ Reuse existing utility functions from `internal/cmd/skupper/common/utils/debug.go`
+  - ✅ Initialize all resource handlers (connector, listener, site, link, routerAccess, certificate, secret, configMap)
+  - ✅ Good pattern for container handling (ContainerInspect, ContainerExec, ContainerLogs)
+  - ✅ Proper systemd/journalctl handling with user flag awareness
+  - ⚠️ PR uses `/input/`, `/runtime/`, `/internal/` structure - we're using `/site-namespace/` instead (better)
+  - ⚠️ PR notes "Missing skstat commands" - we'll ensure complete skstat implementation
+  - ⚠️ PR doesn't consistently use `.txt` duplicates - we will for consistency with k8s
+
 - Maintain consistency with kube implementation where possible
 - Adapt tarball structure for non-k8s specifics (containers vs pods, systemd vs deployments)
 - Ensure it works for both root and non-root users
