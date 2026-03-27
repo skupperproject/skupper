@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/skupperproject/skupper/api/types"
+	"github.com/skupperproject/skupper/internal/config"
 	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/internal/nonkube/common"
@@ -18,16 +20,24 @@ type LocalData struct {
 func Teardown(namespace string) error {
 
 	platformLoader := &common.NamespacePlatformLoader{}
-	platform, err := platformLoader.Load(namespace)
+	configuredPlatform, err := platformLoader.Load(namespace)
 	if err != nil {
 		return err
 	}
 
-	if err := removeRouter(namespace, platform); err != nil {
+	currentPlatform := config.GetPlatform()
+	if currentPlatform.IsKubernetes() {
+		currentPlatform = types.PlatformPodman
+	}
+	if string(currentPlatform) != configuredPlatform {
+		return fmt.Errorf("existing namespace uses %q platform and it cannot change to %q", configuredPlatform, string(currentPlatform))
+	}
+
+	if err := removeRouter(namespace, configuredPlatform); err != nil {
 		return err
 	}
 
-	if err := removeService(namespace, platform); err != nil {
+	if err := removeService(namespace, configuredPlatform); err != nil {
 		return err
 	}
 
