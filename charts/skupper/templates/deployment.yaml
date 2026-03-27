@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "skupper.fullname" . }}
+  labels:
+    {{- include "skupper.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "skupper.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        skupper.io/component: controller
+        {{- include "skupper.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "skupper.serviceAccountName" . }}
+      # Prevent kubernetes from injecting env vars for grant service
+      # as these then collide with those that actually configure the
+      # controller:
+      enableServiceLinks: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: controller
+          securityContext:
+            {{- toYaml .Values.controller.securityContext | nindent 12 }}
+          image: {{ include "skupper.controllerImage" . | quote }}
+          imagePullPolicy: {{ .Values.controller.pullPolicy }}
+          command:
+            - /app/controller
+          args:
+            - -enable-grants
+            - -grant-server-autoconfigure
+          env:
+          {{- if ne (include "skupper.clusterScoped" .) "true" }}
+          - name: WATCH_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          {{- end }}
+          - name: SKUPPER_KUBE_ADAPTOR_IMAGE
+            value:  {{ include "skupper.kubeAdaptorImage" . | quote }}
+          {{- if .Values.kubeAdaptor.pullPolicy }}
+          - name: SKUPPER_KUBE_ADAPTOR_IMAGE_PULL_POLICY
+            value:  "{{ .Values.kubeAdaptor.pullPolicy }}"
+          {{- end }}
+          - name: SKUPPER_ROUTER_IMAGE
+            value:  {{ include "skupper.routerImage" . | quote }}
+          {{- if .Values.skupperRouter.pullPolicy }}
+          - name: SKUPPER_ROUTER_IMAGE_PULL_POLICY
+            value:  "{{ .Values.skupperRouter.pullPolicy }}"
+          {{- end }}
+          ports:
+          - containerPort: 9000
+            name: metrics
+          volumeMounts:
+            - name: tls-credentials
+              mountPath: /etc/controller
+          {{- with .Values.controller.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+      - name: tls-credentials
+        emptyDir: {}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

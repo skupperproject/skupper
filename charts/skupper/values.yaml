@@ -1,0 +1,108 @@
+# Deprecated, use controller.repository and controller.tag
+controllerImage: ""
+# Deprecated, use kubeAdaptor.repository and kubeAdaptor.tag
+kubeAdaptorImage: ""
+# Deprecated, use skupperRouter.repository and skupperRouter.tag
+routerImage: ""
+
+# Deprecated, use rbac.clusterScoped instead.
+# When set, scope configures the controllers scope. Available options: cluster, namespace
+scope: ""
+
+# Set to overwrite the deployment name
+fullnameOverride: "skupper-controller"
+
+# Configures the creation of ClusterRole and ClusterRoleBinding, or Role and
+# RoleBinding depending on scope.
+rbac:
+  create: true
+  # When false, configures the controller deployment to only watch the namespace
+  # it is deployed in and creates Role/RoleBinding instead of ClusterRole/ClusterRoleBinding.
+  clusterScoped: true
+
+# controller container options
+controller:
+  # image repository
+  repository: quay.io/skupper/controller
+  # overrides the image tag from its default value Chart AppVersion.
+  tag: ""
+  # Digest for the image. When set, digest overrides the tag.
+  digest: ""
+  # image pull policy
+  pullPolicy: Always
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop:
+        - ALL
+  resources: {}
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+# kubeAdaptor container options on the controller
+kubeAdaptor:
+  # image repository
+  repository: quay.io/skupper/kube-adaptor
+  # overrides the image tag from its default value Chart AppVersion.
+  tag: ""
+  # Digest for the image. When set, digest overrides the tag.
+  digest: ""
+  # image pull policy
+  pullPolicy: Always
+
+# skupper router container options on the controller
+skupperRouter:
+  # image repository
+  repository: quay.io/skupper/skupper-router
+  # image tag
+  tag: "main"
+  # Digest for the image. When set, digest overrides the tag.
+  digest: ""
+  # image pull policy
+  pullPolicy: Always
+
+
+# controller pod securityContext
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# This is for setting Kubernetes Annotations to a Pod.
+podAnnotations: {}
+# This is for setting Kubernetes Labels to a Pod.
+podLabels: {}
+# -- Tolerations for the skupper-controller deployment
+tolerations: []
+# Example:
+# tolerations:
+#   - key: "key1"
+#     operator: "Equal"
+#     value: "value1"
+#     effect: "NoSchedule"
+
+# -- Affinity rules for the skupper-controller deployment
+affinity: {}
+# Example for pod anti-affinity to avoid scheduling multiple pods on the same node:
+# affinity:
+#   podAntiAffinity:
+#     requiredDuringSchedulingIgnoredDuringExecution:
+#       - labelSelector:
+#           matchExpressions:
+#             - key: application
+#               operator: In
+#               values:
+#                 - skupper-controller
+#         topologyKey: kubernetes.io/hostname
+
+# Configures the controller ServiceAccount creation
+serviceAccount:
+  create: true
+  # The name of the ServiceAccount to use.
+  name: ""
+

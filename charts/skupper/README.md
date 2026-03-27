@@ -12,12 +12,29 @@ manager.
 
 - Kubernetes 1.25+
 - Helm 3
+- Skupper CRDs
+
+### Installing CRDs
+
+Install Skupper CRDs before deploying this chart. Choose one of the following methods:
+
+**Using the skupper-crds Helm chart:**
+```
+helm install skupper-crds oci://quay.io/skupper/helm/skupper-crds
+```
+
+**Using kubectl:**
+```
+kubectl apply -f https://github.com/skupperproject/skupper/releases/latest/download/skupper-crds.yaml
+```
 
 ## Using the chart
 
 Deploy a cluster-scoped Skupper controller in the current namespace:
 ```
-helm install skupper oci://quay.io/skupper/helm/skupper
+helm install skupper oci://quay.io/skupper/helm/skupper \
+    --namespace skupper \
+    --create-namespace
 ```
 
 If you want to deploy the controller in a specific namespace:
@@ -27,28 +44,18 @@ helm install skupper oci://quay.io/skupper/helm/skupper \
     --create-namespace
 ```
 
-Deploy a controller with namespace-scope in the current namespace using  `--set scope=namespace`:
+Deploy a controller with namespace-scope in the current namespace using `--set rbac.clusterScoped=false`:
 ```
 helm install skupper oci://quay.io/skupper/helm/skupper \
-    --set scope=namespace
+    --set rbac.clusterScoped=false
 ```
 
-### CRDs
+### Configuration
 
-By default, the chart installs the Skupper CRDs required by the controller
-to properly function.  If you want to install CRDs separately from the Helm chart, use
-the `--skip-crds` flag with `helm install`.
+See [values.yaml](values.yaml) for the full list of configurable options.
 
-### Image Overrides
-
-The chart exposes overrides for the three images required to run a skupper site.
-
-Example values.yaml file:
-```
-controllerImage:    examplemirror.acme.com/skupper/controller:2.0.0
-kubeAdaptorImage:   examplemirror.acme.com/skupper/kube-adaptor:2.0.0
-routerImage:        examplemirror.acme.com/skupper/skupper-router:3.3.0
-```
+Common customizations include image repositories, pull policies, pod
+tolerations, and resource limits.
 
 ## Alternative Installation Methods
 
@@ -57,19 +64,12 @@ deploying both cluster and namespace-scoped controllers.
 
 ## Development
 
-The skupper chart is generated from common config files, so you will need to run:
-```asciidoc
-make generate-skupper-helm-chart
+Install the chart from the local source:
+```
+helm install skupper ./charts/skupper
 ```
 
-This action will create a `skupper` chart inside the `charts` directory, that 
-you can install with a clustered scope with:
+Or with namespace-scope:
 ```
-helm install skupper ./skupper --set scope=cluster
+helm install skupper ./charts/skupper --set rbac.clusterScoped=false
 ```
-Other option is to install it in a namespaced scope:
-```
-helm install skupper ./skupper --set scope=namespace
-```
-
-Check the `values.yaml` to modify the image tag of the controller, kube-adaptor and router images. 

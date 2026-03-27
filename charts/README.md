@@ -1,10 +1,21 @@
 ## Helm Charts in the Skupper Project
 
-### Skupper chart
+### Quick Start
 
-[Instructions on how to deploy the Skupper chart](skupper/README.md)
+```bash
+# 1. Install CRDs (required)
+  helm install skupper-crds oci://quay.io/skupper/helm/skupper-crds
+OR
+  kubectl apply -f https://github.com/skupperproject/skupper/releases/latest/download/skupper-crds.yaml
 
-### Network-observer chart
+# 2. Install Skupper controller
+helm install skupper oci://quay.io/skupper/helm/skupper
+```
 
-[Instructions on how to deploy the network-observer chart](network-observer/README.md) 
+### Charts
 
+| Chart | Description |
+|-------|-------------|
+| [skupper-crds](skupper-crds/README.md) | Skupper Custom Resource Definitions (install first) |
+| [skupper](skupper/README.md) | Skupper controller |
+| [network-observer](network-observer/README.md) | Network observer for monitoring Skupper networks |

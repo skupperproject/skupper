@@ -1,0 +1,8 @@
+- op: remove
+  path: /metadata/labels/helm.sh~1chart
+- op: remove
+  path: /metadata/labels/app.kubernetes.io~1managed-by
+- op: remove
+  path: /metadata/labels/app.kubernetes.io~1part-of
+- op: remove
+  path: /metadata/labels/app.kubernetes.io~1version

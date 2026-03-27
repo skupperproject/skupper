@@ -273,6 +273,7 @@ jobs:
       - kubectl-install
       - oc-install
       - kind-install
+      - helm-install
       - attach_workspace:
           at: .
       - run:
@@ -418,6 +419,8 @@ jobs:
       - run: make generate-network-observer
       - run: make generate-network-observer-httpbasic
       - run: make generate-network-observer-openshift
+      - run: make generate-skupper-crds
+      - run: make generate-skupper-crds-chart
       - run: mkdir skupper-setup
       - run: cp ./*.yaml skupper-setup
       - run: helm registry login -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD} quay.io
@@ -425,6 +428,8 @@ jobs:
       - run: helm push skupper-*.tgz oci://quay.io/skupper/helm
       - run: make pack-network-observer-helm-chart
       - run: helm push network-observer-*.tgz oci://quay.io/skupper/helm
+      - run: make pack-skupper-crds-helm-chart
+      - run: helm push skupper-crds-*.tgz oci://quay.io/skupper/helm
       - run:
           name: Verify skupper-setup Directory Contents
           command: |

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: skupper-crds
+description: Skupper Custom Resource Definitions (CRDs) for Kubernetes
+version: 2.2.0-dev
+appVersion: v2-dev
+type: application
+home: https://skupper.io/
+sources:
+  - https://github.com/skupperproject/skupper

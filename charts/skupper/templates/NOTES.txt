@@ -1,0 +1,18 @@
+{{- if eq (include "skupper.clusterScoped" .) "true" }}
+Skupper controller installed in namespace "{{ .Release.Namespace }}" with cluster scope.
+The controller will watch for Skupper resources in all namespaces.
+{{- else }}
+Skupper controller installed in namespace "{{ .Release.Namespace }}" with namespace scope.
+The controller will only watch for Skupper resources in this namespace.
+{{- end }}
+
+To create a site:
+kubectl apply -f - <<EOF
+apiVersion: skupper.io/v2alpha1
+kind: Site
+metadata:
+  name: my-site
+  namespace: {{ .Release.Namespace }}
+EOF
+
+Documentation: https://skupper.io/docs
