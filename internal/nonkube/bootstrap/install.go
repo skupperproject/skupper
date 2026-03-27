@@ -21,11 +21,11 @@ import (
 
 type ControllerConfig struct {
 	containerEngine          string
-	containerEndpointDefault string
+	containerEndpointDefault string //container endpoint in the local host to create and start the system controller
 	username                 string
 	hostDataHome             string
 	xdgDataHome              string
-	containerEndpoint        string
+	containerEndpoint        string // container endpoint mapped to the podman socket inside the container
 }
 
 func Install(platform string, reloadType string) error {
@@ -61,7 +61,7 @@ func Install(platform string, reloadType string) error {
 		return nil
 	}
 
-	cli, err := internalclient.NewCompatClient(config.containerEndpoint, "")
+	cli, err := internalclient.NewCompatClient(config.containerEndpointDefault, "")
 	if err != nil {
 		return fmt.Errorf("failed to create container client: %v", err)
 	}
@@ -92,18 +92,18 @@ func Install(platform string, reloadType string) error {
 
 	volumeDestination := fmt.Sprintf("/var/run/%s.sock", platform)
 
-	if strings.HasPrefix(config.containerEndpoint, "unix://") {
-		socketPath := strings.TrimPrefix(config.containerEndpoint, "unix://")
+	if strings.HasPrefix(config.containerEndpointDefault, "unix://") {
+		socketPath := strings.TrimPrefix(config.containerEndpointDefault, "unix://")
 		mounts = append(mounts, container.Volume{
 			Name:        socketPath,
 			Destination: volumeDestination,
 			Mode:        "z",
 			RW:          true,
 		})
-	} else if strings.HasPrefix(config.containerEndpoint, "/") {
+	} else if strings.HasPrefix(config.containerEndpointDefault, "/") {
 
 		mounts = append(mounts, container.Volume{
-			Name:        config.containerEndpoint,
+			Name:        config.containerEndpointDefault,
 			Destination: volumeDestination,
 			Mode:        "z",
 			RW:          true,
@@ -209,14 +209,12 @@ func configEnvVariables(platform string) (*ControllerConfig, error) {
 		return nil, fmt.Errorf("Failed to create directory: %v", err)
 	}
 
-	containerEndpoint := os.Getenv("CONTAINER_ENDPOINT")
-	if containerEndpoint == "" {
-		containerEndpoint = containerEndpointDefault
-	}
+	var containerEndpoint string
+	if platform == "docker" {
+		containerEndpoint = "unix:///var/run/docker.sock"
+	} else {
 
-	err = os.Setenv("CONTAINER_ENDPOINT", containerEndpoint)
-	if err != nil {
-		return nil, err
+		containerEndpoint = "unix:///var/run/podman.sock"
 	}
 
 	controllerConfig.containerEndpoint = containerEndpoint
