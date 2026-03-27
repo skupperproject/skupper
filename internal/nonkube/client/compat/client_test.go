@@ -42,3 +42,32 @@ func TestToAPIError(t *testing.T) {
 	// validating none
 	assert.Assert(t, ToAPIError(nil) == nil)
 }
+
+func TestGetDefaultContainerEndpoint(t *testing.T) {
+	tests := []struct {
+		name              string
+		containerEndpoint string
+		expected          string
+	}{
+		{
+			name:              "uses CONTAINER_ENDPOINT when set",
+			containerEndpoint: "unix:///tmp/docker.sock",
+			expected:          "unix:///tmp/docker.sock",
+		},
+		{
+			name:              "default endpoint",
+			containerEndpoint: "",
+			expected:          "unix:///run/user/1000/podman/podman.sock",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("CONTAINER_ENDPOINT", test.containerEndpoint)
+
+			result := GetDefaultContainerEndpoint()
+			assert.Equal(t, result, test.expected)
+
+		})
+	}
+}

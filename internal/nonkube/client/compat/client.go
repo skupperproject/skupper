@@ -159,6 +159,12 @@ func NewCompatClient(endpoint, basePath string) (*CompatClient, error) {
 }
 
 func GetDefaultContainerEndpoint() string {
+	endpoint := os.Getenv("CONTAINER_ENDPOINT")
+
+	if endpoint != "" {
+		return endpoint
+	}
+
 	platform := config.GetPlatform()
 	if platform == "" {
 		platform = types.Platform(os.Getenv("CONTAINER_ENGINE"))
