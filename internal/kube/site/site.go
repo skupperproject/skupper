@@ -1102,6 +1102,7 @@ func (s *Site) Deleted() {
 		slog.String("namespace", s.namespace),
 		slog.String("name", s.name))
 	s.bindings.cleanup()
+	s.updateAccessTokensForDeletedSite(s.namespace)
 	s.setBindingsConfiguredStatus(stderrors.New("No active site"))
 	s.profiles.Stop()
 }
@@ -1149,6 +1150,47 @@ func (s *Site) updateSiteStatus() error {
 	}
 	s.site = updated
 	return nil
+}
+
+func (s *Site) updateAccessTokensForDeletedSite(namespace string) {
+	// List all access tokens in the namespace
+	tokenList, err := s.clients.GetSkupperClient().SkupperV2alpha1().AccessTokens(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		s.logger.Error("Failed to list access tokens on site deletion",
+			slog.String("namespace", namespace),
+			slog.Any("error", err))
+		return
+	}
+
+	s.logger.Info("Updating access tokens for deleted site",
+		slog.String("namespace", namespace))
+
+	// Update status for each redeemed access token
+	for _, token := range tokenList.Items {
+		s.updateRedeemedStatusForDeletedSite(&token)
+	}
+}
+
+func (s *Site) updateRedeemedStatusForDeletedSite(token *skupperv2alpha1.AccessToken) {
+	// Only update if the token is redeemed
+	if !token.IsRedeemed() {
+		return
+	}
+
+	// Mark the token as failed due to site deletion
+	if token.SetRedeemedWithSiteDeletion() {
+		_, err := s.clients.GetSkupperClient().SkupperV2alpha1().AccessTokens(token.Namespace).UpdateStatus(context.TODO(), token, metav1.UpdateOptions{})
+		if err != nil {
+			s.logger.Error("Failed to update access token status",
+				slog.String("namespace", token.Namespace),
+				slog.String("token", token.Name),
+				slog.Any("error", err))
+		} else {
+			s.logger.Info("Updated access token status due to site deletion",
+				slog.String("namespace", token.Namespace),
+				slog.String("token", token.Name))
+		}
+	}
 }
 
 func (s *Site) updateLinkOperationalCondition(link *skupperv2alpha1.Link, operational bool, remoteSiteId string, remoteSiteName string) error {

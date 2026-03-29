@@ -969,6 +969,9 @@ func Test_NetworkStatusUpdate(t *testing.T) {
 					if network.Platform == "podman" && network.Version == "1.8.0" {
 						foundConfig = true
 					}
+					if network.Platform == "kubernetes" && network.Version == "1.8.0" {
+						foundConfig = true
+					}
 				}
 				if foundConfig == false {
 					t.Errorf("Site.NetworkStatusUpdated() network not updated")
@@ -1214,4 +1217,198 @@ func createRouterConfigMock(s *Site) error {
 		return err
 	}
 	return nil
+}
+
+func Test_updateAccessTokensForDeletedSite(t *testing.T) {
+	tests := []struct {
+		name           string
+		accessTokens   []*skupperv2alpha1.AccessToken
+		wantUpdated    []string // names of tokens that should be updated
+		wantNotUpdated []string // names of tokens that should NOT be updated
+	}{
+		{
+			name: "update redeemed tokens",
+			accessTokens: []*skupperv2alpha1.AccessToken{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:       "token-redeemed",
+						Namespace:  "test",
+						Generation: 1,
+					},
+					Spec: skupperv2alpha1.AccessTokenSpec{
+						Url:  "https://example.com",
+						Code: "test-code",
+					},
+					Status: skupperv2alpha1.AccessTokenStatus{
+						Redeemed: true,
+						Status: skupperv2alpha1.Status{
+							StatusType: "Ready",
+							Message:    "OK",
+							Conditions: []metav1.Condition{
+								{
+									Type:               "Redeemed",
+									Status:             metav1.ConditionTrue,
+									Reason:             "Ready",
+									Message:            "OK",
+									LastTransitionTime: metav1.Now(),
+									ObservedGeneration: 1,
+								},
+							},
+						},
+					},
+				},
+			},
+			wantUpdated:    []string{"token-redeemed"},
+			wantNotUpdated: []string{},
+		},
+		{
+			name: "skip non-redeemed tokens",
+			accessTokens: []*skupperv2alpha1.AccessToken{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:       "token-not-redeemed",
+						Namespace:  "test",
+						Generation: 1,
+					},
+					Spec: skupperv2alpha1.AccessTokenSpec{
+						Url:  "https://example.com",
+						Code: "test-code",
+					},
+					Status: skupperv2alpha1.AccessTokenStatus{
+						Redeemed: false,
+						Status: skupperv2alpha1.Status{
+							StatusType: "Pending",
+							Message:    "Not yet redeemed",
+						},
+					},
+				},
+			},
+			wantUpdated:    []string{},
+			wantNotUpdated: []string{"token-not-redeemed"},
+		},
+		{
+			name: "mixed redeemed and non-redeemed tokens",
+			accessTokens: []*skupperv2alpha1.AccessToken{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:       "token-redeemed-1",
+						Namespace:  "test",
+						Generation: 1,
+					},
+					Spec: skupperv2alpha1.AccessTokenSpec{
+						Url:  "https://example.com",
+						Code: "test-code-1",
+					},
+					Status: skupperv2alpha1.AccessTokenStatus{
+						Redeemed: true,
+						Status: skupperv2alpha1.Status{
+							StatusType: "Ready",
+							Message:    "OK",
+							Conditions: []metav1.Condition{
+								{
+									Type:               "Redeemed",
+									Status:             metav1.ConditionTrue,
+									Reason:             "Ready",
+									Message:            "OK",
+									LastTransitionTime: metav1.Now(),
+									ObservedGeneration: 1,
+								},
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:       "token-not-redeemed",
+						Namespace:  "test",
+						Generation: 1,
+					},
+					Spec: skupperv2alpha1.AccessTokenSpec{
+						Url:  "https://example.com",
+						Code: "test-code-2",
+					},
+					Status: skupperv2alpha1.AccessTokenStatus{
+						Redeemed: false,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:       "token-redeemed-2",
+						Namespace:  "test",
+						Generation: 1,
+					},
+					Spec: skupperv2alpha1.AccessTokenSpec{
+						Url:  "https://example.com",
+						Code: "test-code-3",
+					},
+					Status: skupperv2alpha1.AccessTokenStatus{
+						Redeemed: true,
+						Status: skupperv2alpha1.Status{
+							StatusType: "Ready",
+							Message:    "OK",
+							Conditions: []metav1.Condition{
+								{
+									Type:               "Redeemed",
+									Status:             metav1.ConditionTrue,
+									Reason:             "Ready",
+									Message:            "OK",
+									LastTransitionTime: metav1.Now(),
+									ObservedGeneration: 1,
+								},
+							},
+						},
+					},
+				},
+			},
+			wantUpdated:    []string{"token-redeemed-1", "token-redeemed-2"},
+			wantNotUpdated: []string{"token-not-redeemed"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Convert tokens to runtime objects
+			skupperObjects := []runtime.Object{}
+			for _, token := range tt.accessTokens {
+				skupperObjects = append(skupperObjects, token)
+			}
+
+			// Create site mock
+			s, err := newSiteMocks("test", []runtime.Object{}, skupperObjects, "", false)
+			assert.Assert(t, err)
+
+			// Call the method
+			s.updateAccessTokensForDeletedSite("test")
+
+			// Verify updated tokens
+			for _, tokenName := range tt.wantUpdated {
+				token, err := s.clients.GetSkupperClient().SkupperV2alpha1().AccessTokens("test").Get(context.TODO(), tokenName, metav1.GetOptions{})
+				if err != nil {
+					t.Errorf("Failed to get token %s: %v", tokenName, err)
+					continue
+				}
+				if token.Status.StatusType != "Error" {
+					t.Errorf("Token %s: expected StatusType=Error, got %s", tokenName, token.Status.StatusType)
+				}
+				if token.Status.Message != "Already redeemed for a deleted site" {
+					t.Errorf("Token %s: expected Message='Already redeemed for a deleted site', got %s", tokenName, token.Status.Message)
+				}
+				if !token.Status.Redeemed {
+					t.Errorf("Token %s: expected Redeemed=true, got false", tokenName)
+				}
+			}
+
+			// Verify non-updated tokens
+			for _, tokenName := range tt.wantNotUpdated {
+				token, err := s.clients.GetSkupperClient().SkupperV2alpha1().AccessTokens("test").Get(context.TODO(), tokenName, metav1.GetOptions{})
+				if err != nil {
+					t.Errorf("Failed to get token %s: %v", tokenName, err)
+					continue
+				}
+				if token.Status.StatusType == "Error" && token.Status.Message == "Already redeemed for a deleted site" {
+					t.Errorf("Token %s: should not have been updated but was", tokenName)
+				}
+			}
+		})
+	}
 }
