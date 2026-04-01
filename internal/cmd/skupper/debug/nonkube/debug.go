@@ -175,7 +175,7 @@ func (cmd *CmdDebug) collectVersionInfo(tw *tar.Writer) {
 		}
 	}
 
-	// Router version
+	// Router version (only if skrouterd binary exists on host i.e. systemd sites)
 	routerVersion, err := utils.RunCommand("skrouterd", "--version")
 	if err == nil {
 		utils.WriteTar("/versions/skrouterd.txt", routerVersion, time.Now(), tw)
