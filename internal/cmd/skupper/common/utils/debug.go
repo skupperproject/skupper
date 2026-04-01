@@ -10,13 +10,20 @@ import (
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
-func init() {
-	// Register Skupper types with the kubernetes scheme so WriteObject can serialize both
-	// core K8s types (ConfigMap, Secret) and Skupper types (Site, Connector, etc.)
-	skupperv2alpha1.AddToScheme(scheme.Scheme)
+// debugScheme contains both K8s core types and Skupper CRD types
+var debugScheme = newDebugScheme()
+
+// newDebugScheme creates and configures a scheme that can serialize both
+// K8s core types (ConfigMap, Secret) and Skupper types (Site, Connector, etc.)
+func newDebugScheme() *runtime.Scheme {
+	s := runtime.NewScheme()
+	utilruntime.Must(scheme.AddToScheme(s))
+	utilruntime.Must(skupperv2alpha1.AddToScheme(s))
+	return s
 }
 
 // RunCommand executes an external command and returns its output
@@ -55,7 +62,7 @@ func WriteTar(name string, data []byte, ts time.Time, tw *tar.Writer) error {
 // Supports both core K8s types (ConfigMap, Secret, etc.) and Skupper types (Site, Connector, etc.)
 func WriteObject(rto runtime.Object, name string, tw *tar.Writer) error {
 	var b bytes.Buffer
-	s := json.NewYAMLSerializer(json.DefaultMetaFactory, scheme.Scheme, scheme.Scheme)
+	s := json.NewYAMLSerializer(json.DefaultMetaFactory, debugScheme, debugScheme)
 	if err := s.Encode(rto, &b); err != nil {
 		return err
 	}
