@@ -148,7 +148,7 @@ func (cmd *CmdDebug) Run() error {
 
 func (cmd *CmdDebug) collectVersionInfo(tw *tar.Writer) {
 	// Skupper version
-	manifest, err := utils.RunCommand("skupper", "version", "-o", "yaml", "-n", cmd.namespace)
+	manifest, err := utils.RunCommand("skupper", "manifest", "-o", "yaml")
 	if err == nil {
 		utils.WriteTar("/versions/skupper.yaml", manifest, time.Now(), tw)
 		utils.WriteTar("/versions/skupper.yaml.txt", manifest, time.Now(), tw)
@@ -369,13 +369,15 @@ func (cmd *CmdDebug) collectRouterStatsContainer(tw *tar.Writer) {
 func (cmd *CmdDebug) collectSystemdInfo(tw *tar.Writer) {
 	serviceName := "skupper-" + cmd.namespace + ".service"
 
-	user := ""
+	// Build systemctl args based on user
+	args := []string{}
 	if os.Getuid() != 0 {
-		user = "--user"
+		args = append(args, "--user")
 	}
+	args = append(args, "status", serviceName)
 
 	// Get service status
-	status, err := utils.RunCommand("systemctl", user, "status", serviceName)
+	status, err := utils.RunCommand("systemctl", args...)
 	if err == nil {
 		utils.WriteTar("/site-namespace/resources/Systemd-"+serviceName+"-status.txt", status, time.Now(), tw)
 	}
@@ -391,12 +393,13 @@ func (cmd *CmdDebug) collectSystemdInfo(tw *tar.Writer) {
 func (cmd *CmdDebug) collectSystemdLogs(tw *tar.Writer) {
 	serviceName := "skupper-" + cmd.namespace + ".service"
 
-	user := ""
+	args := []string{}
 	if os.Getuid() != 0 {
-		user = "--user"
+		args = append(args, "--user")
 	}
+	args = append(args, "-u", serviceName, "--no-pager", "--all")
 
-	logs, err := utils.RunCommand("journalctl", user, "-u", serviceName, "--no-pager", "--all")
+	logs, err := utils.RunCommand("journalctl", args...)
 	if err == nil {
 		utils.WriteTar("/site-namespace/logs/systemd-journal.txt", logs, time.Now(), tw)
 	}
