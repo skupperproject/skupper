@@ -407,7 +407,11 @@ func (c *Controller) checkListener(key string, listener *skupperv2alpha1.Listene
 	if listener != nil {
 		_, svcExists = c.observedServices[namespace+"/"+listener.Spec.Host]
 	}
-	return c.getSite(namespace).CheckListener(name, listener, svcExists)
+	err = c.getSite(namespace).CheckListener(name, listener, svcExists)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *Controller) checkMultiKeyListener(key string, mkl *skupperv2alpha1.MultiKeyListener) error {
@@ -422,7 +426,14 @@ func (c *Controller) checkMultiKeyListener(key string, mkl *skupperv2alpha1.Mult
 func (c *Controller) checkListenerService(key string, svc *corev1.Service) error {
 	c.log.Debug("checkListenerService", slog.String("key", key))
 	if svc == nil {
-		return nil
+		namespace, serviceName, err := cache.SplitMetaNamespaceKey(key)
+		if err != nil {
+			return err
+		}
+		if !c.namespaces.isControlled(namespace) {
+			return nil
+		}
+		return c.getSite(namespace).HandleDeletedListenerService(serviceName)
 	}
 	return c.getSite(svc.Namespace).CheckListenerService(svc)
 }
