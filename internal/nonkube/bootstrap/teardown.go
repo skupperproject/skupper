@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/skupperproject/skupper/api/types"
-	"github.com/skupperproject/skupper/internal/config"
 	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/internal/nonkube/common"
@@ -23,14 +21,6 @@ func Teardown(namespace string) error {
 	configuredPlatform, err := platformLoader.Load(namespace)
 	if err != nil {
 		return err
-	}
-
-	currentPlatform := config.GetPlatform()
-	if currentPlatform.IsKubernetes() {
-		currentPlatform = types.PlatformPodman
-	}
-	if string(currentPlatform) != configuredPlatform {
-		return fmt.Errorf("existing namespace uses %q platform and it cannot change to %q", configuredPlatform, string(currentPlatform))
 	}
 
 	if err := removeRouter(namespace, configuredPlatform); err != nil {
