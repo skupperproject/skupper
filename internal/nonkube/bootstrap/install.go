@@ -189,20 +189,29 @@ func configEnvVariables(platform string) (*ControllerConfig, error) {
 		xdgRuntimeDir = fmt.Sprintf("/run/user/%s", uid)
 	}
 
-	containerEndpointDefault := fmt.Sprintf("unix://%s/podman/podman.sock", xdgRuntimeDir)
-
-	if platform == "docker" {
-		containerEndpointDefault = "unix:///run/docker.sock"
-	}
-
-	uidInt, _ := strconv.Atoi(uid)
 	xdgDataHome := "/output"
+	uidInt, _ := strconv.Atoi(uid)
 	hostDataHome := api.GetHostDataHome()
 	if uidInt == 0 {
-		if platform == "podman" {
-			containerEndpointDefault = "unix:///run/podman/podman.sock"
-		}
 		hostDataHome = "/var/lib/skupper"
+	}
+
+	containerEndpointDefault := os.Getenv("CONTAINER_ENDPOINT")
+
+	if containerEndpointDefault == "" {
+
+		if platform == "docker" {
+			containerEndpointDefault = "unix:///run/docker.sock"
+		} else {
+
+			containerEndpointDefault = fmt.Sprintf("unix://%s/podman/podman.sock", xdgRuntimeDir)
+
+			if uidInt == 0 {
+				if platform == "podman" {
+					containerEndpointDefault = "unix:///run/podman/podman.sock"
+				}
+			}
+		}
 	}
 
 	if err := os.MkdirAll(api.GetDefaultOutputNamespacesPath(), 0755); err != nil {
