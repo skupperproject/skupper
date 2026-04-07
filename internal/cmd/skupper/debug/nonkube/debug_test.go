@@ -277,16 +277,21 @@ func TestCmdDebug_Run(t *testing.T) {
 		}
 		assert.NilError(t, err)
 		filesFound[header.Name] = true
+		t.Logf("Found file in tarball: %s", header.Name)
 	}
 
-	// Check for expected files
+	// Check for expected files - now collected in both runtime and input subdirectories
 	expectedPaths := []string{
-		"/site-namespace/resources/Site-test-site.yaml",
-		"/site-namespace/resources/Site-test-site.yaml.txt",
+		"/site-namespace/resources/runtime/Site-test-site.yaml",
+		"/site-namespace/resources/runtime/Site-test-site.yaml.txt",
+		"/site-namespace/resources/input/Site-test-site.yaml",
+		"/site-namespace/resources/input/Site-test-site.yaml.txt",
 	}
 
 	for _, path := range expectedPaths {
-		assert.Check(t, filesFound[path], "expected file %s not found in tarball", path)
+		if !filesFound[path] {
+			t.Errorf("Expected file %s not found in tarball", path)
+		}
 	}
 
 	// Cleanup

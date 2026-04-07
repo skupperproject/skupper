@@ -1,8 +1,6 @@
 package nonkube
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"errors"
 	"fmt"
 	"os"
@@ -10,11 +8,12 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
+	cliutils "github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/compat"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/internal/nonkube/client/runtime"
 	nonkubecommon "github.com/skupperproject/skupper/internal/nonkube/common"
+	pkgutils "github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
@@ -113,84 +112,90 @@ func (cmd *CmdDebug) Run() error {
 		dumpFile = dumpFile + ".tar.gz"
 	}
 
-	tarFile, err := os.Create(dumpFile)
-	if err != nil {
-		return fmt.Errorf("Unable to save skupper dump details: %w", err)
-	}
-	defer tarFile.Close()
-
-	// Compress tar
-	gz := gzip.NewWriter(tarFile)
-	defer gz.Close()
-	tw := tar.NewWriter(gz)
-	defer tw.Close()
+	// Create tarball
+	tb := pkgutils.NewTarball()
 
 	// Collect all diagnostic information
-	cmd.collectVersionInfo(tw)
-	cmd.collectSiteResources(tw)
-	cmd.collectRouterConfig(tw)
-	cmd.collectCertificates(tw)
+	cmd.collectVersionInfo(tb)
+	cmd.collectSiteResources(tb)
+	cmd.collectRouterConfig(tb)
+	cmd.collectCertificates(tb)
 
 	// Platform-specific collection
 	if cmd.platform == "linux" {
-		cmd.collectSystemdInfo(tw)
-		cmd.collectSystemdLogs(tw)
-		cmd.collectRouterStatsSystemd(tw)
+		cmd.collectSystemdInfo(tb)
+		cmd.collectSystemdLogs(tb)
+		cmd.collectRouterStatsSystemd(tb)
 	} else {
-		cmd.collectContainerInfo(tw)
-		cmd.collectContainerLogs(tw)
-		cmd.collectRouterStatsContainer(tw)
+		cmd.collectContainerInfo(tb)
+		cmd.collectContainerLogs(tb)
+		cmd.collectRouterStatsContainer(tb)
+	}
+
+	// Save tarball to file
+	err := tb.Save(dumpFile)
+	if err != nil {
+		return fmt.Errorf("Unable to save skupper dump details: %w", err)
 	}
 
 	fmt.Println("Skupper dump details written to compressed archive:", dumpFile)
 	return nil
 }
 
-func (cmd *CmdDebug) collectVersionInfo(tw *tar.Writer) {
+func (cmd *CmdDebug) collectVersionInfo(tb *pkgutils.Tarball) {
 	// Skupper version
-	manifest, err := utils.RunCommand("skupper", "manifest", "-o", "yaml")
+	manifest, err := cliutils.RunCommand("skupper", "manifest", "-o", "yaml")
 	if err == nil {
-		utils.WriteTar("/versions/skupper.yaml", manifest, time.Now(), tw)
-		utils.WriteTar("/versions/skupper.yaml.txt", manifest, time.Now(), tw)
+		cliutils.WriteTar("/versions/skupper.yaml", manifest, time.Now(), tb)
+		cliutils.WriteTar("/versions/skupper.yaml.txt", manifest, time.Now(), tb)
 	}
 
 	// Platform version
 	var platformVersion []byte
 	switch cmd.platform {
 	case "podman":
-		platformVersion, err = utils.RunCommand("podman", "version")
+		platformVersion, err = cliutils.RunCommand("podman", "version")
 		if err == nil {
-			utils.WriteTar("/versions/podman.txt", platformVersion, time.Now(), tw)
+			cliutils.WriteTar("/versions/podman.txt", platformVersion, time.Now(), tb)
 		}
 	case "docker":
-		platformVersion, err = utils.RunCommand("docker", "version")
+		platformVersion, err = cliutils.RunCommand("docker", "version")
 		if err == nil {
-			utils.WriteTar("/versions/docker.txt", platformVersion, time.Now(), tw)
+			cliutils.WriteTar("/versions/docker.txt", platformVersion, time.Now(), tb)
 		}
 	case "linux":
 		// Get systemd version
-		platformVersion, err = utils.RunCommand("systemctl", "--version")
+		platformVersion, err = cliutils.RunCommand("systemctl", "--version")
 		if err == nil {
-			utils.WriteTar("/versions/systemd.txt", platformVersion, time.Now(), tw)
+			cliutils.WriteTar("/versions/systemd.txt", platformVersion, time.Now(), tb)
 		}
 	}
 
 	// Router version (only if skrouterd binary exists on host i.e. systemd sites)
-	routerVersion, err := utils.RunCommand("skrouterd", "--version")
+	routerVersion, err := cliutils.RunCommand("skrouterd", "--version")
 	if err == nil {
-		utils.WriteTar("/versions/skrouterd.txt", routerVersion, time.Now(), tw)
+		cliutils.WriteTar("/versions/skrouterd.txt", routerVersion, time.Now(), tb)
 	}
 }
 
-func (cmd *CmdDebug) collectSiteResources(tw *tar.Writer) {
+func (cmd *CmdDebug) collectSiteResources(tb *pkgutils.Tarball) {
 	path := "/site-namespace/resources/"
-	opts := fs.GetOptions{RuntimeFirst: true, LogWarning: false}
 
-	// Sites
-	sites, err := cmd.siteHandler.List(opts)
+	// Collect both runtime and input resources
+	optsRuntime := fs.GetOptions{RuntimeFirst: true, LogWarning: false}
+	optsInput := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
+
+	// Sites - collect both runtime and input
+	sites, err := cmd.siteHandler.List(optsRuntime)
 	if err == nil && sites != nil {
 		for _, site := range sites {
-			utils.WriteObject(site, path+"Site-"+site.Name, tw)
+			cliutils.WriteObject(site, path+"runtime/Site-"+site.Name, tb)
+		}
+	}
+	sites, err = cmd.siteHandler.List(optsInput)
+	if err == nil && sites != nil {
+		for _, site := range sites {
+			cliutils.WriteObject(site, path+"input/Site-"+site.Name, tb)
 		}
 	}
 
@@ -198,7 +203,7 @@ func (cmd *CmdDebug) collectSiteResources(tw *tar.Writer) {
 	connectors, err := cmd.connectorHandler.List()
 	if err == nil && connectors != nil {
 		for _, connector := range connectors {
-			utils.WriteObject(connector, path+"Connector-"+connector.Name, tw)
+			cliutils.WriteObject(connector, path+"Connector-"+connector.Name, tb)
 		}
 	}
 
@@ -206,15 +211,21 @@ func (cmd *CmdDebug) collectSiteResources(tw *tar.Writer) {
 	listeners, err := cmd.listenerHandler.List()
 	if err == nil && listeners != nil {
 		for _, listener := range listeners {
-			utils.WriteObject(listener, path+"Listener-"+listener.Name, tw)
+			cliutils.WriteObject(listener, path+"Listener-"+listener.Name, tb)
 		}
 	}
 
-	// Links
-	links, err := cmd.linkHandler.List(opts)
+	// Links - collect both runtime and input
+	links, err := cmd.linkHandler.List(optsRuntime)
 	if err == nil && links != nil {
 		for _, link := range links {
-			utils.WriteObject(link, path+"Link-"+link.Name, tw)
+			cliutils.WriteObject(link, path+"runtime/Link-"+link.Name, tb)
+		}
+	}
+	links, err = cmd.linkHandler.List(optsInput)
+	if err == nil && links != nil {
+		for _, link := range links {
+			cliutils.WriteObject(link, path+"input/Link-"+link.Name, tb)
 		}
 	}
 
@@ -222,7 +233,7 @@ func (cmd *CmdDebug) collectSiteResources(tw *tar.Writer) {
 	certificates, err := cmd.certificateHandler.List()
 	if err == nil && certificates != nil {
 		for _, cert := range certificates {
-			utils.WriteObject(cert, path+"Certificate-"+cert.Name, tw)
+			cliutils.WriteObject(cert, path+"Certificate-"+cert.Name, tb)
 		}
 	}
 
@@ -230,7 +241,7 @@ func (cmd *CmdDebug) collectSiteResources(tw *tar.Writer) {
 	secrets, err := cmd.secretHandler.List()
 	if err == nil && secrets != nil {
 		for _, secret := range secrets {
-			utils.WriteObject(secret, path+"Secret-"+secret.Name, tw)
+			cliutils.WriteObject(secret, path+"Secret-"+secret.Name, tb)
 		}
 	}
 
@@ -238,7 +249,7 @@ func (cmd *CmdDebug) collectSiteResources(tw *tar.Writer) {
 	configMaps, err := cmd.configMapHandler.List()
 	if err == nil && configMaps != nil {
 		for _, cm := range configMaps {
-			utils.WriteObject(cm, path+"Configmap-"+cm.Name, tw)
+			cliutils.WriteObject(cm, path+"Configmap-"+cm.Name, tb)
 		}
 	}
 
@@ -246,17 +257,18 @@ func (cmd *CmdDebug) collectSiteResources(tw *tar.Writer) {
 	// Individual router accesses can be collected through other means if needed
 }
 
-func (cmd *CmdDebug) collectRouterConfig(tw *tar.Writer) {
+func (cmd *CmdDebug) collectRouterConfig(tb *pkgutils.Tarball) {
 	path := "/site-namespace/resources/"
 	skrPath := api.GetInternalOutputPath(cmd.namespace, api.RouterConfigPath+"/skrouterd.json")
 	skrouterd, err := os.ReadFile(skrPath)
 	if err == nil && skrouterd != nil {
-		utils.WriteTar(path+"router-config.json", skrouterd, time.Now(), tw)
+		cliutils.WriteTar(path+"router-config.json", skrouterd, time.Now(), tb)
 	}
 }
 
-func (cmd *CmdDebug) collectCertificates(tw *tar.Writer) {
-	certFiles := []string{"ca.crt", "tls.crt", "tls.key"}
+func (cmd *CmdDebug) collectCertificates(tb *pkgutils.Tarball) {
+	// Only collect public certificates, not private keys (tls.key)
+	certFiles := []string{"ca.crt", "tls.crt"}
 
 	// Input certificates
 	certPath := api.GetInternalOutputPath(cmd.namespace, api.InputCertificatesPath)
@@ -267,7 +279,7 @@ func (cmd *CmdDebug) collectCertificates(tw *tar.Writer) {
 				fileName := certDir.Name() + "/" + certFile
 				file, err := os.ReadFile(filepath.Join(certPath, fileName))
 				if err == nil {
-					utils.WriteTar("/site-namespace/resources/certs/input/"+fileName, file, time.Now(), tw)
+					cliutils.WriteTar("/site-namespace/resources/certs/input/"+fileName, file, time.Now(), tb)
 				}
 			}
 		}
@@ -282,14 +294,14 @@ func (cmd *CmdDebug) collectCertificates(tw *tar.Writer) {
 				fileName := certDir.Name() + "/" + certFile
 				file, err := os.ReadFile(filepath.Join(certPath, fileName))
 				if err == nil {
-					utils.WriteTar("/site-namespace/resources/certs/runtime/"+fileName, file, time.Now(), tw)
+					cliutils.WriteTar("/site-namespace/resources/certs/runtime/"+fileName, file, time.Now(), tb)
 				}
 			}
 		}
 	}
 }
 
-func (cmd *CmdDebug) collectContainerInfo(tw *tar.Writer) {
+func (cmd *CmdDebug) collectContainerInfo(tb *pkgutils.Tarball) {
 	cli, err := compat.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
 	if err != nil {
 		return
@@ -304,19 +316,19 @@ func (cmd *CmdDebug) collectContainerInfo(tw *tar.Writer) {
 	path := "/site-namespace/resources/"
 	for _, container := range containers {
 		// Only collect skupper-related containers
-		if container.Labels["application"] == "skupper" {
+		if container.Labels["application"] == "skupper-v2" {
 			// Inspect container details
 			details, err := cli.ContainerInspect(container.Name)
 			if err == nil {
-				encodedOutput, _ := utils.Encode("yaml", details)
-				utils.WriteTar(path+"Container-"+container.Name+".yaml", []byte(encodedOutput), time.Now(), tw)
-				utils.WriteTar(path+"Container-"+container.Name+".yaml.txt", []byte(encodedOutput), time.Now(), tw)
+				encodedOutput, _ := cliutils.Encode("yaml", details)
+				cliutils.WriteTar(path+"Container-"+container.Name+".yaml", []byte(encodedOutput), time.Now(), tb)
+				cliutils.WriteTar(path+"Container-"+container.Name+".yaml.txt", []byte(encodedOutput), time.Now(), tb)
 			}
 		}
 	}
 }
 
-func (cmd *CmdDebug) collectContainerLogs(tw *tar.Writer) {
+func (cmd *CmdDebug) collectContainerLogs(tb *pkgutils.Tarball) {
 	cli, err := compat.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
 	if err != nil {
 		return
@@ -326,18 +338,18 @@ func (cmd *CmdDebug) collectContainerLogs(tw *tar.Writer) {
 	rtrContainerName := cmd.namespace + "-skupper-router"
 	logs, err := cli.ContainerLogs(rtrContainerName)
 	if err == nil {
-		utils.WriteTar("/site-namespace/logs/"+rtrContainerName+".txt", []byte(logs), time.Now(), tw)
+		cliutils.WriteTar("/site-namespace/logs/"+rtrContainerName+".txt", []byte(logs), time.Now(), tb)
 	}
 
 	// Controller container
 	ctlContainerName := "system-controller"
 	logs, err = cli.ContainerLogs(ctlContainerName)
 	if err == nil {
-		utils.WriteTar("/site-namespace/logs/"+ctlContainerName+".txt", []byte(logs), time.Now(), tw)
+		cliutils.WriteTar("/site-namespace/logs/"+ctlContainerName+".txt", []byte(logs), time.Now(), tb)
 	}
 }
 
-func (cmd *CmdDebug) collectRouterStatsContainer(tw *tar.Writer) {
+func (cmd *CmdDebug) collectRouterStatsContainer(tb *pkgutils.Tarball) {
 	cli, err := compat.NewCompatClient(os.Getenv("CONTAINER_ENDPOINT"), "")
 	if err != nil {
 		return
@@ -361,12 +373,12 @@ func (cmd *CmdDebug) collectRouterStatsContainer(tw *tar.Writer) {
 		}
 		out, err := cli.ContainerExec(rtrContainerName, skStatCommand)
 		if err == nil {
-			utils.WriteTar("/site-namespace/resources/skstat/"+rtrContainerName+"-skstat"+flag+".txt", []byte(out), time.Now(), tw)
+			cliutils.WriteTar("/site-namespace/resources/skstat/"+rtrContainerName+"-skstat"+flag+".txt", []byte(out), time.Now(), tb)
 		}
 	}
 }
 
-func (cmd *CmdDebug) collectSystemdInfo(tw *tar.Writer) {
+func (cmd *CmdDebug) collectSystemdInfo(tb *pkgutils.Tarball) {
 	serviceName := "skupper-" + cmd.namespace + ".service"
 
 	// Build systemctl args based on user
@@ -377,20 +389,20 @@ func (cmd *CmdDebug) collectSystemdInfo(tw *tar.Writer) {
 	args = append(args, "status", serviceName)
 
 	// Get service status
-	status, err := utils.RunCommand("systemctl", args...)
+	status, err := cliutils.RunCommand("systemctl", args...)
 	if err == nil {
-		utils.WriteTar("/site-namespace/resources/Systemd-"+serviceName+"-status.txt", status, time.Now(), tw)
+		cliutils.WriteTar("/site-namespace/resources/Systemd-"+serviceName+"-status.txt", status, time.Now(), tb)
 	}
 
 	// Get service file
 	scriptsPath := api.GetInternalOutputPath(cmd.namespace, api.ScriptsPath)
 	serviceFile, err := os.ReadFile(filepath.Join(scriptsPath, serviceName))
 	if err == nil {
-		utils.WriteTar("/site-namespace/resources/Systemd-"+serviceName+"-file.txt", serviceFile, time.Now(), tw)
+		cliutils.WriteTar("/site-namespace/resources/Systemd-"+serviceName+"-file.txt", serviceFile, time.Now(), tb)
 	}
 }
 
-func (cmd *CmdDebug) collectSystemdLogs(tw *tar.Writer) {
+func (cmd *CmdDebug) collectSystemdLogs(tb *pkgutils.Tarball) {
 	serviceName := "skupper-" + cmd.namespace + ".service"
 
 	args := []string{}
@@ -399,13 +411,13 @@ func (cmd *CmdDebug) collectSystemdLogs(tw *tar.Writer) {
 	}
 	args = append(args, "-u", serviceName, "--no-pager", "--all")
 
-	logs, err := utils.RunCommand("journalctl", args...)
+	logs, err := cliutils.RunCommand("journalctl", args...)
 	if err == nil {
-		utils.WriteTar("/site-namespace/logs/systemd-journal.txt", logs, time.Now(), tw)
+		cliutils.WriteTar("/site-namespace/logs/systemd-journal.txt", logs, time.Now(), tb)
 	}
 }
 
-func (cmd *CmdDebug) collectRouterStatsSystemd(tw *tar.Writer) {
+func (cmd *CmdDebug) collectRouterStatsSystemd(tb *pkgutils.Tarball) {
 	localRouterAddress, err := runtime.GetLocalRouterAddress(cmd.namespace)
 	if err != nil {
 		return
@@ -415,13 +427,13 @@ func (cmd *CmdDebug) collectRouterStatsSystemd(tw *tar.Writer) {
 	flags := []string{"-g", "-c", "-l", "-n", "-e", "-a", "-m", "-p"}
 
 	for _, flag := range flags {
-		out, err := utils.RunCommand("/usr/bin/skstat", flag,
+		out, err := cliutils.RunCommand("/usr/bin/skstat", flag,
 			"-b", localRouterAddress,
 			"--ssl-certificate", certs.CertPath,
 			"--ssl-key", certs.KeyPath,
 			"--ssl-trustfile", certs.CaPath)
 		if err == nil {
-			utils.WriteTar("/site-namespace/resources/skstat/router-skstat"+flag+".txt", out, time.Now(), tw)
+			cliutils.WriteTar("/site-namespace/resources/skstat/router-skstat"+flag+".txt", out, time.Now(), tb)
 		}
 	}
 }

@@ -1,12 +1,12 @@
 package utils
 
 import (
-	"archive/tar"
 	"bytes"
 	"fmt"
 	"os/exec"
 	"time"
 
+	pkgutils "github.com/skupperproject/skupper/internal/utils"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
@@ -39,19 +39,9 @@ func RunCommand(name string, args ...string) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// WriteTar adds a file to the tar archive
-func WriteTar(name string, data []byte, ts time.Time, tw *tar.Writer) error {
-	hdr := &tar.Header{
-		Name:    name,
-		Mode:    0600,
-		Size:    int64(len(data)),
-		ModTime: ts,
-	}
-	err := tw.WriteHeader(hdr)
-	if err != nil {
-		return fmt.Errorf("Failed to write tar file header: %w", err)
-	}
-	_, err = tw.Write(data)
+// WriteTar adds a file to the tar archive using the Tarball utility
+func WriteTar(name string, data []byte, ts time.Time, tb *pkgutils.Tarball) error {
+	err := tb.AddFileData(name, 0600, ts, data)
 	if err != nil {
 		return fmt.Errorf("Failed to write to tar archive: %w", err)
 	}
@@ -60,17 +50,17 @@ func WriteTar(name string, data []byte, ts time.Time, tw *tar.Writer) error {
 
 // WriteObject writes a Kubernetes object as both .yaml and .yaml.txt to the tar archive.
 // Supports both core K8s types (ConfigMap, Secret, etc.) and Skupper types (Site, Connector, etc.)
-func WriteObject(rto runtime.Object, name string, tw *tar.Writer) error {
+func WriteObject(rto runtime.Object, name string, tb *pkgutils.Tarball) error {
 	var b bytes.Buffer
 	s := json.NewYAMLSerializer(json.DefaultMetaFactory, debugScheme, debugScheme)
 	if err := s.Encode(rto, &b); err != nil {
 		return err
 	}
-	err := WriteTar(name+".yaml", b.Bytes(), time.Now(), tw)
+	err := WriteTar(name+".yaml", b.Bytes(), time.Now(), tb)
 	if err != nil {
 		return err
 	}
-	err = WriteTar(name+".yaml.txt", b.Bytes(), time.Now(), tw)
+	err = WriteTar(name+".yaml.txt", b.Bytes(), time.Now(), tb)
 	if err != nil {
 		return err
 	}
