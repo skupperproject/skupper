@@ -270,14 +270,6 @@ type SiteConfigReference struct {
 	Kind       string
 }
 
-type ServiceInterfaceCreateOptions struct {
-	Protocol   string
-	Address    string
-	Port       int
-	TargetPort int
-	Headless   bool
-}
-
 type RouterInspectResponse struct {
 	Status            RouterStatusSpec
 	TransportVersion  string
@@ -287,12 +279,11 @@ type RouterInspectResponse struct {
 }
 
 type GatewayEndpoint struct {
-	Name        string           `json:"name,omitempty" yaml:"name,omitempty"`
-	Host        string           `json:"host,omitempty" yaml:"host,omitempty"`
-	Loopback    bool             `json:"loopback,omitempty" yaml:"loopback,omitempty"`
-	LocalPort   string           `json:"localPort,omitempty" yaml:"local_port,omitempty"`
-	Service     ServiceInterface `json:"service,omitempty" yaml:"service,omitempty"`
-	TargetPorts []int            `json:"targetPorts,omitempty" yaml:"target_ports,omitempty"`
+	Name        string `json:"name,omitempty" yaml:"name,omitempty"`
+	Host        string `json:"host,omitempty" yaml:"host,omitempty"`
+	Loopback    bool   `json:"loopback,omitempty" yaml:"loopback,omitempty"`
+	LocalPort   string `json:"localPort,omitempty" yaml:"local_port,omitempty"`
+	TargetPorts []int  `json:"targetPorts,omitempty" yaml:"target_ports,omitempty"`
 }
 
 type GatewayInspectResponse struct {
@@ -322,14 +313,6 @@ type VanClientInterface interface {
 	ConnectorTokenCreateFile(ctx context.Context, subject string, secretFile string) error
 	TokenClaimCreate(ctx context.Context, name string, password []byte, expiry time.Duration, uses int) (*corev1.Secret, bool, error)
 	TokenClaimCreateFile(ctx context.Context, name string, password []byte, expiry time.Duration, uses int, secretFile string) error
-	ServiceInterfaceCreate(ctx context.Context, service *ServiceInterface) error
-	ServiceInterfaceInspect(ctx context.Context, address string) (*ServiceInterface, error)
-	ServiceInterfaceList(ctx context.Context) ([]*ServiceInterface, error)
-	ServiceInterfaceRemove(ctx context.Context, address string) error
-	ServiceInterfaceUpdate(ctx context.Context, service *ServiceInterface) error
-	ServiceInterfaceBind(ctx context.Context, service *ServiceInterface, targetType string, targetName string, targetPorts map[int]int, namespace string) error
-	GetHeadlessServiceConfiguration(targetName string, protocol string, address string, ports []int, publishNotReadyAddresses bool, namespace string) (*ServiceInterface, error)
-	ServiceInterfaceUnbind(ctx context.Context, targetType string, targetName string, address string, deleteIfNoTargets bool, namespace string) error
 	GatewayBind(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error
 	GatewayUnbind(ctx context.Context, gatewayName string, endpoint GatewayEndpoint) error
 	GatewayExpose(ctx context.Context, gatewayName string, gatewayType string, endpoint GatewayEndpoint) (string, error)

@@ -1307,66 +1307,6 @@ func (a *ListenerDifference) Empty() bool {
 	return len(a.Deleted) == 0 && len(a.Added) == 0
 }
 
-func GetRouterConfigForHeadlessProxy(definition types.ServiceInterface, siteId string, version string, namespace string, profilePath string) (string, error) {
-	config := InitialConfig("${HOSTNAME}-"+siteId, siteId, version, true, 3)
-	// add edge-connector
-	config.AddSslProfile(ConfigureSslProfile(types.InterRouterProfile, profilePath, true))
-	config.AddConnector(Connector{
-		Name:       "uplink",
-		SslProfile: types.InterRouterProfile,
-		Host:       types.TransportServiceName + "." + namespace + ".svc.cluster.local",
-		Port:       strconv.Itoa(int(types.EdgeListenerPort)),
-		Role:       RoleEdge,
-	})
-	config.AddListener(Listener{
-		Name: "amqp",
-		Host: "localhost",
-		Port: 5672,
-	})
-	svcPorts := definition.Ports
-	ports := map[int]int{}
-	if len(definition.Targets) > 0 {
-		ports = definition.Targets[0].TargetPorts
-	} else {
-		for _, sp := range svcPorts {
-			ports[sp] = sp
-		}
-	}
-	for iPort, ePort := range ports {
-		address := fmt.Sprintf("%s-%s:%d", definition.Address, "${POD_ID}", iPort)
-		if definition.IsOfLocalOrigin() {
-			name := TcpConnectorNamePrefix + fmt.Sprintf("egress:%d", ePort)
-			host := definition.Headless.Name + "-${POD_ID}." + definition.Address + "." + namespace
-			// in the originating site, just have egress bindings
-			switch definition.Protocol {
-			case "tcp":
-				config.AddTcpConnector(TcpEndpoint{
-					Name:    name,
-					Host:    host,
-					Port:    strconv.Itoa(ePort),
-					Address: address,
-					SiteId:  siteId,
-				})
-			default:
-			}
-		} else {
-			name := TcpListenerNamePrefix + fmt.Sprintf("ingress:%d", ePort)
-			// in all other sites, just have ingress bindings
-			switch definition.Protocol {
-			case "tcp":
-				config.AddTcpListener(TcpEndpoint{
-					Name:    name,
-					Port:    strconv.Itoa(iPort),
-					Address: address,
-					SiteId:  siteId,
-				})
-			default:
-			}
-		}
-	}
-	return MarshalRouterConfig(config)
-}
-
 func disableMutualTLS(l *Listener) {
 	l.SaslMechanisms = ""
 	l.AuthenticatePeer = false
