@@ -90,7 +90,7 @@ func TestRouterStateHandler(t *testing.T) {
 		return mockFactory
 	}
 	callback := &routerStateCallback{}
-	routerStateHandler.SetCallback(callback)
+	routerStateHandler.AddCallback(callback)
 	stopCh := make(chan struct{})
 
 	t.Run("start-router-state-handler", func(t *testing.T) {

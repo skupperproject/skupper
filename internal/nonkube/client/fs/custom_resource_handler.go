@@ -17,6 +17,8 @@ type GetOptions struct {
 	RuntimeFirst bool
 	LogWarning   bool
 	Attributes   map[string]string
+	InputOnly    bool
+	RuntimeOnly  bool
 }
 
 type CustomResourceHandler[T any] interface {

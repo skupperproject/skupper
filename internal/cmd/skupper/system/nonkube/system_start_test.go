@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/config"
@@ -38,7 +39,7 @@ func TestCmdSystemSetup_ValidateInput(t *testing.T) {
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-
+			t.Setenv(types.ENV_SYSTEM_AUTO_RELOAD, types.SystemReloadTypeManual)
 			command := &CmdSystemStart{}
 			command.CobraCmd = common.ConfigureCobraCommand(common.PlatformLinux, common.SkupperCmdDescription{}, command, nil)
 			command.Namespace = test.namespace

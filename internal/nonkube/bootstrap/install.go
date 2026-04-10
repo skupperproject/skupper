@@ -14,20 +14,21 @@ import (
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap/controller"
 	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
 	"github.com/skupperproject/skupper/internal/nonkube/common"
+	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
 type ControllerConfig struct {
 	containerEngine          string
-	containerEndpointDefault string
+	containerEndpointDefault string //container endpoint in the local host to create and start the system controller
 	username                 string
 	hostDataHome             string
 	xdgDataHome              string
-	containerEndpoint        string
+	containerEndpoint        string // container endpoint mapped to the podman socket inside the container
 }
 
-func Install(platform string) error {
+func Install(platform string, reloadType string) error {
 
 	systemdGlobal, err := common.NewSystemdGlobal(platform)
 	if err != nil {
@@ -60,7 +61,7 @@ func Install(platform string) error {
 		return nil
 	}
 
-	cli, err := internalclient.NewCompatClient(config.containerEndpoint, "")
+	cli, err := internalclient.NewCompatClient(config.containerEndpointDefault, "")
 	if err != nil {
 		return fmt.Errorf("failed to create container client: %v", err)
 	}
@@ -71,10 +72,16 @@ func Install(platform string) error {
 	}
 	fmt.Printf("Pulled system-controller image: %s\n", images.GetSystemControllerImageName())
 
+	if reloadType == "" {
+		reloadType = utils.DefaultStr(os.Getenv(types.ENV_SYSTEM_AUTO_RELOAD),
+			types.SystemReloadTypeManual)
+	}
+
 	env := map[string]string{
-		"CONTAINER_ENDPOINT":  config.containerEndpoint,
-		"SKUPPER_OUTPUT_PATH": config.hostDataHome,
-		"CONTAINER_ENGINE":    config.containerEngine,
+		"CONTAINER_ENDPOINT":         config.containerEndpoint,
+		"SKUPPER_OUTPUT_PATH":        config.hostDataHome,
+		"CONTAINER_ENGINE":           config.containerEngine,
+		"SKUPPER_SYSTEM_RELOAD_TYPE": reloadType,
 	}
 
 	//To mount a volume as a bind, the host path must be specified in the Name field
@@ -85,18 +92,18 @@ func Install(platform string) error {
 
 	volumeDestination := fmt.Sprintf("/var/run/%s.sock", platform)
 
-	if strings.HasPrefix(config.containerEndpoint, "unix://") {
-		socketPath := strings.TrimPrefix(config.containerEndpoint, "unix://")
+	if strings.HasPrefix(config.containerEndpointDefault, "unix://") {
+		socketPath := strings.TrimPrefix(config.containerEndpointDefault, "unix://")
 		mounts = append(mounts, container.Volume{
 			Name:        socketPath,
 			Destination: volumeDestination,
 			Mode:        "z",
 			RW:          true,
 		})
-	} else if strings.HasPrefix(config.containerEndpoint, "/") {
+	} else if strings.HasPrefix(config.containerEndpointDefault, "/") {
 
 		mounts = append(mounts, container.Volume{
-			Name:        config.containerEndpoint,
+			Name:        config.containerEndpointDefault,
 			Destination: volumeDestination,
 			Mode:        "z",
 			RW:          true,
@@ -182,34 +189,41 @@ func configEnvVariables(platform string) (*ControllerConfig, error) {
 		xdgRuntimeDir = fmt.Sprintf("/run/user/%s", uid)
 	}
 
-	containerEndpointDefault := fmt.Sprintf("unix://%s/podman/podman.sock", xdgRuntimeDir)
-
-	if platform == "docker" {
-		containerEndpointDefault = "unix:///run/docker.sock"
-	}
-
-	uidInt, _ := strconv.Atoi(uid)
 	xdgDataHome := "/output"
+	uidInt, _ := strconv.Atoi(uid)
 	hostDataHome := api.GetHostDataHome()
 	if uidInt == 0 {
-		if platform == "podman" {
-			containerEndpointDefault = "unix:///run/podman/podman.sock"
-		}
 		hostDataHome = "/var/lib/skupper"
+	}
+
+	containerEndpointDefault := os.Getenv("CONTAINER_ENDPOINT")
+
+	if containerEndpointDefault == "" {
+
+		if platform == "docker" {
+			containerEndpointDefault = "unix:///run/docker.sock"
+		} else {
+
+			containerEndpointDefault = fmt.Sprintf("unix://%s/podman/podman.sock", xdgRuntimeDir)
+
+			if uidInt == 0 {
+				if platform == "podman" {
+					containerEndpointDefault = "unix:///run/podman/podman.sock"
+				}
+			}
+		}
 	}
 
 	if err := os.MkdirAll(api.GetDefaultOutputNamespacesPath(), 0755); err != nil {
 		return nil, fmt.Errorf("Failed to create directory: %v", err)
 	}
 
-	containerEndpoint := os.Getenv("CONTAINER_ENDPOINT")
-	if containerEndpoint == "" {
-		containerEndpoint = containerEndpointDefault
-	}
+	var containerEndpoint string
+	if platform == "docker" {
+		containerEndpoint = "unix:///var/run/docker.sock"
+	} else {
 
-	err = os.Setenv("CONTAINER_ENDPOINT", containerEndpoint)
-	if err != nil {
-		return nil, err
+		containerEndpoint = "unix:///var/run/podman.sock"
 	}
 
 	controllerConfig.containerEndpoint = containerEndpoint

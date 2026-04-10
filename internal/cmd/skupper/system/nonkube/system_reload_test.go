@@ -36,7 +36,6 @@ func TestCmdSystemReload_ValidateInput(t *testing.T) {
 
 	for _, test := range testTable {
 		t.Run(test.name, func(t *testing.T) {
-
 			command := &CmdSystemReload{}
 			command.Namespace = test.namespace
 			command.CobraCmd = common.ConfigureCobraCommand(common.PlatformLinux, common.SkupperCmdDescription{}, command, nil)

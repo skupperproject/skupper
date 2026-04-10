@@ -112,8 +112,14 @@ func CmdSystemInstallFactory(configuredPlatform common.Platform) *cobra.Command 
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdSystemInstallDesc, kubeCommand, nonKubeCommand)
 
+	cmdFlags := common.CommandSystemInstallFlags{}
+
+	cmd.Flags().StringVar(&cmdFlags.ReloadType, common.FlagNameReloadType, "manual", common.FlagDescReloadType)
+
 	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
 	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
 
 	return cmd
 }

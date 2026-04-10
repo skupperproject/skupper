@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
+	"github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/spf13/cobra"
 )
@@ -43,6 +45,20 @@ func (cmd *CmdSystemStop) ValidateInput(args []string) error {
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("namespace is not valid: %s", err))
 		}
+	}
+
+	platformLoader := &common.NamespacePlatformLoader{}
+	configuredPlatform, err := platformLoader.Load(cmd.Namespace)
+	if err != nil {
+		return err
+	}
+
+	currentPlatform := config.GetPlatform()
+	if currentPlatform.IsKubernetes() {
+		currentPlatform = types.PlatformPodman
+	}
+	if string(currentPlatform) != configuredPlatform {
+		validationErrors = append(validationErrors, fmt.Errorf("existing namespace uses %q platform and it cannot change to %q", configuredPlatform, string(currentPlatform)))
 	}
 
 	return errors.Join(validationErrors...)

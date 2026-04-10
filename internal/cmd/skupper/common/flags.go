@@ -89,6 +89,9 @@ for other Kubernetes flavors, loadbalancer is the default.`
 
 	FlagNameFileName = "filename"
 	FlagDescFileName = "The name of the file with custom resources"
+
+	FlagNameReloadType = "reload-type"
+	FlagDescReloadType = "Specify the type of reload to perform. Choices: manual, auto"
 )
 
 type CommandSiteCreateFlags struct {
@@ -264,4 +267,8 @@ type CommandSystemApplyFlags struct {
 
 type CommandSystemDeleteFlags struct {
 	Filename string
+}
+
+type CommandSystemInstallFlags struct {
+	ReloadType string
 }
