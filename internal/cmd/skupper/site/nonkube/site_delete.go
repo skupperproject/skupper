@@ -3,6 +3,7 @@ package nonkube
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
@@ -103,7 +104,7 @@ func (cmd *CmdSiteDelete) Run() error {
 			return err
 		}
 		err = cmd.routerAccessHandler.Delete("router-access-" + cmd.siteName)
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
 	}
