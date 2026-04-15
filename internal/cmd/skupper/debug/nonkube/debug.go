@@ -1,9 +1,11 @@
 package nonkube
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -17,22 +19,17 @@ import (
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 )
 
 type CmdDebug struct {
-	CobraCmd            *cobra.Command
-	Flags               *common.CommandDebugFlags
-	namespace           string
-	fileName            string
-	platform            string
-	siteHandler         *fs.SiteHandler
-	connectorHandler    *fs.ConnectorHandler
-	listenerHandler     *fs.ListenerHandler
-	linkHandler         *fs.LinkHandler
-	routerAccessHandler *fs.RouterAccessHandler
-	certificateHandler  *fs.CertificateHandler
-	secretHandler       *fs.SecretHandler
-	configMapHandler    *fs.ConfigMapHandler
+	CobraCmd  *cobra.Command
+	Flags     *common.CommandDebugFlags
+	namespace string
+	fileName  string
+	platform  string
 }
 
 func NewCmdDebug() *CmdDebug {
@@ -46,15 +43,6 @@ func (cmd *CmdDebug) NewClient(cobraCommand *cobra.Command, args []string) {
 	if cmd.CobraCmd != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace) != nil && cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String() != "" {
 		cmd.namespace = cmd.CobraCmd.Flag(common.FlagNameNamespace).Value.String()
 	}
-
-	cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
-	cmd.connectorHandler = fs.NewConnectorHandler(cmd.namespace)
-	cmd.listenerHandler = fs.NewListenerHandler(cmd.namespace)
-	cmd.linkHandler = fs.NewLinkHandler(cmd.namespace)
-	cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.namespace)
-	cmd.certificateHandler = fs.NewCertificateHandler(cmd.namespace)
-	cmd.secretHandler = fs.NewSecretHandler(cmd.namespace)
-	cmd.configMapHandler = fs.NewConfigMapHandler(cmd.namespace)
 }
 
 func (cmd *CmdDebug) ValidateInput(args []string) error {
@@ -78,8 +66,9 @@ func (cmd *CmdDebug) ValidateInput(args []string) error {
 	}
 
 	// Validate that a site exists in the namespace
+	siteHandler := fs.NewSiteHandler(cmd.namespace)
 	opts := fs.GetOptions{RuntimeFirst: true, LogWarning: false}
-	sites, err := cmd.siteHandler.List(opts)
+	sites, err := siteHandler.List(opts)
 	if err != nil || sites == nil || len(sites) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("no skupper site found in namespace"))
 	}
@@ -178,91 +167,126 @@ func (cmd *CmdDebug) collectVersionInfo(tb *pkgutils.Tarball) {
 	}
 }
 
-func (cmd *CmdDebug) collectSiteResources(tb *pkgutils.Tarball) {
-	path := "/site-namespace/resources/"
-
-	// Collect both runtime and input resources
-	optsRuntime := fs.GetOptions{RuntimeFirst: true, LogWarning: false}
-	optsInput := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
-
-	// Sites - collect both runtime and input
-	sites, err := cmd.siteHandler.List(optsRuntime)
-	if err == nil && sites != nil {
-		for _, site := range sites {
-			cliutils.WriteObject(site, path+"runtime/Site-"+site.Name, tb)
+// writeObjectToTarball serializes a k8s runtime.Object to YAML and adds it to the tarball
+// For Secrets, it removes the tls.key field to avoid storing private keys
+func writeObjectToTarball(obj k8sruntime.Object, name string, tb *pkgutils.Tarball) error {
+	// Sanitize Secrets - remove tls.key before serialization
+	if secret, ok := obj.(*corev1.Secret); ok {
+		// Create a copy to avoid modifying the original
+		secretCopy := secret.DeepCopy()
+		if secretCopy.Data != nil {
+			delete(secretCopy.Data, "tls.key")
 		}
+		obj = secretCopy
 	}
-	sites, err = cmd.siteHandler.List(optsInput)
-	if err == nil && sites != nil {
-		for _, site := range sites {
-			cliutils.WriteObject(site, path+"input/Site-"+site.Name, tb)
-		}
+
+	// Serialize to YAML
+	var b bytes.Buffer
+	s := json.NewYAMLSerializer(json.DefaultMetaFactory, cliutils.GetDebugScheme(), cliutils.GetDebugScheme())
+	if err := s.Encode(obj, &b); err != nil {
+		return err
+	}
+
+	// Write both .yaml and .yaml.txt files
+	if err := tb.AddFileData(name+".yaml", 0600, time.Now(), b.Bytes()); err != nil {
+		return err
+	}
+	if err := tb.AddFileData(name+".yaml.txt", 0600, time.Now(), b.Bytes()); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cmd *CmdDebug) collectSiteResources(tb *pkgutils.Tarball) {
+	basePath := "/site-namespace/resources/"
+
+	// Load resources from both runtime and input directories
+	runtimePath := api.GetInternalOutputPath(cmd.namespace, api.RuntimeSiteStatePath)
+	inputPath := api.GetInternalOutputPath(cmd.namespace, api.InputSiteStatePath)
+
+	// Load runtime resources
+	runtimeLoader := &nonkubecommon.FileSystemSiteStateLoader{Path: runtimePath}
+	runtimeState, err := runtimeLoader.Load()
+	if err == nil && runtimeState != nil {
+		cmd.writeSiteStateResources(runtimeState, "runtime", basePath, tb)
+	}
+
+	// Load input resources
+	inputLoader := &nonkubecommon.FileSystemSiteStateLoader{Path: inputPath}
+	inputState, err := inputLoader.Load()
+	if err == nil && inputState != nil {
+		cmd.writeSiteStateResources(inputState, "input", basePath, tb)
+	}
+}
+
+func (cmd *CmdDebug) writeSiteStateResources(siteState *api.SiteState, source string, basePath string, tb *pkgutils.Tarball) {
+	// Site
+	if siteState.Site != nil && siteState.Site.Name != "" {
+		writeObjectToTarball(siteState.Site, path.Join(basePath, source, "Site-"+siteState.Site.Name), tb)
 	}
 
 	// Connectors
-	connectors, err := cmd.connectorHandler.List()
-	if err == nil && connectors != nil {
-		for _, connector := range connectors {
-			cliutils.WriteObject(connector, path+"Connector-"+connector.Name, tb)
-		}
+	for _, connector := range siteState.Connectors {
+		writeObjectToTarball(connector, path.Join(basePath, source, "Connector-"+connector.Name), tb)
 	}
 
 	// Listeners
-	listeners, err := cmd.listenerHandler.List()
-	if err == nil && listeners != nil {
-		for _, listener := range listeners {
-			cliutils.WriteObject(listener, path+"Listener-"+listener.Name, tb)
-		}
+	for _, listener := range siteState.Listeners {
+		writeObjectToTarball(listener, path.Join(basePath, source, "Listener-"+listener.Name), tb)
 	}
 
-	// Links - collect both runtime and input
-	links, err := cmd.linkHandler.List(optsRuntime)
-	if err == nil && links != nil {
-		for _, link := range links {
-			cliutils.WriteObject(link, path+"runtime/Link-"+link.Name, tb)
-		}
+	// Links
+	for _, link := range siteState.Links {
+		writeObjectToTarball(link, path.Join(basePath, source, "Link-"+link.Name), tb)
 	}
-	links, err = cmd.linkHandler.List(optsInput)
-	if err == nil && links != nil {
-		for _, link := range links {
-			cliutils.WriteObject(link, path+"input/Link-"+link.Name, tb)
-		}
+
+	// RouterAccesses
+	for _, ra := range siteState.RouterAccesses {
+		writeObjectToTarball(ra, path.Join(basePath, source, "RouterAccess-"+ra.Name), tb)
 	}
 
 	// Certificates
-	certificates, err := cmd.certificateHandler.List()
-	if err == nil && certificates != nil {
-		for _, cert := range certificates {
-			cliutils.WriteObject(cert, path+"Certificate-"+cert.Name, tb)
-		}
+	for _, cert := range siteState.Certificates {
+		writeObjectToTarball(cert, path.Join(basePath, source, "Certificate-"+cert.Name), tb)
 	}
 
-	// Secrets
-	secrets, err := cmd.secretHandler.List()
-	if err == nil && secrets != nil {
-		for _, secret := range secrets {
-			cliutils.WriteObject(secret, path+"Secret-"+secret.Name, tb)
-		}
+	// Secrets (tls.key will be stripped by writeObjectToTarball)
+	for _, secret := range siteState.Secrets {
+		writeObjectToTarball(secret, path.Join(basePath, source, "Secret-"+secret.Name), tb)
 	}
 
 	// ConfigMaps
-	configMaps, err := cmd.configMapHandler.List()
-	if err == nil && configMaps != nil {
-		for _, cm := range configMaps {
-			cliutils.WriteObject(cm, path+"Configmap-"+cm.Name, tb)
-		}
+	for _, cm := range siteState.ConfigMaps {
+		writeObjectToTarball(cm, path.Join(basePath, source, "Configmap-"+cm.Name), tb)
 	}
 
-	// Note: RouterAccessHandler doesn't have a List method
-	// Individual router accesses can be collected through other means if needed
+	// AccessGrants
+	for _, grant := range siteState.Grants {
+		writeObjectToTarball(grant, path.Join(basePath, source, "AccessGrant-"+grant.Name), tb)
+	}
+
+	// AccessTokens (Claims)
+	for _, token := range siteState.Claims {
+		writeObjectToTarball(token, path.Join(basePath, source, "AccessToken-"+token.Name), tb)
+	}
+
+	// SecuredAccesses
+	for _, sa := range siteState.SecuredAccesses {
+		writeObjectToTarball(sa, path.Join(basePath, source, "SecuredAccess-"+sa.Name), tb)
+	}
+
+	// MultiKeyListeners
+	for _, mkl := range siteState.MultiKeyListeners {
+		writeObjectToTarball(mkl, path.Join(basePath, source, "MultiKeyListener-"+mkl.Name), tb)
+	}
 }
 
 func (cmd *CmdDebug) collectRouterConfig(tb *pkgutils.Tarball) {
-	path := "/site-namespace/resources/"
-	skrPath := api.GetInternalOutputPath(cmd.namespace, api.RouterConfigPath+"/skrouterd.json")
+	basePath := "/site-namespace/resources/"
+	skrPath := path.Join(api.GetInternalOutputPath(cmd.namespace, api.RouterConfigPath), "skrouterd.json")
 	skrouterd, err := os.ReadFile(skrPath)
 	if err == nil && skrouterd != nil {
-		cliutils.WriteTar(path+"router-config.json", skrouterd, time.Now(), tb)
+		cliutils.WriteTar(path.Join(basePath, "router-config.json"), skrouterd, time.Now(), tb)
 	}
 }
 
@@ -276,10 +300,10 @@ func (cmd *CmdDebug) collectCertificates(tb *pkgutils.Tarball) {
 	if err == nil && certDirs != nil {
 		for _, certDir := range certDirs {
 			for _, certFile := range certFiles {
-				fileName := certDir.Name() + "/" + certFile
+				fileName := path.Join(certDir.Name(), certFile)
 				file, err := os.ReadFile(filepath.Join(certPath, fileName))
 				if err == nil {
-					cliutils.WriteTar("/site-namespace/resources/certs/input/"+fileName, file, time.Now(), tb)
+					cliutils.WriteTar(path.Join("/site-namespace/resources/certs/input", fileName), file, time.Now(), tb)
 				}
 			}
 		}
@@ -291,10 +315,10 @@ func (cmd *CmdDebug) collectCertificates(tb *pkgutils.Tarball) {
 	if err == nil && certDirs != nil {
 		for _, certDir := range certDirs {
 			for _, certFile := range certFiles {
-				fileName := certDir.Name() + "/" + certFile
+				fileName := path.Join(certDir.Name(), certFile)
 				file, err := os.ReadFile(filepath.Join(certPath, fileName))
 				if err == nil {
-					cliutils.WriteTar("/site-namespace/resources/certs/runtime/"+fileName, file, time.Now(), tb)
+					cliutils.WriteTar(path.Join("/site-namespace/resources/certs/runtime", fileName), file, time.Now(), tb)
 				}
 			}
 		}
@@ -313,7 +337,7 @@ func (cmd *CmdDebug) collectContainerInfo(tb *pkgutils.Tarball) {
 		return
 	}
 
-	path := "/site-namespace/resources/"
+	basePath := "/site-namespace/resources/"
 	for _, container := range containers {
 		// Only collect skupper-related containers
 		if container.Labels["application"] == "skupper-v2" {
@@ -321,8 +345,8 @@ func (cmd *CmdDebug) collectContainerInfo(tb *pkgutils.Tarball) {
 			details, err := cli.ContainerInspect(container.Name)
 			if err == nil {
 				encodedOutput, _ := cliutils.Encode("yaml", details)
-				cliutils.WriteTar(path+"Container-"+container.Name+".yaml", []byte(encodedOutput), time.Now(), tb)
-				cliutils.WriteTar(path+"Container-"+container.Name+".yaml.txt", []byte(encodedOutput), time.Now(), tb)
+				cliutils.WriteTar(path.Join(basePath, "Container-"+container.Name+".yaml"), []byte(encodedOutput), time.Now(), tb)
+				cliutils.WriteTar(path.Join(basePath, "Container-"+container.Name+".yaml.txt"), []byte(encodedOutput), time.Now(), tb)
 			}
 		}
 	}
@@ -338,14 +362,14 @@ func (cmd *CmdDebug) collectContainerLogs(tb *pkgutils.Tarball) {
 	rtrContainerName := cmd.namespace + "-skupper-router"
 	logs, err := cli.ContainerLogs(rtrContainerName)
 	if err == nil {
-		cliutils.WriteTar("/site-namespace/logs/"+rtrContainerName+".txt", []byte(logs), time.Now(), tb)
+		cliutils.WriteTar(path.Join("/site-namespace/logs", rtrContainerName+".txt"), []byte(logs), time.Now(), tb)
 	}
 
 	// Controller container
 	ctlContainerName := "system-controller"
 	logs, err = cli.ContainerLogs(ctlContainerName)
 	if err == nil {
-		cliutils.WriteTar("/site-namespace/logs/"+ctlContainerName+".txt", []byte(logs), time.Now(), tb)
+		cliutils.WriteTar(path.Join("/site-namespace/logs", ctlContainerName+".txt"), []byte(logs), time.Now(), tb)
 	}
 }
 
@@ -373,7 +397,7 @@ func (cmd *CmdDebug) collectRouterStatsContainer(tb *pkgutils.Tarball) {
 		}
 		out, err := cli.ContainerExec(rtrContainerName, skStatCommand)
 		if err == nil {
-			cliutils.WriteTar("/site-namespace/resources/skstat/"+rtrContainerName+"-skstat"+flag+".txt", []byte(out), time.Now(), tb)
+			cliutils.WriteTar(path.Join("/site-namespace/resources/skstat", rtrContainerName+"-skstat"+flag+".txt"), []byte(out), time.Now(), tb)
 		}
 	}
 }
@@ -391,14 +415,14 @@ func (cmd *CmdDebug) collectSystemdInfo(tb *pkgutils.Tarball) {
 	// Get service status
 	status, err := cliutils.RunCommand("systemctl", args...)
 	if err == nil {
-		cliutils.WriteTar("/site-namespace/resources/Systemd-"+serviceName+"-status.txt", status, time.Now(), tb)
+		cliutils.WriteTar(path.Join("/site-namespace/resources", "Systemd-"+serviceName+"-status.txt"), status, time.Now(), tb)
 	}
 
 	// Get service file
 	scriptsPath := api.GetInternalOutputPath(cmd.namespace, api.ScriptsPath)
 	serviceFile, err := os.ReadFile(filepath.Join(scriptsPath, serviceName))
 	if err == nil {
-		cliutils.WriteTar("/site-namespace/resources/Systemd-"+serviceName+"-file.txt", serviceFile, time.Now(), tb)
+		cliutils.WriteTar(path.Join("/site-namespace/resources", "Systemd-"+serviceName+"-file.txt"), serviceFile, time.Now(), tb)
 	}
 }
 
@@ -413,7 +437,7 @@ func (cmd *CmdDebug) collectSystemdLogs(tb *pkgutils.Tarball) {
 
 	logs, err := cliutils.RunCommand("journalctl", args...)
 	if err == nil {
-		cliutils.WriteTar("/site-namespace/logs/systemd-journal.txt", logs, time.Now(), tb)
+		cliutils.WriteTar(path.Join("/site-namespace/logs", "systemd-journal.txt"), logs, time.Now(), tb)
 	}
 }
 
@@ -433,7 +457,7 @@ func (cmd *CmdDebug) collectRouterStatsSystemd(tb *pkgutils.Tarball) {
 			"--ssl-key", certs.KeyPath,
 			"--ssl-trustfile", certs.CaPath)
 		if err == nil {
-			cliutils.WriteTar("/site-namespace/resources/skstat/router-skstat"+flag+".txt", out, time.Now(), tb)
+			cliutils.WriteTar(path.Join("/site-namespace/resources/skstat", "router-skstat"+flag+".txt"), out, time.Now(), tb)
 		}
 	}
 }

@@ -26,6 +26,11 @@ func newDebugScheme() *runtime.Scheme {
 	return s
 }
 
+// GetDebugScheme returns the shared debug scheme for serialization
+func GetDebugScheme() *runtime.Scheme {
+	return debugScheme
+}
+
 // RunCommand executes an external command and returns its output
 func RunCommand(name string, args ...string) ([]byte, error) {
 	cmd := exec.Command(name, args...)

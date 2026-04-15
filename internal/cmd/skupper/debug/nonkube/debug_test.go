@@ -94,10 +94,10 @@ func TestCmdDebug_ValidateInput(t *testing.T) {
 			command := &CmdDebug{Flags: &common.CommandDebugFlags{}}
 			command.CobraCmd = &cobra.Command{Use: "test"}
 			command.namespace = namespace
-			command.siteHandler = fs.NewSiteHandler(namespace)
 
 			// Setup site if needed
 			if test.setupSite {
+				siteHandler := fs.NewSiteHandler(namespace)
 				siteResource := v2alpha1.Site{
 					TypeMeta: metav1.TypeMeta{
 						APIVersion: "skupper.io/v2alpha1",
@@ -110,9 +110,9 @@ func TestCmdDebug_ValidateInput(t *testing.T) {
 				}
 				ipath := api.GetInternalOutputPath(namespace, api.InputSiteStatePath)
 				rpath := api.GetInternalOutputPath(namespace, api.RuntimeSiteStatePath)
-				content, _ := command.siteHandler.EncodeToYaml(siteResource)
-				command.siteHandler.WriteFile(ipath, "test-site.yaml", content, common.Sites)
-				command.siteHandler.WriteFile(rpath, "test-site.yaml", content, common.Sites)
+				content, _ := siteHandler.EncodeToYaml(siteResource)
+				siteHandler.WriteFile(ipath, "test-site.yaml", content, common.Sites)
+				siteHandler.WriteFile(rpath, "test-site.yaml", content, common.Sites)
 			}
 
 			// Setup platform if needed
@@ -223,16 +223,6 @@ func TestCmdDebug_Run(t *testing.T) {
 	command.fileName = filepath.Join(t.TempDir(), "test-dump")
 	command.platform = "linux" // Use linux to avoid container/systemd operations in test
 
-	// Initialize handlers
-	command.siteHandler = fs.NewSiteHandler(namespace)
-	command.connectorHandler = fs.NewConnectorHandler(namespace)
-	command.listenerHandler = fs.NewListenerHandler(namespace)
-	command.linkHandler = fs.NewLinkHandler(namespace)
-	command.routerAccessHandler = fs.NewRouterAccessHandler(namespace)
-	command.certificateHandler = fs.NewCertificateHandler(namespace)
-	command.secretHandler = fs.NewSecretHandler(namespace)
-	command.configMapHandler = fs.NewConfigMapHandler(namespace)
-
 	// Setup paths
 	ipath := api.GetInternalOutputPath(namespace, api.InputSiteStatePath)
 	rpath := api.GetInternalOutputPath(namespace, api.RuntimeSiteStatePath)
@@ -245,9 +235,10 @@ func TestCmdDebug_Run(t *testing.T) {
 	os.WriteFile(filepath.Join(internalPath, "platform.yaml"), platformYaml, 0644)
 
 	// Create site
-	content, _ := command.siteHandler.EncodeToYaml(siteResource)
-	command.siteHandler.WriteFile(ipath, "test-site.yaml", content, common.Sites)
-	command.siteHandler.WriteFile(rpath, "test-site.yaml", content, common.Sites)
+	siteHandler := fs.NewSiteHandler(namespace)
+	content, _ := siteHandler.EncodeToYaml(siteResource)
+	siteHandler.WriteFile(ipath, "test-site.yaml", content, common.Sites)
+	siteHandler.WriteFile(rpath, "test-site.yaml", content, common.Sites)
 
 	// Run the command
 	err := command.Run()
@@ -326,14 +317,14 @@ func TestCmdDebug_ValidateInput_Integration(t *testing.T) {
 	command := &CmdDebug{Flags: &common.CommandDebugFlags{}}
 	command.CobraCmd = &cobra.Command{Use: "test"}
 	command.namespace = namespace
-	command.siteHandler = fs.NewSiteHandler(namespace)
 
 	// Setup site
+	siteHandler := fs.NewSiteHandler(namespace)
 	ipath := api.GetInternalOutputPath(namespace, api.InputSiteStatePath)
 	rpath := api.GetInternalOutputPath(namespace, api.RuntimeSiteStatePath)
-	content, _ := command.siteHandler.EncodeToYaml(siteResource)
-	command.siteHandler.WriteFile(ipath, "integration-site.yaml", content, common.Sites)
-	command.siteHandler.WriteFile(rpath, "integration-site.yaml", content, common.Sites)
+	content, _ := siteHandler.EncodeToYaml(siteResource)
+	siteHandler.WriteFile(ipath, "integration-site.yaml", content, common.Sites)
+	siteHandler.WriteFile(rpath, "integration-site.yaml", content, common.Sites)
 
 	// Setup platform
 	internalPath := api.GetInternalOutputPath(namespace, api.InternalBasePath)
