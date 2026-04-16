@@ -379,9 +379,15 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 		if certificate.Spec.Signing == false {
 			continue
 		}
-		secret, err := certs.GenerateSecret(name, certificate.Spec.Subject, nil, 0, nil)
-		if err != nil {
-			return err
+		var secret *corev1.Secret
+		var ok bool
+		if secret, ok = siteState.Secrets[name]; !ok {
+			secret, err = certs.GenerateSecret(name, certificate.Spec.Subject, nil, 0, nil)
+			if err != nil {
+				return err
+			}
+		} else {
+			fmt.Printf("-> User provided CA found (secret): %s\n", name)
 		}
 
 		ignoreExisting := true
@@ -390,7 +396,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 			// override with user provided CA
 			ignoreExisting = false
 			secret = userCaSecret
-			fmt.Printf("-> User provided CA found: %s\n", name)
+			fmt.Printf("-> User provided CA found (file): %s\n", name)
 		}
 		caPath := path.Join(outputPath, string(api.IssuersPath), name)
 		err = writeSecretFilesIgnore(caPath, secret, ignoreExisting)
@@ -403,6 +409,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 		var purpose string
 		var secret *corev1.Secret
 		var caSecret *corev1.Secret
+		var ok bool
 		if certificate.Spec.Ca != "" {
 			caSecret, err = c.loadCASecret(siteState, certificate.Spec.Ca)
 			if err != nil {
@@ -411,9 +418,13 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 		}
 		if certificate.Spec.Client {
 			purpose = "client"
-			secret, err = certs.GenerateSecret(name, certificate.Spec.Subject, certificate.Spec.Hosts, 0, caSecret)
-			if err != nil {
-				return err
+			if secret, ok = siteState.Secrets[name]; !ok {
+				secret, err = certs.GenerateSecret(name, certificate.Spec.Subject, certificate.Spec.Hosts, 0, caSecret)
+				if err != nil {
+					return err
+				}
+			} else {
+				fmt.Printf("-> User provided %s certificate found (secret): %s\n", purpose, name)
 			}
 			// TODO Not sure if connect.json is needed (probably need to get rid of it)
 			if connectJson := c.connectJson(siteState); connectJson != nil {
@@ -421,9 +432,13 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 			}
 		} else if certificate.Spec.Server {
 			purpose = "server"
-			secret, err = certs.GenerateSecret(name, certificate.Spec.Subject, certificate.Spec.Hosts, 0, caSecret)
-			if err != nil {
-				return err
+			if secret, ok = siteState.Secrets[name]; !ok {
+				secret, err = certs.GenerateSecret(name, certificate.Spec.Subject, certificate.Spec.Hosts, 0, caSecret)
+				if err != nil {
+					return err
+				}
+			} else {
+				fmt.Printf("-> User provided %s certificate found (secret): %s\n", purpose, name)
 			}
 		} else {
 			continue
@@ -432,7 +447,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 		if userSecret != nil && err == nil {
 			// override with user provided secret
 			secret = userSecret
-			fmt.Printf("-> User provided %s certificate found: %s\n", purpose, name)
+			fmt.Printf("-> User provided %s certificate found (file): %s\n", purpose, name)
 		}
 		certPath := path.Join(outputPath, string(api.CertificatesPath), name)
 		err = writeSecretFiles(certPath, secret)
