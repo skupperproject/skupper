@@ -284,6 +284,13 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 			continue
 		}
 		site := c.getSite(listener.ObjectMeta.Namespace)
+		site.CheckLeadListeners(listener)
+	}
+	for _, listener := range c.listenerWatcher.List() {
+		if !c.namespaces.isControlled(listener.Namespace) {
+			continue
+		}
+		site := c.getSite(listener.ObjectMeta.Namespace)
 		c.log.Info("Recovering listener",
 			slog.String("namespace", listener.Namespace),
 			slog.String("name", listener.Name),

@@ -27,6 +27,7 @@ import (
 	"github.com/skupperproject/skupper/internal/qdr"
 	"github.com/skupperproject/skupper/internal/site"
 	"github.com/skupperproject/skupper/internal/version"
+	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
@@ -62,6 +63,7 @@ type Site struct {
 	labelling     Labelling
 	profiles      *secrets.ProfilesWatcher
 	disableSecCtx bool
+	leadListeners map[string]string
 }
 
 func NewSite(namespace string, eventProcessor *watchers.EventProcessor, certs certificates.CertificateManager, access SecuredAccessFactory, sizes *sizing.Registry, labelling Labelling, disableSecCtx bool) *Site {
@@ -82,6 +84,7 @@ func NewSite(namespace string, eventProcessor *watchers.EventProcessor, certs ce
 		),
 		labelling:     labelling,
 		disableSecCtx: disableSecCtx,
+		leadListeners: map[string]string{},
 	}
 	site.profiles = secrets.NewProfilesWatcher(
 		sslSecretsWatcher(namespace, eventProcessor),
@@ -112,6 +115,14 @@ func (s *Site) verifySiteSpec(site *skupperv2alpha1.Site) error {
 		return fmt.Errorf("Unsupported value for LinkAccess: %s", site.Spec.LinkAccess)
 	}
 	return nil
+}
+
+func (s *Site) CheckLeadListeners(listener *skupperv2alpha1.Listener) bool {
+	if listener.Status.Status.StatusType != v2alpha1.StatusError {
+		s.leadListeners[listener.Name] = listener.Spec.Host + "/" + strconv.Itoa(listener.Spec.Port)
+		return true
+	}
+	return false
 }
 
 func (s *Site) StartRecovery(site *skupperv2alpha1.Site) error {
@@ -954,10 +965,37 @@ func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener, sv
 		}
 		return s.updateListenerStatus(listener, stderrors.New("No active site in namespace"))
 	}
-	if listener != nil && svcExists {
-		return s.updateListenerStatus(listener, fmt.Errorf("Service %s already exists in namespace", listener.Spec.Host))
+	if listener == nil {
+		delete(s.leadListeners, name)
+	} else {
+		if svcExists {
+			return s.updateListenerStatus(listener, fmt.Errorf("Service %s already exists in namespace", listener.Spec.Host))
+		} else {
+			if current, ok := s.leadListeners[listener.Name]; !ok {
+				for leaderName, hostPort := range s.leadListeners {
+					if hostPort == listener.Spec.Host+"/"+strconv.Itoa(listener.Spec.Port) {
+						return s.updateListenerStatus(listener, fmt.Errorf("Listener %s with host %s and port %d already exists in namespace", leaderName, listener.Spec.Host, listener.Spec.Port))
+					}
+				}
+				s.leadListeners[listener.Name] = listener.Spec.Host + "/" + strconv.Itoa(listener.Spec.Port)
+			} else {
+				if current != listener.Spec.Host+"/"+strconv.Itoa(listener.Spec.Port) {
+					conflict := false
+					for leaderName, hostPort := range s.leadListeners {
+						if leaderName != listener.Name && hostPort == listener.Spec.Host+"/"+strconv.Itoa(listener.Spec.Port) {
+							conflict = true
+						}
+					}
+					if conflict { // lets delete listener and pick up status next time around
+						delete(s.leadListeners, listener.Name)
+						listener = nil
+					} else { // update it
+						s.leadListeners[listener.Name] = listener.Spec.Host + "/" + strconv.Itoa(listener.Spec.Port)
+					}
+				}
+			}
+		}
 	}
-
 	update, err1 := s.bindings.UpdateListener(name, listener)
 	if update == nil {
 		return nil
