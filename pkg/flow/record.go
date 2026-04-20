@@ -276,6 +276,7 @@ type LinkRecord struct {
 	Name      *string `json:"name,omitempty"`
 	LinkCost  *uint64 `json:"linkCost,omitempty"`
 	Direction *string `json:"direction,omitempty"`
+	Location  *string `json:"location,omitempty"`
 }
 
 type linkRecordResponse struct {
