@@ -273,3 +273,41 @@ func TestCmdSiteDelete_Run(t *testing.T) {
 		})
 	}
 }
+
+// TestCmdSiteDelete_SiteWithoutRouterAccess verifies that deleting a site
+// without a RouterAccess resource does not fail with "no such file or directory".
+func TestCmdSiteDelete_SiteWithoutRouterAccess(t *testing.T) {
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+	tmpDir := api.GetDataHome()
+	path := filepath.Join(tmpDir, "/namespaces/test-no-ra/", string(api.InputSiteStatePath))
+
+	siteResource := v2alpha1.Site{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "skupper.io/v2alpha1", Kind: "Site"},
+		ObjectMeta: metav1.ObjectMeta{Name: "my-site", Namespace: "test-no-ra"},
+	}
+
+	command := &CmdSiteDelete{Flags: &common.CommandSiteDeleteFlags{}}
+	command.namespace = "test-no-ra"
+	command.siteName = "my-site"
+	command.siteHandler = fs.NewSiteHandler(command.namespace)
+	command.routerAccessHandler = fs.NewRouterAccessHandler(command.namespace)
+
+	content, err := command.siteHandler.EncodeToYaml(siteResource)
+	assert.NilError(t, err)
+	err = command.siteHandler.WriteFile(path, "my-site.yaml", content, common.Sites)
+	assert.NilError(t, err)
+
+	command.InputToOptions()
+	err = command.Run()
+	assert.NilError(t, err)
+
+	// Verify site was actually deleted
+	opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
+	site, err := command.siteHandler.Get("my-site", opts)
+	assert.Check(t, site == nil)
+	assert.Check(t, err != nil)
+}
