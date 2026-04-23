@@ -4,14 +4,14 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-readonly SKUPPER_IMAGE_TAG=${1:-2.1.3}
+readonly SKUPPER_IMAGE_TAG=${1:-2.1.4}
 
 readonly OPERATOR_SDK=${OPERATOR_SDK:-operator-sdk}
 readonly KUBECTL=${KUBECTL:-kubectl}
 readonly MIN_KUBE_VERSION=${MIN_KUBE_VERSION:-1.25.0}
 
-readonly BUNDLE_VERSION=${BUNDLE_VERSION:-2.1.3}
-readonly PREVIOUS_BUNDLE_VERSION=${PREVIOUS_BUNDLE_VERSION:-2.1.1}
+readonly BUNDLE_VERSION=${BUNDLE_VERSION:-2.1.4}
+readonly PREVIOUS_BUNDLE_VERSION=${PREVIOUS_BUNDLE_VERSION:-2.1.3}
 readonly BUNDLE_CHANNELS=${BUNDLE_CHANNELS:-"stable-2,stable-2.1"}
 readonly BUNDLE_DEFAULT_CHANNEL=${BUNDLE_DEFAULT_CHANNEL:-stable-2}
 
