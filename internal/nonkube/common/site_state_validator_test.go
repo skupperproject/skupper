@@ -14,6 +14,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 	tests := []struct {
 		info          string
 		siteState     *api.SiteState
+		currentState  *api.SiteState
 		valid         bool
 		errorContains string
 	}{
@@ -315,6 +316,15 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 			errorContains: "weight value must be positive",
 		},
 		{
+			info:      "invalid-multikeylistener-strategy-modified",
+			siteState: fakeSiteState(),
+			currentState: customize(func(siteState *api.SiteState) {
+				siteState.MultiKeyListeners["mkl-one"], siteState.MultiKeyListeners["mkl-two"] = siteState.MultiKeyListeners["mkl-two"], siteState.MultiKeyListeners["mkl-one"]
+			}),
+			valid:         false,
+			errorContains: "strategy cannot be changed",
+		},
+		{
 			info: "invalid-multikeylistener-port-conflict-with-listener",
 			siteState: customize(func(siteState *api.SiteState) {
 				for _, mkl := range siteState.MultiKeyListeners {
@@ -334,7 +344,7 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 	validator := &SiteStateValidator{}
 	for _, test := range tests {
 		t.Run(test.info, func(t *testing.T) {
-			err := validator.Validate(test.siteState)
+			err := validator.Validate(test.siteState, test.currentState)
 			assert.Equal(t, err == nil, test.valid, err)
 			if !test.valid {
 				assert.ErrorContains(t, err, test.errorContains)

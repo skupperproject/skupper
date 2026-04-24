@@ -28,30 +28,30 @@ type SiteStateValidator struct{}
 // to validate the site state against the spec (CRD), but to a more
 // basic level, like to ensure that mandatory fields for each resource are
 // populated and users will be able to operate the non-k8s site.
-func (s *SiteStateValidator) Validate(siteState *api.SiteState) error {
+func (s *SiteStateValidator) Validate(desiredState, currentState *api.SiteState) error {
 	var err error
-	if err = s.validateSite(siteState.Site); err != nil {
+	if err = s.validateSite(desiredState.Site); err != nil {
 		return err
 	}
-	if err = s.validateRouterAccesses(siteState.RouterAccesses); err != nil {
+	if err = s.validateRouterAccesses(desiredState.RouterAccesses); err != nil {
 		return err
 	}
-	if err = s.validateLinks(siteState.Links, siteState.Secrets); err != nil {
+	if err = s.validateLinks(desiredState.Links, desiredState.Secrets); err != nil {
 		return err
 	}
-	if err = s.validateClaims(siteState.Claims); err != nil {
+	if err = s.validateClaims(desiredState.Claims); err != nil {
 		return err
 	}
-	if err = s.validateGrants(siteState.Grants); err != nil {
+	if err = s.validateGrants(desiredState.Grants); err != nil {
 		return err
 	}
-	if err = s.validateListeners(siteState.Listeners); err != nil {
+	if err = s.validateListeners(desiredState.Listeners); err != nil {
 		return err
 	}
-	if err = s.validateConnectors(siteState.Connectors); err != nil {
+	if err = s.validateConnectors(desiredState.Connectors); err != nil {
 		return err
 	}
-	if err = s.validateMultiKeyListeners(siteState.MultiKeyListeners, siteState.Listeners); err != nil {
+	if err = s.validateMultiKeyListeners(desiredState.MultiKeyListeners, desiredState.Listeners, currentState); err != nil {
 		return err
 	}
 
@@ -176,7 +176,7 @@ func (s *SiteStateValidator) validateConnectors(connectors map[string]*v2alpha1.
 	return nil
 }
 
-func (s *SiteStateValidator) validateMultiKeyListeners(multiKeyListeners map[string]*v2alpha1.MultiKeyListener, listeners map[string]*v2alpha1.Listener) error {
+func (s *SiteStateValidator) validateMultiKeyListeners(multiKeyListeners map[string]*v2alpha1.MultiKeyListener, listeners map[string]*v2alpha1.Listener, currentSiteState *api.SiteState) error {
 	// collect host:port pairs already used by listeners
 	hostPorts := map[string][]int{}
 	for _, listener := range listeners {
@@ -223,6 +223,13 @@ func (s *SiteStateValidator) validateMultiKeyListeners(multiKeyListeners map[str
 				}
 				if weight <= 0 {
 					return fmt.Errorf("invalid multikeylistener: %s - weight value must be positive", mkl.Name)
+				}
+			}
+		}
+		if currentSiteState != nil {
+			if curMkl, ok := currentSiteState.MultiKeyListeners[name]; ok {
+				if (curMkl.Spec.Strategy.Priority != nil && mkl.Spec.Strategy.Priority == nil) || (curMkl.Spec.Strategy.Weighted != nil && mkl.Spec.Strategy.Weighted == nil) {
+					return fmt.Errorf("invalid multikeylistener: %s - strategy cannot be changed", mkl.Name)
 				}
 			}
 		}
