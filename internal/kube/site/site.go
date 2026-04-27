@@ -143,6 +143,7 @@ func (s *Site) routerMode() qdr.Mode {
 }
 
 const SSL_PROFILE_PATH = "/etc/skupper-router-certs"
+const PROXY_PROFILE_PATH = "/etc/skupper-router-proxies"
 
 func (s *Site) Reconcile(siteDef *skupperv2alpha1.Site) error {
 	err := s.reconcile(siteDef, false)
@@ -1068,10 +1069,25 @@ func (s *Site) setBindingsConfiguredStatus(err error) {
 	s.bindings.Map(cf, lf)
 }
 
-func (s *Site) newLink(linkconfig *skupperv2alpha1.Link) *site.Link {
-	config := site.NewLink(linkconfig.ObjectMeta.Name, SSL_PROFILE_PATH)
+func (s *Site) newLink(linkconfig *skupperv2alpha1.Link) (*site.Link, error) {
+	proxyConfig := site.ProxyConfig{}
+
+	proxySetting := linkconfig.Spec.GetProxyConfiguration()
+	if proxySetting != "" {
+		proxySecret, err := s.profiles.Cache.Get(s.namespace + "/" + proxySetting)
+		if proxySecret != nil && err == nil {
+			proxyConfig.Host = string(proxySecret.Data["host"])
+			proxyConfig.Port = string(proxySecret.Data["port"])
+			proxyConfig.User = string(proxySecret.Data["username"])
+		} else {
+			return nil, stderrors.New("Secret not found for proxy configuration")
+		}
+		proxyConfig.ProfilePath = PROXY_PROFILE_PATH
+	}
+
+	config := site.NewLink(linkconfig.ObjectMeta.Name, SSL_PROFILE_PATH, proxyConfig)
 	config.Update(linkconfig)
-	return config
+	return config, nil
 }
 
 func (s *Site) CheckLink(name string, linkconfig *skupperv2alpha1.Link) error {
@@ -1090,8 +1106,12 @@ func (s *Site) link(linkconfig *skupperv2alpha1.Link) error {
 			config = existing
 		}
 	} else {
-		config = s.newLink(linkconfig)
-		s.links[linkconfig.ObjectMeta.Name] = config
+		config, err := s.newLink(linkconfig)
+		if err == nil {
+			s.links[linkconfig.ObjectMeta.Name] = config
+		} else {
+			return s.updateLinkConfiguredCondition(linkconfig, err)
+		}
 	}
 	if s.initialised {
 		if config != nil {

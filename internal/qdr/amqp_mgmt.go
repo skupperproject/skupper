@@ -1259,7 +1259,7 @@ func asProxyProfile(record Record) ProxyProfile {
 		Name:     record.AsString("name"),
 		Host:     record.AsString("host"),
 		Port:     record.AsString("port"),
-		UserName: record.AsString("userName"),
+		Username: record.AsString("username"),
 		Password: record.AsString("password"),
 	}
 }
@@ -1310,10 +1310,18 @@ func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference, checkCertFil
 		}
 
 		if len(added.ProxyProfile) > 0 {
-			_, err := a.GetProxyProfileByName(added.ProxyProfile)
+			proxyProfile, err := a.GetProxyProfileByName(added.ProxyProfile)
 			if err != nil {
 				return err
 			}
+
+			if proxyProfile.Password != "" {
+				_, err := os.Stat(strings.TrimPrefix(proxyProfile.Password, "file:"))
+				if err != nil {
+					return err
+				}
+			}
+
 		}
 
 		if err := a.Create("io.skupper.router.connector", added.Name, added); err != nil {
@@ -1512,6 +1520,25 @@ func (a *Agent) CreateProxyProfile(profile ProxyProfile) error {
 func (a *Agent) UpdateProxyProfile(profile ProxyProfile) error {
 	if err := a.Update("io.skupper.router.proxyProfile", profile.Name, profile); err != nil {
 		return fmt.Errorf("error updating Proxy Profile: %s", err)
+	}
+
+	return nil
+}
+
+func (a *Agent) ReloadProxyProfile(name string) error {
+
+	profile, err := a.GetProxyProfileByName(name)
+	if err != nil {
+		return err
+	}
+
+	// A profile is expected to be returned
+	if profile == nil {
+		return fmt.Errorf("No Proxy Profile with name %s found", name)
+	}
+
+	if err := a.Update("io.skupper.router.proxyProfile", profile.Name, profile); err != nil {
+		return fmt.Errorf("Error updating Proxy Profile: %s", err)
 	}
 
 	return nil

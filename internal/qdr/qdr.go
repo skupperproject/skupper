@@ -215,13 +215,18 @@ func (r *RouterConfig) UnreferencedSslProfiles() map[string]SslProfile {
 	return results
 }
 
-func ConfigureProxyProfile(name string, host string, port string, username string, password string) ProxyProfile {
+const PROXY_PATH_PREFIX = "file:"
+const PROXY_PASSWORD_FILE = "password.txt"
+
+func ConfigureProxyProfile(name string, host string, port string, username string, path string) ProxyProfile {
 	profile := ProxyProfile{
-		Name:     name,
-		Host:     host,
-		Port:     port,
-		UserName: username,
-		Password: password,
+		Name: name,
+		Host: host,
+		Port: port,
+	}
+	if username != "" && path != "" {
+		profile.Username = username
+		profile.Password = path_.Join(PROXY_PATH_PREFIX, path, name, PROXY_PASSWORD_FILE)
 	}
 	return profile
 }
@@ -585,7 +590,7 @@ type ProxyProfile struct {
 	Name     string `json:"name,omitempty"`
 	Host     string `json:"host,omitempty"`
 	Port     string `json:"port,omitempty"`
-	UserName string `json:"userName,omitempty"`
+	Username string `json:"username,omitempty"`
 	Password string `json:"password,omitempty"`
 }
 
@@ -600,8 +605,8 @@ func (p ProxyProfile) toRecord() Record {
 	if p.Port != "" {
 		result["port"] = p.Port
 	}
-	if p.UserName != "" {
-		result["userName"] = p.UserName
+	if p.Username != "" {
+		result["username"] = p.Username
 	}
 	if p.Password != "" {
 		result["password"] = p.Password

@@ -1,11 +1,15 @@
 package adaptor
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/secrets"
@@ -14,8 +18,10 @@ import (
 )
 
 // Syncs the live router config with the configmap (bridge configuration,
-// secrets for services with TLS enabled, and secrets and connectors for links)
+// secrets for services with TLS enabled, and secrets and connectors for links
+// as well as proxy profiles)
 type ConfigSync struct {
+	cli             internalclient.Clients
 	agentPool       *qdr.AgentPool
 	controller      *watchers.EventProcessor
 	namespace       string
@@ -37,6 +43,7 @@ func sslSecretsWatcher(namespace string, eventProcessor *watchers.EventProcessor
 func NewConfigSync(cli internalclient.Clients, namespace string, path string, routerConfigMap string, metrics watchers.MetricsProvider) *ConfigSync {
 	controller := watchers.NewEventProcessor("config-sync", cli, watchers.WithMetricsProvider(metrics))
 	configSync := &ConfigSync{
+		cli:             cli,
 		agentPool:       qdr.NewAgentPool("amqp://localhost:5672", nil),
 		controller:      controller,
 		namespace:       namespace,
@@ -88,6 +95,26 @@ func (c *ConfigSync) key(name string) string {
 	return fmt.Sprintf("%s/%s", c.namespace, name)
 }
 
+func UpdateRouterConfig(client kubernetes.Interface, ctxt context.Context, update *qdr.RouterConfig, configmap *corev1.ConfigMap) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		return updateRouterConfig(client, ctxt, update, configmap)
+	})
+}
+
+func updateRouterConfig(client kubernetes.Interface, ctxt context.Context, update *qdr.RouterConfig, configmap *corev1.ConfigMap) error {
+
+	err := update.WriteToConfigMap(configmap)
+	if err != nil {
+		return err
+	}
+
+	_, err = client.CoreV1().ConfigMaps(configmap.Namespace).Update(ctxt, configmap, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *ConfigSync) configEvent(key string, configmap *corev1.ConfigMap) error {
 	if configmap == nil {
 		return nil
@@ -102,6 +129,18 @@ func (c *ConfigSync) configEvent(key string, configmap *corev1.ConfigMap) error 
 	if err := c.syncSslProfilesToRouter(desired.SslProfiles); err != nil {
 		return err
 	}
+	// Note: change to a proxy secret is one case where a non-skupper resource
+	// requires update to the router config and config map
+	proxyUpdates, err := c.syncProxyProfileCredentialsToDisk(key, desired.ProxyProfiles)
+	if err != nil {
+		return err
+	} else {
+		for _, update := range proxyUpdates {
+			if _, ok := desired.ProxyProfiles[update.Name]; ok {
+				desired.ProxyProfiles[update.Name] = update
+			}
+		}
+	}
 	if err := c.syncProxyProfilesToRouter(desired.ProxyProfiles); err != nil {
 		return err
 	}
@@ -113,6 +152,13 @@ func (c *ConfigSync) configEvent(key string, configmap *corev1.ConfigMap) error 
 		c.logger.Error("sync failed", slog.Any("error", err))
 		return err
 	}
+	if len(proxyUpdates) > 0 {
+		err := UpdateRouterConfig(c.cli.GetKubeClient(), context.TODO(), desired, configmap)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -222,6 +268,7 @@ func (c *ConfigSync) syncSslProfilesToRouter(desired map[string]qdr.SslProfile) 
 			if err := agent.CreateSslProfile(profile); err != nil {
 				return err
 			}
+			continue
 		}
 		if current != profile {
 			if err := agent.UpdateSslProfile(profile); err != nil {
@@ -240,7 +287,7 @@ func (c *ConfigSync) syncSslProfilesToRouter(desired map[string]qdr.SslProfile) 
 }
 
 func (c *ConfigSync) syncSslProfileCredentialsToDisk(profiles map[string]qdr.SslProfile) error {
-	delta := c.profileSyncer.Expect(profiles)
+	delta := c.profileSyncer.ExpectSslProfiles(profiles)
 	return delta.Error()
 }
 
@@ -261,6 +308,7 @@ func (c *ConfigSync) syncProxyProfilesToRouter(desired map[string]qdr.ProxyProfi
 			if err := agent.CreateProxyProfile(profile); err != nil {
 				return err
 			}
+			continue
 		}
 		if current != profile {
 			if err := agent.UpdateProxyProfile(profile); err != nil {
@@ -276,6 +324,11 @@ func (c *ConfigSync) syncProxyProfilesToRouter(desired map[string]qdr.ProxyProfi
 		}
 	}
 	return nil
+}
+
+func (c *ConfigSync) syncProxyProfileCredentialsToDisk(key string, profiles map[string]qdr.ProxyProfile) (map[string]qdr.ProxyProfile, error) {
+	delta := c.profileSyncer.ExpectProxyProfiles(key, profiles)
+	return delta.ProxyUpdates, delta.Error()
 }
 
 func (c *ConfigSync) recoverTracking() error {

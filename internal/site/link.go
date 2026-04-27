@@ -8,16 +8,25 @@ import (
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
-type Link struct {
-	name        string
-	profilePath string
-	definition  *skupperv2alpha1.Link
+type ProxyConfig struct {
+	Host        string
+	Port        string
+	User        string
+	ProfilePath string
 }
 
-func NewLink(name string, profilePath string) *Link {
+type Link struct {
+	name           string
+	sslProfilePath string
+	proxyConfig    ProxyConfig
+	definition     *skupperv2alpha1.Link
+}
+
+func NewLink(name string, sslProfilePath string, proxyConfig ProxyConfig) *Link {
 	return &Link{
-		name:        name,
-		profilePath: profilePath,
+		name:           name,
+		sslProfilePath: sslProfilePath,
+		proxyConfig:    proxyConfig,
 	}
 }
 
@@ -33,26 +42,33 @@ func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	if !ok {
 		return false
 	}
-	profileName := sslProfileName(l.definition)
+	sslProfileName := sslProfileName(l.definition)
+	proxyProfileName := proxyProfileName(l.definition)
 	cost := int32(l.definition.Spec.Cost)
 	if cost < 1 {
 		cost = 1
 	}
 	connector := qdr.Connector{
-		Name:       l.name,
-		Cost:       cost,
-		SslProfile: profileName,
-		Role:       role,
-		Host:       endpoint.Host,
-		Port:       endpoint.Port,
+		Name:         l.name,
+		Cost:         cost,
+		SslProfile:   sslProfileName,
+		ProxyProfile: proxyProfileName,
+		Role:         role,
+		Host:         endpoint.Host,
+		Port:         endpoint.Port,
 	}
 	current.AddConnector(connector)
-	current.AddSslProfile(qdr.ConfigureSslProfile(profileName, l.profilePath, true))
+	current.AddSslProfile(qdr.ConfigureSslProfile(sslProfileName, l.sslProfilePath, true))
+	current.AddProxyProfile(qdr.ConfigureProxyProfile(proxyProfileName, l.proxyConfig.Host, l.proxyConfig.Port, l.proxyConfig.User, l.proxyConfig.ProfilePath))
 	return true //TODO: optimise by indicating if no change was actually needed
 }
 
 func sslProfileName(link *skupperv2alpha1.Link) string {
 	return link.Spec.TlsCredentials + "-profile"
+}
+
+func proxyProfileName(link *skupperv2alpha1.Link) string {
+	return link.Spec.GetProxyConfiguration()
 }
 
 type LinkMap map[string]*Link

@@ -36,7 +36,7 @@ type profileWatcherContext struct {
 
 type ProfilesWatcher struct {
 	logger     *slog.Logger
-	cache      SecretsCache
+	Cache      SecretsCache
 	client     typedv1.SecretInterface
 	update     UpdateRouterConfigFn
 	pvProvider PriorValidityProvider
@@ -58,7 +58,7 @@ func NewProfilesWatcher(factory SecretsCacheFactory, client kubernetes.Interface
 		state:      make(map[string]*profileWatcherContext),
 		cleanup:    sync.OnceFunc(func() { close(stopCh) }),
 	}
-	w.cache = factory(stopCh, w.handleSecret)
+	w.Cache = factory(stopCh, w.handleSecret)
 	return w
 }
 
@@ -160,7 +160,7 @@ func (w *ProfilesWatcher) UseProfiles(profiles map[string]qdr.SslProfile) {
 		}
 		for _, secretName := range profileSecrets(profileName) {
 			key := w.keyfunc(secretName)
-			secret, err := w.cache.Get(key)
+			secret, err := w.Cache.Get(key)
 			if err != nil || secret == nil {
 				continue
 			}
@@ -171,7 +171,7 @@ func (w *ProfilesWatcher) UseProfiles(profiles map[string]qdr.SslProfile) {
 		state := w.state[profileName]
 		delete(w.state, profileName)
 		if state != nil && state.SecretKey != "" {
-			secret, err := w.cache.Get(state.SecretKey)
+			secret, err := w.Cache.Get(state.SecretKey)
 			if err != nil || secret == nil {
 				continue
 			}
