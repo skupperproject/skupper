@@ -51,4 +51,3 @@ func WriteTar(name string, data []byte, ts time.Time, tb *pkgutils.Tarball) erro
 	}
 	return nil
 }
-

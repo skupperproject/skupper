@@ -419,7 +419,7 @@ func (cmd *CmdDebug) collectContainerLogs(tb *pkgutils.Tarball) {
 		cliutils.WriteTar(path.Join("/site-namespace/logs", rtrContainerName+".txt"), []byte(logs), time.Now(), tb)
 	}
 
-	// Controller container 
+	// Controller container
 	currentUser, err := user.Current()
 	if err == nil {
 		ctlContainerName := currentUser.Username + "-skupper-controller"
