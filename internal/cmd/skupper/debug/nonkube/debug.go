@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
 	"time"
@@ -133,7 +134,7 @@ func (cmd *CmdDebug) Run() error {
 
 func (cmd *CmdDebug) collectVersionInfo(tb *pkgutils.Tarball) {
 	// Skupper version
-	manifest, err := cliutils.RunCommand("skupper", "manifest", "-o", "yaml")
+	manifest, err := cliutils.RunCommand("skupper", "manifest", "-o", "yaml", "--platform", cmd.platform, "-n", cmd.namespace)
 	if err == nil {
 		cliutils.WriteTar("/versions/skupper.yaml", manifest, time.Now(), tb)
 		cliutils.WriteTar("/versions/skupper.yaml.txt", manifest, time.Now(), tb)
@@ -164,6 +165,18 @@ func (cmd *CmdDebug) collectVersionInfo(tb *pkgutils.Tarball) {
 	routerVersion, err := cliutils.RunCommand("skrouterd", "--version")
 	if err == nil {
 		cliutils.WriteTar("/versions/skrouterd.txt", routerVersion, time.Now(), tb)
+	}
+
+	// System information (all platforms)
+	unameOutput, err := cliutils.RunCommand("uname", "-a")
+	if err == nil {
+		cliutils.WriteTar("/versions/uname.txt", unameOutput, time.Now(), tb)
+	}
+
+	// OS release information (all platforms)
+	osRelease, err := os.ReadFile("/etc/os-release")
+	if err == nil {
+		cliutils.WriteTar("/versions/os-release.txt", osRelease, time.Now(), tb)
 	}
 }
 
@@ -209,13 +222,17 @@ func (cmd *CmdDebug) collectSiteResources(tb *pkgutils.Tarball) {
 	runtimeState, err := runtimeLoader.Load()
 	if err == nil && runtimeState != nil {
 		cmd.writeSiteStateResources(runtimeState, "runtime", basePath, tb)
+	} else if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to load runtime site state from %s: %v\n", runtimePath, err)
 	}
 
 	// Load input resources
 	inputLoader := &nonkubecommon.FileSystemSiteStateLoader{Path: inputPath}
-	inputState, err := inputLoader.Load()
+	inputState, err = inputLoader.Load()
 	if err == nil && inputState != nil {
 		cmd.writeSiteStateResources(inputState, "input", basePath, tb)
+	} else if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to load input site state from %s: %v\n", inputPath, err)
 	}
 }
 
@@ -365,11 +382,14 @@ func (cmd *CmdDebug) collectContainerLogs(tb *pkgutils.Tarball) {
 		cliutils.WriteTar(path.Join("/site-namespace/logs", rtrContainerName+".txt"), []byte(logs), time.Now(), tb)
 	}
 
-	// Controller container
-	ctlContainerName := "system-controller"
-	logs, err = cli.ContainerLogs(ctlContainerName)
+	// Controller container 
+	currentUser, err := user.Current()
 	if err == nil {
-		cliutils.WriteTar(path.Join("/site-namespace/logs", ctlContainerName+".txt"), []byte(logs), time.Now(), tb)
+		ctlContainerName := currentUser.Username + "-skupper-controller"
+		logs, err = cli.ContainerLogs(ctlContainerName)
+		if err == nil {
+			cliutils.WriteTar(path.Join("/site-namespace/logs", ctlContainerName+".txt"), []byte(logs), time.Now(), tb)
+		}
 	}
 }
 

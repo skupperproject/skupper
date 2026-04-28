@@ -27,7 +27,6 @@ func TestCmdDebug_ValidateInput(t *testing.T) {
 		flags             common.CommandDebugFlags
 		cobraGenericFlags map[string]string
 		setupSite         bool
-		setupPlatform     bool
 		expectedError     string
 	}
 
@@ -37,7 +36,6 @@ func TestCmdDebug_ValidateInput(t *testing.T) {
 			flags:         common.CommandDebugFlags{},
 			args:          []string{"test", "not-valid"},
 			setupSite:     true,
-			setupPlatform: true,
 			expectedError: "only one argument is allowed for this command",
 		},
 		{
@@ -45,7 +43,6 @@ func TestCmdDebug_ValidateInput(t *testing.T) {
 			flags:         common.CommandDebugFlags{},
 			args:          []string{""},
 			setupSite:     true,
-			setupPlatform: true,
 			expectedError: "filename must not be empty",
 		},
 		{
@@ -53,7 +50,6 @@ func TestCmdDebug_ValidateInput(t *testing.T) {
 			flags:         common.CommandDebugFlags{},
 			args:          []string{"!Bad"},
 			setupSite:     true,
-			setupPlatform: true,
 			expectedError: "filename is not valid: value does not match this regular expression: ^[A-Za-z0-9./~-]+$",
 		},
 		{
@@ -61,22 +57,19 @@ func TestCmdDebug_ValidateInput(t *testing.T) {
 			flags:         common.CommandDebugFlags{},
 			args:          []string{"test"},
 			setupSite:     false,
-			setupPlatform: true,
 			expectedError: "no skupper site found in namespace",
 		},
 		{
-			name:          "ok with name",
-			flags:         common.CommandDebugFlags{},
-			args:          []string{"test"},
-			setupSite:     true,
-			setupPlatform: true,
+			name:      "ok with name",
+			flags:     common.CommandDebugFlags{},
+			args:      []string{"test"},
+			setupSite: true,
 		},
 		{
-			name:          "ok default name",
-			flags:         common.CommandDebugFlags{},
-			args:          []string{},
-			setupSite:     true,
-			setupPlatform: true,
+			name:      "ok default name",
+			flags:     common.CommandDebugFlags{},
+			args:      []string{},
+			setupSite: true,
 		},
 	}
 
@@ -115,14 +108,12 @@ func TestCmdDebug_ValidateInput(t *testing.T) {
 				siteHandler.WriteFile(rpath, "test-site.yaml", content, common.Sites)
 			}
 
-			// Setup platform if needed
-			if test.setupPlatform {
-				internalPath := api.GetInternalOutputPath(namespace, api.InternalBasePath)
-				os.MkdirAll(internalPath, 0755)
-				platformData := map[string]string{"platform": "podman"}
-				platformYaml, _ := yaml.Marshal(platformData)
-				os.WriteFile(filepath.Join(internalPath, "platform.yaml"), platformYaml, 0644)
-			}
+			// Setup platform
+			internalPath := api.GetInternalOutputPath(namespace, api.InternalBasePath)
+			os.MkdirAll(internalPath, 0755)
+			platformData := map[string]string{"platform": "podman"}
+			platformYaml, _ := yaml.Marshal(platformData)
+			os.WriteFile(filepath.Join(internalPath, "platform.yaml"), platformYaml, 0644)
 
 			command.Flags = &test.flags
 			if test.cobraGenericFlags != nil && len(test.cobraGenericFlags) > 0 {
