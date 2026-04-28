@@ -35,6 +35,7 @@ func (s *AutoConfigure) getConfigurationFromPod(clients internalclient.Clients, 
 		})
 	}
 	s.selector = pod.ObjectMeta.Labels
+	delete(s.selector, "pod-template-hash")
 	return nil
 }
 
