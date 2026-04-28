@@ -8,6 +8,7 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
@@ -228,12 +229,16 @@ func (cmd *CmdDebug) collectSiteResources(tb *pkgutils.Tarball) {
 
 	// Load input resources
 	inputLoader := &nonkubecommon.FileSystemSiteStateLoader{Path: inputPath}
-	inputState, err = inputLoader.Load()
+	inputState, err := inputLoader.Load()
 	if err == nil && inputState != nil {
 		cmd.writeSiteStateResources(inputState, "input", basePath, tb)
 	} else if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to load input site state from %s: %v\n", inputPath, err)
 	}
+
+	// Collect raw YAML files to capture any malformed or unrecognized resources
+	cmd.collectRawYamlFiles(runtimePath, path.Join(basePath, "raw-yaml/runtime"), tb)
+	cmd.collectRawYamlFiles(inputPath, path.Join(basePath, "raw-yaml/input"), tb)
 }
 
 func (cmd *CmdDebug) writeSiteStateResources(siteState *api.SiteState, source string, basePath string, tb *pkgutils.Tarball) {
@@ -295,6 +300,38 @@ func (cmd *CmdDebug) writeSiteStateResources(siteState *api.SiteState, source st
 	// MultiKeyListeners
 	for _, mkl := range siteState.MultiKeyListeners {
 		writeObjectToTarball(mkl, path.Join(basePath, source, "MultiKeyListener-"+mkl.Name), tb)
+	}
+}
+
+func (cmd *CmdDebug) collectRawYamlFiles(sourcePath string, tarPath string, tb *pkgutils.Tarball) {
+	// Read all files from the directory
+	files, err := os.ReadDir(sourcePath)
+	if err != nil {
+		// Directory might not exist, which is fine
+		return
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		// Only collect YAML files
+		fileName := file.Name()
+		if !strings.HasSuffix(fileName, ".yaml") && !strings.HasSuffix(fileName, ".yml") {
+			continue
+		}
+
+		// Read the file content
+		filePath := filepath.Join(sourcePath, fileName)
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to read raw YAML file %s: %v\n", filePath, err)
+			continue
+		}
+
+		// Write to tarball
+		cliutils.WriteTar(path.Join(tarPath, fileName), content, time.Now(), tb)
 	}
 }
 
