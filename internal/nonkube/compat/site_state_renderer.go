@@ -379,7 +379,8 @@ func (s *SiteStateRenderer) Refresh(loadedSiteState *api.SiteState) error {
 	var err error
 
 	var validator api.SiteStateValidator = &common.SiteStateValidator{}
-	err = validator.Validate(loadedSiteState, nil)
+	currentSiteState, _ := common.LoadCurrentSiteState(loadedSiteState.Site.Namespace)
+	err = validator.Validate(loadedSiteState, currentSiteState)
 	if err != nil {
 		return err
 	}
