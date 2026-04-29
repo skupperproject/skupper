@@ -52,18 +52,18 @@ func (cmd *CmdDebug) ValidateInput(args []string) error {
 	fileStringValidator := validator.NewFilePathStringValidator()
 
 	// Validate dump file name
-	if len(args) < 1 {
-		cmd.fileName = "skupper-dump"
-	} else if len(args) > 1 {
+	if len(args) > 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("only one argument is allowed for this command"))
-	} else if args[0] == "" {
-		validationErrors = append(validationErrors, fmt.Errorf("filename must not be empty"))
-	} else {
-		ok, err := fileStringValidator.Evaluate(args[0])
-		if !ok {
-			validationErrors = append(validationErrors, fmt.Errorf("filename is not valid: %s", err))
+	} else if len(args) == 1 {
+		if args[0] == "" {
+			validationErrors = append(validationErrors, fmt.Errorf("filename must not be empty"))
 		} else {
-			cmd.fileName = args[0]
+			ok, err := fileStringValidator.Evaluate(args[0])
+			if !ok {
+				validationErrors = append(validationErrors, fmt.Errorf("filename is not valid: %s", err))
+			} else {
+				cmd.fileName = args[0]
+			}
 		}
 	}
 
@@ -90,6 +90,9 @@ func (cmd *CmdDebug) ValidateInput(args []string) error {
 func (cmd *CmdDebug) InputToOptions() {
 	if cmd.namespace == "" {
 		cmd.namespace = "default"
+	}
+	if cmd.fileName == "" {
+		cmd.fileName = "skupper-dump"
 	}
 	datetime := time.Now().Format("20060102150405")
 	cmd.fileName = fmt.Sprintf("%s-%s-%s", cmd.fileName, cmd.namespace, datetime)

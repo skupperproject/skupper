@@ -123,6 +123,9 @@ func TestCmdDebug_ValidateInput(t *testing.T) {
 			}
 
 			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
+			if test.name == "ok default name" {
+				assert.Check(t, command.fileName == "")
+			}
 		})
 	}
 }
@@ -138,7 +141,7 @@ func TestCmdDebug_InputToOptions(t *testing.T) {
 		{
 			name:      "default namespace",
 			namespace: "",
-			filename:  "skupper-dump",
+			filename:  "",
 		},
 		{
 			name:      "with namespace",
@@ -163,11 +166,15 @@ func TestCmdDebug_InputToOptions(t *testing.T) {
 			if expectedNs == "" {
 				expectedNs = "default"
 			}
+			expectedFileName := test.filename
+			if expectedFileName == "" {
+				expectedFileName = "skupper-dump"
+			}
 
 			command.InputToOptions()
 
 			assert.Check(t, command.namespace == expectedNs)
-			assert.Check(t, strings.HasPrefix(command.fileName, test.filename+"-"+expectedNs+"-"))
+			assert.Check(t, strings.HasPrefix(command.fileName, expectedFileName+"-"+expectedNs+"-"))
 			// Check that filename has timestamp format
 			parts := strings.Split(command.fileName, "-")
 			assert.Check(t, len(parts) >= 3)
