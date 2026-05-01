@@ -1,0 +1,4 @@
+---
+# Platform configuration
+platform: podman
+namespace_name: east

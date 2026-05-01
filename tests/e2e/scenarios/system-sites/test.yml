@@ -1,0 +1,102 @@
+---
+- name: Hello World System Sites Test (Auto)
+  hosts: all
+  roles:
+    - e2e.tests.skupper_test_images
+  
+  vars:
+    test_identifier: "Hello World with System Sites (Auto)"
+
+  environment:
+    SKUPPER_PLATFORM: podman
+
+  tasks:
+    # Pre-test cleanup
+    - name: "[ {{ test_identifier }} ] - Pre-test cleanup"
+      ansible.builtin.include_tasks: cleanup-tasks.yml
+
+    - name: "[ {{ test_identifier }} ] - Main test block"
+      block:
+
+        # Install system controller (run once on localhost)
+        - name: "[ {{ test_identifier }} ] - Install Skupper system controller"
+          ansible.builtin.command:
+            cmd: skupper system install --reload-type=auto
+          run_once: true
+          delegate_to: localhost
+          register: system_install
+
+        # Docker West Site - Setup and get token
+        - name: "[ {{ test_identifier }} ] - Podman West Site Setup"
+          block:
+            - name: "[ {{ test_identifier }} ] - Deploy frontend service"
+              ansible.builtin.command:
+                cmd: "{{ platform }} run --name frontend -d --rm -p 127.0.0.1:7070:8080 quay.io/skupper/hello-world-frontend --backend http://host.containers.internal:8080"
+              changed_when: false
+              when: "'west' in inventory_hostname"
+
+            - name: "[ {{ test_identifier }} ] - Apply west site resources"
+              skupper.v2.resource:
+                path: "{{ playbook_dir }}/resources/west/"
+                platform: podman
+                namespace: "{{ namespace_name }}"
+              when: "'west' in inventory_hostname"
+
+            - name: "[ {{ test_identifier }} ] - Additional wait for router initialization"
+              ansible.builtin.pause:
+                seconds: 3
+
+            - name: "[ {{ test_identifier }} ] - Wait for site to be fully ready"
+              ansible.builtin.command:
+                cmd: "skupper site status -n {{ namespace_name }}"
+              register: site_status
+              retries: 60
+              delay: 3
+              until: site_status.rc == 0
+              changed_when: false
+
+            - name: "[ {{ test_identifier }} ] - Generate link token"
+              ansible.builtin.shell:
+                cmd: "skupper link generate -n {{ namespace_name }} -p podman > /tmp/west-link-token.yaml"
+              changed_when: true
+              register: link_generate
+
+          when: "'west' in inventory_hostname"
+          run_once: true
+
+        # Docker East Site - Must run after token is created
+        - name: "[ {{ test_identifier }} ] - Podman East Site Setup"
+          block:
+            - name: "[ {{ test_identifier }} ] - Deploy backend service"
+              ansible.builtin.command:
+                cmd: "{{ platform }} run --name backend -d --rm -p 127.0.0.1:9090:8080 quay.io/skupper/hello-world-backend"
+              changed_when: false
+              register: backend_deploy
+
+            - name: "[ {{ test_identifier }} ] - Apply east site resources"
+              skupper.v2.resource:
+                path: "{{ playbook_dir }}/resources/east/"
+                platform: podman
+                namespace: "{{ namespace_name }}"
+              when: "'east' in inventory_hostname"
+
+            - name: "[ {{ test_identifier }} ] - Apply link token"
+              ansible.builtin.command:
+                cmd: "skupper system apply -f /tmp/west-link-token.yaml -n {{ namespace_name }}"
+              changed_when: true
+          when: "'east' in inventory_hostname"
+
+        # Verify connectivity - test if backend is accessible from frontend container
+        - name: "[ {{ test_identifier }} ] - Test via Skupper (listener)"
+          ansible.builtin.command:
+            cmd: "curl -s -f http://127.0.0.1:8080/api/hello"
+          register: curl_result
+          retries: 5
+          delay: 4
+          until: curl_result.rc == 0
+          when: "'west' in inventory_hostname"
+          changed_when: false
+
+      always:
+        - name: "[ {{ test_identifier }} ] - Post-test cleanup"
+          ansible.builtin.include_tasks: cleanup-tasks.yml

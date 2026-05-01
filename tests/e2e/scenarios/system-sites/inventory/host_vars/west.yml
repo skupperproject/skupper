@@ -1,0 +1,5 @@
+---
+# Platform configuration
+platform: podman
+namespace_name: west
+
