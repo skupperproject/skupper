@@ -395,9 +395,10 @@ func (cmd *CmdDebug) collectContainerInfo(tb *pkgutils.Tarball) {
 	}
 
 	basePath := "/site-namespace/resources/"
+	namespacePrefix := cmd.namespace + "-"
 	for _, container := range containers {
-		// Only collect skupper-related containers
-		if container.Labels["application"] == "skupper-v2" {
+		// Only collect skupper-related containers from this namespace
+		if container.Labels["application"] == "skupper-v2" && strings.HasPrefix(container.Name, namespacePrefix) {
 			// Inspect container details
 			details, err := cli.ContainerInspect(container.Name)
 			if err == nil {
@@ -405,6 +406,19 @@ func (cmd *CmdDebug) collectContainerInfo(tb *pkgutils.Tarball) {
 				cliutils.WriteTar(path.Join(basePath, "Container-"+container.Name+".yaml"), []byte(encodedOutput), time.Now(), tb)
 				cliutils.WriteTar(path.Join(basePath, "Container-"+container.Name+".yaml.txt"), []byte(encodedOutput), time.Now(), tb)
 			}
+		}
+	}
+
+	// Controller container
+	// Note: Controller is user-scoped, not namespace-scoped, so it may contain information from other namespaces.
+	currentUser, err := user.Current()
+	if err == nil {
+		ctlContainerName := currentUser.Username + "-skupper-controller"
+		details, err := cli.ContainerInspect(ctlContainerName)
+		if err == nil {
+			encodedOutput, _ := cliutils.Encode("yaml", details)
+			cliutils.WriteTar(path.Join(basePath, "Container-"+ctlContainerName+".yaml"), []byte(encodedOutput), time.Now(), tb)
+			cliutils.WriteTar(path.Join(basePath, "Container-"+ctlContainerName+".yaml.txt"), []byte(encodedOutput), time.Now(), tb)
 		}
 	}
 }
@@ -423,6 +437,7 @@ func (cmd *CmdDebug) collectContainerLogs(tb *pkgutils.Tarball) {
 	}
 
 	// Controller container
+	// Note: Controller is user-scoped, so its logs may contain information from other namespaces.
 	currentUser, err := user.Current()
 	if err == nil {
 		ctlContainerName := currentUser.Username + "-skupper-controller"
