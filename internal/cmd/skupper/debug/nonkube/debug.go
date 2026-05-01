@@ -82,6 +82,8 @@ func (cmd *CmdDebug) ValidateInput(args []string) error {
 		validationErrors = append(validationErrors, fmt.Errorf("failed to detect platform: %w", err))
 	} else {
 		cmd.platform = platform
+		// Set SKUPPER_PLATFORM to help compat.NewCompatClient determine the correct container endpoint
+		_ = os.Setenv("SKUPPER_PLATFORM", platform)
 	}
 
 	return errors.Join(validationErrors...)
