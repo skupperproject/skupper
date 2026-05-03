@@ -560,7 +560,7 @@ func (c *Controller) routerConfigUpdate(_ string, cm *corev1.ConfigMap) error {
 	if err != nil {
 		return err
 	}
-	c.getSite(cm.Namespace).CheckSslProfiles(config)
+	c.getSite(cm.Namespace).CheckSslAndProxyProfiles(config)
 	return nil
 }
 

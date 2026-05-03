@@ -6,6 +6,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/qdr"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type ProxyConfig struct {
@@ -44,6 +45,7 @@ func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	}
 	sslProfileName := sslProfileName(l.definition)
 	proxyProfileName := proxyProfileName(l.definition)
+	prevProxyProfileName := current.Connectors[l.name].ProxyProfile
 	cost := int32(l.definition.Spec.Cost)
 	if cost < 1 {
 		cost = 1
@@ -59,7 +61,13 @@ func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	}
 	current.AddConnector(connector)
 	current.AddSslProfile(qdr.ConfigureSslProfile(sslProfileName, l.sslProfilePath, true))
-	current.AddProxyProfile(qdr.ConfigureProxyProfile(proxyProfileName, l.proxyConfig.Host, l.proxyConfig.Port, l.proxyConfig.User, l.proxyConfig.ProfilePath))
+	if proxyProfileName != "" {
+		current.AddProxyProfile(qdr.ConfigureProxyProfile(proxyProfileName, l.proxyConfig.Host, l.proxyConfig.Port, l.proxyConfig.User, l.proxyConfig.ProfilePath))
+		if prevProxyProfileName != "" && prevProxyProfileName != proxyProfileName {
+			// TODO proxy config should get updated
+			current.RemoveProxyProfile(prevProxyProfileName)
+		}
+	}
 	return true //TODO: optimise by indicating if no change was actually needed
 }
 
@@ -82,6 +90,7 @@ func (m LinkMap) Apply(current *qdr.RouterConfig) bool {
 			if _, ok := m[connector.Name]; !ok {
 				current.RemoveConnector(connector.Name)
 				current.RemoveSslProfile(connector.SslProfile)
+				current.RemoveProxyProfile(connector.ProxyProfile)
 			}
 		}
 	}
@@ -98,6 +107,15 @@ func (link *Link) Definition() *skupperv2alpha1.Link {
 	return link.definition
 }
 
+func (link *Link) UpdateProxyConfig(proxySecret *corev1.Secret) error {
+	if proxySecret != nil {
+		link.proxyConfig.Host = string(proxySecret.Data["host"])
+		link.proxyConfig.Port = string(proxySecret.Data["port"])
+		link.proxyConfig.User = string(proxySecret.Data["username"])
+	}
+	return nil
+}
+
 type RemoveConnector struct {
 	name string
 }
@@ -107,6 +125,10 @@ func (o *RemoveConnector) Apply(current *qdr.RouterConfig) bool {
 		unreferenced := current.UnreferencedSslProfiles()
 		if _, ok := unreferenced[connector.SslProfile]; ok {
 			current.RemoveSslProfile(connector.SslProfile)
+		}
+		unreferencedProxyProfiles := current.UnreferencedProxyProfiles()
+		if _, ok := unreferencedProxyProfiles[connector.ProxyProfile]; ok {
+			current.RemoveProxyProfile(connector.ProxyProfile)
 		}
 		return true
 	}

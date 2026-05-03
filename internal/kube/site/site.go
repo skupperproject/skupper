@@ -1227,11 +1227,11 @@ func (s *Site) updateLinkOperationalCondition(link *skupperv2alpha1.Link, operat
 	return nil
 }
 
-func (s *Site) CheckSslProfiles(config *qdr.RouterConfig) error {
+func (s *Site) CheckSslAndProxyProfiles(config *qdr.RouterConfig) error {
 	if !s.initialised || config == nil {
 		return nil
 	}
-	s.profiles.UseProfiles(config.SslProfiles)
+	s.profiles.UseProfiles(config.SslProfiles, config.ProxyProfiles)
 	return nil
 }
 
