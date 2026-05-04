@@ -619,6 +619,23 @@ func (t *AccessToken) SetRedeemed(err error) bool {
 	return false
 }
 
+func (t *AccessToken) SetRedeemedWithSiteDeletion() bool {
+	// Set condition to True (redeemed) but with error message
+	// This prevents retry attempts while preserving the error information
+	state := ConditionState{
+		Status:  v1.ConditionTrue, // Mark as True so IsRedeemed() returns true
+		Reason:  "Error",
+		Message: "Already redeemed for a deleted site",
+	}
+	if t.Status.SetCondition(CONDITION_TYPE_REDEEMED, state, t.ObjectMeta.Generation) {
+		t.Status.Redeemed = true
+		t.Status.StatusType = state.Reason
+		t.Status.Message = state.Message
+		return true
+	}
+	return false
+}
+
 func (t *AccessToken) IsRedeemed() bool {
 	return meta.IsStatusConditionTrue(t.Status.Conditions, CONDITION_TYPE_REDEEMED)
 }
