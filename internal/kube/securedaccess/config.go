@@ -13,6 +13,8 @@ const ACCESS_TYPE_LOADBALANCER = "loadbalancer"
 const ACCESS_TYPE_ROUTE = "route"
 const ACCESS_TYPE_NODEPORT = "nodeport"
 const ACCESS_TYPE_INGRESS_NGINX = "ingress-nginx"
+const ACCESS_TYPE_INGRESS = "ingress"
+const SettingIngressClassName = "ingressClassName"
 const ACCESS_TYPE_CONTOUR_HTTP_PROXY = "contour-http-proxy"
 const ACCESS_TYPE_GATEWAY = "gateway"
 const ACCESS_TYPE_LOCAL = "local"
@@ -22,6 +24,7 @@ type Config struct {
 	DefaultAccessType  string
 	ClusterHost        string
 	IngressDomain      string
+	IngressClassName   string
 	HttpProxyDomain    string
 	GatewayPort        int
 	GatewayClass       string
@@ -73,7 +76,8 @@ func BoundConfig(flags *flag.FlagSet) (*Config, error) {
 	iflag.MultiStringVar(flags, &c.EnabledAccessTypes, "enabled-access-types", "SKUPPER_ENABLED_ACCESS_TYPES", defaultEnabledAccessTypes(), "The access types which should be enabled for sites to choose from.")
 	iflag.StringVar(flags, &c.DefaultAccessType, "default-access-type", "SKUPPER_DEFAULT_ACCESS_TYPE", "", "The default access type.")
 	iflag.StringVar(flags, &c.ClusterHost, "cluster-host", "SKUPPER_CLUSTER_HOST", "", "The hostname or IP address through which the cluster can be reached. Required for configuring nodeport as an access type.")
-	iflag.StringVar(flags, &c.IngressDomain, "ingress-domain", "SKUPPER_INGRESS_DOMAIN", "", "The domain to use in constructing the fully qualified hostname for Ingress resources, through which the ingress controller can be reached. Only used when selecting ingress-nginx as an access type.")
+	iflag.StringVar(flags, &c.IngressDomain, "ingress-domain", "SKUPPER_INGRESS_DOMAIN", "", "The domain to use in constructing the fully qualified hostname for Ingress resources, through which the ingress controller can be reached. Used for ingress and ingress-nginx access types.")
+	iflag.StringVar(flags, &c.IngressClassName, "ingress-class-name", "SKUPPER_INGRESS_CLASS_NAME", "", "Optional ingressClassName for Skupper-managed Ingress resources. Per-resource override: RouterAccess spec.settings."+SettingIngressClassName+". For ingress-nginx, defaults to \"nginx\" if unset.")
 	iflag.StringVar(flags, &c.HttpProxyDomain, "http-proxy-domain", "SKUPPER_HTTP_PROXY_DOMAIN", "", "The domain to use in constructing the fully qualified hostname for contour HttpProxy resources, through which the contour controller can be reached. Only used when selecting contour-http-proxy as an access type.")
 	iflag.StringVar(flags, &c.GatewayDomain, "gateway-domain", "SKUPPER_GATEWAY_DOMAIN", "", "The domain to use in constructing the fully qualified hostname for TLSRoutes resources. Only used when selecting gateway as an access type.")
 	iflag.StringVar(flags, &c.GatewayClass, "gateway-class", "SKUPPER_GATEWAY_CLASS", "", "The class of Gateway to use. This is required to enable gateway as an access type.")
