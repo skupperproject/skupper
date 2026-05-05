@@ -871,67 +871,6 @@ func TestSite_CheckLink(t *testing.T) {
 				},
 			},
 		},
-		//		{
-		//			name: "link - ok",
-		//			args: args{
-		//				name: "link1",
-		//				linkconfig: &skupperv2alpha1.Link{
-		//					ObjectMeta: metav1.ObjectMeta{
-		//						Name:      "link1",
-		//						Namespace: "test",
-		//						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-		//					},
-		//					Spec: skupperv2alpha1.LinkSpec{
-		//						Cost: 2,
-		//						Endpoints: []skupperv2alpha1.Endpoint{
-		//							{
-		//								Name: string(qdr.RoleInterRouter),
-		//								Host: "1.1.1.1",
-		//								Port: "55671",
-		//							},
-		//						},
-		//					},
-		//				},
-		//			},
-		//			skupperObjects: []runtime.Object{
-		//				&skupperv2alpha1.Link{
-		//					ObjectMeta: metav1.ObjectMeta{
-		//						Name:      "link1",
-		//						Namespace: "test",
-		//					},
-		//				},
-		//			},
-		//			want:      "initialized",
-		//			wantErr:   false,
-		//			wantLinks: 1,
-		//		},
-		// {
-		// 	name: "link - error",
-		// 	args: args{
-		// 		name: "link1",
-		// 		linkconfig: &skupperv2alpha1.Link{
-		// 			ObjectMeta: metav1.ObjectMeta{
-		// 				Name:      "link1",
-		// 				Namespace: "test",
-		// 				UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-		// 			},
-		// 			Spec: skupperv2alpha1.LinkSpec{
-		// 				Cost: 2,
-		// 				Endpoints: []skupperv2alpha1.Endpoint{
-		// 					{
-		// 						Name: string(qdr.RoleInterRouter),
-		// 						Host: "1.1.1.1",
-		// 						Port: "55671",
-		// 					},
-		// 				},
-		// 			},
-		// 		},
-		// 	},
-		// 	want:                "initialized",
-		// 	wantErr:             true,
-		// 	wantLinks:           1,
-		// 	skupperErrorMessage: "NotFound",
-		// },
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

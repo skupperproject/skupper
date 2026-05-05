@@ -268,7 +268,7 @@ func (s *SiteState) linkMap(sslProfileBasePath string) site.LinkMap {
 	linkMap := site.LinkMap{}
 	for name, link := range s.Links {
 		// TODO: proxy profile config ?
-		siteLink := site.NewLink(name, path.Join(sslProfileBasePath, string(CertificatesPath)), site.ProxyConfig{})
+		siteLink := site.NewLink(name, path.Join(sslProfileBasePath, string(CertificatesPath)), &site.ProxyConfig{})
 		link.SetConfigured(nil)
 		siteLink.Update(link)
 		linkMap[name] = siteLink

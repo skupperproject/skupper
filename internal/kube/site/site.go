@@ -1069,22 +1069,28 @@ func (s *Site) setBindingsConfiguredStatus(err error) {
 	s.bindings.Map(cf, lf)
 }
 
-func (s *Site) newLink(linkconfig *skupperv2alpha1.Link) (*site.Link, error) {
-	proxyConfig := site.ProxyConfig{}
-
-	proxySetting := linkconfig.Spec.GetProxyConfiguration()
+func (s *Site) getProxyConfig(proxySetting string) (*site.ProxyConfig, error) {
 	if proxySetting != "" {
 		proxySecret, err := s.profiles.Cache.Get(s.namespace + "/" + proxySetting)
 		if proxySecret != nil && err == nil {
-			proxyConfig.Host = string(proxySecret.Data["host"])
-			proxyConfig.Port = string(proxySecret.Data["port"])
-			proxyConfig.User = string(proxySecret.Data["username"])
+			return &site.ProxyConfig{
+				Host:        string(proxySecret.Data["host"]),
+				Port:        string(proxySecret.Data["port"]),
+				User:        string(proxySecret.Data["username"]),
+				ProfilePath: PROXY_PROFILE_PATH}, nil
 		} else {
 			return nil, stderrors.New("Secret not found for proxy configuration")
 		}
-		proxyConfig.ProfilePath = PROXY_PROFILE_PATH
 	}
+	return nil, nil
+}
 
+func (s *Site) newLink(linkconfig *skupperv2alpha1.Link) (*site.Link, error) {
+	proxySetting := linkconfig.Spec.GetProxyConfiguration()
+	proxyConfig, err := s.getProxyConfig(proxySetting)
+	if err != nil {
+		return nil, err
+	}
 	config := site.NewLink(linkconfig.ObjectMeta.Name, SSL_PROFILE_PATH, proxyConfig)
 	config.Update(linkconfig)
 	return config, nil
@@ -1101,7 +1107,10 @@ func (s *Site) CheckLink(name string, linkconfig *skupperv2alpha1.Link) error {
 
 func (s *Site) link(linkconfig *skupperv2alpha1.Link) error {
 	var config *site.Link
+	prevProxyProfileName := ""
+	currentProxyProfileName := linkconfig.Spec.GetProxyConfiguration()
 	if existing, ok := s.links[linkconfig.ObjectMeta.Name]; ok {
+		prevProxyProfileName = existing.Definition().Spec.GetProxyConfiguration()
 		if existing.Update(linkconfig) || !existing.Definition().IsConfigured() {
 			config = existing
 		}
@@ -1118,6 +1127,12 @@ func (s *Site) link(linkconfig *skupperv2alpha1.Link) error {
 			s.logger.Info("Connecting site using token",
 				slog.String("namespace", s.namespace),
 				slog.String("token", linkconfig.ObjectMeta.Name))
+			if currentProxyProfileName != "" && prevProxyProfileName != "" && currentProxyProfileName != prevProxyProfileName {
+				currentProxyConfig, err := s.getProxyConfig(currentProxyProfileName)
+				if err == nil {
+					config.UpdateProxyConfig(currentProxyConfig)
+				}
+			}
 			err := s.updateRouterConfig(config)
 			return s.updateLinkConfiguredCondition(linkconfig, err)
 		} else {

@@ -6,7 +6,6 @@ import (
 
 	"github.com/skupperproject/skupper/internal/qdr"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
-	corev1 "k8s.io/api/core/v1"
 )
 
 type ProxyConfig struct {
@@ -19,16 +18,24 @@ type ProxyConfig struct {
 type Link struct {
 	name           string
 	sslProfilePath string
-	proxyConfig    ProxyConfig
+	proxyConfig    *ProxyConfig
 	definition     *skupperv2alpha1.Link
 }
 
-func NewLink(name string, sslProfilePath string, proxyConfig ProxyConfig) *Link {
+func NewLink(name string, sslProfilePath string, proxyConfig *ProxyConfig) *Link {
 	return &Link{
 		name:           name,
 		sslProfilePath: sslProfilePath,
 		proxyConfig:    proxyConfig,
 	}
+}
+
+func (l *Link) UpdateProxyConfig(proxyConfig *ProxyConfig) bool {
+	if l.definition == nil {
+		return false
+	}
+	l.proxyConfig = proxyConfig
+	return true
 }
 
 func (l *Link) Apply(current *qdr.RouterConfig) bool {
@@ -64,9 +71,10 @@ func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	if proxyProfileName != "" {
 		current.AddProxyProfile(qdr.ConfigureProxyProfile(proxyProfileName, l.proxyConfig.Host, l.proxyConfig.Port, l.proxyConfig.User, l.proxyConfig.ProfilePath))
 		if prevProxyProfileName != "" && prevProxyProfileName != proxyProfileName {
-			// TODO proxy config should get updated
 			current.RemoveProxyProfile(prevProxyProfileName)
 		}
+	} else if prevProxyProfileName != "" {
+		current.RemoveProxyProfile(prevProxyProfileName)
 	}
 	return true //TODO: optimise by indicating if no change was actually needed
 }
@@ -105,15 +113,6 @@ func (link *Link) Update(definition *skupperv2alpha1.Link) bool {
 
 func (link *Link) Definition() *skupperv2alpha1.Link {
 	return link.definition
-}
-
-func (link *Link) UpdateProxyConfig(proxySecret *corev1.Secret) error {
-	if proxySecret != nil {
-		link.proxyConfig.Host = string(proxySecret.Data["host"])
-		link.proxyConfig.Port = string(proxySecret.Data["port"])
-		link.proxyConfig.User = string(proxySecret.Data["username"])
-	}
-	return nil
 }
 
 type RemoveConnector struct {
