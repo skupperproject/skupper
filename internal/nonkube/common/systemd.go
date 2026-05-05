@@ -36,7 +36,6 @@ type SystemdService interface {
 
 type SystemdGlobal interface {
 	Enable() error
-	Disable() error
 }
 
 type CommandExecutor func(name string, arg ...string) *exec.Cmd
@@ -329,25 +328,6 @@ func (sg *systemdGlobal) Enable() error {
 	err = sg.getCmdStartSocket().Run()
 	if err != nil {
 		return err
-	}
-
-	return nil
-
-}
-
-func (sg *systemdGlobal) Disable() error {
-
-	if sg.platform == "podman" {
-
-		err := sg.getCmdDisableSocket().Run()
-		if err != nil {
-			return err
-		}
-
-		err = sg.getCmdStopSocket().Run()
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
