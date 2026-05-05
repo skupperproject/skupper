@@ -121,7 +121,7 @@ func TestLink_Apply(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := NewLink(tt.fields.name, tt.fields.sslProfilePath, tt.fields.proxyConfig)
+			l := NewLink(tt.fields.name, tt.fields.sslProfilePath, &tt.fields.proxyConfig)
 			l.definition = tt.fields.definition
 			if got := l.Apply(&tt.args.current); got != tt.want {
 				t.Errorf("Link.Apply() = %v, want %v", got, tt.want)
