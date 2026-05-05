@@ -72,16 +72,6 @@ func Uninstall(platform string) error {
 
 	systemdService.Remove()
 
-	systemdGlobal, err := common.NewSystemdGlobal(platform)
-	if err != nil {
-		return err
-	}
-
-	err = systemdGlobal.Disable()
-	if err != nil {
-		return err
-	}
-
 	fmt.Printf("Platform %s infrastructure for Skupper is now uninstalled\n", platform)
 
 	return nil
