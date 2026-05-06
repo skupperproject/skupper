@@ -1,0 +1,49 @@
+name: 'Close stale Issues and PRs'
+on:
+  schedule:
+    - cron: '30 1 * * *'
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/stale@v9
+        with:
+          exempt-issue-labels: 'bug,enhancement,needs investigation'
+          days-before-issue-stale: 180
+          days-before-issue-close: 30
+          stale-issue-label: 'stale'
+          stale-issue-message: >
+            stale-issue-message: >
+              This issue has been automatically marked as **stale** because it has been
+              inactive for 90 days.  
+              If this is still relevant, please leave a comment or update it to prevent
+              automatic closure.  
+              Otherwise, it will be closed in 30 days.  
+              Thank you for helping us keep the backlog manageable!
+          close-issue-message: >
+            This issue was closed automatically because it has been inactive for more than
+            120 days (90 days stale + 30 days grace period).
+            If you believe this was closed in error, feel free to reopen or create a new
+            issue with updated details.
+
+          exempt-draft-pr: true
+          exempt-pr-labels: 'bug,enhancement,needs investigation'
+          days-before-pr-stale: 180
+          days-before-pr-close: 30
+          stale-pr-label: 'stale'
+          stale-pr-message: >
+            This pull request has been automatically marked as **stale** due to 90 days of
+            inactivity.
+            Please update it, rebase it, or leave a comment if you intend to continue
+            working on it.
+            Otherwise, it will be closed in 30 days.
+          close-pr-message: >
+            This pull request was closed automatically after being stale for more than
+            120 days.
+            If you wish to resume work on it, please reopen the PR or open a new one with
+            the latest changes.
