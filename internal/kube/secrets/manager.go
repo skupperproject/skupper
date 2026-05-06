@@ -118,6 +118,7 @@ func (w *ProfilesWatcher) handleSecret(key string, secret *corev1.Secret) error 
 			slog.String("name", secretName),
 			slog.Any("context", secretsContext),
 		)
+		return w.update(w)
 	case "kubernetes.io/basic-auth":
 		state, ok := w.state[secretName]
 		if ok {
@@ -136,8 +137,9 @@ func (w *ProfilesWatcher) handleSecret(key string, secret *corev1.Secret) error 
 		w.logger.Info("ProxyProfile Secret Changed",
 			slog.String("name", secretName),
 		)
+		return w.update(w)
 	}
-	return w.update(w)
+	return nil
 }
 
 func (w *ProfilesWatcher) Apply(config *qdr.RouterConfig) bool {
