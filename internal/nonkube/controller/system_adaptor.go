@@ -2,7 +2,7 @@ package controller
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path"
 
@@ -13,6 +13,7 @@ import (
 type SystemAdaptor struct {
 	agentPool *qdr.AgentPool
 	namespace string
+	logger    *slog.Logger
 }
 
 func NewSystemAdaptor(namespace string, agentPool *qdr.AgentPool) *SystemAdaptor {
@@ -20,6 +21,7 @@ func NewSystemAdaptor(namespace string, agentPool *qdr.AgentPool) *SystemAdaptor
 	systemAdaptor := &SystemAdaptor{
 		namespace: namespace,
 		agentPool: agentPool,
+		logger:    slog.New(slog.Default().Handler()).With(slog.String("component", "system.controller.SystemAdaptor")),
 	}
 	return systemAdaptor
 }
@@ -36,14 +38,14 @@ func (s *SystemAdaptor) syncWithRouter(desired *qdr.RouterConfig) error {
 		return err
 	}
 	if err := qdr.SyncBridgeConfig(s.agentPool, &desired.Bridges); err != nil {
-		log.Printf("sync failed: %s", err)
+		s.logger.Error("SYSTEM_ADAPTOR: sync failed", slog.Any("error", err), slog.Any("namespace", s.namespace))
 		return err
 	}
 
 	//Do not double-check that certificates exist; it has been done by previous syncSslProfileCredentialsToDisk
 	// Also, the paths included in the ssl profiles are relative to the router instead of the runtime directory
 	if err := qdr.SyncRouterConfig(s.agentPool, desired, false); err != nil {
-		log.Printf("sync failed: %s", err)
+		s.logger.Error("SYSTEM_ADAPTOR: sync failed", slog.Any("error", err), slog.Any("namespace", s.namespace))
 		return err
 	}
 	return nil

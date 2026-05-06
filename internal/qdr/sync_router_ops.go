@@ -2,9 +2,8 @@ package qdr
 
 import (
 	"fmt"
+	"log"
 )
-
-//TODO: use this in config-sync
 
 func SyncSslProfilesToRouter(agentPool *AgentPool, desired map[string]SslProfile) error {
 
@@ -56,7 +55,7 @@ func SyncBridgeConfig(agentPool *AgentPool, desired *BridgeConfig) error {
 		return fmt.Errorf("Error while syncing bridge config : %s", err)
 	}
 	if !synced {
-		return fmt.Errorf("Bridge config is not synchronised yet")
+		log.Default().Println("Bridge config is not synchronised yet")
 	}
 	return nil
 }

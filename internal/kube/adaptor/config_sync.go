@@ -99,139 +99,16 @@ func (c *ConfigSync) configEvent(key string, configmap *corev1.ConfigMap) error 
 	if err := c.syncSslProfileCredentialsToDisk(desired.SslProfiles); err != nil {
 		return err
 	}
-	if err := c.syncSslProfilesToRouter(desired.SslProfiles); err != nil {
+	if err := qdr.SyncSslProfilesToRouter(c.agentPool, desired.SslProfiles); err != nil {
 		return err
 	}
-	if err := c.syncBridgeConfig(&desired.Bridges); err != nil {
+	if err := qdr.SyncBridgeConfig(c.agentPool, &desired.Bridges); err != nil {
 		c.logger.Error("sync failed", slog.Any("error", err))
 		return err
 	}
-	if err := c.syncRouterConfig(desired); err != nil {
+	if err := qdr.SyncRouterConfig(c.agentPool, desired, true); err != nil {
 		c.logger.Error("sync failed", slog.Any("error", err))
 		return err
-	}
-	return nil
-}
-
-func syncBridgeConfig(agent *qdr.Agent, desired *qdr.BridgeConfig) (bool, error) {
-	actual, err := agent.GetLocalBridgeConfig()
-	if err != nil {
-		return false, fmt.Errorf("Error retrieving bridges: %s", err)
-	}
-	differences := actual.Difference(desired)
-	if differences.Empty() {
-		return true, nil
-	} else {
-		if err = agent.UpdateLocalBridgeConfig(differences); err != nil {
-			return false, fmt.Errorf("Error syncing bridges: %s", err)
-		}
-		return false, nil
-	}
-}
-
-func (c *ConfigSync) syncBridgeConfig(desired *qdr.BridgeConfig) error {
-	agent, err := c.agentPool.Get()
-	if err != nil {
-		return fmt.Errorf("Could not get management agent : %s", err)
-	}
-	var synced bool
-
-	synced, err = syncBridgeConfig(agent, desired)
-
-	c.agentPool.Put(agent)
-	if err != nil {
-		return fmt.Errorf("Error while syncing bridge config : %s", err)
-	}
-	if !synced {
-		return fmt.Errorf("Bridge config is not synchronised yet")
-	}
-	return nil
-}
-
-func (c *ConfigSync) syncRouterConfig(desired *qdr.RouterConfig) error {
-	agent, err := c.agentPool.Get()
-	if err != nil {
-		return fmt.Errorf("Could not get management agent : %s", err)
-	}
-
-	err = syncRouterConfig(agent, desired)
-
-	c.agentPool.Put(agent)
-	if err != nil {
-		return fmt.Errorf("Error while syncing router config : %s", err)
-	}
-	return nil
-}
-
-func syncRouterConfig(agent *qdr.Agent, desired *qdr.RouterConfig) error {
-	if err := syncConnectors(agent, desired); err != nil {
-		return err
-	}
-	if err := syncListeners(agent, desired); err != nil {
-		return err
-	}
-	return nil
-}
-
-func syncConnectors(agent *qdr.Agent, desired *qdr.RouterConfig) error {
-	actual, err := agent.GetLocalConnectors()
-	if err != nil {
-		return fmt.Errorf("Error retrieving local connectors: %s", err)
-	}
-
-	ignorePrefix := "auto-mesh"
-	if differences := qdr.ConnectorsDifference(actual, desired, &ignorePrefix); !differences.Empty() {
-		if err = agent.UpdateConnectorConfig(differences, true); err != nil {
-			return fmt.Errorf("Error syncing connectors: %s", err)
-		}
-	}
-	return nil
-}
-
-func syncListeners(agent *qdr.Agent, desired *qdr.RouterConfig) error {
-	actual, err := agent.GetLocalListeners()
-	if err != nil {
-		return fmt.Errorf("Error retrieving local listeners: %s", err)
-	}
-
-	if differences := qdr.ListenersDifference(qdr.FilterListeners(actual, qdr.IsNotProtectedListener), desired.GetMatchingListeners(qdr.IsNotProtectedListener)); !differences.Empty() {
-		if err := agent.UpdateListenerConfig(differences); err != nil {
-			return fmt.Errorf("Error syncing listeners: %s", err)
-		}
-	}
-	return nil
-}
-
-func (c *ConfigSync) syncSslProfilesToRouter(desired map[string]qdr.SslProfile) error {
-	agent, err := c.agentPool.Get()
-	if err != nil {
-		return err
-	}
-	defer c.agentPool.Put(agent)
-	actual, err := agent.GetSslProfiles()
-	if err != nil {
-		return err
-	}
-
-	for _, profile := range desired {
-		current, ok := actual[profile.Name]
-		if !ok {
-			if err := agent.CreateSslProfile(profile); err != nil {
-				return err
-			}
-		}
-		if current != profile {
-			if err := agent.UpdateSslProfile(profile); err != nil {
-				return err
-			}
-		}
-	}
-	for _, profile := range actual {
-		if _, ok := desired[profile.Name]; !ok {
-			if err := agent.Delete("io.skupper.router.sslProfile", profile.Name); err != nil {
-				return err
-			}
-		}
 	}
 	return nil
 }
