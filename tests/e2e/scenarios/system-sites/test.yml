@@ -30,7 +30,7 @@
         - name: "[ {{ test_identifier }} ] - Podman West Site Setup"
           block:
             - name: "[ {{ test_identifier }} ] - Deploy frontend service"
-              ansible.builtin.command:
+              ansible.builtin.shell:
                 cmd: "{{ platform }} run --name frontend -d --rm -p 127.0.0.1:7070:8080 quay.io/skupper/hello-world-frontend --backend http://host.containers.internal:8080"
               changed_when: false
               when: "'west' in inventory_hostname"
@@ -56,7 +56,7 @@
         - name: "[ {{ test_identifier }} ] - Podman East Site Setup"
           block:
             - name: "[ {{ test_identifier }} ] - Deploy backend service"
-              ansible.builtin.command:
+              ansible.builtin.shell:
                 cmd: "{{ platform }} run --name backend -d --rm -p 127.0.0.1:9090:8080 quay.io/skupper/hello-world-backend"
               changed_when: false
               register: backend_deploy
