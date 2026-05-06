@@ -583,6 +583,13 @@ type LinkSpec struct {
 	Settings       map[string]string `json:"settings,omitempty"`
 }
 
+func (s *LinkSpec) GetProxyConfiguration() string {
+	if value, ok := s.Settings["proxy-configuration"]; ok {
+		return value
+	}
+	return ""
+}
+
 func (s *LinkSpec) GetEndpointForRole(name string) (Endpoint, bool) {
 	for _, endpoint := range s.Endpoints {
 		if endpoint.Name == name {

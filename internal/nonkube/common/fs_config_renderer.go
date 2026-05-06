@@ -50,16 +50,18 @@ const (
 )
 
 const (
-	DefaultSslProfileBasePath = "${SSL_PROFILE_BASE_PATH}"
+	DefaultSslProfileBasePath   = "${SSL_PROFILE_BASE_PATH}"
+	DefaultProxyProfileBasePath = "${SSL_PROFILE_BASE_PATH}"
 )
 
 type FileSystemConfigurationRenderer struct {
 	// SslProfileBasePath path where configuration will be read from in runtime
-	SslProfileBasePath string
-	RouterConfig       qdr.RouterConfig
-	Platform           string
-	Bundle             bool
-	customOutputPath   string
+	SslProfileBasePath   string
+	ProxyProfileBasePath string
+	RouterConfig         qdr.RouterConfig
+	Platform             string
+	Bundle               bool
+	customOutputPath     string
 }
 
 func NewFileSystemConfigurationRenderer(outputPath string) *FileSystemConfigurationRenderer {

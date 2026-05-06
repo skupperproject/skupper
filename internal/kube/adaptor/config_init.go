@@ -48,12 +48,19 @@ func InitialiseConfig(cli internalclient.Clients, namespace string, path string,
 		if routerConfiguration == nil {
 			return fmt.Errorf("empty router configuration in ConfigMap %q", routerConfigMap)
 		}
-		delta := secretsSync.Expect(routerConfiguration.SslProfiles)
+		delta := secretsSync.ExpectSslProfiles(routerConfiguration.SslProfiles)
 		if len(delta.Missing) > 0 {
 			slog.Info("Waiting for Secrets to be created for SslProfiles", slog.Any("sslProfiles", delta.Missing))
 		}
 		for name, diff := range delta.PendingOrdinals {
 			slog.Info("Secret has outdated ordinal", slog.String("secret", diff.SecretName), slog.Uint64("ordinal", diff.Current), slog.String("profile", name), slog.Uint64("expected", diff.Expect))
+		}
+		deltaProxy := secretsSync.ExpectProxyProfiles(namespace+"/"+routerConfigMap, routerConfiguration.ProxyProfiles)
+		if len(deltaProxy.Missing) > 0 {
+			slog.Info("Waiting for Secrets to be created for ProxyProfiles", slog.Any("proxProfiles", deltaProxy.Missing))
+		}
+		for _, err := range deltaProxy.Errors {
+			delta.Errors = append(delta.Errors, err)
 		}
 		return delta.Error()
 	}, backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(time.Second*60)))

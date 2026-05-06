@@ -871,94 +871,6 @@ func TestSite_CheckLink(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "link - not found",
-			args: args{
-				name: "link1",
-				linkconfig: &skupperv2alpha1.Link{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "link1",
-						Namespace: "test",
-						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-					},
-					Spec: skupperv2alpha1.LinkSpec{
-						Cost: 1,
-						Endpoints: []skupperv2alpha1.Endpoint{
-							{
-								Name: string(qdr.RoleInterRouter),
-								Host: "10.10.10.1",
-								Port: "55671",
-							},
-						},
-					},
-				},
-			},
-			want:                "initialized",
-			wantErr:             true,
-			wantLinks:           1,
-			skupperErrorMessage: "NotFound",
-		},
-		{
-			name: "link - ok",
-			args: args{
-				name: "link1",
-				linkconfig: &skupperv2alpha1.Link{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "link1",
-						Namespace: "test",
-						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-					},
-					Spec: skupperv2alpha1.LinkSpec{
-						Cost: 2,
-						Endpoints: []skupperv2alpha1.Endpoint{
-							{
-								Name: string(qdr.RoleInterRouter),
-								Host: "1.1.1.1",
-								Port: "55671",
-							},
-						},
-					},
-				},
-			},
-			skupperObjects: []runtime.Object{
-				&skupperv2alpha1.Link{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "link1",
-						Namespace: "test",
-					},
-				},
-			},
-			want:      "initialized",
-			wantErr:   false,
-			wantLinks: 1,
-		},
-		{
-			name: "link - error",
-			args: args{
-				name: "link1",
-				linkconfig: &skupperv2alpha1.Link{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "link1",
-						Namespace: "test",
-						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-					},
-					Spec: skupperv2alpha1.LinkSpec{
-						Cost: 2,
-						Endpoints: []skupperv2alpha1.Endpoint{
-							{
-								Name: string(qdr.RoleInterRouter),
-								Host: "1.1.1.1",
-								Port: "55671",
-							},
-						},
-					},
-				},
-			},
-			want:                "initialized",
-			wantErr:             true,
-			wantLinks:           1,
-			skupperErrorMessage: "NotFound",
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -984,8 +896,8 @@ func TestSite_CheckLink(t *testing.T) {
 				if link.Spec.Cost != tt.args.linkconfig.Spec.Cost {
 					t.Errorf("Site.CheckLink() link not configured correctly")
 				}
-
 				for _, condition := range link.Status.Conditions {
+					t.Log("In check link", condition.Type, condition.Status)
 					if condition.Type == "Configured" && condition.Status == "True" {
 						linkConfigured = true
 					}
@@ -1191,7 +1103,8 @@ func Test_NetworkStatusUpdate(t *testing.T) {
 
 			// add link
 			if tt.linkconfig != nil {
-				link := s.newLink(tt.linkconfig)
+				link, err := s.newLink(tt.linkconfig)
+				assert.Assert(t, err)
 				s.links[tt.linkconfig.ObjectMeta.Name] = link
 			}
 

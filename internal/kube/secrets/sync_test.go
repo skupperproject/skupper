@@ -18,9 +18,10 @@ const tlsProfKey = `internal.skupper.io/tls-profile-context`
 var (
 	expectedFiles       = []string{"ca.crt", "tls.crt", "tls.key"}
 	expectedCAOnlyFiles = []string{"ca.crt"}
+	expectedProxyFiles  = []string{"password.txt"}
 )
 
-func TestSyncExpect(t *testing.T) {
+func TestSyncExpectSsl(t *testing.T) {
 	tmpdir := t.TempDir()
 	tlog := slog.New(slog.NewTextHandler(io.Discard, nil))
 	sCache := secretsCacheFactoryFixture(t, "testing")
@@ -29,7 +30,7 @@ func TestSyncExpect(t *testing.T) {
 
 	secretSync := secrets.NewSync(sCache.Factory, nil, tlog)
 	secretSync.Recover()
-	delta := secretSync.Expect(map[string]qdr.SslProfile{
+	delta := secretSync.ExpectSslProfiles(map[string]qdr.SslProfile{
 		"test-tls":         fixtureSslProfile("test-tls", tmpdir, 0, 0, false),
 		"test-tls-profile": fixtureSslProfile("test-tls-profile", tmpdir, 8, 0, true),
 	})
@@ -38,6 +39,25 @@ func TestSyncExpect(t *testing.T) {
 	}
 	assertFiles(t, path.Join(tmpdir, "test-tls"), expectedFiles)
 	assertFiles(t, path.Join(tmpdir, "test-tls-profile"), expectedCAOnlyFiles)
+}
+
+func TestSyncExpectProxy(t *testing.T) {
+	tmpdir := t.TempDir()
+	tlog := slog.New(slog.NewTextHandler(io.Discard, nil))
+	sCache := secretsCacheFactoryFixture(t, "testing")
+	sCache.Secrets["testing/test-proxy"] = fixtureProxySecret("test-proxy", "testing", "8888", "Barney", "Rubble")
+	sCache.Secrets["testing/test-proxy-no-auth"] = fixtureProxySecret("test-proxy-no-auth", "testing", "8888", "", "")
+
+	secretSync := secrets.NewSync(sCache.Factory, nil, tlog)
+	secretSync.Recover()
+	delta := secretSync.ExpectProxyProfiles("testing/test-proxy", map[string]qdr.ProxyProfile{
+		"test-proxy":         fixtureProxyProfile("test-proxy", "proxy-service.testing.svc.cluster.local", "8888", "Barney", tmpdir),
+		"test-proxy-no-auth": fixtureProxyProfile("test-proxy-no-auth", "proxy-service.testing.svc.cluster.local", "8888", "", ""),
+	})
+	if !delta.Empty() {
+		t.Errorf("expected all profiles to be resolved by secret: %s", delta.Error())
+	}
+	assertFiles(t, path.Join(tmpdir, "test-proxy"), expectedProxyFiles)
 }
 
 func TestSyncHandler(t *testing.T) {
@@ -50,7 +70,7 @@ func TestSyncHandler(t *testing.T) {
 	configuredProfiles := map[string]qdr.SslProfile{
 		"test-tls": fixtureSslProfile("test-tls", tmpdir, 12, 11, false),
 	}
-	delta := secretSync.Expect(configuredProfiles)
+	delta := secretSync.ExpectSslProfiles(configuredProfiles)
 	if len(delta.Missing) != 1 {
 		t.Errorf("expected missing profile test-tls: %s", delta.Error())
 	}
@@ -64,7 +84,7 @@ func TestSyncHandler(t *testing.T) {
 		t.Errorf("unexpected error handling new secret: %s", err)
 	}
 
-	delta = secretSync.Expect(configuredProfiles)
+	delta = secretSync.ExpectSslProfiles(configuredProfiles)
 	diff := delta.PendingOrdinals["test-tls"]
 	expectDiff := secrets.OrdinalDelta{Expect: 12, Current: 1, SecretName: "testing/test-tls"}
 	if diff != expectDiff {
@@ -78,7 +98,7 @@ func TestSyncHandler(t *testing.T) {
 	if err := sCache.HandlerFn("testing/test-tls", sCache.Secrets["testing/test-tls"]); err != nil {
 		t.Errorf("unexpected error handling updated secret: %s", err)
 	}
-	delta = secretSync.Expect(configuredProfiles)
+	delta = secretSync.ExpectSslProfiles(configuredProfiles)
 	if !delta.Empty() {
 		t.Errorf("expected all profiles to be resolved: %s", delta.Error())
 	}
@@ -99,7 +119,7 @@ func TestSyncCallback(t *testing.T) {
 	configuredProfiles := map[string]qdr.SslProfile{
 		"test-tls": fixtureSslProfile("test-tls", tmpdir, 12, 11, false),
 	}
-	delta := secretSync.Expect(configuredProfiles)
+	delta := secretSync.ExpectSslProfiles(configuredProfiles)
 	if delta.Empty() {
 		t.Errorf("expected missing secret")
 	}
@@ -118,7 +138,7 @@ func TestSyncCallback(t *testing.T) {
 	if len(callbackValues) != 1 || callbackValues[0] != "test-tls" {
 		t.Errorf("expected one callback for test-tls profile: %s", callbackValues)
 	}
-	delta = secretSync.Expect(configuredProfiles)
+	delta = secretSync.ExpectSslProfiles(configuredProfiles)
 	if !delta.Empty() {
 		t.Errorf("expected all profiles to be resolved: %s", delta.Error())
 	}
@@ -160,6 +180,24 @@ func fixtureTlsSecret(name, namespace string) *corev1.Secret {
 			"tls.crt": []byte("tls.crt - " + name),
 			"tls.key": []byte("tls.key - " + name),
 		},
+		Type: "kubernetes.io/tls",
+	}
+}
+
+func fixtureProxySecret(name, namespace string, port string, username string, password string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Namespace:   namespace,
+			Annotations: map[string]string{},
+		},
+		Data: map[string][]byte{
+			"host":     []byte("proxy-service." + namespace + ".svc.cluster.local"),
+			"port":     []byte(port),
+			"username": []byte(username),
+			"password": []byte(password),
+		},
+		Type: "kubernetes.io/basic-auth",
 	}
 }
 
@@ -173,6 +211,20 @@ func fixtureSslProfile(name, baseDir string, ord, oldestOrd uint64, caonly bool)
 	if !caonly {
 		profile.CertFile = path.Join(baseDir, name, "tls.crt")
 		profile.PrivateKeyFile = path.Join(baseDir, name, "tls.key")
+	}
+	return profile
+}
+
+func fixtureProxyProfile(name string, host string, port string, username string, filepath string) qdr.ProxyProfile {
+	profile := qdr.ProxyProfile{
+		Name:     name,
+		Host:     host,
+		Port:     port,
+		Password: filepath,
+	}
+	if username != "" {
+		profile.Username = username
+		profile.Password = path.Join("file:", filepath, name, "password.txt")
 	}
 	return profile
 }

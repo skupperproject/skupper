@@ -56,9 +56,10 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	s.siteState.CreateBridgeCertificates()
 	// rendering non-kube configuration files and certificates
 	s.configRenderer = &common.FileSystemConfigurationRenderer{
-		SslProfileBasePath: "{{.SslProfileBasePath}}",
-		Platform:           string(s.Platform),
-		Bundle:             true,
+		SslProfileBasePath:   "{{.SslProfileBasePath}}",
+		ProxyProfileBasePath: "{{.SslProfileBasePath}}",
+		Platform:             string(s.Platform),
+		Bundle:               true,
 	}
 	err = s.configRenderer.Render(s.siteState)
 	if err != nil {

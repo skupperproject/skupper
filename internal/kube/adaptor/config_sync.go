@@ -14,8 +14,10 @@ import (
 )
 
 // Syncs the live router config with the configmap (bridge configuration,
-// secrets for services with TLS enabled, and secrets and connectors for links)
+// secrets for services with TLS enabled, and secrets and connectors for links
+// as well as proxy profiles)
 type ConfigSync struct {
+	cli             internalclient.Clients
 	agentPool       *qdr.AgentPool
 	controller      *watchers.EventProcessor
 	namespace       string
@@ -102,6 +104,12 @@ func (c *ConfigSync) configEvent(key string, configmap *corev1.ConfigMap) error 
 	if err := c.syncSslProfilesToRouter(desired.SslProfiles); err != nil {
 		return err
 	}
+	if err := c.syncProxyProfileCredentialsToDisk(key, desired.ProxyProfiles); err != nil {
+		return err
+	}
+	if err := c.syncProxyProfilesToRouter(desired.ProxyProfiles); err != nil {
+		return err
+	}
 	if err := c.syncBridgeConfig(&desired.Bridges); err != nil {
 		c.logger.Error("sync failed", slog.Any("error", err))
 		return err
@@ -110,6 +118,7 @@ func (c *ConfigSync) configEvent(key string, configmap *corev1.ConfigMap) error 
 		c.logger.Error("sync failed", slog.Any("error", err))
 		return err
 	}
+
 	return nil
 }
 
@@ -219,6 +228,7 @@ func (c *ConfigSync) syncSslProfilesToRouter(desired map[string]qdr.SslProfile) 
 			if err := agent.CreateSslProfile(profile); err != nil {
 				return err
 			}
+			continue
 		}
 		if current != profile {
 			if err := agent.UpdateSslProfile(profile); err != nil {
@@ -237,7 +247,47 @@ func (c *ConfigSync) syncSslProfilesToRouter(desired map[string]qdr.SslProfile) 
 }
 
 func (c *ConfigSync) syncSslProfileCredentialsToDisk(profiles map[string]qdr.SslProfile) error {
-	delta := c.profileSyncer.Expect(profiles)
+	delta := c.profileSyncer.ExpectSslProfiles(profiles)
+	return delta.Error()
+}
+
+func (c *ConfigSync) syncProxyProfilesToRouter(desired map[string]qdr.ProxyProfile) error {
+	agent, err := c.agentPool.Get()
+	if err != nil {
+		return err
+	}
+	defer c.agentPool.Put(agent)
+	actual, err := agent.GetProxyProfiles()
+	if err != nil {
+		return err
+	}
+
+	for _, profile := range desired {
+		current, ok := actual[profile.Name]
+		if !ok {
+			if err := agent.CreateProxyProfile(profile); err != nil {
+				return err
+			}
+			continue
+		}
+		if current != profile {
+			if err := agent.UpdateProxyProfile(profile); err != nil {
+				return err
+			}
+		}
+	}
+	for _, profile := range actual {
+		if _, ok := desired[profile.Name]; !ok {
+			if err := agent.Delete("io.skupper.router.proxyProfile", profile.Name); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (c *ConfigSync) syncProxyProfileCredentialsToDisk(key string, profiles map[string]qdr.ProxyProfile) error {
+	delta := c.profileSyncer.ExpectProxyProfiles(key, profiles)
 	return delta.Error()
 }
 

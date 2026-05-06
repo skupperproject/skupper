@@ -143,6 +143,7 @@ func (s *Site) routerMode() qdr.Mode {
 }
 
 const SSL_PROFILE_PATH = "/etc/skupper-router-certs"
+const PROXY_PROFILE_PATH = "/etc/skupper-router-proxies"
 
 func (s *Site) Reconcile(siteDef *skupperv2alpha1.Site) error {
 	err := s.reconcile(siteDef, false)
@@ -1068,10 +1069,31 @@ func (s *Site) setBindingsConfiguredStatus(err error) {
 	s.bindings.Map(cf, lf)
 }
 
-func (s *Site) newLink(linkconfig *skupperv2alpha1.Link) *site.Link {
-	config := site.NewLink(linkconfig.ObjectMeta.Name, SSL_PROFILE_PATH)
+func (s *Site) getProxyConfig(proxySetting string) (*site.ProxyConfig, error) {
+	if proxySetting != "" {
+		proxySecret, err := s.profiles.Cache.Get(s.namespace + "/" + proxySetting)
+		if proxySecret != nil && err == nil {
+			return &site.ProxyConfig{
+				Host:        string(proxySecret.Data["host"]),
+				Port:        string(proxySecret.Data["port"]),
+				User:        string(proxySecret.Data["username"]),
+				ProfilePath: PROXY_PROFILE_PATH}, nil
+		} else {
+			return nil, stderrors.New("Secret not found for proxy configuration")
+		}
+	}
+	return nil, nil
+}
+
+func (s *Site) newLink(linkconfig *skupperv2alpha1.Link) (*site.Link, error) {
+	proxySetting := linkconfig.Spec.GetProxyConfiguration()
+	proxyConfig, err := s.getProxyConfig(proxySetting)
+	if err != nil {
+		return nil, err
+	}
+	config := site.NewLink(linkconfig.ObjectMeta.Name, SSL_PROFILE_PATH, proxyConfig)
 	config.Update(linkconfig)
-	return config
+	return config, nil
 }
 
 func (s *Site) CheckLink(name string, linkconfig *skupperv2alpha1.Link) error {
@@ -1085,19 +1107,32 @@ func (s *Site) CheckLink(name string, linkconfig *skupperv2alpha1.Link) error {
 
 func (s *Site) link(linkconfig *skupperv2alpha1.Link) error {
 	var config *site.Link
+	prevProxyProfileName := ""
+	currentProxyProfileName := linkconfig.Spec.GetProxyConfiguration()
 	if existing, ok := s.links[linkconfig.ObjectMeta.Name]; ok {
+		prevProxyProfileName = existing.Definition().Spec.GetProxyConfiguration()
 		if existing.Update(linkconfig) || !existing.Definition().IsConfigured() {
 			config = existing
 		}
 	} else {
-		config = s.newLink(linkconfig)
-		s.links[linkconfig.ObjectMeta.Name] = config
+		config, err := s.newLink(linkconfig)
+		if err == nil {
+			s.links[linkconfig.ObjectMeta.Name] = config
+		} else {
+			return s.updateLinkConfiguredCondition(linkconfig, err)
+		}
 	}
 	if s.initialised {
 		if config != nil {
 			s.logger.Info("Connecting site using token",
 				slog.String("namespace", s.namespace),
 				slog.String("token", linkconfig.ObjectMeta.Name))
+			if currentProxyProfileName != "" && prevProxyProfileName != "" && currentProxyProfileName != prevProxyProfileName {
+				currentProxyConfig, err := s.getProxyConfig(currentProxyProfileName)
+				if err == nil {
+					config.UpdateProxyConfig(currentProxyConfig)
+				}
+			}
 			err := s.updateRouterConfig(config)
 			return s.updateLinkConfiguredCondition(linkconfig, err)
 		} else {
@@ -1249,11 +1284,11 @@ func (s *Site) updateLinkOperationalCondition(link *skupperv2alpha1.Link, operat
 	return nil
 }
 
-func (s *Site) CheckSslProfiles(config *qdr.RouterConfig) error {
+func (s *Site) CheckSslAndProxyProfiles(config *qdr.RouterConfig) error {
 	if !s.initialised || config == nil {
 		return nil
 	}
-	s.profiles.UseProfiles(config.SslProfiles)
+	s.profiles.UseProfiles(config.SslProfiles, config.ProxyProfiles)
 	return nil
 }
 

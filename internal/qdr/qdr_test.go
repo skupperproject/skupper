@@ -153,6 +153,23 @@ func TestAddSslProfile(t *testing.T) {
 	assert.Equal(t, config.SslProfiles["third"].PrivateKeyFile, "")
 }
 
+func TestAddProxyProfile(t *testing.T) {
+	config := InitialConfig("foo", "bar", "undefined", true, 3)
+	config.AddProxyProfile(ProxyProfile{
+		Name: "myprofile",
+		Host: "192.168.0.1",
+	})
+	assert.Equal(t, config.ProxyProfiles["myprofile"].Host, "192.168.0.1")
+
+	config.AddProxyProfile(ConfigureProxyProfile("another", "192.168.1.1", "8080", "user1", "password1"))
+	assert.Equal(t, config.ProxyProfiles["another"].Host, "192.168.1.1")
+	assert.Equal(t, config.ProxyProfiles["another"].Port, "8080")
+
+	config.AddProxyProfile(ConfigureProxyProfile("third", "192.168.2.1", "9090", "user2", "password2"))
+	assert.Equal(t, config.ProxyProfiles["third"].Host, "192.168.2.1")
+	assert.Equal(t, config.ProxyProfiles["third"].Port, "9090")
+}
+
 func TestAddAddress(t *testing.T) {
 	config := InitialConfig("foo", "bar", "undefined", true, 3)
 	config.AddAddress(Address{
@@ -189,18 +206,36 @@ func TestMarshalUnmarshalRouterConfig(t *testing.T) {
 				PrivateKeyFile: "/somewhere/else/myKey.pem",
 			},
 		},
+		ProxyProfiles: map[string]ProxyProfile{
+			"one-proxy": ProxyProfile{
+				Name:     "one-proxy",
+				Host:     "192.168.0.1",
+				Port:     "8080",
+				Username: "barney",
+				Password: "rubble",
+			},
+			"two-proxy": ProxyProfile{
+				Name:     "two-proxy",
+				Host:     "192.168.1.1",
+				Port:     "9090",
+				Username: "fred",
+				Password: "flinstone",
+			},
+		},
 		Connectors: map[string]Connector{
 			"c1": Connector{
-				Name:       "c1",
-				Host:       "somewhere.com",
-				Port:       "1234",
-				SslProfile: "one",
+				Name:         "c1",
+				Host:         "somewhere.com",
+				Port:         "1234",
+				SslProfile:   "one",
+				ProxyProfile: "one-proxy",
 			},
 			"c2": Connector{
-				Name:       "c2",
-				Host:       "elsewhere.com",
-				Port:       "5678",
-				SslProfile: "two",
+				Name:         "c2",
+				Host:         "elsewhere.com",
+				Port:         "5678",
+				SslProfile:   "two",
+				ProxyProfile: "two-proxy",
 			},
 		},
 		Listeners: map[string]Listener{
@@ -289,6 +324,9 @@ func TestMarshalUnmarshalRouterConfig(t *testing.T) {
 	if !reflect.DeepEqual(input.SslProfiles, output.SslProfiles) {
 		t.Errorf("Incorrect sslprofiles. Expected %#v got %#v", input.SslProfiles, output.SslProfiles)
 	}
+	if !reflect.DeepEqual(input.ProxyProfiles, output.ProxyProfiles) {
+		t.Errorf("Incorrect proxyprofiles. Expected %#v got %#v", input.ProxyProfiles, output.ProxyProfiles)
+	}
 	if !reflect.DeepEqual(input.Connectors, output.Connectors) {
 		t.Errorf("Incorrect connectors. Expected %#v got %#v", input.Connectors, output.Connectors)
 	}
@@ -345,6 +383,13 @@ func TestUnmarshalErrorInvalidSslProfileValue(t *testing.T) {
 	_, err := UnmarshalRouterConfig(`[["sslProfile", ["wrong"]]]`)
 	if err == nil {
 		t.Errorf("Expected error for invalid sslprofile value")
+	}
+}
+
+func TestUnmarshalErrorInvalidProxyProfileValue(t *testing.T) {
+	_, err := UnmarshalRouterConfig(`[["proxyProfile", ["wrong"]]]`)
+	if err == nil {
+		t.Errorf("Expected error for invalid proxyprofile value")
 	}
 }
 
@@ -648,6 +693,9 @@ func TestRecordTypes_GH2081(t *testing.T) {
 		},
 		SslProfile{
 			Name: "myprofile",
+		},
+		ProxyProfile{
+			Name: "myproxyprofile",
 		},
 	}
 	for _, rt := range testCases {

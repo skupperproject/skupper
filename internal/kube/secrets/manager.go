@@ -36,7 +36,7 @@ type profileWatcherContext struct {
 
 type ProfilesWatcher struct {
 	logger     *slog.Logger
-	cache      SecretsCache
+	Cache      SecretsCache
 	client     typedv1.SecretInterface
 	update     UpdateRouterConfigFn
 	pvProvider PriorValidityProvider
@@ -58,7 +58,7 @@ func NewProfilesWatcher(factory SecretsCacheFactory, client kubernetes.Interface
 		state:      make(map[string]*profileWatcherContext),
 		cleanup:    sync.OnceFunc(func() { close(stopCh) }),
 	}
-	w.cache = factory(stopCh, w.handleSecret)
+	w.Cache = factory(stopCh, w.handleSecret)
 	return w
 }
 
@@ -72,106 +72,162 @@ func (w *ProfilesWatcher) handleSecret(key string, secret *corev1.Secret) error 
 	}
 	secretName := secret.ObjectMeta.Name
 	changed := false
-	var secretsContext profileContextSet
-	for _, profileName := range secretProfiles(secretName) {
-		state, ok := w.state[profileName]
-		if !ok {
-			continue
+	switch secret.Type {
+	case "kubernetes.io/tls":
+		var secretsContext profileContextSet
+		for _, profileName := range secretProfiles(secretName) {
+			state, ok := w.state[profileName]
+			if !ok {
+				continue
+			}
+			if state.SecretKey == "" {
+				state.SecretKey = key
+				updateSecretChecksum(secret, &state.SecretContentSum)
+			} else if state.SecretKey != key {
+				continue
+			}
+			if updateSecretChecksum(secret, &state.SecretContentSum) {
+				state.Ordinal += 1
+				changed = true
+			}
+			pv := w.checkPriorValidity(secret)
+			nextOldest := state.Ordinal - pv
+			if pv <= state.Ordinal && nextOldest > state.OldestValidOrdinal {
+				changed = true
+				state.OldestValidOrdinal = nextOldest
+			}
+			secretsContext = append(secretsContext, profileContext{
+				ProfileName: profileName,
+				Ordinal:     state.Ordinal,
+			})
 		}
-		if state.SecretKey == "" {
-			state.SecretKey = key
-			updateSecretChecksum(secret, &state.SecretContentSum)
-		} else if state.SecretKey != key {
-			continue
+		updated, err := updateSecret(secret, secretsContext)
+		if err != nil {
+			return err
 		}
-		if updateSecretChecksum(secret, &state.SecretContentSum) {
-			state.Ordinal += 1
-			changed = true
+		if updated {
+			w.logger.Debug("Updating ssl-profile-ordinal secret", slog.String("secret", secretName), slog.Any("context", secretsContext))
+			if _, err := w.client.Update(context.TODO(), secret, v1.UpdateOptions{}); err != nil {
+				return fmt.Errorf("error updating sslProfile secret anntations: %s", err)
+			}
 		}
-		pv := w.checkPriorValidity(secret)
-		nextOldest := state.Ordinal - pv
-		if pv <= state.Ordinal && nextOldest > state.OldestValidOrdinal {
-			changed = true
-			state.OldestValidOrdinal = nextOldest
+		if !changed {
+			return nil
 		}
-		secretsContext = append(secretsContext, profileContext{
-			ProfileName: profileName,
-			Ordinal:     state.Ordinal,
-		})
+		w.logger.Info("SslProfile Secret Changed",
+			slog.String("name", secretName),
+			slog.Any("context", secretsContext),
+		)
+		return w.update(w)
+	case "kubernetes.io/basic-auth":
+		state, ok := w.state[secretName]
+		if ok {
+			if state.SecretKey == "" {
+				state.SecretKey = key
+				updateSecretChecksum(secret, &state.SecretContentSum)
+			} else if state.SecretKey == key {
+				if updateSecretChecksum(secret, &state.SecretContentSum) {
+					changed = true
+				}
+			}
+		}
+		if !changed {
+			return nil
+		}
+		w.logger.Info("ProxyProfile Secret Changed",
+			slog.String("name", secretName),
+		)
+		return w.update(w)
 	}
-	updated, err := updateSecret(secret, secretsContext)
-	if err != nil {
-		return err
-	}
-	if updated {
-		w.logger.Debug("Updating ssl-profile-ordinal secret", slog.String("secret", secretName), slog.Any("context", secretsContext))
-		if _, err := w.client.Update(context.TODO(), secret, v1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("error updating sslProfile secret anntations: %s", err)
-		}
-	}
-	if !changed {
-		return nil
-	}
-	w.logger.Info("SslProfile Secret Changed",
-		slog.String("name", secretName),
-		slog.Any("context", secretsContext),
-	)
-	return w.update(w)
+	return nil
 }
 
 func (w *ProfilesWatcher) Apply(config *qdr.RouterConfig) bool {
 	changed := false
-	for profileName, configured := range config.SslProfiles {
-		state, ok := w.state[profileName]
+	for sslProfileName, configured := range config.SslProfiles {
+		state, ok := w.state[sslProfileName]
 		if !ok {
 			continue
 		}
 		if configured.Ordinal != state.Ordinal {
 			changed = true
 			configured.Ordinal = state.Ordinal
-			config.SslProfiles[profileName] = configured
+			config.SslProfiles[sslProfileName] = configured
 		}
 		if configured.OldestValidOrdinal != state.OldestValidOrdinal {
 			changed = true
 			configured.OldestValidOrdinal = state.OldestValidOrdinal
-			config.SslProfiles[profileName] = configured
+			config.SslProfiles[sslProfileName] = configured
 		}
+	}
+	for proxyProfileName, configured := range config.ProxyProfiles {
+		_, ok := w.state[proxyProfileName]
+		if !ok {
+			continue
+		}
+		key := w.keyfunc(proxyProfileName)
+		secret, err := w.Cache.Get(key)
+		if err != nil || secret == nil {
+			continue
+		}
+		configured.Host = string(secret.Data["host"])
+		configured.Port = string(secret.Data["port"])
+		configured.Username = string(secret.Data["username"])
+		config.ProxyProfiles[proxyProfileName] = configured
+		changed = true
 	}
 	return changed
 }
 
-func (w *ProfilesWatcher) UseProfiles(profiles map[string]qdr.SslProfile) {
+func (w *ProfilesWatcher) UseProfiles(sslProfiles map[string]qdr.SslProfile, proxyProfiles map[string]qdr.ProxyProfile) {
 	found := make(map[string]struct{}, len(w.state))
 	for profileName := range w.state {
 		found[profileName] = struct{}{}
 	}
-	for profileName, config := range profiles {
-		delete(found, profileName)
-		state, ok := w.state[profileName]
+	for sslProfileName, config := range sslProfiles {
+		delete(found, sslProfileName)
+		state, ok := w.state[sslProfileName]
 		if !ok {
 			state = &profileWatcherContext{
 				Ordinal:            config.Ordinal,
 				OldestValidOrdinal: config.OldestValidOrdinal,
 			}
-			w.state[profileName] = state
+			w.state[sslProfileName] = state
 		}
 		if state.SecretKey != "" {
 			continue
 		}
-		for _, secretName := range profileSecrets(profileName) {
+		for _, secretName := range profileSecrets(sslProfileName) {
 			key := w.keyfunc(secretName)
-			secret, err := w.cache.Get(key)
+			secret, err := w.Cache.Get(key)
 			if err != nil || secret == nil {
 				continue
 			}
 			w.handleSecret(key, secret)
 		}
 	}
+	for proxyProfileName := range proxyProfiles {
+		delete(found, proxyProfileName)
+		state, ok := w.state[proxyProfileName]
+		if !ok {
+			state = &profileWatcherContext{}
+			w.state[proxyProfileName] = state
+		}
+		if state.SecretKey != "" {
+			continue
+		}
+		key := w.keyfunc(proxyProfileName)
+		secret, err := w.Cache.Get(key)
+		if err != nil || secret == nil {
+			continue
+		}
+		w.handleSecret(key, secret)
+	}
 	for profileName := range found {
 		state := w.state[profileName]
 		delete(w.state, profileName)
 		if state != nil && state.SecretKey != "" {
-			secret, err := w.cache.Get(state.SecretKey)
+			secret, err := w.Cache.Get(state.SecretKey)
 			if err != nil || secret == nil {
 				continue
 			}

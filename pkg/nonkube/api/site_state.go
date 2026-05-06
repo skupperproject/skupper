@@ -267,7 +267,8 @@ func (s *SiteState) linkAccessMap() site.RouterAccessMap {
 func (s *SiteState) linkMap(sslProfileBasePath string) site.LinkMap {
 	linkMap := site.LinkMap{}
 	for name, link := range s.Links {
-		siteLink := site.NewLink(name, path.Join(sslProfileBasePath, string(CertificatesPath)))
+		// TODO: proxy profile config ?
+		siteLink := site.NewLink(name, path.Join(sslProfileBasePath, string(CertificatesPath)), &site.ProxyConfig{})
 		link.SetConfigured(nil)
 		siteLink.Update(link)
 		linkMap[name] = siteLink

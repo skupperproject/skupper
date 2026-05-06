@@ -10,6 +10,7 @@ import (
 
 	"github.com/skupperproject/skupper/internal/qdr"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/cache"
 )
 
 type syncContext struct {
@@ -25,9 +26,10 @@ type Sync struct {
 	cache    SecretsCache
 	callback Callback
 
-	mu             sync.Mutex
-	configured     map[string]qdr.SslProfile
-	profileSecrets map[string]syncContext
+	mu              sync.Mutex
+	configuredSsl   map[string]qdr.SslProfile
+	configuredProxy map[string]qdr.ProxyProfile
+	profileSecrets  map[string]syncContext
 
 	cleanup func()
 }
@@ -35,11 +37,12 @@ type Sync struct {
 func NewSync(factory SecretsCacheFactory, callback Callback, logger *slog.Logger) *Sync {
 	stopCh := make(chan struct{})
 	sync := &Sync{
-		cleanup:        sync.OnceFunc(func() { close(stopCh) }),
-		logger:         logger,
-		callback:       callback,
-		configured:     make(map[string]qdr.SslProfile),
-		profileSecrets: make(map[string]syncContext),
+		cleanup:         sync.OnceFunc(func() { close(stopCh) }),
+		logger:          logger,
+		callback:        callback,
+		configuredSsl:   make(map[string]qdr.SslProfile),
+		configuredProxy: make(map[string]qdr.ProxyProfile),
+		profileSecrets:  make(map[string]syncContext),
 	}
 	sync.cache = factory(stopCh, sync.handle)
 	return sync
@@ -65,9 +68,9 @@ func (s *Sync) Recover() {
 	}
 }
 
-func (s *Sync) handleProfile(key string, secret *corev1.Secret, pctx profileContext) (bool, error) {
+func (s *Sync) handleSslProfile(key string, secret *corev1.Secret, pctx profileContext) (bool, error) {
 	prev, hadPrev := s.getProfile(pctx.ProfileName)
-	configuredProfile, isConfigured := s.getConfigured(pctx.ProfileName)
+	configuredProfile, isConfigured := s.getConfiguredSsl(pctx.ProfileName)
 	updated := syncContext{
 		profileContext: pctx,
 		SecretKey:      key,
@@ -117,27 +120,70 @@ func (s *Sync) handleProfile(key string, secret *corev1.Secret, pctx profileCont
 	return viableUpdate, nil
 }
 
+func (s *Sync) handleProxyProfile(key string, secret *corev1.Secret) (bool, error) {
+	profileName := secret.Name
+	prev, hadPrev := s.getProfile(profileName)
+	proxyProfile, isConfigured := s.getConfiguredProxy(profileName)
+	updated := syncContext{
+		profileContext: profileContext{
+			ProfileName: profileName,
+		},
+		SecretKey: key,
+	}
+	if !isConfigured {
+		s.setProfileSecret(updated)
+		return false, nil
+	}
+	sumChanged := updateSecretChecksum(secret, &prev.SecretContentSum)
+	updated.SecretContentSum = prev.SecretContentSum
+	hasWrite := false
+	if !hadPrev || sumChanged {
+		if len(secret.Data["username"]) > 0 && len(secret.Data["password"]) > 0 {
+			path := strings.TrimPrefix(proxyProfile.Password, "file:")
+			if err := writeProxyProfile(secret, path); err != nil {
+				return false, fmt.Errorf("write for proxyProfile failed: %s", err)
+			}
+			hasWrite = true
+		}
+	}
+	s.setProfileSecret(updated)
+	return hasWrite, nil
+}
+
 func (s *Sync) handle(key string, secret *corev1.Secret) error {
 	if secret == nil {
 		return nil
 	}
-	metadata, found, err := fromSecret(secret)
-	if err != nil {
-		return fmt.Errorf("failed to decode secret metadata: %s", err)
-	}
-	if !found {
-		return nil
-	}
-	for _, profileMetadata := range metadata {
-		profileName := profileMetadata.ProfileName
-		updated, err := s.handleProfile(key, secret, profileMetadata)
+
+	switch secret.Type {
+	case "kubernetes.io/tls":
+		metadata, found, err := fromSecret(secret)
 		if err != nil {
-			return fmt.Errorf("error handling secret %q for profile %s: %s", key, profileName, err)
+			return fmt.Errorf("failed to decode secret metadata: %s", err)
+		}
+		if !found {
+			return nil
+		}
+		for _, profileMetadata := range metadata {
+			profileName := profileMetadata.ProfileName
+			updated, err := s.handleSslProfile(key, secret, profileMetadata)
+			if err != nil {
+				return fmt.Errorf("error handling secret %q for profile %s: %s", key, profileName, err)
+			}
+			if updated {
+				s.doCallback(profileName)
+			}
+		}
+	case "kubernetes.io/basic-auth":
+		updated, err := s.handleProxyProfile(key, secret)
+		if err != nil {
+			return fmt.Errorf("error handling secret %q for proxy profile: %s", key, err)
 		}
 		if updated {
-			s.doCallback(profileName)
+			s.doCallback(secret.Name)
 		}
 	}
+
 	return nil
 }
 
@@ -152,21 +198,21 @@ func (s *Sync) setProfileSecret(pctx syncContext) {
 	defer s.mu.Unlock()
 	s.profileSecrets[pctx.ProfileName] = pctx
 }
-func (s *Sync) getConfigured(profileName string) (qdr.SslProfile, bool) {
+func (s *Sync) getConfiguredSsl(profileName string) (qdr.SslProfile, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	result, ok := s.configured[profileName]
+	result, ok := s.configuredSsl[profileName]
 	return result, ok
 }
-func (s *Sync) setConfigured(profiles map[string]qdr.SslProfile) {
+func (s *Sync) setConfiguredSsl(profiles map[string]qdr.SslProfile) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.configured = profiles
+	s.configuredSsl = profiles
 }
 
-func (s *Sync) Expect(profiles map[string]qdr.SslProfile) SyncDelta {
+func (s *Sync) ExpectSslProfiles(profiles map[string]qdr.SslProfile) SyncDelta {
 	var delta SyncDelta
-	s.setConfigured(profiles)
+	s.setConfiguredSsl(profiles)
 	for profileName, qdrProfile := range profiles {
 		context, ok := s.getProfile(profileName)
 		if !ok {
@@ -185,12 +231,52 @@ func (s *Sync) Expect(profiles map[string]qdr.SslProfile) SyncDelta {
 		} else {
 			secret, _ := s.cache.Get(context.SecretKey)
 			if secret != nil {
-				_, err := s.handleProfile(context.SecretKey, secret, context.profileContext)
+				_, err := s.handleSslProfile(context.SecretKey, secret, context.profileContext)
 				if err != nil {
 					delta.Errors = append(delta.Errors, err)
 				}
 			}
 		}
+	}
+	return delta
+}
+
+func (s *Sync) getConfiguredProxy(profileName string) (qdr.ProxyProfile, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	result, ok := s.configuredProxy[profileName]
+	return result, ok
+}
+func (s *Sync) setConfiguredProxy(profiles map[string]qdr.ProxyProfile) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.configuredProxy = profiles
+}
+
+func (s *Sync) ExpectProxyProfiles(key string, profiles map[string]qdr.ProxyProfile) SyncDelta {
+	var delta SyncDelta
+	delta.ProxyUpdates = make(map[string]qdr.ProxyProfile)
+	s.setConfiguredProxy(profiles)
+	namespace, _, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		delta.Errors = append(delta.Errors, err)
+	}
+	for profileName, profile := range profiles {
+		secret, _ := s.cache.Get(namespace + "/" + profileName)
+		if secret == nil {
+			delta.Missing = append(delta.Missing, profileName)
+			continue
+		} else {
+			_, err := s.handleProxyProfile(key, secret)
+			if err != nil {
+				delta.Errors = append(delta.Errors, err)
+			}
+			profile.Host = string(secret.Data["host"])
+			profile.Port = string(secret.Data["port"])
+			profile.Username = string(secret.Data["username"])
+			delta.ProxyUpdates[profileName] = profile
+		}
+
 	}
 	return delta
 }
@@ -203,6 +289,7 @@ type OrdinalDelta struct {
 type SyncDelta struct {
 	Missing         []string
 	PendingOrdinals map[string]OrdinalDelta
+	ProxyUpdates    map[string]qdr.ProxyProfile
 	Errors          []error
 }
 
@@ -250,6 +337,21 @@ func writeSslProfile(secret *corev1.Secret, profile qdr.SslProfile) error {
 	}
 	if err := writeFile(profile.PrivateKeyFile, secret.Data["tls.key"], 0600); err != nil {
 		return fmt.Errorf("error writing tls.key: %e", err)
+	}
+	return nil
+}
+
+func writeProxyProfile(secret *corev1.Secret, filePath string) error {
+	_, ok := secret.Data["password"]
+	if !ok {
+		return fmt.Errorf("empty proxyProfile %q", secret.Name)
+	}
+	baseName := path.Dir(filePath)
+	if err := os.MkdirAll(baseName, 0755); err != nil {
+		return fmt.Errorf("error making proxyProfile password directory %q: %e", baseName, err)
+	}
+	if err := writeFile(filePath, []byte(secret.Data["password"]), 0644); err != nil {
+		return fmt.Errorf("error writing password.txt: %e", err)
 	}
 	return nil
 }

@@ -114,6 +114,8 @@ spec:
         volumeMounts:
         - mountPath: /etc/skupper-router-certs
           name: skupper-router-certs
+        - mountPath: /etc/skupper-router-proxies
+          name: skupper-router-proxies
 {{- if .Sizing.Router.NotEmpty -}}
         {{- template "resources" .Sizing.Router -}}
 {{- end }}
@@ -159,6 +161,8 @@ spec:
         volumeMounts:
         - mountPath: /etc/skupper-router-certs
           name: skupper-router-certs
+        - mountPath: /etc/skupper-router-proxies
+          name: skupper-router-proxies
 {{- if .Sizing.Adaptor.NotEmpty -}}
         {{- template "resources" .Sizing.Adaptor -}}
 {{- end }}
@@ -181,6 +185,8 @@ spec:
         volumeMounts:
         - mountPath: /etc/skupper-router-certs
           name: skupper-router-certs
+        - mountPath: /etc/skupper-router-proxies
+          name: skupper-router-proxies
 {{- if .Sizing.Adaptor.NotEmpty -}}
         {{- template "resources" .Sizing.Adaptor -}}
 {{- end }}
@@ -188,6 +194,8 @@ spec:
       volumes:
       - emptyDir: {}
         name: skupper-router-certs
+      - emptyDir: {}
+        name: skupper-router-proxies
 {{- if not .DisableSecCtx }}
       securityContext:
         runAsNonRoot: true

@@ -8,17 +8,34 @@ import (
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
-type Link struct {
-	name        string
-	profilePath string
-	definition  *skupperv2alpha1.Link
+type ProxyConfig struct {
+	Host        string
+	Port        string
+	User        string
+	ProfilePath string
 }
 
-func NewLink(name string, profilePath string) *Link {
+type Link struct {
+	name           string
+	sslProfilePath string
+	proxyConfig    *ProxyConfig
+	definition     *skupperv2alpha1.Link
+}
+
+func NewLink(name string, sslProfilePath string, proxyConfig *ProxyConfig) *Link {
 	return &Link{
-		name:        name,
-		profilePath: profilePath,
+		name:           name,
+		sslProfilePath: sslProfilePath,
+		proxyConfig:    proxyConfig,
 	}
+}
+
+func (l *Link) UpdateProxyConfig(proxyConfig *ProxyConfig) bool {
+	if l.definition == nil {
+		return false
+	}
+	l.proxyConfig = proxyConfig
+	return true
 }
 
 func (l *Link) Apply(current *qdr.RouterConfig) bool {
@@ -33,26 +50,41 @@ func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	if !ok {
 		return false
 	}
-	profileName := sslProfileName(l.definition)
+	sslProfileName := sslProfileName(l.definition)
+	proxyProfileName := proxyProfileName(l.definition)
+	prevProxyProfileName := current.Connectors[l.name].ProxyProfile
 	cost := int32(l.definition.Spec.Cost)
 	if cost < 1 {
 		cost = 1
 	}
 	connector := qdr.Connector{
-		Name:       l.name,
-		Cost:       cost,
-		SslProfile: profileName,
-		Role:       role,
-		Host:       endpoint.Host,
-		Port:       endpoint.Port,
+		Name:         l.name,
+		Cost:         cost,
+		SslProfile:   sslProfileName,
+		ProxyProfile: proxyProfileName,
+		Role:         role,
+		Host:         endpoint.Host,
+		Port:         endpoint.Port,
 	}
 	current.AddConnector(connector)
-	current.AddSslProfile(qdr.ConfigureSslProfile(profileName, l.profilePath, true))
+	current.AddSslProfile(qdr.ConfigureSslProfile(sslProfileName, l.sslProfilePath, true))
+	if proxyProfileName != "" {
+		current.AddProxyProfile(qdr.ConfigureProxyProfile(proxyProfileName, l.proxyConfig.Host, l.proxyConfig.Port, l.proxyConfig.User, l.proxyConfig.ProfilePath))
+		if prevProxyProfileName != "" && prevProxyProfileName != proxyProfileName {
+			current.RemoveProxyProfile(prevProxyProfileName)
+		}
+	} else if prevProxyProfileName != "" {
+		current.RemoveProxyProfile(prevProxyProfileName)
+	}
 	return true //TODO: optimise by indicating if no change was actually needed
 }
 
 func sslProfileName(link *skupperv2alpha1.Link) string {
 	return link.Spec.TlsCredentials + "-profile"
+}
+
+func proxyProfileName(link *skupperv2alpha1.Link) string {
+	return link.Spec.GetProxyConfiguration()
 }
 
 type LinkMap map[string]*Link
@@ -66,6 +98,7 @@ func (m LinkMap) Apply(current *qdr.RouterConfig) bool {
 			if _, ok := m[connector.Name]; !ok {
 				current.RemoveConnector(connector.Name)
 				current.RemoveSslProfile(connector.SslProfile)
+				current.RemoveProxyProfile(connector.ProxyProfile)
 			}
 		}
 	}
@@ -91,6 +124,10 @@ func (o *RemoveConnector) Apply(current *qdr.RouterConfig) bool {
 		unreferenced := current.UnreferencedSslProfiles()
 		if _, ok := unreferenced[connector.SslProfile]; ok {
 			current.RemoveSslProfile(connector.SslProfile)
+		}
+		unreferencedProxyProfiles := current.UnreferencedProxyProfiles()
+		if _, ok := unreferencedProxyProfiles[connector.ProxyProfile]; ok {
+			current.RemoveProxyProfile(connector.ProxyProfile)
 		}
 		return true
 	}
