@@ -100,7 +100,7 @@ func (c *ConfigSync) configEvent(key string, configmap *corev1.ConfigMap) error 
 	if err := c.syncSslProfileCredentialsToDisk(desired.SslProfiles); err != nil {
 		return err
 	}
-	if err := c.syncSslProfilesToRouter(desired.SslProfiles); err != nil {
+	if err := qdr.SyncSslProfilesToRouter(c.agentPool, desired.SslProfiles); err != nil {
 		return err
 	}
 	if err := c.syncProxyProfileCredentialsToDisk(key, desired.ProxyProfiles); err != nil {
@@ -113,7 +113,7 @@ func (c *ConfigSync) configEvent(key string, configmap *corev1.ConfigMap) error 
 		c.logger.Error("sync failed", slog.Any("error", err))
 		return err
 	}
-	if err := c.syncRouterConfig(desired); err != nil {
+	if err := qdr.SyncRouterConfig(c.agentPool, desired, true); err != nil {
 		c.logger.Error("sync failed", slog.Any("error", err))
 		return err
 	}

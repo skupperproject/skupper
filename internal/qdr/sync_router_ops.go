@@ -4,8 +4,6 @@ import (
 	"fmt"
 )
 
-//TODO: use this in config-sync
-
 func SyncSslProfilesToRouter(agentPool *AgentPool, desired map[string]SslProfile) error {
 
 	agent, err := agentPool.Get()
