@@ -3,5 +3,4 @@ ansible_connection: local
 ansible_user: "{{ lookup('env', 'USER') }}"
 ansible_python_interpreter: /usr/bin/python3
 debug: false
-namespace_prefix: "e2e"
-generate_namespaces_namespace_label: "hello-world-system-sites"
+namespace_prefix: "e2e-system-sites"

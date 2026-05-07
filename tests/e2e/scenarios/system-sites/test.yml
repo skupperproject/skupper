@@ -39,14 +39,14 @@
               skupper.v2.resource:
                 path: "{{ playbook_dir }}/resources/west/"
                 platform: "{{ platform }}"
-                namespace: "{{ namespace_name }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
               when: "'west' in inventory_hostname"
 
             - name: "[ {{ test_identifier }} ] - Start west namespace"
               skupper.v2.system:
                 action: start
                 platform: "{{ platform }}"
-                namespace: "{{ namespace_name }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
               register: west
 
           when: "'west' in inventory_hostname"
@@ -65,20 +65,20 @@
               skupper.v2.resource:
                 path: "{{ playbook_dir }}/resources/east/"
                 platform: "{{ platform }}"
-                namespace: "{{ namespace_name }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
               when: "'east' in inventory_hostname"
 
             - name: "[ {{ test_identifier }} ] - Apply token to east site"
               skupper.v2.resource:
                 def: "{{ west.links['0.0.0.0'] }}"
-                namespace: "{{ namespace_name }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
                 platform: "{{ platform }}"
   
             - name: "[ {{ test_identifier }} ] - Start east namespace"
               skupper.v2.system:
                 action: start
                 platform: "{{ platform }}"
-                namespace: "{{ namespace_name }}"
+                namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
               register: east 
           when: "'east' in inventory_hostname"
 
