@@ -1,5 +1,5 @@
 ---
 # Platform configuration
-platform: podman
+platform: docker
 namespace_name: west
 
