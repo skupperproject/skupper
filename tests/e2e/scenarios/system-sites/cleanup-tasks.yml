@@ -1,0 +1,34 @@
+---
+- name: "[ {{ test_identifier }} ] - Cleanup frontend container"
+  ansible.builtin.command:
+    cmd: "{{ platform }} rm -f frontend"
+  failed_when: false
+  when:
+    - not skip_teardown | default(false) | bool
+    - "'west' in inventory_hostname"
+
+- name: "[ {{ test_identifier }} ] - Cleanup backend container"
+  ansible.builtin.command:
+    cmd: "{{ platform }} rm -f backend"
+  failed_when: false
+  when:
+    - not skip_teardown | default(false) | bool
+    - "'east' in inventory_hostname"
+
+- name: "[ {{ test_identifier }} ] - Stop namespaces"
+  skupper.v2.system:
+    action: stop
+    namespace: "{{ namespace_name }}"
+    platform: "{{ platform }}"
+  failed_when: false
+  when: not skip_teardown | default(false) | bool
+
+- name: "[ {{ test_identifier }} ] - Uninstall system controller"
+  skupper.v2.controller:
+    action: uninstall
+    platform: "{{ platform }}"
+  failed_when: false
+  run_once: true
+  when: not skip_teardown | default(false) | bool
+
+

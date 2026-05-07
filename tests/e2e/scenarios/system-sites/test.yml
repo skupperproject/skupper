@@ -1,0 +1,98 @@
+---
+- name: Hello World System Sites Test (Manual Reload)
+  hosts: all
+  roles:
+    - e2e.tests.skupper_test_images
+  
+  vars:
+    test_identifier: "Hello World with System Sites (Manual Reload)"
+
+  environment:
+    SKUPPER_PLATFORM: "{{ platform }}"
+
+  tasks:
+    # Pre-test cleanup
+    - name: "[ {{ test_identifier }} ] - Pre-test cleanup"
+      ansible.builtin.include_tasks: cleanup-tasks.yml
+
+    - name: "[ {{ test_identifier }} ] - Main test block"
+      block:
+        - name: "[ {{ test_identifier }} ] - Install system controller"
+          skupper.v2.controller:
+            action: install
+            platform: "{{ platform }}"
+          failed_when: false
+          run_once: true
+          delegate_to: localhost
+          register: system_install
+
+        # West Site - Setup and get token
+        - name: "[ {{ test_identifier }} ] - West Site Setup"
+          block:
+            - name: "[ {{ test_identifier }} ] - Deploy frontend service"
+              ansible.builtin.shell:
+                cmd: "{{ platform }} run --name frontend -d --rm -p 127.0.0.1:7070:8080 quay.io/skupper/hello-world-frontend --backend http://host.containers.internal:8080"
+              changed_when: false
+              when: "'west' in inventory_hostname"
+
+            - name: "[ {{ test_identifier }} ] - Apply west site resources"
+              skupper.v2.resource:
+                path: "{{ playbook_dir }}/resources/west/"
+                platform: "{{ platform }}"
+                namespace: "{{ namespace_name }}"
+              when: "'west' in inventory_hostname"
+
+            - name: "[ {{ test_identifier }} ] - Start west namespace"
+              skupper.v2.system:
+                action: start
+                platform: "{{ platform }}"
+                namespace: "{{ namespace_name }}"
+              register: west
+
+          when: "'west' in inventory_hostname"
+          run_once: true
+
+        # East Site - Must run after token is created
+        - name: "[ {{ test_identifier }} ] - East Site Setup"
+          block:
+            - name: "[ {{ test_identifier }} ] - Deploy backend service"
+              ansible.builtin.shell:
+                cmd: "{{ platform }} run --name backend -d --rm -p 127.0.0.1:9090:8080 quay.io/skupper/hello-world-backend"
+              changed_when: false
+              register: backend_deploy
+
+            - name: "[ {{ test_identifier }} ] - Apply east site resources"
+              skupper.v2.resource:
+                path: "{{ playbook_dir }}/resources/east/"
+                platform: "{{ platform }}"
+                namespace: "{{ namespace_name }}"
+              when: "'east' in inventory_hostname"
+
+            - name: "[ {{ test_identifier }} ] - Apply token to east site"
+              skupper.v2.resource:
+                def: "{{ west.links['0.0.0.0'] }}"
+                namespace: "{{ namespace_name }}"
+                platform: "{{ platform }}"
+  
+            - name: "[ {{ test_identifier }} ] - Start east namespace"
+              skupper.v2.system:
+                action: start
+                platform: "{{ platform }}"
+                namespace: "{{ namespace_name }}"
+              register: east 
+          when: "'east' in inventory_hostname"
+
+        # Verify connectivity - test if backend is accessible from frontend container
+        - name: "[ {{ test_identifier }} ] - Test via Skupper (listener)"
+          ansible.builtin.command:
+            cmd: "curl -s -f http://127.0.0.1:8080/api/hello"
+          register: curl_result
+          retries: 10
+          delay: 10
+          until: curl_result.rc == 0
+          when: "'west' in inventory_hostname"
+          changed_when: false
+
+      always:
+        - name: "[ {{ test_identifier }} ] - Post-test cleanup"
+          ansible.builtin.include_tasks: cleanup-tasks.yml
