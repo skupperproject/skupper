@@ -120,7 +120,7 @@ func (s *Sync) handleSslProfile(key string, secret *corev1.Secret, pctx profileC
 	return viableUpdate, nil
 }
 
-func (s *Sync) handleProxyProfile(key string, secret *corev1.Secret) (bool, error) {
+func (s *Sync) handleProxyProfile(namespace string, secret *corev1.Secret) (bool, error) {
 	profileName := secret.Name
 	prev, hadPrev := s.getProfile(profileName)
 	proxyProfile, isConfigured := s.getConfiguredProxy(profileName)
@@ -128,7 +128,7 @@ func (s *Sync) handleProxyProfile(key string, secret *corev1.Secret) (bool, erro
 		profileContext: profileContext{
 			ProfileName: profileName,
 		},
-		SecretKey: key,
+		SecretKey: namespace + "/" + profileName,
 	}
 	if !isConfigured {
 		s.setProfileSecret(updated)
@@ -175,7 +175,11 @@ func (s *Sync) handle(key string, secret *corev1.Secret) error {
 			}
 		}
 	case "kubernetes.io/basic-auth":
-		updated, err := s.handleProxyProfile(key, secret)
+		namespace, _, err := cache.SplitMetaNamespaceKey(key)
+		if err != nil {
+			return err
+		}
+		updated, err := s.handleProxyProfile(namespace, secret)
 		if err != nil {
 			return fmt.Errorf("error handling secret %q for proxy profile: %s", key, err)
 		}
@@ -267,7 +271,7 @@ func (s *Sync) ExpectProxyProfiles(key string, profiles map[string]qdr.ProxyProf
 			delta.Missing = append(delta.Missing, profileName)
 			continue
 		} else {
-			_, err := s.handleProxyProfile(key, secret)
+			_, err := s.handleProxyProfile(namespace, secret)
 			if err != nil {
 				delta.Errors = append(delta.Errors, err)
 			}

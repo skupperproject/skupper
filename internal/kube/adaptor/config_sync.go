@@ -17,7 +17,6 @@ import (
 // secrets for services with TLS enabled, and secrets and connectors for links
 // as well as proxy profiles)
 type ConfigSync struct {
-	cli             internalclient.Clients
 	agentPool       *qdr.AgentPool
 	controller      *watchers.EventProcessor
 	namespace       string
