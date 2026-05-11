@@ -10,7 +10,7 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
-readonly SKUPPER_IMAGE_TAG=${1:-2.1.4}
+readonly SKUPPER_IMAGE_TAG=${1:-2.2.0}
 readonly SKUPPER_ROUTER_IMAGE_TAG=${2:-3.5.0}
 
 
