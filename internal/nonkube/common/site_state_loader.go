@@ -195,3 +195,12 @@ func LoadRouterConfig(namespace string) (*qdr.RouterConfig, error) {
 	}
 	return &routerConfig, nil
 }
+
+func LoadCurrentSiteState(namespace string) (*api.SiteState, error) {
+	runtimePath := api.GetInternalOutputPath(namespace, api.RuntimeSiteStatePath)
+	loader := &FileSystemSiteStateLoader{
+		Path:   runtimePath,
+		Bundle: false,
+	}
+	return loader.Load()
+}

@@ -495,5 +495,5 @@ type SiteStateLoader interface {
 }
 
 type SiteStateValidator interface {
-	Validate(site *SiteState) error
+	Validate(desiredState, currentState *SiteState) error
 }
