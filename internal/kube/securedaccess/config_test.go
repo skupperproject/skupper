@@ -33,6 +33,7 @@ func Test_BoundConfig(t *testing.T) {
 				"SKUPPER_CLUSTER_HOST":         "mycluster.org",
 				"SKUPPER_ENABLED_ACCESS_TYPES": "nodeport,ingress-nginx",
 				"SKUPPER_INGRESS_DOMAIN":       "gateway.ingress.com",
+				"SKUPPER_INGRESS_CLASS_NAME":   "public-ingress",
 				"SKUPPER_HTTP_PROXY_DOMAIN":    "gateway.contour.com",
 			},
 			expectedValue: &Config{
@@ -43,6 +44,7 @@ func Test_BoundConfig(t *testing.T) {
 				DefaultAccessType: "nodeport",
 				ClusterHost:       "mycluster.org",
 				IngressDomain:     "gateway.ingress.com",
+				IngressClassName:  "public-ingress",
 				HttpProxyDomain:   "gateway.contour.com",
 				GatewayPort:       8443,
 			},
@@ -54,6 +56,7 @@ func Test_BoundConfig(t *testing.T) {
 				"--default-access-type=ingress-nginx",
 				"--cluster-host=foo.bar.com",
 				"--ingress-domain=baz.com",
+				"--ingress-class-name=my-class",
 				"--http-proxy-domain=bif.baf.bof.com",
 			},
 			expectedValue: &Config{
@@ -64,6 +67,7 @@ func Test_BoundConfig(t *testing.T) {
 				DefaultAccessType: "ingress-nginx",
 				ClusterHost:       "foo.bar.com",
 				IngressDomain:     "baz.com",
+				IngressClassName:  "my-class",
 				HttpProxyDomain:   "bif.baf.bof.com",
 				GatewayPort:       8443,
 			},

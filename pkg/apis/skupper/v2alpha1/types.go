@@ -252,6 +252,11 @@ func (s *Site) SetRunning(state ConditionState) bool {
 	return false
 }
 
+// RefreshAggregatedStatus updates StatusType, Message, and Ready from current conditions.
+func (s *Site) RefreshAggregatedStatus() bool {
+	return s.Status.setReady(s.requiredConditions(), s.ObjectMeta.Generation)
+}
+
 func (s *Site) resolutionRequired() bool {
 	return s.Spec.LinkAccess != "" && s.Spec.LinkAccess != "none"
 }

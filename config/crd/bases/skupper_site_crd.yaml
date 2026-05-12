@@ -41,6 +41,7 @@ spec:
                     - `default`: Use the default link access for the current platform. For OpenShift, the default is `route`. For other Kubernetes flavors, the default is `loadbalancer`.
                     - `route`: Use an OpenShift route.
                     - `loadbalancer`: Use a Kubernetes load balancer.
+                    - `ingress` / `ingress-nginx`: When enabled on the controller, use a Kubernetes Ingress. Use `ingress` for generic controllers; `ingress-nginx` adds NGINX-specific TLS annotations. Set `ingressClassName` via RouterAccess `spec.settings` or controller `SKUPPER_INGRESS_CLASS_NAME`.
                   type: string
                 defaultIssuer:
                   description: |-
@@ -89,6 +90,7 @@ spec:
                     - `disable-anti-affinity`: Set to "true" in order to prevent skupper from specifying router pod affinity.
                     - `size`: The desired site sizing profile to use for constraining pod resources. Corresponds to a ConfigMap with matching `skupper.io/site-sizing` label.
                     - `tls-prior-valid-revisions`: Set the number of revisions to TLS Secrets backing Site Link connections that are permissible to hold open to preserve established service connections. An unsigned integer defaults to 1. Set to 0 to immediately disrupt connections secured with old TLS configurations.
+                    - `ingressClassName`: When using `ingress` or `ingress-nginx` link access, sets the Kubernetes IngressClass for Skupper-managed Ingress resources (also copied to RouterAccess). Overrides controller `SKUPPER_INGRESS_CLASS_NAME`. Use empty string to clear a previously set class.
                   type: object
                   additionalProperties:
                     type: string
