@@ -147,7 +147,7 @@ func TestCmdSystemUninstall_Run(t *testing.T) {
 		{
 			name:               "disable socket fails",
 			disableSocketFails: true,
-			errorMessage:       "failed to uninstall : disable socket fails",
+			errorMessage:       "Unable to uninstall.\nError: disable socket fails",
 			flags:              &common.CommandSystemUninstallFlags{Force: false},
 		},
 	}
