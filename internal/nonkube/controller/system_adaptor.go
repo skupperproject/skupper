@@ -32,20 +32,23 @@ func (s *SystemAdaptor) syncWithRouter(desired *qdr.RouterConfig) error {
 	}
 
 	if err := s.syncSslProfileCredentialsToDisk(desired.SslProfiles); err != nil {
+		s.logger.Error("SYSTEM_ADAPTOR: sync ssl profile credentials to disk failed", slog.Any("error", err), slog.Any("namespace", s.namespace))
 		return err
 	}
 	if err := qdr.SyncSslProfilesToRouter(s.agentPool, s.addSslPathToProfileCredentials(desired.SslProfiles)); err != nil {
+		s.logger.Error("SYSTEM_ADAPTOR: sync ssl profiles to router failed", slog.Any("error", err), slog.Any("namespace", s.namespace))
 		return err
 	}
+
 	if err := qdr.SyncBridgeConfig(s.agentPool, &desired.Bridges); err != nil {
-		s.logger.Error("SYSTEM_ADAPTOR: sync failed", slog.Any("error", err), slog.Any("namespace", s.namespace))
+		s.logger.Error("SYSTEM_ADAPTOR: sync bridge config failed", slog.Any("error", err), slog.Any("namespace", s.namespace))
 		return err
 	}
 
 	//Do not double-check that certificates exist; it has been done by previous syncSslProfileCredentialsToDisk
 	// Also, the paths included in the ssl profiles are relative to the router instead of the runtime directory
 	if err := qdr.SyncRouterConfig(s.agentPool, desired, false); err != nil {
-		s.logger.Error("SYSTEM_ADAPTOR: sync failed", slog.Any("error", err), slog.Any("namespace", s.namespace))
+		s.logger.Error("SYSTEM_ADAPTOR: sync router config failed", slog.Any("error", err), slog.Any("namespace", s.namespace))
 		return err
 	}
 	return nil

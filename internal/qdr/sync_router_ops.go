@@ -126,3 +126,39 @@ func syncBridgeConfig(agent *Agent, desired *BridgeConfig) (bool, error) {
 		return false, nil
 	}
 }
+
+func SyncProxyProfilesToRouter(agentPool *AgentPool, desired map[string]ProxyProfile) error {
+	agent, err := agentPool.Get()
+	if err != nil {
+		return err
+	}
+	defer agentPool.Put(agent)
+
+	actual, err := agent.GetProxyProfiles()
+	if err != nil {
+		return err
+	}
+
+	for _, profile := range desired {
+		current, ok := actual[profile.Name]
+		if !ok {
+			if err := agent.CreateProxyProfile(profile); err != nil {
+				return err
+			}
+			continue
+		}
+		if current != profile {
+			if err := agent.UpdateProxyProfile(profile); err != nil {
+				return err
+			}
+		}
+	}
+	for _, profile := range actual {
+		if _, ok := desired[profile.Name]; !ok {
+			if err := agent.Delete("io.skupper.router.proxyProfile", profile.Name); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
