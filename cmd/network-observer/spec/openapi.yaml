@@ -1126,6 +1126,10 @@ components:
               type: string
               nullable: true
               description: When connected, the name of the destitation (peer) site.
+            httpProxy:
+              type: string
+              nullable: true
+              description: When connected, whether this link uses an HTTP proxy.
     RouterAccessRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'

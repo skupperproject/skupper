@@ -51,6 +51,7 @@ func TestRouterlinks(t *testing.T) {
 						Status:     ptrTo("up"),
 						Peer:       ptrTo("routeraccess-a-1"),
 						LinkCost:   ptrTo(uint64(3)),
+						HttpProxy:  ptrTo("yes"),
 					},
 				)...,
 			),
@@ -77,6 +78,7 @@ func TestRouterlinks(t *testing.T) {
 					DestinationSiteName:   ptrTo("site a"),
 					DestinationRouterId:   ptrTo("router-a-1"),
 					DestinationRouterName: ptrTo("router a.1"),
+					HttpProxy:             ptrTo("yes"),
 				})
 			},
 		},

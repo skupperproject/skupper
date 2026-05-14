@@ -444,6 +444,9 @@ type RouterLinkRecord struct {
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64         `json:"startTime"`
 	Status    OperStatusType `json:"status"`
+
+	// HttpProxy When connected, whether this link uses an HTTP proxy.
+	HttpProxy *string `json:"httpProxy"`
 }
 
 // RouterLinkResponse defines model for RouterLinkResponse.

@@ -450,6 +450,7 @@ func NewRouterLinkProvider(graph collector.Graph) func(vanflow.LinkRecord) (api.
 		setOpt(&out.RouterName, sourceRouter.Name)
 		setOpt(&out.SourceSiteName, sourceSite.Name)
 		setOpt(&out.Name, link.Name)
+		out.HttpProxy = link.HttpProxy
 
 		if link.Role != nil {
 			role := *link.Role
