@@ -1,8 +1,7 @@
-VERSION := $(shell git describe --tags --dirty=-modified --always)
 REVISION := $(shell git rev-parse HEAD)
 
 LDFLAGS_EXTRA ?= -s -w # default to building stripped executables
-LDFLAGS := ${LDFLAGS_EXTRA} -X github.com/skupperproject/skupper/internal/version.Version=${VERSION}
+LDFLAGS := ${LDFLAGS_EXTRA} -X github.com/skupperproject/skupper/internal/version.Version=${IMAGE_TAG}
 TESTFLAGS := -v -race -short
 GOOS ?= linux
 GOARCH ?= amd64
@@ -18,7 +17,7 @@ SHARED_IMAGE_LABELS = \
 	--label "org.opencontainers.image.url=https://skupper.io/" \
 	--label "org.opencontainers.image.documentation=https://skupper.io/" \
 	--label "org.opencontainers.image.source=https://github.com/skupperproject/skupper" \
-	--label "org.opencontainers.image.version=${VERSION}" \
+	--label "org.opencontainers.image.version=${IMAGE_TAG}" \
 	--label "org.opencontainers.image.revision=${REVISION}" \
 	--label "org.opencontainers.image.licenses=Apache-2.0"
 
@@ -65,11 +64,11 @@ system-controller: $(call pkgdeps,./cmd/system-controller)
 ## native/default container image builds
 docker-build: $(patsubst Dockerfile.%,docker-build-%,$(CONTAINERFILES))
 docker-build-%: Dockerfile.%
-	${DOCKER} build --build-arg GO_IMAGE_BASE_TAG=$(GO_IMAGE_BASE_TAG) $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/$*:${IMAGE_TAG}" -f $< .
+	${DOCKER} build --build-arg GO_IMAGE_BASE_TAG=$(GO_IMAGE_BASE_TAG) --build-arg IMAGE_TAG=$(IMAGE_TAG) $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/$*:${IMAGE_TAG}" -f $< .
 
 podman-build: $(patsubst Dockerfile.%,podman-build-%,$(CONTAINERFILES))
 podman-build-%: Dockerfile.%
-	${PODMAN} build --build-arg GO_IMAGE_BASE_TAG=$(GO_IMAGE_BASE_TAG) $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/$*:${IMAGE_TAG}" -f $< .
+	${PODMAN} build --build-arg GO_IMAGE_BASE_TAG=$(GO_IMAGE_BASE_TAG) --build-arg IMAGE_TAG=$(IMAGE_TAG) $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/$*:${IMAGE_TAG}" -f $< .
 
 # Push all container images built by podman-build
 podman-push: $(patsubst Dockerfile.%,podman-push-%,$(CONTAINERFILES))
@@ -84,6 +83,7 @@ multiarch-oci: $(patsubst Dockerfile.%,multiarch-oci-%,$(CONTAINERFILES))
 multiarch-oci-%: Dockerfile.% oci-archives
 	${DOCKER} buildx build \
 		--build-arg GO_IMAGE_BASE_TAG=$(GO_IMAGE_BASE_TAG) \
+		--build-arg IMAGE_TAG=$(IMAGE_TAG) \
 		"--output=type=oci,dest=$(shell pwd)/oci-archives/$*.tar" \
 		-t "${REGISTRY}/$*:${IMAGE_TAG}" \
 		$(SHARED_IMAGE_LABELS) \
