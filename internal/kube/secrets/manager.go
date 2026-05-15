@@ -241,6 +241,21 @@ func (w *ProfilesWatcher) keyfunc(name string) string {
 	return w.namespace + "/" + name
 }
 
+// TlsCredentialSecretPresent reports whether a TLS secret for the credential is in the
+// ProfilesWatcher informer cache (same source kube-adaptor uses for ssl profiles).
+func (w *ProfilesWatcher) TlsCredentialSecretPresent(credentialName string) bool {
+	if credentialName == "" || w.Cache == nil {
+		return false
+	}
+	for _, secretName := range profileSecrets(credentialName) {
+		secret, err := w.Cache.Get(w.keyfunc(secretName))
+		if err == nil && secret != nil && secret.Type == corev1.SecretTypeTLS {
+			return true
+		}
+	}
+	return false
+}
+
 func (w *ProfilesWatcher) checkPriorValidity(secret *corev1.Secret) uint64 {
 	result := w.pvProvider.TLSPriorValidRevisions()
 	if secret.ObjectMeta.Annotations == nil {

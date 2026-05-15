@@ -29,6 +29,7 @@ type Bindings struct {
 	listeners         map[string]*skupperv2alpha1.Listener
 	multiKeyListeners map[string]*skupperv2alpha1.MultiKeyListener
 	handler           BindingEventHandler
+	tlsSecretAllowed  func(secretName string) bool
 	configure         struct {
 		listener         ListenerConfiguration
 		connector        ConnectorConfiguration
@@ -51,6 +52,22 @@ func NewBindings(profilePath string) *Bindings {
 
 func (b *Bindings) SetSiteId(siteId string) {
 	b.SiteId = siteId
+}
+
+func (b *Bindings) SetTlsSecretAllowed(f func(string) bool) {
+	b.tlsSecretAllowed = f
+}
+
+// TlsCredentialIncluded reports whether TLS material for the given secret name may be
+// referenced in generated router configuration. Empty name always returns true.
+func (b *Bindings) TlsCredentialIncluded(secretName string) bool {
+	if secretName == "" {
+		return true
+	}
+	if b.tlsSecretAllowed == nil {
+		return true
+	}
+	return b.tlsSecretAllowed(secretName)
 }
 
 func (b *Bindings) SetListenerConfiguration(configuration ListenerConfiguration) {
@@ -231,12 +248,21 @@ func (b *Bindings) ToBridgeConfig() qdr.BridgeConfig {
 		ListenerAddresses: qdr.ListenerAddressMap{},
 	}
 	for _, c := range b.connectors {
+		if c.Spec.TlsCredentials != "" && !b.TlsCredentialIncluded(c.Spec.TlsCredentials) {
+			continue
+		}
 		b.configure.connector(b.SiteId, c, &config)
 	}
 	for _, l := range b.listeners {
+		if l.Spec.TlsCredentials != "" && !b.TlsCredentialIncluded(l.Spec.TlsCredentials) {
+			continue
+		}
 		b.configure.listener(b.SiteId, l, &config)
 	}
 	for _, mkl := range b.multiKeyListeners {
+		if mkl.Spec.TlsCredentials != "" && !b.TlsCredentialIncluded(mkl.Spec.TlsCredentials) {
+			continue
+		}
 		b.configure.multiKeyListener(b.SiteId, mkl, &config)
 	}
 
@@ -246,6 +272,9 @@ func (b *Bindings) ToBridgeConfig() qdr.BridgeConfig {
 func (b *Bindings) AddSslProfiles(config *qdr.RouterConfig) bool {
 	profiles := map[string]qdr.SslProfile{}
 	for _, c := range b.connectors {
+		if c.Spec.TlsCredentials != "" && !b.TlsCredentialIncluded(c.Spec.TlsCredentials) {
+			continue
+		}
 		if c.Spec.TlsCredentials != "" {
 			if !c.Spec.UseClientCert {
 				//if only ca is used, need to qualify the profile to ensure that it does not collide with
@@ -262,11 +291,17 @@ func (b *Bindings) AddSslProfiles(config *qdr.RouterConfig) bool {
 		}
 	}
 	for _, l := range b.listeners {
+		if l.Spec.TlsCredentials != "" && !b.TlsCredentialIncluded(l.Spec.TlsCredentials) {
+			continue
+		}
 		if _, ok := profiles[l.Spec.TlsCredentials]; l.Spec.TlsCredentials != "" && !ok {
 			profiles[l.Spec.TlsCredentials] = qdr.ConfigureSslProfile(l.Spec.TlsCredentials, b.ProfilePath, true)
 		}
 	}
 	for _, mkl := range b.multiKeyListeners {
+		if mkl.Spec.TlsCredentials != "" && !b.TlsCredentialIncluded(mkl.Spec.TlsCredentials) {
+			continue
+		}
 		if _, ok := profiles[mkl.Spec.TlsCredentials]; mkl.Spec.TlsCredentials != "" && !ok {
 			profiles[mkl.Spec.TlsCredentials] = qdr.ConfigureSslProfile(mkl.Spec.TlsCredentials, b.ProfilePath, true)
 		}

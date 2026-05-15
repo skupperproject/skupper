@@ -453,3 +453,27 @@ func TestRouterAccessMap_DesiredConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestRouterAccessMap_DesiredConfigAllowingTlsSecrets(t *testing.T) {
+	ra := &skupperv2alpha1.RouterAccess{
+		ObjectMeta: v1.ObjectMeta{Name: "ra", Namespace: "ns"},
+		Spec: skupperv2alpha1.RouterAccessSpec{
+			TlsCredentials: "missing-secret",
+			BindHost:       "0.0.0.0",
+			Roles: []skupperv2alpha1.RouterAccessRole{
+				{Name: "inter-router", Port: 55671},
+			},
+		},
+	}
+	m := RouterAccessMap{"ra": ra}
+	allow := func(name string) bool { return name != "missing-secret" }
+	got := m.DesiredConfigAllowingTlsSecrets([]string{"g1"}, "/certs", allow)
+	if len(got.listeners) != 0 || len(got.connectors) != 0 {
+		t.Fatalf("expected empty desired when TLS secret disallowed, got listeners=%d connectors=%d",
+			len(got.listeners), len(got.connectors))
+	}
+	got2 := m.DesiredConfigAllowingTlsSecrets([]string{"g1"}, "/certs", func(string) bool { return true })
+	if len(got2.listeners) == 0 {
+		t.Fatal("expected listeners when TLS secret allowed")
+	}
+}

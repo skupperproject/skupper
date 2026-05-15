@@ -406,6 +406,9 @@ func (b *ExtendedBindings) Apply(config *qdr.RouterConfig) bool {
 		}
 	}
 	for _, ptl := range b.perTargetListeners {
+		if ptl.definition.Spec.TlsCredentials != "" && !b.bindings.TlsCredentialIncluded(ptl.definition.Spec.TlsCredentials) {
+			continue
+		}
 		if ptl.updateBridgeConfig(b.bindings.SiteId, &desired) {
 			updated = true
 		}
@@ -425,6 +428,9 @@ func (b *ExtendedBindings) Apply(config *qdr.RouterConfig) bool {
 func (b *ExtendedBindings) AddSslProfiles(config *qdr.RouterConfig, definitions map[string]*skupperv2alpha1.AttachedConnector) bool {
 	profiles := map[string]qdr.SslProfile{}
 	for _, c := range definitions {
+		if c.Spec.TlsCredentials != "" && !b.bindings.TlsCredentialIncluded(c.Spec.TlsCredentials) {
+			continue
+		}
 		if c.Spec.TlsCredentials != "" {
 			if !c.Spec.UseClientCert {
 				//if only ca is used, need to qualify the profile to ensure that it does not collide with
@@ -451,6 +457,7 @@ func (b *ExtendedBindings) AddSslProfiles(config *qdr.RouterConfig, definitions 
 
 func (b *ExtendedBindings) SetSite(site *Site) {
 	b.bindings.SetSiteId(site.site.GetSiteId())
+	b.bindings.SetTlsSecretAllowed(site.tlsCredentialSecretPresent)
 	b.site = site
 }
 
@@ -527,6 +534,9 @@ func (b *ExtendedBindings) attachedConnectorUnreferenced(namespace string, name 
 func (b *ExtendedBindings) networkUpdated(network []skupperv2alpha1.SiteRecord) qdr.ConfigUpdate {
 	changed := false
 	for _, ptl := range b.perTargetListeners {
+		if ptl.definition.Spec.TlsCredentials != "" && !b.bindings.TlsCredentialIncluded(ptl.definition.Spec.TlsCredentials) {
+			continue
+		}
 		update, err := ptl.extractTargets(network, b.mapping, b.exposed, b.context)
 		if err != nil {
 			if err := b.site.updateListenerStatus(ptl.definition, err); err != nil {
