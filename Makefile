@@ -1,7 +1,5 @@
 REVISION := $(shell git rev-parse HEAD)
 
-LDFLAGS_EXTRA ?= -s -w # default to building stripped executables
-LDFLAGS := ${LDFLAGS_EXTRA} -X github.com/skupperproject/skupper/internal/version.Version=${IMAGE_TAG}
 TESTFLAGS := -v -race -short
 GOOS ?= linux
 GOARCH ?= amd64
@@ -21,6 +19,8 @@ SHARED_IMAGE_LABELS = \
 	--label "org.opencontainers.image.revision=${REVISION}" \
 	--label "org.opencontainers.image.licenses=Apache-2.0"
 
+LDFLAGS_EXTRA ?= -s -w # default to building stripped executables
+LDFLAGS := ${LDFLAGS_EXTRA} -X github.com/skupperproject/skupper/internal/version.Version=${IMAGE_TAG}
 
 DOCKER := docker
 SKOPEO := skopeo
