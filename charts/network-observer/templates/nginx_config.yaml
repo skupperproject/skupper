@@ -26,12 +26,13 @@ data:
             add_header Strict-Transport-Security "max-age=63072000" always;
             
             {{- if eq .Values.auth.strategy "basic" }}
+            auth_basic           "Skupper";
+            auth_basic_user_file /etc/httpusers/htpasswd;
+            {{- end }}
+
             location /api/ {
-              auth_basic           "Skupper";
-              auth_basic_user_file /etc/httpusers/htpasswd;
               proxy_pass  http://localhost:8080;
             }
-            {{- end }}
             location / {
               proxy_pass  http://localhost:8080;
             }
