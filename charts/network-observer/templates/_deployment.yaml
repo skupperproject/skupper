@@ -39,6 +39,10 @@ ports:
   - name: https
     containerPort: 8443
     protocol: TCP
+{{- with .Values.resources.proxy }}
+resources:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
 volumeMounts:
   - mountPath: /etc/certificates/
     name: {{ include "network-observer.tlsSecretName" . }}
@@ -69,10 +73,13 @@ ports:
   - name: https
     containerPort: 8443
     protocol: TCP
+{{- with .Values.resources.proxy }}
+resources:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
 volumeMounts:
   - mountPath: /etc/certificates/
     name: {{ include "network-observer.tlsSecretName" . }}
   - mountPath: /etc/session-secrets/
     name: session-cookie-secret
 {{- end -}}
-

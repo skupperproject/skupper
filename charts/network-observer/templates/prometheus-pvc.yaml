@@ -5,6 +5,10 @@ metadata:
   name: {{ include "network-observer.fullname" . }}-prometheus
   labels:
     {{- include "network-observer.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   {{- if .Values.prometheus.persistence.storageClass }}
   storageClassName: {{ .Values.prometheus.persistence.storageClass }}

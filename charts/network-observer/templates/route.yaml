@@ -5,8 +5,26 @@ kind: Route
 metadata:
   labels:
     {{- include "network-observer.labels" . | nindent 4 }}
+    {{- with .Values.route.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- if or .Values.commonAnnotations .Values.route.annotations }}
+  annotations:
+    {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.route.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
   name: {{ include "network-observer.fullname" . }}
 spec:
+  {{- with .Values.route.host }}
+  host: {{ . }}
+  {{- end }}
+  {{- with .Values.route.subdomain }}
+  subdomain: {{ . }}
+  {{- end }}
   tls:
     termination: "reencrypt"
     insecureEdgeTerminationPolicy: Redirect
