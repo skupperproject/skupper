@@ -71,8 +71,14 @@ spec:
             - name: metrics
               containerPort: 9000
               protocol: TCP
+          {{- $resources := .Values.resources }}
+          {{- with .Values.containerResources.networkObserver }}
+          {{- $resources = . }}
+          {{- end }}
+          {{- with $resources }}
           resources:
-            {{- toYaml .Values.resources.networkObserver | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /etc/messaging/
               name: skupper-management-client
@@ -99,8 +105,14 @@ spec:
             - name: prom
               containerPort: 9090
               protocol: TCP
+          {{- $resources := .Values.resources }}
+          {{- with .Values.containerResources.prometheus }}
+          {{- $resources = . }}
+          {{- end }}
+          {{- with $resources }}
           resources:
-            {{- toYaml .Values.resources.prometheus | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /etc/prometheus
               name: prometheus-config

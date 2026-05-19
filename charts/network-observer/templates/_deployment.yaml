@@ -39,7 +39,11 @@ ports:
   - name: https
     containerPort: 8443
     protocol: TCP
-{{- with .Values.resources.proxy }}
+{{- $resources := .Values.resources }}
+{{- with .Values.containerResources.proxy }}
+{{- $resources = . }}
+{{- end }}
+{{- with $resources }}
 resources:
   {{- toYaml . | nindent 2 }}
 {{- end }}
@@ -73,7 +77,11 @@ ports:
   - name: https
     containerPort: 8443
     protocol: TCP
-{{- with .Values.resources.proxy }}
+{{- $resources := .Values.resources }}
+{{- with .Values.containerResources.proxy }}
+{{- $resources = . }}
+{{- end }}
+{{- with $resources }}
 resources:
   {{- toYaml . | nindent 2 }}
 {{- end }}

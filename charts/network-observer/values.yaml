@@ -184,9 +184,11 @@ route:
   labels: {}
   annotations: {}
 
+# Deprecated: use containerResources instead.
+resources: {}
 
 # Per-container resources for the network-observer Deployment.
-resources:
+containerResources:
   networkObserver: {}
   #   requests:
   #     cpu: 100m
