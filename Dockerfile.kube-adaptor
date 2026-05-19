@@ -2,6 +2,7 @@ ARG GO_IMAGE_BASE_TAG=1.25
 FROM --platform=$BUILDPLATFORM golang:${GO_IMAGE_BASE_TAG} AS builder
 
 ARG TARGETARCH
+ARG IMAGE_TAG=undefined
 
 RUN apt update && apt install -y jq
 
@@ -16,7 +17,7 @@ COPY . .
 ENV CGO_ENABLED=0
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    make -B build-kube-adaptor GOARCH=$TARGETARCH
+    make -B build-kube-adaptor GOARCH=$TARGETARCH IMAGE_TAG=$IMAGE_TAG
 
 # Use scratch for minimal image size
 FROM scratch

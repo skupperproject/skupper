@@ -4,6 +4,7 @@ FROM --platform=$BUILDPLATFORM golang:${GO_IMAGE_BASE_TAG} AS builder
 
 ARG TARGETARCH
 ARG CONSOLE_VERSION
+ARG IMAGE_TAG=undefined
 
 RUN apt-get update && apt-get install -y jq wget && rm -rf /var/lib/apt/lists/*
 
@@ -19,7 +20,7 @@ COPY . .
 ENV CGO_ENABLED=0
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    make -B GOARCH=$TARGETARCH build-network-observer
+    make -B GOARCH=$TARGETARCH IMAGE_TAG=$IMAGE_TAG build-network-observer
 
 # Download console release
 WORKDIR /console
