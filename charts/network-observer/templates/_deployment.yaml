@@ -39,6 +39,14 @@ ports:
   - name: https
     containerPort: 8443
     protocol: TCP
+{{- $resources := .Values.resources }}
+{{- with .Values.containerResources.proxy }}
+{{- $resources = . }}
+{{- end }}
+{{- with $resources }}
+resources:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
 volumeMounts:
   - mountPath: /etc/certificates/
     name: {{ include "network-observer.tlsSecretName" . }}
@@ -69,10 +77,17 @@ ports:
   - name: https
     containerPort: 8443
     protocol: TCP
+{{- $resources := .Values.resources }}
+{{- with .Values.containerResources.proxy }}
+{{- $resources = . }}
+{{- end }}
+{{- with $resources }}
+resources:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
 volumeMounts:
   - mountPath: /etc/certificates/
     name: {{ include "network-observer.tlsSecretName" . }}
   - mountPath: /etc/session-secrets/
     name: session-cookie-secret
 {{- end -}}
-
