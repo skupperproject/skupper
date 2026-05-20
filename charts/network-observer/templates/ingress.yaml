@@ -5,9 +5,14 @@ metadata:
   name: {{ include "network-observer.fullname" . }}
   labels:
     {{- include "network-observer.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
+  {{- if or .Values.commonAnnotations .Values.ingress.annotations }}
   annotations:
+    {{- with .Values.commonAnnotations }}
     {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- end }}
 spec:
   {{- with .Values.ingress.className }}

@@ -141,6 +141,10 @@ auth:
       create: true
       nameOverride: ""
 
+# This is for setting Kubernetes Annotations to all resources.
+commonAnnotations: {}
+# This is for setting Kubernetes Labels to all resources.
+commonLabels: {}
 
 # This is for setting Kubernetes Annotations to a Pod.
 podAnnotations: {}
@@ -175,14 +179,37 @@ ingress:
 # observer
 route:
   enabled: false
+  host: ""
+  subdomain: ""
+  labels: {}
+  annotations: {}
 
+# Deprecated: use containerResources instead.
 resources: {}
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+
+# Per-container resources for the network-observer Deployment.
+containerResources:
+  networkObserver: {}
+  #   requests:
+  #     cpu: 100m
+  #     memory: 256Mi
+  #   limits:
+  #     cpu: 500m
+  #     memory: 512Mi
+  prometheus: {}
+  #   requests:
+  #     cpu: 200m
+  #     memory: 512Mi
+  #   limits:
+  #     cpu: 500m
+  #     memory: 1Gi
+  proxy: {}
+  #   requests:
+  #     cpu: 50m
+  #     memory: 64Mi
+  #   limits:
+  #     cpu: 200m
+  #     memory: 256Mi
 
 # pod level securityContext
 podSecurityContext:

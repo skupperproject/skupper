@@ -5,10 +5,15 @@ metadata:
   name: {{ include "network-observer.fullname" . }}
   labels:
     {{- include "network-observer.labels" . | nindent 4 }}
+  {{- if or .Values.commonAnnotations .Values.tls.openshiftIssued }}
   annotations:
+    {{- with .Values.commonAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
     {{- if .Values.tls.openshiftIssued }}
     service.beta.openshift.io/serving-cert-secret-name: {{ include "network-observer.tlsSecretName" . }}
     {{- end }}
+  {{- end }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -24,8 +29,12 @@ kind: Service
 metadata:
   name: {{ include "network-observer.fullname" . }}-metrics
   labels:
-    {{ include "network-observer.labels" . | nindent 4 }}
+    {{- include "network-observer.labels" . | nindent 4 }}
     app.kubernetes.io/component: metrics
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: ClusterIP
   ports:

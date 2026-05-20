@@ -43,6 +43,9 @@ helm.sh/chart: {{ include "network-observer.chart" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 app.kubernetes.io/part-of: skupper-network-observer
+{{- with .Values.commonLabels }}
+{{ toYaml . }}
+{{- end }}
 {{- end }}
 
 {{/*

@@ -4,6 +4,10 @@ metadata:
   name: {{ include "network-observer.fullname" . }}
   labels:
     {{- include "network-observer.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   selector:
     matchLabels:
@@ -14,9 +18,14 @@ spec:
   {{- end }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+      {{- if or .Values.commonAnnotations .Values.podAnnotations }}
       annotations:
+        {{- with .Values.commonAnnotations }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- end }}
       labels:
         {{- include "network-observer.labels" . | nindent 8 }}
@@ -62,8 +71,14 @@ spec:
             - name: metrics
               containerPort: 9000
               protocol: TCP
+          {{- $resources := .Values.resources }}
+          {{- with .Values.containerResources.networkObserver }}
+          {{- $resources = . }}
+          {{- end }}
+          {{- with $resources }}
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /etc/messaging/
               name: skupper-management-client
@@ -90,8 +105,14 @@ spec:
             - name: prom
               containerPort: 9090
               protocol: TCP
+          {{- $resources := .Values.resources }}
+          {{- with .Values.containerResources.prometheus }}
+          {{- $resources = . }}
+          {{- end }}
+          {{- with $resources }}
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - mountPath: /etc/prometheus
               name: prometheus-config
