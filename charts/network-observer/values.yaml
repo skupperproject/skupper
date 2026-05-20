@@ -87,7 +87,7 @@ nginx:
 # openshift oauth proxy configuration when auth strategy is openshift
 openshiftOauthProxy:
   repository: "quay.io/openshift/origin-oauth-proxy"
-  tag: "4.14.0"
+  tag: "4.22.0"
   pullPolicy: IfNotPresent
   securityContext:
     allowPrivilegeEscalation: false
