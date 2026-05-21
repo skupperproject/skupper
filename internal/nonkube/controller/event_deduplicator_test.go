@@ -4,11 +4,12 @@ import (
 	"log/slog"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
-func TestEventDeduplicator(t *testing.T) {
-	t.Run("deduplicates multiple events for same file", func(t *testing.T) {
+func TestEventDeduplicator_deduplicates_multiple_events_same_file(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
 		var processedCount int
 		var mu sync.Mutex
 		var processedFiles []string
@@ -37,10 +38,12 @@ func TestEventDeduplicator(t *testing.T) {
 		if processedCount != 1 {
 			t.Errorf("Expected 1 processing, got %d", processedCount)
 		}
-
 	})
+}
 
-	t.Run("processes events for different files independently", func(t *testing.T) {
+func TestEventDeduplicator_processes_events_for_diferent_files(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+
 		var processedCount int
 		var mu sync.Mutex
 		var processedFiles []string
@@ -69,9 +72,12 @@ func TestEventDeduplicator(t *testing.T) {
 		if processedCount != 3 {
 			t.Errorf("Expected 3 processing, got %d", processedCount)
 		}
-	})
 
-	t.Run("resets timer on new event for same file", func(t *testing.T) {
+	})
+}
+
+func TestEventDeduplicator_resets_timer_new_event_for_same_file(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
 		var processedCount int
 		var mu sync.Mutex
 
@@ -109,6 +115,6 @@ func TestEventDeduplicator(t *testing.T) {
 		if result != 1 {
 			t.Errorf("Expected 1 processing after full debounce, got %d", result)
 		}
-	})
 
+	})
 }
