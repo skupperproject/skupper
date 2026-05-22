@@ -73,7 +73,7 @@ func siteCollector(ctx context.Context, cli *internalclient.KubeClient) {
 		os.Exit(1)
 	}
 
-	factory := session.NewContainerFactory("amqp://localhost:5672", session.ContainerConfig{ContainerID: "kube-flow-collector"})
+	factory := session.NewContainerFactory(LocalRouterAMQPAddress, session.ContainerConfig{ContainerID: "kube-flow-collector"})
 	statusSyncClient := &StatusSyncClient{
 		client: cli.Kube.CoreV1().ConfigMaps(cli.Namespace),
 	}
@@ -96,7 +96,7 @@ func startFlowController(ctx context.Context, cli *internalclient.KubeClient) er
 	informer := corev1informer.NewPodInformer(cli.Kube, cli.Namespace, time.Minute*5, cache.Indexers{})
 	platform := "kubernetes"
 	fc := kubeflow.NewController(kubeflow.ControllerConfig{
-		Factory:  session.NewContainerFactory("amqp://localhost:5672", session.ContainerConfig{ContainerID: "kube-flow-controller"}),
+		Factory:  session.NewContainerFactory(LocalRouterAMQPAddress, session.ContainerConfig{ContainerID: "kube-flow-controller"}),
 		Informer: informer,
 		Site: vanflow.SiteRecord{
 			BaseRecord: vanflow.NewBase(siteID, deployment.ObjectMeta.CreationTimestamp.Time),
@@ -119,6 +119,22 @@ func startFlowController(ctx context.Context, cli *internalclient.KubeClient) er
 	return nil
 }
 
+func startCollectorOnAMQP(ctx context.Context, cli *internalclient.KubeClient) {
+	if err := WaitForAMQPConnection(ctx, LocalRouterAMQPAddress, 5*time.Second); err != nil {
+		if ctx.Err() != nil {
+			slog.Info("COLLECTOR: stopped waiting for AMQP connection", slog.Any("error", err))
+		} else {
+			slog.Error("COLLECTOR: failed to connect to AMQP bus", slog.Any("error", err))
+		}
+		return
+	}
+	slog.Info("COLLECTOR: connected to AMQP bus, starting status sync and site controller")
+	siteCollector(ctx, cli)
+	if err := startFlowController(ctx, cli); err != nil {
+		slog.Error("COLLECTOR: Failed to start controller for emitting site events", slog.Any("error", err))
+	}
+}
+
 func runLeaderElection(lock *resourcelock.LeaseLock, id string, cli *internalclient.KubeClient) {
 	var (
 		mu              sync.Mutex
@@ -137,13 +153,10 @@ func runLeaderElection(lock *resourcelock.LeaseLock, id string, cli *internalcli
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(ctx context.Context) {
 					mu.Lock()
-					defer mu.Unlock()
 					leaderCtx, leaderCtxCancel = context.WithCancel(ctx)
-					slog.Info("COLLECTOR: Became leader. Starting status sync and site controller", slog.Any("elapsedTime", strategy.GetElapsedTime()))
-					siteCollector(leaderCtx, cli)
-					if err := startFlowController(leaderCtx, cli); err != nil {
-						slog.Error("COLLECTOR: Failed to start controller for emitting site events", slog.Any("error", err))
-					}
+					mu.Unlock()
+					slog.Info("COLLECTOR: Became leader. Waiting for AMQP connection", slog.Any("elapsedTime", strategy.GetElapsedTime()))
+					go startCollectorOnAMQP(leaderCtx, cli)
 				},
 				OnStoppedLeading: func() {
 					slog.Info("COLLECTOR: Lost leader lock. Stopping status sync and site controller", slog.Any("elapsedTime", strategy.GetElapsedTime()))

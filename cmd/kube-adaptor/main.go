@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -10,14 +11,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/prometheus/client_golang/prometheus"
 	iflag "github.com/skupperproject/skupper/internal/flag"
 	"github.com/skupperproject/skupper/internal/kube/adaptor"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/metrics"
 	"github.com/skupperproject/skupper/internal/kube/watchers"
-	"github.com/skupperproject/skupper/internal/qdr"
 	"github.com/skupperproject/skupper/internal/version"
 )
 
@@ -101,7 +100,9 @@ func main() {
 	}
 
 	slog.Info("Waiting for Skupper router to be ready")
-	if err := waitForAMQPConnection("amqp://localhost:5672", time.Second*180, time.Second*5); err != nil {
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), time.Second*180)
+	defer waitCancel()
+	if err := adaptor.WaitForAMQPConnection(waitCtx, adaptor.LocalRouterAMQPAddress, time.Second*5); err != nil {
 		slog.Error("Error waiting for router", slog.Any("error", err))
 		os.Exit(1)
 	}
@@ -123,20 +124,4 @@ func main() {
 	<-stopCh
 	slog.Info("Shutting down...")
 	configSync.Stop()
-}
-
-func waitForAMQPConnection(address string, timeout, interval time.Duration) error {
-	b := backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(timeout), backoff.WithMaxInterval(interval))
-	pool := qdr.NewAgentPool(address, nil)
-	pool.SetConnectionTimeout(interval)
-	return backoff.Retry(
-		func() error {
-			agent, err := pool.Get()
-			if err != nil {
-				return err
-			}
-			agent.Close()
-			slog.Info("Connected to router", slog.Any("address", address))
-			return nil
-		}, b)
 }
