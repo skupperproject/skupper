@@ -79,9 +79,9 @@ func (cmd *CmdManifest) InputToOptions() {
 	}
 
 	if cmd.output != "" {
-		cmd.manifest = configs.ManifestManager{Components: images.KubeComponents, EnableSHA: true, RunningPods: mapRunningPods}
+		cmd.manifest = configs.ManifestManager{Components: images.DefaultComponents, EnableSHA: true, RunningPods: mapRunningPods}
 	} else {
-		cmd.manifest = configs.ManifestManager{Components: images.KubeComponents, EnableSHA: false, RunningPods: mapRunningPods}
+		cmd.manifest = configs.ManifestManager{Components: images.DefaultComponents, EnableSHA: false, RunningPods: mapRunningPods}
 	}
 }
 
