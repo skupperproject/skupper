@@ -8,6 +8,7 @@ import (
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func CopySiteState(siteState *api.SiteState) *api.SiteState {
@@ -65,6 +66,51 @@ func copySiteStateMap[T any](m map[string]T) map[string]T {
 		}
 	}
 	return newMap
+}
+
+func EnableLinkAccess(siteState *api.SiteState) error {
+
+	routerAccessName := "router-access-" + siteState.Site.Name
+
+	if _, exists := siteState.RouterAccesses[routerAccessName]; exists {
+		return nil
+	}
+
+	interRouterPort, edgePort, err := utils.AllocateRouterAccessPorts()
+	if err != nil {
+		return fmt.Errorf("failed to allocate ports for RouterAccess: %w", err)
+	}
+
+	sanByDefault, err := utils.GetSansByDefault()
+	if err != nil {
+		return fmt.Errorf("Error getting SANs by default: %s", err)
+	}
+
+	siteState.RouterAccesses[routerAccessName] = &v2alpha1.RouterAccess{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "RouterAccess",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      routerAccessName,
+			Namespace: siteState.GetNamespace(),
+		},
+		Spec: v2alpha1.RouterAccessSpec{
+			Roles: []v2alpha1.RouterAccessRole{
+				{
+					Name: "inter-router",
+					Port: interRouterPort,
+				},
+				{
+					Name: "edge",
+					Port: edgePort,
+				},
+			},
+			SubjectAlternativeNames: sanByDefault,
+		},
+	}
+
+	return nil
 }
 
 func CreateRouterAccess(siteState *api.SiteState) error {
