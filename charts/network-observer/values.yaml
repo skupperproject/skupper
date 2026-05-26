@@ -18,7 +18,7 @@ image:
 prometheus:
   repository: "quay.io/prometheus/prometheus"
   pullPolicy: IfNotPresent
-  tag: "v3.1.0"
+  tag: "v3.11.3"
   securityContext:
     allowPrivilegeEscalation: false
     capabilities:
@@ -76,7 +76,7 @@ nginx:
   #   - "-g"
   #   - "daemon off;"
   repository: "mirror.gcr.io/nginxinc/nginx-unprivileged"
-  tag: "1.27.3-alpine"
+  tag: "1.31.0-alpine"
   pullPolicy: IfNotPresent
   securityContext:
     allowPrivilegeEscalation: false
@@ -87,7 +87,7 @@ nginx:
 # openshift oauth proxy configuration when auth strategy is openshift
 openshiftOauthProxy:
   repository: "quay.io/openshift/origin-oauth-proxy"
-  tag: "4.14.0"
+  tag: "4.22.0"
   pullPolicy: IfNotPresent
   securityContext:
     allowPrivilegeEscalation: false
