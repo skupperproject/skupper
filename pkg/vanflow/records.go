@@ -85,6 +85,8 @@ type LinkRecord struct {
 	LastUp    *uint64 `vflow:"55"`
 	LastDown  *uint64 `vflow:"56"`
 	DownCount *uint64 `vflow:"57"`
+
+	HttpProxy *string `vflow:"67"`
 }
 
 func (r LinkRecord) GetTypeMeta() TypeMeta {
