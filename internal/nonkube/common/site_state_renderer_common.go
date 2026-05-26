@@ -70,7 +70,7 @@ func copySiteStateMap[T any](m map[string]T) map[string]T {
 
 func EnableLinkAccess(siteState *api.SiteState) error {
 
-	routerAccessName := "router-access-" + siteState.Site.Name
+	routerAccessName := siteState.Site.Name
 
 	if _, exists := siteState.RouterAccesses[routerAccessName]; exists {
 		return nil
