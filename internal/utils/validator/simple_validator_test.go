@@ -308,3 +308,71 @@ func TestWorkloadStringValidator_Evaluate(t *testing.T) {
 		})
 	}
 }
+
+func TestNewInputResourceFilenameValidator(t *testing.T) {
+
+	t.Run("Test New Input Resource Filename Validator constructor", func(t *testing.T) {
+
+		validRegexp := regexp.MustCompile(`^([A-Z][a-zA-Z]*)-(.+)\.(yaml|yml|json)$`)
+		expectedResourceTypes := []string{
+			"Site",
+			"Listener",
+			"Connector",
+			"RouterAccess",
+			"AccessGrant",
+			"Link",
+			"AccessToken",
+			"Certificate",
+			"SecuredAccess",
+			"MultiKeyListener",
+			"Secret",
+		}
+		expectedResult := &InputResourceFilenameValidator{validRegexp, expectedResourceTypes}
+		actualResult := NewInputResourceFilenameValidator()
+		assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
+	})
+}
+
+func TestInputResourceFilenameValidator_Evaluate(t *testing.T) {
+	type test struct {
+		name   string
+		value  interface{}
+		result bool
+	}
+
+	testTable := []test{
+		{name: "valid Site yaml", value: "Site-mysite.yaml", result: true},
+		{name: "valid Connector yml", value: "Connector-backend.yml", result: true},
+		{name: "valid Listener json", value: "Listener-frontend.json", result: true},
+		{name: "valid RouterAccess", value: "RouterAccess-myaccess.yaml", result: true},
+		{name: "valid AccessGrant", value: "AccessGrant-grant1.yaml", result: true},
+		{name: "valid Link", value: "Link-mylink.yaml", result: true},
+		{name: "valid AccessToken", value: "AccessToken-token1.yaml", result: true},
+		{name: "valid Certificate", value: "Certificate-cert1.yaml", result: true},
+		{name: "valid SecuredAccess", value: "SecuredAccess-secure1.yaml", result: true},
+		{name: "valid MultiKeyListener", value: "MultiKeyListener-listener1.yaml", result: true},
+		{name: "valid Secret", value: "Secret-mysecret.yaml", result: true},
+		{name: "valid with dashes in name", value: "Site-my-site-name.yaml", result: true},
+		{name: "valid with numbers in name", value: "Connector-backend123.yaml", result: true},
+		{name: "invalid resource type", value: "Invalid-name.yaml", result: false},
+		{name: "lowercase resource type", value: "site-name.yaml", result: false},
+		{name: "missing resource type", value: "name.yaml", result: false},
+		{name: "missing name", value: "Site-.yaml", result: false},
+		{name: "no extension", value: "Site-name", result: false},
+		{name: "wrong extension", value: "Site-name.txt", result: false},
+		{name: "empty string", value: "", result: false},
+		{name: "number", value: 123, result: false},
+		{name: "nil value", value: nil, result: false},
+		{name: "no hyphen separator", value: "Sitename.yaml", result: false},
+	}
+
+	for _, test := range testTable {
+		t.Run(test.name, func(t *testing.T) {
+
+			validator := NewInputResourceFilenameValidator()
+			expectedResult := test.result
+			actualResult, _ := validator.Evaluate(test.value)
+			assert.Assert(t, reflect.DeepEqual(actualResult, expectedResult))
+		})
+	}
+}
