@@ -49,6 +49,12 @@ const (
 	Unbound ProcessBindingType = "unbound"
 )
 
+// Defines values for ProxyProtocolType.
+const (
+	HTTP ProxyProtocolType = "HTTP"
+	NONE ProxyProtocolType = "NONE"
+)
+
 // Defines values for SitePlatformType.
 const (
 	SitePlatformTypeDocker     SitePlatformType = "docker"
@@ -426,10 +432,11 @@ type RouterLinkRecord struct {
 	EndTime uint64 `json:"endTime"`
 
 	// Identity The unique identifier for the record.
-	Identity          string `json:"identity"`
-	Name              string `json:"name"`
-	OctetCount        uint64 `json:"octetCount"`
-	OctetReverseCount uint64 `json:"octetReverseCount"`
+	Identity          string             `json:"identity"`
+	Name              string             `json:"name"`
+	OctetCount        uint64             `json:"octetCount"`
+	OctetReverseCount uint64             `json:"octetReverseCount"`
+	ProxyProtocol     *ProxyProtocolType `json:"proxyProtocol"`
 
 	// Role The class of skupper link
 	Role LinkRoleType `json:"role"`
@@ -444,9 +451,6 @@ type RouterLinkRecord struct {
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
 	StartTime uint64         `json:"startTime"`
 	Status    OperStatusType `json:"status"`
-
-	// HttpProxy true when the link connection is established through an HTTP proxy.
-	HttpProxy *bool `json:"httpProxy"`
 }
 
 // RouterLinkResponse defines model for RouterLinkResponse.
@@ -602,6 +606,9 @@ type OperStatusType string
 
 // ProcessBindingType Indicates whether a process is exposed or not in a skupper network
 type ProcessBindingType string
+
+// ProxyProtocolType The proxy protocol used when the link connection is established.
+type ProxyProtocolType string
 
 // ServiceIdentifierType a special string for identifying services uses the form `name@identity@protocol`
 type ServiceIdentifierType = AtmarkDelimitedString

@@ -785,6 +785,12 @@ components:
         - inter-router
         - edge
         - unknown
+    proxyProtocolType:
+      type: string
+      description: The proxy protocol used when the link connection is established.
+      enum:
+        - NONE
+        - HTTP
     SiteRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
@@ -1126,10 +1132,10 @@ components:
               type: string
               nullable: true
               description: When connected, the name of the destitation (peer) site.
-            httpProxy:
-              type: boolean
+            proxyProtocol:
+              allOf:
+                - $ref: '#/components/schemas/proxyProtocolType'
               nullable: true
-              description: true when the link connection is established through an HTTP proxy
     RouterAccessRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
