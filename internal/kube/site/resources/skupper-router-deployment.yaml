@@ -44,7 +44,6 @@ spec:
   selector:
     matchLabels:
       skupper.io/component: router
-      skupper.io/group: {{ .Group }}
   template:
     metadata:
       annotations:
