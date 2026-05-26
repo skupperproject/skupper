@@ -98,46 +98,16 @@ func TestCmdSiteUpdate_ValidateInput(t *testing.T) {
 		},
 	}
 
-	routerAccessResource := v2alpha1.RouterAccess{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v2alpha1",
-			Kind:       "RouterAccess",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "router-access-mysite",
-			Namespace: "test4",
-		},
-		Spec: v2alpha1.RouterAccessSpec{
-			Roles: []v2alpha1.RouterAccessRole{
-				{
-					Name: "inter-router",
-					Port: 55671,
-				},
-				{
-					Name: "edge",
-					Port: 45671,
-				},
-			},
-			BindHost:                "1.2.3.4",
-			SubjectAlternativeNames: []string{"test", "2.2.2.2"},
-		},
-	}
 	command := &CmdSiteUpdate{Flags: &common.CommandSiteUpdateFlags{}}
 	command.CobraCmd = &cobra.Command{Use: "test"}
 	command.namespace = "test4"
 	command.siteHandler = fs.NewSiteHandler(command.namespace)
-	command.routerAccessHandler = fs.NewRouterAccessHandler(command.namespace)
 
 	defer command.siteHandler.Delete("my-site")
-	defer command.routerAccessHandler.Delete("my-site")
 
 	content, err := command.siteHandler.EncodeToYaml(siteResource)
 	assert.Check(t, err == nil)
 	err = command.siteHandler.WriteFile(path, "my-site.yaml", content, common.Sites)
-	assert.Check(t, err == nil)
-	content, err = command.routerAccessHandler.EncodeToYaml(routerAccessResource)
-	assert.Check(t, err == nil)
-	err = command.routerAccessHandler.WriteFile(path, "router-access-my-site.yaml", content, common.RouterAccesses)
 	assert.Check(t, err == nil)
 
 	for _, test := range testTable {
@@ -212,7 +182,6 @@ func TestNonKubeCmdSiteUpdate_InputToOptions(t *testing.T) {
 
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
 			assert.Check(t, cmd.linkAccessEnabled == test.expectedLinkAccess)
-			assert.Check(t, cmd.routerAccessName == test.expectedRouterAccessName)
 		})
 	}
 }
@@ -227,9 +196,15 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 		linkAccessEnabled bool
 	}
 
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+
 	testTable := []test{
 		{
-			name:      "runs ok link enable",
+			name:      "runs ok with access link enabled",
 			namespace: "test4",
 			siteName:  "my-site",
 			flags: common.CommandSiteUpdateFlags{
@@ -243,35 +218,32 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 			siteName:  "my-site",
 			flags:     common.CommandSiteUpdateFlags{},
 		},
-		{
-			name:     "run ok output json",
-			siteName: "my-site",
-			flags: common.CommandSiteUpdateFlags{
-				EnableLinkAccess: true,
-			},
-			linkAccessEnabled: true,
-		},
-		{
-			name:     "run ok output yaml",
-			siteName: "my-site",
-			flags: common.CommandSiteUpdateFlags{
-				EnableLinkAccess: false,
-			},
-		},
 	}
 
 	for _, test := range testTable {
-		command := &CmdSiteUpdate{}
-		command.CobraCmd = &cobra.Command{Use: "test"}
-		command.Flags = &test.flags
-		command.siteName = test.siteName
-		command.siteHandler = fs.NewSiteHandler(command.namespace)
-		command.routerAccessHandler = fs.NewRouterAccessHandler(command.namespace)
-		command.linkAccessEnabled = test.linkAccessEnabled
-		defer command.siteHandler.Delete("my-site")
-		defer command.routerAccessHandler.Delete("my-site")
 		t.Run(test.name, func(t *testing.T) {
-			command.InputToOptions()
+			command := &CmdSiteUpdate{}
+			command.CobraCmd = &cobra.Command{Use: "test"}
+			command.Flags = &test.flags
+			command.siteName = test.siteName
+			command.namespace = test.namespace
+			command.siteHandler = fs.NewSiteHandler(command.namespace)
+			command.linkAccessEnabled = test.linkAccessEnabled
+			defer command.siteHandler.Delete("my-site")
+
+			// Create the site file first so it exists for update
+			siteResource := v2alpha1.Site{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "skupper.io/v2alpha1",
+					Kind:       "Site",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      test.siteName,
+					Namespace: command.namespace,
+				},
+			}
+			command.siteHandler.Add(siteResource)
+
 			err := command.Run()
 			if err != nil {
 				assert.Check(t, test.errorMessage == err.Error(), err.Error())
