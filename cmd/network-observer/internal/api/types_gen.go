@@ -445,8 +445,8 @@ type RouterLinkRecord struct {
 	StartTime uint64         `json:"startTime"`
 	Status    OperStatusType `json:"status"`
 
-	// HttpProxy When connected, whether this link uses an HTTP proxy.
-	HttpProxy *string `json:"httpProxy"`
+	// HttpProxy true when the link connection is established through an HTTP proxy.
+	HttpProxy *bool `json:"httpProxy"`
 }
 
 // RouterLinkResponse defines model for RouterLinkResponse.

@@ -78,7 +78,7 @@ func TestRouterlinks(t *testing.T) {
 					DestinationSiteName:   ptrTo("site a"),
 					DestinationRouterId:   ptrTo("router-a-1"),
 					DestinationRouterName: ptrTo("router a.1"),
-					HttpProxy:             ptrTo("yes"),
+					HttpProxy:             ptrTo(true),
 				})
 			},
 		},

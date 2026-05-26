@@ -450,7 +450,7 @@ func NewRouterLinkProvider(graph collector.Graph) func(vanflow.LinkRecord) (api.
 		setOpt(&out.RouterName, sourceRouter.Name)
 		setOpt(&out.SourceSiteName, sourceSite.Name)
 		setOpt(&out.Name, link.Name)
-		out.HttpProxy = link.HttpProxy
+		out.HttpProxy = linkHttpProxy(link.HttpProxy)
 
 		if link.Role != nil {
 			role := *link.Role
@@ -663,6 +663,22 @@ func vanflowTimes(b vanflow.BaseRecord) (start, end uint64) {
 		end = uint64(b.EndTime.UnixMicro())
 	}
 	return
+}
+
+func linkHttpProxy(v *string) *bool {
+	if v == nil {
+		return nil
+	}
+	switch strings.ToLower(*v) {
+	case "yes":
+		b := true
+		return &b
+	case "no":
+		b := false
+		return &b
+	default:
+		return nil
+	}
 }
 
 func setOpt[T any](target *T, val *T) {
