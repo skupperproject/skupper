@@ -18,17 +18,15 @@ import (
 )
 
 type CmdSiteGenerate struct {
-	siteHandler             *fs.SiteHandler
-	routerAccessHandler     *fs.RouterAccessHandler
-	CobraCmd                *cobra.Command
-	Flags                   *common.CommandSiteGenerateFlags
-	siteName                string
-	linkAccessEnabled       bool
-	output                  string
-	namespace               string
-	routerAccessName        string
-	subjectAlternativeNames []string
-	logger                  *slog.Logger
+	siteHandler         *fs.SiteHandler
+	routerAccessHandler *fs.RouterAccessHandler
+	CobraCmd            *cobra.Command
+	Flags               *common.CommandSiteGenerateFlags
+	siteName            string
+	linkAccessEnabled   bool
+	output              string
+	namespace           string
+	logger              *slog.Logger
 }
 
 func NewCmdSiteGenerate() *CmdSiteGenerate {
@@ -94,14 +92,7 @@ func (cmd *CmdSiteGenerate) ValidateInput(args []string) error {
 
 func (cmd *CmdSiteGenerate) InputToOptions() {
 	if cmd.Flags.EnableLinkAccess {
-		sanByDefault, err := utils.GetSansByDefault()
-		if err != nil {
-			cmd.logger.Error("Error getting SANs by default")
-		}
-
 		cmd.linkAccessEnabled = true
-		cmd.routerAccessName = "router-access-" + cmd.siteName
-		cmd.subjectAlternativeNames = sanByDefault
 	}
 
 	if cmd.namespace == "" {
@@ -125,28 +116,8 @@ func (cmd *CmdSiteGenerate) Run() error {
 		},
 	}
 
-	routerAccessResource := v2alpha1.RouterAccess{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v2alpha1",
-			Kind:       "RouterAccess",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cmd.routerAccessName,
-			Namespace: cmd.namespace,
-		},
-		Spec: v2alpha1.RouterAccessSpec{
-			Roles: []v2alpha1.RouterAccessRole{
-				{
-					Name: "inter-router",
-					Port: 55671,
-				},
-				{
-					Name: "edge",
-					Port: 45671,
-				},
-			},
-			SubjectAlternativeNames: cmd.subjectAlternativeNames,
-		},
+	if cmd.linkAccessEnabled {
+		siteResource.Spec.LinkAccess = "default"
 	}
 
 	encodedSiteOutput, err := utils.Encode(cmd.output, siteResource)
@@ -154,15 +125,6 @@ func (cmd *CmdSiteGenerate) Run() error {
 		return err
 	}
 	fmt.Println(encodedSiteOutput)
-
-	if cmd.linkAccessEnabled == true {
-		fmt.Println("---")
-		encodedRouterAccessOutput, err := utils.Encode(cmd.output, routerAccessResource)
-		if err != nil {
-			return err
-		}
-		fmt.Println(encodedRouterAccessOutput)
-	}
 
 	return err
 }

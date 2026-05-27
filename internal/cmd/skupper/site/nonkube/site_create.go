@@ -9,7 +9,6 @@ import (
 	"log/slog"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -18,16 +17,13 @@ import (
 )
 
 type CmdSiteCreate struct {
-	siteHandler             *fs.SiteHandler
-	routerAccessHandler     *fs.RouterAccessHandler
-	CobraCmd                *cobra.Command
-	Flags                   *common.CommandSiteCreateFlags
-	siteName                string
-	linkAccessEnabled       bool
-	namespace               string
-	routerAccessName        string
-	subjectAlternativeNames []string
-	logger                  *slog.Logger
+	siteHandler       *fs.SiteHandler
+	CobraCmd          *cobra.Command
+	Flags             *common.CommandSiteCreateFlags
+	siteName          string
+	linkAccessEnabled bool
+	namespace         string
+	logger            *slog.Logger
 }
 
 func NewCmdSiteCreate() *CmdSiteCreate {
@@ -42,8 +38,6 @@ func (cmd *CmdSiteCreate) NewClient(cobraCommand *cobra.Command, args []string) 
 	}
 
 	cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
-	cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.namespace)
-
 }
 
 func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
@@ -84,14 +78,7 @@ func (cmd *CmdSiteCreate) ValidateInput(args []string) error {
 func (cmd *CmdSiteCreate) InputToOptions() {
 
 	if cmd.Flags.EnableLinkAccess {
-		sanByDefault, err := utils.GetSansByDefault()
-		if err != nil {
-			cmd.logger.Error("Error getting SANs by default")
-		}
-
 		cmd.linkAccessEnabled = true
-		cmd.routerAccessName = "router-access-" + cmd.siteName
-		cmd.subjectAlternativeNames = sanByDefault
 	}
 
 	if cmd.namespace == "" {
@@ -113,40 +100,13 @@ func (cmd *CmdSiteCreate) Run() error {
 		},
 	}
 
-	routerAccessResource := v2alpha1.RouterAccess{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v2alpha1",
-			Kind:       "RouterAccess",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cmd.routerAccessName,
-			Namespace: cmd.namespace,
-		},
-		Spec: v2alpha1.RouterAccessSpec{
-			Roles: []v2alpha1.RouterAccessRole{
-				{
-					Name: "inter-router",
-					Port: 55671,
-				},
-				{
-					Name: "edge",
-					Port: 45671,
-				},
-			},
-			SubjectAlternativeNames: cmd.subjectAlternativeNames,
-		},
+	if cmd.linkAccessEnabled {
+		siteResource.Spec.LinkAccess = "default"
 	}
 
 	err := cmd.siteHandler.Add(siteResource)
 	if err != nil {
 		return err
-	}
-
-	if cmd.linkAccessEnabled == true {
-		err = cmd.routerAccessHandler.Add(routerAccessResource)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil

@@ -7,22 +7,17 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
 	"github.com/skupperproject/skupper/internal/utils/validator"
-	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type CmdSiteUpdate struct {
-	siteHandler             *fs.SiteHandler
-	routerAccessHandler     *fs.RouterAccessHandler
-	CobraCmd                *cobra.Command
-	Flags                   *common.CommandSiteUpdateFlags
-	siteName                string
-	namespace               string
-	linkAccessEnabled       bool
-	bindHost                string
-	routerAccessName        string
-	subjectAlternativeNames []string
+	siteHandler       *fs.SiteHandler
+	CobraCmd          *cobra.Command
+	Flags             *common.CommandSiteUpdateFlags
+	siteName          string
+	namespace         string
+	linkAccessEnabled bool
 }
 
 func NewCmdSiteUpdate() *CmdSiteUpdate {
@@ -35,7 +30,6 @@ func (cmd *CmdSiteUpdate) NewClient(cobraCommand *cobra.Command, args []string) 
 	}
 
 	cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
-	cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.namespace)
 }
 
 func (cmd *CmdSiteUpdate) ValidateInput(args []string) error {
@@ -80,15 +74,11 @@ func (cmd *CmdSiteUpdate) ValidateInput(args []string) error {
 		site, err := cmd.siteHandler.Get(cmd.siteName, opts)
 		if site == nil || err != nil {
 			validationErrors = append(validationErrors, fmt.Errorf("site %s must exist to be updated", cmd.siteName))
-		}
-
-		routerAccessName := "router-access-" + cmd.siteName
-		routerAccess, err := cmd.routerAccessHandler.Update(routerAccessName)
-		if err == nil && routerAccess != nil {
-			// save existing values
-			cmd.bindHost = routerAccess.Spec.BindHost
-			cmd.subjectAlternativeNames = routerAccess.Spec.SubjectAlternativeNames
-			cmd.linkAccessEnabled = true
+		} else {
+			// Check current linkAccess setting
+			if site.Spec.LinkAccess != "" && site.Spec.LinkAccess != "none" {
+				cmd.linkAccessEnabled = true
+			}
 		}
 	}
 
@@ -99,75 +89,31 @@ func (cmd *CmdSiteUpdate) InputToOptions() {
 	// if EnableLinkAccess flag was explicitly set use value otherwise use value from
 	// previous create command
 	if cmd.CobraCmd.Flags().Changed(common.FlagNameEnableLinkAccess) {
-		if cmd.Flags.EnableLinkAccess == true {
-			cmd.linkAccessEnabled = true
-		} else {
-			cmd.linkAccessEnabled = false
-		}
+		cmd.linkAccessEnabled = cmd.Flags.EnableLinkAccess
 	}
-
-	cmd.routerAccessName = "router-access-" + cmd.siteName
 
 	if cmd.namespace == "" {
 		cmd.namespace = "default"
 	}
-
 }
 
 func (cmd *CmdSiteUpdate) Run() error {
-
-	siteResource := v2alpha1.Site{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v2alpha1",
-			Kind:       "Site",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cmd.siteName,
-			Namespace: cmd.namespace,
-		},
+	// Get existing site to preserve other settings
+	opts := fs.GetOptions{RuntimeFirst: false, LogWarning: false}
+	existingSite, err := cmd.siteHandler.Get(cmd.siteName, opts)
+	if err != nil {
+		return fmt.Errorf("failed to get existing site: %w", err)
 	}
 
-	routerAccessResource := v2alpha1.RouterAccess{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "skupper.io/v2alpha1",
-			Kind:       "RouterAccess",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cmd.routerAccessName,
-			Namespace: cmd.namespace,
-		},
-		Spec: v2alpha1.RouterAccessSpec{
-			Roles: []v2alpha1.RouterAccessRole{
-				{
-					Name: "inter-router",
-					Port: 55671,
-				},
-				{
-					Name: "edge",
-					Port: 45671,
-				},
-			},
-			BindHost:                cmd.bindHost,
-			SubjectAlternativeNames: cmd.subjectAlternativeNames,
-		},
+	if cmd.linkAccessEnabled {
+		existingSite.Spec.LinkAccess = "default"
+	} else {
+		existingSite.Spec.LinkAccess = "none"
 	}
 
-	err := cmd.siteHandler.Add(siteResource)
+	err = cmd.siteHandler.Add(*existingSite)
 	if err != nil {
 		return err
-	}
-
-	if cmd.linkAccessEnabled == true {
-		err = cmd.routerAccessHandler.Add(routerAccessResource)
-		if err != nil {
-			return err
-		}
-	} else {
-		fmt.Println("link access not enabled, router access removed", cmd.routerAccessName)
-		err = cmd.routerAccessHandler.Delete(cmd.routerAccessName)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
