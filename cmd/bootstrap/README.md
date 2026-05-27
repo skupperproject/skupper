@@ -107,7 +107,7 @@ that makes your running site meaningful, like Listeners and/or Connectors.
 To enable your local site to accept incoming links from other sites, you have two options:
 
 1. **Automatic RouterAccess Generation (Recommended)**: Set `spec.linkAccess: default` in your Site CR.
-   Skupper will automatically create a RouterAccess named "router-access-[SITE NAME]" with dynamically allocated ports
+   Skupper will automatically create a RouterAccess named "[SITE NAME]" with dynamically allocated ports
    (starting from 55671 for inter-router and 45671 for edge roles). 
 
 2. **Manual RouterAccess**: Explicitly provide a `RouterAccess` (CR) with your desired configuration.
