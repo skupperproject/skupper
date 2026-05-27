@@ -157,8 +157,6 @@ func TestNonKubeCmdSiteGenerate_InputToOptions(t *testing.T) {
 			assert.Check(t, cmd.output == test.expectedOutput)
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
 			assert.Check(t, cmd.linkAccessEnabled == test.expectedLinkAccess)
-			assert.Check(t, cmd.routerAccessName == test.expectedRouterAccessName)
-			assert.Equal(t, len(cmd.subjectAlternativeNames) > 0, test.expectedSansByDefault)
 		})
 	}
 }
@@ -199,7 +197,6 @@ func TestNonKubeCmdSiteGenerate_Run(t *testing.T) {
 
 		command.siteName = test.siteName
 		command.output = test.output
-		command.routerAccessName = test.routerAccessName
 		command.linkAccessEnabled = test.linkAccessEnabled
 		command.siteHandler = fs.NewSiteHandler(command.namespace)
 		command.routerAccessHandler = fs.NewRouterAccessHandler(command.namespace)

@@ -124,6 +124,13 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	if err = common.CreateRouterAccess(s.siteState); err != nil {
 		return err
 	}
+
+	if s.siteState.Site.Spec.LinkAccess != "" && s.siteState.Site.Spec.LinkAccess != "none" {
+		if err = common.EnableLinkAccess(s.siteState); err != nil {
+			return err
+		}
+	}
+
 	s.siteState.CreateLinkAccessesCertificates()
 	s.siteState.CreateBridgeCertificates()
 	// rendering non-kube configuration files and certificates
@@ -399,6 +406,13 @@ func (s *SiteStateRenderer) Refresh(loadedSiteState *api.SiteState) error {
 	if err != nil {
 		return err
 	}
+
+	if s.siteState.Site.Spec.LinkAccess != "" && s.siteState.Site.Spec.LinkAccess != "none" {
+		if err = common.EnableLinkAccess(s.siteState); err != nil {
+			return err
+		}
+	}
+
 	s.siteState.CreateLinkAccessesCertificates()
 	s.siteState.CreateBridgeCertificates()
 

@@ -134,14 +134,11 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 			cmd.siteName = "my-site"
 			cmd.namespace = test.namespace
 			cmd.siteHandler = fs.NewSiteHandler(cmd.namespace)
-			cmd.routerAccessHandler = fs.NewRouterAccessHandler(cmd.namespace)
 
 			cmd.InputToOptions()
 
 			assert.Check(t, cmd.namespace == test.expectedNamespace)
 			assert.Check(t, cmd.linkAccessEnabled == test.expectedLinkAccess)
-			assert.Check(t, cmd.routerAccessName == test.expectedRouterAccessName)
-			assert.Equal(t, len(cmd.subjectAlternativeNames) > 0, test.expectedSansByDefault)
 		})
 	}
 }
@@ -172,12 +169,9 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 		command := &CmdSiteCreate{}
 
 		command.siteName = test.siteName
-		command.routerAccessName = test.routerAccessName
 		command.linkAccessEnabled = test.linkAccessEnabled
 		command.siteHandler = fs.NewSiteHandler(command.namespace)
-		command.routerAccessHandler = fs.NewRouterAccessHandler(command.namespace)
 		defer command.siteHandler.Delete("my-site")
-		defer command.routerAccessHandler.Delete("my-site")
 		t.Run(test.name, func(t *testing.T) {
 
 			err := command.Run()

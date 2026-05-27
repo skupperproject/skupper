@@ -102,8 +102,16 @@ Place all your Custom Resources (CRs) on a local directory.
 You must always provide a `Site` (CR), plus some other resource
 that makes your running site meaningful, like Listeners and/or Connectors.
 
-In case you want your local site to accept incoming links from other sites,
-at present, you have to explicitly provide a `RouterAccess` (CR).
+#### Enabling link access
+
+To enable your local site to accept incoming links from other sites, you have two options:
+
+1. **Automatic RouterAccess Generation (Recommended)**: Set `spec.linkAccess: default` in your Site CR.
+   Skupper will automatically create a RouterAccess named "[SITE NAME]" with dynamically allocated ports
+   (starting from 55671 for inter-router and 45671 for edge roles). 
+
+2. **Manual RouterAccess**: Explicitly provide a `RouterAccess` (CR) with your desired configuration.
+   This gives you full control over ports, bind addresses, and other settings.
 
 If you want your non-kubernetes site to establish links to other sites, make
 sure you also provide `AccessToken` or `Link` (CRs).
@@ -265,6 +273,8 @@ apiVersion: skupper.io/v2alpha1
 kind: Site
 metadata:
   name: west
+spec:
+  linkAccess: default  # Enables automatic RouterAccess generation
 ```
 
 ##### Listener
@@ -280,7 +290,10 @@ spec:
   routingKey: backend-8080
 ```
 
-##### RouterAccess
+##### RouterAccess (Optional - Automatic Generation)
+
+When `spec.linkAccess: default` is set in the Site CR, Skupper automatically creates a RouterAccess
+with dynamically allocated ports. You can also manually define a RouterAccess for custom configuration:
 
 ```yaml
 apiVersion: skupper.io/v2alpha1
@@ -296,12 +309,13 @@ spec:
   bindHost: 127.0.0.1
 ```
 
-Equivalent in CLI commands: 
+Equivalent in CLI commands:
 ```
 skupper site create west --enable-link-access -n west
 skupper listener create backend 8080 -n west
 ```
-Note the CLI takes care of the creation of the RouterAccess resource.
+Note: The CLI automatically sets `spec.linkAccess: default` when `--enable-link-access` is used,
+triggering automatic RouterAccess generation with dynamic port allocation.
 
 
 ##### Bootstrap the west site
@@ -338,6 +352,7 @@ apiVersion: skupper.io/v2alpha1
 kind: Site
 metadata:
   name: east
+# Note: linkAccess not set, so no incoming links will be accepted
 ```
 
 **Connector**
