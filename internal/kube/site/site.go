@@ -1052,13 +1052,13 @@ func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener, sv
 }
 
 func (s *Site) CheckMultiKeyListener(name string, mkl *skupperv2alpha1.MultiKeyListener) error {
-	update, err1 := s.bindings.UpdateMultiKeyListener(name, mkl)
 	if s.site == nil {
 		if mkl == nil {
 			return nil
 		}
 		return s.updateMultiKeyListenerStatus(mkl, stderrors.New("No active site in namespace"))
 	}
+	update, err1 := s.bindings.UpdateMultiKeyListener(name, mkl)
 	if update == nil {
 		return nil
 	}
@@ -1071,11 +1071,10 @@ func (s *Site) CheckMultiKeyListener(name string, mkl *skupperv2alpha1.MultiKeyL
 
 func (s *Site) updateMultiKeyListenerStatus(mkl *skupperv2alpha1.MultiKeyListener, err error) error {
 	if mkl.SetConfigured(err) {
-		updated, updateErr := s.clients.GetSkupperClient().SkupperV2alpha1().MultiKeyListeners(mkl.ObjectMeta.Namespace).UpdateStatus(context.TODO(), mkl, metav1.UpdateOptions{})
+		_, updateErr := s.clients.GetSkupperClient().SkupperV2alpha1().MultiKeyListeners(mkl.ObjectMeta.Namespace).UpdateStatus(context.TODO(), mkl, metav1.UpdateOptions{})
 		if updateErr != nil {
 			return updateErr
 		}
-		s.bindings.UpdateMultiKeyListener(updated.Name, updated)
 	}
 	return nil
 }
