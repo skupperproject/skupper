@@ -61,6 +61,18 @@ spec:
                   this site use the listener host and port to establish connections to the
                   remote service.
                 type: string
+              observer:
+                description: |-
+                  The observer controls how the listener inspects network traffic for application-level protocol information.
+                  When unset or set to `auto`, the listener inspects traffic to detect known application protocols and produces telemetry events for that application traffic.
+                  Set to a specific protocol (`http1` or `http2`) to restrict inspection to that protocol only.
+                  Set to `none` to disable protocol inspection and reduce overhead from traffic inspection and application-level telemetry.
+                enum:
+                - auto
+                - none
+                - http1
+                - http2
+                type: string
               port:
                 description: |-
                   port of the local listener. Clients at this site use the listener host

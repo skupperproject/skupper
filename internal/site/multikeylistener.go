@@ -37,6 +37,7 @@ func UpdateBridgeConfigForMultiKeyListenerWithHostAndPort(siteId string, mkl *sk
 		Port:             strconv.Itoa(port),
 		SslProfile:       mkl.Spec.TlsCredentials,
 		AuthenticatePeer: mkl.Spec.RequireClientCert,
+		Observer:         mkl.Spec.Observer,
 	}
 
 	// Create listenerAddress entities for each routing key in the strategy
