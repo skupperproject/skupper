@@ -211,3 +211,61 @@ func (s WorkloadValidator) Evaluate(value interface{}) (string, string, bool, er
 	}
 	return "", "", false, fmt.Errorf("value does not match this regular expression: %s", s.Expression)
 }
+
+type InputResourceFilenameValidator struct {
+	Expression         *regexp.Regexp
+	ValidResourceTypes []string
+}
+
+func NewInputResourceFilenameValidator() *InputResourceFilenameValidator {
+	// Pattern: {ResourceType}-name.{yaml|yml|json}
+	return &InputResourceFilenameValidator{
+		Expression: regexp.MustCompile(`^([A-Z][a-zA-Z]*)-(.+)\.(yaml|yml|json)$`),
+		ValidResourceTypes: []string{
+			"Site",
+			"Listener",
+			"Connector",
+			"RouterAccess",
+			"AccessGrant",
+			"Link",
+			"AccessToken",
+			"Certificate",
+			"SecuredAccess",
+			"MultiKeyListener",
+			"Secret",
+		},
+	}
+}
+
+func (v InputResourceFilenameValidator) Evaluate(value interface{}) (bool, error) {
+	filename, ok := value.(string)
+	if !ok {
+		return false, fmt.Errorf("value is not a string")
+	}
+
+	matches := v.Expression.FindStringSubmatch(filename)
+	if len(matches) != 4 {
+		return false, fmt.Errorf("filename does not follow the pattern {ResourceType}-name.yaml")
+	}
+
+	resourceType := matches[1]
+	resourceName := matches[2]
+
+	isValidType := false
+	for _, validType := range v.ValidResourceTypes {
+		if resourceType == validType {
+			isValidType = true
+			break
+		}
+	}
+
+	if !isValidType {
+		return false, fmt.Errorf("invalid resource type '%s' in filename; expected one of: %v", resourceType, v.ValidResourceTypes)
+	}
+
+	if resourceName == "" {
+		return false, fmt.Errorf("resource name cannot be empty")
+	}
+
+	return true, nil
+}
