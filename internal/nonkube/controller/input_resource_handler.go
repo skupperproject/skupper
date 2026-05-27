@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strings"
+	"path/filepath"
 	"sync"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -14,6 +14,7 @@ import (
 	"github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/internal/nonkube/compat"
 	"github.com/skupperproject/skupper/internal/utils"
+	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
 
@@ -141,7 +142,19 @@ func (h *InputResourceHandler) OnRemove(name string) {
 	}
 }
 func (h *InputResourceHandler) Filter(name string) bool {
-	return strings.HasSuffix(name, ".json") || strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml")
+
+	filename := filepath.Base(name)
+
+	filenameValidator := validator.NewInputResourceFilenameValidator()
+	valid, err := filenameValidator.Evaluate(filename)
+
+	if !valid {
+		h.logger.Warn("File does not follow the required pattern {ResourceType}-name.yaml",
+			slog.String("file", filename),
+			slog.String("error", err.Error()))
+	}
+
+	return valid
 }
 
 func (h *InputResourceHandler) OnBasePathAdded(basePath string) {}
