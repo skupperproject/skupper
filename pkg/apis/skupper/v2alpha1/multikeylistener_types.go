@@ -107,10 +107,10 @@ type MultiKeyListenerSpec struct {
 	// more connector instances by routing key.
 	Strategy MultiKeyListenerStrategy `json:"strategy"`
 
-	// The observer controls how the listener inspects network traffic for  application-level protocol information.
-	// When unset or set to `auto`, the listener inspects traffic to detect known  application protocols and produces telemetry events for that application  traffic.
-	// Set to a specific protocol (`http1` or `http2`) to restrict inspection to that  protocol only.
-	// Set to `none` to disable protocol inspection and reduce overhead from traffic  inspection and application-level telemetry.
+	// The observer controls how the listener inspects network traffic for application-level protocol information.
+	// When unset or set to `auto`, the listener inspects traffic to detect known application protocols and produces telemetry events for that application traffic.
+	// Set to a specific protocol (`http1` or `http2`) to restrict inspection to that protocol only.
+	// Set to `none` to disable protocol inspection and reduce overhead from traffic inspection and application-level telemetry.
 	// +kubebuilder:validation:Enum=auto;none;http1;http2
 	Observer string `json:"observer,omitempty"`
 }
