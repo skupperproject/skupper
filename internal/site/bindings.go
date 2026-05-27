@@ -23,14 +23,14 @@ type ListenerFunction func(*skupperv2alpha1.Listener) *skupperv2alpha1.Listener
 type MultiKeyListenerFunction func(*skupperv2alpha1.MultiKeyListener) *skupperv2alpha1.MultiKeyListener
 
 type Bindings struct {
-	SiteId            string
-	ProfilePath       string
-	connectors        map[string]*skupperv2alpha1.Connector
-	listeners         map[string]*skupperv2alpha1.Listener
-	multiKeyListeners map[string]*skupperv2alpha1.MultiKeyListener
-	handler           BindingEventHandler
-	tlsSecretAllowed  func(secretName string) bool
-	configure         struct {
+	SiteId             string
+	ProfilePath        string
+	connectors         map[string]*skupperv2alpha1.Connector
+	listeners          map[string]*skupperv2alpha1.Listener
+	multiKeyListeners  map[string]*skupperv2alpha1.MultiKeyListener
+	handler            BindingEventHandler
+	isTlsSecretPresent func(secretName string) bool
+	configure          struct {
 		listener         ListenerConfiguration
 		connector        ConnectorConfiguration
 		multiKeyListener MultiKeyListenerConfiguration
@@ -54,20 +54,20 @@ func (b *Bindings) SetSiteId(siteId string) {
 	b.SiteId = siteId
 }
 
-func (b *Bindings) SetTlsSecretAllowed(f func(string) bool) {
-	b.tlsSecretAllowed = f
+func (b *Bindings) SetIsTlsSecretPresent(f func(string) bool) {
+	b.isTlsSecretPresent = f
 }
 
-// TlsCredentialIncluded reports whether TLS material for the given secret name may be
-// referenced in generated router configuration. Empty name always returns true.
-func (b *Bindings) TlsCredentialIncluded(secretName string) bool {
+// IsTlsSecretPresent reports whether TLS material for the given secret name is available
+// (e.g. in the ProfilesWatcher cache). Empty name always returns true.
+func (b *Bindings) IsTlsSecretPresent(secretName string) bool {
 	if secretName == "" {
 		return true
 	}
-	if b.tlsSecretAllowed == nil {
+	if b.isTlsSecretPresent == nil {
 		return true
 	}
-	return b.tlsSecretAllowed(secretName)
+	return b.isTlsSecretPresent(secretName)
 }
 
 func (b *Bindings) SetListenerConfiguration(configuration ListenerConfiguration) {
@@ -248,19 +248,19 @@ func (b *Bindings) ToBridgeConfig() qdr.BridgeConfig {
 		ListenerAddresses: qdr.ListenerAddressMap{},
 	}
 	for _, c := range b.connectors {
-		if c.Spec.TlsCredentials != "" && !b.TlsCredentialIncluded(c.Spec.TlsCredentials) {
+		if c.Spec.TlsCredentials != "" && !b.IsTlsSecretPresent(c.Spec.TlsCredentials) {
 			continue
 		}
 		b.configure.connector(b.SiteId, c, &config)
 	}
 	for _, l := range b.listeners {
-		if l.Spec.TlsCredentials != "" && !b.TlsCredentialIncluded(l.Spec.TlsCredentials) {
+		if l.Spec.TlsCredentials != "" && !b.IsTlsSecretPresent(l.Spec.TlsCredentials) {
 			continue
 		}
 		b.configure.listener(b.SiteId, l, &config)
 	}
 	for _, mkl := range b.multiKeyListeners {
-		if mkl.Spec.TlsCredentials != "" && !b.TlsCredentialIncluded(mkl.Spec.TlsCredentials) {
+		if mkl.Spec.TlsCredentials != "" && !b.IsTlsSecretPresent(mkl.Spec.TlsCredentials) {
 			continue
 		}
 		b.configure.multiKeyListener(b.SiteId, mkl, &config)
@@ -272,7 +272,7 @@ func (b *Bindings) ToBridgeConfig() qdr.BridgeConfig {
 func (b *Bindings) AddSslProfiles(config *qdr.RouterConfig) bool {
 	profiles := map[string]qdr.SslProfile{}
 	for _, c := range b.connectors {
-		if c.Spec.TlsCredentials != "" && !b.TlsCredentialIncluded(c.Spec.TlsCredentials) {
+		if c.Spec.TlsCredentials != "" && !b.IsTlsSecretPresent(c.Spec.TlsCredentials) {
 			continue
 		}
 		if c.Spec.TlsCredentials != "" {
@@ -291,7 +291,7 @@ func (b *Bindings) AddSslProfiles(config *qdr.RouterConfig) bool {
 		}
 	}
 	for _, l := range b.listeners {
-		if l.Spec.TlsCredentials != "" && !b.TlsCredentialIncluded(l.Spec.TlsCredentials) {
+		if l.Spec.TlsCredentials != "" && !b.IsTlsSecretPresent(l.Spec.TlsCredentials) {
 			continue
 		}
 		if _, ok := profiles[l.Spec.TlsCredentials]; l.Spec.TlsCredentials != "" && !ok {
@@ -299,7 +299,7 @@ func (b *Bindings) AddSslProfiles(config *qdr.RouterConfig) bool {
 		}
 	}
 	for _, mkl := range b.multiKeyListeners {
-		if mkl.Spec.TlsCredentials != "" && !b.TlsCredentialIncluded(mkl.Spec.TlsCredentials) {
+		if mkl.Spec.TlsCredentials != "" && !b.IsTlsSecretPresent(mkl.Spec.TlsCredentials) {
 			continue
 		}
 		if _, ok := profiles[mkl.Spec.TlsCredentials]; mkl.Spec.TlsCredentials != "" && !ok {

@@ -304,7 +304,7 @@ func (a *AttachedConnector) updateBridgeConfig(siteId string, config *qdr.Bridge
 	if definition == nil || a.watcher == nil {
 		return updated
 	}
-	if definition.Spec.TlsCredentials != "" && !a.parent.bindings.TlsCredentialIncluded(definition.Spec.TlsCredentials) {
+	if definition.Spec.TlsCredentials != "" && !a.parent.bindings.IsTlsSecretPresent(definition.Spec.TlsCredentials) {
 		return updated
 	}
 	connector := &skupperv2alpha1.Connector{

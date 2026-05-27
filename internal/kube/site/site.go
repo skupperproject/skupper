@@ -835,7 +835,7 @@ func (s *Site) reconcileAfterTlsSecretChange(pw qdr.ConfigUpdate) error {
 		op := ConfigUpdateList{
 			s.bindings,
 			s,
-			s.linkAccess.DesiredConfigAllowingTlsSecrets(groups[:i], SSL_PROFILE_PATH, s.tlsCredentialSecretPresent),
+			s.linkAccess.DesiredConfigWithAvailableCredentials(groups[:i], SSL_PROFILE_PATH, s.tlsCredentialSecretPresent),
 			&eligibleLinksConfig{site: s},
 			pw,
 		}
@@ -880,7 +880,7 @@ func (s *Site) recoverRouterConfig(update bool) ([]*qdr.RouterConfig, error) {
 	for i, group := range groups {
 		if config, ok := byName[group]; ok {
 			if update {
-				op := ConfigUpdateList{s.bindings, s, s.linkAccess.DesiredConfigAllowingTlsSecrets(groups[:i], SSL_PROFILE_PATH, s.tlsCredentialSecretPresent)}
+				op := ConfigUpdateList{s.bindings, s, s.linkAccess.DesiredConfigWithAvailableCredentials(groups[:i], SSL_PROFILE_PATH, s.tlsCredentialSecretPresent)}
 				if err := kubeqdr.UpdateRouterConfig(s.clients.GetKubeClient(), group, s.namespace, context.TODO(), op, s.labelling); err != nil {
 					s.logger.Error("Failed to update router config map",
 						slog.String("namespace", s.namespace),
@@ -893,7 +893,7 @@ func (s *Site) recoverRouterConfig(update bool) ([]*qdr.RouterConfig, error) {
 		} else {
 			routerConfig := s.initialRouterConfig()
 			s.bindings.Apply(routerConfig)
-			s.linkAccess.DesiredConfigAllowingTlsSecrets(groups[:i], SSL_PROFILE_PATH, s.tlsCredentialSecretPresent).Apply(routerConfig)
+			s.linkAccess.DesiredConfigWithAvailableCredentials(groups[:i], SSL_PROFILE_PATH, s.tlsCredentialSecretPresent).Apply(routerConfig)
 			if err := s.createRouterConfigForGroup(group, routerConfig); err != nil {
 				s.logger.Error("Failed to create router config map",
 					slog.String("namespace", s.namespace),
@@ -1662,7 +1662,7 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv2alpha1.RouterAccess) 
 	var errors []string
 	for i, group := range groups {
 		if specChanged || !la.IsConfigured() {
-			if err := s.updateRouterConfigForGroup(s.linkAccess.DesiredConfigAllowingTlsSecrets(previousGroups, SSL_PROFILE_PATH, s.tlsCredentialSecretPresent), group); err != nil {
+			if err := s.updateRouterConfigForGroup(s.linkAccess.DesiredConfigWithAvailableCredentials(previousGroups, SSL_PROFILE_PATH, s.tlsCredentialSecretPresent), group); err != nil {
 				s.logger.Error("Error updating router config",
 					slog.String("namespace", s.namespace),
 					slog.Any("error", err))
