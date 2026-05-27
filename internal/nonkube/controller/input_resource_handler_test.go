@@ -16,7 +16,8 @@ func TestInputResourceHandler(t *testing.T) {
 	t.Run("handler created for docker platform", func(t *testing.T) {
 		t.Setenv(types.ENV_SYSTEM_AUTO_RELOAD, "auto")
 		t.Setenv("CONTAINER_ENGINE", "docker")
-		inputResourceHandler := NewInputResourceHandler("test_namespace", "test_inputPath", mockBootstrap, mockPostExec, mockTearDown)
+		stopCh := make(chan struct{})
+		inputResourceHandler := NewInputResourceHandler(stopCh, "test_namespace", "test_inputPath", mockBootstrap, mockPostExec, mockTearDown)
 		expectedConfigBootstrap := bootstrap.Config{
 			Namespace: "test_namespace",
 			InputPath: "test_inputPath",
@@ -32,7 +33,8 @@ func TestInputResourceHandler(t *testing.T) {
 	t.Run("handler created for podman platform", func(t *testing.T) {
 		t.Setenv(types.ENV_SYSTEM_AUTO_RELOAD, "auto")
 		t.Setenv("CONTAINER_ENGINE", "podman")
-		inputResourceHandler := NewInputResourceHandler("test_namespace", "test_inputPath", mockBootstrap, mockPostExec, mockTearDown)
+		stopCh := make(chan struct{})
+		inputResourceHandler := NewInputResourceHandler(stopCh, "test_namespace", "test_inputPath", mockBootstrap, mockPostExec, mockTearDown)
 		expectedConfigBootstrap := bootstrap.Config{
 			Namespace: "test_namespace",
 			InputPath: "test_inputPath",
@@ -48,7 +50,8 @@ func TestInputResourceHandler(t *testing.T) {
 	t.Run("handler not created for linux platform", func(t *testing.T) {
 		t.Setenv(types.ENV_SYSTEM_AUTO_RELOAD, "auto")
 		t.Setenv("CONTAINER_ENGINE", "linux")
-		inputResourceHandler := NewInputResourceHandler("test_namespace", "test_inputPath", mockBootstrap, mockPostExec, mockTearDown)
+		stopCh := make(chan struct{})
+		inputResourceHandler := NewInputResourceHandler(stopCh, "test_namespace", "test_inputPath", mockBootstrap, mockPostExec, mockTearDown)
 
 		assert.Assert(t, inputResourceHandler == nil)
 
@@ -56,7 +59,8 @@ func TestInputResourceHandler(t *testing.T) {
 
 	t.Run("handler not created because the system reload is configured to be manual", func(t *testing.T) {
 		t.Setenv(types.ENV_SYSTEM_AUTO_RELOAD, "manual")
-		inputResourceHandler := NewInputResourceHandler("test_namespace", "test_inputPath", mockBootstrap, mockPostExec, mockTearDown)
+		stopCh := make(chan struct{})
+		inputResourceHandler := NewInputResourceHandler(stopCh, "test_namespace", "test_inputPath", mockBootstrap, mockPostExec, mockTearDown)
 
 		assert.Assert(t, inputResourceHandler == nil)
 
@@ -64,7 +68,8 @@ func TestInputResourceHandler(t *testing.T) {
 
 	t.Run("handler not created for unknown platform", func(t *testing.T) {
 		t.Setenv("CONTAINER_ENGINE", "unknown")
-		inputResourceHandler := NewInputResourceHandler("test_namespace", "test_inputPath", mockBootstrap, mockPostExec, mockTearDown)
+		stopCh := make(chan struct{})
+		inputResourceHandler := NewInputResourceHandler(stopCh, "test_namespace", "test_inputPath", mockBootstrap, mockPostExec, mockTearDown)
 
 		assert.Assert(t, inputResourceHandler == nil)
 
@@ -75,7 +80,8 @@ func TestInputResourceHandler(t *testing.T) {
 		namespace := "test-file-created-ns"
 		inputPath := "test-file-created-input-path"
 
-		handler := NewInputResourceHandler(namespace, inputPath, mockBootstrap, mockPostExec, mockTearDown)
+		stopCh := make(chan struct{})
+		handler := NewInputResourceHandler(stopCh, namespace, inputPath, mockBootstrap, mockPostExec, mockTearDown)
 
 		logSpy := &testLogHandler{
 			handler: slog.Default().Handler(),
@@ -97,7 +103,8 @@ func TestInputResourceHandler(t *testing.T) {
 		namespace := "test-file-ns"
 		inputPath := "test-file-input-path"
 
-		handler := NewInputResourceHandler(namespace, inputPath, mockBootstrap, mockPostExec, mockTearDown)
+		stopCh := make(chan struct{})
+		handler := NewInputResourceHandler(stopCh, namespace, inputPath, mockBootstrap, mockPostExec, mockTearDown)
 
 		logSpy := &testLogHandler{
 			handler: slog.Default().Handler(),

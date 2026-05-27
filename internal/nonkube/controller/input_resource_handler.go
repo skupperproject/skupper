@@ -21,6 +21,7 @@ import (
 // This feature is responsible for handling the creation of input resources and
 // execute the start/reload of the site configuration automatically.
 type InputResourceHandler struct {
+	stopCh            chan struct{}
 	logger            *slog.Logger
 	namespace         string
 	inputPath         string
@@ -32,13 +33,14 @@ type InputResourceHandler struct {
 	siteStateRenderer *compat.SiteStateRenderer
 	siteStateLoader   api.SiteStateLoader
 	siteHandler       *fs.SiteHandler
+	deduplicator      *EventDeduplicator
 }
 
 type Bootstrap func(config *bootstrap.Config) (*api.SiteState, error)
 type PostBootstrap func(config *bootstrap.Config, siteState *api.SiteState)
 type TearDown func(namespace string) error
 
-func NewInputResourceHandler(namespace string, inputPath string, bs Bootstrap, pbs PostBootstrap, td TearDown) *InputResourceHandler {
+func NewInputResourceHandler(stopCh chan struct{}, namespace string, inputPath string, bs Bootstrap, pbs PostBootstrap, td TearDown) *InputResourceHandler {
 
 	systemReloadType := utils.DefaultStr(os.Getenv(types.ENV_SYSTEM_AUTO_RELOAD),
 		types.SystemReloadTypeManual)
@@ -51,6 +53,7 @@ func NewInputResourceHandler(namespace string, inputPath string, bs Bootstrap, p
 	handler := &InputResourceHandler{
 		namespace: namespace,
 		inputPath: inputPath,
+		stopCh:    stopCh,
 	}
 
 	handler.logger = slog.Default().With("component", "input.resource.handler", "namespace", namespace)
@@ -96,26 +99,32 @@ func NewInputResourceHandler(namespace string, inputPath string, bs Bootstrap, p
 
 	handler.siteHandler = fs.NewSiteHandler(namespace)
 
+	handler.deduplicator = NewEventDeduplicator(
+		stopCh,
+		func(filename string) {
+			handler.lock.Lock()
+			defer handler.lock.Unlock()
+
+			err := handler.processInputFile()
+			if err != nil {
+				handler.logger.Error(err.Error())
+			}
+		},
+		handler.logger,
+	)
+
 	return handler
 }
 
 func (h *InputResourceHandler) OnCreate(name string) {
-	h.lock.Lock()
-	defer h.lock.Unlock()
-
 	h.logger.Info(fmt.Sprintf("Resource has been created: %s", name))
-	err := h.processInputFile()
-	if err != nil {
-		h.logger.Error(err.Error())
-	}
+	h.deduplicator.QueueEvent(name)
 }
 
-// This function does not need to be implemented, given that when a file is updated,
-// the event OnCreate is triggered anyway. Having it implemented would cause
-// the resources to be reloaded multiple times, stopping and starting a router pod.
-// (issue: the router pod is still active while going to be deleted, and the controller
-// tries to create a new router pod, failing on this)
-func (h *InputResourceHandler) OnUpdate(name string) {}
+func (h *InputResourceHandler) OnUpdate(name string) {
+	h.logger.Info(fmt.Sprintf("Resource has been updated: %s", name))
+	h.deduplicator.QueueEvent(name)
+}
 func (h *InputResourceHandler) OnRemove(name string) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
@@ -212,5 +221,9 @@ func (h *InputResourceHandler) tearDownNamespace() error {
 		return err
 	}
 
+	if h.deduplicator != nil {
+		h.logger.Info("Stopping deduplicator")
+		h.deduplicator.Stop()
+	}
 	return nil
 }
