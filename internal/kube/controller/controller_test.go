@@ -59,6 +59,7 @@ func TestGeneral(t *testing.T) {
 		expectedSecuredAccesses                  []*skupperv2alpha1.SecuredAccess
 		expectedSiteStatuses                     []*skupperv2alpha1.Site
 		expectedListenerStatuses                 []*skupperv2alpha1.Listener
+		expectedMultiKeyListenerStatuses         []*skupperv2alpha1.MultiKeyListener
 		expectedConnectorStatuses                []*skupperv2alpha1.Connector
 		expectedAttachedConnectorStatuses        []*skupperv2alpha1.AttachedConnector
 		expectedAttachedConnectorBindingStatuses []*skupperv2alpha1.AttachedConnectorBinding
@@ -363,6 +364,16 @@ func TestGeneral(t *testing.T) {
 			},
 		},
 		{
+			name: "multikeylistener with no site",
+			skupperObjects: []runtime.Object{
+				f.multiKeyListener("mymkl", "test", "mysvc", 8080),
+			},
+			expectedMultiKeyListenerStatuses: []*skupperv2alpha1.MultiKeyListener{
+				f.multiKeyListenerStatus("mymkl", "test", skupperv2alpha1.StatusError, "No active site in namespace",
+					f.condition(skupperv2alpha1.CONDITION_TYPE_CONFIGURED, metav1.ConditionFalse, "Error", "No active site in namespace")),
+			},
+		},
+		{
 			name: "site and connector with host field",
 			skupperObjects: []runtime.Object{
 				f.site("mysvc", "test", "", false, false),
@@ -573,6 +584,19 @@ func TestGeneral(t *testing.T) {
 				actual, err := clients.GetSkupperClient().SkupperV2alpha1().Listeners(expected.Namespace).Get(context.Background(), expected.Name, metav1.GetOptions{})
 				assert.Assert(t, err)
 				verifyStatus(t, expected.Status.Status, actual.Status.Status)
+			}
+			for _, expected := range tt.expectedMultiKeyListenerStatuses {
+				actual, err := clients.GetSkupperClient().SkupperV2alpha1().MultiKeyListeners(expected.Namespace).Get(context.Background(), expected.Name, metav1.GetOptions{})
+				assert.Assert(t, err)
+				verifyStatus(t, skupperv2alpha1.Status{
+					StatusType: expected.Status.StatusType,
+					Message:    expected.Status.Message,
+					Conditions: expected.Status.Conditions,
+				}, skupperv2alpha1.Status{
+					StatusType: actual.Status.StatusType,
+					Message:    actual.Status.Message,
+					Conditions: actual.Status.Conditions,
+				})
 			}
 			for _, expected := range tt.expectedConnectorStatuses {
 				actual, err := clients.GetSkupperClient().SkupperV2alpha1().Connectors(expected.Namespace).Get(context.Background(), expected.Name, metav1.GetOptions{})
@@ -1054,6 +1078,28 @@ func (*factory) listener(name string, namespace string, host string, port int) *
 	}
 }
 
+func (*factory) multiKeyListener(name string, namespace string, host string, port int) *skupperv2alpha1.MultiKeyListener {
+	return &skupperv2alpha1.MultiKeyListener{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "MultiKeyListener",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: skupperv2alpha1.MultiKeyListenerSpec{
+			Host: host,
+			Port: port,
+			Strategy: skupperv2alpha1.MultiKeyListenerStrategy{
+				Priority: &skupperv2alpha1.PriorityStrategySpec{
+					RoutingKeys: []string{"key-a", "key-b"},
+				},
+			},
+		},
+	}
+}
+
 func (*factory) connector(name string, namespace string, host string, port int) *skupperv2alpha1.Connector {
 	return &skupperv2alpha1.Connector{
 		TypeMeta: metav1.TypeMeta{
@@ -1197,6 +1243,24 @@ func (*factory) listenerStatus(name string, namespace string, statusType skupper
 		},
 		Status: skupperv2alpha1.ListenerStatus{
 			Status: f.status(statusType, message, conditions...),
+		},
+	}
+}
+
+func (*factory) multiKeyListenerStatus(name string, namespace string, statusType skupperv2alpha1.StatusType, message string, conditions ...metav1.Condition) *skupperv2alpha1.MultiKeyListener {
+	return &skupperv2alpha1.MultiKeyListener{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "MultiKeyListener",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Status: skupperv2alpha1.MultiKeyListenerStatus{
+			StatusType: statusType,
+			Message:    message,
+			Conditions: conditions,
 		},
 	}
 }
