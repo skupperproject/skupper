@@ -79,7 +79,7 @@ func TestCreateSiteRouterAccess(t *testing.T) {
 			name:                   "create router-access-west",
 			linkAccess:             "default",
 			existingRouterAccesses: map[string]*v2alpha1.RouterAccess{},
-			expectedName:           "router-access-test-site",
+			expectedName:           "test-site",
 			isBundle:               false,
 			expectRouterAccess:     true,
 		},
@@ -87,9 +87,9 @@ func TestCreateSiteRouterAccess(t *testing.T) {
 			name:       "router-access-test-site already exists, not recreated",
 			linkAccess: "default",
 			existingRouterAccesses: map[string]*v2alpha1.RouterAccess{
-				"router-access-test-site": {
+				"test-site": {
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "router-access-test-site",
+						Name: "test-site",
 					},
 					Spec: v2alpha1.RouterAccessSpec{
 						Roles: []v2alpha1.RouterAccessRole{
