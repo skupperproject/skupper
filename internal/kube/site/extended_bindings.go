@@ -428,10 +428,15 @@ func (b *ExtendedBindings) Apply(config *qdr.RouterConfig) bool {
 func (b *ExtendedBindings) AddSslProfiles(config *qdr.RouterConfig, definitions map[string]*skupperv2alpha1.AttachedConnector) bool {
 	profiles := map[string]qdr.SslProfile{}
 	for _, c := range definitions {
-		if c.Spec.TlsCredentials != "" && !b.bindings.IsTlsSecretPresent(c.Spec.TlsCredentials) {
-			continue
-		}
 		if c.Spec.TlsCredentials != "" {
+			if !b.bindings.IsTlsSecretPresent(c.Spec.TlsCredentials) {
+				b.logger.Info("Skipping attached connector TLS profile until credentials secret exists",
+					slog.String("namespace", c.Namespace),
+					slog.String("name", c.Name),
+					slog.String("secret", c.Spec.TlsCredentials),
+				)
+				continue
+			}
 			if !c.Spec.UseClientCert {
 				//if only ca is used, need to qualify the profile to ensure that it does not collide with
 				// use of the same secret where client auth *is* required

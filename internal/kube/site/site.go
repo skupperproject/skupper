@@ -789,6 +789,13 @@ func (s *Site) tlsCredentialSecretPresent(secretName string) bool {
 	return s.profiles.TlsCredentialSecretPresent(secretName)
 }
 
+func (s *Site) missingTlsCredentialsErr(tlsCredentials string) error {
+	if tlsCredentials == "" || s.tlsCredentialSecretPresent(tlsCredentials) {
+		return nil
+	}
+	return fmt.Errorf("TLS credentials secret %q not found", tlsCredentials)
+}
+
 // eligibleLinksConfig applies only links whose TLS credential secrets are present.
 type eligibleLinksConfig struct {
 	site *Site
@@ -1044,21 +1051,38 @@ func (s *Site) updateConnectorConfiguredStatusWithSelectedPods(connector *skuppe
 }
 
 func (s *Site) CheckConnector(name string, connector *skupperv2alpha1.Connector) error {
-	update := s.bindings.UpdateConnector(name, connector)
 	if s.site == nil {
 		if connector == nil {
 			return nil
 		}
 		return s.updateConnectorConfiguredStatus(connector, stderrors.New("No active site in namespace"))
 	}
-	if update == nil {
+	var tlsErr error
+	if connector != nil {
+		tlsErr = s.missingTlsCredentialsErr(connector.Spec.TlsCredentials)
+		if tlsErr != nil {
+			s.logger.Info("Deferring connector router configuration until TLS credentials secret exists",
+				slog.String("namespace", s.namespace),
+				slog.String("connector", connector.Name),
+				slog.String("secret", connector.Spec.TlsCredentials),
+			)
+		}
+	}
+	update := s.bindings.UpdateConnector(name, connector)
+	if connector == nil {
+		if update != nil {
+			return s.updateRouterConfig(update)
+		}
 		return nil
 	}
-	err := s.updateRouterConfig(update)
-	if connector == nil {
-		return err
+	if update == nil {
+		if tlsErr != nil {
+			return s.updateConnectorConfiguredStatus(connector, tlsErr)
+		}
+		return nil
 	}
-	return s.updateConnectorConfiguredStatus(connector, err)
+	routerErr := s.updateRouterConfig(update)
+	return s.updateConnectorConfiguredStatus(connector, stderrors.Join(tlsErr, routerErr))
 }
 
 func (s *Site) updateListenerStatus(listener *skupperv2alpha1.Listener, err error) error {
@@ -1150,15 +1174,32 @@ func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener, sv
 			}
 		}
 	}
+	var tlsErr error
+	if listener != nil {
+		tlsErr = s.missingTlsCredentialsErr(listener.Spec.TlsCredentials)
+		if tlsErr != nil {
+			s.logger.Info("Deferring listener router configuration until TLS credentials secret exists",
+				slog.String("namespace", s.namespace),
+				slog.String("listener", listener.Name),
+				slog.String("secret", listener.Spec.TlsCredentials),
+			)
+		}
+	}
 	update, err1 := s.bindings.UpdateListener(name, listener)
+	if listener == nil {
+		if update == nil {
+			return nil
+		}
+		return stderrors.Join(err1, s.updateRouterConfig(update))
+	}
 	if update == nil {
+		if tlsErr != nil {
+			return s.updateListenerStatus(listener, tlsErr)
+		}
 		return nil
 	}
 	err2 := s.updateRouterConfig(update)
-	if listener == nil {
-		return stderrors.Join(err1, err2)
-	}
-	return s.updateListenerStatus(listener, stderrors.Join(err1, err2))
+	return s.updateListenerStatus(listener, stderrors.Join(tlsErr, err1, err2))
 }
 
 func (s *Site) CheckMultiKeyListener(name string, mkl *skupperv2alpha1.MultiKeyListener) error {
@@ -1285,13 +1326,13 @@ func (s *Site) link(linkconfig *skupperv2alpha1.Link) error {
 					config.UpdateProxyConfig(currentProxyConfig)
 				}
 			}
-			if linkconfig.Spec.TlsCredentials != "" && !s.tlsCredentialSecretPresent(linkconfig.Spec.TlsCredentials) {
+			if tlsErr := s.missingTlsCredentialsErr(linkconfig.Spec.TlsCredentials); tlsErr != nil {
 				s.logger.Info("Deferring link router configuration until TLS credentials secret exists",
 					slog.String("namespace", s.namespace),
 					slog.String("link", linkconfig.Name),
 					slog.String("secret", linkconfig.Spec.TlsCredentials),
 				)
-				return s.updateLinkConfiguredCondition(linkconfig, fmt.Errorf("TLS credentials secret %q not found", linkconfig.Spec.TlsCredentials))
+				return s.updateLinkConfiguredCondition(linkconfig, tlsErr)
 			}
 			err := s.updateRouterConfig(config)
 			return s.updateLinkConfiguredCondition(linkconfig, err)
@@ -1649,8 +1690,10 @@ func (s *Site) CheckRouterAccess(name string, la *skupperv2alpha1.RouterAccess) 
 		return nil
 	}
 	var configuredErr error
-	if la != nil && la.Spec.TlsCredentials != "" && !s.tlsCredentialSecretPresent(la.Spec.TlsCredentials) {
-		configuredErr = fmt.Errorf("TLS credentials secret %q not found", la.Spec.TlsCredentials)
+	if la != nil {
+		configuredErr = s.missingTlsCredentialsErr(la.Spec.TlsCredentials)
+	}
+	if configuredErr != nil {
 		s.logger.Info("Deferring RouterAccess router configuration until TLS credentials secret exists",
 			slog.String("namespace", s.namespace),
 			slog.String("routerAccess", la.Name),
