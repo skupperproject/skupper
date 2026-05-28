@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	internalnetwork "github.com/skupperproject/skupper/internal/network"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -127,8 +128,51 @@ func (s *Site) CheckLeadListeners(listener *skupperv2alpha1.Listener) bool {
 }
 
 func (s *Site) StartRecovery(site *skupperv2alpha1.Site) error {
-	//TODO: check version and perform any necessary update tasks
+	if err := s.migrateRouterDeploymentSelectors(context.TODO(), site); err != nil {
+		return err
+	}
 	return s.reconcile(site, true)
+}
+
+// migrateRouterDeploymentSelectors deletes router Deployments whose
+// spec.selector includes skupper.io/group so the next reconcile recreates
+// them with the desired selector. Skupper 2.2.0 added skupper.io/group to
+// the selector in PR #2363; that change is reverted in 2.2.1+. See Issue #2440.
+func (s *Site) migrateRouterDeploymentSelectors(ctx context.Context, site *skupperv2alpha1.Site) error {
+	deployments := s.clients.GetKubeClient().AppsV1().Deployments(site.Namespace)
+	list, err := deployments.List(ctx, metav1.ListOptions{
+		LabelSelector: "skupper.io/component=router,skupper.io/type=site",
+	})
+	if err != nil {
+		return fmt.Errorf("router deployment selector migration: list failed: %w", err)
+	}
+	for i := range list.Items {
+		d := &list.Items[i]
+		if !needsSelectorMigration(d) {
+			continue
+		}
+		s.logger.Info("Recreating router Deployment to update immutable selector",
+			slog.String("namespace", site.Namespace),
+			slog.String("name", d.Name))
+		policy := metav1.DeletePropagationBackground
+		preconditions := metav1.Preconditions{UID: &d.UID, ResourceVersion: &d.ResourceVersion}
+		err = deployments.Delete(ctx, d.Name, metav1.DeleteOptions{
+			PropagationPolicy: &policy,
+			Preconditions:     &preconditions,
+		})
+		if err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("router deployment selector migration: delete %s failed: %w", d.Name, err)
+		}
+	}
+	return nil
+}
+
+func needsSelectorMigration(d *appsv1.Deployment) bool {
+	if d.Spec.Selector == nil {
+		return false
+	}
+	_, hasGroup := d.Spec.Selector.MatchLabels["skupper.io/group"]
+	return hasGroup
 }
 
 func (s *Site) isEdge() bool {
