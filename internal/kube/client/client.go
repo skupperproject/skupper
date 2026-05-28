@@ -3,6 +3,9 @@
 package client
 
 import (
+	"os"
+	"strconv"
+
 	openshiftapps "github.com/openshift/client-go/apps/clientset/versioned"
 	openshiftroute "github.com/openshift/client-go/route/clientset/versioned"
 
@@ -19,6 +22,40 @@ import (
 
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
 )
+
+// applyKubeClientRateLimits sets rest.Config QPS/Burst when they are unset so the controller
+// does not use client-go's implicit defaults (~5 QPS / 10 burst).
+// Skips if RateLimiter is already set; optional SKUPPER_KUBE_CLIENT_QPS / SKUPPER_KUBE_CLIENT_BURST env vars.
+func applyKubeClientRateLimits(cfg *restclient.Config) {
+	if cfg == nil || cfg.RateLimiter != nil {
+		return
+	}
+	if v := os.Getenv("SKUPPER_KUBE_CLIENT_QPS"); v != "" {
+		if f, err := strconv.ParseFloat(v, 32); err == nil && f > 0 {
+			cfg.QPS = float32(f)
+		}
+	}
+	if v := os.Getenv("SKUPPER_KUBE_CLIENT_BURST"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			cfg.Burst = n
+		}
+	}
+	if cfg.QPS <= 0 && cfg.Burst <= 0 {
+		cfg.QPS = 100
+		cfg.Burst = 200
+		return
+	}
+	if cfg.QPS > 0 && cfg.Burst <= 0 {
+		b := int(cfg.QPS * 2)
+		if b < 1 {
+			b = 1
+		}
+		cfg.Burst = b
+	}
+	if cfg.Burst > 0 && cfg.QPS <= 0 {
+		cfg.QPS = float32(cfg.Burst) / 2
+	}
+}
 
 // The Clients interface defines access to different types of client
 // interface required for interactions with the Kubernetes API
@@ -90,6 +127,7 @@ func NewClient(namespace string, context string, kubeConfigPath string) (*KubeCl
 	if err != nil {
 		return c, err
 	}
+	applyKubeClientRateLimits(restconfig)
 	restconfig.ContentConfig.GroupVersion = &schema.GroupVersion{Version: "v1"}
 	restconfig.APIPath = "/api"
 	restconfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: scheme.Codecs}
