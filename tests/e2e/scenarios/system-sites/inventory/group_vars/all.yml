@@ -4,3 +4,4 @@ ansible_user: "{{ lookup('env', 'USER') }}"
 ansible_python_interpreter: /usr/bin/python3
 debug: false
 namespace_prefix: "e2e-system-sites"
+skupper_cli_image: "{{ lookup('ansible.builtin.env', 'SKUPPER_CLI_IMAGE') | default('quay.io/skupper/cli:v2-dev', true) }}"
