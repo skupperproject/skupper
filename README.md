@@ -7,16 +7,9 @@ bare metal hosts, and mainframes.
 Version 1 of Skupper, [v1 branch](https://github.com/skupperproject/skupper/tree/v1) is working in many production 
 environments and has significantly reduced the time, effort and expense of deploying applications to a hybrid multicloud.
 
-The main branch focuses on the development of the upcoming major release of the Skupper project based on feedback from 
-users.
-
-The plan is to produce a number of "previews" on the branch in order to get further user feedback and refine the
-implementation of this major release. The v2 version is intended for evaluation purposes only and should not be used
-in production environments.
-
 # Highlights
 
-The objective of the next Skupper major release is to better support a full declarative model so that applications
+The objective of the Skupper v2 is to better support a full declarative model so that applications
 and VANs can be more easily deployed in fully automated frameworks.
 
 The release includes:
