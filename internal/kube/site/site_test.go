@@ -16,9 +16,12 @@ import (
 	"github.com/skupperproject/skupper/internal/version"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/v3/assert"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func TestSite_Recover(t *testing.T) {
@@ -85,6 +88,88 @@ func TestSite_Recover(t *testing.T) {
 
 			if err := s.StartRecovery(tt.args.site); (err != nil) != tt.wantErr {
 				t.Errorf("Site.Reconcile() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestSite_migrateRouterDeploymentSelectors(t *testing.T) {
+	legacySelector := &metav1.LabelSelector{MatchLabels: map[string]string{
+		"skupper.io/component": "router",
+	}}
+	v220Selector := &metav1.LabelSelector{MatchLabels: map[string]string{
+		"skupper.io/component": "router",
+		"skupper.io/group":     "skupper-router",
+	}}
+	routerLabels := map[string]string{
+		"skupper.io/component": "router",
+		"skupper.io/type":      "site",
+	}
+	makeDeployment := func(name string, selector *metav1.LabelSelector, labels map[string]string) *appsv1.Deployment {
+		return &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      name,
+				Namespace: "test",
+				UID:       types.UID("uid-" + name),
+				Labels:    labels,
+			},
+			Spec: appsv1.DeploymentSpec{Selector: selector},
+		}
+	}
+
+	tests := []struct {
+		name        string
+		objects     []runtime.Object
+		stillExists []string
+		gone        []string
+	}{
+		{
+			name:    "2.2.0 deployment is recreated",
+			objects: []runtime.Object{makeDeployment("skupper-router", v220Selector, routerLabels)},
+			gone:    []string{"skupper-router"},
+		},
+		{
+			name:        "legacy deployment is left alone",
+			objects:     []runtime.Object{makeDeployment("skupper-router", legacySelector, routerLabels)},
+			stillExists: []string{"skupper-router"},
+		},
+		{
+			name: "HA: only 2.2.0 deployments are deleted",
+			objects: []runtime.Object{
+				makeDeployment("skupper-router", v220Selector, routerLabels),
+				makeDeployment("skupper-router-2", legacySelector, routerLabels),
+			},
+			stillExists: []string{"skupper-router-2"},
+			gone:        []string{"skupper-router"},
+		},
+		{
+			name: "unrelated deployment is ignored",
+			objects: []runtime.Object{
+				makeDeployment("not-a-router", v220Selector, map[string]string{"app": "other"}),
+			},
+			stillExists: []string{"not-a-router"},
+		},
+		{
+			name: "no deployments yet is a no-op",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s, err := newSiteMocks("test", tt.objects, nil, "", false)
+			assert.NilError(t, err)
+
+			err = s.migrateRouterDeploymentSelectors(context.Background(), s.site)
+			assert.NilError(t, err)
+
+			deployments := s.clients.GetKubeClient().AppsV1().Deployments("test")
+			for _, name := range tt.stillExists {
+				_, err := deployments.Get(context.Background(), name, metav1.GetOptions{})
+				assert.NilError(t, err, "expected %s to still exist", name)
+			}
+			for _, name := range tt.gone {
+				_, err := deployments.Get(context.Background(), name, metav1.GetOptions{})
+				assert.Assert(t, errors.IsNotFound(err), "expected %s to be deleted, got err=%v", name, err)
 			}
 		})
 	}
