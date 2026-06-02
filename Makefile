@@ -166,6 +166,9 @@ generate-skupper-deployment-cluster-scoped:
 generate-skupper-deployment-namespace-scoped:
 	./scripts/skupper-deployment-generator.sh namespace ${IMAGE_TAG} ${ROUTER_IMAGE_TAG} false > skupper-namespace-scope.yaml
 
+generate-crd-manifest:
+	kubectl kustomize config/crd > skupper-crds.yaml
+
 pack-skupper-helm-chart: generate-skupper-helm-chart
 	helm package ./charts/skupper
 
@@ -209,7 +212,7 @@ clean:
 	rm -rf skupper controller kube-adaptor \
 		network-observer generate-doc \
 		cover.out oci-archives bundle bundle.Dockerfile \
-		skupper-*.tgz artifacthub-repo.yml \
+		skupper-*.tgz artifacthub-repo.yml skupper-crds.yaml \
 		network-observer-*.tgz  skupper-*-scope.yaml \
 		network-observer-operator \
 		must-gather.local.*
