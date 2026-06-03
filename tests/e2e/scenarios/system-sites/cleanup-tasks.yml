@@ -28,7 +28,7 @@
   skupper.v2.controller:
     action: uninstall
     platform: "{{ platform }}"
-    image: "{{ skupper_cli_image }}"
+    image: "{{ skupper_system_controller_image }}"
   failed_when: false
   run_once: true
   when: not skip_teardown | default(false) | bool
