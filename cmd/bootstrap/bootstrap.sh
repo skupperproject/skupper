@@ -2,8 +2,8 @@
 
 set -Ceu
 
-IMAGE="${SKUPPER_CLI_IMAGE:-quay.io/skupper/cli:2.2.0}"
-ROUTER_IMAGE="${SKUPPER_ROUTER_IMAGE:-quay.io/skupper/skupper-router:3.5.0}"
+IMAGE="${SKUPPER_CLI_IMAGE:-quay.io/skupper/cli:2.2.1}"
+ROUTER_IMAGE="${SKUPPER_ROUTER_IMAGE:-quay.io/skupper/skupper-router:3.5.1}"
 export INPUT_PATH=""
 export NAMESPACE=""
 export FORCE_FLAG=""
