@@ -39,6 +39,11 @@ By default, the chart installs the Skupper CRDs required by the controller
 to properly function.  If you want to install CRDs separately from the Helm chart, use
 the `--skip-crds` flag with `helm install`.
 
+> **Note:** Helm only installs CRDs on the initial `helm install`. It does not
+> create new CRDs or update existing ones on `helm upgrade`. When upgrading to a
+> newer Skupper version, apply the updated CRDs out of band first — see
+> [Upgrading the chart](#upgrading-the-chart).
+
 ### Image Overrides
 
 The chart exposes overrides for the three images required to run a skupper site.
@@ -90,6 +95,24 @@ defaultAccessType: "nodeport"
 > **Note:** `defaultAccessType` is not mandatory. When omitted, the controller
 > auto-selects the default access type (`route` on OpenShift, `loadbalancer`
 > otherwise).
+
+## Upgrading the chart
+
+Helm does not upgrade CRDs. To use the latest Skupper API, apply the most
+recent CRDs before running `helm upgrade`:
+
+```bash
+kubectl apply --server-side -f \
+  https://github.com/skupperproject/skupper/releases/latest/download/skupper-crds.yaml
+```
+
+To pin a specific version instead of `latest`, use the corresponding release tag:
+
+```bash
+VERSION=2.2.1
+kubectl apply --server-side -f \
+  "https://github.com/skupperproject/skupper/releases/download/${VERSION}/skupper-crds.yaml"
+```
 
 ## Alternative Installation Methods
 
