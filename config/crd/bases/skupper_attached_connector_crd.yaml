@@ -43,7 +43,7 @@ spec:
                 type:
                   type: string
                   description: |-
-                    Selected protocol for service networking. By default, its value is TCP, the only option available.
+                    Selected protocol for application networking. By default, its value is TCP, the only option available.
                 includeNotReadyPods:
                   description: |-
                     Advanced. If true, include server pods in the NotReady state. By default it is false.
