@@ -95,3 +95,43 @@ func TestUpdateBridgeConfigForConnector(t *testing.T) {
 		})
 	}
 }
+
+func TestGetSslProfileName(t *testing.T) {
+	tests := []struct {
+		name           string
+		tlsCredentials string
+		useClientCert  bool
+		expected       string
+	}{
+		{
+			name:           "no tls credentials",
+			tlsCredentials: "",
+			useClientCert:  false,
+			expected:       "",
+		},
+		{
+			name:           "no tls credentials with client cert",
+			tlsCredentials: "",
+			useClientCert:  true,
+			expected:       "",
+		},
+		{
+			name:           "with tls credentials without client cert",
+			tlsCredentials: "tls-secret",
+			useClientCert:  false,
+			expected:       "tls-secret-profile",
+		},
+		{
+			name:           "with tls credentials with client cert",
+			tlsCredentials: "tls-secret",
+			useClientCert:  true,
+			expected:       "tls-secret",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetSslProfileName(tt.tlsCredentials, tt.useClientCert)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
