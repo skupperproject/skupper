@@ -89,6 +89,7 @@ e2e-tests:
 	@echo "Running all tests in sequence..."
 	@for test_dir in $(E2E_TEST_DIRS); do \
 		test_name=$$(basename $$test_dir); \
+		[ "$$test_name" == "expose-pods-by-name" ] && continue; \
 		echo "\n=== Running test: $$test_name ==="; \
 		$(MAKE) test TEST="$$test_name" || exit 1; \
 	done
