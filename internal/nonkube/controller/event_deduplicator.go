@@ -56,6 +56,7 @@ func (ed *EventDeduplicator) processEvents() {
 				timer.Stop()
 			}
 			ed.mutex.Unlock()
+			close(ed.eventCh)
 			return
 		}
 	}
@@ -78,7 +79,6 @@ func (ed *EventDeduplicator) QueueEvent(filename string) {
 }
 
 func (ed *EventDeduplicator) Stop() {
-	if ed.stopCh != nil {
-		close(ed.stopCh)
-	}
+	// eventCh is automatically closed when stopCh is closed
+	// This method is kept for backward compatibility but does nothing
 }
