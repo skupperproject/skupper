@@ -16,6 +16,7 @@ type EventDeduplicator struct {
 	pendingEvents map[string]*time.Timer
 	handler       func(string)
 	logger        *slog.Logger
+	closeOnce     sync.Once
 }
 
 func NewEventDeduplicator(stopCh chan struct{}, handler func(string), logger *slog.Logger) *EventDeduplicator {
@@ -28,6 +29,7 @@ func NewEventDeduplicator(stopCh chan struct{}, handler func(string), logger *sl
 	}
 
 	go ed.processEvents()
+	go ed.handleStop()
 
 	return ed
 }
@@ -37,7 +39,11 @@ func (ed *EventDeduplicator) processEvents() {
 
 	for {
 		select {
-		case filename := <-ed.eventCh:
+		case filename, ok := <-ed.eventCh:
+			if !ok {
+				return
+			}
+
 			ed.mutex.Lock()
 
 			if timer, exists := ed.pendingEvents[filename]; exists {
@@ -49,15 +55,6 @@ func (ed *EventDeduplicator) processEvents() {
 			})
 
 			ed.mutex.Unlock()
-
-		case <-ed.stopCh:
-			ed.mutex.Lock()
-			for _, timer := range ed.pendingEvents {
-				timer.Stop()
-			}
-			ed.mutex.Unlock()
-			close(ed.eventCh)
-			return
 		}
 	}
 }
@@ -78,7 +75,28 @@ func (ed *EventDeduplicator) QueueEvent(filename string) {
 	}
 }
 
+func (ed *EventDeduplicator) handleStop() {
+	t := time.NewTicker(time.Second)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-ed.stopCh:
+			ed.logger.Info("Parent channel is closed")
+			ed.Stop()
+			return
+		case <-t.C:
+		}
+	}
+}
+
 func (ed *EventDeduplicator) Stop() {
-	// eventCh is automatically closed when stopCh is closed
-	// This method is kept for backward compatibility but does nothing
+	ed.closeOnce.Do(func() {
+		ed.mutex.Lock()
+		for _, timer := range ed.pendingEvents {
+			timer.Stop()
+		}
+		close(ed.eventCh)
+		ed.mutex.Unlock()
+	})
 }

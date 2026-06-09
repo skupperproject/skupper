@@ -141,18 +141,14 @@ func TestEventDeduplicator_closes_eventCh_when_stopCh_closed(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		select {
-		case _, ok := <-deduplicator.eventCh:
-			if ok {
-				t.Error("Expected eventCh to be closed, but it's still open")
-			}
-		case <-time.After(100 * time.Millisecond):
-			t.Error("Timeout waiting for eventCh to be closed")
+		_, ok := <-deduplicator.eventCh
+		if ok {
+			t.Error("Expected eventCh to be closed, but it's still open")
 		}
 	})
 }
 
-func TestEventDeduplicator_no_double_close_panic(t *testing.T) {
+func TestEventDeduplicator_no_panic_on_double_stop(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		handler := func(filename string) {}
 
@@ -160,15 +156,20 @@ func TestEventDeduplicator_no_double_close_panic(t *testing.T) {
 		stopCh := make(chan struct{})
 		deduplicator := NewEventDeduplicator(stopCh, handler, logger)
 
-		// Close stopCh (simulating NamespaceController.Stop())
+		// trigger namespace controller shutdown
 		close(stopCh)
 		time.Sleep(50 * time.Millisecond)
 
 		defer func() {
 			if r := recover(); r != nil {
-				t.Errorf("Stop() caused panic: %v", r)
+				t.Errorf("Second Stop() call caused panic: %v", r)
 			}
 		}()
 		deduplicator.Stop()
+
+		_, ok := <-deduplicator.eventCh
+		if ok {
+			t.Error("Expected eventCh to be closed")
+		}
 	})
 }
