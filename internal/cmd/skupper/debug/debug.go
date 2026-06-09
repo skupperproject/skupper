@@ -18,6 +18,7 @@ func NewCmdDebug() *cobra.Command {
 	}
 	platform := common.Platform(config.GetPlatform())
 	cmd.AddCommand(CmdDebugDumpFactory(platform))
+	cmd.AddCommand(CmdDebugMentatFactory(platform))
 
 	return cmd
 }
@@ -45,4 +46,23 @@ func CmdDebugDumpFactory(configuredPlatform common.Platform) *cobra.Command {
 
 	return cmd
 
+}
+
+func CmdDebugMentatFactory(configuredPlatform common.Platform) *cobra.Command {
+	kubeCommand := kube.NewCmdDebugMentat()
+	nonKubeCommand := nonkube.NewCmdDebugMentat()
+
+	desc := common.SkupperCmdDescription{
+		Use:     "mentat [dumpfile]",
+		Short:   "Analyze connectivity from a debug dump using mentat",
+		Long:    "Processes a skupper debug dump and prints connectivity report.",
+		Example: "skupper debug mentat my-dump.tar.gz\nskupper debug mentat my-dump.tar.gz --time \"2025-05-11 14:30:00\"",
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, desc, kubeCommand, nonKubeCommand)
+
+	// Add the --time flag
+	cmd.Flags().StringP("time", "t", "", "Check connectivity at a specific time (format: YYYY-MM-DD HH:MM:SS)")
+
+	return cmd
 }
