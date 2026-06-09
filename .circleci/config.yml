@@ -351,7 +351,7 @@ jobs:
           name: Running E2E Tests
           command: |
             set -x
-            export SKUPPER_SYSTEM_CONTROLLER_IMAGE="quay.io/skupper/cli:<< parameters.image_tag >>"
+            export SKUPPER_SYSTEM_CONTROLLER_IMAGE="quay.io/skupper/system-controller:<< parameters.image_tag >>"
             export SKUPPER_CLI_IMAGE="quay.io/skupper/cli:<< parameters.image_tag >>"
             cd tests
             cp ~/kc.west ~/.kube/config
