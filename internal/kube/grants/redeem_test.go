@@ -380,7 +380,7 @@ func Test_RedeemAccessToken(t *testing.T) {
 			name:           "no resolved endpoints",
 			scheme:         "https",
 			tokenName:      "my-token",
-			expectedStatus: "Controller got failed response: 500 (Internal Server Error) Could not resolve any endpoints for requested link",
+			expectedStatus: "Controller got failed response: 500 (Internal Server Error) No valid endpoints found for site",
 		},
 		{
 			name:           "bad default issuer",

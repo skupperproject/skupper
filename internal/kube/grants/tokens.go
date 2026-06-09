@@ -52,9 +52,9 @@ func NewTokenGenerator(site *skupperv2alpha1.Site, clients internalclient.Client
 			slog.Any("error", err))
 		return nil, errors.New("Could not get issuer for requested certificate")
 	}
-	if ok := generator.setValidHostsFromSite(site); !ok {
+	if err := generator.setValidHostsFromSite(site); err != nil {
 		generator.logger.Error("Could not resolve any target endpoints for site", slog.String("namespace", site.Namespace), slog.String("name", site.Name))
-		return nil, errors.New("Could not resolve any endpoints for requested link")
+		return nil, err
 	}
 	return generator, nil
 }
@@ -68,15 +68,16 @@ func (g *TokenGenerator) loadCA(name string) error {
 	return nil
 }
 
-func (g *TokenGenerator) setValidHostsFromSite(site *skupperv2alpha1.Site) bool {
-	//TODO: if site is edge site, then return an error as it
-	//cannot issue certificates
+func (g *TokenGenerator) setValidHostsFromSite(site *skupperv2alpha1.Site) error {
+	if site.Spec.Edge {
+		return errors.New("Edge sites cannot accept incoming links from remote sites")
+	}
 	var hosts []string
 	for _, endpoint := range site.Status.Endpoints {
 		hosts = append(hosts, endpoint.Host)
 	}
 	if len(hosts) == 0 {
-		return false
+		return errors.New("No valid endpoints found for site")
 	}
 	byGroup := map[string][]skupperv2alpha1.Endpoint{}
 	//TODO: should only include groups that are valid for the defined issuer
@@ -90,7 +91,7 @@ func (g *TokenGenerator) setValidHostsFromSite(site *skupperv2alpha1.Site) bool 
 	}
 	g.logger.Info("Endpoints for grant by group", slog.Any("endpoints", g.endpoints), slog.Any("byGroup", byGroup))
 	g.hosts = hosts
-	return true
+	return nil
 }
 
 func (g *TokenGenerator) NewCertToken(name string, subject string) (Token, error) {
