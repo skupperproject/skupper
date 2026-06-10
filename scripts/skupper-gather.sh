@@ -16,6 +16,95 @@ get_log_collection_args() {
   fi
 }
 
+function getPodResources() {
+  local ns="${1}"
+  local podName="${2}"
+  local container="${3}"
+  local podDirName="${podName##"pod/"}"
+
+  local resourcePath=${BASE_COLLECTION_PATH}/namespaces/${ns}/pods/${podDirName}/${container}/${container}/resources
+  mkdir -p "${resourcePath}"
+
+  echo "Collecting resource usage for pod ${podName} in ${ns}"
+
+  # Memory Info
+  oc exec -n "${ns}" "${podName}" -c "${container}" -- bash -c '
+    curr=$(cat /sys/fs/cgroup/memory.current)
+    max=$(cat /sys/fs/cgroup/memory.max)
+    curr_kb=$((curr / 1024))
+    curr_mb=$((curr / 1024 / 1024))
+
+    if [ "$max" = "max" ]; then
+      limit_str="max (uncapped)"
+    else
+      max_kb=$((max / 1024))
+      max_mb=$((max / 1024 / 1024))
+      limit_str="$max bytes ($max_kb KiB / $max_mb MiB)"
+    fi
+
+    echo "Usage: $curr bytes ($curr_kb KiB / $curr_mb MiB) - Limit: $limit_str" > /tmp/memory.info
+  ' 2>/dev/null
+  oc exec -n "${ns}" "${podName}" -c "${container}" -- cat /tmp/memory.info > "${resourcePath}/memory.info" 2>&1
+
+  # Memory pressure
+oc exec -n "${ns}" "${podName}" -c "${container}" -- bash -c '
+    if [ -f /sys/fs/cgroup/memory.pressure ]; then
+      cat /sys/fs/cgroup/memory.pressure
+    else
+      echo "PSI not available on this node (kernel psi=1 not enabled)"
+    fi
+' > "${resourcePath}/memory.pressure" 2>&1
+
+
+  # Out of Memory events
+  oc exec -n "${ns}" "${podName}" -c "${container}" -- bash -c '
+    if [ -f /sys/fs/cgroup/memory.events ]; then
+      echo "=== memory.events (cgroup v2) ===" 
+      cat /sys/fs/cgroup/memory.events
+    fi
+    if [ -f /sys/fs/cgroup/memory.oom_control ]; then
+      echo "=== memory.oom_control (cgroup v1) ==="
+      cat /sys/fs/cgroup/memory.oom_control
+    fi
+  ' > "${resourcePath}/memory.oom" 2>&1
+
+  # CPU usage
+  oc exec -n "${ns}" "${podName}" -c "${container}" -- bash -c "
+    cat /sys/fs/cgroup/cpu.stat | while read line; do
+      val=\$(echo \$line | awk '{print \$2}')
+      key=\$(echo \$line | awk '{print \$1}')
+      if [[ \$key == *_usec ]] && [ \$val -ge 1000000 ]; then
+        sec=\$(awk \"BEGIN {printf \\\"%.2f\\\", \$val/1000000}\")
+        echo \"\$line (\$sec s)\"
+      else
+        echo \"\$line\"
+      fi
+    done
+  " > "${resourcePath}/cpu.stat" 2>&1
+
+  # CPU limit
+  oc exec -n "${ns}" "${podName}" -c "${container}" -- bash -c '
+    cpu_max=$(cat /sys/fs/cgroup/cpu.max)
+    quota=$(echo $cpu_max | awk "{print \$1}")
+    period=$(echo $cpu_max | awk "{print \$2}")
+    if [ "$quota" = "max" ]; then
+      echo "CPU Limit: uncapped (no quota set)"
+    else
+      cores=$(awk "BEGIN {printf \"%.2f\", $quota/$period}")
+      echo "CPU Limit: $quota/$period us = $cores cores"
+    fi
+  ' > "${resourcePath}/cpu.max" 2>&1
+
+  # CPU pressure
+oc exec -n "${ns}" "${podName}" -c "${container}" -- bash -c '
+  if [ -f /sys/fs/cgroup/cpu.pressure ]; then
+    cat /sys/fs/cgroup/cpu.pressure
+  else
+    echo "PSI not available on this node (kernel psi=1 not enabled)"
+  fi
+' > "${resourcePath}/cpu.pressure" 2>&1
+}
+
 function getSkupperRouterSkstatInNamespace() {
   local routerNamespace="${1}"
   local flags=("g" "c" "l" "n" "e" "a" "m" "p")
@@ -28,6 +117,7 @@ function getSkupperRouterSkstatInNamespace() {
     for flag in "${flags[@]}"; do
       oc exec -n "${sitens}" "${routerName}" -c router -- skstat -"${flag}" > "${logPath}/skstat.${flag}" 2>&1
     done
+    getPodResources "${sitens}" "${routerName}" "router"
   done 
 }
 
