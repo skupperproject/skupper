@@ -434,6 +434,16 @@ func Test_checkGrant(t *testing.T) {
 			UID:       "0bde3bc8-a4a2-404a-bfbe-44fdf7bf3231",
 		},
 	}
+	edgeSiteGrant := &v2alpha1.AccessGrant{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "edge",
+			Namespace: "test",
+			UID:       "0bde3bc8-a4a2-404a-bfbe-44fdf7bf3232",
+		},
+		Spec: v2alpha1.AccessGrantSpec{
+			RedemptionsAllowed: 1,
+		},
+	}
 	badExpirationWindow := &v2alpha1.AccessGrant{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "bad-expiration",
@@ -447,7 +457,27 @@ func Test_checkGrant(t *testing.T) {
 
 	skupperObjects := []runtime.Object{
 		good,
+		edgeSiteGrant,
 		badExpirationWindow,
+		&v2alpha1.Site{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "site1",
+				Namespace: "test",
+			},
+			Spec: v2alpha1.SiteSpec{
+				Edge: true,
+			},
+			Status: v2alpha1.SiteStatus{
+				Status: v2alpha1.Status{
+					Conditions: []metav1.Condition{
+						{
+							Type:   v2alpha1.CONDITION_TYPE_READY,
+							Status: metav1.ConditionTrue,
+						},
+					},
+				},
+			},
+		},
 	}
 	var tests = []struct {
 		name  string
@@ -459,6 +489,15 @@ func Test_checkGrant(t *testing.T) {
 				{
 					key:   good.Namespace + "/" + good.Name,
 					grant: good,
+				},
+			},
+		},
+		{
+			name: "edge site blocked",
+			calls: []CheckGrantTestInvocation{
+				{
+					key:   edgeSiteGrant.Namespace + "/" + edgeSiteGrant.Name,
+					grant: edgeSiteGrant,
 				},
 			},
 		},
@@ -608,6 +647,12 @@ func Test_checkGrant(t *testing.T) {
 				if call.recheckCa != "" {
 					registry.setCA(call.recheckCa)
 					registry.recheckCa()
+				}
+				if tt.name == "edge site blocked" {
+					latest, err := client.GetSkupperClient().SkupperV2alpha1().AccessGrants(call.grant.Namespace).Get(context.TODO(), call.grant.Name, metav1.GetOptions{})
+					assert.Assert(t, err)
+					assert.Equal(t, latest.Status.Message, "Edge sites cannot accept incoming links from remote sites")
+					assert.Assert(t, !latest.IsReady())
 				}
 			}
 		})
