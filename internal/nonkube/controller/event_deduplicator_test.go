@@ -119,7 +119,7 @@ func TestEventDeduplicator_resets_timer_new_event_for_same_file(t *testing.T) {
 	})
 }
 
-func TestEventDeduplicator_closes_eventCh_when_stopCh_closed(t *testing.T) {
+func TestEventDeduplicator_closes_done_when_stopCh_closed(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		var processedCount int
 		var mu sync.Mutex
