@@ -12,6 +12,7 @@ import (
 type EventDeduplicator struct {
 	eventCh       chan string
 	stopCh        chan struct{}
+	done          chan struct{}
 	mutex         sync.Mutex
 	pendingEvents map[string]*time.Timer
 	handler       func(string)
@@ -23,13 +24,13 @@ func NewEventDeduplicator(stopCh chan struct{}, handler func(string), logger *sl
 	ed := &EventDeduplicator{
 		eventCh:       make(chan string, 10),
 		stopCh:        stopCh,
+		done:          make(chan struct{}),
 		pendingEvents: make(map[string]*time.Timer),
 		handler:       handler,
 		logger:        logger,
 	}
 
 	go ed.processEvents()
-	go ed.handleStop()
 
 	return ed
 }
@@ -39,11 +40,15 @@ func (ed *EventDeduplicator) processEvents() {
 
 	for {
 		select {
-		case filename, ok := <-ed.eventCh:
-			if !ok {
-				return
-			}
+		case <-ed.stopCh:
+			ed.logger.Info("Parent channel is closed")
+			ed.Stop()
+			return
 
+		case <-ed.done:
+			return
+
+		case filename := <-ed.eventCh:
 			ed.mutex.Lock()
 
 			if timer, exists := ed.pendingEvents[filename]; exists {
@@ -75,28 +80,14 @@ func (ed *EventDeduplicator) QueueEvent(filename string) {
 	}
 }
 
-func (ed *EventDeduplicator) handleStop() {
-	t := time.NewTicker(time.Second)
-	defer t.Stop()
-
-	for {
-		select {
-		case <-ed.stopCh:
-			ed.logger.Info("Parent channel is closed")
-			ed.Stop()
-			return
-		case <-t.C:
-		}
-	}
-}
-
 func (ed *EventDeduplicator) Stop() {
 	ed.closeOnce.Do(func() {
 		ed.mutex.Lock()
 		for _, timer := range ed.pendingEvents {
 			timer.Stop()
 		}
-		close(ed.eventCh)
 		ed.mutex.Unlock()
+
+		close(ed.done)
 	})
 }

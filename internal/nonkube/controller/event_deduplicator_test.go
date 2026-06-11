@@ -141,9 +141,10 @@ func TestEventDeduplicator_closes_eventCh_when_stopCh_closed(t *testing.T) {
 
 		time.Sleep(50 * time.Millisecond)
 
-		_, ok := <-deduplicator.eventCh
-		if ok {
-			t.Error("Expected eventCh to be closed, but it's still open")
+		select {
+		case <-deduplicator.done:
+		default:
+			t.Error("Expected done channel to be closed, but it's still open")
 		}
 	})
 }
@@ -167,9 +168,10 @@ func TestEventDeduplicator_no_panic_on_double_stop(t *testing.T) {
 		}()
 		deduplicator.Stop()
 
-		_, ok := <-deduplicator.eventCh
-		if ok {
-			t.Error("Expected eventCh to be closed")
+		select {
+		case <-deduplicator.done:
+		default:
+			t.Error("Expected done channel to be closed")
 		}
 	})
 }
