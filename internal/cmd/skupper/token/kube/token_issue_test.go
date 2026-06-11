@@ -721,6 +721,59 @@ func TestCmdTokenIssue_ValidateInput(t *testing.T) {
 			expectedError: `You must enable link access for this site before you can create a token.`,
 		},
 		{
+			name: "edge site cannot create token",
+			args: []string{"/tmp/token.yaml"},
+			flags: common.CommandTokenIssueFlags{
+				ExpirationWindow:   15 * time.Minute,
+				RedemptionsAllowed: 1,
+				Timeout:            60 * time.Second,
+				Cost:               "1",
+			},
+			skupperObjects: []runtime.Object{
+				&v2alpha1.SiteList{
+					Items: []v2alpha1.Site{
+						{
+							ObjectMeta: v1.ObjectMeta{
+								Name:      "site1",
+								Namespace: "test",
+							},
+							Spec: v2alpha1.SiteSpec{
+								LinkAccess: "default",
+								Edge:       true,
+							},
+							Status: v2alpha1.SiteStatus{
+								Status: v2alpha1.Status{
+									Conditions: []v1.Condition{
+										{
+											Type:   "Configured",
+											Status: "True",
+										},
+										{
+											Type:   "Running",
+											Status: "True",
+										},
+										{
+											Type:   "Ready",
+											Status: "True",
+										},
+									},
+								},
+								Endpoints: []v2alpha1.Endpoint{
+									{
+										Name:  "inter-router",
+										Host:  "127.0.0.1",
+										Port:  "8080",
+										Group: "skupper-router-1",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedError: "Edge sites cannot accept incoming links from remote sites",
+		},
+		{
 			name: "flags all valid",
 			args: []string{"/tmp/token.yaml"},
 			flags: common.CommandTokenIssueFlags{

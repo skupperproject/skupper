@@ -5,9 +5,10 @@ import (
 	"io"
 	"testing"
 
-	"gotest.tools/v3/assert"
-
+	"github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	"gotest.tools/v3/assert"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func Test_CertTokenWrite(t *testing.T) {
@@ -90,4 +91,51 @@ func Test_CertTokenWrite(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_NewTokenGenerator(t *testing.T) {
+	site := tf.site("my-site", "test")
+	site.Status.Endpoints = []v2alpha1.Endpoint{
+		{
+			Name:  "inter-router",
+			Host:  "my-host",
+			Port:  "55671",
+			Group: "default",
+		},
+	}
+	caSecret, err := tf.secret("skupper-site-ca", "test", "site-ca", nil)
+	assert.Assert(t, err == nil)
+	client, err := fake.NewFakeClient("test", []runtime.Object{caSecret}, nil, "")
+	assert.Assert(t, err == nil)
+
+	t.Run("Working Site", func(t *testing.T) {
+		site.Spec.Edge = false
+		generator, err := NewTokenGenerator(site, client)
+		assert.Assert(t, err == nil)
+		assert.Assert(t, generator != nil)
+	})
+
+	t.Run("Edge Site Fail", func(t *testing.T) {
+		site.Spec.Edge = true
+		generator, err := NewTokenGenerator(site, client)
+		assert.ErrorContains(t, err, "Edge sites cannot accept incoming links from remote sites")
+		assert.Assert(t, generator == nil)
+	})
+
+	t.Run("No Endpoints Fail", func(t *testing.T) {
+		site.Spec.Edge = false
+		site.Status.Endpoints = nil
+		generator, err := NewTokenGenerator(site, client)
+		assert.ErrorContains(t, err, "No valid endpoints found for site")
+		assert.Assert(t, generator == nil)
+	})
+
+	t.Run("Missing CA", func(t *testing.T) {
+		emptyClient, err := fake.NewFakeClient("test", nil, nil, "")
+		site.Spec.Edge = false
+		site.Status.Endpoints = []v2alpha1.Endpoint{{Host: "foo", Name: "inter-router"}}
+		generator, err := NewTokenGenerator(site, emptyClient)
+		assert.ErrorContains(t, err, "Could not get issuer for requested certificate")
+		assert.Assert(t, generator == nil)
+	})
 }

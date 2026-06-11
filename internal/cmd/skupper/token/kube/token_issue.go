@@ -101,6 +101,12 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) error {
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 		} else {
+			for _, site := range siteList.Items {
+				if site.IsReady() && site.Spec.Edge {
+					validationErrors = append(validationErrors, fmt.Errorf("Edge sites cannot accept incoming links from remote sites"))
+					return errors.Join(validationErrors...)
+				}
+			}
 			ok, siteName = utils.SiteLinkAccessEndpoints(siteList)
 			if !ok {
 				validationErrors = append(validationErrors, fmt.Errorf("You must enable link access for this site before you can create a token."))

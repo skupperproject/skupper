@@ -198,6 +198,16 @@ func (g *Grants) checkGrant(key string, grant *skupperv2alpha1.AccessGrant) erro
 	g.record(key, grant)
 	changed := false
 	var status []string
+
+	if sites, err := g.clients.GetSkupperClient().SkupperV2alpha1().Sites(grant.Namespace).List(context.TODO(), metav1.ListOptions{}); err == nil && sites != nil {
+		for _, site := range sites.Items {
+			if site.IsReady() && site.Spec.Edge {
+				status = append(status, "Edge sites cannot accept incoming links from remote sites")
+				break
+			}
+		}
+	}
+
 	if g.checkUrl(key, grant) {
 		changed = true
 	}
