@@ -32,14 +32,14 @@ func Test_postTokenRequest(t *testing.T) {
 	}{
 		{
 			name:  "simple",
-			token: tf.token("my-token", "x", "http://foo/xyz", "mycode", ""),
+			token: tf.token("my-token", "x", "https://foo/xyz", "mycode", ""),
 			site:  tf.site("my-site", "x"),
 			code:  200,
 			body:  "OK",
 		},
 		{
 			name:          "not found",
-			token:         tf.token("my-token", "x", "http://foo/xyz", "mycode", ""),
+			token:         tf.token("my-token", "x", "https://foo/xyz", "mycode", ""),
 			site:          tf.site("my-site", "x"),
 			code:          404,
 			body:          "no such grant",
@@ -53,7 +53,7 @@ func Test_postTokenRequest(t *testing.T) {
 		},
 		{
 			name:          "bad url",
-			token:         tf.token("my-token", "x", "http://foo", "mycode", ""),
+			token:         tf.token("my-token", "x", "https://foo", "mycode", ""),
 			site:          tf.site("my-site", "x"),
 			err:           "some kind of failure",
 			expectedError: "some kind of failure",
@@ -277,10 +277,15 @@ func Test_handleTokenResponse(t *testing.T) {
 	}
 }
 
+func stringP(val string) *string {
+	return &val
+}
+
 func Test_RedeemAccessToken(t *testing.T) {
 	var tests = []struct {
 		name           string
 		scheme         string
+		fakeCa         *string
 		tokenName      string
 		grantUID       string
 		defaultIssuer  string
@@ -350,6 +355,7 @@ func Test_RedeemAccessToken(t *testing.T) {
 		{
 			name:      "tls disabled",
 			scheme:    "http",
+			fakeCa:    stringP("fake-ca"),
 			tokenName: "my-token",
 			endpoints: []v2alpha1.Endpoint{
 				{
@@ -363,10 +369,32 @@ func Test_RedeemAccessToken(t *testing.T) {
 					Port: "2222",
 				},
 			},
-			expectedStatus: "OK",
-			expectRedeemed: true,
-			expectedLinks:  []string{"my-token"},
-			expectedSecret: "my-token",
+			expectedStatus: "token url scheme must be https",
+			expectRedeemed: false,
+			expectedLinks:  []string{},
+			expectedSecret: "",
+		},
+		{
+			name:      "tls enabled without ca",
+			scheme:    "https",
+			tokenName: "my-token",
+			fakeCa:    stringP(""),
+			endpoints: []v2alpha1.Endpoint{
+				{
+					Name: "inter-router",
+					Host: "my-link-host",
+					Port: "1111",
+				},
+				{
+					Name: "edge",
+					Host: "my-link-host",
+					Port: "2222",
+				},
+			},
+			expectedStatus: "token does not have a CA",
+			expectRedeemed: false,
+			expectedLinks:  []string{},
+			expectedSecret: "",
 		},
 		{
 			name:           "not known",
@@ -445,6 +473,9 @@ func Test_RedeemAccessToken(t *testing.T) {
 			if tt.grantUID != "" {
 				token.Spec.Url = fmt.Sprintf("%s://localhost:%d/%s", tt.scheme, server.port(), tt.grantUID)
 			}
+			if tt.fakeCa != nil {
+				token.Spec.Ca = *tt.fakeCa
+			}
 			token, err = client.GetSkupperClient().SkupperV2alpha1().AccessTokens("test").Create(context.TODO(), token, metav1.CreateOptions{})
 			if err != nil {
 				t.Error(err)
@@ -477,6 +508,13 @@ func Test_RedeemAccessToken(t *testing.T) {
 							t.Error(err)
 						}
 						assert.Assert(t, secret.Data["tls.crt"] != nil)
+					} else {
+						links, err := client.GetSkupperClient().SkupperV2alpha1().Links("test").List(context.TODO(), metav1.ListOptions{})
+						if err != nil {
+							t.Error(err)
+						} else if len(links.Items) > 0 {
+							t.Error("Expected no links")
+						}
 					}
 				}
 			}
