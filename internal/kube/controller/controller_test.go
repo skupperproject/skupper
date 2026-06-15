@@ -30,6 +30,7 @@ import (
 	fakedynamic "k8s.io/client-go/dynamic/fake"
 	k8stesting "k8s.io/client-go/testing"
 
+	"github.com/skupperproject/skupper/internal/fixtures"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"github.com/skupperproject/skupper/internal/kube/resource"
@@ -1044,7 +1045,7 @@ func (*factory) addUID(site *skupperv2alpha1.Site, uid string) *skupperv2alpha1.
 }
 
 func (*factory) site(name string, namespace string, linkAccess string, ha bool, edge bool) *skupperv2alpha1.Site {
-	s := utils.NewSite(name, namespace)
+	s := fixtures.Site(name, namespace)
 	s.Spec.HA = ha
 	s.Spec.LinkAccess = linkAccess
 	s.Spec.Edge = edge
@@ -1052,14 +1053,14 @@ func (*factory) site(name string, namespace string, linkAccess string, ha bool, 
 }
 
 func (*factory) listener(name string, namespace string, host string, port int) *skupperv2alpha1.Listener {
-	l := utils.NewListener(name, namespace)
+	l := fixtures.Listener(name, namespace)
 	l.Spec.Host = host
 	l.Spec.Port = port
 	return l
 }
 
 func (*factory) multiKeyListener(name string, namespace string, host string, port int) *skupperv2alpha1.MultiKeyListener {
-	l := utils.NewMultiKeyListener(name, namespace)
+	l := fixtures.MultiKeyListener(name, namespace)
 	l.Spec.Host = host
 	l.Spec.Port = port
 	l.Spec.Strategy = skupperv2alpha1.MultiKeyListenerStrategy{
@@ -1071,21 +1072,21 @@ func (*factory) multiKeyListener(name string, namespace string, host string, por
 }
 
 func (*factory) connector(name string, namespace string, host string, port int) *skupperv2alpha1.Connector {
-	c := utils.NewConnector(name, namespace)
+	c := fixtures.Connector(name, namespace)
 	c.Spec.Host = host
 	c.Spec.Port = port
 	return c
 }
 
 func (*factory) connectorWithSelector(name string, namespace string, selector string, port int) *skupperv2alpha1.Connector {
-	c := utils.NewConnector(name, namespace)
+	c := fixtures.Connector(name, namespace)
 	c.Spec.Selector = selector
 	c.Spec.Port = port
 	return c
 }
 
 func (*factory) listenerWithExposePodsByName(name string, namespace string, key string, host string, port int) *skupperv2alpha1.Listener {
-	l := utils.NewListener(name, namespace)
+	l := fixtures.Listener(name, namespace)
 	l.Spec.Host = host
 	l.Spec.Port = port
 	l.Spec.ExposePodsByName = true
@@ -1094,7 +1095,7 @@ func (*factory) listenerWithExposePodsByName(name string, namespace string, key 
 }
 
 func (*factory) connectorWithExposePodsByName(name string, namespace string, key string, selector string, port int) *skupperv2alpha1.Connector {
-	c := utils.NewConnector(name, namespace)
+	c := fixtures.Connector(name, namespace)
 	c.Spec.ExposePodsByName = true
 	c.Spec.RoutingKey = key
 	c.Spec.Selector = selector
@@ -1103,7 +1104,7 @@ func (*factory) connectorWithExposePodsByName(name string, namespace string, key
 }
 
 func (*factory) attachedConnector(name string, namespace string, siteNamespace string, selector string, port int) *skupperv2alpha1.AttachedConnector {
-	c := utils.NewAttachedConnector(name, namespace)
+	c := fixtures.AttachedConnector(name, namespace)
 	c.Spec.SiteNamespace = siteNamespace
 	c.Spec.Selector = selector
 	c.Spec.Port = port
@@ -1111,14 +1112,14 @@ func (*factory) attachedConnector(name string, namespace string, siteNamespace s
 }
 
 func (*factory) attachedConnectorBinding(name string, namespace string, connectorNamespace string) *skupperv2alpha1.AttachedConnectorBinding {
-	b := utils.NewAttachedConnectorBinding(name, namespace)
+	b := fixtures.AttachedConnectorBinding(name, namespace)
 	b.Spec.ConnectorNamespace = connectorNamespace
 	return b
 }
 
 func (*factory) siteStatus(name string, namespace string, statusType skupperv2alpha1.StatusType, message string, conditions ...metav1.Condition) *skupperv2alpha1.Site {
-	s := utils.NewSite(name, namespace)
-	s.Status.Status = utils.NewStatus(statusType, message, conditions...)
+	s := fixtures.Site(name, namespace)
+	s.Status.Status = fixtures.Status(statusType, message, conditions...)
 	return s
 }
 
@@ -1132,13 +1133,13 @@ func (*factory) addControllerToStatus(site *skupperv2alpha1.Site, name string, n
 }
 
 func (*factory) listenerStatus(name string, namespace string, statusType skupperv2alpha1.StatusType, message string, conditions ...metav1.Condition) *skupperv2alpha1.Listener {
-	l := utils.NewListener(name, namespace)
-	l.Status.Status = utils.NewStatus(statusType, message, conditions...)
+	l := fixtures.Listener(name, namespace)
+	l.Status.Status = fixtures.Status(statusType, message, conditions...)
 	return l
 }
 
 func (*factory) multiKeyListenerStatus(name string, namespace string, statusType skupperv2alpha1.StatusType, message string, conditions ...metav1.Condition) *skupperv2alpha1.MultiKeyListener {
-	l := utils.NewMultiKeyListener(name, namespace)
+	l := fixtures.MultiKeyListener(name, namespace)
 	l.Status.StatusType = statusType
 	l.Status.Message = message
 	l.Status.Conditions = conditions
@@ -1146,25 +1147,25 @@ func (*factory) multiKeyListenerStatus(name string, namespace string, statusType
 }
 
 func (*factory) connectorStatus(name string, namespace string, statusType skupperv2alpha1.StatusType, message string, conditions ...metav1.Condition) *skupperv2alpha1.Connector {
-	c := utils.NewConnector(name, namespace)
-	c.Status.Status = utils.NewStatus(statusType, message, conditions...)
+	c := fixtures.Connector(name, namespace)
+	c.Status.Status = fixtures.Status(statusType, message, conditions...)
 	return c
 }
 
 func (*factory) attachedConnectorStatus(name string, namespace string, statusType skupperv2alpha1.StatusType, message string, conditions ...metav1.Condition) *skupperv2alpha1.AttachedConnector {
-	c := utils.NewAttachedConnector(name, namespace)
-	c.Status.Status = utils.NewStatus(statusType, message, conditions...)
+	c := fixtures.AttachedConnector(name, namespace)
+	c.Status.Status = fixtures.Status(statusType, message, conditions...)
 	return c
 }
 
 func (*factory) attachedConnectorBindingStatus(name string, namespace string, statusType skupperv2alpha1.StatusType, message string, conditions ...metav1.Condition) *skupperv2alpha1.AttachedConnectorBinding {
-	b := utils.NewAttachedConnectorBinding(name, namespace)
-	b.Status.Status = utils.NewStatus(statusType, message, conditions...)
+	b := fixtures.AttachedConnectorBinding(name, namespace)
+	b.Status.Status = fixtures.Status(statusType, message, conditions...)
 	return b
 }
 
 func (*factory) condition(conditionType string, status metav1.ConditionStatus, reason string, message string) metav1.Condition {
-	return utils.NewCondition(conditionType, status, reason, message)
+	return fixtures.Condition(conditionType, status, reason, message)
 }
 
 func (*factory) routerSelector(application bool) map[string]string {
@@ -1354,7 +1355,7 @@ func (*factory) unstructured(name string, namespace string, content map[string]i
 }
 
 func (*factory) routerAccess(name string, namespace string, accessType string, credentials string, generate bool, issuer string, roles ...skupperv2alpha1.RouterAccessRole) *skupperv2alpha1.RouterAccess {
-	ra := utils.NewRouterAccess(name, namespace)
+	ra := fixtures.RouterAccess(name, namespace)
 	ra.Spec.AccessType = accessType
 	ra.Spec.TlsCredentials = credentials
 	ra.Spec.GenerateTlsCredentials = generate
@@ -1371,7 +1372,7 @@ func (*factory) role(name string, port int) skupperv2alpha1.RouterAccessRole {
 }
 
 func (*factory) securedAccess(name string, namespace string, accessType string, selector map[string]string, certificate string, issuer string, ports ...skupperv2alpha1.SecuredAccessPort) *skupperv2alpha1.SecuredAccess {
-	sa := utils.NewSecuredAccess(name, namespace)
+	sa := fixtures.SecuredAccess(name, namespace)
 	sa.Spec.AccessType = accessType
 	sa.Spec.Selector = selector
 	sa.Spec.Certificate = certificate
@@ -1390,7 +1391,7 @@ func (*factory) securedAccessPort(name string, port int) skupperv2alpha1.Secured
 }
 
 func (*factory) service(name string, namespace string, selector map[string]string, ports ...corev1.ServicePort) *corev1.Service {
-	s := utils.NewService(name, namespace)
+	s := fixtures.Service(name, namespace)
 	s.Spec.Selector = selector
 	s.Spec.Ports = ports
 	return s
@@ -1422,7 +1423,7 @@ func (*factory) servicePortU(name string, port int32) corev1.ServicePort {
 }
 
 func (*factory) pod(name string, namespace string, labels map[string]string, ownerRefs []metav1.OwnerReference, status *corev1.PodStatus) *corev1.Pod {
-	pod := utils.NewPod(name, namespace)
+	pod := fixtures.Pod(name, namespace)
 	pod.ObjectMeta.Labels = labels
 	pod.ObjectMeta.OwnerReferences = ownerRefs
 	if status != nil {
@@ -1454,7 +1455,7 @@ func (*factory) addNetworkStatus(site *skupperv2alpha1.Site, status *NetworkStat
 
 func (*factory) skupperNetworkStatus(namespace string, status *network.NetworkStatusInfo) *corev1.ConfigMap {
 	data, _ := json.Marshal(status)
-	cm := utils.NewConfigMap("skupper-network-status", namespace)
+	cm := fixtures.ConfigMap("skupper-network-status", namespace)
 	cm.Data = map[string]string{
 		"NetworkStatus": string(data),
 	}
@@ -1478,7 +1479,7 @@ func (*factory) siteSizing(name string, namespace string, data map[string]string
 }
 
 func (*factory) configmap(name string, namespace string, data map[string]string, labels map[string]string, annotations map[string]string) *corev1.ConfigMap {
-	cm := utils.NewConfigMap(name, namespace)
+	cm := fixtures.ConfigMap(name, namespace)
 	cm.ObjectMeta.Labels = labels
 	cm.ObjectMeta.Annotations = annotations
 	cm.Data = data

@@ -1,4 +1,4 @@
-package utils
+package fixtures
 
 import (
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-func NewStatus(statusType skupperv2alpha1.StatusType, message string, conditions ...metav1.Condition) skupperv2alpha1.Status {
+func Status(statusType skupperv2alpha1.StatusType, message string, conditions ...metav1.Condition) skupperv2alpha1.Status {
 	return skupperv2alpha1.Status{
 		StatusType: statusType,
 		Message:    message,
@@ -15,7 +15,7 @@ func NewStatus(statusType skupperv2alpha1.StatusType, message string, conditions
 	}
 }
 
-func NewCondition(conditionType string, status metav1.ConditionStatus, reason string, message string) metav1.Condition {
+func Condition(conditionType string, status metav1.ConditionStatus, reason string, message string) metav1.Condition {
 	return metav1.Condition{
 		Type:               conditionType,
 		Status:             status,
@@ -25,7 +25,7 @@ func NewCondition(conditionType string, status metav1.ConditionStatus, reason st
 	}
 }
 
-func NewPod(name string, namespace string) *corev1.Pod {
+func Pod(name string, namespace string) *corev1.Pod {
 	return &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -38,7 +38,7 @@ func NewPod(name string, namespace string) *corev1.Pod {
 	}
 }
 
-func NewService(name string, namespace string) *corev1.Service {
+func Service(name string, namespace string) *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -51,7 +51,7 @@ func NewService(name string, namespace string) *corev1.Service {
 	}
 }
 
-func NewServicePort(name string, port int32, targetPort int32) corev1.ServicePort {
+func ServicePort(name string, port int32, targetPort int32) corev1.ServicePort {
 	return corev1.ServicePort{
 		Name:       name,
 		Port:       port,
@@ -60,7 +60,7 @@ func NewServicePort(name string, port int32, targetPort int32) corev1.ServicePor
 	}
 }
 
-func NewConfigMap(name string, namespace string) *corev1.ConfigMap {
+func ConfigMap(name string, namespace string) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -73,7 +73,7 @@ func NewConfigMap(name string, namespace string) *corev1.ConfigMap {
 	}
 }
 
-func NewListener(name, namespace string) *skupperv2alpha1.Listener {
+func Listener(name, namespace string) *skupperv2alpha1.Listener {
 	return &skupperv2alpha1.Listener{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v2alpha1",
@@ -86,7 +86,7 @@ func NewListener(name, namespace string) *skupperv2alpha1.Listener {
 	}
 }
 
-func NewSite(name string, namespace string) *skupperv2alpha1.Site {
+func Site(name string, namespace string) *skupperv2alpha1.Site {
 	return &skupperv2alpha1.Site{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v2alpha1",
@@ -99,7 +99,7 @@ func NewSite(name string, namespace string) *skupperv2alpha1.Site {
 	}
 }
 
-func NewConnector(name string, namespace string) *skupperv2alpha1.Connector {
+func Connector(name string, namespace string) *skupperv2alpha1.Connector {
 	return &skupperv2alpha1.Connector{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v2alpha1",
@@ -112,7 +112,7 @@ func NewConnector(name string, namespace string) *skupperv2alpha1.Connector {
 	}
 }
 
-func NewAttachedConnector(name string, namespace string) *skupperv2alpha1.AttachedConnector {
+func AttachedConnector(name string, namespace string) *skupperv2alpha1.AttachedConnector {
 	return &skupperv2alpha1.AttachedConnector{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v2alpha1",
@@ -125,7 +125,7 @@ func NewAttachedConnector(name string, namespace string) *skupperv2alpha1.Attach
 	}
 }
 
-func NewAttachedConnectorBinding(name string, namespace string) *skupperv2alpha1.AttachedConnectorBinding {
+func AttachedConnectorBinding(name string, namespace string) *skupperv2alpha1.AttachedConnectorBinding {
 	return &skupperv2alpha1.AttachedConnectorBinding{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v2alpha1",
@@ -138,7 +138,7 @@ func NewAttachedConnectorBinding(name string, namespace string) *skupperv2alpha1
 	}
 }
 
-func NewMultiKeyListener(name string, namespace string) *skupperv2alpha1.MultiKeyListener {
+func MultiKeyListener(name string, namespace string) *skupperv2alpha1.MultiKeyListener {
 	return &skupperv2alpha1.MultiKeyListener{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v2alpha1",
@@ -151,7 +151,7 @@ func NewMultiKeyListener(name string, namespace string) *skupperv2alpha1.MultiKe
 	}
 }
 
-func NewRouterAccess(name string, namespace string) *skupperv2alpha1.RouterAccess {
+func RouterAccess(name string, namespace string) *skupperv2alpha1.RouterAccess {
 	return &skupperv2alpha1.RouterAccess{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v2alpha1",
@@ -164,7 +164,7 @@ func NewRouterAccess(name string, namespace string) *skupperv2alpha1.RouterAcces
 	}
 }
 
-func NewSecuredAccess(name string, namespace string) *skupperv2alpha1.SecuredAccess {
+func SecuredAccess(name string, namespace string) *skupperv2alpha1.SecuredAccess {
 	return &skupperv2alpha1.SecuredAccess{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "skupper.io/v2alpha1",
