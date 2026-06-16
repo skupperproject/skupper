@@ -59,7 +59,8 @@ func RedeemAccessToken(claim *skupperv2alpha1.AccessToken, subject string) (*Lin
 	caPool := x509.NewCertPool()
 	caPool.AppendCertsFromPEM([]byte(claim.Spec.Ca))
 	transport.TLSClientConfig = &tls.Config{
-		RootCAs: caPool,
+		RootCAs:    caPool,
+		MinVersion: tls.VersionTLS13,
 	}
 	client := &http.Client{
 		Transport: transport,

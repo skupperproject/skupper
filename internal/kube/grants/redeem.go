@@ -45,7 +45,8 @@ func tlsConfig(token *skupperv2alpha1.AccessToken) *tls.Config {
 	caPool := x509.NewCertPool()
 	caPool.AppendCertsFromPEM([]byte(token.Spec.Ca))
 	return &tls.Config{
-		RootCAs: caPool,
+		RootCAs:    caPool,
+		MinVersion: tls.VersionTLS13,
 	}
 }
 
