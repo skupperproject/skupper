@@ -12,16 +12,19 @@ import (
 type EventDeduplicator struct {
 	eventCh       chan string
 	stopCh        chan struct{}
+	done          chan struct{}
 	mutex         sync.Mutex
 	pendingEvents map[string]*time.Timer
 	handler       func(string)
 	logger        *slog.Logger
+	closeOnce     sync.Once
 }
 
 func NewEventDeduplicator(stopCh chan struct{}, handler func(string), logger *slog.Logger) *EventDeduplicator {
 	ed := &EventDeduplicator{
 		eventCh:       make(chan string, 10),
 		stopCh:        stopCh,
+		done:          make(chan struct{}),
 		pendingEvents: make(map[string]*time.Timer),
 		handler:       handler,
 		logger:        logger,
@@ -37,6 +40,14 @@ func (ed *EventDeduplicator) processEvents() {
 
 	for {
 		select {
+		case <-ed.stopCh:
+			ed.logger.Info("Parent channel is closed")
+			ed.Stop()
+			return
+
+		case <-ed.done:
+			return
+
 		case filename := <-ed.eventCh:
 			ed.mutex.Lock()
 
@@ -49,14 +60,6 @@ func (ed *EventDeduplicator) processEvents() {
 			})
 
 			ed.mutex.Unlock()
-
-		case <-ed.stopCh:
-			ed.mutex.Lock()
-			for _, timer := range ed.pendingEvents {
-				timer.Stop()
-			}
-			ed.mutex.Unlock()
-			return
 		}
 	}
 }
@@ -78,7 +81,13 @@ func (ed *EventDeduplicator) QueueEvent(filename string) {
 }
 
 func (ed *EventDeduplicator) Stop() {
-	if ed.stopCh != nil {
-		close(ed.stopCh)
-	}
+	ed.closeOnce.Do(func() {
+		ed.mutex.Lock()
+		for _, timer := range ed.pendingEvents {
+			timer.Stop()
+		}
+		ed.mutex.Unlock()
+
+		close(ed.done)
+	})
 }
