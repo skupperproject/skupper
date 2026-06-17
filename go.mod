@@ -2,7 +2,7 @@ module github.com/skupperproject/skupper
 
 go 1.25
 
-toolchain go1.25.8
+toolchain go1.25.11
 
 require (
 	github.com/briandowns/spinner v1.23.0

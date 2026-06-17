@@ -7,7 +7,7 @@ orbs:
 executors:
   go_cimg:
     docker:
-      - image: cimg/go:1.25
+      - image: cimg/go:1.25.11
     resource_class: large
     environment:
       CGO_ENABLED: 0
@@ -112,7 +112,7 @@ commands:
           name: cleanup previous go installation
           command: sudo rm -rf /usr/local/go
       - go/install:
-          version: "1.25.0"
+          version: "1.25.11"
       - kube-orb/install-kubectl
       - run: make
 
