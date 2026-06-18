@@ -11,7 +11,7 @@ PLATFORMS ?= linux/amd64,linux/arm64
 CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer Dockerfile.system-controller
 GO_IMAGE_BASE_TAG := 1.25
 SHARED_IMAGE_LABELS = \
-    --label "org.opencontainers.image.created=$(shell TZ=GMT date --iso-8601=seconds)" \
+    --label "org.opencontainers.image.created=$(shell TZ=GMT date -u +'%Y-%m-%dT%H:%M:%SZ')" \
 	--label "org.opencontainers.image.url=https://skupper.io/" \
 	--label "org.opencontainers.image.documentation=https://skupper.io/" \
 	--label "org.opencontainers.image.source=https://github.com/skupperproject/skupper" \

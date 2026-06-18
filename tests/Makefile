@@ -3,7 +3,7 @@ EXTRA_VARS := --extra-vars "@$(ROOT_PATH)/vars.yml"
 COLLECTION_PATH := $(ROOT_PATH)/e2e/collections/ansible_collections/e2e/tests
 # Remove expose-pods-by-name from the CI tests, until we close
 # this issue https://github.com/skupperproject/skupper/issues/2251
-TESTS_CI := attached-connector,ha,hello-world,labels-and-annotations
+TESTS_CI := attached-connector,ha,hello-world,labels-and-annotations,tcp-echo
 
 # E2E Test directories
 E2E_TEST_DIRS := $(sort $(wildcard $(ROOT_PATH)/e2e/scenarios/*))
@@ -60,7 +60,7 @@ test: create-venv
 		exit 1; \
 	fi
 
-	@export TEST_PREFIX=$$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 5 | head -n 1); \
+	@export TEST_PREFIX=$$(cat /dev/urandom | LC_ALL=C tr -dc 'a-z0-9' | fold -w 5 | head -n 1); \
 	echo "Running the test for directory: $(TEST) with prefix: $$TEST_PREFIX"; \
 	. /tmp/e2e-venv/bin/activate && \
 	mkdir -p /tmp/e2e/$(TEST) && \

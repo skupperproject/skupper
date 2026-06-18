@@ -1,0 +1,9 @@
+---
+# create_skupper_resources.yml
+# This playbook creates Skupper resources based on the site name passed from the main playbook
+
+- name: Creating Skupper resources for {{ site_name }} site
+  skupper.v2.resource:
+    path: "{{ playbook_dir }}/resources/{{ site_name }}/"
+    namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+    kubeconfig: "{{ kubeconfig }}"

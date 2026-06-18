@@ -1,0 +1,9 @@
+---
+apiVersion: skupper.io/v2alpha1
+kind: Listener
+metadata:
+  name: tcp-go-echo
+spec:
+  port: 9090
+  host: tcp-go-echo
+  routingKey: tcp-go-echo

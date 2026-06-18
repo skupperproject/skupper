@@ -116,29 +116,27 @@ kind::cluster::create() {
 }
 
 kind::imageload::docker() {
-	for image in "${SKUPPER_CONTROLLER_IMAGE}" \
-		"${SKUPPER_KUBE_ADAPTOR_IMAGE}" \
-		"${SKUPPER_ROUTER_IMAGE}" \
-		"${SKUPPER_NETWORK_OBSERVER_IMAGE}"; do
-		if ${CONTAINER} image inspect "$image" > /dev/null 2>&1; then
-		    ${KIND} load docker-image --name="$1" "$image"
-		else
-			echo "(skdev) WARNING: skipped loading image $image"
-		fi
-	done
+        for image in "${SKUPPER_CONTROLLER_IMAGE}" \
+                "${SKUPPER_KUBE_ADAPTOR_IMAGE}" \
+                "${SKUPPER_NETWORK_OBSERVER_IMAGE}"; do
+                if ${CONTAINER} image inspect "$image" > /dev/null 2>&1; then
+                    ${KIND} load docker-image --name="$1" "$image"
+                else
+                        echo "(skdev) WARNING: skipped loading image $image"
+                fi
+        done
 }
 
 kind::imageload::ociarchive() {
-		for archive in ./oci-archives/*.tar; do
-			${KIND} load image-archive --name="$1" "$archive"
-		done
+                for archive in ./oci-archives/*.tar; do
+                        ${KIND} load image-archive --name="$1" "$archive"
+                done
 }
 
 kind::imageload::podman() {
-	for image in "${SKUPPER_CONTROLLER_IMAGE}" \
-		"${SKUPPER_KUBE_ADAPTOR_IMAGE}" \
-		"${SKUPPER_ROUTER_IMAGE}" \
-		"${SKUPPER_NETWORK_OBSERVER_IMAGE}"; do
+        for image in "${SKUPPER_CONTROLLER_IMAGE}" \
+                "${SKUPPER_KUBE_ADAPTOR_IMAGE}" \
+                "${SKUPPER_NETWORK_OBSERVER_IMAGE}"; do
 		if podman image inspect "$image" > /dev/null 2>&1; then
 			${KIND} load image-archive --name="$1" <(podman image save "$image")
 		else

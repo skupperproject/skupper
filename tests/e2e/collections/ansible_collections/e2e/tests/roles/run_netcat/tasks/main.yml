@@ -1,0 +1,47 @@
+---
+- name: Setting namespace name with prefix
+  ansible.builtin.set_fact:
+    netcat_namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
+
+- name: Deploy netcat pod
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Pod
+    name: netcat
+    namespace: "{{ netcat_namespace }}"
+    kubeconfig: "{{ kubeconfig }}"
+    state: present
+    definition:
+      metadata:
+        name: netcat
+      spec:
+        restartPolicy: Never
+        containers:
+          - name: netcat
+            image: busybox
+            command:
+              - /bin/sleep
+              - "3600"
+  register: pod_deploy
+  until: pod_deploy is success
+  retries: 30
+  delay: 10
+
+- name: Run netcat half-close command
+  kubernetes.core.k8s_exec:
+    namespace: "{{ netcat_namespace }}"
+    kubeconfig: "{{ kubeconfig }}"
+    pod: netcat
+    command: >-
+      sh -c '
+        echo "Halo" > payload.txt;
+        (cat payload.txt; sleep 10) | nc tcp-go-echo 9090
+      '
+  register: netcat_result
+  until: netcat_result is success
+  retries: 5
+  delay: 10
+
+- name: Debug the netcat command output
+  ansible.builtin.debug:
+    msg: "{{ netcat_result.stdout }}"

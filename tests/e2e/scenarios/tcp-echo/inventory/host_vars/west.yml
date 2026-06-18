@@ -1,0 +1,15 @@
+---
+# Kubeconfig path for west site
+kubeconfig_1: "{{ ansible_env.HOME }}/.kube/config"
+kubeconfig: "{{ kubeconfig_1 }}"
+
+# Namespace configuration
+namespace_name: hello-world-west
+
+# Run curl configuration
+run_curl_namespace: default
+run_curl_address: "backend:8080/api/hello"
+run_curl_image: "{{ skupper_test_images_lanyard }}"
+run_curl_pod_name: curl-test
+run_curl_retries: 30
+run_curl_delay: 6

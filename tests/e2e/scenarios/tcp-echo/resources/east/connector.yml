@@ -1,0 +1,9 @@
+---
+apiVersion: skupper.io/v2alpha1
+kind: Connector
+metadata:
+  name: tcp-go-echo
+spec:
+  routingKey: tcp-go-echo
+  port: 80
+  selector: app=tcp-go-echo
