@@ -10,7 +10,9 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,6 +23,10 @@ import (
 )
 
 func RedeemAccessToken(token *skupperv2alpha1.AccessToken, site *skupperv2alpha1.Site, clients internalclient.Clients) error {
+	if token.Spec.Ca == "" {
+		err := fmt.Errorf("token does not have a CA")
+		return updateAccessTokenStatus(token, err, clients)
+	}
 	transport := &http.Transport{
 		TLSClientConfig: tlsConfig(token),
 	}
@@ -36,19 +42,28 @@ func RedeemAccessToken(token *skupperv2alpha1.AccessToken, site *skupperv2alpha1
 }
 
 func tlsConfig(token *skupperv2alpha1.AccessToken) *tls.Config {
-	if token.Spec.Ca == "" {
-		return nil
-	}
 	caPool := x509.NewCertPool()
 	caPool.AppendCertsFromPEM([]byte(token.Spec.Ca))
 	return &tls.Config{
-		RootCAs: caPool,
+		RootCAs:    caPool,
+		MinVersion: tls.VersionTLS13,
 	}
 }
 
 func postTokenRequest(token *skupperv2alpha1.AccessToken, site *skupperv2alpha1.Site, transport http.RoundTripper) (io.Reader, error) {
 	client := &http.Client{
 		Transport: transport,
+		Timeout:   10 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	url, err := url.Parse(token.Spec.Url)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse token url: %w", err)
+	}
+	if url.Scheme != "https" {
+		return nil, fmt.Errorf("token url scheme must be https")
 	}
 	request, err := http.NewRequest(http.MethodPost, token.Spec.Url, bytes.NewReader([]byte(token.Spec.Code)))
 	if err != nil {

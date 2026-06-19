@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -51,17 +52,29 @@ func RedeemClaims(siteState *api.SiteState) error {
 
 // Redeem logic that populates siteState.Secrets and siteState.Links
 func RedeemAccessToken(claim *skupperv2alpha1.AccessToken, subject string) (*LinkDecoder, error) {
+	if claim.Spec.Ca == "" {
+		return nil, fmt.Errorf("token does not have a CA")
+	}
 	transport := &http.Transport{}
-	if claim.Spec.Ca != "" {
-		caPool := x509.NewCertPool()
-		caPool.AppendCertsFromPEM([]byte(claim.Spec.Ca))
-		transport.TLSClientConfig = &tls.Config{
-			RootCAs: caPool,
-		}
+	caPool := x509.NewCertPool()
+	caPool.AppendCertsFromPEM([]byte(claim.Spec.Ca))
+	transport.TLSClientConfig = &tls.Config{
+		RootCAs:    caPool,
+		MinVersion: tls.VersionTLS13,
 	}
 	client := &http.Client{
 		Transport: transport,
 		Timeout:   10 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	url, err := url.Parse(claim.Spec.Url)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse token url: %w", err)
+	}
+	if url.Scheme != "https" {
+		return nil, fmt.Errorf("token url scheme must be https")
 	}
 	request, err := http.NewRequest(http.MethodPost, claim.Spec.Url, bytes.NewReader([]byte(claim.Spec.Code)))
 	if err != nil {
