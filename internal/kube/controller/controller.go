@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"regexp"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -30,32 +31,35 @@ import (
 )
 
 type Controller struct {
-	self                    skupperv2alpha1.Controller
-	deploymentName          string
-	deploymentUid           string
-	eventProcessor          *watchers.EventProcessor
-	stopCh                  <-chan struct{}
-	siteWatcher             *watchers.SiteWatcher
-	listenerWatcher         *watchers.ListenerWatcher
-	connectorWatcher        *watchers.ConnectorWatcher
-	multiKeyListenerWatcher *watchers.MultiKeyListenerWatcher
-	linkAccessWatcher       *watchers.RouterAccessWatcher
-	grantWatcher            *watchers.AccessGrantWatcher
-	serviceWatcher          *watchers.ServiceWatcher
-	sites                   map[string]*site.Site
-	startGrantServer        func()
-	accessMgr               *securedaccess.SecuredAccessManager
-	accessRecovery          *securedaccess.SecuredAccessResourceWatcher
-	certMgr                 *certificates.CertificateManagerImpl
-	siteSizing              *sizing.Registry
-	siteSizingWatcher       *watchers.ConfigMapWatcher
-	labelling               *labels.LabelsAndAnnotations
-	labellingWatcher        *watchers.ConfigMapWatcher
-	attachableConnectors    map[string]*skupperv2alpha1.AttachedConnector
-	disableSecContext       bool
-	log                     *slog.Logger
-	namespaces              *NamespaceConfig
-	observedServices        map[string]string
+	self                            skupperv2alpha1.Controller
+	deploymentName                  string
+	deploymentUid                   string
+	eventProcessor                  *watchers.EventProcessor
+	stopCh                          <-chan struct{}
+	siteWatcher                     *watchers.SiteWatcher
+	listenerWatcher                 *watchers.ListenerWatcher
+	connectorWatcher                *watchers.ConnectorWatcher
+	multiKeyListenerWatcher         *watchers.MultiKeyListenerWatcher
+	linkAccessWatcher               *watchers.RouterAccessWatcher
+	attachedConnectorWatcher        *watchers.AttachedConnectorWatcher
+	attachedConnectorBindingWatcher *watchers.AttachedConnectorBindingWatcher
+	grantWatcher                    *watchers.AccessGrantWatcher
+	serviceWatcher                  *watchers.ServiceWatcher
+	networkStatusWatcher            *watchers.ConfigMapWatcher
+	sites                           map[string]*site.Site
+	startGrantServer                func()
+	accessMgr                       *securedaccess.SecuredAccessManager
+	accessRecovery                  *securedaccess.SecuredAccessResourceWatcher
+	certMgr                         *certificates.CertificateManagerImpl
+	siteSizing                      *sizing.Registry
+	siteSizingWatcher               *watchers.ConfigMapWatcher
+	labelling                       *labels.LabelsAndAnnotations
+	labellingWatcher                *watchers.ConfigMapWatcher
+	attachableConnectors            map[string]*skupperv2alpha1.AttachedConnector
+	disableSecContext               bool
+	log                             *slog.Logger
+	namespaces                      *NamespaceConfig
+	observedServices                map[string]string
 }
 
 func skupperRouterConfig() internalinterfaces.TweakListOptionsFunc {
@@ -136,10 +140,10 @@ func NewController(cli internalclient.Clients, config *Config, options ...watche
 	controller.serviceWatcher = controller.eventProcessor.WatchServices(sansSkupperListenerServices(), config.WatchNamespace, filter(controller, controller.checkObservedService))
 	controller.connectorWatcher = controller.eventProcessor.WatchConnectors(config.WatchNamespace, filter(controller, controller.checkConnector))
 	controller.linkAccessWatcher = controller.eventProcessor.WatchRouterAccesses(config.WatchNamespace, filter(controller, controller.checkRouterAccess))
-	controller.eventProcessor.WatchAttachedConnectors(config.WatchNamespace, filter(controller, controller.checkAttachedConnector))
-	controller.eventProcessor.WatchAttachedConnectorBindings(config.WatchNamespace, filter(controller, controller.checkAttachedConnectorBinding))
+	controller.attachedConnectorWatcher = controller.eventProcessor.WatchAttachedConnectors(config.WatchNamespace, filter(controller, controller.checkAttachedConnector))
+	controller.attachedConnectorBindingWatcher = controller.eventProcessor.WatchAttachedConnectorBindings(config.WatchNamespace, filter(controller, controller.checkAttachedConnectorBinding))
 	controller.eventProcessor.WatchLinks(config.WatchNamespace, filter(controller, controller.checkLink))
-	controller.eventProcessor.WatchConfigMaps(skupperNetworkStatus(), config.WatchNamespace, filter(controller, controller.networkStatusUpdate))
+	controller.networkStatusWatcher = controller.eventProcessor.WatchConfigMaps(skupperNetworkStatus(), config.WatchNamespace, filter(controller, controller.networkStatusUpdate))
 	controller.eventProcessor.WatchConfigMaps(skupperRouterConfig(), config.WatchNamespace, filter(controller, controller.routerConfigUpdate))
 	controller.eventProcessor.WatchAccessTokens(config.WatchNamespace, filter(controller, controller.checkAccessToken))
 	controller.eventProcessor.WatchPods("skupper.io/component=router,skupper.io/type=site", config.WatchNamespace, filter(controller, controller.routerPodEvent))
@@ -238,12 +242,15 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		)
 		c.labelling.Update(config.Namespace+"/"+config.Name, config)
 	}
+	c.certMgr.Recover()
+	c.accessRecovery.Recover()
 	// get observed services prior to restoring listeners
 	for _, svc := range c.serviceWatcher.List() {
 		c.observedServices[svc.Namespace+"/"+svc.ObjectMeta.Name] = svc.ObjectMeta.Name
 	}
 	//recover existing sites & bindings
 	siteRecovery := site.NewSiteRecovery(c.eventProcessor.GetKubeClient())
+	recoveringSites := map[string]string{}
 	for _, site := range c.siteWatcher.List() {
 		if !c.namespaces.isControlled(site.Namespace) {
 			continue
@@ -266,6 +273,8 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 				slog.String("name", site.Name),
 				slog.Any("error", err),
 			)
+		} else {
+			recoveringSites[site.Namespace] = site.Name
 		}
 	}
 	for _, connector := range c.connectorWatcher.List() {
@@ -322,12 +331,88 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		)
 		site.CheckRouterAccess(la.ObjectMeta.Name, la)
 	}
+	for _, binding := range c.attachedConnectorBindingWatcher.List() {
+		if !c.namespaces.isControlled(binding.Namespace) {
+			continue
+		}
+		c.log.Info("Recovering attached connector binding",
+			slog.String("namespace", binding.Namespace),
+			slog.String("name", binding.Name),
+		)
+		if err := c.checkAttachedConnectorBinding(binding.Namespace+"/"+binding.Name, binding); err != nil {
+			c.log.Error("Error recovering attached connector binding",
+				slog.String("namespace", binding.Namespace),
+				slog.String("name", binding.Name),
+				slog.Any("error", err),
+			)
+		}
+	}
+	for _, connector := range c.attachedConnectorWatcher.List() {
+		if !c.namespaces.isControlled(connector.Namespace) {
+			continue
+		}
+		c.log.Info("Recovering attached connector",
+			slog.String("namespace", connector.Namespace),
+			slog.String("name", connector.Name),
+		)
+		if err := c.checkAttachedConnector(connector.Namespace+"/"+connector.Name, connector); err != nil {
+			c.log.Error("Error recovering attached connector",
+				slog.String("namespace", connector.Namespace),
+				slog.String("name", connector.Name),
+				slog.Any("error", err),
+			)
+		}
+	}
+	for namespace, name := range recoveringSites {
+		syncCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		go func() {
+			select {
+			case <-stopCh:
+				cancel()
+			case <-syncCtx.Done():
+			}
+		}()
+		siteController := c.getSite(namespace)
+		if !siteController.SyncConnectorPods(syncCtx.Done()) {
+			c.log.Error("Failed to sync connector pod watchers during recovery; continuing startup",
+				slog.String("namespace", namespace),
+				slog.String("name", name),
+				slog.Any("reason", syncCtx.Err()),
+			)
+		}
+		if !siteController.SyncAttachedConnectorPods(syncCtx.Done()) {
+			c.log.Error("Failed to sync attached connector pod watchers during recovery; continuing startup",
+				slog.String("namespace", namespace),
+				slog.String("name", name),
+				slog.Any("reason", syncCtx.Err()),
+			)
+		}
+		cancel()
+	}
+	for _, cm := range c.networkStatusWatcher.List() {
+		if !c.namespaces.isControlled(cm.Namespace) {
+			continue
+		}
+		if err := c.networkStatusUpdate(cm.Namespace+"/"+cm.Name, cm); err != nil {
+			c.log.Error("Error recovering network status",
+				slog.String("namespace", cm.Namespace),
+				slog.String("name", cm.Name),
+				slog.Any("error", err),
+			)
+		}
+	}
 	for _, site := range c.siteWatcher.List() {
 		if !c.namespaces.isControlled(site.Namespace) {
 			continue
 		}
 		site.Status.Controller = &c.self
-		err := c.getSite(site.ObjectMeta.Namespace).Reconcile(site)
+		siteController := c.getSite(site.ObjectMeta.Namespace)
+		var err error
+		if recoveringSites[site.Namespace] == site.Name {
+			err = siteController.FinishRecovery(site)
+		} else {
+			err = siteController.Reconcile(site)
+		}
 		if err != nil {
 			c.log.Error("Error recovering site",
 				slog.String("namespace", site.Namespace),
@@ -341,8 +426,6 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 			)
 		}
 	}
-	c.certMgr.Recover()
-	c.accessRecovery.Recover()
 	if c.startGrantServer != nil {
 		c.startGrantServer()
 	}

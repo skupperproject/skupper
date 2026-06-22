@@ -28,6 +28,7 @@ type TargetSelection interface {
 	Selector() string
 	Close()
 	List() []skupperv2alpha1.PodDetails
+	Sync(stopCh <-chan struct{}) bool
 }
 
 type TargetSelectionImpl struct {
@@ -59,6 +60,10 @@ func (w *TargetSelectionImpl) Attr() slog.Attr {
 
 func (w *TargetSelectionImpl) List() []skupperv2alpha1.PodDetails {
 	return w.watcher.pods()
+}
+
+func (w *TargetSelectionImpl) Sync(stopCh <-chan struct{}) bool {
+	return w.watcher.Sync(stopCh)
 }
 
 func (w *TargetSelectionImpl) Updated(pods []skupperv2alpha1.PodDetails) error {
@@ -126,4 +131,8 @@ func (w *PodWatcher) handle(key string, pod *corev1.Pod) error {
 func (w *PodWatcher) Close() {
 	bindings_logger.Debug("Stopping pod watcher", w.context.Attr(), slog.String("selector", w.context.Selector()))
 	close(w.stopCh)
+}
+
+func (w *PodWatcher) Sync(stopCh <-chan struct{}) bool {
+	return w.watcher.Sync(stopCh)
 }

@@ -394,6 +394,24 @@ func (b *ExtendedBindings) MapOverAttachedConnectors(cf AttachedConnectorFunctio
 	}
 }
 
+func (b *ExtendedBindings) SyncConnectorPods(stopCh <-chan struct{}) bool {
+	for _, selector := range b.selectors {
+		if selector != nil && !selector.Sync(stopCh) {
+			return false
+		}
+	}
+	return true
+}
+
+func (b *ExtendedBindings) SyncAttachedConnectorPods(stopCh <-chan struct{}) bool {
+	for _, connector := range b.connectors {
+		if connector.watcher != nil && !connector.watcher.Sync(stopCh) {
+			return false
+		}
+	}
+	return true
+}
+
 func (b *ExtendedBindings) Apply(config *qdr.RouterConfig) bool {
 	var updated bool
 	desired := b.bindings.ToBridgeConfig()

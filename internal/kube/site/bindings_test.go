@@ -45,12 +45,15 @@ func (m *MockBindingContext) Unexpose(host string) error {
 type MockTargetSelection struct {
 	selector   string
 	podDetails []skupperv2alpha1.PodDetails
+	syncResult bool
+	syncCalled bool
 }
 
 func NewMockTargetSelection(selector string, podDetails []skupperv2alpha1.PodDetails) *MockTargetSelection {
 	return &MockTargetSelection{
 		selector:   selector,
 		podDetails: podDetails,
+		syncResult: true,
 	}
 }
 
@@ -63,6 +66,36 @@ func (m *MockTargetSelection) Close() {
 
 func (m *MockTargetSelection) List() []skupperv2alpha1.PodDetails {
 	return m.podDetails
+}
+
+func (m *MockTargetSelection) Sync(stopCh <-chan struct{}) bool {
+	m.syncCalled = true
+	return m.syncResult
+}
+
+func TestExtendedBindings_SyncConnectorPods(t *testing.T) {
+	selector := NewMockTargetSelection("app=backend", nil)
+	bindings := &ExtendedBindings{
+		selectors: map[string]TargetSelection{
+			"backend": selector,
+		},
+	}
+
+	assert.Assert(t, bindings.SyncConnectorPods(make(chan struct{})))
+	assert.Assert(t, selector.syncCalled)
+}
+
+func TestExtendedBindings_SyncConnectorPodsReturnsFalse(t *testing.T) {
+	selector := NewMockTargetSelection("app=backend", nil)
+	selector.syncResult = false
+	bindings := &ExtendedBindings{
+		selectors: map[string]TargetSelection{
+			"backend": selector,
+		},
+	}
+
+	assert.Assert(t, !bindings.SyncConnectorPods(make(chan struct{})))
+	assert.Assert(t, selector.syncCalled)
 }
 
 func TestBindingAdaptor_ConnectorUpdated(t *testing.T) {

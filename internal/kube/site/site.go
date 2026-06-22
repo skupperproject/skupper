@@ -47,6 +47,7 @@ type Labelling interface {
 
 type Site struct {
 	initialised   bool
+	inRecovery    bool
 	site          *skupperv2alpha1.Site
 	name          string
 	namespace     string
@@ -131,7 +132,24 @@ func (s *Site) StartRecovery(site *skupperv2alpha1.Site) error {
 	if err := s.migrateRouterDeploymentSelectors(context.TODO(), site); err != nil {
 		return err
 	}
-	return s.reconcile(site, true)
+	if err := s.reconcile(site, true); err != nil {
+		return err
+	}
+	s.inRecovery = true
+	return nil
+}
+
+func (s *Site) FinishRecovery(siteDef *skupperv2alpha1.Site) error {
+	if !s.inRecovery {
+		return s.Reconcile(siteDef)
+	}
+
+	err := s.Reconcile(siteDef)
+	s.inRecovery = false
+	if err != nil {
+		return err
+	}
+	return s.updateRecoveredRouterConfig()
 }
 
 // migrateRouterDeploymentSelectors deletes router Deployments whose
@@ -624,6 +642,14 @@ func (s *Site) WatchPods(context PodWatchingContext, namespace string) *PodWatch
 	return w
 }
 
+func (s *Site) SyncConnectorPods(stopCh <-chan struct{}) bool {
+	return s.bindings.SyncConnectorPods(stopCh)
+}
+
+func (s *Site) SyncAttachedConnectorPods(stopCh <-chan struct{}) bool {
+	return s.bindings.SyncAttachedConnectorPods(stopCh)
+}
+
 func (s *Site) Expose(exposed *ExposedPortSet) error {
 	ctxt := context.TODO()
 	current, err := s.clients.GetKubeClient().CoreV1().Services(s.namespace).Get(ctxt, exposed.Host, metav1.GetOptions{})
@@ -1009,11 +1035,23 @@ func (s *Site) updateRouterConfig(update qdr.ConfigUpdate) error {
 }
 
 func (s *Site) updateRouterConfigForGroup(update qdr.ConfigUpdate, group string) error {
-	if !s.initialised {
+	if !s.initialised || s.inRecovery {
 		return nil
 	}
 	if err := kubeqdr.UpdateRouterConfig(s.clients.GetKubeClient(), group, s.namespace, context.TODO(), update, s.labelling); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (s *Site) updateRecoveredRouterConfig() error {
+	groups := s.groups()
+	for i, group := range groups {
+		linkConfig := s.linkAccess.DesiredConfig(groups[:i], SSL_PROFILE_PATH)
+		update := ConfigUpdateList{s.bindings, s, linkConfig}
+		if err := s.updateRouterConfigForGroup(update, group); err != nil {
+			return err
+		}
 	}
 	return nil
 }
