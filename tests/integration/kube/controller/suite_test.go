@@ -90,13 +90,21 @@ func startSharedController() error {
 
 	envTestStopCh = make(chan struct{})
 	envTestStopped = make(chan struct{})
+	runErrCh := make(chan error, 1)
 	go func() {
-		_ = ctrl.Run(envTestStopCh)
+		runErrCh <- ctrl.Run(envTestStopCh)
 		close(envTestStopped)
 	}()
 
-	time.Sleep(200 * time.Millisecond)
-	return nil
+	select {
+	case err := <-runErrCh:
+		if err != nil {
+			return fmt.Errorf("controller failed to start: %w", err)
+		}
+		return fmt.Errorf("controller stopped unexpectedly during startup")
+	case <-time.After(500 * time.Millisecond):
+		return nil
+	}
 }
 
 func stopSharedController() {

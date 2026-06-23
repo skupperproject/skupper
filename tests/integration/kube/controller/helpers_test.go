@@ -9,6 +9,7 @@ import (
 	"github.com/skupperproject/skupper/internal/fixtures"
 	"github.com/skupperproject/skupper/internal/utils"
 	"gotest.tools/v3/assert"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -18,6 +19,16 @@ func waitFor(t *testing.T, timeout, interval time.Duration, fn func() (bool, err
 	t.Helper()
 	err := utils.Retry(interval, int(timeout/interval), fn)
 	assert.NilError(t, err)
+}
+
+func retryOnNotFound(err error) (bool, error) {
+	if err == nil {
+		return true, nil
+	}
+	if errors.IsNotFound(err) {
+		return false, nil
+	}
+	return false, err
 }
 
 func listenerWithHostPort(name, namespace, host string, port int) *skupperv2alpha1.Listener {

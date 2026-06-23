@@ -117,5 +117,9 @@ ci-tests: test-subset
 .PHONY: test-integration
 test-integration:
 	@assets=$$(cd $(SKUPPER_ROOT) && go tool setup-envtest use $(ENVTEST_K8S_VERSION) -p path); \
+	if [ -z "$$assets" ]; then \
+		echo "setup-envtest did not return KUBEBUILDER_ASSETS; run 'go tool setup-envtest use $(ENVTEST_K8S_VERSION)' from the repository root"; \
+		exit 1; \
+	fi; \
 	export KUBEBUILDER_ASSETS="$$assets"; \
 	cd $(SKUPPER_ROOT) && go test -tags=integration $(TESTFLAGS) ./tests/integration/kube/controller/...

@@ -23,7 +23,7 @@ The `setup-envtest` version is pinned in the root `go.mod` `tool` directive (mat
 controller-runtime release-0.21 / k8s 1.33). Run from the repository root:
 
 ```bash
-go tool setup-envtest use -i 1.33.0
+go tool setup-envtest use 1.33.0
 ```
 
 Or let `make test-integration` download binaries on first run.
@@ -31,7 +31,7 @@ Or let `make test-integration` download binaries on first run.
 To pre-download Kubernetes test binaries without running tests:
 
 ```bash
-go tool setup-envtest use -i 1.33.0
+go tool setup-envtest use 1.33.0
 ```
 
 

@@ -26,8 +26,8 @@ func TestSimpleSite(t *testing.T) {
 
 	waitFor(t, 30*time.Second, 250*time.Millisecond, func() (bool, error) {
 		actual, err := tc.clients.GetSkupperClient().SkupperV2alpha1().Sites(namespace).Get(ctx, "mysite", metav1.GetOptions{})
-		if err != nil {
-			return false, nil
+		if done, err := retryOnNotFound(err); !done {
+			return false, err
 		}
 		configured := meta.FindStatusCondition(actual.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
 		if configured == nil || configured.Status != metav1.ConditionTrue {
