@@ -32,17 +32,18 @@
     namespace: "{{ curl_namespace }}"
     kubeconfig: "{{ kubeconfig }}"
     pod: curl
-    command: >-
+    command: >
       sh -c '
-        response=$(curl -s {{ run_curl_address }});
-        code=$(curl -s -w "%{http_code}" -o /dev/null {{ run_curl_address }});
-        if [ $code -eq 200 ]; then
-          echo "BODY: $response";
-          exit 0;
-        else
-          echo "BODY: $response";
-          exit 1;
-        fi
+      response=$(curl -s -w "\n%{http_code}"  "{{ run_curl_address }}");
+      code=$(echo "$response" | tail -n 1);
+      body=$(echo "$response" | sed "$ d");
+      if [ "$code" = "200" ]; then
+        echo "BODY: $body";
+        exit 0;
+      else
+        echo "BODY: $body";
+        exit 1;
+      fi
       '
   register: curl_result
   until: curl_result is success
