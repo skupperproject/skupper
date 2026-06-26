@@ -65,6 +65,7 @@ func NewInputResourceHandler(stopCh chan struct{}, namespace string, inputPath s
 	var binary string
 
 	platform := types.Platform(utils.DefaultStr(os.Getenv("CONTAINER_ENGINE"),
+		os.Getenv(types.ENV_PLATFORM),
 		string(types.PlatformPodman)))
 
 	// TODO: add support for linux platform
