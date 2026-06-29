@@ -3,6 +3,7 @@
 package client
 
 import (
+	"errors"
 	"os"
 	"strconv"
 
@@ -111,8 +112,6 @@ func (c *KubeClient) GetSkupperClient() skupperclient.Interface {
 }
 
 func NewClient(namespace string, context string, kubeConfigPath string) (*KubeClient, error) {
-	c := &KubeClient{}
-
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	if kubeConfigPath != "" {
 		loadingRules = &clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfigPath}
@@ -125,54 +124,66 @@ func NewClient(namespace string, context string, kubeConfigPath string) (*KubeCl
 	)
 	restconfig, err := kubeconfig.ClientConfig()
 	if err != nil {
-		return c, err
+		return nil, err
 	}
-	applyKubeClientRateLimits(restconfig)
-	restconfig.ContentConfig.GroupVersion = &schema.GroupVersion{Version: "v1"}
-	restconfig.APIPath = "/api"
-	restconfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: scheme.Codecs}
-	c.Rest = restconfig
-	c.Kube, err = kubernetes.NewForConfig(restconfig)
+	c, err := NewClientFromRestConfig(restconfig, namespace)
 	if err != nil {
-		return c, err
+		return nil, err
 	}
-	dc, err := discovery.NewDiscoveryClientForConfig(restconfig)
+	if namespace == "" {
+		c.Namespace, _, err = kubeconfig.Namespace()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return c, nil
+}
+
+// NewClientFromRestConfig constructs a KubeClient from an existing REST config.
+func NewClientFromRestConfig(restconfig *restclient.Config, namespace string) (*KubeClient, error) {
+	if restconfig == nil {
+		return nil, errors.New("rest config must not be nil")
+	}
+	c := &KubeClient{}
+	cfg := restclient.CopyConfig(restconfig)
+	applyKubeClientRateLimits(cfg)
+	cfg.ContentConfig.GroupVersion = &schema.GroupVersion{Version: "v1"}
+	cfg.APIPath = "/api"
+	cfg.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: scheme.Codecs}
+	c.Rest = cfg
+	var err error
+	c.Kube, err = kubernetes.NewForConfig(cfg)
 	if err != nil {
-		return c, err
+		return nil, err
+	}
+	dc, err := discovery.NewDiscoveryClientForConfig(cfg)
+	if err != nil {
+		return nil, err
 	}
 	resources, err := dc.ServerResourcesForGroupVersion("route.openshift.io/v1")
 	if err == nil && len(resources.APIResources) > 0 {
-		c.Route, err = openshiftroute.NewForConfig(restconfig)
-		//c.RouteClient, err = routev1client.NewForConfig(restconfig)
+		c.Route, err = openshiftroute.NewForConfig(cfg)
 		if err != nil {
-			return c, err
+			return nil, err
 		}
 	}
 	resources, err = dc.ServerResourcesForGroupVersion("apps.openshift.io/v1")
 	if err == nil && len(resources.APIResources) > 0 {
-		c.OCApps, err = openshiftapps.NewForConfig(restconfig)
+		c.OCApps, err = openshiftapps.NewForConfig(cfg)
 		if err != nil {
-			return c, err
+			return nil, err
 		}
 	}
 
 	c.Discovery = dc
-
-	if namespace == "" {
-		c.Namespace, _, err = kubeconfig.Namespace()
-		if err != nil {
-			return c, err
-		}
-	} else {
-		c.Namespace = namespace
-	}
-	c.Dynamic, err = dynamic.NewForConfig(restconfig)
+	c.Namespace = namespace
+	c.Dynamic, err = dynamic.NewForConfig(cfg)
 	if err != nil {
-		return c, err
+		return nil, err
 	}
-	c.Skupper, err = skupperclient.NewForConfig(restconfig)
+	c.Skupper, err = skupperclient.NewForConfig(cfg)
 	if err != nil {
-		return c, err
+		return nil, err
 	}
 
 	return c, nil
