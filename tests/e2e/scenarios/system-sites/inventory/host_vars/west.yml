@@ -1,0 +1,5 @@
+---
+# Platform configuration
+platform: docker
+namespace_name: west
+

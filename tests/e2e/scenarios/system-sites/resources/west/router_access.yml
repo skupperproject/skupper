@@ -1,0 +1,14 @@
+apiVersion: skupper.io/v2alpha1
+kind: RouterAccess
+metadata:
+  name: router-access-west
+  namespace: west
+spec:
+  roles:
+  - name: inter-router
+    port: 55671
+  - name: edge
+    port: 45671
+  subjectAlternativeNames:
+  - 0.0.0.0
+  - '::'
