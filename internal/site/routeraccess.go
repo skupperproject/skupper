@@ -60,9 +60,25 @@ func (m RouterAccessMap) findInterRouterRole() (*skupperv2alpha1.RouterAccessRol
 }
 
 func (m RouterAccessMap) DesiredConfig(targetGroups []string, profilePath string) *RouterAccessConfig {
+	return m.DesiredConfigWithAvailableCredentials(targetGroups, profilePath, nil)
+}
+
+// DesiredConfigWithAvailableCredentials is like DesiredConfig but skips RouterAccess entries whose
+// spec.tlsCredentials is set when isTlsSecretPresent is non-nil and returns false for that name.
+func (m RouterAccessMap) DesiredConfigWithAvailableCredentials(targetGroups []string, profilePath string, isTlsSecretPresent func(string) bool) *RouterAccessConfig {
+	source := m
+	if isTlsSecretPresent != nil {
+		source = make(RouterAccessMap, len(m))
+		for k, ra := range m {
+			if ra.Spec.TlsCredentials != "" && !isTlsSecretPresent(ra.Spec.TlsCredentials) {
+				continue
+			}
+			source[k] = ra
+		}
+	}
 	return &RouterAccessConfig{
-		listeners:   m.desiredListeners(),
-		connectors:  m.desiredConnectors(targetGroups),
+		listeners:   source.desiredListeners(),
+		connectors:  source.desiredConnectors(targetGroups),
 		profilePath: profilePath,
 	}
 }
