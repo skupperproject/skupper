@@ -59,6 +59,31 @@ go test -tags=integration -v ./tests/integration/kube/controller/...
 Default `make test` does **not** run these (they use the `integration` build tag and take
 ~1 minute).
 
+## Running against an existing cluster
+
+By default, tests start a local envtest apiserver (kube-apiserver + etcd). To run against a
+full Kubernetes cluster instead, set `USE_EXISTING_CLUSTER=true`. envtest will use your
+current kubeconfig (`KUBECONFIG` or `~/.kube/config`) and install Skupper CRDs from
+`config/crd/bases` before the tests run.
+
+```bash
+# Ensure kubectl context points at the target cluster
+kubectl config current-context
+
+USE_EXISTING_CLUSTER=true make -C tests test-integration
+```
+
+Or directly:
+
+```bash
+export USE_EXISTING_CLUSTER=true
+go test -tags=integration -v ./tests/integration/kube/controller/...
+```
+
+When using an existing cluster, `setup-envtest` / `KUBEBUILDER_ASSETS` are not required.
+The in-process controller still runs locally; tests create namespaces and Skupper resources
+on the cluster — use a development or disposable cluster, not production.
+
 ## Notes
 
 - Tests start a shared controller instance and a fresh envtest apiserver per package run.
