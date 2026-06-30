@@ -34,7 +34,7 @@ func (p *PerTargetListener) extractTargets(network []skupperv2alpha1.SiteRecord,
 	p.logger.Debug("Extracting targets for listener",
 		slog.String("namespace", p.definition.Namespace),
 		slog.String("listener", p.definition.Name))
-	targets := extractTargets(p.address(""), network)
+	targets := findTargetsInNetwork(p.address(""), network)
 	changed := false
 	stale := map[string]bool{}
 	for key, _ := range p.targets {
@@ -143,7 +143,7 @@ func (p *PerTargetListener) updateBridgeConfig(siteId string, config *qdr.Bridge
 	return updated
 }
 
-func extractTargets(prefix string, network []skupperv2alpha1.SiteRecord) []string {
+func findTargetsInNetwork(prefix string, network []skupperv2alpha1.SiteRecord) []string {
 	var results []string
 	for _, site := range network {
 		for _, service := range site.Services {
