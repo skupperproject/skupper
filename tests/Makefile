@@ -1,4 +1,7 @@
 ROOT_PATH := $(shell pwd)
+SKUPPER_ROOT := $(abspath $(ROOT_PATH)/..)
+TESTFLAGS ?= -v -race -short
+ENVTEST_K8S_VERSION ?= 1.33.0
 EXTRA_VARS := --extra-vars "@$(ROOT_PATH)/vars.yml"
 COLLECTION_PATH := $(ROOT_PATH)/e2e/collections/ansible_collections/e2e/tests
 # Remove expose-pods-by-name from the CI tests, until we close
@@ -110,3 +113,13 @@ test-subset: create-venv
 # Run a subset of tests (comma-separated list) for CI
 ci-tests: TESTS=$(TESTS_CI)
 ci-tests: test-subset
+
+.PHONY: test-integration
+test-integration:
+	@assets=$$(cd $(SKUPPER_ROOT) && go tool setup-envtest use $(ENVTEST_K8S_VERSION) -p path); \
+	if [ -z "$$assets" ]; then \
+		echo "setup-envtest did not return KUBEBUILDER_ASSETS; run 'go tool setup-envtest use $(ENVTEST_K8S_VERSION)' from the repository root"; \
+		exit 1; \
+	fi; \
+	export KUBEBUILDER_ASSETS="$$assets"; \
+	cd $(SKUPPER_ROOT) && go test -tags=integration $(TESTFLAGS) ./tests/integration/kube/controller/...
