@@ -34,16 +34,17 @@
     pod: curl
     command: >-
       sh -c '
-        response=$(curl -s {{ run_curl_address }});
-        code=$(curl -s -w "%{http_code}" -o /dev/null {{ run_curl_address }});
-        if [ $code -eq 200 ]; then
-          echo "BODY: $response";
-          exit 0;
-        else
-          echo "BODY: $response";
-          exit 1;
-        fi
-      '
+      tmp_file=$(mktemp);
+      code=$(curl -s -w "%{http_code}" -o "$tmp_file" "{{ run_curl_address }}");
+      response=$(base64 < "$tmp_file" | tr -d "\n");
+      rm -f "$tmp_file";
+      if [ "$code" -eq 200 ]; then
+        echo "BODY_BASE64: $response";
+        exit 0;
+      else
+        echo "BODY_BASE64: $response";
+        exit 1;
+      fi'
   register: curl_result
   until: curl_result is success
   retries: "{{ run_curl_retries }}"
@@ -51,4 +52,4 @@
 
 - name: Debug the curl command output
   ansible.builtin.debug:
-    msg: "{{ curl_result.stdout }}"
+    msg: "{{ (curl_result.stdout | regex_search('BODY_BASE64: (.*)', '\\1') | first) | b64decode }}"
