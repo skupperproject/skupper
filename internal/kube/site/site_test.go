@@ -1112,6 +1112,74 @@ func TestSite_CheckRouterAccess(t *testing.T) {
 	}
 }
 
+func TestSite_checkSecuredAccess(t *testing.T) {
+	tests := []struct {
+		name                string
+		skupperErrorMessage string
+		wantErr             bool
+		wantAccessMapping   int
+	}{
+		{
+			name:              "secured access ensured for each router access",
+			wantErr:           false,
+			wantAccessMapping: 1,
+		},
+		{
+			name:                "secured access ensure failure is returned, not just logged",
+			skupperErrorMessage: "secured access create failed",
+			wantErr:             true,
+			wantAccessMapping:   0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s, err := newSiteMocks("test", nil, nil, tt.skupperErrorMessage, true)
+			assert.Assert(t, err)
+
+			s.linkAccess["my-ra"] = &skupperv2alpha1.RouterAccess{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-ra",
+					Namespace: "test",
+				},
+				Spec: skupperv2alpha1.RouterAccessSpec{
+					AccessType: "loadbalancer",
+				},
+			}
+
+			err = s.checkSecuredAccess()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Site.checkSecuredAccess() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.skupperErrorMessage != "" && err != nil {
+				assert.ErrorContains(t, err, tt.skupperErrorMessage)
+			}
+			assert.Equal(t, tt.wantAccessMapping, len(s.accessMapping))
+		})
+	}
+}
+
+func TestSite_checkSecuredAccess_reportsErrorOnInitialization(t *testing.T) {
+	s, err := newSiteMocks("test", nil, nil, "secured access create failed", true)
+	assert.Assert(t, err)
+
+	s.linkAccess["my-ra"] = &skupperv2alpha1.RouterAccess{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-ra",
+			Namespace: "test",
+		},
+		Spec: skupperv2alpha1.RouterAccessSpec{
+			AccessType: "loadbalancer",
+		},
+	}
+
+	if err := s.checkSecuredAccess(); err != nil {
+		s.updateConfigured(err)
+	}
+
+	assert.Assert(t, !s.site.IsConfigured(), "site should not be reported as configured when SecuredAccess creation fails")
+}
+
 func Test_NetworkStatusUpdate(t *testing.T) {
 	type args struct {
 		siteRecord []skupperv2alpha1.SiteRecord
