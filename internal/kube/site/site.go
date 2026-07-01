@@ -1058,6 +1058,7 @@ func (s *Site) CheckConnector(name string, connector *skupperv2alpha1.Connector)
 		return s.updateConnectorConfiguredStatus(connector, stderrors.New("No active site in namespace"))
 	}
 	var tlsErr error
+	var specErr error
 	if connector != nil {
 		tlsErr = s.missingTlsCredentialsErr(connector.Spec.TlsCredentials)
 		if tlsErr != nil {
@@ -1066,6 +1067,9 @@ func (s *Site) CheckConnector(name string, connector *skupperv2alpha1.Connector)
 				slog.String("connector", connector.Name),
 				slog.String("secret", connector.Spec.TlsCredentials),
 			)
+		}
+		if connector.Spec.Host == "" && connector.Spec.Selector == "" {
+			specErr = stderrors.New("Connector must define either spec.host or spec.selector")
 		}
 	}
 	update := s.bindings.UpdateConnector(name, connector)
@@ -1076,13 +1080,13 @@ func (s *Site) CheckConnector(name string, connector *skupperv2alpha1.Connector)
 		return nil
 	}
 	if update == nil {
-		if tlsErr != nil {
-			return s.updateConnectorConfiguredStatus(connector, tlsErr)
+		if err := stderrors.Join(tlsErr, specErr); err != nil {
+			return s.updateConnectorConfiguredStatus(connector, err)
 		}
 		return nil
 	}
 	routerErr := s.updateRouterConfig(update)
-	return s.updateConnectorConfiguredStatus(connector, stderrors.Join(tlsErr, routerErr))
+	return s.updateConnectorConfiguredStatus(connector, stderrors.Join(tlsErr, specErr, routerErr))
 }
 
 func (s *Site) updateListenerStatus(listener *skupperv2alpha1.Listener, err error) error {
