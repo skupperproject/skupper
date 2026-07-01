@@ -20,6 +20,7 @@ prometheus:
   pullPolicy: IfNotPresent
   tag: "v3.11.3"
   securityContext:
+    readOnlyRootFilesystem: true
     allowPrivilegeEscalation: false
     capabilities:
       drop:
@@ -79,6 +80,7 @@ nginx:
   tag: "1.31.0-alpine"
   pullPolicy: IfNotPresent
   securityContext:
+    readOnlyRootFilesystem: true
     allowPrivilegeEscalation: false
     capabilities:
       drop:
@@ -90,6 +92,7 @@ openshiftOauthProxy:
   tag: "4.22.0"
   pullPolicy: IfNotPresent
   securityContext:
+    readOnlyRootFilesystem: true
     allowPrivilegeEscalation: false
     capabilities:
       drop:
@@ -218,6 +221,7 @@ podSecurityContext:
 
 # network-observer container securityContext
 securityContext:
+  readOnlyRootFilesystem: true
   allowPrivilegeEscalation: false
   capabilities:
     drop:
