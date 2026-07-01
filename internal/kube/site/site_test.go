@@ -1173,10 +1173,8 @@ func TestSite_checkSecuredAccess_reportsErrorOnInitialization(t *testing.T) {
 		},
 	}
 
-	if err := s.checkSecuredAccess(); err != nil {
-		s.updateConfigured(err)
-	}
-
+	err = s.Reconcile(s.site)
+	assert.Assert(t, err != nil)
 	assert.Assert(t, !s.site.IsConfigured(), "site should not be reported as configured when SecuredAccess creation fails")
 }
 

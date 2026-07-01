@@ -229,7 +229,7 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 		s.bindings.init(s, routerConfig)
 		s.setBindingsConfiguredStatus(nil)
 		if err := s.checkSecuredAccess(); err != nil {
-			s.updateConfigured(err)
+			return err
 		}
 	} else if len(s.currentGroups) != len(s.groups()) {
 		s.logger.Info("EnableHA setting changed for site",
@@ -1539,7 +1539,7 @@ func asSecuredAccessSpec(routerAccess *skupperv2alpha1.RouterAccess, group strin
 
 func (s *Site) checkSecuredAccess() error {
 	groups := s.groups()
-	var errs []string
+	var errs []error
 	for i, group := range groups {
 		for _, la := range s.linkAccess {
 			name := la.Name
@@ -1554,14 +1554,14 @@ func (s *Site) checkSecuredAccess() error {
 				s.logger.Error("Error ensuring SecuredAccess for RouterAccess",
 					slog.String("key", la.Key()),
 					slog.Any("error", err))
-				errs = append(errs, err.Error())
+				errs = append(errs, fmt.Errorf("%s: %w", la.Key(), err))
 			} else {
 				s.accessMapping[name] = newSecuredAccessMapping(la.Name, group)
 			}
 		}
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("%s", strings.Join(errs, ", "))
+		return stderrors.Join(errs...)
 	}
 	return nil
 }
