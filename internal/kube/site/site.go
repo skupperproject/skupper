@@ -228,7 +228,9 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 		s.currentGroups = s.groups()
 		s.bindings.init(s, routerConfig)
 		s.setBindingsConfiguredStatus(nil)
-		s.checkSecuredAccess()
+		if err := s.checkSecuredAccess(); err != nil {
+			return err
+		}
 	} else if len(s.currentGroups) != len(s.groups()) {
 		s.logger.Info("EnableHA setting changed for site",
 			slog.String("namespace", siteDef.Namespace),
@@ -1652,6 +1654,7 @@ func asSecuredAccessSpec(routerAccess *skupperv2alpha1.RouterAccess, group strin
 
 func (s *Site) checkSecuredAccess() error {
 	groups := s.groups()
+	var errs []error
 	for i, group := range groups {
 		for _, la := range s.linkAccess {
 			name := la.Name
@@ -1663,14 +1666,17 @@ func (s *Site) checkSecuredAccess() error {
 				"internal.skupper.io/routeraccess": la.Name,
 			}
 			if err := s.access.Ensure(s.namespace, name, asSecuredAccessSpec(la, group, s.site.DefaultIssuer()), annotations, routerAccessOwner(la)); err != nil {
-				//TODO: add message to site status
 				s.logger.Error("Error ensuring SecuredAccess for RouterAccess",
 					slog.String("key", la.Key()),
 					slog.Any("error", err))
+				errs = append(errs, fmt.Errorf("%s: %w", la.Key(), err))
 			} else {
 				s.accessMapping[name] = newSecuredAccessMapping(la.Name, group)
 			}
 		}
+	}
+	if len(errs) > 0 {
+		return stderrors.Join(errs...)
 	}
 	return nil
 }
