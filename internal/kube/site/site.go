@@ -988,6 +988,9 @@ func (s *Site) CheckConnector(name string, connector *skupperv2alpha1.Connector)
 	if update == nil {
 		return nil
 	}
+	if connector != nil && connector.Spec.Host == "" && connector.Spec.Selector == "" {
+		return s.updateConnectorConfiguredStatus(connector, stderrors.New("Connector must define either spec.host or spec.selector"))
+	}
 	err := s.updateRouterConfig(update)
 	if connector == nil {
 		return err
