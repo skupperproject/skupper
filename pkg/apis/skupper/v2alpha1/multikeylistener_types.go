@@ -219,12 +219,15 @@ func (m *MultiKeyListener) SetOperational() bool {
 }
 
 func (m *MultiKeyListener) SetHasDestination(value bool) bool {
+	changed := false
 	if m.Status.HasDestination != value {
 		m.Status.HasDestination = value
-		m.SetOperational()
-		return true
+		changed = true
 	}
-	return false
+	if m.SetOperational() {
+		changed = true
+	}
+	return changed
 }
 
 func (m *MultiKeyListener) SetRoutingKeysReachable(keys []string) bool {
@@ -238,20 +241,24 @@ func (m *MultiKeyListener) SetRoutingKeysReachable(keys []string) bool {
 
 	if m.Spec.Strategy.Priority != nil {
 		m.Status.Strategy.Weighted = nil
+		changed := false
 		if m.Status.Strategy.Priority == nil {
 			m.Status.Strategy.Priority = &PriorityStrategyStatus{}
+			changed = true
 		}
 
 		if !reflect.DeepEqual(m.Status.Strategy.Priority.RoutingKeysReachable, keys) {
 			m.Status.Strategy.Priority.RoutingKeysReachable = keys
-			return true
+			changed = true
 		}
+		return changed
 	} else if m.Spec.Strategy.Weighted != nil {
 		m.Status.Strategy.Priority = nil
+		changed := false
 		if m.Status.Strategy.Weighted == nil {
 			m.Status.Strategy.Weighted = &WeightedStrategyStatus{}
+			changed = true
 		}
-		var changed bool = false
 		if len(keys) != len(m.Status.Strategy.Weighted.RoutingKeysReachable) {
 			changed = true
 		} else {
