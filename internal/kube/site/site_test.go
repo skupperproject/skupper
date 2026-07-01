@@ -784,6 +784,8 @@ func TestSite_CheckConnector(t *testing.T) {
 		wantErr             bool
 		want                string
 		wantConnectors      uint
+		wantConfigured      bool
+		wantErrMessage      string
 		k8sObjects          []runtime.Object
 		skupperObjects      []runtime.Object
 		skupperErrorMessage string
@@ -823,6 +825,38 @@ func TestSite_CheckConnector(t *testing.T) {
 			want:           "initialized",
 			wantErr:        false,
 			wantConnectors: 1,
+			wantConfigured: true,
+		},
+		{
+			name: "connector missing host and selector",
+			args: args{
+				name: "connector1",
+				connector: &skupperv2alpha1.Connector{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "connector1",
+						Namespace: "test",
+						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
+					},
+					Spec: skupperv2alpha1.ConnectorSpec{
+						RoutingKey: "backend",
+						Port:       8080,
+						Type:       "tcp",
+					},
+				},
+			},
+			skupperObjects: []runtime.Object{
+				&skupperv2alpha1.Connector{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "connector1",
+						Namespace: "test",
+					},
+				},
+			},
+			want:           "initialized",
+			wantErr:        false,
+			wantConnectors: 1,
+			wantConfigured: false,
+			wantErrMessage: "Connector must define either spec.host or spec.selector",
 		},
 	}
 	for _, tt := range tests {
@@ -844,6 +878,7 @@ func TestSite_CheckConnector(t *testing.T) {
 			connector := s.bindings.bindings.GetConnector(tt.args.name)
 			if tt.wantConnectors != 0 {
 				connectorConfigured := false
+				var configuredMessage string
 				if connector == nil {
 					t.Errorf("Site.Checkconnector() expected connector doesn't exist")
 				} else {
@@ -851,12 +886,16 @@ func TestSite_CheckConnector(t *testing.T) {
 						t.Errorf("Site.Checkconnector() expected connector doesn't have correct values")
 					}
 					for _, condition := range connector.Status.Conditions {
-						if condition.Type == "Configured" && condition.Status == "True" {
-							connectorConfigured = true
+						if condition.Type == "Configured" {
+							connectorConfigured = condition.Status == "True"
+							configuredMessage = condition.Message
 						}
 					}
-					if connectorConfigured == false {
-						t.Errorf("Site.CheckConnector() link not in expected configured state")
+					if connectorConfigured != tt.wantConfigured {
+						t.Errorf("Site.CheckConnector() connector configured = %v, want %v", connectorConfigured, tt.wantConfigured)
+					}
+					if tt.wantErrMessage != "" && configuredMessage != tt.wantErrMessage {
+						t.Errorf("Site.CheckConnector() configured message = %q, want %q", configuredMessage, tt.wantErrMessage)
 					}
 				}
 			} else if connector != nil {
