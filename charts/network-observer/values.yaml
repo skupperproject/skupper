@@ -229,13 +229,13 @@ securityContext:
 
 skipManagementLabels: false
 
-## Controller containers' readiness probe. Evaluated as a template.
+## Controller containers' readiness probe
 ## ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
 readinessProbe:
-  enabled: true
+  enabled: false
   # httpGet:
   #   path: /healthz
-  #   port: 9000
+  #   port: 9191
   #   scheme: HTTP
   # failureThreshold: 3
   # initialDelaySeconds: 60
@@ -243,16 +243,16 @@ readinessProbe:
   # successThreshold: 1
   # timeoutSeconds: 30
 
-  ## Default backend containers' liveness probe. Evaluated as a template.
-  ## ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
-  livenessProbe:
-    enabled: true
-    # httpGet:
-    #   path: /healthz
-    #   port: http
-    #   scheme: HTTP
-    # failureThreshold: 3
-    # initialDelaySeconds: 60
-    # periodSeconds: 30
-    # successThreshold: 1
-    # timeoutSeconds: 30
+## Default backend containers' liveness probe
+## ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
+livenessProbe:
+  enabled: false
+  # httpGet:
+  #   path: /healthz
+  #   port: 9191
+  #   scheme: HTTP
+  # failureThreshold: 3
+  # initialDelaySeconds: 60
+  # periodSeconds: 30
+  # successThreshold: 1
+  # timeoutSeconds: 30
