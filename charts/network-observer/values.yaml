@@ -235,10 +235,24 @@ readinessProbe:
   enabled: true
   # httpGet:
   #   path: /healthz
-  #   port: 11972
+  #   port: 9000
   #   scheme: HTTP
   # failureThreshold: 3
   # initialDelaySeconds: 60
   # periodSeconds: 30
   # successThreshold: 1
   # timeoutSeconds: 30
+
+  ## Default backend containers' liveness probe. Evaluated as a template.
+  ## ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
+  livenessProbe:
+    enabled: true
+    # httpGet:
+    #   path: /healthz
+    #   port: http
+    #   scheme: HTTP
+    # failureThreshold: 3
+    # initialDelaySeconds: 60
+    # periodSeconds: 30
+    # successThreshold: 1
+    # timeoutSeconds: 30
