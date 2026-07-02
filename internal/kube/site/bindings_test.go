@@ -1,6 +1,8 @@
 package site
 
 import (
+	"log/slog"
+	"strconv"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/qdr"
@@ -621,4 +623,99 @@ func TestBindingAdaptor_updateBridgeConfigForListener(t *testing.T) {
 			assert.DeepEqual(t, tt.args.config, tt.expected.config)
 		})
 	}
+}
+
+func TestRecoveredPortMappingMatchesExtendedBindingKeys(t *testing.T) {
+	siteId := "00000000-0000-0000-0000-000000000001"
+	listener := &skupperv2alpha1.Listener{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "backend",
+			Namespace: "test",
+		},
+		Spec: skupperv2alpha1.ListenerSpec{
+			Host:       "backend",
+			Port:       8080,
+			RoutingKey: "backend",
+		},
+	}
+	perTargetListener := &skupperv2alpha1.Listener{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "backend-pods",
+			Namespace: "test",
+		},
+		Spec: skupperv2alpha1.ListenerSpec{
+			Port:             9090,
+			RoutingKey:       "backend-pods",
+			ExposePodsByName: true,
+		},
+	}
+	multiKeyListener := &skupperv2alpha1.MultiKeyListener{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "multi",
+			Namespace: "test",
+		},
+		Spec: skupperv2alpha1.MultiKeyListenerSpec{
+			Host: "multi",
+			Port: 7070,
+			Strategy: skupperv2alpha1.MultiKeyListenerStrategy{
+				Priority: &skupperv2alpha1.PriorityStrategySpec{
+					RoutingKeys: []string{"alpha", "beta"},
+				},
+			},
+		},
+	}
+	network := []skupperv2alpha1.SiteRecord{
+		{
+			Services: []skupperv2alpha1.ServiceRecord{
+				{
+					RoutingKey: "backend-pods.pod-a",
+					Connectors: []string{"backend-pods"},
+				},
+			},
+		},
+	}
+
+	generated := qdr.InitialConfig("router", "site", "test", false, 3)
+	allocator := &ExtendedBindings{
+		context:   NewMockBindingContext(nil),
+		mapping:   qdr.RecoverPortMapping(nil),
+		exposed:   ExposedPorts{},
+		selectors: map[string]TargetSelection{},
+	}
+	allocator.updateBridgeConfigForListener(siteId, listener, &generated.Bridges)
+	perTarget := newPerTargetListener(perTargetListener, slog.Default())
+	_, err := perTarget.extractTargets(network, allocator.mapping, ExposedPorts{}, NewMockBindingContext(nil))
+	assert.NilError(t, err)
+	perTarget.updateBridgeConfig(siteId, &generated.Bridges)
+	allocator.updateBridgeConfigForMultiKeyListener(siteId, multiKeyListener, &generated.Bridges)
+
+	expectedListenerPort := tcpListenerPort(t, generated.Bridges, qdr.TcpListenerNamePrefix+listener.Name)
+	expectedPerTargetPort := tcpListenerPort(t, generated.Bridges, qdr.TcpListenerNamePrefix+perTargetListener.Name+"@pod-a")
+	expectedMultiKeyListenerPort := tcpListenerPort(t, generated.Bridges, "multiAddress/"+multiKeyListener.Name)
+
+	recovered := &ExtendedBindings{
+		context:   NewMockBindingContext(nil),
+		mapping:   qdr.RecoverPortMapping(&generated),
+		exposed:   ExposedPorts{},
+		selectors: map[string]TargetSelection{},
+	}
+	recovered.ListenerUpdated(listener)
+	recovered.multiKeyListenerUpdated(multiKeyListener)
+	recoveredPerTarget := newPerTargetListener(perTargetListener, slog.Default())
+	_, err = recoveredPerTarget.extractTargets(network, recovered.mapping, recovered.exposed, recovered.context)
+	assert.NilError(t, err)
+
+	exposed := recovered.context.(*MockBindingContext).exposed
+	assert.Equal(t, exposed["backend"].Ports["backend"].TargetPort, expectedListenerPort)
+	assert.Equal(t, exposed["pod-a"].Ports["backend-pods"].TargetPort, expectedPerTargetPort)
+	assert.Equal(t, exposed["multi"].Ports["multiaddress-multi"].TargetPort, expectedMultiKeyListenerPort)
+}
+
+func tcpListenerPort(t *testing.T, config qdr.BridgeConfig, name string) int {
+	t.Helper()
+	listener, ok := config.TcpListeners[name]
+	assert.Assert(t, ok, "expected tcpListener %q", name)
+	port, err := strconv.Atoi(listener.Port)
+	assert.NilError(t, err)
+	return port
 }

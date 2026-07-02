@@ -3,6 +3,7 @@ package qdr
 import (
 	"log/slog"
 	"strconv"
+	"strings"
 
 	"github.com/skupperproject/skupper/internal/ports"
 )
@@ -41,10 +42,20 @@ func (p *PortMapping) recovered(key string, portstr string) {
 	}
 	p.pool.InUse(port)
 	p.mappings[key] = port
-	if existing, ok := p.mappings[key]; ok {
-		p.pool.Release(existing)
-		delete(p.mappings, key)
+}
+
+func portMappingKey(listener TcpEndpoint) string {
+	if strings.HasPrefix(listener.Name, TcpListenerNamePrefix) {
+		name := strings.TrimPrefix(listener.Name, TcpListenerNamePrefix)
+		if strings.Contains(name, "@") && listener.Address != "" {
+			return listener.Address
+		}
+		return name
 	}
+	if strings.HasPrefix(listener.Name, "multiAddress/") {
+		return "multiaddress-" + strings.TrimPrefix(listener.Name, "multiAddress/")
+	}
+	return listener.Name
 }
 
 func RecoverPortMapping(config *RouterConfig) *PortMapping {
@@ -58,8 +69,8 @@ func RecoverPortMapping(config *RouterConfig) *PortMapping {
 			mapping.pool.InUse(int(listener.Port))
 		}
 
-		for key, listener := range config.Bridges.TcpListeners {
-			mapping.recovered(key, listener.Port)
+		for _, listener := range config.Bridges.TcpListeners {
+			mapping.recovered(portMappingKey(listener), listener.Port)
 		}
 	}
 	return mapping
