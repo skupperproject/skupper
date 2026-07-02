@@ -22,6 +22,8 @@
     secretName: {{ include "network-observer.basicAuthSecretName" . }}
 {{- end }}
 {{- end }}
+- name: proxy-tmp
+  emptyDir: {}
 {{- end -}}
 
 {{- define "network-observer.nginxProxySpec" -}}
@@ -52,6 +54,8 @@ volumeMounts:
     name: {{ include "network-observer.tlsSecretName" . }}
   - mountPath: /etc/nginx
     name: nginx-config
+  - mountPath: /tmp
+    name: proxy-tmp
 {{- if eq .Values.auth.strategy "basic" }}
   - mountPath: /etc/httpusers
     name: nginx-htpasswd
@@ -90,4 +94,6 @@ volumeMounts:
     name: {{ include "network-observer.tlsSecretName" . }}
   - mountPath: /etc/session-secrets/
     name: session-cookie-secret
+  - mountPath: /tmp
+    name: proxy-tmp
 {{- end -}}
