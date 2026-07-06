@@ -124,8 +124,17 @@ function getSkupperRouterSkstatInNamespace() {
     for flag in "${flags[@]}"; do
       oc exec -n "${sitens}" "${routerName}" -c router -- skstat -"${flag}" > "${logPath}/skstat.${flag}" 2>&1
     done
-    getPodResources "${sitens}" "${routerName}" "router"
-  done 
+  done
+}
+
+function getSkupperResourcesInNamespace() {
+  local ns="${1}"
+
+  for podName in $(oc get pods -n "${ns}" -l app.kubernetes.io/part-of=skupper -oname); do
+    for container in $(oc get "${podName}" -n "${ns}" -o jsonpath='{.spec.containers[*].name}'); do
+      getPodResources "${ns}" "${podName}" "${container}"
+    done
+  done
 }
 
 function getCRDs() {
@@ -210,12 +219,14 @@ function main() {
     inspectNamespace "${sitens}"
 
     getSkupperRouterSkstatInNamespace "${sitens}"
+    getSkupperResourcesInNamespace "${sitens}"
   done
 
   # iterate over all namespaces which have AttachedConnectors
   for acns in $(oc get attachedconnector -A -o=jsonpath="{.items[*].metadata.namespace}"); do
     echo "Inspecting AttachedConnector in ${acns} namespace"
     inspectNamespace "${acns}"
+    getSkupperResourcesInNamespace "${acns}"
   done
 
   echo
