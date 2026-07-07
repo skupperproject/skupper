@@ -18,6 +18,24 @@ const (
 	annotationKeySslProfileContext = "internal.skupper.io/tls-profile-context"
 )
 
+// IsTlsCredentialSecret reports whether a Secret carries TLS credential material.
+// kubernetes.io/tls secrets are always accepted; Opaque secrets with standard TLS
+// keys are also accepted for backward compatibility with pre-generated link tokens.
+func IsTlsCredentialSecret(secret *corev1.Secret) bool {
+	if secret == nil {
+		return false
+	}
+	if secret.Type == corev1.SecretTypeTLS {
+		return true
+	}
+	if secret.Type != corev1.SecretTypeOpaque && secret.Type != "" {
+		return false
+	}
+	return len(secret.Data["tls.crt"]) > 0 &&
+		len(secret.Data["tls.key"]) > 0 &&
+		len(secret.Data["ca.crt"]) > 0
+}
+
 type profileContext struct {
 	ProfileName string `json:"profileName"`
 	Ordinal     uint64 `json:"ordinal"`

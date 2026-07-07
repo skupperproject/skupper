@@ -72,8 +72,8 @@ func (w *ProfilesWatcher) handleSecret(key string, secret *corev1.Secret) error 
 	}
 	secretName := secret.ObjectMeta.Name
 	changed := false
-	switch secret.Type {
-	case "kubernetes.io/tls":
+	switch {
+	case IsTlsCredentialSecret(secret):
 		var secretsContext profileContextSet
 		for _, profileName := range secretProfiles(secretName) {
 			state, ok := w.state[profileName]
@@ -119,7 +119,7 @@ func (w *ProfilesWatcher) handleSecret(key string, secret *corev1.Secret) error 
 			slog.Any("context", secretsContext),
 		)
 		return w.update(w)
-	case "kubernetes.io/basic-auth":
+	case secret.Type == "kubernetes.io/basic-auth":
 		state, ok := w.state[secretName]
 		if ok {
 			if state.SecretKey == "" {
@@ -249,7 +249,7 @@ func (w *ProfilesWatcher) TlsCredentialSecretPresent(credentialName string) bool
 	}
 	for _, secretName := range profileSecrets(credentialName) {
 		secret, err := w.Cache.Get(w.keyfunc(secretName))
-		if err == nil && secret != nil && secret.Type == corev1.SecretTypeTLS {
+		if err == nil && secret != nil && IsTlsCredentialSecret(secret) {
 			return true
 		}
 	}

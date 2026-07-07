@@ -155,8 +155,8 @@ func (s *Sync) handle(key string, secret *corev1.Secret) error {
 		return nil
 	}
 
-	switch secret.Type {
-	case "kubernetes.io/tls":
+	switch {
+	case IsTlsCredentialSecret(secret):
 		metadata, found, err := fromSecret(secret)
 		if err != nil {
 			return fmt.Errorf("failed to decode secret metadata: %s", err)
@@ -174,7 +174,7 @@ func (s *Sync) handle(key string, secret *corev1.Secret) error {
 				s.doCallback(profileName)
 			}
 		}
-	case "kubernetes.io/basic-auth":
+	case secret.Type == "kubernetes.io/basic-auth":
 		namespace, _, err := cache.SplitMetaNamespaceKey(key)
 		if err != nil {
 			return err
