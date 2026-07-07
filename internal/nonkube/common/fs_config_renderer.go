@@ -578,6 +578,7 @@ func (c *FileSystemConfigurationRenderer) loadCertAsSecretFrom(basePath string, 
 			Name:      name,
 			Namespace: siteState.GetNamespace(),
 		},
+		Type: corev1.SecretTypeTLS,
 		Data: map[string][]byte{},
 	}
 	for _, file := range files {
