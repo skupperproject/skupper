@@ -856,7 +856,7 @@ func TestSite_CheckConnector(t *testing.T) {
 			wantErr:        false,
 			wantConnectors: 1,
 			wantConfigured: false,
-			wantErrMessage: "Connector must define either spec.host or spec.selector",
+			wantErrMessage: "Connector must define a non-empty spec.host or spec.selector",
 		},
 	}
 	for _, tt := range tests {

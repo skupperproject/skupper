@@ -1069,7 +1069,7 @@ func (s *Site) CheckConnector(name string, connector *skupperv2alpha1.Connector)
 			)
 		}
 		if connector.Spec.Host == "" && connector.Spec.Selector == "" {
-			specErr = stderrors.New("Connector must define either spec.host or spec.selector")
+			specErr = stderrors.New("Connector must define a non-empty spec.host or spec.selector")
 		}
 	}
 	update := s.bindings.UpdateConnector(name, connector)
