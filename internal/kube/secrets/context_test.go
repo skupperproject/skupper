@@ -7,42 +7,68 @@ import (
 )
 
 func TestIsTlsCredentialSecret(t *testing.T) {
-	tlsData := map[string][]byte{
-		"ca.crt":  []byte("ca"),
-		"tls.crt": []byte("cert"),
-		"tls.key": []byte("key"),
-	}
-
 	tests := []struct {
 		name   string
 		secret *corev1.Secret
 		want   bool
 	}{
 		{
-			name: "kubernetes.io/tls",
+			name: "kubernetes.io/tls with full material",
 			secret: &corev1.Secret{
 				Type: corev1.SecretTypeTLS,
-				Data: tlsData,
+				Data: map[string][]byte{
+					"ca.crt":  []byte("ca"),
+					"tls.crt": []byte("cert"),
+					"tls.key": []byte("key"),
+				},
 			},
 			want: true,
 		},
 		{
-			name: "opaque with tls keys",
+			name: "kubernetes.io/tls without ca.crt",
+			secret: &corev1.Secret{
+				Type: corev1.SecretTypeTLS,
+				Data: map[string][]byte{
+					"tls.crt": []byte("cert"),
+					"tls.key": []byte("key"),
+				},
+			},
+			want: true,
+		},
+		{
+			name: "opaque link token with ca.crt",
 			secret: &corev1.Secret{
 				Type: corev1.SecretTypeOpaque,
-				Data: tlsData,
+				Data: map[string][]byte{
+					"ca.crt":       []byte("ca"),
+					"tls.crt":      []byte("cert"),
+					"tls.key":      []byte("key"),
+					"connect.json": []byte("{}"),
+				},
 			},
 			want: true,
 		},
 		{
-			name: "empty type with tls keys",
+			name: "opaque with ca only",
 			secret: &corev1.Secret{
-				Data: tlsData,
+				Type: corev1.SecretTypeOpaque,
+				Data: map[string][]byte{
+					"ca.crt": []byte("ca"),
+				},
 			},
 			want: true,
 		},
 		{
-			name: "opaque missing ca.crt",
+			name: "empty type with ca.crt",
+			secret: &corev1.Secret{
+				Data: map[string][]byte{
+					"ca.crt": []byte("ca"),
+				},
+			},
+			want: true,
+		},
+		{
+			name: "opaque without ca.crt",
 			secret: &corev1.Secret{
 				Type: corev1.SecretTypeOpaque,
 				Data: map[string][]byte{
@@ -67,6 +93,13 @@ func TestIsTlsCredentialSecret(t *testing.T) {
 			name:   "nil secret",
 			secret: nil,
 			want:   false,
+		},
+		{
+			name: "nil data",
+			secret: &corev1.Secret{
+				Type: corev1.SecretTypeOpaque,
+			},
+			want: false,
 		},
 	}
 
