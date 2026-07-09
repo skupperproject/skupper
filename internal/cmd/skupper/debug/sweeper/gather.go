@@ -18,9 +18,13 @@ const (
 // connInfo is the router's view of a single connection, as returned by
 // `skmanage QUERY --type=io.skupper.router.connection`.
 type connInfo struct {
-	Identity       string `json:"identity"`
-	Container      string `json:"container"`
-	Host           string `json:"host"`
+	Identity  string `json:"identity"`
+	Container string `json:"container"`
+	Host      string `json:"host"`
+	// LocalSocket is the router's own "host:port" for this connection's
+	// socket. Unlike Host, it is unique per connection even for 'out'
+	// connections, which all share the backend's address as their Host.
+	LocalSocket    string `json:"localSocket"`
 	Dir            string `json:"dir"`
 	UptimeSeconds  *int   `json:"uptimeSeconds"`
 	LastDlvSeconds *int   `json:"lastDlvSeconds"`
@@ -38,18 +42,28 @@ type socketInfo struct {
 type Snapshot struct {
 	Now      time.Time
 	TCPConns []connInfo
-	// Sockets is keyed by peer "host:port" so it can be matched against an
-	// inbound connInfo.Host. Only sockets for 'in' (client-facing) connections
-	// can be matched reliably.
+	// Sockets is keyed by peer "host:port", matching an 'in' connection's
+	// Host (each client has a unique peer address).
 	Sockets map[string]socketInfo
+	// SocketsByLocal is keyed by the socket's own local "host:port",
+	// matching an 'out' connection's LocalSocket ('out' peers all share the
+	// backend's address, so only the local side is unique).
+	SocketsByLocal map[string]socketInfo
+}
+
+// Execer runs a command (argv) and returns its stdout. Both skmanage and the
+// socket query go through it, so they always observe the same host — and so
+// the same network namespace, which is what makes their results joinable.
+type Execer func(argv []string) ([]byte, error)
+
+func LocalExec(argv []string) ([]byte, error) {
+	return exec.Command(argv[0], argv[1:]...).Output()
 }
 
 // Gather queries the router for its TCP adaptor connections and cross
-// references them with kernel socket state. It performs no filtering beyond
-// discarding non-TCP-adaptor connections, and makes no decisions about which
-// connections are healthy.
-func Gather(skmanageBin, url string) (Snapshot, error) {
-	raw, err := runSkmanage(skmanageBin, url, "QUERY", "--type="+ConnType)
+// references them with kernel socket state. Discards non-TCP-adaptor connections
+func Gather(execFn Execer, skmanageBin, url string) (Snapshot, error) {
+	raw, err := runSkmanage(execFn, skmanageBin, url, "QUERY", "--type="+ConnType)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("could not query router at %s: %w", url, err)
 	}
@@ -66,10 +80,12 @@ func Gather(skmanageBin, url string) (Snapshot, error) {
 		}
 	}
 
+	byPeer, byLocal := gatherSockets(execFn)
 	return Snapshot{
-		Now:      time.Now(),
-		TCPConns: tcpConns,
-		Sockets:  gatherSockets(),
+		Now:            time.Now(),
+		TCPConns:       tcpConns,
+		Sockets:        byPeer,
+		SocketsByLocal: byLocal,
 	}, nil
 }
 
@@ -77,39 +93,49 @@ func isTCPAdaptorConn(c connInfo) bool {
 	return c.Container == tcpContainer && c.Host != egressDispatch
 }
 
-//runs ss -tin and builds a peer-address → {lastrcv, lastsnd} map by pairing each socket's 
-//header line with its following detail line.
-func gatherSockets() map[string]socketInfo {
-	sockets := map[string]socketInfo{}
-	out, err := exec.Command("ss", "-tin").Output()
+// gatherSockets reads kernel socket state via `ss -tin`. A host without ss (to be patched later)
+// yields no sockets, which leaves every connection unmatched and untouched.
+func gatherSockets(execFn Execer) (byPeer, byLocal map[string]socketInfo) {
+	out, err := execFn([]string{"ss", "-tin"})
 	if err != nil {
-		return sockets
+		return map[string]socketInfo{}, map[string]socketInfo{}
 	}
+	return socketsFromSS(out)
+}
 
-	var pendingPeer string
+// socketsFromSS builds two {lastrcv, lastsnd} maps — one keyed by peer
+// address, one by local address — by pairing each socket's header line in
+// `ss -tin` output with its following detail line.
+func socketsFromSS(out []byte) (byPeer, byLocal map[string]socketInfo) {
+	byPeer = map[string]socketInfo{}
+	byLocal = map[string]socketInfo{}
+
+	var pendingLocal, pendingPeer string
 	for _, line := range strings.Split(string(out), "\n") {
 		if line == "" {
 			continue
 		}
 		if line[0] != ' ' && line[0] != '\t' {
-			pendingPeer = ""
+			pendingLocal, pendingPeer = "", ""
 			fields := strings.Fields(line)
 			if len(fields) < 5 || fields[0] == "State" {
 				continue
 			}
-			pendingPeer = fields[4]
+			pendingLocal, pendingPeer = fields[3], fields[4]
 			continue
 		}
 		if pendingPeer == "" {
 			continue
 		}
-		sockets[pendingPeer] = socketInfo{
+		sock := socketInfo{
 			LastRcvMs: extractMsField(line, "lastrcv:"),
 			LastSndMs: extractMsField(line, "lastsnd:"),
 		}
-		pendingPeer = ""
+		byPeer[pendingPeer] = sock
+		byLocal[pendingLocal] = sock
+		pendingLocal, pendingPeer = "", ""
 	}
-	return sockets
+	return byPeer, byLocal
 }
 
 // extractMsField returns the integer following "key:" in line (e.g. key
@@ -132,9 +158,9 @@ func extractMsField(line, key string) int {
 	return val
 }
 
-func runSkmanage(bin, url string, args ...string) ([]byte, error) {
-	cmdArgs := append([]string{"--bus", url}, args...)
-	out, err := exec.Command(bin, cmdArgs...).Output()
+func runSkmanage(execFn Execer, bin, url string, args ...string) ([]byte, error) {
+	argv := append([]string{bin, "--bus", url}, args...)
+	out, err := execFn(argv)
 	if err != nil {
 		return nil, fmt.Errorf("skmanage failed: %w", err)
 	}
