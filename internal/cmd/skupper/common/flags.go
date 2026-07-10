@@ -94,7 +94,7 @@ for other Kubernetes flavors, loadbalancer is the default.`
 	FlagDescReloadType = "Specify the type of reload to perform. Choices: manual, auto"
 
 	FlagNameNetworkObserverUsername  = "username"
-	FlagDescNetworkObserverUsername  = "Username for HTTP Basic Auth (default: skupper)"
+	FlagDescNetworkObserverUsername  = "Username for HTTP Basic Auth"
 	FlagNameNetworkObserverPassword  = "password"
 	FlagDescNetworkObserverPassword  = "Password for HTTP Basic Auth (auto-generated if not provided)"
 	FlagNameNetworkObserverUninstall = "uninstall"
