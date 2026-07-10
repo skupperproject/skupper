@@ -18,6 +18,21 @@ const (
 	annotationKeySslProfileContext = "internal.skupper.io/tls-profile-context"
 )
 
+// IsTlsCredentialSecret reports whether a secret should be treated as TLS credentials.
+// Presence checks stay permissive; kube-adaptor determines usable contents per sslProfile.
+func IsTlsCredentialSecret(secret *corev1.Secret) bool {
+	if secret == nil || secret.Data == nil || secret.Type == corev1.SecretTypeBasicAuth {
+		return false
+	}
+	if secret.Type == corev1.SecretTypeTLS {
+		return true
+	}
+	if secret.Type == corev1.SecretTypeOpaque || secret.Type == "" {
+		return len(secret.Data["ca.crt"]) > 0
+	}
+	return false
+}
+
 type profileContext struct {
 	ProfileName string `json:"profileName"`
 	Ordinal     uint64 `json:"ordinal"`
