@@ -22,8 +22,6 @@
     secretName: {{ include "network-observer.basicAuthSecretName" . }}
 {{- end }}
 {{- end }}
-- name: proxy-tmp
-  emptyDir: {}
 {{- end -}}
 
 {{- define "network-observer.nginxProxySpec" -}}
@@ -36,6 +34,14 @@ command:
 {{- with .Values.nginx.securityContext }}
 securityContext:
   {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- if .Values.nginx.readinessProbe.enabled }}    
+readinessProbe:
+  {{- omit .Values.nginx.readinessProbe "enabled" | toYaml | nindent 2 }}
+{{- end }}
+{{- if .Values.nginx.livenessProbe.enabled }}    
+livenessProbe:
+  {{- omit .Values.nginx.livenessProbe "enabled" | toYaml | nindent 2 }}
 {{- end }}
 ports:
   - name: https
@@ -56,6 +62,8 @@ volumeMounts:
     name: nginx-config
   - mountPath: /tmp
     name: proxy-tmp
+  - mountPath: /var/cache/nginx
+    name: nginx-cache
 {{- if eq .Values.auth.strategy "basic" }}
   - mountPath: /etc/httpusers
     name: nginx-htpasswd
