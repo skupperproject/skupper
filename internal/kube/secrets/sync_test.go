@@ -105,6 +105,34 @@ func TestSyncHandler(t *testing.T) {
 	assertFiles(t, path.Join(tmpdir, "test-tls"), expectedFiles)
 }
 
+func TestSyncHandlerOpaqueTlsSecret(t *testing.T) {
+	tmpdir := t.TempDir()
+	tlog := slog.New(slog.NewTextHandler(io.Discard, nil))
+	sCache := secretsCacheFactoryFixture(t, "testing")
+	secretSync := secrets.NewSync(sCache.Factory, nil, tlog)
+	secretSync.Recover()
+
+	configuredProfiles := map[string]qdr.SslProfile{
+		"link-tls-profile": fixtureSslProfile("link-tls-profile", tmpdir, 0, 0, false),
+	}
+	delta := secretSync.ExpectSslProfiles(configuredProfiles)
+	if len(delta.Missing) != 1 {
+		t.Fatalf("expected missing profile link-tls-profile: %s", delta.Error())
+	}
+
+	sCache.Secrets["testing/link-tls"] = fixtureOpaqueTlsSecret("link-tls", "testing")
+	sCache.Secrets["testing/link-tls"].Annotations[tlsProfKey] = `[{"profileName": "link-tls-profile", "ordinal": 0}]`
+	if err := sCache.HandlerFn("testing/link-tls", sCache.Secrets["testing/link-tls"]); err != nil {
+		t.Fatalf("unexpected error handling opaque tls secret: %s", err)
+	}
+
+	delta = secretSync.ExpectSslProfiles(configuredProfiles)
+	if !delta.Empty() {
+		t.Fatalf("expected opaque tls secret to satisfy profile: %s", delta.Error())
+	}
+	assertFiles(t, path.Join(tmpdir, "link-tls-profile"), expectedFiles)
+}
+
 func TestSyncCallback(t *testing.T) {
 	tmpdir := t.TempDir()
 	tlog := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -165,6 +193,23 @@ func assertFiles(t *testing.T, dir string, fileNames []string) {
 	}
 	for fileName := range expected {
 		t.Errorf("Expected file %q not found", fileName)
+	}
+}
+
+func fixtureOpaqueTlsSecret(name, namespace string) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Namespace:   namespace,
+			Annotations: map[string]string{},
+		},
+		Data: map[string][]byte{
+			"ca.crt":       []byte("ca.crt - " + name),
+			"tls.crt":      []byte("tls.crt - " + name),
+			"tls.key":      []byte("tls.key - " + name),
+			"connect.json": []byte("{}"),
+		},
+		Type: corev1.SecretTypeOpaque,
 	}
 }
 
