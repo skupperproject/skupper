@@ -348,7 +348,7 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		}
 	}
 	for _, connector := range c.attachedConnectorWatcher.List() {
-		if !c.namespaces.isControlled(connector.Namespace) {
+		if !c.namespaces.isControlled(connector.Spec.SiteNamespace) {
 			continue
 		}
 		c.log.Info("Recovering attached connector",
