@@ -42,8 +42,7 @@ ExecStart={{.ContainerEngine}} run --name %s-skupper-prometheus \
     --label application=skupper-v2 \
     --label skupper.io/v2-component=prometheus \
     --user={{.RunAsUser}} \
-    --userns=keep-id \
-    --network host \
+{{.UsernsFlag}}    --network host \
     --restart always \
     -v %s/network-observer/prometheus:/etc/prometheus:z \
     -v %s/network-observer/prometheus/data:/prometheus:z \
@@ -74,14 +73,13 @@ ExecStart={{.ContainerEngine}} run --name %s-skupper-network-observer \
     --label application=skupper-v2 \
     --label skupper.io/v2-component=network-observer \
     --user={{.RunAsUser}} \
-    --userns=keep-id \
-    --network host \
+{{.UsernsFlag}}    --network host \
     --restart always \
     -v %s/runtime/certs/skupper-local-client:/etc/messaging:ro,z \
     {{.NetworkObserverImage}} \
     -listen=127.0.0.1:{{.NetobsPort}} \
     -prometheus-api=http://127.0.0.1:{{.PrometheusPort}} \
-    -router-endpoint=amqps://127.0.0.1:5671 \
+    -router-endpoint={{.RouterEndpoint}} \
     -router-tls-ca=/etc/messaging/ca.crt \
     -router-tls-cert=/etc/messaging/tls.crt \
     -router-tls-key=/etc/messaging/tls.key \
@@ -108,8 +106,7 @@ ExecStart={{.ContainerEngine}} run --name %s-skupper-nginx \
     --label application=skupper-v2 \
     --label skupper.io/v2-component=nginx-proxy \
     --user={{.RunAsUser}} \
-    --userns=keep-id \
-    --network host \
+{{.UsernsFlag}}    --network host \
     --restart always \
     -v %s/network-observer/nginx/conf.d:/etc/nginx/conf.d:z \
     -v %s/network-observer/certs:/etc/certificates:z \
@@ -213,6 +210,13 @@ func (s *SystemdServiceManager) CreateServices() error {
 	return nil
 }
 
+func (s *SystemdServiceManager) userNsFlag() string {
+	if s.ContainerEngine == "podman" {
+		return "    --userns=keep-id \\\n"
+	}
+	return ""
+}
+
 func (s *SystemdServiceManager) renderPrometheusService(namespacePath string) string {
 	content := fmt.Sprintf(SystemdPrometheusServiceTemplate,
 		s.Namespace, s.Namespace,
@@ -221,6 +225,7 @@ func (s *SystemdServiceManager) renderPrometheusService(namespacePath string) st
 		s.Namespace, s.Namespace, s.Namespace)
 	content = strings.ReplaceAll(content, "{{.ContainerEngine}}", s.ContainerEngine)
 	content = strings.ReplaceAll(content, "{{.RunAsUser}}", s.RunAsUser)
+	content = strings.ReplaceAll(content, "{{.UsernsFlag}}", s.userNsFlag())
 	content = strings.ReplaceAll(content, "{{.PrometheusImage}}", images.GetPrometheusImageName())
 	content = strings.ReplaceAll(content, "{{.PrometheusPort}}", fmt.Sprintf("%d", s.ports.prometheus))
 	return content
@@ -234,9 +239,11 @@ func (s *SystemdServiceManager) renderNetworkObserverService(namespacePath strin
 		s.Namespace, s.Namespace, s.Namespace)
 	content = strings.ReplaceAll(content, "{{.ContainerEngine}}", s.ContainerEngine)
 	content = strings.ReplaceAll(content, "{{.RunAsUser}}", s.RunAsUser)
+	content = strings.ReplaceAll(content, "{{.UsernsFlag}}", s.userNsFlag())
 	content = strings.ReplaceAll(content, "{{.NetworkObserverImage}}", images.GetNetworkObserverImageName())
 	content = strings.ReplaceAll(content, "{{.NetobsPort}}", fmt.Sprintf("%d", s.ports.netobs))
 	content = strings.ReplaceAll(content, "{{.PrometheusPort}}", fmt.Sprintf("%d", s.ports.prometheus))
+	content = strings.ReplaceAll(content, "{{.RouterEndpoint}}", s.ports.router)
 	content = strings.ReplaceAll(content, "{{.MetricsPort}}", fmt.Sprintf("%d", s.ports.metrics))
 	return content
 }
@@ -249,6 +256,7 @@ func (s *SystemdServiceManager) renderNginxService(namespacePath string) string 
 		s.Namespace, s.Namespace, s.Namespace)
 	content = strings.ReplaceAll(content, "{{.ContainerEngine}}", s.ContainerEngine)
 	content = strings.ReplaceAll(content, "{{.RunAsUser}}", s.RunAsUser)
+	content = strings.ReplaceAll(content, "{{.UsernsFlag}}", s.userNsFlag())
 	content = strings.ReplaceAll(content, "{{.NginxImage}}", images.GetNginxImageName())
 	return content
 }
