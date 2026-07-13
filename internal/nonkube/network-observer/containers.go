@@ -19,7 +19,7 @@ func GetNetworkObserverContainer(namespace string, p ports) container.Container 
 		Command: []string{
 			fmt.Sprintf("-listen=127.0.0.1:%d", p.netobs),
 			fmt.Sprintf("-prometheus-api=http://127.0.0.1:%d", p.prometheus),
-			"-router-endpoint=amqps://127.0.0.1:5671",
+			fmt.Sprintf("-router-endpoint=%s", p.router),
 			"-router-tls-ca=/etc/messaging/ca.crt",
 			"-router-tls-cert=/etc/messaging/tls.crt",
 			"-router-tls-key=/etc/messaging/tls.key",

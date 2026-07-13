@@ -14,6 +14,7 @@ import (
 	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/nonkube/client/compat"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/internal/nonkube/client/runtime"
 	"github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/pkg/container"
@@ -25,6 +26,7 @@ type ports struct {
 	prometheus int
 	netobs     int
 	metrics    int
+	router     string
 }
 
 type Installer struct {
@@ -349,11 +351,17 @@ func (i *Installer) generateConfigurations() error {
 		return fmt.Errorf("failing to assign port to network observer: %s", err)
 	}
 
+	routerEndpoint, err := runtime.GetLocalRouterAddress(i.Namespace)
+	if err != nil {
+		return fmt.Errorf("failed to determine local router address: %w", err)
+	}
+
 	i.ports = ports{
 		nginx:      nginxPort,
 		prometheus: prometheusPort,
 		netobs:     netobsPort,
 		metrics:    metricsPort,
+		router:     routerEndpoint,
 	}
 
 	i.logger.Info("Assigned ports",
@@ -361,6 +369,7 @@ func (i *Installer) generateConfigurations() error {
 		slog.Int("prometheus", prometheusPort),
 		slog.Int("netobs", netobsPort),
 		slog.Int("metrics", metricsPort),
+		slog.String("router", routerEndpoint),
 	)
 
 	prometheusPath := filepath.Join(namespacePath, "network-observer", "prometheus", "prometheus.yml")
