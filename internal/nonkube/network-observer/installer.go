@@ -9,6 +9,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/config"
@@ -411,7 +412,9 @@ func (i *Installer) generateHtpasswd() (string, error) {
 }
 
 func (i *Installer) installContainer(newContainer container.Container) error {
-	err := i.cli.ImagePull(context.TODO(), newContainer.Image)
+	ctx, cn := context.WithTimeout(context.Background(), time.Minute*10)
+	defer cn()
+	err := i.cli.ImagePull(ctx, newContainer.Image)
 	if err != nil {
 		return fmt.Errorf("failed to pull image: %v", err)
 	}
