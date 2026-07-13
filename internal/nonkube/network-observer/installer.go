@@ -132,6 +132,11 @@ func (i *Installer) Install() (*InstallResult, error) {
 		return nil, fmt.Errorf("failed to generate certificates: %w", err)
 	}
 
+	generatedPassword, err := i.generateHtpasswd()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate htpasswd: %w", err)
+	}
+
 	systemdGlobal, err := common.NewSystemdGlobal(i.Platform)
 	if err != nil {
 		return nil, err
@@ -161,11 +166,6 @@ func (i *Installer) Install() (*InstallResult, error) {
 	}
 
 	i.logger.Info("Network observer installation completed successfully")
-
-	generatedPassword, err := i.generateHtpasswd()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate htpasswd: %w", err)
-	}
 
 	return &InstallResult{
 		URL:      fmt.Sprintf("https://localhost:%d", i.ports.nginx),
