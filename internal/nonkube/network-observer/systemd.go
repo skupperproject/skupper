@@ -145,7 +145,10 @@ func getSystemdServiceDir() string {
 	if os.Getuid() == 0 {
 		return "/etc/systemd/system"
 	}
-	home := os.Getenv("HOME")
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = fmt.Sprintf("/home/%s", os.Getenv("USER"))
+	}
 	return filepath.Join(home, ".config", "systemd", "user")
 }
 
