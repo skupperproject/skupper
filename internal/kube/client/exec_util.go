@@ -26,10 +26,10 @@ func ExecCommandInContainer(command []string, podName string, containerName stri
 		targetContainer = containerName
 	}
 
-	var stdout io.Writer
-
 	buffer := bytes.Buffer{}
-	stdout = bufio.NewWriter(&buffer)
+	bufferedStdout := bufio.NewWriter(&buffer)
+
+	var stdout io.Writer = bufferedStdout
 
 	restClient, err := restclient.RESTClientFor(config)
 	if err != nil {
@@ -61,7 +61,9 @@ func ExecCommandInContainer(command []string, podName string, containerName stri
 	})
 	if err != nil {
 		return nil, err
-	} else {
-		return &buffer, nil
 	}
+	if err := bufferedStdout.Flush(); err != nil {
+		return nil, err
+	}
+	return &buffer, nil
 }
