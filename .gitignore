@@ -30,3 +30,9 @@
 
 # Generated files
 manifest.json
+
+# Shipyard generated and downloaded
+.dapper
+Dockerfile.dapper
+Makefile.shipyard
+output/
