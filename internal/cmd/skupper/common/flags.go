@@ -252,6 +252,13 @@ type CommandVersionFlags struct {
 type CommandDebugFlags struct {
 }
 
+type CommandConnSweeperFlags struct {
+	URL           string
+	IdleThreshold int
+	DryRun        bool
+	Skmanage      string
+}
+
 type CommandSystemUninstallFlags struct {
 	Force bool
 }

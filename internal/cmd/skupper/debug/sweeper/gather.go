@@ -51,9 +51,9 @@ type Snapshot struct {
 	SocketsByLocal map[string]socketInfo
 }
 
-// Execer runs a command (argv) and returns its stdout. Both skmanage and the
-// socket query go through it, so they always observe the same host — and so
-// the same network namespace, which is what makes their results joinable.
+// Execer runs a command (argv) and returns its stdout. LocalExec runs on
+// this host; the kube variant execs inside the router pod instead, so both
+// skmanage and the socket query see the router's network namespace.
 type Execer func(argv []string) ([]byte, error)
 
 func LocalExec(argv []string) ([]byte, error) {
@@ -61,9 +61,11 @@ func LocalExec(argv []string) ([]byte, error) {
 }
 
 // Gather queries the router for its TCP adaptor connections and cross
-// references them with kernel socket state. Discards non-TCP-adaptor connections
-func Gather(execFn Execer, skmanageBin, url string) (Snapshot, error) {
-	raw, err := runSkmanage(execFn, skmanageBin, url, "QUERY", "--type="+ConnType)
+// references them with kernel socket state. Discards non-TCP-adaptor connections.
+// extraArgs are appended to the skmanage invocation (e.g. --ssl-certificate
+// options when the management endpoint is amqps).
+func Gather(execFn Execer, skmanageBin, url string, extraArgs ...string) (Snapshot, error) {
+	raw, err := runSkmanage(execFn, skmanageBin, url, extraArgs, "QUERY", "--type="+ConnType)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("could not query router at %s: %w", url, err)
 	}
@@ -93,14 +95,18 @@ func isTCPAdaptorConn(c connInfo) bool {
 	return c.Container == tcpContainer && c.Host != egressDispatch
 }
 
-// gatherSockets reads kernel socket state via `ss -tin`. A host without ss (to be patched later)
-// yields no sockets, which leaves every connection unmatched and untouched.
+// gatherSockets reads kernel socket state, preferring `ss -tin` and falling
+// back to the python netlink script when ss isn't available (e.g. inside the
+// router container, which ships python3 but not iproute).
 func gatherSockets(execFn Execer) (byPeer, byLocal map[string]socketInfo) {
-	out, err := execFn([]string{"ss", "-tin"})
+	if out, err := execFn([]string{"ss", "-tin"}); err == nil {
+		return socketsFromSS(out)
+	}
+	out, err := execFn([]string{"python3", "-c", inetDiagScript})
 	if err != nil {
 		return map[string]socketInfo{}, map[string]socketInfo{}
 	}
-	return socketsFromSS(out)
+	return socketsFromDiagOutput(out)
 }
 
 // socketsFromSS builds two {lastrcv, lastsnd} maps — one keyed by peer
@@ -158,8 +164,9 @@ func extractMsField(line, key string) int {
 	return val
 }
 
-func runSkmanage(execFn Execer, bin, url string, args ...string) ([]byte, error) {
+func runSkmanage(execFn Execer, bin, url string, extraArgs []string, args ...string) ([]byte, error) {
 	argv := append([]string{bin, "--bus", url}, args...)
+	argv = append(argv, extraArgs...)
 	out, err := execFn(argv)
 	if err != nil {
 		return nil, fmt.Errorf("skmanage failed: %w", err)
