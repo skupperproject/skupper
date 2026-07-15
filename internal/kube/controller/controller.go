@@ -248,6 +248,19 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 	for _, svc := range c.serviceWatcher.List() {
 		c.observedServices[svc.Namespace+"/"+svc.ObjectMeta.Name] = svc.ObjectMeta.Name
 	}
+	// Preload router access needed by site recovery
+	for _, la := range c.linkAccessWatcher.List() {
+		if !c.namespaces.isControlled(la.Namespace) {
+			continue
+		}
+		if err := c.getSite(la.Namespace).CheckRouterAccess(la.Name, la); err != nil {
+			c.log.Error("Error preloading router access",
+				slog.String("namespace", la.Namespace),
+				slog.String("name", la.Name),
+				slog.Any("error", err),
+			)
+		}
+	}
 	//recover existing sites & bindings
 	siteRecovery := site.NewSiteRecovery(c.eventProcessor.GetKubeClient())
 	recoveringSites := map[string]string{}

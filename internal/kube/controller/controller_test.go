@@ -672,7 +672,7 @@ func TestRecoveryPreservesRouterBridgeConfig(t *testing.T) {
 	assert.Assert(t, err)
 
 	uid := "49b03ad4-d414-42be-bbb5-b32d7d4ca503"
-	site := f.addUID(f.site("mysite", "test", "", false, false), uid)
+	site := f.addUID(f.site("mysite", "test", "loadbalancer", false, false), uid)
 	attachedConnectorBinding := f.attachedConnectorBinding("attached-a", "test", "attached")
 	attachedConnectorBinding.Spec.RoutingKey = "attached-a"
 	attachedPod := f.pod("pod-a", "attached", map[string]string{"app": "attached-a"}, nil, f.podStatus("10.1.1.20", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue)))
@@ -741,6 +741,7 @@ func TestRecoveryPreservesRouterBridgeConfig(t *testing.T) {
 	clients, err := fakeclient.NewFakeClient(config.Namespace, []runtime.Object{routerConfigMap, networkStatus, routerDeployment, attachedPod, normalPod}, []runtime.Object{
 		site,
 		siteCA,
+		f.routerAccess("skupper-router", "test", "loadbalancer", "skupper-site-server", true, "skupper-site-ca", f.role("inter-router", 55671), f.role("edge", 45671)),
 		f.connectorWithSelector("normal-a", "test", "app=normal-a", 8084),
 		f.attachedConnector("attached-a", "attached", "test", "app=attached-a", 8083),
 		attachedConnectorBinding,
