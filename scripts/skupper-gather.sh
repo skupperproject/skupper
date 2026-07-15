@@ -32,12 +32,14 @@ else
 fi
 
 echo "===memory.info==="
-curr=$(cat "$d/memory.current")
-max=$(cat "$d/memory.max")
-curr_kb=$((curr / 1024))
-curr_mb=$((curr / 1024 / 1024))
+curr=$(cat "$d/memory.current" 2>/dev/null)
+max=$(cat "$d/memory.max" 2>/dev/null)
+curr_kb=$((${curr:-0} / 1024))
+curr_mb=$((${curr:-0} / 1024 / 1024))
 
-if [ "$max" = "max" ]; then
+if [ -z "$max" ]; then
+  limit_str="unknown (memory.max missing - cgroup v1?)"
+elif [ "$max" = "max" ]; then
   limit_str="max (uncapped)"
 else
   max_kb=$((max / 1024))
