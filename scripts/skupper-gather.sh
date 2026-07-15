@@ -16,6 +16,83 @@ get_log_collection_args() {
   fi
 }
 
+# Collects cgroup v2 memory/CPU metrics as "===<filename>===" delimited sections.
+# CONTAINER_ID set: run on the node (oc debug), find the container's cgroup on the host.
+# CONTAINER_ID empty: run in the container, read /sys/fs/cgroup directly.
+read -r -d '' CGROUP_COLLECT_SCRIPT <<'COLLECT_EOF'
+if [ -n "${CONTAINER_ID}" ]; then
+  d=$(find /sys/fs/cgroup -type d -name "*${CONTAINER_ID}*" 2>/dev/null | head -1)
+  if [ -z "$d" ]; then
+    echo "===memory.info==="
+    echo "cgroup directory not found on node for container ${CONTAINER_ID}"
+    exit 0
+  fi
+else
+  d=/sys/fs/cgroup
+fi
+
+echo "===memory.info==="
+curr=$(cat "$d/memory.current")
+max=$(cat "$d/memory.max")
+curr_kb=$((curr / 1024))
+curr_mb=$((curr / 1024 / 1024))
+
+if [ "$max" = "max" ]; then
+  limit_str="max (uncapped)"
+else
+  max_kb=$((max / 1024))
+  max_mb=$((max / 1024 / 1024))
+  limit_str="$max bytes ($max_kb KiB / $max_mb MiB)"
+fi
+
+echo "Usage: $curr bytes ($curr_kb KiB / $curr_mb MiB) - Limit: $limit_str"
+
+echo "===memory.pressure==="
+if [ -f "$d/memory.pressure" ]; then
+  cat "$d/memory.pressure"
+else
+  echo "PSI not available on this node (kernel psi=1 not enabled)"
+fi
+
+echo "===cpu.stat==="
+while read -r key val; do
+  case "$key" in
+    usage_usec) desc='Total CPU time consumed (user + system)' ;;
+    user_usec) desc='Time spent in user-space (app logic)' ;;
+    system_usec) desc='Time spent in kernel-space (syscalls, I/O)' ;;
+    core_sched.force_idle_usec) desc='Time CPU forced idle for security (cross-HT side-channel protection)' ;;
+    nr_periods) desc='Number of CPU quota enforcement periods (0 = no quota set)' ;;
+    nr_throttled) desc='Times the container was throttled for exceeding CPU quota' ;;
+    throttled_usec) desc='Total time spent throttled/waiting for CPU quota' ;;
+    nr_bursts) desc='Times container used burst CPU capacity beyond quota' ;;
+    burst_usec) desc='Total time spent using burst CPU capacity' ;;
+    *) desc='' ;;
+  esac
+  if [[ $key == *_usec ]] && [ "$val" -ge 1000000 ]; then
+    sec=$(awk "BEGIN {printf \"%.2f\", $val/1000000}")
+    echo "$key $val ($sec s) | $desc"
+  else
+    echo "$key $val | $desc"
+  fi
+done < "$d/cpu.stat"
+
+echo "===cpu.max==="
+read -r quota period < "$d/cpu.max"
+if [ "$quota" = "max" ]; then
+  echo "CPU Limit: uncapped (no quota set)"
+else
+  cores=$(awk "BEGIN {printf \"%.2f\", $quota/$period}")
+  echo "CPU Limit: $quota/$period us = $cores cores"
+fi
+
+echo "===cpu.pressure==="
+if [ -f "$d/cpu.pressure" ]; then
+  cat "$d/cpu.pressure"
+else
+  echo "PSI not available on this node (kernel psi=1 not enabled)"
+fi
+COLLECT_EOF
+
 function getPodResources() {
   local ns="${1}"
   local podName="${2}"
@@ -27,89 +104,38 @@ function getPodResources() {
 
   echo "Collecting resource usage for pod ${podName} in ${ns}"
 
-  # Memory Info
-  oc exec -n "${ns}" "${podName}" -c "${container}" -- bash -c '
-    curr=$(cat /sys/fs/cgroup/memory.current)
-    max=$(cat /sys/fs/cgroup/memory.max)
-    curr_kb=$((curr / 1024))
-    curr_mb=$((curr / 1024 / 1024))
-
-    if [ "$max" = "max" ]; then
-      limit_str="max (uncapped)"
-    else
-      max_kb=$((max / 1024))
-      max_mb=$((max / 1024 / 1024))
-      limit_str="$max bytes ($max_kb KiB / $max_mb MiB)"
-    fi
-
-    echo "Usage: $curr bytes ($curr_kb KiB / $curr_mb MiB) - Limit: $limit_str" > /tmp/memory.info
-  ' 2>/dev/null
-  oc exec -n "${ns}" "${podName}" -c "${container}" -- cat /tmp/memory.info > "${resourcePath}/memory.info" 2>&1
-
-# Get previous container termination info
-oc get pod "${podName##"pod/"}" -n "${ns}" -o jsonpath="{.status.containerStatuses[?(@.name=='${container}')].lastState}" > "${resourcePath}/last.terminated" 2>/dev/null
-if [ ! -s "${resourcePath}/last.terminated" ]; then
-  echo "No previous termination recorded" > "${resourcePath}/last.terminated"
-fi
-
-  # Memory pressure
-oc exec -n "${ns}" "${podName}" -c "${container}" -- bash -c '
-    if [ -f /sys/fs/cgroup/memory.pressure ]; then
-      cat /sys/fs/cgroup/memory.pressure
-    else
-      echo "PSI not available on this node (kernel psi=1 not enabled)"
-    fi
-' > "${resourcePath}/memory.pressure" 2>&1
-
-# CPU usage
-oc exec -n "${ns}" "${podName}" -c "${container}" -- bash -c "
-  declare -A cpu_descriptions
-  cpu_descriptions=(
-    [usage_usec]='Total CPU time consumed (user + system)'
-    [user_usec]='Time spent in user-space (app logic)'
-    [system_usec]='Time spent in kernel-space (syscalls, I/O)'
-    [core_sched.force_idle_usec]='Time CPU forced idle for security (cross-HT side-channel protection)'
-    [nr_periods]='Number of CPU quota enforcement periods (0 = no quota set)'
-    [nr_throttled]='Times the container was throttled for exceeding CPU quota'
-    [throttled_usec]='Total time spent throttled/waiting for CPU quota'
-    [nr_bursts]='Times container used burst CPU capacity beyond quota'
-    [burst_usec]='Total time spent using burst CPU capacity'
-  )
-
-  cat /sys/fs/cgroup/cpu.stat | while read line; do
-    val=\$(echo \$line | awk '{print \$2}')
-    key=\$(echo \$line | awk '{print \$1}')
-    desc=\${cpu_descriptions[\$key]}
-    if [[ \$key == *_usec ]] && [ \$val -ge 1000000 ]; then
-      sec=\$(awk \"BEGIN {printf \\\"%.2f\\\", \$val/1000000}\")
-      echo \"\$line (\$sec s) | \$desc\"
-    else
-      echo \"\$line | \$desc\"
-    fi
-  done
-" > "${resourcePath}/cpu.stat" 2>&1
-
-  # CPU limit
-  oc exec -n "${ns}" "${podName}" -c "${container}" -- bash -c '
-    cpu_max=$(cat /sys/fs/cgroup/cpu.max)
-    quota=$(echo $cpu_max | awk "{print \$1}")
-    period=$(echo $cpu_max | awk "{print \$2}")
-    if [ "$quota" = "max" ]; then
-      echo "CPU Limit: uncapped (no quota set)"
-    else
-      cores=$(awk "BEGIN {printf \"%.2f\", $quota/$period}")
-      echo "CPU Limit: $quota/$period us = $cores cores"
-    fi
-  ' > "${resourcePath}/cpu.max" 2>&1
-
-  # CPU pressure
-oc exec -n "${ns}" "${podName}" -c "${container}" -- bash -c '
-  if [ -f /sys/fs/cgroup/cpu.pressure ]; then
-    cat /sys/fs/cgroup/cpu.pressure
-  else
-    echo "PSI not available on this node (kernel psi=1 not enabled)"
+  # Get previous container termination info
+  oc get pod "${podDirName}" -n "${ns}" -o jsonpath="{.status.containerStatuses[?(@.name=='${container}')].lastState}" > "${resourcePath}/last.terminated" 2>/dev/null
+  # jsonpath emits "{}" (not an empty file) when the container has no previous
+  # termination, so treat that as "nothing recorded" too.
+  if [ ! -s "${resourcePath}/last.terminated" ] || [ "$(cat "${resourcePath}/last.terminated")" = "{}" ]; then
+    echo "No previous termination recorded" > "${resourcePath}/last.terminated"
   fi
-' > "${resourcePath}/cpu.pressure" 2>&1
+
+  # Collect cgroup metrics: exec into the container when it has bash,
+  # otherwise (scratch-based images) read the container's cgroup from the
+  # node via oc debug.
+  local output
+  if oc exec -n "${ns}" "${podName}" -c "${container}" -- bash -c 'true' >/dev/null 2>&1; then
+    output=$(oc exec -n "${ns}" "${podName}" -c "${container}" -- bash -c "CONTAINER_ID='' ; ${CGROUP_COLLECT_SCRIPT}" 2>&1)
+  else
+    echo "  bash not available in container ${container} (scratch image), using oc debug node"
+    local nodeName containerID
+    nodeName=$(oc get pod "${podDirName}" -n "${ns}" -o jsonpath='{.spec.nodeName}' 2>/dev/null)
+    containerID=$(oc get pod "${podDirName}" -n "${ns}" -o jsonpath="{.status.containerStatuses[?(@.name=='${container}')].containerID}" 2>/dev/null)
+    containerID="${containerID##*://}"
+    if [ -z "${nodeName}" ] || [ -z "${containerID}" ]; then
+      echo "Unable to determine node or container ID for ${podName}/${container}" > "${resourcePath}/memory.info"
+      return
+    fi
+    output=$(oc debug "node/${nodeName}" -q -- chroot /host bash -c "CONTAINER_ID='${containerID}' ; ${CGROUP_COLLECT_SCRIPT}" 2>&1)
+  fi
+
+  # Split the delimited sections into individual files
+  echo "${output}" | awk -v dir="${resourcePath}" '
+    /^===[a-z.]+===$/ { f = dir "/" substr($0, 4, length($0) - 6); next }
+    f { print > f }
+  '
 }
 
 function getSkupperRouterSkstatInNamespace() {
@@ -117,7 +143,7 @@ function getSkupperRouterSkstatInNamespace() {
   local flags=("g" "c" "l" "n" "e" "a" "m" "p")
   prefix="pod/"
 
-  for routerName in $(oc get pods -n "${sitens}" -l app.kubernetes.io/name=skupper-router -oname); do 
+  for routerName in $(oc get pods -n "${sitens}" -l app.kubernetes.io/name=skupper-router -oname); do
     echo "Collecting skstats for pod ${routerName}.${routerNamespace}"
     local logPath=${BASE_COLLECTION_PATH}/namespaces/${sitens}/pods/${routerName##"$prefix"}/router/router/skstat
     mkdir -p "${logPath}"
@@ -136,6 +162,7 @@ function getSkupperResourcesInNamespace() {
     done
   done
 }
+
 
 function getCRDs() {
   local result=()
