@@ -34,8 +34,14 @@ fi
 echo "===memory.info==="
 curr=$(cat "$d/memory.current" 2>/dev/null)
 max=$(cat "$d/memory.max" 2>/dev/null)
-curr_kb=$((${curr:-0} / 1024))
-curr_mb=$((${curr:-0} / 1024 / 1024))
+
+if [ -z "$curr" ]; then
+  usage_str="unknown (memory.current missing - cgroup v1?)"
+else
+  curr_kb=$((curr / 1024))
+  curr_mb=$((curr / 1024 / 1024))
+  usage_str="$curr bytes ($curr_kb KiB / $curr_mb MiB)"
+fi
 
 if [ -z "$max" ]; then
   limit_str="unknown (memory.max missing - cgroup v1?)"
@@ -47,7 +53,7 @@ else
   limit_str="$max bytes ($max_kb KiB / $max_mb MiB)"
 fi
 
-echo "Usage: $curr bytes ($curr_kb KiB / $curr_mb MiB) - Limit: $limit_str"
+echo "Usage: $usage_str - Limit: $limit_str"
 
 echo "===memory.pressure==="
 if [ -f "$d/memory.pressure" ]; then
@@ -79,8 +85,10 @@ while read -r key val; do
 done < "$d/cpu.stat"
 
 echo "===cpu.max==="
-read -r quota period < "$d/cpu.max"
-if [ "$quota" = "max" ]; then
+read -r quota period < "$d/cpu.max" 2>/dev/null
+if [ -z "$quota" ] || [ -z "$period" ]; then
+  echo "CPU Limit: unknown (cpu.max missing - cgroup v1?)"
+elif [ "$quota" = "max" ]; then
   echo "CPU Limit: uncapped (no quota set)"
 else
   cores=$(awk "BEGIN {printf \"%.2f\", $quota/$period}")
