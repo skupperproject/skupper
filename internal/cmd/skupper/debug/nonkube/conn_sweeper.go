@@ -32,7 +32,8 @@ func NewCmdConnSweeper() *CmdConnSweeper {
 }
 
 func (cmd *CmdConnSweeper) NewClient(cobraCommand *cobra.Command, args []string) {
-	cmd.namespace = cobraCommand.Flag(common.FlagNameNamespace).Value.String()
+	cmd.CobraCmd = cobraCommand
+	cmd.namespace, _ = cobraCommand.Flags().GetString(common.FlagNameNamespace)
 }
 
 func (cmd *CmdConnSweeper) ValidateInput(args []string) error {

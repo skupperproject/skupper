@@ -33,6 +33,7 @@ type CmdConnSweeper struct {
 	KubeClient kubernetes.Interface
 	Rest       *restclient.Config
 	Namespace  string
+	clientErr  error
 }
 
 func NewCmdConnSweeper() *CmdConnSweeper {
@@ -40,34 +41,46 @@ func NewCmdConnSweeper() *CmdConnSweeper {
 }
 
 func (cmd *CmdConnSweeper) NewClient(cobraCommand *cobra.Command, args []string) {
-	cli, err := client.NewClient(cobraCommand.Flag("namespace").Value.String(), cobraCommand.Flag("context").Value.String(), cobraCommand.Flag("kubeconfig").Value.String())
+	cmd.CobraCmd = cobraCommand
+	namespaceFlag, _ := cobraCommand.Flags().GetString("namespace")
+	contextFlag, _ := cobraCommand.Flags().GetString("context")
+	kubeconfigFlag, _ := cobraCommand.Flags().GetString("kubeconfig")
+
+	cli, err := client.NewClient(namespaceFlag, contextFlag, kubeconfigFlag)
 	if err != nil {
+		cmd.clientErr = fmt.Errorf("failed to initialize kubernetes client: %w", err)
 		return
 	}
 	cmd.KubeClient = cli.GetKubeClient()
 	cmd.Namespace = cli.Namespace
 
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	if kubeConfigPath := cobraCommand.Flag("kubeconfig").Value.String(); kubeConfigPath != "" {
-		loadingRules = &clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeConfigPath}
+	if kubeconfigFlag != "" {
+		loadingRules = &clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigFlag}
 	}
 	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		loadingRules,
-		&clientcmd.ConfigOverrides{CurrentContext: cobraCommand.Flag("context").Value.String()},
+		&clientcmd.ConfigOverrides{CurrentContext: contextFlag},
 	)
 	restconfig, err := kubeconfig.ClientConfig()
 	if err != nil {
+		cmd.clientErr = fmt.Errorf("failed to build kubernetes client config: %w", err)
 		return
 	}
-	restconfig.APIPath = "/api"
-	restconfig.GroupVersion = &corev1.SchemeGroupVersion
-	restconfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
-	cmd.Rest = restconfig
+
+	execConfig := *restconfig
+	execConfig.APIPath = "/api"
+	execConfig.GroupVersion = &corev1.SchemeGroupVersion
+	execConfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	cmd.Rest = &execConfig
 }
 
 func (cmd *CmdConnSweeper) ValidateInput(args []string) error {
 	if cmd.Flags.IdleThreshold <= 0 {
 		return fmt.Errorf("--idle-threshold must be a positive number of seconds")
+	}
+	if cmd.clientErr != nil {
+		return cmd.clientErr
 	}
 	if cmd.KubeClient == nil || cmd.Rest == nil {
 		return fmt.Errorf("could not initialize kubernetes client")
