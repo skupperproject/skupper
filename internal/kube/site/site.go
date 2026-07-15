@@ -127,6 +127,11 @@ func (s *Site) CheckLeadListeners(listener *skupperv2alpha1.Listener) bool {
 	return false
 }
 
+// StartRecovery prepares the site for controller startup: it recovers the
+// existing router config and sets up site resources, but leaves the site
+// uninitialised. While uninitialised, bindings, router access etc. can be
+// recovered without triggering router config writes. The recovery process ends
+// when Reconcile() is called.
 func (s *Site) StartRecovery(site *skupperv2alpha1.Site) error {
 	if err := s.migrateRouterDeploymentSelectors(context.TODO(), site); err != nil {
 		return err
@@ -192,12 +197,28 @@ const PROXY_PROFILE_PATH = "/etc/skupper-router-proxies"
 
 func (s *Site) Reconcile(siteDef *skupperv2alpha1.Site) error {
 	err := s.reconcile(siteDef, false)
-	return s.updateConfigured(err)
+	if err := s.updateConfigured(err); err != nil {
+		return err
+	}
+	if len(s.linkAccess) == 0 {
+		return nil
+	}
+	return s.updateResolved()
 }
 
 func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 	if s.site != nil && s.site.Name != siteDef.Name {
 		return s.markSiteInactive(siteDef, fmt.Errorf("An active site already exists in the namespace (%s)", s.site.Name))
+	}
+	// Informer copies can lag our own site status updates; conditions are only
+	// ever set, never removed. Carry over any conditions the incoming copy
+	// is missing to avoid conflicts.
+	if s.site != nil && s.site.UID == siteDef.UID {
+		for _, condition := range s.site.Status.Conditions {
+			if meta.FindStatusCondition(siteDef.Status.Conditions, condition.Type) == nil {
+				meta.SetStatusCondition(&siteDef.Status.Conditions, condition)
+			}
+		}
 	}
 	s.site = siteDef
 	s.name = string(siteDef.ObjectMeta.Name)
@@ -224,7 +245,12 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 		if len(routerConfigs) > 0 {
 			routerConfig = routerConfigs[0]
 		}
-		s.initialised = true
+		// While recovering, the site stays uninitialised so that recovery
+		// of bindings, router access etc. does not write partial router
+		// config. The controller's final Reconcile re-enters this branch
+		// with inRecovery=false and recoverRouterConfig performs a single
+		// complete write from the fully recovered state.
+		s.initialised = !inRecovery
 		s.currentGroups = s.groups()
 		s.bindings.init(s, routerConfig)
 		s.setBindingsConfiguredStatus(nil)
@@ -1494,9 +1520,47 @@ func (s *Site) CheckSslAndProxyProfiles(config *qdr.RouterConfig) error {
 }
 
 func (s *Site) NetworkStatusUpdated(network []skupperv2alpha1.SiteRecord) error {
-	if s.site == nil || reflect.DeepEqual(s.site.Status.Network, network) {
+	if s.site == nil {
 		return nil
 	}
+	// Only the site status update can be skipped when the network is
+	// unchanged; the binding related handling below must still run so
+	// that in-memory state (e.g. targets for listeners with
+	// exposePodsByName) is derived from the network on controller
+	// recovery, where the recovered status already matches.
+	if !reflect.DeepEqual(s.site.Status.Network, network) {
+		if err := s.updateNetworkStatus(network); err != nil {
+			return err
+		}
+	}
+
+	// find the site record for this site, then process the link records it contains
+	linkRecords := internalnetwork.GetLinkRecordsForSite(s.site.GetSiteId(), network)
+	for _, linkRecord := range linkRecords {
+		if link, ok := s.links[linkRecord.Name]; ok {
+			if err := s.updateLinkOperationalCondition(link.Definition(), linkRecord.Operational, linkRecord.RemoteSiteId, linkRecord.RemoteSiteName); err != nil {
+				s.logger.Error("Error updating operational status of link",
+					slog.String("namespace", s.site.Namespace),
+					slog.String("link", linkRecord.Name),
+					slog.Any("error", err))
+			}
+		}
+	}
+	if config := s.bindings.networkUpdated(network); config != nil {
+		if err := s.updateRouterConfig(config); err != nil {
+			return err
+		}
+	}
+
+	bindingStatus := newBindingStatus(s.clients, network)
+	s.bindings.Map(bindingStatus.updateMatchingListenerCount, bindingStatus.updateMatchingConnectorCount)
+	s.bindings.MapOverMultiKeyListeners(bindingStatus.updateMultiKeyListenerDestination)
+	s.logger.Debug("Updating matching listeners for attached connectors")
+	s.bindings.MapOverAttachedConnectors(bindingStatus.updateMatchingListenerCountForAttachedConnector)
+	return bindingStatus.error()
+}
+
+func (s *Site) updateNetworkStatus(network []skupperv2alpha1.SiteRecord) error {
 	prev := s.site.DeepCopy()
 	s.site.Status.Network = network
 	s.site.Status.SitesInNetwork = len(network)
@@ -1528,31 +1592,7 @@ func (s *Site) NetworkStatusUpdated(network []skupperv2alpha1.SiteRecord) error 
 		}
 		s.site = updated
 	}
-
-	// find the site record for this site, then process the link records it contains
-	linkRecords := internalnetwork.GetLinkRecordsForSite(s.site.GetSiteId(), network)
-	for _, linkRecord := range linkRecords {
-		if link, ok := s.links[linkRecord.Name]; ok {
-			if err := s.updateLinkOperationalCondition(link.Definition(), linkRecord.Operational, linkRecord.RemoteSiteId, linkRecord.RemoteSiteName); err != nil {
-				s.logger.Error("Error updating operational status of link",
-					slog.String("namespace", s.site.Namespace),
-					slog.String("link", linkRecord.Name),
-					slog.Any("error", err))
-			}
-		}
-	}
-	if config := s.bindings.networkUpdated(network); config != nil {
-		if err := s.updateRouterConfig(config); err != nil {
-			return err
-		}
-	}
-
-	bindingStatus := newBindingStatus(s.clients, network)
-	s.bindings.Map(bindingStatus.updateMatchingListenerCount, bindingStatus.updateMatchingConnectorCount)
-	s.bindings.MapOverMultiKeyListeners(bindingStatus.updateMultiKeyListenerDestination)
-	s.logger.Debug("Updating matching listeners for attached connectors")
-	s.bindings.MapOverAttachedConnectors(bindingStatus.updateMatchingListenerCountForAttachedConnector)
-	return bindingStatus.error()
+	return nil
 }
 
 func (s *Site) markSiteInactive(site *skupperv2alpha1.Site, err error) error {

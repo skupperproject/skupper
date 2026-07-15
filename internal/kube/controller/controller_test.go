@@ -28,6 +28,7 @@ import (
 	discoveryfake "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic"
 	fakedynamic "k8s.io/client-go/dynamic/fake"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/skupperproject/skupper/internal/fixtures"
@@ -662,6 +663,154 @@ func TestGeneral(t *testing.T) {
 				assert.DeepEqual(t, expected.Spec, actual.Spec)
 			}
 		})
+	}
+}
+
+func TestRecoveryPreservesRouterBridgeConfig(t *testing.T) {
+	flags := &flag.FlagSet{}
+	config, err := BoundConfig(flags)
+	assert.Assert(t, err)
+
+	uid := "49b03ad4-d414-42be-bbb5-b32d7d4ca503"
+	site := f.addUID(f.site("mysite", "test", "loadbalancer", false, false), uid)
+	attachedConnectorBinding := f.attachedConnectorBinding("attached-a", "test", "attached")
+	attachedConnectorBinding.Spec.RoutingKey = "attached-a"
+	attachedPod := f.pod("pod-a", "attached", map[string]string{"app": "attached-a"}, nil, f.podStatus("10.1.1.20", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue)))
+	attachedPod.UID = types.UID("6ffbd287-42cc-4b71-b0a7-44f1befcc847")
+	normalPod := f.pod("pod-b", "test", map[string]string{"app": "normal-a"}, nil, f.podStatus("10.1.1.30", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue)))
+	normalPod.UID = types.UID("a2b30f15-4fe3-4788-a68d-36105d147435")
+	siteCA := &skupperv2alpha1.Certificate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "skupper-site-ca",
+			Namespace: "test",
+			Labels: map[string]string{
+				"internal.skupper.io/certificate": "true",
+			},
+			Annotations: map[string]string{
+				"internal.skupper.io/controlled":   "true",
+				"internal.skupper.io/hosts-" + uid: "",
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: skupperv2alpha1.SchemeGroupVersion.String(),
+					Kind:       "Site",
+					Name:       site.Name,
+					UID:        types.UID(uid),
+				},
+			},
+		},
+		Spec: skupperv2alpha1.CertificateSpec{
+			Subject: "mysite site CA",
+			Signing: true,
+		},
+	}
+	routerConfig := f.routerConfig("skupper-router", "test").
+		tcpListener("listener/listener-a", "1024", "", "").
+		tcpListener("listener/listener-a@pod-a", "1027", "backend-a.pod-a", "").
+		tcpListener("listener/listener-b", "1025", "", "").
+		tcpListener("multiAddress/mkl-a", "1026", "", "").
+		tcpConnector("connector/normal-a@10.1.1.30", "10.1.1.30", "8084", "", "").
+		tcpConnector("connector/attached-a@10.1.1.20", "10.1.1.20", "8083", "attached-a", "")
+	routerConfig.config.Bridges.TcpConnectors["connector/attached-a@10.1.1.20"] = qdr.TcpEndpoint{
+		Name:      "connector/attached-a@10.1.1.20",
+		SiteId:    uid,
+		Host:      "10.1.1.20",
+		Port:      "8083",
+		Address:   "attached-a",
+		ProcessID: "6ffbd287-42cc-4b71-b0a7-44f1befcc847",
+	}
+	routerConfigMap := routerConfig.asConfigMapWithOwner(site.Name, uid)
+	routerConfigMap.Labels = map[string]string{
+		"internal.skupper.io/router-config": "",
+	}
+	statusInfo := f.networkStatusInfo("mysite", "test", nil, map[string]string{"backend-a.pod-a": "10.1.1.10"}).info()
+	networkStatus := f.skupperNetworkStatus("test", statusInfo)
+	// the persisted site status already reflects the network, as it would
+	// after a controller restart
+	site.Status.Network = network.ExtractSiteRecords(*statusInfo)
+	site.Status.SitesInNetwork = len(site.Status.Network)
+
+	routerDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "skupper-router",
+			Namespace: "test",
+			Labels: map[string]string{
+				"skupper.io/component": "router",
+				"skupper.io/type":      "site",
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{MatchLabels: f.routerSelector(false)},
+		},
+	}
+	clients, err := fakeclient.NewFakeClient(config.Namespace, []runtime.Object{routerConfigMap, networkStatus, routerDeployment, attachedPod, normalPod}, []runtime.Object{
+		site,
+		siteCA,
+		f.routerAccess("skupper-router", "test", "loadbalancer", "skupper-site-server", true, "skupper-site-ca", f.role("inter-router", 55671), f.role("edge", 45671)),
+		f.connectorWithSelector("normal-a", "test", "app=normal-a", 8084),
+		f.attachedConnector("attached-a", "attached", "test", "app=attached-a", 8083),
+		attachedConnectorBinding,
+		f.listenerWithExposePodsByName("listener-a", "test", "backend-a", "backend-a", 8080),
+		f.listener("listener-b", "test", "backend-b", 8081),
+		f.multiKeyListener("mkl-a", "test", "backend-mkl", 8082),
+	}, "")
+	assert.Assert(t, err)
+	enableSSA(clients.GetDynamicClient())
+
+	var observed []qdr.BridgeConfig
+	clients.GetKubeClient().(*k8sfake.Clientset).PrependReactor("update", "configmaps", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		update := action.(k8stesting.UpdateAction)
+		cm := update.GetObject().(*corev1.ConfigMap)
+		if cm.Namespace == "test" && cm.Name == "skupper-router" {
+			config, err := qdr.GetRouterConfigFromConfigMap(cm)
+			if err != nil {
+				return true, nil, err
+			}
+			observed = append(observed, config.Bridges)
+		}
+		return false, nil, nil
+	})
+
+	controller, err := NewController(clients, config)
+	assert.Assert(t, err)
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+	err = controller.init(stopCh)
+	assert.Assert(t, err)
+
+	expectedTcpListeners := []string{
+		"listener/listener-a",
+		"listener/listener-a@pod-a",
+		"listener/listener-b",
+		"multiAddress/mkl-a",
+	}
+	expectedTcpConnectors := []string{
+		"connector/normal-a@10.1.1.30",
+		"connector/attached-a@10.1.1.20",
+	}
+	assert.Assert(t, len(observed) > 0, "expected at least one router config update after recovery")
+	for i, bridge := range observed {
+		for _, name := range expectedTcpListeners {
+			_, ok := bridge.TcpListeners[name]
+			assert.Assert(t, ok, "router config update %d was partial: missing %s", i, name)
+		}
+		for _, name := range expectedTcpConnectors {
+			_, ok := bridge.TcpConnectors[name]
+			assert.Assert(t, ok, "router config update %d was partial: missing %s", i, name)
+		}
+	}
+
+	actual, err := clients.GetKubeClient().CoreV1().ConfigMaps("test").Get(context.Background(), "skupper-router", metav1.GetOptions{})
+	assert.Assert(t, err)
+	configAfterRecovery, err := qdr.GetRouterConfigFromConfigMap(actual)
+	assert.Assert(t, err)
+	for _, name := range expectedTcpListeners {
+		_, ok := configAfterRecovery.Bridges.TcpListeners[name]
+		assert.Assert(t, ok, "final router config missing %s", name)
+	}
+	for _, name := range expectedTcpConnectors {
+		_, ok := configAfterRecovery.Bridges.TcpConnectors[name]
+		assert.Assert(t, ok, "final router config missing %s", name)
 	}
 }
 

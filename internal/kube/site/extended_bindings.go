@@ -50,8 +50,12 @@ func (a *ExtendedBindings) init(context BindingContext, config *qdr.RouterConfig
 	if a.mapping == nil {
 		a.mapping = qdr.RecoverPortMapping(config)
 	}
-	a.exposed = ExposedPorts{}
-	a.selectors = map[string]TargetSelection{}
+	if a.exposed == nil {
+		a.exposed = ExposedPorts{}
+	}
+	if a.selectors == nil {
+		a.selectors = map[string]TargetSelection{}
+	}
 	a.bindings.SetBindingEventHandler(a)
 	a.bindings.SetConnectorConfiguration(a.updateBridgeConfigForConnector)
 	a.bindings.SetListenerConfiguration(a.updateBridgeConfigForListener)

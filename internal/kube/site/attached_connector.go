@@ -236,7 +236,9 @@ func (a *AttachedConnector) definitionUpdated(definition *skupperv2alpha1.Attach
 	}
 	a.definitions[definition.Namespace] = definition
 	if a.binding != nil && a.binding.Spec.ConnectorNamespace == definition.Namespace {
-		isSiteActive := a.parent.site != nil && a.parent.site.IsInitialised()
+		// watch pods for Sites that are not yet initialised so an initial
+		// bridge configuration on recovery contains this connector's targets.
+		isSiteActive := a.parent.site != nil
 		if isSiteActive && (selectorChanged || a.watcher == nil) {
 			a.parent.logger.Info("Watching pods for AttachedConnector",
 				slog.String("namespace", definition.Namespace),
