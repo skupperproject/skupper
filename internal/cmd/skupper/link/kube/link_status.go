@@ -24,6 +24,7 @@ type CmdLinkStatus struct {
 	Namespace string
 	output    string
 	linkName  string
+	siteName  string
 }
 
 func NewCmdLinkStatus() *CmdLinkStatus {
@@ -57,8 +58,9 @@ func (cmd *CmdLinkStatus) ValidateInput(args []string) error {
 	}
 	if siteList == nil || len(siteList.Items) == 0 {
 		validationErrors = append(validationErrors, fmt.Errorf("there is no skupper site available"))
+	} else if len(siteList.Items) == 1 {
+		cmd.siteName = siteList.Items[0].Name
 	}
-
 	if len(args) > 1 {
 		validationErrors = append(validationErrors, fmt.Errorf("this command only accepts one argument"))
 	}
@@ -80,58 +82,74 @@ func (cmd *CmdLinkStatus) ValidateInput(args []string) error {
 func (cmd *CmdLinkStatus) InputToOptions() {
 	cmd.output = cmd.Flags.Output
 }
+
 func (cmd *CmdLinkStatus) Run() error {
 
 	if cmd.linkName != "" {
-
+		// display outgoing links
 		selectedLink, err := cmd.Client.Links(cmd.Namespace).Get(context.TODO(), cmd.linkName, metav1.GetOptions{})
-		if err != nil {
-			return err
+		if err == nil {
+			if cmd.output != "" {
+				return printEncodedOutput(cmd.output, selectedLink)
+			} else {
+				displaySingleLink(selectedLink)
+			}
 		}
-
-		if cmd.output != "" {
-			return printEncodedOuptut(cmd.output, selectedLink)
-		} else {
-			displaySingleLink(selectedLink)
+		// display incoming links
+		currentSite, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
+		if err == nil && currentSite != nil {
+			if cmd.output != "" {
+				printEncodedIncomingLink(currentSite, cmd.siteName, cmd.linkName, cmd.output)
+			} else {
+				displaySingleIncomingLink(currentSite, cmd.siteName, cmd.linkName)
+			}
 		}
 
 	} else {
-
+		// display outgoing links
 		linkList, err := cmd.Client.Links(cmd.Namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			return err
 		}
 
 		if linkList != nil && len(linkList.Items) == 0 {
-			fmt.Println("There are no link resources in the namespace")
-			return nil
-		}
-
-		if cmd.output != "" {
-			for _, link := range linkList.Items {
-				err := printEncodedOuptut(cmd.output, &link)
-
-				if err != nil {
-					return err
-				}
-			}
+			fmt.Println("There are no outgoing link resources in the namespace")
 		} else {
-			displayLinkList(linkList.Items)
+			if cmd.output != "" {
+				for _, link := range linkList.Items {
+					err := printEncodedOutput(cmd.output, &link)
+
+					if err != nil {
+						return err
+					}
+				}
+			} else {
+				displayLinkList(linkList.Items)
+			}
 		}
 
+		// display incoming links
+		currentSite, err := cmd.Client.Sites(cmd.Namespace).Get(context.TODO(), cmd.siteName, metav1.GetOptions{})
+		if err == nil && currentSite != nil {
+			if cmd.output != "" {
+				printEncodedIncomingLink(currentSite, cmd.siteName, "", cmd.output)
+			} else {
+				displayIncomingLink(currentSite, cmd.siteName)
+			}
+		}
 	}
-
 	return nil
 }
 func (cmd *CmdLinkStatus) WaitUntil() error { return nil }
 
-func printEncodedOuptut(outputType string, link *v2alpha1.Link) error {
+func printEncodedOutput(outputType string, link *v2alpha1.Link) error {
 	encodedOutput, err := utils.Encode(outputType, link)
 	fmt.Println(encodedOutput)
 	return err
 }
 
 func displaySingleLink(link *v2alpha1.Link) {
+	fmt.Println("Outgoing link from this site:")
 	fmt.Printf("%s\t: %s\n", "Name", link.Name)
 	fmt.Printf("%s\t: %s\n", "Status", link.Status.StatusType)
 	fmt.Printf("%s\t: %d\n", "Cost", link.Spec.Cost)
@@ -140,6 +158,7 @@ func displaySingleLink(link *v2alpha1.Link) {
 
 func displayLinkList(linkList []v2alpha1.Link) {
 	writer := tabwriter.NewWriter(os.Stdout, 0, 8, 1, '\t', tabwriter.AlignRight)
+	fmt.Println("Outgoing link from this site:")
 	fmt.Fprintln(writer, "NAME\tSTATUS\tCOST\tMESSAGE")
 
 	for _, link := range linkList {
@@ -148,4 +167,62 @@ func displayLinkList(linkList []v2alpha1.Link) {
 	}
 
 	writer.Flush()
+}
+
+func displayIncomingLink(currentSite *v2alpha1.Site, localSiteName string) {
+	incomingLinksFound := false
+	writer := tabwriter.NewWriter(os.Stdout, 0, 8, 1, '\t', tabwriter.AlignRight)
+	fmt.Fprintln(writer, "\nIncoming Links from remote sites: ")
+	for _, links := range currentSite.Status.Network {
+		for _, link := range links.Links {
+			if link.RemoteSiteName == localSiteName {
+				if !incomingLinksFound {
+					fmt.Fprintln(writer, "NAME\tSTATUS\tREMOTE SITE")
+				}
+				status := "Error"
+				if link.Operational {
+					status = "Ready"
+				}
+				fmt.Fprintf(writer, "%s\t%s\t%s", link.Name, status, links.Name)
+				fmt.Fprintln(writer)
+				incomingLinksFound = true
+			}
+		}
+	}
+
+	if !incomingLinksFound {
+		fmt.Fprintln(writer, "There are no incoming link resources in the namespace")
+	}
+
+	writer.Flush()
+}
+
+func displaySingleIncomingLink(currentSite *v2alpha1.Site, localSiteName string, linkName string) {
+	fmt.Println("\nIncoming Links from remote sites: ")
+	for _, links := range currentSite.Status.Network {
+		for _, link := range links.Links {
+			if link.RemoteSiteName == localSiteName && link.Name == linkName {
+				status := "Error"
+				if link.Operational {
+					status = "Ready"
+				}
+				fmt.Printf("%s\t: %s\n", "Name", link.Name)
+				fmt.Printf("%s\t: %s\n", "Status", status)
+				fmt.Printf("%s\t: %s\n", "Remote", links.Name)
+			}
+		}
+	}
+}
+
+func printEncodedIncomingLink(currentSite *v2alpha1.Site, localSiteName string, linkName string, outputType string) {
+	for _, links := range currentSite.Status.Network {
+		for _, link := range links.Links {
+			if link.RemoteSiteName == localSiteName {
+				if linkName == "" || link.Name == linkName {
+					encodedOutput, _ := utils.Encode(outputType, links)
+					fmt.Println(encodedOutput)
+				}
+			}
+		}
+	}
 }
