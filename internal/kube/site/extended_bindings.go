@@ -479,6 +479,10 @@ func (b *ExtendedBindings) SetSite(site *Site) {
 }
 
 func (b *ExtendedBindings) checkAttachedConnectorBinding(namespace string, name string, binding *skupperv2alpha1.AttachedConnectorBinding) error {
+	return b.updateAttachedConnectorBinding(namespace, name, binding, true)
+}
+
+func (b *ExtendedBindings) updateAttachedConnectorBinding(namespace string, name string, binding *skupperv2alpha1.AttachedConnectorBinding, reconcile bool) error {
 	connector, ok := b.connectors[name]
 	if !ok {
 		connector = NewAttachedConnector(name, namespace, b)
@@ -496,6 +500,9 @@ func (b *ExtendedBindings) checkAttachedConnectorBinding(namespace string, name 
 		}
 	}
 	if (binding == nil && connector.bindingDeleted()) || (binding != nil && connector.bindingUpdated(binding)) {
+		if !reconcile {
+			return nil
+		}
 		if b.site != nil {
 			if err := b.site.updateRouterConfig(b.site.bindings); err != nil {
 				return connector.configurationError(err)
@@ -507,22 +514,51 @@ func (b *ExtendedBindings) checkAttachedConnectorBinding(namespace string, name 
 	return nil
 }
 
+func (b *ExtendedBindings) recoverAttachedConnectorBinding(binding *skupperv2alpha1.AttachedConnectorBinding) {
+	_ = b.updateAttachedConnectorBinding(binding.Namespace, binding.Name, binding, false)
+}
+
+func (b *ExtendedBindings) recoverAttachedConnector(definition *skupperv2alpha1.AttachedConnector) {
+	_ = b.updateAttachedConnector(definition.Name, definition, false)
+}
+
 func (b *ExtendedBindings) attachedConnectorUpdated(name string, definition *skupperv2alpha1.AttachedConnector) error {
+	return b.updateAttachedConnector(name, definition, true)
+}
+
+func (b *ExtendedBindings) updateAttachedConnector(name string, definition *skupperv2alpha1.AttachedConnector, reconcile bool) error {
 	connector, ok := b.connectors[name]
 	if !ok {
 		connector = NewAttachedConnector(name, definition.Spec.SiteNamespace, b)
 		b.connectors[name] = connector
 	}
-	if connector.definitionUpdated(definition) {
-		if b.site != nil {
-			if err := b.site.updateRouterConfig(b.site.bindings); err != nil {
-				return connector.configurationError(err)
-			} else {
-				return connector.updateStatus()
-			}
+	configure, evaluateDefinitionStatus := connector.definitionUpdated(definition)
+	if !reconcile {
+		return nil
+	}
+	if configure {
+		if b.site == nil {
+			return nil
 		}
+		if err := b.site.updateRouterConfig(b.site.bindings); err != nil {
+			return connector.configurationError(err)
+		}
+		return connector.updateStatus()
+	}
+	if evaluateDefinitionStatus {
+		connector.updateDefinitionStatusForCurrentBinding(definition)
 	}
 	return nil
+}
+
+func (b *ExtendedBindings) finishAttachedConnectorRecovery() error {
+	var errors []string
+	for _, connector := range b.connectors {
+		if err := connector.updateStatus(); err != nil {
+			errors = append(errors, err.Error())
+		}
+	}
+	return error_(errors)
 }
 
 func (b *ExtendedBindings) attachedConnectorDeleted(namespace string, name string) error {

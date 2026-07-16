@@ -361,14 +361,7 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 			slog.String("namespace", binding.Namespace),
 			slog.String("name", binding.Name),
 		)
-		if err := c.checkAttachedConnectorBinding(binding.Namespace+"/"+binding.Name, binding); err != nil {
-			log.Error("Error recovering attached connector binding",
-				slog.String("namespace", binding.Namespace),
-				slog.String("name", binding.Name),
-				slog.Any("error", err),
-			)
-			errCount++
-		}
+		c.getSite(binding.Namespace).RecoverAttachedConnectorBinding(binding)
 		attachedConnectorBindingCount++
 	}
 	attachedConnectorCount := 0
@@ -380,14 +373,8 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 			slog.String("namespace", connector.Namespace),
 			slog.String("name", connector.Name),
 		)
-		if err := c.checkAttachedConnector(connector.Namespace+"/"+connector.Name, connector); err != nil {
-			log.Error("Error recovering attached connector",
-				slog.String("namespace", connector.Namespace),
-				slog.String("name", connector.Name),
-				slog.Any("error", err),
-			)
-			errCount++
-		}
+		c.attachableConnectors[connector.Namespace+"/"+connector.Name] = connector
+		c.getSite(connector.Spec.SiteNamespace).RecoverAttachedConnector(connector)
 		attachedConnectorCount++
 	}
 	// needed by listeners with exposePodsByName
@@ -431,7 +418,11 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		siteCount++
 		siteStart := time.Now()
 		site.Status.Controller = &c.self
-		err := c.getSite(site.ObjectMeta.Namespace).Reconcile(site)
+		recoveredSite := c.getSite(site.ObjectMeta.Namespace)
+		err := recoveredSite.Reconcile(site)
+		if err == nil {
+			err = recoveredSite.FinishAttachedConnectorRecovery()
+		}
 		if err != nil {
 			log.Error("Error finishing site recovery",
 				slog.String("namespace", site.Namespace),

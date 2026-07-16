@@ -1805,6 +1805,24 @@ func (s *Site) CheckAttachedConnectorBinding(namespace string, name string, bind
 	return s.bindings.checkAttachedConnectorBinding(namespace, name, binding)
 }
 
+// RecoverAttachedConnectorBinding loads a binding without evaluating status
+// until the rest of the attached connector state has been recovered.
+func (s *Site) RecoverAttachedConnectorBinding(binding *skupperv2alpha1.AttachedConnectorBinding) {
+	s.bindings.recoverAttachedConnectorBinding(binding)
+}
+
+// RecoverAttachedConnector loads a definition and starts its pod watcher
+// without evaluating status from partially recovered state.
+func (s *Site) RecoverAttachedConnector(connector *skupperv2alpha1.AttachedConnector) {
+	s.bindings.recoverAttachedConnector(connector)
+}
+
+// FinishAttachedConnectorRecovery evaluates status after all definitions and
+// bindings have been loaded and their pod watchers have synchronized.
+func (s *Site) FinishAttachedConnectorRecovery() error {
+	return s.bindings.finishAttachedConnectorRecovery()
+}
+
 func (s *Site) AttachedConnectorUpdated(connector *skupperv2alpha1.AttachedConnector) error {
 	return s.bindings.attachedConnectorUpdated(connector.Name, connector)
 }

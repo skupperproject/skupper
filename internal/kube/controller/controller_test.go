@@ -40,6 +40,7 @@ import (
 	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/internal/version"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	fakeskupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1/fake"
 )
 
 type WaitFunction func(t *testing.T, clients internalclient.Clients) bool
@@ -830,6 +831,93 @@ func TestRecoveryPreservesRouterBridgeConfig(t *testing.T) {
 	assert.Assert(t, configured != nil)
 	assert.Equal(t, configured.Status, metav1.ConditionFalse)
 	assert.Equal(t, configured.Message, "No matches for selector")
+}
+
+func TestAttachedConnectorRecoveryDoesNotFlapStatus(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		pod                    *corev1.Pod
+		persistedError         string
+		expectedCondition      metav1.ConditionStatus
+		expectedMessage        string
+		expectedBindingUpdates int
+	}{
+		{
+			name: "healthy binding",
+			pod: f.pod("mypod", "other", map[string]string{"app": "foo"}, nil,
+				f.podStatus("10.1.1.10", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue))),
+			expectedCondition: metav1.ConditionTrue,
+			expectedMessage:   "OK",
+		},
+		{
+			name:              "persisted no matches",
+			persistedError:    "No matches for selector",
+			expectedCondition: metav1.ConditionFalse,
+			expectedMessage:   "No matches for selector",
+		},
+		{
+			name:                   "stale healthy status with no matches",
+			expectedCondition:      metav1.ConditionFalse,
+			expectedMessage:        "No matches for selector",
+			expectedBindingUpdates: 1,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			flags := &flag.FlagSet{}
+			config, err := BoundConfig(flags)
+			assert.Assert(t, err)
+
+			binding := f.attachedConnectorBinding("myconnector", "test", "other")
+			connector := f.attachedConnector("myconnector", "other", "test", "app=foo", 8080)
+			var statusErr error
+			if tt.persistedError != "" {
+				statusErr = fmt.Errorf("%s", tt.persistedError)
+			}
+			binding.SetConfigured(statusErr)
+			connector.SetConfigured(statusErr)
+
+			var kubeObjects []runtime.Object
+			if tt.pod != nil {
+				kubeObjects = append(kubeObjects, tt.pod)
+			}
+			clients, err := fakeclient.NewFakeClient(config.Namespace, kubeObjects, []runtime.Object{
+				f.site("mysite", "test", "", false, false),
+				binding,
+				connector,
+			}, "")
+			assert.Assert(t, err)
+			enableSSA(clients.GetDynamicClient())
+
+			var bindingUpdates []metav1.Condition
+			clients.GetSkupperClient().SkupperV2alpha1().(*fakeskupperv2alpha1.FakeSkupperV2alpha1).PrependReactor("update", "attachedconnectorbindings", func(action k8stesting.Action) (bool, runtime.Object, error) {
+				updated := action.(k8stesting.UpdateAction).GetObject().(*skupperv2alpha1.AttachedConnectorBinding)
+				condition := meta.FindStatusCondition(updated.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
+				assert.Assert(t, condition != nil)
+				bindingUpdates = append(bindingUpdates, *condition)
+				return false, nil, nil
+			})
+
+			controller, err := NewController(clients, config)
+			assert.Assert(t, err)
+			stopCh := make(chan struct{})
+			defer close(stopCh)
+			err = controller.init(stopCh)
+			assert.Assert(t, err)
+
+			actual, err := clients.GetSkupperClient().SkupperV2alpha1().AttachedConnectorBindings("test").Get(context.Background(), binding.Name, metav1.GetOptions{})
+			assert.Assert(t, err)
+			configured := meta.FindStatusCondition(actual.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
+			assert.Assert(t, configured != nil)
+			assert.Equal(t, configured.Status, tt.expectedCondition)
+			assert.Equal(t, configured.Message, tt.expectedMessage)
+			assert.Equal(t, len(bindingUpdates), tt.expectedBindingUpdates)
+			for _, update := range bindingUpdates {
+				assert.Assert(t, update.Message != "No matching AttachedConnector", "binding status flapped during recovery")
+			}
+		})
+	}
 }
 
 func TestUpdate(t *testing.T) {

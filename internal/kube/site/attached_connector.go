@@ -95,13 +95,31 @@ func (a *AttachedConnector) updateStatus() error {
 func (a *AttachedConnector) updateStatusNoBinding() error {
 	var errors []string
 	for _, definition := range a.definitions {
-		if definition.SetConfigured(fmt.Errorf("No matching AttachedConnectorBinding in site namespace")) {
+		if definition.SetConfigured(a.definitionConfigurationError(definition)) {
 			if err := a.updateDefinitionStatus(definition); err != nil {
 				errors = append(errors, err.Error())
 			}
 		}
 	}
 	return error_(errors)
+}
+
+func (a *AttachedConnector) definitionConfigurationError(definition *skupperv2alpha1.AttachedConnector) error {
+	if a.binding == nil {
+		return fmt.Errorf("No matching AttachedConnectorBinding in site namespace")
+	}
+	return fmt.Errorf("AttachedConnectorBinding %s/%s does not allow AttachedConnector in %s (only %s)", a.binding.Namespace, a.binding.Name, definition.Namespace, a.binding.Spec.ConnectorNamespace)
+}
+
+func (a *AttachedConnector) updateDefinitionStatusForCurrentBinding(definition *skupperv2alpha1.AttachedConnector) {
+	if definition.SetConfigured(a.definitionConfigurationError(definition)) {
+		if err := a.updateDefinitionStatus(definition); err != nil {
+			a.parent.logger.Error("Error updating status for AttachedConnector",
+				slog.String("namespace", definition.Namespace),
+				slog.String("name", definition.Name),
+				slog.Any("error", err))
+		}
+	}
 }
 
 func (a *AttachedConnector) updateStatusTo(err error, activeDefinition *skupperv2alpha1.AttachedConnector) error {
@@ -120,7 +138,7 @@ func (a *AttachedConnector) updateStatusTo(err error, activeDefinition *skupperv
 		if definition.Namespace == a.binding.Spec.ConnectorNamespace {
 			continue
 		}
-		if definition.SetConfigured(fmt.Errorf("AttachedConnectorBinding %s/%s does not allow AttachedConnector in %s (only %s)", a.binding.Namespace, a.binding.Name, definition.Namespace, a.binding.Spec.ConnectorNamespace)) {
+		if definition.SetConfigured(a.definitionConfigurationError(definition)) {
 			if err := a.updateDefinitionStatus(definition); err != nil {
 				errors = append(errors, err.Error())
 			}
@@ -217,7 +235,7 @@ func (a *AttachedConnector) watchPods() {
 	}
 }
 
-func (a *AttachedConnector) definitionUpdated(definition *skupperv2alpha1.AttachedConnector) bool {
+func (a *AttachedConnector) definitionUpdated(definition *skupperv2alpha1.AttachedConnector) (configure bool, evaluateDefinitionStatus bool) {
 	specChanged := true
 	selectorChanged := true
 	if existing, ok := a.definitions[definition.Namespace]; ok {
@@ -244,30 +262,14 @@ func (a *AttachedConnector) definitionUpdated(definition *skupperv2alpha1.Attach
 				slog.String("namespace", definition.Namespace),
 				slog.String("name", definition.Name))
 			a.watchPods()
-			return false // not ready to configure until selector returns pods
+			return false, false // not ready to configure until selector returns pods
 		}
-		return specChanged && a.watcher != nil
-	} else if a.binding == nil {
-		if definition.SetConfigured(fmt.Errorf("No matching AttachedConnectorBinding in site namespace")) {
-			if err := a.updateDefinitionStatus(definition); err != nil {
-				a.parent.logger.Error("Error updating status for AttachedConnector",
-					slog.String("namespace", definition.Namespace),
-					slog.String("name", definition.Name),
-					slog.Any("error", err))
-			}
-		}
-		return false
-	} else {
-		if definition.SetConfigured(fmt.Errorf("AttachedConnectorBinding %s/%s does not allow AttachedConnector in %s (only %s)", a.binding.Namespace, a.binding.Name, definition.Namespace, a.binding.Spec.ConnectorNamespace)) {
-			if err := a.updateDefinitionStatus(definition); err != nil {
-				a.parent.logger.Error("Error updating status for AttachedConnector",
-					slog.String("namespace", definition.Namespace),
-					slog.String("name", definition.Name),
-					slog.Any("error", err))
-			}
-		}
-		return false
+		configure = specChanged && a.watcher != nil
+		return configure, configure
 	}
+	// Definitions without a binding, and definitions excluded by a binding,
+	// do not affect router configuration but do need status evaluation.
+	return false, true
 }
 
 func (a *AttachedConnector) bindingUpdated(binding *skupperv2alpha1.AttachedConnectorBinding) bool {
