@@ -679,6 +679,10 @@ func TestRecoveryPreservesRouterBridgeConfig(t *testing.T) {
 	attachedPod.UID = types.UID("6ffbd287-42cc-4b71-b0a7-44f1befcc847")
 	normalPod := f.pod("pod-b", "test", map[string]string{"app": "normal-a"}, nil, f.podStatus("10.1.1.30", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue)))
 	normalPod.UID = types.UID("a2b30f15-4fe3-4788-a68d-36105d147435")
+	normalConnector := f.connectorWithSelector("normal-a", "test", "app=normal-a", 8084)
+	normalConnector.SetConfigured(fmt.Errorf("No matches for selector"))
+	unmatchedConnector := f.connectorWithSelector("normal-b", "test", "app=normal-b", 8085)
+	unmatchedConnector.SetConfigured(fmt.Errorf("No matches for selector"))
 	siteCA := &skupperv2alpha1.Certificate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "skupper-site-ca",
@@ -747,7 +751,8 @@ func TestRecoveryPreservesRouterBridgeConfig(t *testing.T) {
 		site,
 		siteCA,
 		f.routerAccess("skupper-router", "test", "loadbalancer", "skupper-site-server", true, "skupper-site-ca", f.role("inter-router", 55671), f.role("edge", 45671)),
-		f.connectorWithSelector("normal-a", "test", "app=normal-a", 8084),
+		normalConnector,
+		unmatchedConnector,
 		f.attachedConnector("attached-a", "attached", "test", "app=attached-a", 8083),
 		attachedConnectorBinding,
 		f.listenerWithExposePodsByName("listener-a", "test", "backend-a", "backend-a", 8080),
@@ -812,6 +817,19 @@ func TestRecoveryPreservesRouterBridgeConfig(t *testing.T) {
 		_, ok := configAfterRecovery.Bridges.TcpConnectors[name]
 		assert.Assert(t, ok, "final router config missing %s", name)
 	}
+
+	recoveredNormalConnector, err := clients.GetSkupperClient().SkupperV2alpha1().Connectors("test").Get(context.Background(), normalConnector.Name, metav1.GetOptions{})
+	assert.Assert(t, err)
+	configured := meta.FindStatusCondition(recoveredNormalConnector.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
+	assert.Assert(t, configured != nil)
+	assert.Equal(t, configured.Status, metav1.ConditionTrue)
+
+	recoveredUnmatchedConnector, err := clients.GetSkupperClient().SkupperV2alpha1().Connectors("test").Get(context.Background(), unmatchedConnector.Name, metav1.GetOptions{})
+	assert.Assert(t, err)
+	configured = meta.FindStatusCondition(recoveredUnmatchedConnector.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
+	assert.Assert(t, configured != nil)
+	assert.Equal(t, configured.Status, metav1.ConditionFalse)
+	assert.Equal(t, configured.Message, "No matches for selector")
 }
 
 func TestUpdate(t *testing.T) {

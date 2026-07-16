@@ -1258,7 +1258,8 @@ func (s *Site) updateMultiKeyListenerStatus(mkl *skupperv2alpha1.MultiKeyListene
 
 func (s *Site) setBindingsConfiguredStatus(err error) {
 	lf := func(listener *skupperv2alpha1.Listener) *skupperv2alpha1.Listener {
-		if listener.SetConfigured(nil) {
+		configuredErr := stderrors.Join(err, s.missingTlsCredentialsErr(listener.Spec.TlsCredentials))
+		if listener.SetConfigured(configuredErr) {
 			updated, err := s.clients.GetSkupperClient().SkupperV2alpha1().Listeners(listener.ObjectMeta.Namespace).UpdateStatus(context.TODO(), listener, metav1.UpdateOptions{})
 			if err == nil {
 				return updated
@@ -1272,7 +1273,19 @@ func (s *Site) setBindingsConfiguredStatus(err error) {
 		return nil
 	}
 	cf := func(connector *skupperv2alpha1.Connector) *skupperv2alpha1.Connector {
-		if connector.SetConfigured(nil) {
+		configuredErr := stderrors.Join(err, s.missingTlsCredentialsErr(connector.Spec.TlsCredentials))
+		if connector.Spec.Selector != "" {
+			selected, ok := s.bindings.selectedPods(connector.Name)
+			if !ok && configuredErr == nil {
+				// Without a synchronized target selection there is no authoritative
+				// status to replace the persisted status with.
+				return nil
+			}
+			if ok && len(selected) == 0 {
+				configuredErr = stderrors.Join(configuredErr, stderrors.New("No matches for selector"))
+			}
+		}
+		if connector.SetConfigured(configuredErr) {
 			updated, err := s.clients.GetSkupperClient().SkupperV2alpha1().Connectors(connector.ObjectMeta.Namespace).UpdateStatus(context.TODO(), connector, metav1.UpdateOptions{})
 			if err == nil {
 				return updated

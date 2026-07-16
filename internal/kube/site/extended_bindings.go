@@ -382,6 +382,14 @@ func (b *ExtendedBindings) GetConnector(name string) *skupperv2alpha1.Connector 
 	return b.bindings.GetConnector(name)
 }
 
+func (b *ExtendedBindings) selectedPods(name string) ([]skupperv2alpha1.PodDetails, bool) {
+	selector, ok := b.selectors[name]
+	if !ok || selector == nil {
+		return nil, false
+	}
+	return selector.List(), true
+}
+
 func (b *ExtendedBindings) Map(cf site.ConnectorFunction, lf site.ListenerFunction) {
 	b.bindings.Map(cf, lf)
 }
