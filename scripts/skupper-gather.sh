@@ -165,8 +165,9 @@ function getSkupperRouterSkstatInNamespace() {
 
 function getSkupperResourcesInNamespace() {
   local ns="${1}"
+  local labelSelector="${2:-app.kubernetes.io/part-of=skupper}"
 
-  for podName in $(oc get pods -n "${ns}" -l app.kubernetes.io/part-of=skupper -oname); do
+  for podName in $(oc get pods -n "${ns}" -l "${labelSelector}" -oname); do
     for container in $(oc get "${podName}" -n "${ns}" -o jsonpath='{.spec.containers[*].name}'); do
       getPodResources "${ns}" "${podName}" "${container}"
     done
@@ -238,6 +239,8 @@ function main() {
   controllerNamespace=$(oc get pods --all-namespaces -l app.kubernetes.io/name=skupper-controller -o jsonpath="{.items[0].metadata.namespace}")
   # this gets also logs for all pods in that namespace
   inspect "ns/$controllerNamespace"
+  # collect resource utilization for the skupper-controller pod itself
+  getSkupperResourcesInNamespace "${controllerNamespace}" "app.kubernetes.io/name=skupper-controller"
 
   inspect nodes
 
