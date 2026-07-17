@@ -132,6 +132,12 @@ workflows:
       - build-oci-images:
           <<: *run_for_numeric_tags
           image_tag: << pipeline.git.tag >>
+      - e2e:
+          <<: *run_for_numeric_tags
+          image_tag: << pipeline.git.tag >>
+          requires:
+            - build-oci-images
+            - build-all
       - publish-oci-images:
           <<: *run_for_numeric_tags
           <<: *v2_release_requires
@@ -197,6 +203,7 @@ workflows:
           <<: *run_for_all_branches
       - e2e:
           <<: *run_for_all_branches
+          image_tag: v2-dev
           requires:
             - build-oci-images
             - build-all
@@ -270,6 +277,10 @@ jobs:
           destination: test-artifacts
   e2e:
     executor: local_cluster_test_executor
+    parameters:
+      image_tag:
+        type: string
+        default: "v2-dev"
     steps:
       - checkout
       - kubectl-install
@@ -337,11 +348,13 @@ jobs:
             # the connector in east
             kubectl wait listener/backend \
               --timeout=60s \
-              '--for=jsonpath={.status.hasMatchingConnector}=true' 
+              '--for=jsonpath={.status.hasMatchingConnector}=true'
       - run:
           name: Running E2E Tests
           command: |
             set -x
+            export SKUPPER_SYSTEM_CONTROLLER_IMAGE="quay.io/skupper/system-controller:<< parameters.image_tag >>"
+            export SKUPPER_CLI_IMAGE="quay.io/skupper/cli:<< parameters.image_tag >>"
             cd tests
             cp ~/kc.west ~/.kube/config
             make ci-tests
