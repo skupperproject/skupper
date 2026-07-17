@@ -307,23 +307,28 @@ func (a *AttachedConnector) updateBridgeConfig(siteId string, config *qdr.Bridge
 	if definition.Spec.TlsCredentials != "" && !a.parent.bindings.IsTlsSecretPresent(definition.Spec.TlsCredentials) {
 		return updated
 	}
-	connector := &skupperv2alpha1.Connector{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: definition.Name,
-		},
-		Spec: skupperv2alpha1.ConnectorSpec{
-			RoutingKey:     a.binding.Spec.RoutingKey,
-			Type:           definition.Spec.Type,
-			Port:           definition.Spec.Port,
-			TlsCredentials: definition.Spec.TlsCredentials,
-		},
-	}
+	connector := attachedConnectorAsConnector(definition, a.binding)
 	for _, pod := range a.watcher.pods() {
 		if site.UpdateBridgeConfigForConnectorToPod(siteId, connector, pod, a.binding.Spec.ExposePodsByName, config) {
 			updated = true
 		}
 	}
 	return updated
+}
+
+func attachedConnectorAsConnector(definition *skupperv2alpha1.AttachedConnector, binding *skupperv2alpha1.AttachedConnectorBinding) *skupperv2alpha1.Connector {
+	return &skupperv2alpha1.Connector{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: definition.Name,
+		},
+		Spec: skupperv2alpha1.ConnectorSpec{
+			RoutingKey:     binding.Spec.RoutingKey,
+			Type:           definition.Spec.Type,
+			Port:           definition.Spec.Port,
+			TlsCredentials: definition.Spec.TlsCredentials,
+			UseClientCert:  definition.Spec.UseClientCert,
+		},
+	}
 }
 
 func (a *AttachedConnector) unbind() bool {
