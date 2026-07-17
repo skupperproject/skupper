@@ -858,6 +858,39 @@ func TestSite_CheckConnector(t *testing.T) {
 			wantConfigured: false,
 			wantErrMessage: "Connector must define a non-empty spec.host or spec.selector",
 		},
+		{
+			name: "connector tls credentials secret not found",
+			args: args{
+				name: "connector1",
+				connector: &skupperv2alpha1.Connector{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "connector1",
+						Namespace: "test",
+						UID:       "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
+					},
+					Spec: skupperv2alpha1.ConnectorSpec{
+						RoutingKey:     "backend",
+						Port:           8080,
+						Type:           "tcp",
+						Host:           "1.2.3.4",
+						TlsCredentials: "my-tls",
+					},
+				},
+			},
+			skupperObjects: []runtime.Object{
+				&skupperv2alpha1.Connector{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "connector1",
+						Namespace: "test",
+					},
+				},
+			},
+			want:           "initialized",
+			wantErr:        false,
+			wantConnectors: 1,
+			wantConfigured: false,
+			wantErrMessage: `TLS credentials secret "my-tls" not found`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
