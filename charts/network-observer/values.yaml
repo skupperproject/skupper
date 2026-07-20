@@ -20,10 +20,32 @@ prometheus:
   pullPolicy: IfNotPresent
   tag: "v3.11.3"
   securityContext:
+    readOnlyRootFilesystem: true
     allowPrivilegeEscalation: false
     capabilities:
       drop:
         - ALL
+  startupProbe: 
+    enabled: true               
+    httpGet:                   
+      path: /-/ready
+      port: 9090             
+    periodSeconds: 10
+    failureThreshold: 60       
+  readinessProbe:
+    enabled: true
+    httpGet:
+      path: /-/ready
+      port: 9090
+    periodSeconds: 10
+    failureThreshold: 6        
+  livenessProbe:    
+    enabled: true           
+    httpGet:
+      path: /-/healthy
+      port: 9090
+    periodSeconds: 15
+    failureThreshold: 4
 
   # Additional arguments for the Prometheus container
   extraArgs:
@@ -79,10 +101,25 @@ nginx:
   tag: "1.31.0-alpine"
   pullPolicy: IfNotPresent
   securityContext:
+    readOnlyRootFilesystem: true
     allowPrivilegeEscalation: false
     capabilities:
       drop:
         - ALL
+  readinessProbe:
+    enabled: true
+    tcpSocket:
+      port: 8443          
+    initialDelaySeconds: 2     
+    periodSeconds: 5
+    failureThreshold: 2
+  livenessProbe:
+    enabled: true
+    tcpSocket:
+      port: 8443
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    failureThreshold: 4
 
 # openshift oauth proxy configuration when auth strategy is openshift
 openshiftOauthProxy:
@@ -90,6 +127,7 @@ openshiftOauthProxy:
   tag: "4.22.0"
   pullPolicy: IfNotPresent
   securityContext:
+    readOnlyRootFilesystem: true
     allowPrivilegeEscalation: false
     capabilities:
       drop:
@@ -218,9 +256,38 @@ podSecurityContext:
 
 # network-observer container securityContext
 securityContext:
+  readOnlyRootFilesystem: true
   allowPrivilegeEscalation: false
   capabilities:
     drop:
       - ALL
 
 skipManagementLabels: false
+
+## Controller containers' readiness probe
+## ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /metrics
+    port: 9000
+    scheme: HTTP
+  failureThreshold: 3
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  successThreshold: 1
+  timeoutSeconds: 30
+
+## Default backend containers' liveness probe
+## ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /metrics
+    port: 9000
+    scheme: HTTP
+  failureThreshold: 3
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  successThreshold: 1
+  timeoutSeconds: 30

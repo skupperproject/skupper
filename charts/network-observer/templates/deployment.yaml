@@ -47,6 +47,14 @@ spec:
       {{- end }}
       containers:
         - name: network-observer
+          {{- if .Values.livenessProbe.enabled }}    
+          livenessProbe:
+            {{- omit .Values.livenessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.readinessProbe.enabled }}    
+          readinessProbe:
+            {{- omit .Values.readinessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- with .Values.securityContext }}
@@ -95,6 +103,18 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- if .Values.prometheus.readinessProbe.enabled }}    
+          readinessProbe:
+            {{- omit .Values.prometheus.readinessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.prometheus.livenessProbe.enabled }}    
+          livenessProbe:
+            {{- omit .Values.prometheus.livenessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.prometheus.startupProbe.enabled }}    
+          startupProbe:
+            {{- omit .Values.prometheus.startupProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
           args:
             - --config.file=/etc/prometheus/prometheus.yml
             - --storage.tsdb.path=/prometheus/
@@ -137,6 +157,10 @@ spec:
       {{- with .Values.prometheus.extraVolumes }}
       {{- toYaml . | nindent 6 }}
       {{- end }}
+      - emptyDir: {}
+        name: proxy-tmp
+      - emptyDir: {}
+        name: nginx-cache
       - name: skupper-management-client
         secret:
           defaultMode: 420
