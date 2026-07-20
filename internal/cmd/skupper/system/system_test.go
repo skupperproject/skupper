@@ -69,6 +69,15 @@ func TestCmdSystemFactory(t *testing.T) {
 			},
 			command: CmdSystemDeleteFactory(common.PlatformKubernetes),
 		},
+		{
+			name: "CmdSystemNetworkObserverFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				common.FlagNameNetworkObserverUsername:  "skupper",
+				common.FlagNameNetworkObserverPassword:  "",
+				common.FlagNameNetworkObserverUninstall: "false",
+			},
+			command: CmdSystemNetworkObserverFactory(common.PlatformDocker),
+		},
 	}
 
 	for _, test := range testTable {

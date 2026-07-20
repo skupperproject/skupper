@@ -35,6 +35,7 @@ approach, which is based on the new set of Custom Resource Definitions (CRDs).`,
 	cmd.AddCommand(CmdSystemGenerateBundleFactory(platform))
 	cmd.AddCommand(CmdSystemApplyFactory(platform))
 	cmd.AddCommand(CmdSystemDeleteFactory(platform))
+	cmd.AddCommand(CmdSystemNetworkObserverFactory(platform))
 
 	return cmd
 }
@@ -222,6 +223,39 @@ func CmdSystemDeleteFactory(configuredPlatform common.Platform) *cobra.Command {
 	cmdFlags := common.CommandSystemDeleteFlags{}
 
 	cmd.Flags().StringVarP(&cmdFlags.Filename, common.FlagNameFileName, "f", "", common.FlagDescFileName)
+
+	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
+	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
+
+	return cmd
+}
+
+func CmdSystemNetworkObserverFactory(configuredPlatform common.Platform) *cobra.Command {
+
+	//This implementation will warn the user that the command is not available for Kubernetes environments.
+	kubeCommand := kube.NewCmdCmdSystemNetworkObserver()
+	nonKubeCommand := nonkube.NewCmdSystemNetworkObserver()
+
+	cmdDesc := common.SkupperCmdDescription{
+		Use:   "network-observer",
+		Short: "Install the network observer",
+		Long: `Install the Skupper network observer to collect and expose network metrics.
+The network observer requires an existing Skupper site and will deploy three containers:
+- network-observer: Collects metrics from the router
+- prometheus: Stores metrics
+- nginx: Provides HTTPS access with HTTP Basic Auth`,
+		Example: `skupper network-observer  --namespace west
+skupper network-observer -n west --username admin --password secret`,
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdDesc, nil, nonKubeCommand)
+
+	cmdFlags := common.CommandNetworkObserverFlags{}
+	cmd.Flags().StringVar(&cmdFlags.Username, common.FlagNameNetworkObserverUsername, "skupper", common.FlagDescNetworkObserverUsername)
+	cmd.Flags().StringVar(&cmdFlags.Password, common.FlagNameNetworkObserverPassword, "", common.FlagDescNetworkObserverPassword)
+	cmd.Flags().BoolVar(&cmdFlags.Uninstall, common.FlagNameNetworkObserverUninstall, false, common.FlagDescNetworkObserverUninstall)
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags

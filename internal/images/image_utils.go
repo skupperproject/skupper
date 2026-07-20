@@ -26,12 +26,14 @@ const (
 	CliImageEnvKey                string = "SKUPPER_CLI_IMAGE"
 	SystemControllerImageEnvKey   string = "SKUPPER_SYSTEM_CONTROLLER_IMAGE"
 	PrometheusServerImageEnvKey   string = "PROMETHEUS_SERVER_IMAGE"
+	NginxImageEnvKey              string = "NGINX_IMAGE"
 	OauthProxyImageEnvKey         string = "OAUTH_PROXY_IMAGE"
 	RouterPullPolicyEnvKey        string = "SKUPPER_ROUTER_IMAGE_PULL_POLICY"
 	KubeAdaptorPullPolicyEnvKey   string = "SKUPPER_KUBE_ADAPTOR_IMAGE_PULL_POLICY"
 	OauthProxyPullPolicyEnvKey    string = "OAUTH_PROXY_IMAGE_PULL_POLICY"
 	SkupperImageRegistryEnvKey    string = "SKUPPER_IMAGE_REGISTRY"
 	PrometheusImageRegistryEnvKey string = "PROMETHEUS_IMAGE_REGISTRY"
+	NginxImageRegistryEnvKey      string = "NGINX_IMAGE_REGISTRY"
 	OauthProxyRegistryEnvKey      string = "OAUTH_PROXY_IMAGE_REGISTRY"
 )
 
@@ -139,6 +141,20 @@ func GetPrometheusServerImageName() string {
 	}
 }
 
+func GetPrometheusImageName() string {
+	return GetPrometheusServerImageName()
+}
+
+func GetNginxImageName() string {
+	image := os.Getenv(NginxImageEnvKey)
+	if image == "" {
+		imageRegistry := GetNginxImageRegistry()
+		return strings.Join([]string{imageRegistry, NginxImageName}, "/")
+	} else {
+		return image
+	}
+}
+
 func GetSystemControllerImageName() string {
 	image := os.Getenv(SystemControllerImageEnvKey)
 	if image == "" {
@@ -161,6 +177,14 @@ func GetPrometheusImageRegistry() string {
 	imageRegistry := os.Getenv(PrometheusImageRegistryEnvKey)
 	if imageRegistry == "" {
 		return PrometheusImageRegistry
+	}
+	return imageRegistry
+}
+
+func GetNginxImageRegistry() string {
+	imageRegistry := os.Getenv(NginxImageRegistryEnvKey)
+	if imageRegistry == "" {
+		return NginxImageRegistry
 	}
 	return imageRegistry
 }
