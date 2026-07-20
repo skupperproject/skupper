@@ -1,6 +1,7 @@
 package sweeper
 
-// killAll force-closes every TCP connection that criteria.go decided sequentially
+// killAll force-closes each flagged connection by setting adminStatus=deleted
+// via skmanage.
 func killAll(execFn Execer, skmanageBin, url string, extraArgs []string, decisions []Decision) (killed, failed int) {
 	for _, d := range decisions {
 		_, err := runSkmanage(execFn, skmanageBin, url, extraArgs,

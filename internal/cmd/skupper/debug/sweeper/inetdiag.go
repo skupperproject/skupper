@@ -10,11 +10,10 @@ import (
 // run where the router runs (sockets are per network namespace), so it can
 // only use what the router image provides.
 //
-// Like ss, it queries the kernel over NETLINK_SOCK_DIAG, but reports only
-// what the sweeper needs: established IPv4 TCP sockets (Script might need to be updated to cover IPv6), one per line, with
-// the two tcp_info idle timers:
 //
 //	<local ip:port> <peer ip:port> <lastrcv ms> <lastsnd ms>
+//
+// TODO: IPv4 only; extend for IPv6.
 
 const inetDiagScript = `
 import socket, struct

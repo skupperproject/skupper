@@ -7,8 +7,8 @@ import (
 
 const (
 	DefaultURL           = "amqp://127.0.0.1:5672"
-	DefaultIdleThreshold = 4 * 3600
 	DefaultSkmanage      = "skmanage"
+	DefaultIdleThreshold = 4 * 3600 // 4 hours
 )
 
 type Config struct {
@@ -16,8 +16,7 @@ type Config struct {
 	Skmanage          string
 	IdleThresholdSecs int
 	DryRun            bool
-	// Exec runs skmanage and the socket query. Nil means locally; the kube
-	// variant supplies a pod-exec so both run inside the router container.
+	// Exec runs skmanage and the socket query.
 	Exec Execer
 	// SkmanageExtraArgs is appended to every skmanage invocation — e.g.
 	// --ssl-certificate/--ssl-key/--ssl-trustfile when the management
@@ -32,7 +31,7 @@ type Result struct {
 	Failed  int
 }
 
-// Run ties the two independent stages together: Gather (gather.go) collects
+// Run ties the stages together: Gather (gather.go) collects
 // raw router + kernel state, Evaluate (criteria.go) applies the idle-time
 // criteria against that state, and killAll (kill.go) carries out whatever
 // Evaluate decided.

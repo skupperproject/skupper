@@ -2,12 +2,14 @@ package kube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/debug/sweeper"
 	"github.com/skupperproject/skupper/internal/kube/client"
+	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -76,36 +78,38 @@ func (cmd *CmdConnSweeper) NewClient(cobraCommand *cobra.Command, args []string)
 }
 
 func (cmd *CmdConnSweeper) ValidateInput(args []string) error {
-	if cmd.Flags.IdleThreshold <= 0 {
-		return fmt.Errorf("--idle-threshold must be a positive number of seconds")
+	var validationErrors []error
+	numberValidator := validator.NewNumberValidator()
+	numberValidator.IncludeZero = false
+	if ok, err := numberValidator.Evaluate(cmd.Flags.IdleThreshold); !ok {
+		validationErrors = append(validationErrors, fmt.Errorf("idle-threshold is not valid: %s", err))
 	}
+	return errors.Join(validationErrors...)
+}
+
+func (cmd *CmdConnSweeper) InputToOptions() {}
+
+func (cmd *CmdConnSweeper) Run() error {
 	if cmd.clientErr != nil {
 		return cmd.clientErr
 	}
 	if cmd.KubeClient == nil || cmd.Rest == nil {
 		return fmt.Errorf("could not initialize kubernetes client")
 	}
-	return nil
-}
 
-func (cmd *CmdConnSweeper) InputToOptions() {}
-
-func (cmd *CmdConnSweeper) Run() error {
 	podNames, err := cmd.findRouterPods()
 	if err != nil {
 		return err
 	}
 
-	// Each ready replica has its own connections, so sweep every pod. A
-	// failure on one pod (e.g. exec cut off mid-sweep) must not leave the
-	// remaining replicas unswept.
+	// Each ready replica has its own connections, so sweep every pod.
 	var total sweeper.Result
 	var failedPods []string
 	for _, podName := range podNames {
 		fmt.Printf("=== router pod %s (namespace %s) ===\n", podName, cmd.Namespace)
 		res, err := sweeper.Run(sweeper.Config{
-			URL:               cmd.Flags.URL,
-			Skmanage:          cmd.Flags.Skmanage,
+			URL:               sweeper.DefaultURL,
+			Skmanage:          sweeper.DefaultSkmanage,
 			IdleThresholdSecs: cmd.Flags.IdleThreshold,
 			DryRun:            cmd.Flags.DryRun,
 			Exec:              cmd.podExecer(podName),
@@ -133,8 +137,6 @@ func (cmd *CmdConnSweeper) Run() error {
 
 func (cmd *CmdConnSweeper) WaitUntil() error { return nil }
 
-// findRouterPods returns every router pod whose router container is ready,
-// with HA there are multiple replicas and each holds its own connections.
 func (cmd *CmdConnSweeper) findRouterPods() ([]string, error) {
 	pods, err := cmd.KubeClient.CoreV1().Pods(cmd.Namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: routerPodSelector})
 	if err != nil {
@@ -142,8 +144,6 @@ func (cmd *CmdConnSweeper) findRouterPods() ([]string, error) {
 	}
 	var ready []string
 	for _, pod := range pods.Items {
-		// Phase stays "Running" even while a container crash-loops, so
-		// require the router container itself to be ready.
 		for _, cs := range pod.Status.ContainerStatuses {
 			if cs.Name == routerContainer && cs.Ready {
 				ready = append(ready, pod.Name)
@@ -157,14 +157,9 @@ func (cmd *CmdConnSweeper) findRouterPods() ([]string, error) {
 }
 
 // podExecer returns a sweeper.Execer that runs argv inside the router
-// container, where skmanage, python3 and the router's own network namespace
-// are all available.
+// container.
 func (cmd *CmdConnSweeper) podExecer(podName string) sweeper.Execer {
 	return func(argv []string) ([]byte, error) {
-		// ExecCommandInContainer uses the deprecated context-less Stream, so
-		// it can't be cancelled directly; run it in a goroutine and give up
-		// on the sweep's behalf after podExecTimeout. The buffered channel
-		// lets the goroutine finish its send if Stream ever returns.
 		type execResult struct {
 			out []byte
 			err error

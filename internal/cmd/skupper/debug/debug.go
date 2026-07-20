@@ -34,22 +34,16 @@ func CmdDebugSweepFactory(configuredPlatform common.Platform) *cobra.Command {
 		Long: `Queries the router management API for TCP adaptor connections, identifies
 connections that have been idle beyond the threshold, and force-closes them
 via adminStatus=deleted.`,
-		Example: "skupper debug sweep --url amqp://127.0.0.1:5672 --idle-threshold 14400",
+		Example: "skupper debug sweep --idle-threshold 14400",
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdDesc, kubeCommand, nonKubeCommand)
 	cmd.Hidden = true
 
-	cmdFlags := common.CommandConnSweeperFlags{
-		URL:           sweeper.DefaultURL,
-		IdleThreshold: sweeper.DefaultIdleThreshold,
-		Skmanage:      sweeper.DefaultSkmanage,
-	}
+	var cmdFlags common.CommandConnSweeperFlags
 
-	cmd.Flags().StringVar(&cmdFlags.URL, "url", sweeper.DefaultURL, "Router management URL")
 	cmd.Flags().IntVar(&cmdFlags.IdleThreshold, "idle-threshold", sweeper.DefaultIdleThreshold, "Seconds with no data received before a connection is flagged as orphaned")
 	cmd.Flags().BoolVar(&cmdFlags.DryRun, "dry-run", false, "List idle connections without killing them")
-	cmd.Flags().StringVar(&cmdFlags.Skmanage, "skmanage", sweeper.DefaultSkmanage, "Path to the skmanage binary")
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags

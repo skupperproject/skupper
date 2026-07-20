@@ -2,6 +2,7 @@ package nonkube
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"time"
@@ -10,12 +11,15 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/debug/sweeper"
 	"github.com/skupperproject/skupper/internal/nonkube/client/runtime"
 	nonkubecommon "github.com/skupperproject/skupper/internal/nonkube/common"
+	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/spf13/cobra"
 )
 
-// Cert paths inside the router container (see compat.SiteStateRenderer, which
-// mounts the runtime certs at /etc/skupper-router/runtime/certs).
 const containerCertsPath = "/etc/skupper-router/runtime/certs/skupper-local-client"
+const (
+	containerSkmanage = "/bin/skmanage"
+	systemdSkmanage   = "/usr/bin/skmanage"
+)
 
 type CmdConnSweeper struct {
 	CobraCmd  *cobra.Command
@@ -23,6 +27,7 @@ type CmdConnSweeper struct {
 	namespace string
 	platform  string
 	url       string
+	skmanage  string
 	sslArgs   []string
 	exec      sweeper.Execer
 }
@@ -37,19 +42,20 @@ func (cmd *CmdConnSweeper) NewClient(cobraCommand *cobra.Command, args []string)
 }
 
 func (cmd *CmdConnSweeper) ValidateInput(args []string) error {
-	if cmd.Flags.IdleThreshold <= 0 {
-		return fmt.Errorf("--idle-threshold must be a positive number of seconds")
+	var validationErrors []error
+	numberValidator := validator.NewNumberValidator()
+	numberValidator.IncludeZero = false
+	if ok, err := numberValidator.Evaluate(cmd.Flags.IdleThreshold); !ok {
+		validationErrors = append(validationErrors, fmt.Errorf("idle-threshold is not valid: %s", err))
 	}
-	return nil
+	return errors.Join(validationErrors...)
 }
 
 func (cmd *CmdConnSweeper) InputToOptions() {
 	if cmd.namespace == "" {
 		cmd.namespace = "default"
 	}
-	cmd.url = cmd.Flags.URL
 
-	// Detect the platform from the namespace's site config.
 	platformLoader := &nonkubecommon.NamespacePlatformLoader{}
 	platform, err := platformLoader.Load(cmd.namespace)
 	if err != nil {
@@ -57,39 +63,34 @@ func (cmd *CmdConnSweeper) InputToOptions() {
 	}
 	cmd.platform = platform
 
-	switch platform {
+	url, err := runtime.GetLocalRouterAddress(cmd.namespace)
+	if err != nil {
+		return
+	}
+	cmd.url = url
 
+	switch platform {
 	case "podman", "docker":
-		// exec inside it so skmanage and the socket
-		// query see the router's network namespace.
-		containerName := cmd.namespace + "-skupper-router"
-		cmd.exec = containerExecer(platform, containerName)
-		if !cmd.urlOverridden() {
-			// The site's local management listener is amqps with client-cert
-			// auth; certs are mounted inside the container.
-			if url, err := runtime.GetLocalRouterAddress(cmd.namespace); err == nil {
-				cmd.url = url
-				cmd.sslArgs = sslArgs(containerCertsPath+"/tls.crt", containerCertsPath+"/tls.key", containerCertsPath+"/ca.crt")
-			}
-		}
-	default: // linux
-		if !cmd.urlOverridden() {
-			if url, err := runtime.GetLocalRouterAddress(cmd.namespace); err == nil {
-				certs := runtime.GetRuntimeTlsCert(cmd.namespace, "skupper-local-client")
-				cmd.url = url
-				cmd.sslArgs = sslArgs(certs.CertPath, certs.KeyPath, certs.CaPath)
-			}
-		}
+		cmd.skmanage = containerSkmanage
+		cmd.exec = containerExecer(platform, cmd.namespace+"-skupper-router")
+		cmd.sslArgs = sslArgs(containerCertsPath+"/tls.crt", containerCertsPath+"/tls.key", containerCertsPath+"/ca.crt")
+	default:
+		cmd.skmanage = systemdSkmanage
+		certs := runtime.GetRuntimeTlsCert(cmd.namespace, "skupper-local-client")
+		cmd.sslArgs = sslArgs(certs.CertPath, certs.KeyPath, certs.CaPath)
 	}
 }
 
 func (cmd *CmdConnSweeper) Run() error {
+	if cmd.url == "" || cmd.skmanage == "" {
+		return fmt.Errorf("could not determine router management address for namespace %q", cmd.namespace)
+	}
 	if cmd.exec != nil {
 		fmt.Printf("running against %s container %s-skupper-router\n", cmd.platform, cmd.namespace)
 	}
 	_, err := sweeper.Run(sweeper.Config{
 		URL:               cmd.url,
-		Skmanage:          cmd.Flags.Skmanage,
+		Skmanage:          cmd.skmanage,
 		IdleThresholdSecs: cmd.Flags.IdleThreshold,
 		DryRun:            cmd.Flags.DryRun,
 		Exec:              cmd.exec,
@@ -99,11 +100,6 @@ func (cmd *CmdConnSweeper) Run() error {
 }
 
 func (cmd *CmdConnSweeper) WaitUntil() error { return nil }
-
-// urlOverridden reports whether the user set --url.
-func (cmd *CmdConnSweeper) urlOverridden() bool {
-	return cmd.CobraCmd != nil && cmd.CobraCmd.Flags().Changed("url")
-}
 
 func sslArgs(cert, key, ca string) []string {
 	return []string{"--ssl-certificate", cert, "--ssl-key", key, "--ssl-trustfile", ca}

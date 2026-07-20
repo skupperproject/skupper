@@ -31,7 +31,7 @@ type connInfo struct {
 }
 
 // socketInfo is the kernel's view of a TCP socket, as reported by `ss -tin`.
-// LastRcvMs/LastSndMs come straight from TCP_INFO and should show actual activity vs lastDlvSeconds
+// LastRcvMs/LastSndMs come from the kernel's TCP_INFO.
 type socketInfo struct {
 	LastRcvMs int
 	LastSndMs int
