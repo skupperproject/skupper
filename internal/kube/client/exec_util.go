@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"io"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,9 +26,7 @@ func ExecCommandInContainer(command []string, podName string, containerName stri
 	}
 
 	buffer := bytes.Buffer{}
-	bufferedStdout := bufio.NewWriter(&buffer)
-
-	var stdout io.Writer = bufferedStdout
+	stdout := bufio.NewWriter(&buffer)
 
 	restClient, err := restclient.RESTClientFor(config)
 	if err != nil {
@@ -62,7 +59,7 @@ func ExecCommandInContainer(command []string, podName string, containerName stri
 	if err != nil {
 		return nil, err
 	}
-	if err := bufferedStdout.Flush(); err != nil {
+	if err := stdout.Flush(); err != nil {
 		return nil, err
 	}
 	return &buffer, nil
