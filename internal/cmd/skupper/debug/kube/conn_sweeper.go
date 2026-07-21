@@ -111,7 +111,7 @@ func (cmd *CmdConnSweeper) Run() error {
 			URL:               sweeper.DefaultURL,
 			Skmanage:          sweeper.DefaultSkmanage,
 			IdleThresholdSecs: cmd.Flags.IdleThreshold,
-			DryRun:            cmd.Flags.DryRun,
+			Execute:           cmd.Flags.Execute,
 			Exec:              cmd.podExecer(podName),
 		})
 		if err != nil {

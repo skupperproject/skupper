@@ -92,7 +92,7 @@ func (cmd *CmdConnSweeper) Run() error {
 		URL:               cmd.url,
 		Skmanage:          cmd.skmanage,
 		IdleThresholdSecs: cmd.Flags.IdleThreshold,
-		DryRun:            cmd.Flags.DryRun,
+		Execute:           cmd.Flags.Execute,
 		Exec:              cmd.exec,
 		SkmanageExtraArgs: cmd.sslArgs,
 	})

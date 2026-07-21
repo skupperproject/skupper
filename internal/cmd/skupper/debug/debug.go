@@ -43,7 +43,7 @@ via adminStatus=deleted.`,
 	var cmdFlags common.CommandConnSweeperFlags
 
 	cmd.Flags().IntVar(&cmdFlags.IdleThreshold, "idle-threshold", sweeper.DefaultIdleThreshold, "Seconds with no data received before a connection is flagged as orphaned")
-	cmd.Flags().BoolVar(&cmdFlags.DryRun, "dry-run", false, "List idle connections without killing them")
+	cmd.Flags().BoolVar(&cmdFlags.Execute, "execute", false, "Close the idle connections found; without this flag they are only listed")
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags

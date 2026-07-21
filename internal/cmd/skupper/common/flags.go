@@ -254,7 +254,7 @@ type CommandDebugFlags struct {
 
 type CommandConnSweeperFlags struct {
 	IdleThreshold int
-	DryRun        bool
+	Execute       bool
 }
 
 type CommandSystemUninstallFlags struct {

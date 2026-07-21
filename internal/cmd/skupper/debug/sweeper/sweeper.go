@@ -15,7 +15,7 @@ type Config struct {
 	URL               string
 	Skmanage          string
 	IdleThresholdSecs int
-	DryRun            bool
+	Execute           bool
 	// Exec runs skmanage and the socket query.
 	Exec Execer
 	// SkmanageExtraArgs is appended to every skmanage invocation — e.g.
@@ -52,8 +52,8 @@ func Run(cfg Config) (Result, error) {
 		return Result{Total: len(snap.TCPConns)}, nil
 	}
 
-	if cfg.DryRun {
-		logf("DRY RUN — would kill %d connection(s):", len(toKill))
+	if !cfg.Execute {
+		logf("Found %d idle connection(s) — re-run with --execute to close them:", len(toKill))
 		for _, d := range toKill {
 			fmt.Printf("  id=%-6s  host=%-25s  dir=%s  uptime=%-10s  reason=%s\n",
 				d.Conn.Identity, d.Conn.Host, d.Conn.Dir, fmtSeconds(d.Conn.UptimeSeconds), d.Reason)
