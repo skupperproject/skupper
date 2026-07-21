@@ -17,11 +17,15 @@
           include_tasks: skupper-sites.yml
           vars:
             site_name: west
+          when:
+            - "'west' in inventory_hostname"
 
         - name: Create Skupper resources for east site
           include_tasks: skupper-sites.yml
           vars:
             site_name: east
+          when:
+            - "'east' in inventory_hostname"
 
         - name: Issue a Skupper access token from west namespace
           skupper.v2.token:
