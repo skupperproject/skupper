@@ -235,12 +235,13 @@ function main() {
   # set global variable which is used when calling 'oc adm inspect'
   get_log_collection_args
 
-  # note: does not account for ns scoped controller
-  controllerNamespace=$(oc get pods --all-namespaces -l app.kubernetes.io/name=skupper-controller -o jsonpath="{.items[0].metadata.namespace}")
-  # this gets also logs for all pods in that namespace
-  inspect "ns/$controllerNamespace"
-  # collect resource utilization for the skupper-controller pod itself
-  getSkupperResourcesInNamespace "${controllerNamespace}" "app.kubernetes.io/name=skupper-controller"
+  # gather from every namespace that runs a controller pod.
+  for controllerNamespace in $(oc get pods --all-namespaces -l app.kubernetes.io/name=skupper-controller -o jsonpath="{.items[*].metadata.namespace}" | tr ' ' '\n' | sort -u); do
+    echo "Inspecting Skupper controller in ${controllerNamespace} namespace"
+    inspect "ns/$controllerNamespace"
+    # collect resource utilization for the skupper-controller pod itself
+    getSkupperResourcesInNamespace "${controllerNamespace}" "app.kubernetes.io/name=skupper-controller"
+  done
 
   inspect nodes
 
