@@ -84,6 +84,9 @@ func (cmd *CmdConnSweeper) ValidateInput(args []string) error {
 	if ok, err := numberValidator.Evaluate(cmd.Flags.IdleThreshold); !ok {
 		validationErrors = append(validationErrors, fmt.Errorf("idle-threshold is not valid: %s", err))
 	}
+	if int64(cmd.Flags.IdleThreshold) > sweeper.MaxIdleThreshold {
+		validationErrors = append(validationErrors, fmt.Errorf("idle-threshold is too large (max %d seconds)", sweeper.MaxIdleThreshold))
+	}
 	return errors.Join(validationErrors...)
 }
 
@@ -131,6 +134,9 @@ func (cmd *CmdConnSweeper) Run() error {
 	}
 	if len(failedPods) > 0 {
 		return fmt.Errorf("sweep failed on %d of %d router pod(s): %v", len(failedPods), len(podNames), failedPods)
+	}
+	if total.Failed > 0 {
+		return fmt.Errorf("%d idle connection(s) failed to close (%d closed)", total.Failed, total.Killed)
 	}
 	return nil
 }

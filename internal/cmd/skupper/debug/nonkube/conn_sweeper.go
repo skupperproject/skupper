@@ -48,6 +48,9 @@ func (cmd *CmdConnSweeper) ValidateInput(args []string) error {
 	if ok, err := numberValidator.Evaluate(cmd.Flags.IdleThreshold); !ok {
 		validationErrors = append(validationErrors, fmt.Errorf("idle-threshold is not valid: %s", err))
 	}
+	if int64(cmd.Flags.IdleThreshold) > sweeper.MaxIdleThreshold {
+		validationErrors = append(validationErrors, fmt.Errorf("idle-threshold is too large (max %d seconds)", sweeper.MaxIdleThreshold))
+	}
 	return errors.Join(validationErrors...)
 }
 
@@ -88,7 +91,7 @@ func (cmd *CmdConnSweeper) Run() error {
 	if cmd.exec != nil {
 		fmt.Printf("running against %s container %s-skupper-router\n", cmd.platform, cmd.namespace)
 	}
-	_, err := sweeper.Run(sweeper.Config{
+	res, err := sweeper.Run(sweeper.Config{
 		URL:               cmd.url,
 		Skmanage:          cmd.skmanage,
 		IdleThresholdSecs: cmd.Flags.IdleThreshold,
@@ -96,7 +99,13 @@ func (cmd *CmdConnSweeper) Run() error {
 		Exec:              cmd.exec,
 		SkmanageExtraArgs: cmd.sslArgs,
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	if res.Failed > 0 {
+		return fmt.Errorf("%d idle connection(s) failed to close (%d closed)", res.Failed, res.Killed)
+	}
+	return nil
 }
 
 func (cmd *CmdConnSweeper) WaitUntil() error { return nil }

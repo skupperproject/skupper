@@ -2,6 +2,7 @@ package sweeper
 
 import (
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -9,6 +10,7 @@ const (
 	DefaultURL           = "amqp://127.0.0.1:5672"
 	DefaultSkmanage      = "skmanage"
 	DefaultIdleThreshold = 4 * 3600 // 4 hours
+	MaxIdleThreshold     = math.MaxInt64 / int64(time.Second)
 )
 
 type Config struct {
