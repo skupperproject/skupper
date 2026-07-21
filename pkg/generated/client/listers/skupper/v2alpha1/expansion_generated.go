@@ -66,6 +66,14 @@ type ConnectorListerExpansion interface{}
 // ConnectorNamespaceLister.
 type ConnectorNamespaceListerExpansion interface{}
 
+// InterNetworkIngressListerExpansion allows custom methods to be added to
+// InterNetworkIngressLister.
+type InterNetworkIngressListerExpansion interface{}
+
+// InterNetworkIngressNamespaceListerExpansion allows custom methods to be added to
+// InterNetworkIngressNamespaceLister.
+type InterNetworkIngressNamespaceListerExpansion interface{}
+
 // LinkListerExpansion allows custom methods to be added to
 // LinkLister.
 type LinkListerExpansion interface{}
@@ -89,6 +97,30 @@ type MultiKeyListenerListerExpansion interface{}
 // MultiKeyListenerNamespaceListerExpansion allows custom methods to be added to
 // MultiKeyListenerNamespaceLister.
 type MultiKeyListenerNamespaceListerExpansion interface{}
+
+// NetworkListerExpansion allows custom methods to be added to
+// NetworkLister.
+type NetworkListerExpansion interface{}
+
+// NetworkNamespaceListerExpansion allows custom methods to be added to
+// NetworkNamespaceLister.
+type NetworkNamespaceListerExpansion interface{}
+
+// NetworkAccessListerExpansion allows custom methods to be added to
+// NetworkAccessLister.
+type NetworkAccessListerExpansion interface{}
+
+// NetworkAccessNamespaceListerExpansion allows custom methods to be added to
+// NetworkAccessNamespaceLister.
+type NetworkAccessNamespaceListerExpansion interface{}
+
+// NetworkLinkListerExpansion allows custom methods to be added to
+// NetworkLinkLister.
+type NetworkLinkListerExpansion interface{}
+
+// NetworkLinkNamespaceListerExpansion allows custom methods to be added to
+// NetworkLinkNamespaceLister.
+type NetworkLinkNamespaceListerExpansion interface{}
 
 // RouterAccessListerExpansion allows custom methods to be added to
 // RouterAccessLister.

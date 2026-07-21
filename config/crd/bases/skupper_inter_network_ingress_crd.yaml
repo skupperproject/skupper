@@ -1,0 +1,134 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: internetworkingresses.skupper.io
+spec:
+  group: skupper.io
+  versions:
+    - name: v2alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          description: |-
+            An InterNetworkIngress can be defined alongside a NetworkLink or a NetworkAccess, exposing
+            a local ingress routing key to be used by the remote router through an inter-network
+            mTLS connection.
+            The remote router can only send messages to the provided routing key.
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                routingKey:
+                  type: string
+                  description: The local ingress key to be exposed through the inter-network connection.
+                networkLink:
+                  type: string
+                  description: Name of the NetworkLink to expose the routing key through.
+                networkAccess:
+                  type: string
+                  description: Name of the NetworkAccess to expose the routing key through.
+                settings:
+                  description: |-
+                    Advanced. A map containing additional settings. Each map
+                    entry has a string name and a string value.
+
+                    **Note:** In  general, we recommend not changing `settings`
+                    from their default values.
+                  type: object
+                  additionalProperties:
+                    type: string
+              x-kubernetes-validations:
+                - message: At least one of networkLink or networkAccess must be set
+                  rule: has(self.networkLink) || has(self.networkAccess)
+              required:
+                - routingKey
+            status:
+              type: object
+              properties:
+                status:
+                  description: |-
+                    The current state of the resource.
+                    - `Pending`: The resource is being processed.
+                    - `Error`: There was an error processing the resource. See `message` for more information.
+                    - `Ready`: The resource is ready to use.
+                  type: string
+                message:
+                  description: |-
+                    A human-readable status message. Error messages are reported here.
+                  type: string
+                conditions:
+                  type: array
+                  description: |-
+                    A set of named conditions describing the current state of the resource.
+
+                    - `Configured`: The output resources for this resource have been created.
+                    - `Running`: There is at least one router pod running.
+                    - `Resolved`: The hostname or IP address for link access is available.
+                    - `Ready`: The site is ready for use. All other conditions are true.
+                  items:
+                    type: object
+                    properties:
+                      lastTransitionTime:
+                        format: date-time
+                        type: string
+                      message:
+                        maxLength: 32768
+                        type: string
+                      observedGeneration:
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      reason:
+                        maxLength: 1024
+                        minLength: 1
+                        pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                        type: string
+                      status:
+                        enum:
+                        - "True"
+                        - "False"
+                        - Unknown
+                        type: string
+                      type:
+                        maxLength: 316
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                        type: string
+                    required:
+                    - lastTransitionTime
+                    - message
+                    - reason
+                    - status
+                    - type
+      subresources:
+        status: {}
+      additionalPrinterColumns:
+      - name: Routing Key
+        type: string
+        description: The local ingress key
+        jsonPath: .spec.routingKey
+      - name: Network Link
+        type: string
+        description: The network link name to use
+        jsonPath: .spec.networkLink
+      - name: Network Access
+        type: string
+        description: The network access name to use
+        jsonPath: .spec.networkAccess
+      - name: Status
+        type: string
+        description: The status of the VAN site
+        jsonPath: .status.status
+      - name: Message
+        type: string
+        description: Any human readable message relevant to the site
+        jsonPath: .status.message
+  scope: Namespaced
+  names:
+    plural: internetworkingresses
+    singular: internetworkingress
+    kind: InterNetworkIngress
+    listKind: InterNetworkIngressList
+    shortNames:
+    - ini
