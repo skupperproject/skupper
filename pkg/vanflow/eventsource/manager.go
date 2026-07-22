@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sync"
 	"time"
 
 	amqp "github.com/Azure/go-amqp"
@@ -11,6 +12,14 @@ import (
 	"github.com/skupperproject/skupper/pkg/vanflow/encoding"
 	"github.com/skupperproject/skupper/pkg/vanflow/session"
 	"github.com/skupperproject/skupper/pkg/vanflow/store"
+)
+
+const (
+	// recordSendTimeout bounds a single attempt to send a record message.
+	recordSendTimeout = 5 * time.Second
+	// recordSendRetryDelay is the pause before retrying a failed record
+	// message send.
+	recordSendRetryDelay = time.Second
 )
 
 type ManagerConfig struct {
@@ -42,6 +51,13 @@ type ManagerConfig struct {
 	UpdateBatchSize int
 }
 
+func (c ManagerConfig) updateBatchSize() int {
+	if c.UpdateBatchSize < 1 {
+		return 1
+	}
+	return c.UpdateBatchSize
+}
+
 type RecordUpdate struct {
 	Prev vanflow.Record
 	Curr vanflow.Record
@@ -51,9 +67,12 @@ type Manager struct {
 	ManagerConfig
 	container session.Container
 
-	flushQueue  chan struct{}
-	changeQueue chan RecordUpdate
-	sendQueue   chan vanflow.RecordMessage
+	notify chan struct{}
+
+	mu           sync.Mutex
+	pending      map[string]RecordUpdate
+	pendingSince time.Time
+	flushAt      *time.Time
 
 	logger *slog.Logger
 }
@@ -62,9 +81,8 @@ func NewManager(container session.Container, cfg ManagerConfig) *Manager {
 	return &Manager{
 		container:     container,
 		ManagerConfig: cfg,
-		flushQueue:    make(chan struct{}, 8),
-		changeQueue:   make(chan RecordUpdate, 256),
-		sendQueue:     make(chan vanflow.RecordMessage, 256),
+		notify:        make(chan struct{}, 1),
+		pending:       make(map[string]RecordUpdate),
 		logger: slog.New(slog.Default().Handler()).With(
 			slog.String("component", "vanflow.eventsource.manager"),
 			slog.String("instance", cfg.Source.ID),
@@ -72,37 +90,236 @@ func NewManager(container session.Container, cfg ManagerConfig) *Manager {
 	}
 }
 
+// PublishUpdate queues a record update for delivery.
 func (m *Manager) PublishUpdate(update RecordUpdate) {
-	m.changeQueue <- update
+	if update.Curr == nil {
+		return
+	}
+	id := update.Curr.Identity()
+
+	m.mu.Lock()
+	// squash existing updates
+	if prior, ok := m.pending[id]; ok {
+		update.Prev = prior.Prev
+	}
+	m.pending[id] = update
+	if m.pendingSince.IsZero() {
+		m.pendingSince = time.Now()
+	}
+	m.mu.Unlock()
+
+	m.signalWorkAvailable()
+}
+
+func (m *Manager) signalWorkAvailable() {
+	select {
+	case m.notify <- struct{}{}:
+	default:
+	}
 }
 
 func (m *Manager) Run(ctx context.Context) {
 	go m.listenFlushes(ctx)
 	go m.sendKeepalives(ctx)
-	go m.sendRecords(ctx)
-	m.serve(ctx)
+	m.sendRecords(ctx)
 }
 
 func (m *Manager) sendRecords(ctx context.Context) {
 	sender := m.container.NewSender(m.Source.Address, session.SenderOptions{})
 	defer sender.Close(ctx)
+
+	var retryIn time.Duration
 	for {
-		select {
-		case <-ctx.Done():
+		if !m.awaitSendWork(ctx, retryIn) {
 			return
-		case record := <-m.sendQueue:
-			msg, err := record.Encode()
-			if err != nil {
-				m.logger.Error("skipping record message after encoding error:", slog.Any("error", err))
-				continue
+		}
+		retryIn = 0
+
+		if m.flushDue(time.Now()) {
+			if err := m.streamFlush(ctx, sender); err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				m.requestFlush()
+				retryIn = recordSendRetryDelay
+				m.logger.Error("error sending flush record message. retrying",
+					slog.Any("error", err))
 			}
-			if err := sender.Send(ctx, msg); err != nil {
-				m.logger.Error("error sending event source record", slog.Any("error", err))
-				continue
+			continue
+		}
+
+		batch := m.take(m.updateBatchSize())
+		msg, included := m.encodeUpdates(batch)
+		if msg == nil {
+			continue
+		}
+		if err := sendWithTimeout(ctx, recordSendTimeout, sender, msg); err != nil {
+			if ctx.Err() != nil {
+				return
 			}
-			m.logger.Info("record message sent", slog.Int("record_count", len(record.Records)))
+			m.requeue(included)
+			retryIn = recordSendRetryDelay
+			m.logger.Error("error sending record message. retrying",
+				slog.Any("error", err),
+				slog.Int("record_count", len(included)))
+			continue
+		}
+		m.logger.Info("record message sent", slog.Int("record_count", len(included)))
+	}
+}
+
+// awaitSendWork blocks until the record sender has a flush or records due
+// returns false when context is cancelled first.
+func (m *Manager) awaitSendWork(ctx context.Context, retryIn time.Duration) bool {
+	if retryIn > 0 {
+		return sleep(ctx, retryIn)
+	}
+	for {
+		wait, ready := m.workState(time.Now())
+		switch {
+		case ready:
+			return true
+		case wait > 0:
+			// There is work, but it is not due yet. Try again after a delay or
+			// notify signal.
+			if !m.waitFor(ctx, wait) {
+				return false
+			}
+		default:
+			select {
+			case <-ctx.Done():
+				return false
+			case <-m.notify:
+			}
 		}
 	}
+}
+
+// waitFor waits up to d for notify signal. Returns false when the context was
+// cancelled first.
+func (m *Manager) waitFor(ctx context.Context, d time.Duration) bool {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+	case <-m.notify:
+	}
+	return true
+}
+
+// workState reports whether the record sender should run now, or how long to
+// wait before asking again. A zero wait with ready false means there is
+// nothing outstanding.
+func (m *Manager) workState(now time.Time) (wait time.Duration, ready bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	var flushWait time.Duration
+	if m.flushAt != nil {
+		if !now.Before(*m.flushAt) {
+			return 0, true
+		}
+		flushWait = m.flushAt.Sub(now)
+	}
+
+	// Queued updates are still served while a flush waits out its delay
+	updateWait, updateReady := m.updateWorkState(now)
+	switch {
+	case updateReady:
+		return 0, true
+	case updateWait > 0 && (flushWait == 0 || updateWait < flushWait):
+		return updateWait, false
+	default:
+		return flushWait, false
+	}
+}
+
+// updateWorkState reports the state of the pending updates. Callers must hold
+// the manager lock.
+func (m *Manager) updateWorkState(now time.Time) (wait time.Duration, ready bool) {
+	if len(m.pending) == 0 {
+		return 0, false
+	}
+	if m.UpdateBufferTime <= 0 || len(m.pending) >= m.updateBatchSize() {
+		return 0, true
+	}
+	if elapsed := now.Sub(m.pendingSince); elapsed < m.UpdateBufferTime {
+		return m.UpdateBufferTime - elapsed, false
+	}
+	return 0, true
+}
+
+// take removes up to limit updates from the pending set.
+func (m *Manager) take(limit int) []RecordUpdate {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if limit > len(m.pending) {
+		limit = len(m.pending)
+	}
+	if limit < 1 {
+		return nil
+	}
+	batch := make([]RecordUpdate, 0, limit)
+	for id, update := range m.pending {
+		batch = append(batch, update)
+		delete(m.pending, id)
+		if len(batch) == limit {
+			break
+		}
+	}
+	if len(m.pending) == 0 {
+		m.pendingSince = time.Time{}
+	}
+	return batch
+}
+
+// requeue returns a batch that failed to send to the pending set.
+func (m *Manager) requeue(batch []RecordUpdate) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, failed := range batch {
+		id := failed.Curr.Identity()
+		if current, ok := m.pending[id]; ok {
+			failed = current
+		}
+		// a failed send has an uncertain outcome. Do not presume prior state.
+		failed.Prev = nil
+		m.pending[id] = failed
+	}
+	if m.pendingSince.IsZero() {
+		m.pendingSince = time.Now()
+	}
+}
+
+// encodeUpdates encodes the updates containing a delta into a message. Returns
+// a message and the included record updates
+func (m *Manager) encodeUpdates(batch []RecordUpdate) (*amqp.Message, []RecordUpdate) {
+	var (
+		records  []vanflow.Record
+		included []RecordUpdate
+	)
+	for _, update := range batch {
+		delta, changed := m.diffRecord(update)
+		if !changed {
+			continue
+		}
+		records = append(records, delta)
+		included = append(included, update)
+	}
+	if len(records) == 0 {
+		m.logger.Debug("record updates buffered but none were changed", slog.Int("record_count", len(batch)))
+		return nil, nil
+	}
+	msg, err := vanflow.RecordMessage{Records: records}.Encode()
+	if err != nil {
+		m.logger.Error("skipping record message after encoding error",
+			slog.Any("error", err),
+			slog.Int("record_count", len(records)))
+		return nil, nil
+	}
+	return msg, included
 }
 
 func (m *Manager) diffRecord(d RecordUpdate) (vanflow.Record, bool) {
@@ -148,77 +365,57 @@ func (m *Manager) diffRecord(d RecordUpdate) (vanflow.Record, bool) {
 	return deltaRecord.(vanflow.Record), true
 }
 
-func (m *Manager) serve(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case update := <-m.changeQueue:
-			var buffer []RecordUpdate
-			if m.UpdateBufferTime > 0 && m.UpdateBatchSize > 1 {
-				bufferCtx, cancelBuffer := context.WithTimeout(ctx, m.UpdateBufferTime)
-				buffer = nextN(bufferCtx, m.changeQueue, m.UpdateBatchSize-1)
-				cancelBuffer()
-				if ctx.Err() != nil {
-					return
-				}
-			}
-			buffer = append([]RecordUpdate{update}, buffer...)
+// requestFlush schedules a flush of all store contents.
+func (m *Manager) requestFlush() {
+	m.mu.Lock()
+	if m.flushAt == nil {
+		at := time.Now().Add(m.FlushDelay)
+		m.flushAt = &at
+	}
+	m.mu.Unlock()
+	m.signalWorkAvailable()
+}
 
-			var record vanflow.RecordMessage
-			record.Records = make([]vanflow.Record, 0, len(buffer))
-			for _, update := range buffer {
-				delta, changed := m.diffRecord(update)
-				if !changed {
-					continue
-				}
-				record.Records = append(record.Records, delta)
+func (m *Manager) flushDue(now time.Time) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.flushAt != nil && !now.Before(*m.flushAt)
+}
+
+// streamFlush sends the contents of every store as a series of batched record
+// messages.
+func (m *Manager) streamFlush(ctx context.Context, sender session.Sender) error {
+	m.mu.Lock()
+	m.flushAt = nil
+	m.mu.Unlock()
+
+	m.logger.Info("servicing flush", slog.String("source", m.Source.ID))
+	for _, stor := range m.Stores {
+		entries := stor.List()
+		for len(entries) > 0 {
+			batch := entries
+			if n := m.FlushBatchSize; n > 0 && len(batch) > n {
+				batch = batch[:n]
 			}
-			if len(record.Records) == 0 {
-				m.logger.Debug("record changes buffered but none were changed", slog.Int("record_count", len(buffer)))
+			entries = entries[len(batch):]
+
+			records := make([]vanflow.Record, len(batch))
+			for i, entry := range batch {
+				records[i] = entry.Record
+			}
+			msg, err := vanflow.RecordMessage{Records: records}.Encode()
+			if err != nil {
+				m.logger.Error("skipping flush record message after encoding error",
+					slog.Any("error", err),
+					slog.Int("record_count", len(records)))
 				continue
 			}
-			select {
-			case <-ctx.Done():
-				return
-			case m.sendQueue <- record:
-			}
-
-		case <-m.flushQueue:
-			// handle a flush
-			if m.FlushDelay > 0 {
-				drainCtx, cancelDrain := context.WithTimeout(ctx, m.FlushDelay)
-				nextN(drainCtx, m.flushQueue, 2048)
-				cancelDrain()
-				if ctx.Err() != nil {
-					return
-				}
-			}
-			m.logger.Info("servicing flush", slog.String("source", m.Source.ID))
-			for _, stor := range m.Stores {
-				entries := stor.List()
-
-				for len(entries) > 0 {
-					var batch []store.Entry
-					batch, entries = entries, entries[:0]
-					if len(batch) > m.FlushBatchSize && m.FlushBatchSize > 0 {
-						batch, entries = batch[:m.FlushBatchSize], batch[m.FlushBatchSize:]
-					}
-
-					var record vanflow.RecordMessage
-					record.Records = make([]vanflow.Record, len(batch))
-					for i, entry := range batch {
-						record.Records[i] = entry.Record
-					}
-					select {
-					case <-ctx.Done():
-						return
-					case m.sendQueue <- record:
-					}
-				}
+			if err := sendWithTimeout(ctx, recordSendTimeout, sender, msg); err != nil {
+				return err
 			}
 		}
 	}
+	return nil
 }
 
 func (m *Manager) sendKeepalives(ctx context.Context) {
@@ -320,12 +517,10 @@ func (m *Manager) listenFlushes(ctx context.Context) {
 				return
 			}
 			m.logger.Error("flush receive error", slog.Any("error", err))
+			continue
 		}
 		flushReceiver.Accept(ctx, msg)
-		select {
-		case m.flushQueue <- struct{}{}:
-		default: // drop flush if queue is full
-		}
+		m.requestFlush()
 	}
 }
 
@@ -343,21 +538,13 @@ func sendWithTimeout(ctx context.Context, timeout time.Duration, sender session.
 	return err
 }
 
-// pulls next N items from a channel
-func nextN[T any](ctx context.Context, c <-chan T, n int) []T {
-	var out []T
-	if n < 1 {
-		return out
-	}
-	for {
-		select {
-		case <-ctx.Done():
-			return out
-		case t := <-c:
-			out = append(out, t)
-			if len(out) == n {
-				return out
-			}
-		}
+func sleep(ctx context.Context, d time.Duration) bool {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
 	}
 }
