@@ -27,6 +27,29 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 			errorContains: "invalid site name:",
 		},
 		{
+			info: "invalid-site-edge-with-ha",
+			siteState: customize(func(siteState *api.SiteState) {
+				siteState.Site.Spec.Edge = true
+				siteState.Site.Spec.HA = true
+			}),
+			valid:         false,
+			errorContains: "edge sites cannot have HA enabled",
+		},
+		{
+			info: "valid-site-edge-without-ha",
+			siteState: customize(func(siteState *api.SiteState) {
+				siteState.Site.Spec.Edge = true
+			}),
+			valid: true,
+		},
+		{
+			info: "valid-site-ha-without-edge",
+			siteState: customize(func(siteState *api.SiteState) {
+				siteState.Site.Spec.HA = true
+			}),
+			valid: true,
+		},
+		{
 			info: "invalid-link-access-name",
 			siteState: customize(func(siteState *api.SiteState) {
 				for _, la := range siteState.RouterAccesses {
