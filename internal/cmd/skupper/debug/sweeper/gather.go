@@ -82,7 +82,10 @@ func Gather(execFn Execer, skmanageBin, url string, extraArgs ...string) (Snapsh
 		}
 	}
 
-	byPeer, byLocal := gatherSockets(execFn)
+	byPeer, byLocal, err := gatherSockets(execFn)
+	if err != nil {
+		return Snapshot{}, err
+	}
 	return Snapshot{
 		Now:            time.Now(),
 		TCPConns:       tcpConns,
@@ -98,15 +101,19 @@ func isTCPAdaptorConn(c connInfo) bool {
 // gatherSockets reads kernel socket state, preferring `ss -tin` and falling
 // back to the python netlink script when ss isn't available (e.g. inside the
 // router container, which ships python3 but not iproute).
-func gatherSockets(execFn Execer) (byPeer, byLocal map[string]socketInfo) {
-	if out, err := execFn([]string{"ss", "-tin"}); err == nil {
-		return socketsFromSS(out)
+func gatherSockets(execFn Execer) (map[string]socketInfo, map[string]socketInfo, error) {
+	out, ssErr := execFn([]string{"ss", "-tin"})
+	if ssErr == nil {
+		byPeer, byLocal := socketsFromSS(out)
+		return byPeer, byLocal, nil
 	}
-	out, err := execFn([]string{"python3", "-c", inetDiagScript})
-	if err != nil {
-		return map[string]socketInfo{}, map[string]socketInfo{}
+
+	out, pyErr := execFn([]string{"python3", "-c", inetDiagScript})
+	if pyErr != nil {
+		return nil, nil, fmt.Errorf("could not read socket state, so no connection could be matched to its socket: ss unavailable (%v) and python3 fallback failed (%v)", ssErr, pyErr)
 	}
-	return socketsFromDiagOutput(out)
+	byPeer, byLocal := socketsFromDiagOutput(out)
+	return byPeer, byLocal, nil
 }
 
 // socketsFromSS builds two {lastrcv, lastsnd} maps — one keyed by peer
