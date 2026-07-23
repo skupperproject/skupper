@@ -30,6 +30,7 @@ type CmdConnSweeper struct {
 	skmanage  string
 	sslArgs   []string
 	exec      sweeper.Execer
+	setupErr  error
 }
 
 func NewCmdConnSweeper() *CmdConnSweeper {
@@ -62,12 +63,14 @@ func (cmd *CmdConnSweeper) InputToOptions() {
 	platformLoader := &nonkubecommon.NamespacePlatformLoader{}
 	platform, err := platformLoader.Load(cmd.namespace)
 	if err != nil {
+		cmd.setupErr = fmt.Errorf("could not load platform for namespace %q: %w", cmd.namespace, err)
 		return
 	}
 	cmd.platform = platform
 
 	url, err := runtime.GetLocalRouterAddress(cmd.namespace)
 	if err != nil {
+		cmd.setupErr = fmt.Errorf("could not determine router address for namespace %q: %w", cmd.namespace, err)
 		return
 	}
 	cmd.url = url
@@ -85,6 +88,9 @@ func (cmd *CmdConnSweeper) InputToOptions() {
 }
 
 func (cmd *CmdConnSweeper) Run() error {
+	if cmd.setupErr != nil {
+		return cmd.setupErr
+	}
 	if cmd.url == "" || cmd.skmanage == "" {
 		return fmt.Errorf("could not determine router management address for namespace %q", cmd.namespace)
 	}

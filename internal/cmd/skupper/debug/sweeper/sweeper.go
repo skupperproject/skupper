@@ -38,6 +38,9 @@ type Result struct {
 // criteria against that state, and killAll (kill.go) carries out whatever
 // Evaluate decided.
 func Run(cfg Config) (Result, error) {
+	if cfg.IdleThresholdSecs < 0 || int64(cfg.IdleThresholdSecs) > MaxIdleThreshold {
+		return Result{}, fmt.Errorf("idle threshold must be between 0 and %d seconds", MaxIdleThreshold)
+	}
 	if cfg.Exec == nil {
 		cfg.Exec = LocalExec
 	}

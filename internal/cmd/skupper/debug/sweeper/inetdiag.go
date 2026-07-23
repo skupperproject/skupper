@@ -16,7 +16,7 @@ import (
 // TODO: IPv4 only; extend for IPv6.
 
 const inetDiagScript = `
-import socket, struct
+import socket, struct, sys, os
 
 NETLINK_SOCK_DIAG = 4
 SOCK_DIAG_BY_FAMILY = 20
@@ -39,7 +39,15 @@ while not done:
     off = 0
     while off + 16 <= len(data):
         ln, typ = struct.unpack_from("=IH", data, off)
-        if ln < 16 or typ in (NLMSG_DONE, NLMSG_ERROR):
+        if ln < 16 or typ == NLMSG_DONE:
+            done = True
+            break
+        if typ == NLMSG_ERROR:
+            # nlmsgerr starts with a signed errno (negative on failure, 0 = ACK)
+            err = struct.unpack_from("=i", data, off + 16)[0]
+            if err != 0:
+                sys.stderr.write("netlink SOCK_DIAG error: %s\n" % os.strerror(-err))
+                sys.exit(1)
             done = True
             break
         # inet_diag_msg: sport/dport are big-endian at +4/+6, src at +8,
