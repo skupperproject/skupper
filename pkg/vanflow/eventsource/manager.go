@@ -128,12 +128,12 @@ func (m *Manager) sendRecords(ctx context.Context) {
 	sender := m.container.NewSender(m.Source.Address, session.SenderOptions{})
 	defer sender.Close(ctx)
 
-	var retryIn time.Duration
+	var retryAfter time.Duration
 	for {
-		if !m.awaitSendWork(ctx, retryIn) {
+		if !m.awaitSendWork(ctx, retryAfter) {
 			return
 		}
-		retryIn = 0
+		retryAfter = 0
 
 		if m.flushDue(time.Now()) {
 			if err := m.streamFlush(ctx, sender); err != nil {
@@ -141,7 +141,7 @@ func (m *Manager) sendRecords(ctx context.Context) {
 					return
 				}
 				m.requestFlush()
-				retryIn = recordSendRetryDelay
+				retryAfter = recordSendRetryDelay
 				m.logger.Error("error sending flush record message. retrying",
 					slog.Any("error", err))
 			}
@@ -158,7 +158,7 @@ func (m *Manager) sendRecords(ctx context.Context) {
 				return
 			}
 			m.requeue(included)
-			retryIn = recordSendRetryDelay
+			retryAfter = recordSendRetryDelay
 			m.logger.Error("error sending record message. retrying",
 				slog.Any("error", err),
 				slog.Int("record_count", len(included)))
@@ -170,9 +170,9 @@ func (m *Manager) sendRecords(ctx context.Context) {
 
 // awaitSendWork blocks until the record sender has a flush or records due
 // returns false when context is cancelled first.
-func (m *Manager) awaitSendWork(ctx context.Context, retryIn time.Duration) bool {
-	if retryIn > 0 {
-		return sleep(ctx, retryIn)
+func (m *Manager) awaitSendWork(ctx context.Context, retryAfter time.Duration) bool {
+	if retryAfter > 0 {
+		return sleep(ctx, retryAfter)
 	}
 	for {
 		wait, ready := m.workState(time.Now())
