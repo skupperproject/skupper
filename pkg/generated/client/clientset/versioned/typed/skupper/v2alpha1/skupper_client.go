@@ -34,9 +34,13 @@ type SkupperV2alpha1Interface interface {
 	AttachedConnectorBindingsGetter
 	CertificatesGetter
 	ConnectorsGetter
+	InterNetworkIngressesGetter
 	LinksGetter
 	ListenersGetter
 	MultiKeyListenersGetter
+	NetworksGetter
+	NetworkAccessesGetter
+	NetworkLinksGetter
 	RouterAccessesGetter
 	SecuredAccessesGetter
 	SitesGetter
@@ -71,6 +75,10 @@ func (c *SkupperV2alpha1Client) Connectors(namespace string) ConnectorInterface 
 	return newConnectors(c, namespace)
 }
 
+func (c *SkupperV2alpha1Client) InterNetworkIngresses(namespace string) InterNetworkIngressInterface {
+	return newInterNetworkIngresses(c, namespace)
+}
+
 func (c *SkupperV2alpha1Client) Links(namespace string) LinkInterface {
 	return newLinks(c, namespace)
 }
@@ -81,6 +89,18 @@ func (c *SkupperV2alpha1Client) Listeners(namespace string) ListenerInterface {
 
 func (c *SkupperV2alpha1Client) MultiKeyListeners(namespace string) MultiKeyListenerInterface {
 	return newMultiKeyListeners(c, namespace)
+}
+
+func (c *SkupperV2alpha1Client) Networks(namespace string) NetworkInterface {
+	return newNetworks(c, namespace)
+}
+
+func (c *SkupperV2alpha1Client) NetworkAccesses(namespace string) NetworkAccessInterface {
+	return newNetworkAccesses(c, namespace)
+}
+
+func (c *SkupperV2alpha1Client) NetworkLinks(namespace string) NetworkLinkInterface {
+	return newNetworkLinks(c, namespace)
 }
 
 func (c *SkupperV2alpha1Client) RouterAccesses(namespace string) RouterAccessInterface {

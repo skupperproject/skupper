@@ -1,7 +1,7 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: routeraccesses.skupper.io
+  name: networkaccesses.skupper.io
 spec:
   group: skupper.io
   versions:
@@ -11,31 +11,17 @@ spec:
       schema:
         openAPIV3Schema:
           description: |-
-            Configuration for secure access to the site router.  The
-            configuration includes TLS credentials and router ports.  The
-            RouterAccess resource is used to implement link access for sites.
+            Configuration for secure access to the site router for inter-network communication.
+            The configuration includes TLS credentials and router ports.
+            The NetworkAccess resource is used to implement inter-network access for sites.
           type: object
           properties:
             spec:
               type: object
               properties:
-                roles:
-                  description: |-
-                    The named interfaces by which a router can be accessed.  These
-                    include "inter-router" for links between interior routers and
-                    "edge" for links from edge routers to interior routers.
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      name:
-                        description: The role name. Either "inter-router" or "edge".
-                        type: string
-                      port:
-                        description: The port for the router to bind. Must not conflict with another role.
-                        type: integer
-                    required:
-                      - name
+                port:
+                    description: The port for the router to bind.
+                    type: integer
                 generateTlsCredentials:
                   description: |-
                     When set, Skupper generates the TLS credentials to be
@@ -46,24 +32,25 @@ spec:
                   type: string
                   description: |-
                     The name of the Kubernetes Secret containing the signing CA
-                    used to generate TLS certificates for the RouterAccess when
+                    used to generate TLS certificates for the NetworkAccess when
                     `generateTlsCredentials` is set.
+                remoteIssuer:
+                  description: |-
+                    Advanced. Enable it if you want the Skupper Controller to
+                    generate CertificateRequests (CRs) instead of the default
+                    self-signed certificates.
+                    The CRs must be reconciled by an external application.
+                  type: boolean
                 accessType:
                   description: |-
                     Configures the access type for the router endpoints.
                     Available access types and the default selection is
                     configured on the Skupper controller for Kubernetes.
 
-                    Additional options when enabled on the Skupper controller include:
+                    The options available by default are:
                       - `local`: No external ingress. Implies a Kubernetes Service with type ClusterIP.
                       - `route`: Exposed via an OpenShift Route.
                       - `loadbalancer`: Exposed via a Kubernetes Service with type LoadBalancer.
-                      - `ingress`: Exposed via a Kubernetes Ingress (no nginx-specific annotations).
-                      - `ingress-nginx`: Exposed via Ingress with the NGINX Ingress Controller annotations.
-
-                    To select which IngressClass handles Skupper-managed Ingress resources, set
-                    controller flag/env `SKUPPER_INGRESS_CLASS_NAME` or per-site
-                    `spec.settings.ingressClassName` on this resource.
                   type: string
                 tlsCredentials:
                   description: |-
@@ -94,17 +81,12 @@ spec:
                     Advanced. A map containing additional settings. Each map
                     entry has a string name and a string value.
 
-                    For access types `ingress` and `ingress-nginx`, the key
-                    `ingressClassName` sets `spec.ingressClassName` on the managed
-                    Ingress (overrides the controller-wide default).
-
-                    **Note:** In general, we recommend not changing `settings`
-                    from their default values except when required.
+                    **Note:** In  general, we recommend not changing `settings`
+                    from their default values.
                   type: object
                   additionalProperties:
                     type: string
               required:
-              - roles
               - tlsCredentials
             status:
               type: object
@@ -120,6 +102,14 @@ spec:
                   description: |-
                     A human-readable status message. Error messages are reported here.
                   type: string
+                networkId:
+                  description: |-
+                    The network id currently associated with the Network Access.
+                  type: string
+                port:
+                    description: |-
+                      If a port is not specified, the controller assigns a dynamic port and reports it here.
+                    type: integer
                 conditions:
                   type: array
                   description: |-
@@ -162,18 +152,6 @@ spec:
                     - reason
                     - status
                     - type
-                roles:
-                  type: array
-                  description: |-
-                    List of roles and their allocated ports.
-                    If a role does not specify a port, the controller assigns a dynamic port and reports it here.
-                  items:
-                    type: object
-                    properties:
-                      name:
-                        type: string
-                      port:
-                        type: integer
                 endpoints:
                   type: array
                   description: |-
@@ -203,6 +181,6 @@ spec:
         jsonPath: .status.message
   scope: Namespaced
   names:
-    plural: routeraccesses
-    singular: routeraccess
-    kind: RouterAccess
+    plural: networkaccesses
+    singular: networkaccess
+    kind: NetworkAccess

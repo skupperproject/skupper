@@ -36,12 +36,20 @@ type Interface interface {
 	Certificates() CertificateInformer
 	// Connectors returns a ConnectorInformer.
 	Connectors() ConnectorInformer
+	// InterNetworkIngresses returns a InterNetworkIngressInformer.
+	InterNetworkIngresses() InterNetworkIngressInformer
 	// Links returns a LinkInformer.
 	Links() LinkInformer
 	// Listeners returns a ListenerInformer.
 	Listeners() ListenerInformer
 	// MultiKeyListeners returns a MultiKeyListenerInformer.
 	MultiKeyListeners() MultiKeyListenerInformer
+	// Networks returns a NetworkInformer.
+	Networks() NetworkInformer
+	// NetworkAccesses returns a NetworkAccessInformer.
+	NetworkAccesses() NetworkAccessInformer
+	// NetworkLinks returns a NetworkLinkInformer.
+	NetworkLinks() NetworkLinkInformer
 	// RouterAccesses returns a RouterAccessInformer.
 	RouterAccesses() RouterAccessInformer
 	// SecuredAccesses returns a SecuredAccessInformer.
@@ -91,6 +99,11 @@ func (v *version) Connectors() ConnectorInformer {
 	return &connectorInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
+// InterNetworkIngresses returns a InterNetworkIngressInformer.
+func (v *version) InterNetworkIngresses() InterNetworkIngressInformer {
+	return &interNetworkIngressInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
 // Links returns a LinkInformer.
 func (v *version) Links() LinkInformer {
 	return &linkInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
@@ -104,6 +117,21 @@ func (v *version) Listeners() ListenerInformer {
 // MultiKeyListeners returns a MultiKeyListenerInformer.
 func (v *version) MultiKeyListeners() MultiKeyListenerInformer {
 	return &multiKeyListenerInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// Networks returns a NetworkInformer.
+func (v *version) Networks() NetworkInformer {
+	return &networkInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// NetworkAccesses returns a NetworkAccessInformer.
+func (v *version) NetworkAccesses() NetworkAccessInformer {
+	return &networkAccessInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// NetworkLinks returns a NetworkLinkInformer.
+func (v *version) NetworkLinks() NetworkLinkInformer {
+	return &networkLinkInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // RouterAccesses returns a RouterAccessInformer.

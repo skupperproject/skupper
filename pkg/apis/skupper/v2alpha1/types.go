@@ -995,7 +995,8 @@ type RouterAccessSpec struct {
 
 type RouterAccessStatus struct {
 	Status    `json:",inline"`
-	Endpoints []Endpoint `json:"endpoints,omitempty"`
+	Roles     []RouterAccessRole `json:"roles,omitempty"`
+	Endpoints []Endpoint         `json:"endpoints,omitempty"`
 }
 
 // +genclient
@@ -1103,4 +1104,283 @@ type AttachedConnectorBindingSpec struct {
 	RoutingKey         string            `json:"routingKey"`
 	ExposePodsByName   bool              `json:"exposePodsByName,omitempty"`
 	Settings           map[string]string `json:"settings,omitempty"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type Network struct {
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
+	Spec          NetworkSpec   `json:"spec,omitempty"`
+	Status        NetworkStatus `json:"status,omitempty"`
+}
+
+type NetworkStatus struct {
+	Status `json:",inline"`
+}
+
+func (m *Network) SetConfigured(ready bool) bool {
+	if m.Status.SetCondition(CONDITION_TYPE_CONFIGURED, ReadyOrPendingCondition(ready), m.ObjectMeta.Generation) {
+		m.Status.setReady([]string{CONDITION_TYPE_CONFIGURED}, m.ObjectMeta.Generation)
+		return true
+	}
+	return false
+}
+
+func (m *Network) SetError(expectedName string) bool {
+	if m.Status.SetCondition(CONDITION_TYPE_CONFIGURED, ErrorCondition(fmt.Errorf("name must be '%s'", expectedName)), m.ObjectMeta.Generation) {
+		m.Status.setReady([]string{CONDITION_TYPE_CONFIGURED}, m.ObjectMeta.Generation)
+		return true
+	}
+	return false
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// NetworkList contains a List of Network instances
+type NetworkList struct {
+	v1.TypeMeta `json:",inline"`
+	v1.ListMeta `json:"metadata,omitempty"`
+	Items       []Network `json:"items"`
+}
+
+type NetworkSpec struct {
+	NetworkId string            `json:"networkId"`
+	Image     string            `json:"image,omitempty"`
+	Settings  map[string]string `json:"settings,omitempty"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type NetworkLink struct {
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
+	Spec          NetworkLinkSpec   `json:"spec,omitempty"`
+	Status        NetworkLinkStatus `json:"status,omitempty"`
+}
+
+type NetworkLinkStatus struct {
+	Status `json:",inline"`
+}
+
+func (m *NetworkLink) SetConfigured(ready bool) bool {
+	if m.Status.SetCondition(CONDITION_TYPE_CONFIGURED, ReadyOrPendingCondition(ready), m.ObjectMeta.Generation) {
+		m.Status.setReady([]string{CONDITION_TYPE_CONFIGURED}, m.ObjectMeta.Generation)
+		return true
+	}
+	return false
+}
+
+func (m *NetworkLink) SetError(err error) bool {
+	if m.Status.SetCondition(CONDITION_TYPE_CONFIGURED, ErrorOrReadyCondition(err), m.ObjectMeta.Generation) {
+		m.Status.setReady([]string{CONDITION_TYPE_CONFIGURED}, m.ObjectMeta.Generation)
+		return true
+	}
+	return false
+}
+
+func (m *NetworkLink) IsReady() bool {
+	return meta.IsStatusConditionTrue(m.Status.Conditions, CONDITION_TYPE_CONFIGURED) &&
+		meta.IsStatusConditionTrue(m.Status.Conditions, CONDITION_TYPE_READY)
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// NetworkLinkList contains a List of NetworkLink instances
+type NetworkLinkList struct {
+	v1.TypeMeta `json:",inline"`
+	v1.ListMeta `json:"metadata,omitempty"`
+	Items       []NetworkLink `json:"items"`
+}
+
+type NetworkLinkSpec struct {
+	Hostname       string            `json:"hostname"`
+	Port           int               `json:"port"`
+	TlsCredentials string            `json:"tlsCredentials"`
+	Settings       map[string]string `json:"settings,omitempty"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type InterNetworkIngress struct {
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
+	Spec          InterNetworkIngressSpec   `json:"spec,omitempty"`
+	Status        InterNetworkIngressStatus `json:"status,omitempty"`
+}
+
+type InterNetworkIngressStatus struct {
+	Status `json:",inline"`
+}
+
+func (i *InterNetworkIngress) SetConfigured(ready bool) bool {
+	if i.Status.SetCondition(CONDITION_TYPE_CONFIGURED, ReadyOrPendingCondition(ready), i.ObjectMeta.Generation) {
+		i.Status.setReady([]string{CONDITION_TYPE_CONFIGURED}, i.ObjectMeta.Generation)
+		return true
+	}
+	return false
+}
+
+func (i *InterNetworkIngress) SetError(err error) bool {
+	if i.Status.SetCondition(CONDITION_TYPE_CONFIGURED, ErrorOrReadyCondition(err), i.ObjectMeta.Generation) {
+		i.Status.setReady([]string{CONDITION_TYPE_CONFIGURED}, i.ObjectMeta.Generation)
+		return true
+	}
+	return false
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// InterNetworkIngressList contains a List of InterNetworkIngress instances
+type InterNetworkIngressList struct {
+	v1.TypeMeta `json:",inline"`
+	v1.ListMeta `json:"metadata,omitempty"`
+	Items       []InterNetworkIngress `json:"items"`
+}
+
+// InterNetworkIngressSpec
+// +kubebuilder:validation:XValidation:rule="has(self.networkLink) || has(self.networkAccess)",message="At least one of networkLink or networkAccess must be set"
+type InterNetworkIngressSpec struct {
+	RoutingKey string `json:"routingKey"`
+	// +optional
+	NetworkLink string `json:"networkLink"`
+	// +optional
+	NetworkAccess string            `json:"networkAccess"`
+	Settings      map[string]string `json:"settings,omitempty"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type NetworkAccess struct {
+	v1.TypeMeta   `json:",inline"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
+	Spec          NetworkAccessSpec   `json:"spec,omitempty"`
+	Status        NetworkAccessStatus `json:"status,omitempty"`
+}
+
+func (r *NetworkAccess) ListenerName() string {
+	return r.Name + "-inter-network"
+}
+
+func (r *NetworkAccess) Key() string {
+	return fmt.Sprintf("%s/%s", r.Namespace, r.Name)
+}
+
+func (r *NetworkAccess) SetConfigured(networkId string, err error) bool {
+	updated := false
+	if r.Status.SetCondition(CONDITION_TYPE_CONFIGURED, ErrorOrReadyCondition(err), r.ObjectMeta.Generation) {
+		r.Status.setReady([]string{CONDITION_TYPE_CONFIGURED, CONDITION_TYPE_RESOLVED}, r.ObjectMeta.Generation)
+		updated = true
+	}
+	if r.Status.NetworkId != networkId {
+		r.Status.NetworkId = networkId
+		updated = true
+	}
+	return updated
+}
+
+func (r *NetworkAccess) Resolve(endpoints []Endpoint, group string) bool {
+	changed := false
+	if r.Status.UpdateEndpointsForGroup(endpoints, group) {
+		changed = true
+	}
+	if r.Status.SetCondition(CONDITION_TYPE_RESOLVED, ReadyOrPendingCondition(len(r.Status.Endpoints) > 0), r.ObjectMeta.Generation) {
+		r.Status.setReady([]string{CONDITION_TYPE_CONFIGURED, CONDITION_TYPE_RESOLVED}, r.ObjectMeta.Generation)
+		changed = true
+	}
+	return changed
+}
+
+func (r *NetworkAccess) IsConfigured(networkId string) bool {
+	return r.Status.NetworkId == networkId && meta.IsStatusConditionTrue(r.Status.Conditions, CONDITION_TYPE_CONFIGURED)
+}
+
+// endpoints are assumed all to be from one group
+func (s *NetworkAccessStatus) UpdateEndpointsForGroup(endpoints []Endpoint, group string) bool {
+	all := []Endpoint{}
+	updated := false
+	byName := map[string]Endpoint{}
+	for _, endpoint := range endpoints {
+		endpoint.Group = group
+		byName[endpoint.Name] = endpoint
+	}
+	for _, endpoint := range s.Endpoints {
+		if endpoint.Group != group {
+			all = append(all, endpoint)
+		} else if desired, ok := byName[endpoint.Name]; ok {
+			if desired.MatchHostPort(&endpoint) {
+				all = append(all, endpoint)
+			} else {
+				all = append(all, desired)
+				updated = true
+			}
+			delete(byName, endpoint.Name)
+		} else {
+			// endpoint is in group, but not in desired list so don't add it
+			updated = true
+		}
+	}
+	for _, endpoint := range byName {
+		all = append(all, endpoint)
+		updated = true
+	}
+	if updated {
+		s.Endpoints = all
+		return true
+	}
+	return false
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// NetworkAccessList contains a List of NetworkAccess instances
+type NetworkAccessList struct {
+	v1.TypeMeta `json:",inline"`
+	v1.ListMeta `json:"metadata,omitempty"`
+	Items       []NetworkAccess `json:"items"`
+}
+
+type NetworkAccessSpec struct {
+	AccessType              string            `json:"accessType,omitempty"`
+	Port                    int               `json:"port,omitempty"`
+	TlsCredentials          string            `json:"tlsCredentials"`
+	GenerateTlsCredentials  bool              `json:"generateTlsCredentials,omitempty"`
+	RemoteIssuer            bool              `json:"remoteIssuer,omitempty"`
+	Issuer                  string            `json:"issuer,omitempty"`
+	BindHost                string            `json:"bindHost,omitempty"`
+	SubjectAlternativeNames []string          `json:"subjectAlternativeNames,omitempty"`
+	Settings                map[string]string `json:"settings,omitempty"`
+}
+
+type NetworkAccessStatus struct {
+	Status    `json:",inline"`
+	Port      int        `json:"port,omitempty"`
+	NetworkId string     `json:"networkId"`
+	Endpoints []Endpoint `json:"endpoints,omitempty"`
+}
+
+func (n *NetworkAccess) GetPort() int {
+	if n.Spec.Port > 0 {
+		return n.Spec.Port
+	}
+	return n.Status.Port
+}
+
+func (n *NetworkAccess) HasAllocatedPort() bool {
+	return n.Spec.Port == 0 && n.Status.Port > 0
+}
+
+func (n *NetworkAccess) AllocatePort(port int) bool {
+	if port == 0 {
+		return false
+	}
+	if n.Status.Port != port {
+		n.Status.Port = port
+		return true
+	}
+	return false
 }
