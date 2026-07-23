@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"regexp"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -30,32 +31,35 @@ import (
 )
 
 type Controller struct {
-	self                    skupperv2alpha1.Controller
-	deploymentName          string
-	deploymentUid           string
-	eventProcessor          *watchers.EventProcessor
-	stopCh                  <-chan struct{}
-	siteWatcher             *watchers.SiteWatcher
-	listenerWatcher         *watchers.ListenerWatcher
-	connectorWatcher        *watchers.ConnectorWatcher
-	multiKeyListenerWatcher *watchers.MultiKeyListenerWatcher
-	linkAccessWatcher       *watchers.RouterAccessWatcher
-	grantWatcher            *watchers.AccessGrantWatcher
-	serviceWatcher          *watchers.ServiceWatcher
-	sites                   map[string]*site.Site
-	startGrantServer        func()
-	accessMgr               *securedaccess.SecuredAccessManager
-	accessRecovery          *securedaccess.SecuredAccessResourceWatcher
-	certMgr                 *certificates.CertificateManagerImpl
-	siteSizing              *sizing.Registry
-	siteSizingWatcher       *watchers.ConfigMapWatcher
-	labelling               *labels.LabelsAndAnnotations
-	labellingWatcher        *watchers.ConfigMapWatcher
-	attachableConnectors    map[string]*skupperv2alpha1.AttachedConnector
-	disableSecContext       bool
-	log                     *slog.Logger
-	namespaces              *NamespaceConfig
-	observedServices        map[string]string
+	self                            skupperv2alpha1.Controller
+	deploymentName                  string
+	deploymentUid                   string
+	eventProcessor                  *watchers.EventProcessor
+	stopCh                          <-chan struct{}
+	siteWatcher                     *watchers.SiteWatcher
+	listenerWatcher                 *watchers.ListenerWatcher
+	connectorWatcher                *watchers.ConnectorWatcher
+	multiKeyListenerWatcher         *watchers.MultiKeyListenerWatcher
+	linkAccessWatcher               *watchers.RouterAccessWatcher
+	attachedConnectorWatcher        *watchers.AttachedConnectorWatcher
+	attachedConnectorBindingWatcher *watchers.AttachedConnectorBindingWatcher
+	grantWatcher                    *watchers.AccessGrantWatcher
+	serviceWatcher                  *watchers.ServiceWatcher
+	networkStatusWatcher            *watchers.ConfigMapWatcher
+	sites                           map[string]*site.Site
+	startGrantServer                func()
+	accessMgr                       *securedaccess.SecuredAccessManager
+	accessRecovery                  *securedaccess.SecuredAccessResourceWatcher
+	certMgr                         *certificates.CertificateManagerImpl
+	siteSizing                      *sizing.Registry
+	siteSizingWatcher               *watchers.ConfigMapWatcher
+	labelling                       *labels.LabelsAndAnnotations
+	labellingWatcher                *watchers.ConfigMapWatcher
+	attachableConnectors            map[string]*skupperv2alpha1.AttachedConnector
+	disableSecContext               bool
+	log                             *slog.Logger
+	namespaces                      *NamespaceConfig
+	observedServices                map[string]string
 }
 
 func skupperRouterConfig() internalinterfaces.TweakListOptionsFunc {
@@ -136,10 +140,10 @@ func NewController(cli internalclient.Clients, config *Config, options ...watche
 	controller.serviceWatcher = controller.eventProcessor.WatchServices(sansSkupperListenerServices(), config.WatchNamespace, filter(controller, controller.checkObservedService))
 	controller.connectorWatcher = controller.eventProcessor.WatchConnectors(config.WatchNamespace, filter(controller, controller.checkConnector))
 	controller.linkAccessWatcher = controller.eventProcessor.WatchRouterAccesses(config.WatchNamespace, filter(controller, controller.checkRouterAccess))
-	controller.eventProcessor.WatchAttachedConnectors(config.WatchNamespace, filter(controller, controller.checkAttachedConnector))
-	controller.eventProcessor.WatchAttachedConnectorBindings(config.WatchNamespace, filter(controller, controller.checkAttachedConnectorBinding))
+	controller.attachedConnectorWatcher = controller.eventProcessor.WatchAttachedConnectors(config.WatchNamespace, filter(controller, controller.checkAttachedConnector))
+	controller.attachedConnectorBindingWatcher = controller.eventProcessor.WatchAttachedConnectorBindings(config.WatchNamespace, filter(controller, controller.checkAttachedConnectorBinding))
 	controller.eventProcessor.WatchLinks(config.WatchNamespace, filter(controller, controller.checkLink))
-	controller.eventProcessor.WatchConfigMaps(skupperNetworkStatus(), config.WatchNamespace, filter(controller, controller.networkStatusUpdate))
+	controller.networkStatusWatcher = controller.eventProcessor.WatchConfigMaps(skupperNetworkStatus(), config.WatchNamespace, filter(controller, controller.networkStatusUpdate))
 	controller.eventProcessor.WatchConfigMaps(skupperRouterConfig(), config.WatchNamespace, filter(controller, controller.routerConfigUpdate))
 	controller.eventProcessor.WatchAccessTokens(config.WatchNamespace, filter(controller, controller.checkAccessToken))
 	controller.eventProcessor.WatchPods("skupper.io/component=router,skupper.io/type=site", config.WatchNamespace, filter(controller, controller.routerPodEvent))
@@ -214,34 +218,64 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 }
 
 func (c *Controller) init(stopCh <-chan struct{}) error {
-	c.log.Info("Starting informers")
+	initStart := time.Now()
+	log := c.log.With(slog.String("stage", "init"))
+	log.Info("Initialising controller", slog.String("version", c.self.Version))
+	errCount := 0
+
 	c.eventProcessor.StartWatchers(stopCh)
 	c.stopCh = stopCh
-
-	c.log.Info("Waiting for informer caches to sync")
+	syncStart := time.Now()
 	if ok := c.eventProcessor.WaitForCacheSync(stopCh); !ok {
 		return fmt.Errorf("Failed to wait for caches to sync")
 	}
+	log.Info("Informer caches synced", slog.Duration("duration", time.Since(syncStart)))
 	c.namespaces.recover()
 
+	sizingCount := 0
 	for _, config := range c.siteSizingWatcher.List() {
-		c.log.Info("Recovering site sizing",
+		log.Debug("Recovering site sizing",
 			slog.String("namespace", config.Namespace),
 			slog.String("name", config.Name),
 		)
 		c.siteSizing.Update(config.Namespace+"/"+config.Name, config)
+		sizingCount++
 	}
+	labellingCount := 0
 	for _, config := range c.labellingWatcher.List() {
-		c.log.Info("Recovering label and annotation configuration",
+		log.Debug("Recovering label and annotation configuration",
 			slog.String("namespace", config.Namespace),
 			slog.String("name", config.Name),
 		)
 		c.labelling.Update(config.Namespace+"/"+config.Name, config)
+		labellingCount++
 	}
+	c.certMgr.Recover()
+	c.accessRecovery.Recover()
 	// get observed services prior to restoring listeners
 	for _, svc := range c.serviceWatcher.List() {
 		c.observedServices[svc.Namespace+"/"+svc.ObjectMeta.Name] = svc.ObjectMeta.Name
 	}
+	log.Info("Configuration recovered",
+		slog.Int("siteSizings", sizingCount),
+		slog.Int("labellings", labellingCount),
+		slog.Int("observedServices", len(c.observedServices)),
+	)
+	// seed router access before site recovery
+	routerAccessCount := 0
+	for _, la := range c.linkAccessWatcher.List() {
+		if !c.namespaces.isControlled(la.Namespace) {
+			continue
+		}
+		site := c.getSite(la.ObjectMeta.Namespace)
+		log.Debug("Recovering router access",
+			slog.String("namespace", la.Namespace),
+			slog.String("name", la.Name),
+		)
+		site.CheckRouterAccess(la.ObjectMeta.Name, la)
+		routerAccessCount++
+	}
+	log.Info("Router access seeded", slog.Int("count", routerAccessCount))
 	//recover existing sites & bindings
 	siteRecovery := site.NewSiteRecovery(c.eventProcessor.GetKubeClient())
 	for _, site := range c.siteWatcher.List() {
@@ -249,35 +283,38 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 			continue
 		}
 		if !siteRecovery.IsActive(site) {
-			c.log.Info("Skipping site recovery as it is not the active site",
+			log.Warn("Skipping site recovery as it is not the active site",
 				slog.String("namespace", site.Namespace),
 				slog.String("name", site.Name),
 			)
 			continue
 		}
-		c.log.Info("Recovering site",
+		log.Info("Site recovery started",
 			slog.String("namespace", site.Namespace),
 			slog.String("name", site.Name),
 		)
 		err := c.getSite(site.ObjectMeta.Namespace).StartRecovery(site)
 		if err != nil {
-			c.log.Error("Error recovering site",
+			log.Warn("Error starting site recovery; will retry on finishing reconcile",
 				slog.String("namespace", site.Namespace),
 				slog.String("name", site.Name),
 				slog.Any("error", err),
 			)
+			errCount++
 		}
 	}
+	connectorCount := 0
 	for _, connector := range c.connectorWatcher.List() {
 		if !c.namespaces.isControlled(connector.Namespace) {
 			continue
 		}
 		site := c.getSite(connector.ObjectMeta.Namespace)
-		c.log.Info("Recovering connector",
+		log.Debug("Recovering connector",
 			slog.String("namespace", connector.Namespace),
 			slog.String("name", connector.Name),
 		)
 		site.CheckConnector(connector.ObjectMeta.Name, connector)
+		connectorCount++
 	}
 	for _, listener := range c.listenerWatcher.List() {
 		if !c.namespaces.isControlled(listener.Namespace) {
@@ -286,66 +323,129 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		site := c.getSite(listener.ObjectMeta.Namespace)
 		site.CheckLeadListeners(listener)
 	}
+	listenerCount := 0
 	for _, listener := range c.listenerWatcher.List() {
 		if !c.namespaces.isControlled(listener.Namespace) {
 			continue
 		}
 		site := c.getSite(listener.ObjectMeta.Namespace)
-		c.log.Info("Recovering listener",
+		log.Debug("Recovering listener",
 			slog.String("namespace", listener.Namespace),
 			slog.String("name", listener.Name),
 		)
 		_, svcExists := c.observedServices[listener.ObjectMeta.Namespace+"/"+listener.Spec.Host]
 		site.CheckListener(listener.ObjectMeta.Name, listener, svcExists)
+		listenerCount++
 	}
+	multiKeyListenerCount := 0
 	if c.multiKeyListenerWatcher != nil {
 		for _, mkl := range c.multiKeyListenerWatcher.List() {
 			if !c.namespaces.isControlled(mkl.Namespace) {
 				continue
 			}
 			site := c.getSite(mkl.ObjectMeta.Namespace)
-			c.log.Info("Recovering multikeylistener",
+			log.Debug("Recovering multikeylistener",
 				slog.String("namespace", mkl.Namespace),
 				slog.String("name", mkl.Name),
 			)
 			site.CheckMultiKeyListener(mkl.ObjectMeta.Name, mkl)
+			multiKeyListenerCount++
 		}
 	}
-	for _, la := range c.linkAccessWatcher.List() {
-		if !c.namespaces.isControlled(la.Namespace) {
+	attachedConnectorBindingCount := 0
+	for _, binding := range c.attachedConnectorBindingWatcher.List() {
+		if !c.namespaces.isControlled(binding.Namespace) {
 			continue
 		}
-		site := c.getSite(la.ObjectMeta.Namespace)
-		c.log.Info("Recovering router access",
-			slog.String("namespace", la.Namespace),
-			slog.String("name", la.Name),
+		log.Debug("Recovering attached connector binding",
+			slog.String("namespace", binding.Namespace),
+			slog.String("name", binding.Name),
 		)
-		site.CheckRouterAccess(la.ObjectMeta.Name, la)
+		c.getSite(binding.Namespace).RecoverAttachedConnectorBinding(binding)
+		attachedConnectorBindingCount++
 	}
+	attachedConnectorCount := 0
+	for _, connector := range c.attachedConnectorWatcher.List() {
+		if !c.namespaces.isControlled(connector.Namespace) {
+			continue
+		}
+		log.Debug("Recovering attached connector",
+			slog.String("namespace", connector.Namespace),
+			slog.String("name", connector.Name),
+		)
+		c.attachableConnectors[connector.Namespace+"/"+connector.Name] = connector
+		c.getSite(connector.Spec.SiteNamespace).RecoverAttachedConnector(connector)
+		attachedConnectorCount++
+	}
+	// needed by listeners with exposePodsByName
+	networkStatusCount := 0
+	for _, cm := range c.networkStatusWatcher.List() {
+		if !c.namespaces.isControlled(cm.Namespace) {
+			continue
+		}
+		if err := c.networkStatusUpdate(cm.Namespace+"/"+cm.Name, cm); err != nil {
+			log.Error("Error recovering network status",
+				slog.String("namespace", cm.Namespace),
+				slog.String("name", cm.Name),
+				slog.Any("error", err),
+			)
+			errCount++
+		}
+		networkStatusCount++
+	}
+	log.Info("Bindings recovered",
+		slog.Int("connectors", connectorCount),
+		slog.Int("listeners", listenerCount),
+		slog.Int("multiKeyListeners", multiKeyListenerCount),
+		slog.Int("attachedConnectors", attachedConnectorCount),
+		slog.Int("attachedConnectorBindings", attachedConnectorBindingCount),
+		slog.Int("networkStatuses", networkStatusCount),
+	)
+	// Binding recovery creates pod watchers for selector-based connectors
+	// and attached connectors; wait for them to sync so that the initial
+	// router config write below reflects current pod state.
+	log.Info("Waiting for pod watchers to sync")
+	syncStart = time.Now()
+	if ok := c.eventProcessor.WaitForCacheSync(stopCh); !ok {
+		return fmt.Errorf("Failed to wait for caches to sync")
+	}
+	log.Info("Pod watchers synced", slog.Duration("duration", time.Since(syncStart)))
+	siteCount := 0
 	for _, site := range c.siteWatcher.List() {
 		if !c.namespaces.isControlled(site.Namespace) {
 			continue
 		}
+		siteCount++
+		siteStart := time.Now()
 		site.Status.Controller = &c.self
-		err := c.getSite(site.ObjectMeta.Namespace).Reconcile(site)
+		recoveredSite := c.getSite(site.ObjectMeta.Namespace)
+		err := recoveredSite.Reconcile(site)
+		if err == nil {
+			err = recoveredSite.FinishAttachedConnectorRecovery()
+		}
 		if err != nil {
-			c.log.Error("Error recovering site",
+			log.Error("Error finishing site recovery",
 				slog.String("namespace", site.Namespace),
 				slog.String("name", site.Name),
 				slog.Any("error", err),
 			)
+			errCount++
 		} else {
-			c.log.Info("Recovered site",
+			log.Info("Site recovery finished",
 				slog.String("namespace", site.Namespace),
 				slog.String("name", site.Name),
+				slog.Duration("duration", time.Since(siteStart)),
 			)
 		}
 	}
-	c.certMgr.Recover()
-	c.accessRecovery.Recover()
 	if c.startGrantServer != nil {
 		c.startGrantServer()
 	}
+	log.Info("Controller initialised",
+		slog.Int("sites", siteCount),
+		slog.Int("errors", errCount),
+		slog.Duration("duration", time.Since(initStart)),
+	)
 	return nil
 }
 

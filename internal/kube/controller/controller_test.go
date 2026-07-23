@@ -28,6 +28,7 @@ import (
 	discoveryfake "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic"
 	fakedynamic "k8s.io/client-go/dynamic/fake"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/skupperproject/skupper/internal/fixtures"
@@ -39,6 +40,7 @@ import (
 	"github.com/skupperproject/skupper/internal/utils"
 	"github.com/skupperproject/skupper/internal/version"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	fakeskupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1/fake"
 )
 
 type WaitFunction func(t *testing.T, clients internalclient.Clients) bool
@@ -660,6 +662,259 @@ func TestGeneral(t *testing.T) {
 				actual, err := clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(expected.Namespace).Get(context.Background(), expected.Name, metav1.GetOptions{})
 				assert.Assert(t, err)
 				assert.DeepEqual(t, expected.Spec, actual.Spec)
+			}
+		})
+	}
+}
+
+func TestRecoveryPreservesRouterBridgeConfig(t *testing.T) {
+	flags := &flag.FlagSet{}
+	config, err := BoundConfig(flags)
+	assert.Assert(t, err)
+
+	uid := "49b03ad4-d414-42be-bbb5-b32d7d4ca503"
+	site := f.addUID(f.site("mysite", "test", "loadbalancer", false, false), uid)
+	attachedConnectorBinding := f.attachedConnectorBinding("attached-a", "test", "attached")
+	attachedConnectorBinding.Spec.RoutingKey = "attached-a"
+	attachedPod := f.pod("pod-a", "attached", map[string]string{"app": "attached-a"}, nil, f.podStatus("10.1.1.20", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue)))
+	attachedPod.UID = types.UID("6ffbd287-42cc-4b71-b0a7-44f1befcc847")
+	normalPod := f.pod("pod-b", "test", map[string]string{"app": "normal-a"}, nil, f.podStatus("10.1.1.30", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue)))
+	normalPod.UID = types.UID("a2b30f15-4fe3-4788-a68d-36105d147435")
+	normalConnector := f.connectorWithSelector("normal-a", "test", "app=normal-a", 8084)
+	normalConnector.SetConfigured(fmt.Errorf("No matches for selector"))
+	unmatchedConnector := f.connectorWithSelector("normal-b", "test", "app=normal-b", 8085)
+	unmatchedConnector.SetConfigured(fmt.Errorf("No matches for selector"))
+	siteCA := &skupperv2alpha1.Certificate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "skupper-site-ca",
+			Namespace: "test",
+			Labels: map[string]string{
+				"internal.skupper.io/certificate": "true",
+			},
+			Annotations: map[string]string{
+				"internal.skupper.io/controlled":   "true",
+				"internal.skupper.io/hosts-" + uid: "",
+			},
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: skupperv2alpha1.SchemeGroupVersion.String(),
+					Kind:       "Site",
+					Name:       site.Name,
+					UID:        types.UID(uid),
+				},
+			},
+		},
+		Spec: skupperv2alpha1.CertificateSpec{
+			Subject: "mysite site CA",
+			Signing: true,
+		},
+	}
+	routerConfig := f.routerConfig("skupper-router", "test").
+		tcpListener("listener/listener-a", "1024", "", "").
+		tcpListener("listener/listener-a@pod-a", "1027", "backend-a.pod-a", "").
+		tcpListener("listener/listener-b", "1025", "", "").
+		tcpListener("multiAddress/mkl-a", "1026", "", "").
+		tcpConnector("connector/normal-a@10.1.1.30", "10.1.1.30", "8084", "", "").
+		tcpConnector("connector/attached-a@10.1.1.20", "10.1.1.20", "8083", "attached-a", "")
+	routerConfig.config.Bridges.TcpConnectors["connector/attached-a@10.1.1.20"] = qdr.TcpEndpoint{
+		Name:      "connector/attached-a@10.1.1.20",
+		SiteId:    uid,
+		Host:      "10.1.1.20",
+		Port:      "8083",
+		Address:   "attached-a",
+		ProcessID: "6ffbd287-42cc-4b71-b0a7-44f1befcc847",
+	}
+	routerConfigMap := routerConfig.asConfigMapWithOwner(site.Name, uid)
+	routerConfigMap.Labels = map[string]string{
+		"internal.skupper.io/router-config": "",
+	}
+	statusInfo := f.networkStatusInfo("mysite", "test", nil, map[string]string{"backend-a.pod-a": "10.1.1.10"}).info()
+	networkStatus := f.skupperNetworkStatus("test", statusInfo)
+	// the persisted site status already reflects the network, as it would
+	// after a controller restart
+	site.Status.Network = network.ExtractSiteRecords(*statusInfo)
+	site.Status.SitesInNetwork = len(site.Status.Network)
+
+	routerDeployment := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "skupper-router",
+			Namespace: "test",
+			Labels: map[string]string{
+				"skupper.io/component": "router",
+				"skupper.io/type":      "site",
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{MatchLabels: f.routerSelector(false)},
+		},
+	}
+	clients, err := fakeclient.NewFakeClient(config.Namespace, []runtime.Object{routerConfigMap, networkStatus, routerDeployment, attachedPod, normalPod}, []runtime.Object{
+		site,
+		siteCA,
+		f.routerAccess("skupper-router", "test", "loadbalancer", "skupper-site-server", true, "skupper-site-ca", f.role("inter-router", 55671), f.role("edge", 45671)),
+		normalConnector,
+		unmatchedConnector,
+		f.attachedConnector("attached-a", "attached", "test", "app=attached-a", 8083),
+		attachedConnectorBinding,
+		f.listenerWithExposePodsByName("listener-a", "test", "backend-a", "backend-a", 8080),
+		f.listener("listener-b", "test", "backend-b", 8081),
+		f.multiKeyListener("mkl-a", "test", "backend-mkl", 8082),
+	}, "")
+	assert.Assert(t, err)
+	enableSSA(clients.GetDynamicClient())
+
+	var observed []qdr.BridgeConfig
+	clients.GetKubeClient().(*k8sfake.Clientset).PrependReactor("update", "configmaps", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		update := action.(k8stesting.UpdateAction)
+		cm := update.GetObject().(*corev1.ConfigMap)
+		if cm.Namespace == "test" && cm.Name == "skupper-router" {
+			config, err := qdr.GetRouterConfigFromConfigMap(cm)
+			if err != nil {
+				return true, nil, err
+			}
+			observed = append(observed, config.Bridges)
+		}
+		return false, nil, nil
+	})
+
+	controller, err := NewController(clients, config)
+	assert.Assert(t, err)
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+	err = controller.init(stopCh)
+	assert.Assert(t, err)
+
+	expectedTcpListeners := []string{
+		"listener/listener-a",
+		"listener/listener-a@pod-a",
+		"listener/listener-b",
+		"multiAddress/mkl-a",
+	}
+	expectedTcpConnectors := []string{
+		"connector/normal-a@10.1.1.30",
+		"connector/attached-a@10.1.1.20",
+	}
+	assert.Assert(t, len(observed) > 0, "expected at least one router config update after recovery")
+	for i, bridge := range observed {
+		for _, name := range expectedTcpListeners {
+			_, ok := bridge.TcpListeners[name]
+			assert.Assert(t, ok, "router config update %d was partial: missing %s", i, name)
+		}
+		for _, name := range expectedTcpConnectors {
+			_, ok := bridge.TcpConnectors[name]
+			assert.Assert(t, ok, "router config update %d was partial: missing %s", i, name)
+		}
+	}
+
+	actual, err := clients.GetKubeClient().CoreV1().ConfigMaps("test").Get(context.Background(), "skupper-router", metav1.GetOptions{})
+	assert.Assert(t, err)
+	configAfterRecovery, err := qdr.GetRouterConfigFromConfigMap(actual)
+	assert.Assert(t, err)
+	for _, name := range expectedTcpListeners {
+		_, ok := configAfterRecovery.Bridges.TcpListeners[name]
+		assert.Assert(t, ok, "final router config missing %s", name)
+	}
+	for _, name := range expectedTcpConnectors {
+		_, ok := configAfterRecovery.Bridges.TcpConnectors[name]
+		assert.Assert(t, ok, "final router config missing %s", name)
+	}
+
+	recoveredNormalConnector, err := clients.GetSkupperClient().SkupperV2alpha1().Connectors("test").Get(context.Background(), normalConnector.Name, metav1.GetOptions{})
+	assert.Assert(t, err)
+	configured := meta.FindStatusCondition(recoveredNormalConnector.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
+	assert.Assert(t, configured != nil)
+	assert.Equal(t, configured.Status, metav1.ConditionTrue)
+
+	recoveredUnmatchedConnector, err := clients.GetSkupperClient().SkupperV2alpha1().Connectors("test").Get(context.Background(), unmatchedConnector.Name, metav1.GetOptions{})
+	assert.Assert(t, err)
+	configured = meta.FindStatusCondition(recoveredUnmatchedConnector.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
+	assert.Assert(t, configured != nil)
+	assert.Equal(t, configured.Status, metav1.ConditionFalse)
+	assert.Equal(t, configured.Message, "No matches for selector")
+}
+
+func TestAttachedConnectorRecoveryDoesNotFlapStatus(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		pod                    *corev1.Pod
+		persistedError         string
+		expectedCondition      metav1.ConditionStatus
+		expectedMessage        string
+		expectedBindingUpdates int
+	}{
+		{
+			name: "healthy binding",
+			pod: f.pod("mypod", "other", map[string]string{"app": "foo"}, nil,
+				f.podStatus("10.1.1.10", corev1.PodRunning, f.podCondition(corev1.PodReady, corev1.ConditionTrue))),
+			expectedCondition: metav1.ConditionTrue,
+			expectedMessage:   "OK",
+		},
+		{
+			name:              "persisted no matches",
+			persistedError:    "No matches for selector",
+			expectedCondition: metav1.ConditionFalse,
+			expectedMessage:   "No matches for selector",
+		},
+		{
+			name:                   "stale healthy status with no matches",
+			expectedCondition:      metav1.ConditionFalse,
+			expectedMessage:        "No matches for selector",
+			expectedBindingUpdates: 1,
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			flags := &flag.FlagSet{}
+			config, err := BoundConfig(flags)
+			assert.Assert(t, err)
+
+			binding := f.attachedConnectorBinding("myconnector", "test", "other")
+			connector := f.attachedConnector("myconnector", "other", "test", "app=foo", 8080)
+			var statusErr error
+			if tt.persistedError != "" {
+				statusErr = fmt.Errorf("%s", tt.persistedError)
+			}
+			binding.SetConfigured(statusErr)
+			connector.SetConfigured(statusErr)
+
+			var kubeObjects []runtime.Object
+			if tt.pod != nil {
+				kubeObjects = append(kubeObjects, tt.pod)
+			}
+			clients, err := fakeclient.NewFakeClient(config.Namespace, kubeObjects, []runtime.Object{
+				f.site("mysite", "test", "", false, false),
+				binding,
+				connector,
+			}, "")
+			assert.Assert(t, err)
+			enableSSA(clients.GetDynamicClient())
+
+			var bindingUpdates []metav1.Condition
+			clients.GetSkupperClient().SkupperV2alpha1().(*fakeskupperv2alpha1.FakeSkupperV2alpha1).PrependReactor("update", "attachedconnectorbindings", func(action k8stesting.Action) (bool, runtime.Object, error) {
+				updated := action.(k8stesting.UpdateAction).GetObject().(*skupperv2alpha1.AttachedConnectorBinding)
+				condition := meta.FindStatusCondition(updated.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
+				assert.Assert(t, condition != nil)
+				bindingUpdates = append(bindingUpdates, *condition)
+				return false, nil, nil
+			})
+
+			controller, err := NewController(clients, config)
+			assert.Assert(t, err)
+			stopCh := make(chan struct{})
+			defer close(stopCh)
+			err = controller.init(stopCh)
+			assert.Assert(t, err)
+
+			actual, err := clients.GetSkupperClient().SkupperV2alpha1().AttachedConnectorBindings("test").Get(context.Background(), binding.Name, metav1.GetOptions{})
+			assert.Assert(t, err)
+			configured := meta.FindStatusCondition(actual.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
+			assert.Assert(t, configured != nil)
+			assert.Equal(t, configured.Status, tt.expectedCondition)
+			assert.Equal(t, configured.Message, tt.expectedMessage)
+			assert.Equal(t, len(bindingUpdates), tt.expectedBindingUpdates)
+			for _, update := range bindingUpdates {
+				assert.Assert(t, update.Message != "No matching AttachedConnector", "binding status flapped during recovery")
 			}
 		})
 	}

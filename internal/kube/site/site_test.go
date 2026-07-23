@@ -1492,6 +1492,9 @@ func Test_CheckSecuredAccess(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
+				if err := s.Reconcile(s.site); err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			if err := s.CheckSecuredAccess(tt.args.name, tt.args.sa); err != nil {
