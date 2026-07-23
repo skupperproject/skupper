@@ -1100,6 +1100,53 @@ func TestSite_CheckLink(t *testing.T) {
 	}
 }
 
+func TestSite_verifySiteSpec(t *testing.T) {
+	tests := []struct {
+		name    string
+		spec    skupperv2alpha1.SiteSpec
+		wantErr string
+	}{
+		{
+			name: "empty spec",
+			spec: skupperv2alpha1.SiteSpec{},
+		},
+		{
+			name: "edge without ha",
+			spec: skupperv2alpha1.SiteSpec{Edge: true},
+		},
+		{
+			name: "ha without edge",
+			spec: skupperv2alpha1.SiteSpec{HA: true},
+		},
+		{
+			name:    "edge with ha",
+			spec:    skupperv2alpha1.SiteSpec{Edge: true, HA: true},
+			wantErr: "Edge sites cannot have HA enabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s, err := newSiteMocks("test", nil, nil, "", false)
+			assert.Assert(t, err)
+
+			site := &skupperv2alpha1.Site{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "site1",
+					Namespace: "test",
+				},
+				Spec: tt.spec,
+			}
+			err = s.verifySiteSpec(site)
+			if tt.wantErr == "" {
+				assert.Assert(t, err)
+			} else {
+				assert.Error(t, err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestSite_CheckRouterAccess(t *testing.T) {
 	type args struct {
 		name string
