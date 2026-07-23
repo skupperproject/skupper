@@ -4,6 +4,7 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/debug/kube"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/debug/nonkube"
+	"github.com/skupperproject/skupper/internal/cmd/skupper/debug/sweeper"
 	"github.com/skupperproject/skupper/internal/config"
 
 	"github.com/spf13/cobra"
@@ -18,6 +19,36 @@ func NewCmdDebug() *cobra.Command {
 	}
 	platform := common.Platform(config.GetPlatform())
 	cmd.AddCommand(CmdDebugDumpFactory(platform))
+	cmd.AddCommand(CmdDebugSweepFactory(platform))
+
+	return cmd
+}
+
+func CmdDebugSweepFactory(configuredPlatform common.Platform) *cobra.Command {
+	kubeCommand := kube.NewCmdConnSweeper()
+	nonKubeCommand := nonkube.NewCmdConnSweeper()
+
+	cmdDesc := common.SkupperCmdDescription{
+		Use:   "sweep",
+		Short: "Detect and kill idle TCP adaptor connections",
+		Long: `Queries the router management API for TCP adaptor connections, identifies
+connections that have been idle beyond the threshold, and force-closes them
+via adminStatus=deleted.`,
+		Example: "skupper debug sweep --idle-threshold 14400",
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdDesc, kubeCommand, nonKubeCommand)
+	cmd.Hidden = true
+
+	var cmdFlags common.CommandConnSweeperFlags
+
+	cmd.Flags().IntVar(&cmdFlags.IdleThreshold, "idle-threshold", sweeper.DefaultIdleThreshold, "Seconds with no data received before a connection is flagged as orphaned")
+	cmd.Flags().BoolVar(&cmdFlags.Execute, "execute", false, "Close the idle connections found; without this flag they are only listed")
+
+	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
+	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
 
 	return cmd
 }
