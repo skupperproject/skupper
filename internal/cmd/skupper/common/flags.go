@@ -252,6 +252,13 @@ type CommandVersionFlags struct {
 type CommandDebugFlags struct {
 }
 
+type CommandConnSweeperFlags struct {
+	IdleThreshold int
+	Execute       bool
+	ListPorts     bool
+	Ports         []int
+}
+
 type CommandSystemUninstallFlags struct {
 	Force bool
 }
