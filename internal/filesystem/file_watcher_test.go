@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
+	goslices "slices"
 	"strings"
 	"sync"
 	"testing"
@@ -30,6 +32,32 @@ const (
 	updated
 	removed
 )
+
+func TestFileWatcher_Add(t *testing.T) {
+	var w *FileWatcher
+	var err error
+
+	stop := make(chan struct{})
+	w, err = NewWatcher(slog.String("owner", "test.watcher"))
+	assert.Assert(t, err)
+	w.Start(stop)
+
+	handler := newCounterHandler(func(name string) bool { return true })
+	var paths []string
+	for i := 0; i < 100; i++ {
+		tmpPath := t.TempDir()
+		paths = append(paths, tmpPath)
+		w.Add(tmpPath, handler)
+	}
+	keys := goslices.Collect(maps.Keys(w.handlerMap))
+	goslices.Sort(paths)
+	goslices.Sort(keys)
+	assert.Assert(t, slices.Equal(paths, keys))
+	for _, path := range paths {
+		_ = w.watcher.Remove(path)
+	}
+	close(stop)
+}
 
 func TestFileWatcher(t *testing.T) {
 	stop := make(chan struct{})
@@ -391,4 +419,44 @@ func (t *counterHandler) GetRemovedCount(basePath string) int {
 
 func (t *counterHandler) Filter(name string) bool {
 	return t.filter(name)
+}
+
+func TestFileWatcher_AddDuringShutdown(t *testing.T) {
+	w, err := NewWatcher(slog.String("owner", "test.shutdown"))
+	assert.Assert(t, err)
+
+	stop := make(chan struct{})
+	w.Start(stop)
+
+	// Stop the watcher and wait for started to reflect it is down
+	close(stop)
+	assert.Assert(t, utils.RetryError(time.Millisecond*10, 100, func() error {
+		w.runningLock.Lock()
+		defer w.runningLock.Unlock()
+		if w.started {
+			return fmt.Errorf("watcher still running")
+		}
+		return nil
+	}))
+
+	// Force started to true, to simulate Add called after channel consumers are down
+	w.runningLock.Lock()
+	w.started = true
+	w.runningLock.Unlock()
+
+	handler := newCounterHandler(func(string) bool { return true })
+	dir := t.TempDir()
+
+	done := make(chan struct{})
+	go func() {
+		w.Add(dir, handler)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Add returned without blocking — fix is working correctly
+	case <-time.After(time.Second):
+		t.Fatal("Add blocked after shutdown: deadlock on w.refresh")
+	}
 }
