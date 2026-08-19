@@ -34,6 +34,7 @@ import (
 	"github.com/skupperproject/skupper/internal/fixtures"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
+	kubeqdr "github.com/skupperproject/skupper/internal/kube/qdr"
 	"github.com/skupperproject/skupper/internal/kube/resource"
 	"github.com/skupperproject/skupper/internal/network"
 	"github.com/skupperproject/skupper/internal/qdr"
@@ -790,7 +791,7 @@ func TestRecoveryPreservesRouterBridgeConfig(t *testing.T) {
 		update := action.(k8stesting.UpdateAction)
 		cm := update.GetObject().(*corev1.ConfigMap)
 		if cm.Namespace == "test" && cm.Name == "skupper-router" {
-			config, err := qdr.GetRouterConfigFromConfigMap(cm)
+			config, err := kubeqdr.GetRouterConfigFromConfigMap(cm)
 			if err != nil {
 				return true, nil, err
 			}
@@ -830,7 +831,7 @@ func TestRecoveryPreservesRouterBridgeConfig(t *testing.T) {
 
 	actual, err := clients.GetKubeClient().CoreV1().ConfigMaps("test").Get(context.Background(), "skupper-router", metav1.GetOptions{})
 	assert.Assert(t, err)
-	configAfterRecovery, err := qdr.GetRouterConfigFromConfigMap(actual)
+	configAfterRecovery, err := kubeqdr.GetRouterConfigFromConfigMap(actual)
 	assert.Assert(t, err)
 	for _, name := range expectedTcpListeners {
 		_, ok := configAfterRecovery.Bridges.TcpListeners[name]
@@ -1943,12 +1944,12 @@ func (rc *RouterConfig) asConfigMapWithOwner(name string, uid string) *corev1.Co
 			},
 		},
 	}
-	rc.config.WriteToConfigMap(cm)
+	kubeqdr.ConfigMapWriter{}.WriteConfigMap(rc.config, cm)
 	return cm
 }
 
 func (rc *RouterConfig) verify(t *testing.T, cm *corev1.ConfigMap) error {
-	config, err := qdr.GetRouterConfigFromConfigMap(cm)
+	config, err := kubeqdr.GetRouterConfigFromConfigMap(cm)
 	assert.Assert(t, err)
 	for name := range config.Bridges.TcpListeners {
 		if _, ok := config.Bridges.TcpConnectors[name]; ok {

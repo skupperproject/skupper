@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/fixtures"
+	kubeqdr "github.com/skupperproject/skupper/internal/kube/qdr"
 	"gotest.tools/v3/assert"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -63,7 +63,9 @@ func TestSiteWithListener(t *testing.T) {
 
 	routerConfig, err := tc.clients.GetKubeClient().CoreV1().ConfigMaps(namespace).Get(ctx, "skupper-router", metav1.GetOptions{})
 	assert.NilError(t, err)
-	assert.Assert(t, strings.Contains(routerConfig.Data[types.TransportConfigFile], "listener/mylistener"))
+	routerConfigData, err := kubeqdr.GetRouterConfigData(routerConfig)
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(routerConfigData, "listener/mylistener"))
 }
 
 func TestListenerWithoutSite(t *testing.T) {
@@ -141,7 +143,10 @@ func TestTwoListeners(t *testing.T) {
 		if done, err := retryOnNotFound(err); !done {
 			return false, err
 		}
-		cfg := routerConfig.Data[types.TransportConfigFile]
+		cfg, err := kubeqdr.GetRouterConfigData(routerConfig)
+		if err != nil {
+			return false, err
+		}
 		return strings.Contains(cfg, "listener/listener-a") &&
 			strings.Contains(cfg, "listener/listener-b"), nil
 	})

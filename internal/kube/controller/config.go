@@ -11,16 +11,19 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/securedaccess"
 )
 
+const defaultRouterConfigCompressionThreshold = 896 * 1024
+
 type Config struct {
-	GrantConfig            *grants.GrantConfig
-	SecuredAccessConfig    *securedaccess.Config
-	MetricsConfig          *metrics.Config
-	Namespace              string
-	Kubeconfig             string
-	WatchNamespace         string
-	Name                   string
-	RequireExplicitControl bool
-	DisableSecurityContext bool
+	GrantConfig                      *grants.GrantConfig
+	SecuredAccessConfig              *securedaccess.Config
+	MetricsConfig                    *metrics.Config
+	Namespace                        string
+	Kubeconfig                       string
+	WatchNamespace                   string
+	Name                             string
+	RequireExplicitControl           bool
+	DisableSecurityContext           bool
+	RouterConfigCompressionThreshold int
 }
 
 func (c *Config) WatchingAllNamespaces() bool {
@@ -57,5 +60,8 @@ func BoundConfig(flags *flag.FlagSet) (*Config, error) {
 	iflag.StringVar(flags, &c.Name, "name", "CONTROLLER_NAME", "", "A name identifying the controller. If not specified it will be deduced from the hostname.")
 	iflag.BoolVar(flags, &c.RequireExplicitControl, "require-explicit-control", "REQUIRE_EXPLICIT_CONTROL", false, "If set, this controller instance will only process resources in which there is a ConfigMap named skupper with an entry 'controller' whose value matches the controller's namespace qualified name. Controllers watching a single namespace require that ConfigMap regardless of this setting.")
 	iflag.BoolVar(flags, &c.DisableSecurityContext, "disable-security-context", "DISABLE_SECURITY_CONTEXT", false, "If set, the default security context definitions won't be set to the skupper-router deployment's pod and containers.")
+	if err := iflag.IntVar(flags, &c.RouterConfigCompressionThreshold, "router-config-compression-threshold", "ROUTER_CONFIG_COMPRESSION_THRESHOLD", defaultRouterConfigCompressionThreshold, "The size in bytes of the serialized router configuration at which the controller stores it gzip-compressed in the router ConfigMap. A value of zero disables compression."); err != nil {
+		return nil, err
+	}
 	return c, nil
 }

@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
-	corev1 "k8s.io/api/core/v1"
 )
 
 type RouterConfig struct {
@@ -982,45 +981,6 @@ func MarshalRouterConfig(config RouterConfig) (string, error) {
 	return string(data), nil
 }
 
-func AsConfigMapData(config string) map[string]string {
-	return map[string]string{
-		types.TransportConfigFile: config,
-	}
-}
-
-func (r *RouterConfig) AsConfigMapData() (map[string]string, error) {
-	result := map[string]string{}
-	marshalled, err := MarshalRouterConfig(*r)
-	if err != nil {
-		return result, err
-	}
-	result[types.TransportConfigFile] = marshalled
-	return result, nil
-}
-
-func (r *RouterConfig) WriteToConfigMap(configmap *corev1.ConfigMap) error {
-	var err error
-	configmap.Data, err = r.AsConfigMapData()
-	return err
-}
-
-func (r *RouterConfig) UpdateConfigMap(configmap *corev1.ConfigMap) (bool, error) {
-	if configmap.Data != nil && configmap.Data[types.TransportConfigFile] != "" {
-		existing, err := UnmarshalRouterConfig(configmap.Data[types.TransportConfigFile])
-		if err != nil {
-			return false, err
-		}
-		if reflect.DeepEqual(existing, *r) {
-			return false, nil
-		}
-	}
-	err := r.WriteToConfigMap(configmap)
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
 type ListenerPredicate func(Listener) bool
 
 func IsNotProtectedListener(l Listener) bool {
@@ -1045,47 +1005,6 @@ func FilterListeners(in map[string]Listener, predicate ListenerPredicate) map[st
 
 func (config *RouterConfig) GetMatchingListeners(predicate ListenerPredicate) map[string]Listener {
 	return FilterListeners(config.Listeners, predicate)
-}
-
-func (b *BridgeConfig) UpdateConfigMap(configmap *corev1.ConfigMap) (bool, error) {
-	if configmap.Data != nil && configmap.Data[types.TransportConfigFile] != "" {
-		existing, err := UnmarshalRouterConfig(configmap.Data[types.TransportConfigFile])
-		if err != nil {
-			return false, err
-		}
-		if reflect.DeepEqual(existing.Bridges, *b) {
-			return false, nil
-		} else {
-			existing.Bridges = *b
-			configmap.Data, err = existing.AsConfigMapData()
-			if err != nil {
-				return false, err
-			}
-			return true, nil
-		}
-	} else {
-		return false, fmt.Errorf("Router config not defined")
-	}
-}
-
-func GetRouterConfigFromConfigMap(configmap *corev1.ConfigMap) (*RouterConfig, error) {
-	if configmap.Data == nil || configmap.Data[types.TransportConfigFile] == "" {
-		return nil, nil
-	} else {
-		routerConfig, err := UnmarshalRouterConfig(configmap.Data[types.TransportConfigFile])
-		if err != nil {
-			return nil, err
-		}
-		return &routerConfig, nil
-	}
-}
-
-func GetBridgeConfigFromConfigMap(configmap *corev1.ConfigMap) (*BridgeConfig, error) {
-	routerConfig, err := GetRouterConfigFromConfigMap(configmap)
-	if err != nil {
-		return nil, err
-	}
-	return &routerConfig.Bridges, nil
 }
 
 type ConnectorDifference struct {
@@ -1461,35 +1380,6 @@ func GetInterRouterOrEdgeConnection(host string, connections []Connection) *Conn
 		}
 	}
 	return nil
-}
-
-func GetLinkStatus(s *corev1.Secret, edge bool, connections []Connection) types.LinkStatus {
-	link := types.LinkStatus{
-		Name: s.ObjectMeta.Name,
-	}
-	if s.ObjectMeta.Labels[types.SkupperTypeQualifier] == types.TypeClaimRequest {
-		link.Url = s.ObjectMeta.Annotations[types.ClaimUrlAnnotationKey]
-		if desc, ok := s.ObjectMeta.Annotations[types.StatusAnnotationKey]; ok {
-			link.Description = "Failed to redeem claim: " + desc
-		}
-		link.Configured = false
-	} else {
-		if edge {
-			link.Url = fmt.Sprintf("%s:%s", s.ObjectMeta.Annotations["edge-host"], s.ObjectMeta.Annotations["edge-port"])
-		} else {
-			link.Url = fmt.Sprintf("%s:%s", s.ObjectMeta.Annotations["inter-router-host"], s.ObjectMeta.Annotations["inter-router-port"])
-		}
-		link.Configured = true
-		if connection := GetInterRouterOrEdgeConnection(link.Url, connections); connection != nil && connection.Active {
-			link.Connected = true
-			link.Cost, _ = strconv.Atoi(s.ObjectMeta.Annotations[types.TokenCost])
-			link.Created = s.ObjectMeta.CreationTimestamp.String()
-		}
-		if s.ObjectMeta.Labels[types.SkupperDisabledQualifier] == "true" {
-			link.Description = "Destination host is not allowed"
-		}
-	}
-	return link
 }
 
 type ConfigUpdate interface {

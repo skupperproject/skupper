@@ -19,13 +19,13 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/certificates"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/kube/grants"
+	kubeqdr "github.com/skupperproject/skupper/internal/kube/qdr"
 	"github.com/skupperproject/skupper/internal/kube/securedaccess"
 	"github.com/skupperproject/skupper/internal/kube/site"
 	"github.com/skupperproject/skupper/internal/kube/site/labels"
 	"github.com/skupperproject/skupper/internal/kube/site/sizing"
 	"github.com/skupperproject/skupper/internal/kube/watchers"
 	"github.com/skupperproject/skupper/internal/network"
-	"github.com/skupperproject/skupper/internal/qdr"
 	"github.com/skupperproject/skupper/internal/version"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
@@ -60,6 +60,7 @@ type Controller struct {
 	log                             *slog.Logger
 	namespaces                      *NamespaceConfig
 	observedServices                map[string]string
+	configWriter                    kubeqdr.ConfigMapWriter
 }
 
 func skupperRouterConfig() internalinterfaces.TweakListOptionsFunc {
@@ -107,6 +108,9 @@ func NewController(cli internalclient.Clients, config *Config, options ...watche
 		log:                  slog.New(slog.Default().Handler()).With(slog.String("component", "kube.controller")),
 		observedServices:     map[string]string{},
 		disableSecContext:    config.DisableSecurityContext,
+		configWriter: kubeqdr.ConfigMapWriter{
+			CompressionThreshold: config.RouterConfigCompressionThreshold,
+		},
 	}
 
 	hostname := os.Getenv("HOSTNAME")
@@ -465,7 +469,7 @@ func (c *Controller) getSite(namespace string) *site.Site {
 	if existing, ok := c.sites[namespace]; ok {
 		return existing
 	}
-	site := site.NewSite(namespace, c.eventProcessor, c.certMgr, c.accessMgr, c.siteSizing, c, c.disableSecContext)
+	site := site.NewSite(namespace, c.eventProcessor, c.certMgr, c.accessMgr, c.siteSizing, c, c.disableSecContext, c.configWriter)
 	c.sites[namespace] = site
 	return site
 }
@@ -660,7 +664,7 @@ func (c *Controller) routerConfigUpdate(_ string, cm *corev1.ConfigMap) error {
 	if cm == nil {
 		return nil
 	}
-	config, err := qdr.GetRouterConfigFromConfigMap(cm)
+	config, err := kubeqdr.GetRouterConfigFromConfigMap(cm)
 	if err != nil {
 		return err
 	}

@@ -8,8 +8,6 @@ import (
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/utils"
 	"gotest.tools/v3/assert"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestInitialConfig(t *testing.T) {
@@ -496,31 +494,6 @@ func TestMarshalUnmarshalRouterConfigWithLogging(t *testing.T) {
 	checkLevel(t, &input, "POLICY", "")
 	checkLevel(t, &input, "TCP_ADAPTOR", "notice+")
 	checkLevel(t, &input, "DEFAULT", "debug+")
-}
-
-func TestUpdateConfigMap(t *testing.T) {
-	routerConfig := RouterConfig{}
-	data, _ := routerConfig.AsConfigMapData()
-
-	siteConfig := &corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: types.SiteConfigMapName,
-		},
-		Data: data,
-	}
-
-	updated, err := routerConfig.UpdateConfigMap(siteConfig)
-	if !updated {
-		t.Errorf("Expect routerconfig to be updated")
-	}
-
-	if err != nil {
-		t.Errorf("Failed updating routerconfig")
-	}
 }
 
 func TestFailedConvert(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	kubeqdr "github.com/skupperproject/skupper/internal/kube/qdr"
 	"github.com/skupperproject/skupper/internal/kube/secrets"
 	"github.com/skupperproject/skupper/internal/kube/watchers"
 	"github.com/skupperproject/skupper/internal/qdr"
@@ -93,7 +94,7 @@ func (c *ConfigSync) configEvent(key string, configmap *corev1.ConfigMap) error 
 	if configmap == nil {
 		return nil
 	}
-	desired, err := qdr.GetRouterConfigFromConfigMap(configmap)
+	desired, err := kubeqdr.GetRouterConfigFromConfigMap(configmap)
 	if err != nil {
 		return err
 	}
@@ -140,7 +141,7 @@ func (c *ConfigSync) recoverTracking() error {
 		return fmt.Errorf("No configmap %q", c.routerConfigMap)
 	}
 
-	if _, err := qdr.GetRouterConfigFromConfigMap(configmap); err != nil {
+	if _, err := kubeqdr.GetRouterConfigFromConfigMap(configmap); err != nil {
 		return err
 	}
 	c.profileSyncer.Recover()

@@ -13,6 +13,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	kubeqdr "github.com/skupperproject/skupper/internal/kube/qdr"
 	"github.com/skupperproject/skupper/internal/kube/secrets"
 	"github.com/skupperproject/skupper/internal/kube/watchers"
 	"github.com/skupperproject/skupper/internal/qdr"
@@ -85,5 +86,5 @@ func getRouterConfig(ctx context.Context, configMaps v1.ConfigMapInterface, name
 	if err != nil {
 		return nil, err
 	}
-	return qdr.GetRouterConfigFromConfigMap(current)
+	return kubeqdr.GetRouterConfigFromConfigMap(current)
 }

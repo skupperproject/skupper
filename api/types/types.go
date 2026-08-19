@@ -58,6 +58,7 @@ const (
 	TransportEnvConfig            string = "QDROUTERD_CONF"
 	TransportSaslConfig           string = "skupper-sasl-config"
 	TransportConfigFile           string = "skrouterd.json"
+	TransportConfigFileCompressed string = "skrouterd.json.gz"
 	TransportConfigMapName        string = "skupper-internal"
 	TransportServiceName          string = "skupper-router"
 	LocalTransportServiceName     string = "skupper-router-local"

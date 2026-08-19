@@ -67,9 +67,10 @@ type Site struct {
 	profiles      *secrets.ProfilesWatcher
 	disableSecCtx bool
 	leadListeners map[string]string
+	configWriter  kubeqdr.ConfigMapWriter
 }
 
-func NewSite(namespace string, eventProcessor *watchers.EventProcessor, certs certificates.CertificateManager, access SecuredAccessFactory, sizes *sizing.Registry, labelling Labelling, disableSecCtx bool) *Site {
+func NewSite(namespace string, eventProcessor *watchers.EventProcessor, certs certificates.CertificateManager, access SecuredAccessFactory, sizes *sizing.Registry, labelling Labelling, disableSecCtx bool, configWriter kubeqdr.ConfigMapWriter) *Site {
 	logger := slog.New(slog.Default().Handler())
 	site := &Site{
 		bindings:      NewExtendedBindings(eventProcessor, SSL_PROFILE_PATH),
@@ -88,6 +89,7 @@ func NewSite(namespace string, eventProcessor *watchers.EventProcessor, certs ce
 		labelling:     labelling,
 		disableSecCtx: disableSecCtx,
 		leadListeners: map[string]string{},
+		configWriter:  configWriter,
 	}
 	site.profiles = secrets.NewProfilesWatcher(
 		sslSecretsWatcher(namespace, eventProcessor),
@@ -901,7 +903,7 @@ func (s *Site) recoverRouterConfig(update bool) ([]*qdr.RouterConfig, error) {
 			)
 			return nil, fmt.Errorf("%s is not owned by skupper site %q", cm.Name, s.site.UID)
 		}
-		config, err := qdr.GetRouterConfigFromConfigMap(&cm)
+		config, err := kubeqdr.GetRouterConfigFromConfigMap(&cm)
 		if err != nil {
 			s.logger.Error("Error parsing router config from config map",
 				slog.String("namespace", s.namespace),
@@ -918,7 +920,7 @@ func (s *Site) recoverRouterConfig(update bool) ([]*qdr.RouterConfig, error) {
 		if config, ok := byName[group]; ok {
 			if update {
 				op := ConfigUpdateList{s.bindings, s, s.linkAccess.DesiredConfigWithAvailableCredentials(groups[:i], SSL_PROFILE_PATH, s.tlsCredentialSecretPresent)}
-				if err := kubeqdr.UpdateRouterConfig(s.clients.GetKubeClient(), group, s.namespace, context.TODO(), op, s.labelling); err != nil {
+				if err := kubeqdr.UpdateRouterConfig(s.clients.GetKubeClient(), group, s.namespace, context.TODO(), op, s.labelling, s.configWriter); err != nil {
 					s.logger.Error("Failed to update router config map",
 						slog.String("namespace", s.namespace),
 						slog.String("name", group),
@@ -990,10 +992,6 @@ func (s *Site) createRouterConfig(config *qdr.RouterConfig) error {
 	return nil
 }
 func (s *Site) createRouterConfigForGroup(group string, config *qdr.RouterConfig) error {
-	data, err := config.AsConfigMapData()
-	if err != nil {
-		return err
-	}
 	cm := &corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -1007,13 +1005,15 @@ func (s *Site) createRouterConfigForGroup(group string, config *qdr.RouterConfig
 			},
 			Annotations: map[string]string{},
 		},
-		Data: data,
+	}
+	if err := s.configWriter.WriteConfigMap(config, cm); err != nil {
+		return err
 	}
 	if s.labelling != nil {
 		s.labelling.SetLabels(s.namespace, group, "ConfigMap", cm.ObjectMeta.Labels)
 		s.labelling.SetAnnotations(s.namespace, group, "ConfigMap", cm.ObjectMeta.Annotations)
 	}
-	if _, err = s.clients.GetKubeClient().CoreV1().ConfigMaps(s.namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
+	if _, err := s.clients.GetKubeClient().CoreV1().ConfigMaps(s.namespace).Create(context.TODO(), cm, metav1.CreateOptions{}); err != nil {
 		s.logger.Error("Failed to create config map",
 			slog.String("namespace", s.namespace),
 			slog.String("name", group),
@@ -1042,7 +1042,7 @@ func (s *Site) updateRouterConfigForGroup(update qdr.ConfigUpdate, group string)
 	if !s.initialised {
 		return nil
 	}
-	if err := kubeqdr.UpdateRouterConfig(s.clients.GetKubeClient(), group, s.namespace, context.TODO(), update, s.labelling); err != nil {
+	if err := kubeqdr.UpdateRouterConfig(s.clients.GetKubeClient(), group, s.namespace, context.TODO(), update, s.labelling, s.configWriter); err != nil {
 		return err
 	}
 	return nil

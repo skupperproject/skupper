@@ -11,19 +11,16 @@ import (
 )
 
 type Labelling interface {
-	SetLabels(namespace string, name string, kind string, labels map[string]string) bool
-	SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool
 	SetObjectMetadata(namespace string, name string, kind string, meta *metav1.ObjectMeta) bool
-	SetPodObjectMetadata(namespace string, name string, kind string, meta *metav1.ObjectMeta) bool
 }
 
-func UpdateRouterConfig(client kubernetes.Interface, name string, namespace string, ctxt context.Context, update qdr.ConfigUpdate, labelling Labelling) error {
+func UpdateRouterConfig(client kubernetes.Interface, name string, namespace string, ctxt context.Context, update qdr.ConfigUpdate, labelling Labelling, writer ConfigMapWriter) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		return updateRouterConfig(client, name, namespace, ctxt, update, labelling)
+		return updateRouterConfig(client, name, namespace, ctxt, update, labelling, writer)
 	})
 }
 
-func updateRouterConfig(client kubernetes.Interface, name string, namespace string, ctxt context.Context, update qdr.ConfigUpdate, labelling Labelling) error {
+func updateRouterConfig(client kubernetes.Interface, name string, namespace string, ctxt context.Context, update qdr.ConfigUpdate, labelling Labelling, writer ConfigMapWriter) error {
 	current, err := client.CoreV1().ConfigMaps(namespace).Get(ctxt, name, metav1.GetOptions{})
 	if err != nil {
 		return err
@@ -35,7 +32,7 @@ func updateRouterConfig(client kubernetes.Interface, name string, namespace stri
 		current.ObjectMeta.Annotations = map[string]string{}
 	}
 
-	config, err := qdr.GetRouterConfigFromConfigMap(current)
+	config, err := GetRouterConfigFromConfigMap(current)
 	if err != nil {
 		return err
 	}
@@ -50,11 +47,19 @@ func updateRouterConfig(client kubernetes.Interface, name string, namespace stri
 		}
 	}
 	if !updated {
-		// no change required
-		return nil
+		// A changed compression threshold can require a representation change
+		// even when the router configuration itself is unchanged.
+		usesDesiredRepresentation, err := writer.usesDesiredRepresentation(config, current)
+		if err != nil {
+			return err
+		}
+		if usesDesiredRepresentation {
+			// no change required
+			return nil
+		}
 	}
 
-	err = config.WriteToConfigMap(current)
+	err = writer.WriteConfigMap(config, current)
 	if err != nil {
 		return err
 	}

@@ -14,9 +14,11 @@ import (
 
 	"sigs.k8s.io/yaml"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
+	kubeqdr "github.com/skupperproject/skupper/internal/kube/qdr"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1"
 	"github.com/spf13/cobra"
@@ -199,6 +201,25 @@ func (cmd *CmdDebug) Run() error {
 				err := writeObject(cm, rPath+"Configmap-"+cm.Name, tw)
 				if err != nil {
 					return err
+				}
+				// when the router config is stored compressed, also include a
+				// decompressed copy for easy inspection
+				if _, ok := cm.BinaryData[types.TransportConfigFileCompressed]; ok {
+					name := rPath + "Configmap-" + cm.Name + "-" + types.TransportConfigFile
+					config, err := kubeqdr.GetRouterConfigData(cm)
+					if err != nil {
+						msg := fmt.Sprintf("failed to decompress %s from ConfigMap %s: %s", types.TransportConfigFileCompressed, cm.Name, err)
+						if err := writeTar(name+".error.txt", []byte(msg), time.Now(), tw); err != nil {
+							return err
+						}
+					} else {
+						if err := writeTar(name, []byte(config), time.Now(), tw); err != nil {
+							return err
+						}
+						if err := writeTar(name+".txt", []byte(config), time.Now(), tw); err != nil {
+							return err
+						}
+					}
 				}
 			}
 		}
