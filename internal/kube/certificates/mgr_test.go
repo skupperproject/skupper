@@ -411,7 +411,7 @@ func secretWithOwnerRef(secret *corev1.Secret, ref metav1.OwnerReference) *corev
 	return secret
 }
 
-// managedWithOwnerHosts sets up a Certificiate with skupper controlled and owner hosts annotations
+// managedWithOwnerHosts sets up a Certificate with skupper controlled and owner hosts annotations
 func managedWithOwnerHosts(t *testing.T, cert *skupperv2alpha1.Certificate, ref metav1.OwnerReference, hosts ...string) *skupperv2alpha1.Certificate {
 	t.Helper()
 	cert.ObjectMeta.OwnerReferences = append(cert.ObjectMeta.OwnerReferences, ref)
