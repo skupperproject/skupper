@@ -244,7 +244,6 @@ func parallel(t *testing.T, n, workers int, fn func(i int) error) {
 					case errs <- fmt.Errorf("item %d: %w", i, err):
 					default:
 					}
-					return
 				}
 			}
 		})
