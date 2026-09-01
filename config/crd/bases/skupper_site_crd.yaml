@@ -77,6 +77,13 @@ spec:
                     there is little benefit.
 
                     Currently, edge sites cannot also have HA enabled.
+                networkId:
+                  type: string
+                  description: |-
+                    Optional. An identifier for the network this site belongs to.
+                    When set, the router uses this value to advertise inter-network
+                    topology addresses, enabling multi-VAN connectivity. All sites
+                    connected to this VAN must use the same network identifier.
                 settings:
                   description: |-
                     Advanced. A map containing additional settings. Each map

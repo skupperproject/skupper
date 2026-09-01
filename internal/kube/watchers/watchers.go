@@ -35,6 +35,7 @@ import (
 	skupperclient "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned"
 	skupperv2alpha1interfaces "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/internalinterfaces"
 	skupperv2alpha1informer "github.com/skupperproject/skupper/pkg/generated/client/informers/externalversions/skupper/v2alpha1"
+	crdClient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 )
 
 // ResourceChange is the form in which events are added to the
@@ -78,6 +79,7 @@ type EventProcessor struct {
 	dynamicClient   dynamic.Interface
 	discoveryClient discovery.DiscoveryInterface
 	skupperClient   skupperclient.Interface
+	crdClient       crdClient.Interface
 	metrics         *metricsQueue
 	queue           workqueue.RateLimitingInterface
 	resync          time.Duration
@@ -97,6 +99,7 @@ func NewEventProcessor(name string, clients internalclient.Clients, options ...E
 		discoveryClient: clients.GetDiscoveryClient(),
 		dynamicClient:   clients.GetDynamicClient(),
 		skupperClient:   clients.GetSkupperClient(),
+		crdClient:       clients.GetCrdClient(),
 		queue:           workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), name),
 		resync:          time.Minute * 5,
 		resyncShort:     time.Second * 30,
@@ -171,6 +174,10 @@ func (c *EventProcessor) GetRouteClient() routev1client.RouteV1Interface {
 
 func (c *EventProcessor) GetSkupperClient() skupperclient.Interface {
 	return c.skupperClient
+}
+
+func (c *EventProcessor) GetCrdClient() crdClient.Interface {
+	return c.crdClient
 }
 
 // Starts the event processing loop in a new go routine.

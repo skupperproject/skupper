@@ -780,6 +780,11 @@ func (in *LinkSpec) DeepCopyInto(out *LinkSpec) {
 		*out = make([]Endpoint, len(*in))
 		copy(*out, *in)
 	}
+	if in.RoutingKeys != nil {
+		in, out := &in.RoutingKeys, &out.RoutingKeys
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.Settings != nil {
 		in, out := &in.Settings, &out.Settings
 		*out = make(map[string]string, len(*in))
@@ -1205,6 +1210,11 @@ func (in *RouterAccessSpec) DeepCopyInto(out *RouterAccessSpec) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.RoutingKeys != nil {
+		in, out := &in.RoutingKeys, &out.RoutingKeys
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.Settings != nil {
 		in, out := &in.Settings, &out.Settings
 		*out = make(map[string]string, len(*in))
@@ -1229,6 +1239,11 @@ func (in *RouterAccessSpec) DeepCopy() *RouterAccessSpec {
 func (in *RouterAccessStatus) DeepCopyInto(out *RouterAccessStatus) {
 	*out = *in
 	in.Status.DeepCopyInto(&out.Status)
+	if in.Roles != nil {
+		in, out := &in.Roles, &out.Roles
+		*out = make([]RouterAccessRole, len(*in))
+		copy(*out, *in)
+	}
 	if in.Endpoints != nil {
 		in, out := &in.Endpoints, &out.Endpoints
 		*out = make([]Endpoint, len(*in))

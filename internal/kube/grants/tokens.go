@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -74,6 +75,9 @@ func (g *TokenGenerator) setValidHostsFromSite(site *skupperv2alpha1.Site) error
 	}
 	var hosts []string
 	for _, endpoint := range site.Status.Endpoints {
+		if !slices.Contains([]string{"inter-router", "edge"}, endpoint.Name) {
+			continue
+		}
 		hosts = append(hosts, endpoint.Host)
 	}
 	if len(hosts) == 0 {

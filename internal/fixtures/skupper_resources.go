@@ -176,3 +176,16 @@ func SecuredAccess(name string, namespace string) *skupperv2alpha1.SecuredAccess
 		},
 	}
 }
+
+func Link(name, namespace string) *skupperv2alpha1.Link {
+	return &skupperv2alpha1.Link{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "skupper.io/v2alpha1",
+			Kind:       "Link",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+}

@@ -253,3 +253,27 @@ func TestMergePortRangeFailed(t *testing.T) {
 		t.Errorf(`merge should not succeed`)
 	}
 }
+
+func TestReleaseAll(t *testing.T) {
+	ports := NewFreePorts()
+	a, _ := ports.NextFreePort()
+	b, _ := ports.NextFreePort()
+	c, _ := ports.NextFreePort()
+
+	if ports.String() != "[(1027-65535)]" {
+		t.Errorf("unexpected state before ReleaseAll: %s", ports)
+	}
+
+	result := ports.ReleaseAll(int32(a), int32(b), int32(c))
+	if !result {
+		t.Errorf("expected ReleaseAll to return true")
+	}
+	if ports.String() != "[(1024-65535)]" {
+		t.Errorf("expected full range after ReleaseAll, got: %s", ports)
+	}
+
+	result = ports.ReleaseAll()
+	if result {
+		t.Errorf("expected ReleaseAll to return false for empty input")
+	}
+}

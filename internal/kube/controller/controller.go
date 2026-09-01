@@ -57,6 +57,7 @@ type Controller struct {
 	labellingWatcher                *watchers.ConfigMapWatcher
 	attachableConnectors            map[string]*skupperv2alpha1.AttachedConnector
 	disableSecContext               bool
+	dynamicPortsInRouterAccess      bool
 	log                             *slog.Logger
 	namespaces                      *NamespaceConfig
 	observedServices                map[string]string
@@ -99,14 +100,15 @@ func labelling() internalinterfaces.TweakListOptionsFunc {
 
 func NewController(cli internalclient.Clients, config *Config, options ...watchers.EventProcessorCustomizer) (*Controller, error) {
 	controller := &Controller{
-		eventProcessor:       watchers.NewEventProcessor("Controller", cli, options...),
-		sites:                map[string]*site.Site{},
-		siteSizing:           sizing.NewRegistry(),
-		labelling:            labels.NewLabelsAndAnnotations(config.Namespace),
-		attachableConnectors: map[string]*skupperv2alpha1.AttachedConnector{},
-		log:                  slog.New(slog.Default().Handler()).With(slog.String("component", "kube.controller")),
-		observedServices:     map[string]string{},
-		disableSecContext:    config.DisableSecurityContext,
+		eventProcessor:             watchers.NewEventProcessor("Controller", cli, options...),
+		sites:                      map[string]*site.Site{},
+		siteSizing:                 sizing.NewRegistry(),
+		labelling:                  labels.NewLabelsAndAnnotations(config.Namespace),
+		attachableConnectors:       map[string]*skupperv2alpha1.AttachedConnector{},
+		log:                        slog.New(slog.Default().Handler()).With(slog.String("component", "kube.controller")),
+		observedServices:           map[string]string{},
+		dynamicPortsInRouterAccess: internalclient.IsCrdPathAvailable(cli.GetCrdClient(), "routeraccesses.skupper.io", "status.roles"),
+		disableSecContext:          config.DisableSecurityContext,
 	}
 
 	hostname := os.Getenv("HOSTNAME")
@@ -465,7 +467,7 @@ func (c *Controller) getSite(namespace string) *site.Site {
 	if existing, ok := c.sites[namespace]; ok {
 		return existing
 	}
-	site := site.NewSite(namespace, c.eventProcessor, c.certMgr, c.accessMgr, c.siteSizing, c, c.disableSecContext)
+	site := site.NewSite(namespace, c.eventProcessor, c.certMgr, c.accessMgr, c.siteSizing, c, c.dynamicPortsInRouterAccess, c.disableSecContext)
 	c.sites[namespace] = site
 	return site
 }

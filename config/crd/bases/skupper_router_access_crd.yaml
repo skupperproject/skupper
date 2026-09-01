@@ -22,20 +22,27 @@ spec:
                 roles:
                   description: |-
                     The named interfaces by which a router can be accessed.  These
-                    include "inter-router" for links between interior routers and
-                    "edge" for links from edge routers to interior routers.
+                    include "inter-router" for links between interior routers,
+                    "edge" for links from edge routers to interior routers,
+                    "inter-network" for multi-van links.
                   type: array
+                  maxItems: 4
                   items:
                     type: object
                     properties:
                       name:
-                        description: The role name. Either "inter-router" or "edge".
+                        description: The role name. One of "inter-router", "edge" or "inter-network".
                         type: string
                       port:
                         description: The port for the router to bind. Must not conflict with another role.
                         type: integer
                     required:
                       - name
+                  x-kubernetes-validations:
+                  - rule: "self.all(r, self.filter(x, x.name == r.name).size() == 1)"
+                    message: "spec.roles must not contain duplicate role names"
+                  - rule: "self.filter(x, has(x.port) && x.port > 0).all(r, self.filter(x, has(x.port) && x.port == r.port).size() == 1)"
+                    message: "spec.roles must not contain duplicate non-zero ports"
                 generateTlsCredentials:
                   description: |-
                     When set, Skupper generates the TLS credentials to be
@@ -87,6 +94,14 @@ spec:
                   type: array
                   description: |-
                     The hostnames and IPs secured by the router TLS certificate.
+                  items:
+                    type: string
+                routingKeys:
+                  type: array
+                  description: |-
+                    Optional. A list of routing key identifiers available in the local VAN
+                    that are accessible to the remote network over this ingress.
+                    This is only used in inter-network connections (multi-van).
                   items:
                     type: string
                 settings:
@@ -162,6 +177,18 @@ spec:
                     - reason
                     - status
                     - type
+                roles:
+                  type: array
+                  description: |-
+                    List of roles and their allocated ports.
+                    If a role does not specify a port, the controller assigns a dynamic port and reports it here.
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      port:
+                        type: integer
                 endpoints:
                   type: array
                   description: |-

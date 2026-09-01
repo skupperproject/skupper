@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/skupperproject/skupper/internal/kube/watchers"
+	"github.com/skupperproject/skupper/internal/ports"
 	"github.com/skupperproject/skupper/internal/qdr"
 	"github.com/skupperproject/skupper/internal/site"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -71,6 +72,14 @@ func (a *ExtendedBindings) cleanup() {
 			connector.watcher.Close()
 		}
 	}
+}
+
+func (a *ExtendedBindings) GetPool() *ports.FreePorts {
+	return a.mapping.Pool
+}
+
+func (a *ExtendedBindings) GetAllocatedPorts() map[int]string {
+	return a.mapping.GetAllocatedPorts()
 }
 
 func (a *ExtendedBindings) ConnectorUpdated(connector *skupperv2alpha1.Connector) bool {

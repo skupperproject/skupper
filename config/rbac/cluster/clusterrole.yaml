@@ -130,6 +130,12 @@ rules:
       - delete
       - update
   - apiGroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - get
+  - apiGroups:
       - skupper.io
     resources:
       - sites

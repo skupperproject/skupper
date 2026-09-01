@@ -2,6 +2,7 @@ package site
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"maps"
 	"testing"
@@ -1766,6 +1767,154 @@ func Test_updateAccessTokensForDeletedSite(t *testing.T) {
 				if token.Status.StatusType == "Error" && token.Status.Message == "Already redeemed for a deleted site" {
 					t.Errorf("Token %s: should not have been updated but was", tokenName)
 				}
+			}
+		})
+	}
+}
+
+func TestSite_hasPortConflict(t *testing.T) {
+	tests := []struct {
+		name             string
+		bindingPort      int    // 0 means no binding port seeded
+		bindingKey       string // routing key for the binding listener
+		linkAccessName   string // if non-empty, seed s.linkAccess[linkAccessName] with linkAccessPort
+		linkAccessPort   int
+		ra               *skupperv2alpha1.RouterAccess
+		wantConflict     bool
+		wantConflictName string
+		wantConflictPort int
+	}{
+		{
+			name: "no ports anywhere — no conflict",
+			ra: &skupperv2alpha1.RouterAccess{
+				ObjectMeta: metav1.ObjectMeta{Name: "new-ra"},
+				Spec: skupperv2alpha1.RouterAccessSpec{
+					Roles: []skupperv2alpha1.RouterAccessRole{
+						{Name: "inter-router", Port: 55671},
+					},
+				},
+			},
+			wantConflict: false,
+		},
+		{
+			name:        "RA port collides with binding",
+			bindingPort: 8080,
+			bindingKey:  "backend",
+			ra: &skupperv2alpha1.RouterAccess{
+				ObjectMeta: metav1.ObjectMeta{Name: "new-ra"},
+				Spec: skupperv2alpha1.RouterAccessSpec{
+					Roles: []skupperv2alpha1.RouterAccessRole{
+						{Name: "inter-router", Port: 8080},
+					},
+				},
+			},
+			wantConflict:     true,
+			wantConflictName: "routing key: backend",
+			wantConflictPort: 8080,
+		},
+		{
+			name:        "RA port=0 skipped, no conflict",
+			bindingPort: 8080,
+			bindingKey:  "backend",
+			ra: &skupperv2alpha1.RouterAccess{
+				ObjectMeta: metav1.ObjectMeta{Name: "new-ra"},
+				Spec: skupperv2alpha1.RouterAccessSpec{
+					Roles: []skupperv2alpha1.RouterAccessRole{
+						{Name: "inter-router", Port: 0},
+					},
+				},
+			},
+			wantConflict: false,
+		},
+		{
+			name:           "RA port collides with existing RouterAccess",
+			linkAccessName: "existing",
+			linkAccessPort: 55671,
+			ra: &skupperv2alpha1.RouterAccess{
+				ObjectMeta: metav1.ObjectMeta{Name: "new-ra"},
+				Spec: skupperv2alpha1.RouterAccessSpec{
+					Roles: []skupperv2alpha1.RouterAccessRole{
+						{Name: "inter-router", Port: 55671},
+					},
+				},
+			},
+			wantConflict:     true,
+			wantConflictName: "router access: existing",
+			wantConflictPort: 55671,
+		},
+		{
+			name:           "RA port in both binding and linkAccess — binding wins",
+			bindingPort:    1024,
+			bindingKey:     "backend",
+			linkAccessName: "existing",
+			linkAccessPort: 1024,
+			ra: &skupperv2alpha1.RouterAccess{
+				ObjectMeta: metav1.ObjectMeta{Name: "new-ra"},
+				Spec: skupperv2alpha1.RouterAccessSpec{
+					Roles: []skupperv2alpha1.RouterAccessRole{
+						{Name: "inter-router", Port: 1024},
+					},
+				},
+			},
+			wantConflict:     true,
+			wantConflictName: "routing key: backend",
+			wantConflictPort: 1024,
+		},
+		{
+			name:           "self-update: own RA in linkAccess — no conflict",
+			linkAccessName: "my-ra",
+			linkAccessPort: 55671,
+			ra: &skupperv2alpha1.RouterAccess{
+				ObjectMeta: metav1.ObjectMeta{Name: "my-ra"},
+				Spec: skupperv2alpha1.RouterAccessSpec{
+					Roles: []skupperv2alpha1.RouterAccessRole{
+						{Name: "inter-router", Port: 55671},
+					},
+				},
+			},
+			wantConflict: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s, err := newSiteMocks("test", nil, nil, "", false)
+			if err != nil {
+				t.Fatalf("newSiteMocks: %v", err)
+			}
+
+			// Seed binding ports when requested.
+			if tt.bindingPort != 0 {
+				config := qdr.InitialConfig("router", "site-1", "test", false, 3)
+				config.Bridges.AddTcpListener(qdr.TcpEndpoint{
+					Name:    qdr.TcpListenerNamePrefix + tt.bindingKey,
+					Port:    fmt.Sprintf("%d", tt.bindingPort),
+					Address: tt.bindingKey,
+				})
+				s.bindings.mapping = qdr.RecoverPortMapping(&config)
+			}
+
+			// Seed linkAccess when requested.
+			if tt.linkAccessName != "" {
+				s.linkAccess[tt.linkAccessName] = &skupperv2alpha1.RouterAccess{
+					ObjectMeta: metav1.ObjectMeta{Name: tt.linkAccessName},
+					Spec: skupperv2alpha1.RouterAccessSpec{
+						Roles: []skupperv2alpha1.RouterAccessRole{
+							{Name: "inter-router", Port: tt.linkAccessPort},
+						},
+					},
+				}
+			}
+
+			gotConflict, gotName, gotPort := s.hasPortConflict(tt.ra)
+			if gotConflict != tt.wantConflict {
+				t.Errorf("conflict = %v, want %v", gotConflict, tt.wantConflict)
+			}
+			if gotName != tt.wantConflictName {
+				t.Errorf("conflictName = %q, want %q", gotName, tt.wantConflictName)
+			}
+			if gotPort != tt.wantConflictPort {
+				t.Errorf("conflictPort = %d, want %d", gotPort, tt.wantConflictPort)
 			}
 		})
 	}

@@ -97,6 +97,9 @@ func (c *ConfigSync) configEvent(key string, configmap *corev1.ConfigMap) error 
 	if err != nil {
 		return err
 	}
+	if err := qdr.SyncNetwork(c.agentPool, desired.Network); err != nil {
+		return err
+	}
 	if err := c.syncSslProfileCredentialsToDisk(desired.SslProfiles); err != nil {
 		return err
 	}

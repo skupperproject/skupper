@@ -805,3 +805,132 @@ func TestTcpEndpointEquivalentHttpModes(t *testing.T) {
 		t.Errorf("expected http1 vs none to be not equivalent")
 	}
 }
+
+func TestFilterListeners(t *testing.T) {
+	interNetworkListener := Listener{Name: "l-in", Role: RoleInterNetwork}
+	interRouterListener := Listener{Name: "l-ir", Role: RoleInterRouter}
+	edgeListener := Listener{Name: "l-e", Role: RoleEdge}
+
+	tests := []struct {
+		name      string
+		input     map[string]Listener
+		predicate ListenerPredicate
+		wantKeys  []string
+	}{
+		{
+			name:      "empty map",
+			input:     map[string]Listener{},
+			predicate: IsInterVANListener,
+			wantKeys:  []string{},
+		},
+		{
+			name: "all match",
+			input: map[string]Listener{
+				"l-in":  interNetworkListener,
+				"l-in2": {Name: "l-in2", Role: RoleInterNetwork},
+			},
+			predicate: IsInterVANListener,
+			wantKeys:  []string{"l-in", "l-in2"},
+		},
+		{
+			name: "none match",
+			input: map[string]Listener{
+				"l-ir": interRouterListener,
+				"l-e":  edgeListener,
+			},
+			predicate: IsInterVANListener,
+			wantKeys:  []string{},
+		},
+		{
+			name: "mixed - only inter-network returned",
+			input: map[string]Listener{
+				"l-in": interNetworkListener,
+				"l-ir": interRouterListener,
+				"l-e":  edgeListener,
+			},
+			predicate: IsInterVANListener,
+			wantKeys:  []string{"l-in"},
+		},
+		{
+			name: "not protected listener",
+			input: map[string]Listener{
+				"amqp":  {Name: "amqp", Role: RoleNormal},
+				"amqps": {Name: "amqps", Role: RoleNormal},
+				"@9090": {Name: "@9090", Role: RoleNormal},
+				"l-ir":  interRouterListener,
+			},
+			predicate: IsNotProtectedListener,
+			wantKeys:  []string{"l-ir"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FilterListeners(tt.input, tt.predicate)
+			assert.Equal(t, len(got), len(tt.wantKeys))
+			for _, key := range tt.wantKeys {
+				if _, ok := got[key]; !ok {
+					t.Errorf("FilterListeners() missing expected key %q", key)
+				}
+			}
+		})
+	}
+}
+
+func TestFilterConnectors(t *testing.T) {
+	interNetworkConnector := Connector{Name: "c-in", Role: RoleInterNetwork}
+	interRouterConnector := Connector{Name: "c-ir", Role: RoleInterRouter}
+	edgeConnector := Connector{Name: "c-e", Role: RoleEdge}
+
+	tests := []struct {
+		name      string
+		input     map[string]Connector
+		predicate ConnectorPredicate
+		wantKeys  []string
+	}{
+		{
+			name:      "empty map",
+			input:     map[string]Connector{},
+			predicate: IsInterVANConnector,
+			wantKeys:  []string{},
+		},
+		{
+			name: "all match",
+			input: map[string]Connector{
+				"c-in":  interNetworkConnector,
+				"c-in2": {Name: "c-in2", Role: RoleInterNetwork},
+			},
+			predicate: IsInterVANConnector,
+			wantKeys:  []string{"c-in", "c-in2"},
+		},
+		{
+			name: "none match",
+			input: map[string]Connector{
+				"c-ir": interRouterConnector,
+				"c-e":  edgeConnector,
+			},
+			predicate: IsInterVANConnector,
+			wantKeys:  []string{},
+		},
+		{
+			name: "mixed - only inter-network returned",
+			input: map[string]Connector{
+				"c-in": interNetworkConnector,
+				"c-ir": interRouterConnector,
+				"c-e":  edgeConnector,
+			},
+			predicate: IsInterVANConnector,
+			wantKeys:  []string{"c-in"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FilterConnectors(tt.input, tt.predicate)
+			assert.Equal(t, len(got), len(tt.wantKeys))
+			for _, key := range tt.wantKeys {
+				if _, ok := got[key]; !ok {
+					t.Errorf("FilterConnectors() missing expected key %q", key)
+				}
+			}
+		})
+	}
+}

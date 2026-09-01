@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -313,6 +314,10 @@ func getEndpointsByGroups(endpointList []v2alpha1.Endpoint) map[string][]v2alpha
 	endpointGroup := make(map[string][]v2alpha1.Endpoint)
 
 	for _, endpoint := range endpointList {
+		// ignore endpoints not used for site linking
+		if !slices.Contains([]string{"inter-router", "edge"}, endpoint.Name) {
+			continue
+		}
 		if len(endpointGroup[endpoint.Group]) > 0 {
 			endpointGroup[endpoint.Group] = append(endpointGroup[endpoint.Group], endpoint)
 		} else {

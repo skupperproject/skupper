@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"reflect"
 	"testing"
+
+	"github.com/skupperproject/skupper/internal/ports"
 )
 
 func TestSummarizePorts(t *testing.T) {
@@ -115,7 +117,7 @@ func TestFilterByPorts(t *testing.T) {
 }
 
 func TestValidatePorts(t *testing.T) {
-	if err := ValidatePorts([]int{1, 8080, 65535}); err != nil {
+	if err := ValidatePorts([]int{1, 8080, ports.MAX_PORT}); err != nil {
 		t.Errorf("ValidatePorts() rejected valid ports: %v", err)
 	}
 	for _, invalid := range [][]int{{0}, {-1}, {65536}, {8080, 70000}} {

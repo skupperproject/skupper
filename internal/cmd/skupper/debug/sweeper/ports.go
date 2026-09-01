@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"text/tabwriter"
-
-	"github.com/skupperproject/skupper/internal/ports"
 )
 
 // PortStat is the number of TCP adaptor connections on one router port, split
@@ -19,6 +17,8 @@ type PortStat struct {
 	In   int
 	Out  int
 }
+
+const MaxTCPPort int = 65535
 
 func (p PortStat) Total() int { return p.In + p.Out }
 
@@ -59,8 +59,8 @@ func FilterByPorts(conns []connInfo, portList []int) []connInfo {
 func ValidatePorts(portList []int) error {
 	var portErrors []error
 	for _, p := range portList {
-		if p < 1 || p > ports.MAX_PORT {
-			portErrors = append(portErrors, fmt.Errorf("port is not valid: %d is not between 1 and %d", p, ports.MAX_PORT))
+		if p < 1 || p > MaxTCPPort {
+			portErrors = append(portErrors, fmt.Errorf("port is not valid: %d is not between 1 and %d", p, MaxTCPPort))
 		}
 	}
 	return errors.Join(portErrors...)

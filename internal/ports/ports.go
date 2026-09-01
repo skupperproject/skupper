@@ -128,6 +128,16 @@ func (ports *FreePorts) String() string {
 	return "[" + strings.Join(parts, ", ") + "]"
 }
 
+func (ports *FreePorts) ReleaseAll(portsToRelease ...int32) bool {
+	var changed bool
+	for _, port := range portsToRelease {
+		if ports.Release(int(port)) {
+			changed = true
+		}
+	}
+	return changed
+}
+
 func (ports *FreePorts) Release(port int) bool {
 	var i int
 	for i = 0; i < len(ports.Available) && port >= (ports.Available[i].Start-1); i++ {

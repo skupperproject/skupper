@@ -27,10 +27,11 @@ func TestLink_Apply(t *testing.T) {
 		current qdr.RouterConfig
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
+		name     string
+		fields   fields
+		args     args
+		want     bool
+		wantRole qdr.Role
 	}{
 		{
 			name: "no definition",
@@ -116,7 +117,36 @@ func TestLink_Apply(t *testing.T) {
 			args: args{
 				current: qdr.InitialConfig(id, siteId, version, true, helloAge),
 			},
-			want: true,
+			want:     true,
+			wantRole: qdr.RoleEdge,
+		},
+		{
+			name: "inter-network definition with endpoint",
+			fields: fields{
+				name:           "link1",
+				sslProfilePath: "/etc/skupper-router-certs/skupper-internal/ca.crt",
+				proxyConfig:    ProxyConfig{},
+				definition: &skupperv2alpha1.Link{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "remote-site",
+						Namespace: "test",
+					},
+					Spec: skupperv2alpha1.LinkSpec{
+						Endpoints: []skupperv2alpha1.Endpoint{
+							{
+								Name: string(qdr.RoleInterNetwork),
+								Host: "10.10.10.1",
+								Port: "35671",
+							},
+						},
+					},
+				},
+			},
+			args: args{
+				current: qdr.InitialConfig(id, siteId, version, notEdge, helloAge),
+			},
+			want:     true,
+			wantRole: qdr.RoleInterNetwork,
 		},
 	}
 	for _, tt := range tests {
@@ -125,6 +155,9 @@ func TestLink_Apply(t *testing.T) {
 			l.definition = tt.fields.definition
 			if got := l.Apply(&tt.args.current); got != tt.want {
 				t.Errorf("Link.Apply() = %v, want %v", got, tt.want)
+			}
+			if tt.wantRole != "" {
+				assert.Equal(t, tt.args.current.Connectors[tt.fields.name].Role, tt.wantRole)
 			}
 		})
 	}
@@ -481,6 +514,116 @@ func TestRemoveConnector_Apply(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewRemoveConnector(tt.fields.name).Apply(&tt.args.current); got != tt.want {
 				t.Errorf("Link.Apply() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAutoLinkForConnector(t *testing.T) {
+	tests := []struct {
+		name          string
+		connectorName string
+		networkId     string
+		wantAutoLink  qdr.AutoLink
+	}{
+		{
+			name:          "basic connector and networkId",
+			connectorName: "link1",
+			networkId:     "net-a",
+			wantAutoLink: qdr.AutoLink{
+				Name:            "link/link1",
+				ExternalAddress: "_xtopo/net-a",
+				Direction:       qdr.DirectionIn,
+				Connection:      "link1",
+			},
+		},
+		{
+			name:          "connector with different networkId",
+			connectorName: "my-link",
+			networkId:     "production-network",
+			wantAutoLink: qdr.AutoLink{
+				Name:            "link/my-link",
+				ExternalAddress: "_xtopo/production-network",
+				Direction:       qdr.DirectionIn,
+				Connection:      "my-link",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := AutoLinkForConnector(tt.connectorName, tt.networkId)
+			assert.Equal(t, got.Name, tt.wantAutoLink.Name)
+			assert.Equal(t, got.ExternalAddress, tt.wantAutoLink.ExternalAddress)
+			assert.Equal(t, got.Direction, tt.wantAutoLink.Direction)
+			assert.Equal(t, got.Connection, tt.wantAutoLink.Connection)
+		})
+	}
+}
+
+func TestLink_DesiredAutoLinks(t *testing.T) {
+	id := "router-1"
+	siteId := "site-1"
+	version := "v2.0"
+	notEdge := false
+	helloAge := 10
+
+	interNetworkEndpoint := skupperv2alpha1.Endpoint{
+		Name: "inter-network",
+		Host: "10.0.0.1",
+		Port: "35671",
+	}
+
+	tests := []struct {
+		name             string
+		networkId        string
+		routingKeys      []string
+		wantAutoLinkKeys []string
+	}{
+		{
+			name:             "no networkId and no routingKeys",
+			networkId:        "",
+			routingKeys:      nil,
+			wantAutoLinkKeys: []string{},
+		},
+		{
+			name:             "networkId set, no routingKeys",
+			networkId:        "net-a",
+			routingKeys:      nil,
+			wantAutoLinkKeys: []string{"link/link1"},
+		},
+		{
+			name:             "no networkId, two routingKeys",
+			networkId:        "",
+			routingKeys:      []string{"key1", "key2"},
+			wantAutoLinkKeys: []string{"link/link1/key1", "link/link1/key2"},
+		},
+		{
+			name:             "networkId set, two routingKeys",
+			networkId:        "net-a",
+			routingKeys:      []string{"key1", "key2"},
+			wantAutoLinkKeys: []string{"link/link1", "link/link1/key1", "link/link1/key2"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := qdr.InitialConfig(id, siteId, version, notEdge, helloAge)
+			config.Network.NetworkId = tt.networkId
+
+			l := NewLink("link1", "/etc/skupper-router-certs/skupper-internal/ca.crt", &ProxyConfig{})
+			l.definition = &skupperv2alpha1.Link{
+				Spec: skupperv2alpha1.LinkSpec{
+					Endpoints:   []skupperv2alpha1.Endpoint{interNetworkEndpoint},
+					RoutingKeys: tt.routingKeys,
+				},
+			}
+
+			l.Apply(&config)
+
+			assert.Equal(t, len(config.AutoLinks), len(tt.wantAutoLinkKeys))
+			for _, key := range tt.wantAutoLinkKeys {
+				if _, ok := config.AutoLinks[key]; !ok {
+					t.Errorf("AutoLinks missing expected key %q", key)
+				}
 			}
 		})
 	}

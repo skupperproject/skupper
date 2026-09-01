@@ -20,6 +20,7 @@ import (
 	"github.com/skupperproject/skupper/internal/kube/resource"
 	skupperclientfake "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/fake"
 	fakeskupperv2alpha1 "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/typed/skupper/v2alpha1/fake"
+	fakeCrdClient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -68,7 +69,7 @@ func NewFakeClient(namespace string, k8sObjects []runtime.Object, skupperObjects
 		fakeDiscoveryClient.Resources = append(fakeDiscoveryClient.Resources, fakedApiResources()...)
 	}
 	c.Route = routefake.NewSimpleClientset(routes...)
-
+	c.CrdClient = fakeCrdClient.NewClientset()
 	return c, nil
 }
 func gvrFromGvk(gvk schema.GroupVersionKind) (schema.GroupVersionResource, bool) {

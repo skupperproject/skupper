@@ -11,6 +11,7 @@ import (
 	openshiftroute "github.com/openshift/client-go/route/clientset/versioned"
 
 	routev1client "github.com/openshift/client-go/route/clientset/versioned/typed/route/v1"
+	crdClient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/discovery"
@@ -68,6 +69,7 @@ type Clients interface {
 	GetRouteInterface() openshiftroute.Interface
 	GetRouteClient() routev1client.RouteV1Interface
 	GetSkupperClient() skupperclient.Interface
+	GetCrdClient() crdClient.Interface
 }
 
 // A Kube Client manages orchestration and communications with the network components
@@ -81,6 +83,7 @@ type KubeClient struct {
 	Dynamic   dynamic.Interface
 	Discovery discovery.DiscoveryInterface
 	Skupper   skupperclient.Interface
+	CrdClient crdClient.Interface
 }
 
 func (c *KubeClient) GetNamespace() string {
@@ -109,6 +112,10 @@ func (c *KubeClient) GetRouteClient() routev1client.RouteV1Interface {
 
 func (c *KubeClient) GetSkupperClient() skupperclient.Interface {
 	return c.Skupper
+}
+
+func (c *KubeClient) GetCrdClient() crdClient.Interface {
+	return c.CrdClient
 }
 
 func NewClient(namespace string, context string, kubeConfigPath string) (*KubeClient, error) {
@@ -182,6 +189,10 @@ func NewClientFromRestConfig(restconfig *restclient.Config, namespace string) (*
 		return nil, err
 	}
 	c.Skupper, err = skupperclient.NewForConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	c.CrdClient, err = crdClient.NewForConfig(cfg)
 	if err != nil {
 		return nil, err
 	}

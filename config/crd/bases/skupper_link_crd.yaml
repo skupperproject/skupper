@@ -61,6 +61,14 @@ spec:
                   description: |-
                     The configured routing cost of sending traffic over the link.
                   type: integer
+                routingKeys:
+                  type: array
+                  description: |-
+                    Optional. A list of routing key identifiers available in the local VAN
+                    that are accessible to the remote network over this link.
+                    This is only used in inter-network connections (multi-van).
+                  items:
+                    type: string
                 settings:
                   description: |-
                     A map containing additional settings.  Each map entry has a

@@ -19,10 +19,13 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 )
 
 const controllerInstallNamespace = "skupper-system"
+const envTestKubeConfig = "/tmp/envtest-kubeconfig.yaml"
 
 var (
 	envTestConfig  *rest.Config
@@ -44,11 +47,15 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
+
+	serializeConfig()
+
 	defer func() {
 		stopSharedController()
 		if err := testEnv.Stop(); err != nil {
 			fmt.Fprintf(os.Stderr, "envtest teardown warning: %v\n", err)
 		}
+		os.Remove(envTestKubeConfig)
 	}()
 
 	if err := startSharedController(); err != nil {
@@ -56,6 +63,27 @@ func TestMain(m *testing.M) {
 	}
 
 	m.Run()
+}
+
+func serializeConfig() {
+	kubeconfig := clientcmdapi.NewConfig()
+	kubeconfig.Clusters["envtest"] = &clientcmdapi.Cluster{
+		Server:                   envTestConfig.Host,
+		CertificateAuthorityData: envTestConfig.CAData,
+	}
+	kubeconfig.AuthInfos["envtest"] = &clientcmdapi.AuthInfo{
+		ClientCertificateData: envTestConfig.CertData,
+		ClientKeyData:         envTestConfig.KeyData,
+	}
+	kubeconfig.Contexts["envtest"] = &clientcmdapi.Context{
+		Cluster:  "envtest",
+		AuthInfo: "envtest",
+	}
+	kubeconfig.CurrentContext = "envtest"
+
+	if err := clientcmd.WriteToFile(*kubeconfig, envTestKubeConfig); err != nil {
+		panic(err)
+	}
 }
 
 func startSharedController() error {
