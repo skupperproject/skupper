@@ -1,0 +1,4 @@
+---
+# Platform configuration
+platform: docker
+namespace_name: east
