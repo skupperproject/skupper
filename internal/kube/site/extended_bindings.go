@@ -4,6 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
+	"strconv"
+	"sync"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -12,6 +16,12 @@ import (
 	"github.com/skupperproject/skupper/internal/site"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
+
+type HostConnectorInfo struct {
+	Name string
+	Host string
+	Port int
+}
 
 type ExtendedBindings struct {
 	context               BindingContext
@@ -26,6 +36,12 @@ type ExtendedBindings struct {
 	controller            *watchers.EventProcessor
 	site                  *Site
 	logger                *slog.Logger
+
+	hostConnectors  map[string]HostConnectorInfo
+	connectorHealth map[string]bool
+	healthMu        sync.RWMutex
+	stopCh          chan struct{}
+	dialTimeout     func(network, address string, timeout time.Duration) (net.Conn, error)
 }
 
 func NewExtendedBindings(controller *watchers.EventProcessor, profilePath string) *ExtendedBindings {
@@ -39,9 +55,14 @@ func NewExtendedBindings(controller *watchers.EventProcessor, profilePath string
 		logger: slog.New(slog.Default().Handler()).With(
 			slog.String("component", "kube.site.attached_connector"),
 		),
+		hostConnectors:  map[string]HostConnectorInfo{},
+		connectorHealth: map[string]bool{},
+		stopCh:          make(chan struct{}),
+		dialTimeout:     net.DialTimeout,
 	}
 	eb.bindings.SetListenerConfiguration(eb.updateBridgeConfigForListener)
 	eb.bindings.SetMultiKeyListenerConfiguration(eb.updateBridgeConfigForMultiKeyListener)
+	go eb.runHealthCheckLoop()
 	return eb
 }
 
@@ -63,6 +84,13 @@ func (a *ExtendedBindings) init(context BindingContext, config *qdr.RouterConfig
 }
 
 func (a *ExtendedBindings) cleanup() {
+	if a.stopCh != nil {
+		select {
+		case <-a.stopCh:
+		default:
+			close(a.stopCh)
+		}
+	}
 	for _, s := range a.selectors {
 		s.Close()
 	}
@@ -74,6 +102,34 @@ func (a *ExtendedBindings) cleanup() {
 }
 
 func (a *ExtendedBindings) ConnectorUpdated(connector *skupperv2alpha1.Connector) bool {
+	if connector.Spec.Host != "" && connector.Spec.Port != 0 {
+		a.healthMu.Lock()
+		if a.hostConnectors == nil {
+			a.hostConnectors = map[string]HostConnectorInfo{}
+		}
+		if a.connectorHealth == nil {
+			a.connectorHealth = map[string]bool{}
+		}
+		a.hostConnectors[connector.Name] = HostConnectorInfo{
+			Name: connector.Name,
+			Host: connector.Spec.Host,
+			Port: connector.Spec.Port,
+		}
+		if _, ok := a.connectorHealth[connector.Name]; !ok {
+			a.connectorHealth[connector.Name] = true
+		}
+		a.healthMu.Unlock()
+	} else {
+		a.healthMu.Lock()
+		if a.hostConnectors != nil {
+			delete(a.hostConnectors, connector.Name)
+		}
+		if a.connectorHealth != nil {
+			delete(a.connectorHealth, connector.Name)
+		}
+		a.healthMu.Unlock()
+	}
+
 	if selector, ok := a.selectors[connector.Name]; ok {
 		if selector.Selector() == connector.Spec.Selector {
 			// don't need to change the pod watcher, but may need to reconfigure for other change to spec
@@ -99,6 +155,15 @@ func (a *ExtendedBindings) ConnectorUpdated(connector *skupperv2alpha1.Connector
 }
 
 func (a *ExtendedBindings) ConnectorDeleted(connector *skupperv2alpha1.Connector) {
+	a.healthMu.Lock()
+	if a.hostConnectors != nil {
+		delete(a.hostConnectors, connector.Name)
+	}
+	if a.connectorHealth != nil {
+		delete(a.connectorHealth, connector.Name)
+	}
+	a.healthMu.Unlock()
+
 	if current, ok := a.selectors[connector.Name]; ok {
 		current.Close()
 		delete(a.selectors, connector.Name)
@@ -167,7 +232,21 @@ func (a *ExtendedBindings) ListenerDeleted(listener *skupperv2alpha1.Listener) {
 
 func (a *ExtendedBindings) updateBridgeConfigForConnector(siteId string, connector *skupperv2alpha1.Connector, config *qdr.BridgeConfig) {
 	if connector.Spec.Host != "" {
-		site.UpdateBridgeConfigForConnector(siteId, connector, config)
+		a.healthMu.RLock()
+		healthy := true
+		if a.connectorHealth != nil {
+			if h, ok := a.connectorHealth[connector.Name]; ok {
+				healthy = h
+			}
+		}
+		a.healthMu.RUnlock()
+		if healthy {
+			site.UpdateBridgeConfigForConnector(siteId, connector, config)
+		} else {
+			a.logger.Info("Not adding connector bridge config because host is unhealthy",
+				slog.String("name", connector.Name),
+				slog.String("host", connector.Spec.Host))
+		}
 	} else if connector.Spec.Selector != "" {
 		if selector, ok := a.selectors[connector.Name]; ok {
 			for _, pod := range selector.List() {
@@ -611,4 +690,102 @@ func (b *ExtendedBindings) networkUpdated(network []skupperv2alpha1.SiteRecord) 
 
 func (a *ExtendedBindings) isHostExposed(host string) bool {
 	return a.exposed.isExposed(host)
+}
+
+func (a *ExtendedBindings) runHealthCheckLoop() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		a.performHealthChecks()
+		select {
+		case <-ticker.C:
+		case <-a.stopCh:
+			return
+		}
+	}
+}
+
+func (a *ExtendedBindings) performHealthChecks() {
+	a.healthMu.RLock()
+	var connectorsToCheck []HostConnectorInfo
+	for _, info := range a.hostConnectors {
+		connectorsToCheck = append(connectorsToCheck, info)
+	}
+	a.healthMu.RUnlock()
+
+	if len(connectorsToCheck) == 0 {
+		return
+	}
+
+	type checkResult struct {
+		name    string
+		host    string
+		port    int
+		healthy bool
+	}
+
+	resultsChan := make(chan checkResult, len(connectorsToCheck))
+	var wg sync.WaitGroup
+	for _, info := range connectorsToCheck {
+		wg.Add(1)
+		go func(inf HostConnectorInfo) {
+			defer wg.Done()
+			healthy := a.checkTarget(inf.Host, inf.Port)
+			resultsChan <- checkResult{
+				name:    inf.Name,
+				host:    inf.Host,
+				port:    inf.Port,
+				healthy: healthy,
+			}
+		}(info)
+	}
+	wg.Wait()
+	close(resultsChan)
+
+	var changed bool
+	var changedConnectors []checkResult
+
+	a.healthMu.Lock()
+	for res := range resultsChan {
+		if _, exists := a.hostConnectors[res.name]; !exists {
+			continue
+		}
+		prevHealthy, ok := a.connectorHealth[res.name]
+		if !ok || prevHealthy != res.healthy {
+			a.connectorHealth[res.name] = res.healthy
+			changed = true
+			changedConnectors = append(changedConnectors, res)
+		}
+	}
+	a.healthMu.Unlock()
+
+	if changed && a.site != nil {
+		a.logger.Info("Connector health status changed, updating router config", slog.Any("connectors", changedConnectors))
+		if err := a.site.updateRouterConfig(a); err != nil {
+			a.logger.Error("Failed to update router config on health check change", slog.Any("error", err))
+		}
+		for _, res := range changedConnectors {
+			connector := a.bindings.GetConnector(res.name)
+			if connector != nil {
+				var err error
+				if !res.healthy {
+					err = fmt.Errorf("Target host %s:%d is not reachable", res.host, res.port)
+				}
+				if statusErr := a.site.updateConnectorConfiguredStatus(connector, err); statusErr != nil {
+					a.logger.Error("Failed to update connector status", slog.String("connector", res.name), slog.Any("error", statusErr))
+				}
+			}
+		}
+	}
+}
+
+func (a *ExtendedBindings) checkTarget(host string, port int) bool {
+	address := net.JoinHostPort(host, strconv.Itoa(port))
+	conn, err := a.dialTimeout("tcp", address, 2*time.Second)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }
