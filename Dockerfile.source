@@ -1,0 +1,21 @@
+# OCI image that packages the Skupper source tree for reproducible downstream builds.
+# Not intended to be run; publish to quay.io/skupper/skupper-source:<version> and
+# consume via build context / additional build contexts instead of git clone.
+ARG GO_IMAGE_BASE_TAG=1.25
+FROM golang:${GO_IMAGE_BASE_TAG} AS vendor
+
+WORKDIR /go/src/app
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+COPY . .
+RUN go mod vendor
+
+FROM scratch
+
+LABEL \
+  org.opencontainers.image.title="Skupper source" \
+  org.opencontainers.image.description="Skupper source tree at a fixed release for downstream container builds"
+
+# Match upstream Dockerfile.* builder layout (WORKDIR /go/src/app).
+COPY --from=vendor /go/src/app /go/src/app

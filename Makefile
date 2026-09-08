@@ -6,6 +6,7 @@ GOARCH ?= amd64
 
 REGISTRY := quay.io/skupper
 IMAGE_TAG := v2-dev
+SOURCE_IMAGE := skupper-source
 ROUTER_IMAGE_TAG := main
 PLATFORMS ?= linux/amd64,linux/arm64
 CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer Dockerfile.system-controller
@@ -119,6 +120,19 @@ podman-build-must-gather:
 
 podman-push-must-gather:
 	${PODMAN} push "${REGISTRY}/skupper-must-gather:${IMAGE_TAG}"
+
+## Source tree OCI image for downstream build contexts (see Dockerfile.source).
+docker-build-source:
+	${DOCKER} build --build-arg GO_IMAGE_BASE_TAG=$(GO_IMAGE_BASE_TAG) $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/${SOURCE_IMAGE}:${IMAGE_TAG}" -f Dockerfile.source .
+
+docker-push-source: docker-build-source
+	${DOCKER} push "${REGISTRY}/${SOURCE_IMAGE}:${IMAGE_TAG}"
+
+podman-build-source:
+	${PODMAN} build --build-arg GO_IMAGE_BASE_TAG=$(GO_IMAGE_BASE_TAG) $(SHARED_IMAGE_LABELS) -t "${REGISTRY}/${SOURCE_IMAGE}:${IMAGE_TAG}" -f Dockerfile.source .
+
+podman-push-source: podman-build-source
+	${PODMAN} push "${REGISTRY}/${SOURCE_IMAGE}:${IMAGE_TAG}"
 
 ## Print fully qualified image names by arch
 describe-multiarch-oci:

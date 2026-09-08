@@ -173,6 +173,13 @@ workflows:
             - publish-oci-images
           context:
             - skupper-org
+      - publish-source-image:
+          <<: *run_for_numeric_tags
+          image_tag: << pipeline.git.tag >>
+          requires:
+            - publish-oci-images
+          context:
+            - skupper-org
   build:
     jobs:
       - build-all:
@@ -376,6 +383,19 @@ jobs:
           command: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
       - run: make docker-build-must-gather IMAGE_TAG="<< parameters.image_tag >>"
       - run: make docker-push-must-gather IMAGE_TAG="<< parameters.image_tag >>"
+  publish-source-image:
+    executor:
+      name: go_cimg
+    parameters:
+      image_tag:
+        type: string
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Docker login
+          command: docker login quay.io -u ${QUAY_LOGIN} -p ${QUAY_PASSWORD}
+      - run: make docker-push-source IMAGE_TAG="<< parameters.image_tag >>"
   generate-operator-bundle:
     executor:
       name: go_cimg
