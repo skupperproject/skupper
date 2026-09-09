@@ -93,11 +93,20 @@
             - full_verify is defined
             - full_verify.resources is defined
             - full_verify.resources | length == 1
+            # Check metadata annotations
+            - full_verify.resources[0].metadata.annotations is defined and 'com.acme.foo/annotest' in full_verify.resources[0].metadata.annotations
             - full_verify.resources[0].metadata.annotations['com.acme.foo/annotest'] == custom_annotations['com.acme.foo/annotest']
+            - full_verify.resources[0].metadata.annotations is defined and 'sku.pper' in full_verify.resources[0].metadata.annotations
             - full_verify.resources[0].metadata.annotations['sku.pper'] == custom_annotations['sku.pper']
+            # Check template labels
+            - full_verify.resources[0].spec.template.metadata.labels is defined and 'acme.foo/labeltest' in full_verify.resources[0].spec.template.metadata.labels
             - full_verify.resources[0].spec.template.metadata.labels['acme.foo/labeltest'] == custom_labels['acme.foo/labeltest']
+            - full_verify.resources[0].spec.template.metadata.labels is defined and 'sku.pper' in full_verify.resources[0].spec.template.metadata.labels
             - full_verify.resources[0].spec.template.metadata.labels['sku.pper'] == custom_labels['sku.pper']
+            # Check template annotations
+            - full_verify.resources[0].spec.template.metadata.annotations is defined and 'com.acme.foo/annotest' in full_verify.resources[0].spec.template.metadata.annotations
             - full_verify.resources[0].spec.template.metadata.annotations['com.acme.foo/annotest'] == custom_annotations['com.acme.foo/annotest']
+            - full_verify.resources[0].spec.template.metadata.annotations is defined and 'sku.pper' in full_verify.resources[0].spec.template.metadata.annotations
             - full_verify.resources[0].spec.template.metadata.annotations['sku.pper'] == custom_annotations['sku.pper']
           retries: "{{ resource_retry_value * RESOURCE_RETRY_MULTIPLIER }}"
           delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
