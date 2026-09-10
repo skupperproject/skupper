@@ -11,19 +11,22 @@ import (
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/config"
 	"github.com/skupperproject/skupper/internal/nonkube/bootstrap"
+	networkobserver "github.com/skupperproject/skupper/internal/nonkube/network-observer"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
 )
 
 type CmdSystemUninstall struct {
-	CobraCmd         *cobra.Command
-	Namespace        string
-	SystemUninstall  func(string) error
-	CheckActiveSites func() (bool, error)
-	Flags            *common.CommandSystemUninstallFlags
-	forceUninstall   bool
-	TearDown         func(namespace string) error
+	CobraCmd                 *cobra.Command
+	Namespace                string
+	SystemUninstall          func(string) error
+	CheckActiveSites         func() (bool, error)
+	Flags                    *common.CommandSystemUninstallFlags
+	forceUninstall           bool
+	TearDown                 func(namespace string) error
+	NetworkObserverUninstall func(namespace string) error
+	PrometheusUninstall      func() error
 }
 
 func NewCmdSystemUninstall() *CmdSystemUninstall {
@@ -38,6 +41,8 @@ func (cmd *CmdSystemUninstall) NewClient(cobraCommand *cobra.Command, args []str
 	cmd.CheckActiveSites = bootstrap.CheckActiveSites
 	cmd.Namespace = cobraCommand.Flag("namespace").Value.String()
 	cmd.TearDown = bootstrap.Teardown
+	cmd.NetworkObserverUninstall = networkobserver.UninstallForNamespace
+	cmd.PrometheusUninstall = networkobserver.UninstallPrometheus
 }
 
 func (cmd *CmdSystemUninstall) ValidateInput(args []string) error {
@@ -86,24 +91,36 @@ func (cmd *CmdSystemUninstall) Run() error {
 
 		for _, entry := range entries {
 			if entry.IsDir() {
-				runtimeDir := "namespaces/" + entry.Name() + "/runtime/"
+				namespace := entry.Name()
+
+				if cmd.NetworkObserverUninstall != nil {
+					if err := cmd.NetworkObserverUninstall(namespace); err != nil {
+						return fmt.Errorf("failed to uninstall network observer for namespace %q: %s", namespace, err)
+					}
+				}
+
+				runtimeDir := "namespaces/" + namespace + "/runtime/"
 				_, err := os.ReadDir(path.Join(api.GetHostDataHome(), runtimeDir))
 				if err == nil {
-					fmt.Printf("Removing active site namespace \"%s\"\n", entry.Name())
-					err := cmd.TearDown(entry.Name())
-					if err != nil {
-						return fmt.Errorf("failed to remove site \"%s\": %s", entry.Name(), err)
+					fmt.Printf("Removing active site namespace %q\n", namespace)
+					if err := cmd.TearDown(namespace); err != nil {
+						return fmt.Errorf("failed to remove site %q: %s", namespace, err)
 					}
 				} else {
 					// site not active so just remove directory
-					err := os.RemoveAll(api.GetHostNamespaceHome(entry.Name()))
-					if err == nil {
-						fmt.Printf("Namespace \"%s\" has been removed\n", entry.Name())
+					if err := os.RemoveAll(api.GetHostNamespaceHome(namespace)); err == nil {
+						fmt.Printf("Namespace %q has been removed\n", namespace)
 					} else {
-						return fmt.Errorf("failed to remove site \"%s\": %s", entry.Name(), err)
+						return fmt.Errorf("failed to remove site %q: %s", namespace, err)
 					}
 				}
 			}
+		}
+	}
+
+	if cmd.PrometheusUninstall != nil {
+		if err := cmd.PrometheusUninstall(); err != nil {
+			return fmt.Errorf("failed to uninstall prometheus: %s", err)
 		}
 	}
 

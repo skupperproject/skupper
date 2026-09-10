@@ -131,10 +131,11 @@ func TestCmdSystemUninstall_InputToOptions(t *testing.T) {
 
 func TestCmdSystemUninstall_Run(t *testing.T) {
 	type test struct {
-		name               string
-		flags              *common.CommandSystemUninstallFlags
-		disableSocketFails bool
-		errorMessage       string
+		name                 string
+		flags                *common.CommandSystemUninstallFlags
+		disableSocketFails   bool
+		networkObserverFails bool
+		errorMessage         string
 	}
 
 	testTable := []test{
@@ -149,6 +150,13 @@ func TestCmdSystemUninstall_Run(t *testing.T) {
 			disableSocketFails: true,
 			errorMessage:       "Unable to uninstall.\nError: disable socket fails",
 			flags:              &common.CommandSystemUninstallFlags{Force: false},
+		},
+		{
+			name:                 "network observer uninstall fails",
+			disableSocketFails:   false,
+			networkObserverFails: true,
+			errorMessage:         `failed to uninstall network observer for namespace "test": network observer uninstall failed`,
+			flags:                &common.CommandSystemUninstallFlags{Force: true},
 		},
 	}
 
@@ -203,6 +211,9 @@ func TestCmdSystemUninstall_Run(t *testing.T) {
 	for _, test := range testTable {
 		command := newCmdSystemUninstallWithMocks(test.disableSocketFails)
 		command.forceUninstall = test.flags.Force
+		if test.networkObserverFails {
+			command.NetworkObserverUninstall = mockNetworkObserverUninstallFails
+		}
 
 		t.Run(test.name, func(t *testing.T) {
 
@@ -229,9 +240,10 @@ func cleanup() {
 func newCmdSystemUninstallWithMocks(disableSocketFails bool) *CmdSystemUninstall {
 
 	cmdMock := &CmdSystemUninstall{
-		SystemUninstall:  mockCmdSystemUninstall,
-		CheckActiveSites: mockCmdSystemUninstallNoActiveSites,
-		TearDown:         mockCmdSystemTearDown,
+		SystemUninstall:          mockCmdSystemUninstall,
+		CheckActiveSites:         mockCmdSystemUninstallNoActiveSites,
+		TearDown:                 mockCmdSystemTearDown,
+		NetworkObserverUninstall: mockNetworkObserverUninstall,
 	}
 
 	if disableSocketFails {
@@ -250,3 +262,7 @@ func mockCmdSystemUninstallThereAreStillSites() (bool, error)    { return true, 
 func mockCmdSystemUninstallCheckActiveSitesFails() (bool, error) { return false, fmt.Errorf("error") }
 func mockCmdSystemUninstallNoActiveSites() (bool, error)         { return false, nil }
 func mockCmdSystemTearDown(string) error                         { return nil }
+func mockNetworkObserverUninstall(string) error                  { return nil }
+func mockNetworkObserverUninstallFails(string) error {
+	return fmt.Errorf("network observer uninstall failed")
+}

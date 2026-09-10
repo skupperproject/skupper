@@ -195,3 +195,11 @@ func GetSystemControllerPath() string {
 	dataHome := GetHostDataHome()
 	return path.Join(dataHome, "system-controller")
 }
+
+func GetHostPrometheusHome() string {
+	return getHostPath("prometheus")
+}
+
+func GetPrometheusTargetsDir() string {
+	return path.Join(GetHostPrometheusHome(), "targets")
+}

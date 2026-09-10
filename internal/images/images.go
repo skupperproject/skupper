@@ -10,7 +10,7 @@ const (
 	SystemControllerImageName string = "system-controller:v2-dev"
 
 	PrometheusImageRegistry   string = "quay.io/prometheus"
-	PrometheusServerImageName string = "prometheus:v2.42.0"
+	PrometheusServerImageName string = "prometheus:v3.11.3"
 	OauthProxyImageRegistry   string = "quay.io/openshift"
 	OauthProxyImageName       string = "origin-oauth-proxy:4.14.0"
 )
