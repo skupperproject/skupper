@@ -318,11 +318,7 @@ func (c *Collector) handleStoreDelete(e store.Entry) {
 }
 
 func (c *Collector) purge(source store.SourceRef) int {
-	matching := c.Records.Index(store.SourceIndex, store.Entry{Metadata: store.Metadata{Source: source}})
-	for _, record := range matching {
-		c.Records.Delete(record.Record.Identity())
-	}
-	return len(matching)
+	return c.Records.RemoveSource(source)
 }
 
 func (c *Collector) discoveryHandler(ctx context.Context) func(eventsource.Info) {

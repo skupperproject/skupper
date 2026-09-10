@@ -16,7 +16,60 @@ type Entry struct {
 type Metadata struct {
 	LastUpdate time.Time
 
+	// Source is the first source that asserted this record.
 	Source SourceRef
+	// Sources is the set of sources that have asserted this record.
+	Sources []SourceRef
+}
+
+func sourceRefEqual(a, b SourceRef) bool {
+	return a.ID == b.ID && a.Version == b.Version
+}
+
+func (m *Metadata) ensureSources() {
+	if len(m.Sources) == 0 && m.Source.ID != "" {
+		m.Sources = []SourceRef{m.Source}
+	}
+}
+
+func (m *Metadata) AddSource(source SourceRef) bool {
+	m.ensureSources()
+	for _, existing := range m.Sources {
+		if sourceRefEqual(existing, source) {
+			return false
+		}
+	}
+	m.Sources = append(m.Sources, source)
+	if m.Source.ID == "" {
+		m.Source = source
+	}
+	return true
+}
+
+func (m *Metadata) RemoveSource(source SourceRef) bool {
+	m.ensureSources()
+	for i, existing := range m.Sources {
+		if sourceRefEqual(existing, source) {
+			m.Sources = append(m.Sources[:i], m.Sources[i+1:]...)
+			if sourceRefEqual(m.Source, source) {
+				if len(m.Sources) > 0 {
+					m.Source = m.Sources[0]
+				} else {
+					m.Source = SourceRef{}
+				}
+			}
+			return true
+		}
+	}
+	return false
+}
+
+func newMetadata(source SourceRef) Metadata {
+	return Metadata{
+		LastUpdate: time.Now(),
+		Source:     source,
+		Sources:    []SourceRef{source},
+	}
 }
 
 // SourceRef identifies a record source
@@ -41,4 +94,8 @@ type Interface interface {
 	IndexValues(index string) []string
 
 	Replace([]Entry)
+
+	// RemoveSource detaches all records from the given source, deleting any
+	// that are no longer asserted by any source.
+	RemoveSource(source SourceRef) int
 }
