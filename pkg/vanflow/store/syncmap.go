@@ -32,6 +32,8 @@ type SyncMapStoreConfig struct {
 func NewSyncMapStore(cfg SyncMapStoreConfig) Interface {
 	if cfg.Indexers == nil {
 		cfg.Indexers = defaultIndexers()
+	} else if cfg.Indexers[SourceIndex] == nil {
+		cfg.Indexers[SourceIndex] = SourceIndexer
 	}
 	return &syncMapStore{
 		indexers:      cfg.Indexers,
@@ -40,6 +42,11 @@ func NewSyncMapStore(cfg SyncMapStoreConfig) Interface {
 		items:   make(map[string]Entry),
 		indices: make(map[string]map[string]keySet),
 	}
+}
+
+func cloneEntry(entry Entry) Entry {
+	entry.Sources = append([]SourceRef(nil), entry.Sources...)
+	return entry
 }
 
 func (m *syncMapStore) Add(record vanflow.Record, source SourceRef) bool {
@@ -57,8 +64,8 @@ func (m *syncMapStore) Add(record vanflow.Record, source SourceRef) bool {
 	m.mu.Lock()
 	if curr, exists := m.items[key]; exists {
 		entry = curr
-		if curr.Metadata.AddSource(source) {
-			prev = curr
+		prev = cloneEntry(curr)
+		if curr.AddSource(source) {
 			curr.LastUpdate = time.Now()
 			m.items[key] = curr
 			m.reindex(key, &prev, curr)
@@ -167,8 +174,8 @@ func (m *syncMapStore) Patch(record vanflow.Record, source SourceRef) {
 			}
 		}
 		if !changed {
-			if curr.Metadata.AddSource(source) {
-				prev = curr
+			prev = cloneEntry(curr)
+			if curr.AddSource(source) {
 				next = curr
 				next.LastUpdate = time.Now()
 				m.items[key] = next
@@ -178,8 +185,8 @@ func (m *syncMapStore) Patch(record vanflow.Record, source SourceRef) {
 			return prev, next, noChange, nil
 		}
 
-		curr.Metadata.AddSource(source)
-		prev = curr
+		prev = cloneEntry(curr)
+		curr.AddSource(source)
 		next = curr
 		patched, err := encoding.Decode(currAttrs)
 		next.Record = patched.(vanflow.Record)
@@ -274,12 +281,15 @@ func (m *syncMapStore) RemoveSource(source SourceRef) int {
 			}
 			for key := range keys {
 				curr, exists := m.items[key]
-				if !exists || !curr.Metadata.RemoveSource(source) {
+				if !exists {
+					continue
+				}
+				prev := cloneEntry(curr)
+				if !curr.RemoveSource(source) {
 					continue
 				}
 				count++
-				prev := curr
-				if len(curr.Metadata.Sources) == 0 {
+				if len(curr.Sources) == 0 {
 					delete(m.items, key)
 					m.unindex(key, prev)
 					deleted = append(deleted, prev)
