@@ -274,7 +274,7 @@ func (m *syncMapStore) RemoveSource(source SourceRef) int {
 		idx := m.indices[SourceIndex]
 		if idx != nil {
 			keys := make(keySet)
-			for _, indexVal := range indexer(Entry{Metadata: Metadata{Source: source, Sources: []SourceRef{source}}}) {
+			for _, indexVal := range indexer(Entry{Metadata: Metadata{Sources: []SourceRef{source}}}) {
 				for key := range idx[indexVal] {
 					keys.Add(key)
 				}
@@ -326,7 +326,6 @@ func (m *syncMapStore) Replace(items []Entry) {
 
 	entries := make(map[string]Entry, len(items))
 	for _, item := range items {
-		item.Metadata.ensureSources()
 		entries[item.Record.Identity()] = item
 	}
 	m.items = entries
@@ -403,9 +402,8 @@ func sourceIndexKey(source SourceRef) string {
 }
 
 func SourceIndexer(e Entry) []string {
-	e.Metadata.ensureSources()
-	keys := make([]string, 0, len(e.Metadata.Sources))
-	for _, source := range e.Metadata.Sources {
+	keys := make([]string, 0, len(e.Sources))
+	for _, source := range e.Sources {
 		keys = append(keys, sourceIndexKey(source))
 	}
 	return keys

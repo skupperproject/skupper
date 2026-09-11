@@ -1,6 +1,7 @@
 package store
 
 import (
+	"slices"
 	"time"
 
 	"github.com/skupperproject/skupper/pkg/vanflow"
@@ -16,8 +17,6 @@ type Entry struct {
 type Metadata struct {
 	LastUpdate time.Time
 
-	// Source is the first source that asserted this record.
-	Source SourceRef
 	// Sources is the set of sources that have asserted this record.
 	Sources []SourceRef
 }
@@ -26,48 +25,39 @@ func sourceRefEqual(a, b SourceRef) bool {
 	return a.ID == b.ID && a.Version == b.Version
 }
 
-func (m *Metadata) ensureSources() {
-	if len(m.Sources) == 0 && m.Source.ID != "" {
-		m.Sources = []SourceRef{m.Source}
-	}
-}
-
-func (m *Metadata) AddSource(source SourceRef) bool {
-	m.ensureSources()
+func (m Metadata) HasSource(source SourceRef) bool {
 	for _, existing := range m.Sources {
 		if sourceRefEqual(existing, source) {
-			return false
-		}
-	}
-	m.Sources = append(m.Sources, source)
-	if m.Source.ID == "" {
-		m.Source = source
-	}
-	return true
-}
-
-func (m *Metadata) RemoveSource(source SourceRef) bool {
-	m.ensureSources()
-	for i, existing := range m.Sources {
-		if sourceRefEqual(existing, source) {
-			m.Sources = append(m.Sources[:i], m.Sources[i+1:]...)
-			if sourceRefEqual(m.Source, source) {
-				if len(m.Sources) > 0 {
-					m.Source = m.Sources[0]
-				} else {
-					m.Source = SourceRef{}
-				}
-			}
 			return true
 		}
 	}
 	return false
 }
 
+func (m *Metadata) AddSource(source SourceRef) bool {
+	for _, existing := range m.Sources {
+		if sourceRefEqual(existing, source) {
+			return false
+		}
+	}
+	m.Sources = append(slices.Clone(m.Sources), source)
+	return true
+}
+
+func (m *Metadata) RemoveSource(source SourceRef) bool {
+	i := slices.IndexFunc(m.Sources, func(existing SourceRef) bool {
+		return sourceRefEqual(existing, source)
+	})
+	if i < 0 {
+		return false
+	}
+	m.Sources = slices.Delete(slices.Clone(m.Sources), i, i+1)
+	return true
+}
+
 func newMetadata(source SourceRef) Metadata {
 	return Metadata{
 		LastUpdate: time.Now(),
-		Source:     source,
 		Sources:    []SourceRef{source},
 	}
 }

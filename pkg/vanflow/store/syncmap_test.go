@@ -199,7 +199,7 @@ func TestSyncMapStoreIndex(t *testing.T) {
 
 	stor.(*syncMapStore).Replace(initialState)
 
-	items := stor.Index(SourceIndex, Entry{Metadata: Metadata{Source: SourceRef{ID: "dne"}}})
+	items := stor.Index(SourceIndex, Entry{Metadata: Metadata{Sources: []SourceRef{{ID: "dne"}}}})
 	if expected, actual := 0, len(items); expected != actual {
 		t.Errorf("expected %d entries for source 'dne' but got %d", expected, actual)
 	}
@@ -209,12 +209,12 @@ func TestSyncMapStoreIndex(t *testing.T) {
 		t.Errorf("expected type index to return all log records: %s", cmp.Diff(expected, actual, ignoreLastUpdateAndOrder...))
 	}
 
-	items = stor.Index("IndexDoesNotExist", Entry{Metadata: Metadata{Source: SourceRef{ID: "1"}}})
+	items = stor.Index("IndexDoesNotExist", Entry{Metadata: Metadata{Sources: []SourceRef{{ID: "1"}}}})
 	if expected, actual := 0, len(items); expected != actual {
 		t.Errorf("expected %d entries for source '1' but got %d", expected, actual)
 	}
 
-	items = stor.Index(SourceIndex, Entry{Metadata: Metadata{Source: SourceRef{ID: "7"}}})
+	items = stor.Index(SourceIndex, Entry{Metadata: Metadata{Sources: []SourceRef{{ID: "7"}}}})
 	if expected, actual := 128, len(items); expected != actual {
 		t.Errorf("expected %d entries for source '7' but got %d", expected, actual)
 	}
@@ -224,7 +224,7 @@ func TestSyncMapStoreIndex(t *testing.T) {
 		t.Fatalf("expected delete to succeed")
 	}
 
-	items = stor.Index(SourceIndex, Entry{Metadata: Metadata{Source: SourceRef{ID: "7"}}})
+	items = stor.Index(SourceIndex, Entry{Metadata: Metadata{Sources: []SourceRef{{ID: "7"}}}})
 	if expected, actual := 127, len(items); expected != actual {
 		t.Errorf("expected %d entries for source '7' after deleting one but got %d", expected, actual)
 	}
@@ -232,7 +232,28 @@ func TestSyncMapStoreIndex(t *testing.T) {
 }
 
 func metadata(source SourceRef) Metadata {
-	return Metadata{Source: source, Sources: []SourceRef{source}}
+	return Metadata{Sources: []SourceRef{source}}
+}
+
+func TestMetadataSourceMutationDoesNotAffectCallerCopy(t *testing.T) {
+	sourceA := SourceRef{ID: "router-a", Version: "0"}
+	sourceB := SourceRef{ID: "router-b", Version: "0"}
+	meta := Metadata{Sources: []SourceRef{sourceA, sourceB}}
+	callerCopy := meta
+
+	if !meta.RemoveSource(sourceA) {
+		t.Fatal("expected RemoveSource to succeed")
+	}
+	if len(callerCopy.Sources) != 2 {
+		t.Fatalf("RemoveSource mutated caller copy: %#v", callerCopy.Sources)
+	}
+
+	if !meta.AddSource(sourceA) {
+		t.Fatal("expected AddSource to succeed")
+	}
+	if len(callerCopy.Sources) != 2 {
+		t.Fatalf("AddSource mutated caller copy: %#v", callerCopy.Sources)
+	}
 }
 
 func TestSyncMapStoreAddSourceUpdatesIndexAndCallbacks(t *testing.T) {
@@ -247,23 +268,20 @@ func TestSyncMapStoreAddSourceUpdatesIndexAndCallbacks(t *testing.T) {
 	storWithHandlers.Add(site, sourceA)
 	storWithHandlers.Add(site, sourceB)
 
-	if items := storWithHandlers.Index(SourceIndex, Entry{Metadata: Metadata{Source: sourceA}}); len(items) != 1 {
+	if items := storWithHandlers.Index(SourceIndex, Entry{Metadata: Metadata{Sources: []SourceRef{sourceA}}}); len(items) != 1 {
 		t.Fatalf("expected source A index to contain site record, got %d entries", len(items))
 	}
-	if items := storWithHandlers.Index(SourceIndex, Entry{Metadata: Metadata{Source: sourceB}}); len(items) != 1 {
+	if items := storWithHandlers.Index(SourceIndex, Entry{Metadata: Metadata{Sources: []SourceRef{sourceB}}}); len(items) != 1 {
 		t.Fatalf("expected source B index to contain site record, got %d entries", len(items))
 	}
 
 	expectedPrev := Entry{
 		Record:   site,
-		Metadata: Metadata{Source: sourceA, Sources: []SourceRef{sourceA}},
+		Metadata: Metadata{Sources: []SourceRef{sourceA}},
 	}
 	expectedNext := Entry{
-		Record: site,
-		Metadata: Metadata{
-			Source:  sourceA,
-			Sources: []SourceRef{sourceA, sourceB},
-		},
+		Record:   site,
+		Metadata: Metadata{Sources: []SourceRef{sourceA, sourceB}},
 	}
 	if len(changes) != 2 {
 		t.Fatalf("expected one OnChange callback, got %d entries", len(changes))
@@ -278,10 +296,10 @@ func TestSyncMapStoreAddSourceUpdatesIndexAndCallbacks(t *testing.T) {
 	if removed := storWithHandlers.RemoveSource(sourceA); removed != 1 {
 		t.Fatalf("expected 1 record updated, got %d", removed)
 	}
-	if items := storWithHandlers.Index(SourceIndex, Entry{Metadata: Metadata{Source: sourceA}}); len(items) != 0 {
+	if items := storWithHandlers.Index(SourceIndex, Entry{Metadata: Metadata{Sources: []SourceRef{sourceA}}}); len(items) != 0 {
 		t.Fatalf("expected source A index to be empty after removal, got %d entries", len(items))
 	}
-	if items := storWithHandlers.Index(SourceIndex, Entry{Metadata: Metadata{Source: sourceB}}); len(items) != 1 {
+	if items := storWithHandlers.Index(SourceIndex, Entry{Metadata: Metadata{Sources: []SourceRef{sourceB}}}); len(items) != 1 {
 		t.Fatalf("expected source B index to still contain site record, got %d entries", len(items))
 	}
 }

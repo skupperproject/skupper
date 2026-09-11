@@ -155,7 +155,7 @@ func (m *processManager) run(ctx context.Context) func() error {
 								)
 								for _, procID := range procIDs {
 									if procEntry, ok := m.stor.Get(procID); ok {
-										if procEntry.Source == m.source {
+										if procEntry.HasSource(m.source) {
 											toDelete = procID
 										} else {
 											replacedBy = procID
@@ -176,7 +176,7 @@ func (m *processManager) run(ctx context.Context) func() error {
 							}
 						}
 						for _, proc := range processes {
-							if proc.Source == m.source {
+							if proc.HasSource(m.source) {
 								_, ok := actualProcessHosts[proc.Record.Identity()]
 								if ok {
 									continue
