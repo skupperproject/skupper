@@ -88,4 +88,9 @@ type Interface interface {
 	// RemoveSource detaches all records from the given source, deleting any
 	// that are no longer asserted by any source.
 	RemoveSource(source SourceRef) int
+
+	// DetachSource removes source from the record identified by id. The record
+	// is deleted only when no sources remain. Returns the entry state before
+	// the operation and whether the source was detached.
+	DetachSource(id string, source SourceRef) (Entry, bool)
 }

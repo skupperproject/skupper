@@ -320,6 +320,34 @@ func TestSyncMapStoreRemoveSourceWithoutSourceIndexer(t *testing.T) {
 	}
 }
 
+func TestSyncMapStoreDetachSourceKeepsRecordForOtherSources(t *testing.T) {
+	stor := NewSyncMapStore(SyncMapStoreConfig{})
+	sourceA := SourceRef{ID: "router-a", Version: "0"}
+	sourceB := SourceRef{ID: "router-b", Version: "0"}
+	site := vanflow.SiteRecord{BaseRecord: vanflow.NewBase("site-id")}
+
+	stor.Add(site, sourceA)
+	stor.Patch(site, sourceB)
+
+	if _, detached := stor.DetachSource("site-id", sourceA); !detached {
+		t.Fatal("expected DetachSource to detach source A")
+	}
+	entry, ok := stor.Get("site-id")
+	if !ok {
+		t.Fatal("site record should still exist")
+	}
+	if len(entry.Sources) != 1 || entry.Sources[0] != sourceB {
+		t.Fatalf("expected source B to remain, got %#v", entry.Sources)
+	}
+
+	if _, detached := stor.DetachSource("site-id", sourceB); !detached {
+		t.Fatal("expected DetachSource to detach source B")
+	}
+	if _, ok := stor.Get("site-id"); ok {
+		t.Fatal("site record should be deleted after last source detached")
+	}
+}
+
 func TestSyncMapStoreRemoveSourceKeepsRecordForOtherSources(t *testing.T) {
 	stor := NewSyncMapStore(SyncMapStoreConfig{})
 	sourceA := SourceRef{ID: "router-a", Version: "0"}

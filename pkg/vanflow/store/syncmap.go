@@ -260,6 +260,46 @@ func (m *syncMapStore) IndexValues(index string) []string {
 	return values
 }
 
+func (m *syncMapStore) detachSourceLocked(key string, source SourceRef) (prev Entry, next Entry, detached bool, deleted bool) {
+	curr, exists := m.items[key]
+	if !exists {
+		return prev, next, false, false
+	}
+	prev = cloneEntry(curr)
+	if !curr.RemoveSource(source) {
+		return prev, next, false, false
+	}
+	if len(curr.Sources) == 0 {
+		delete(m.items, key)
+		m.unindex(key, prev)
+		return prev, next, true, true
+	}
+	curr.LastUpdate = time.Now()
+	m.items[key] = curr
+	m.reindex(key, &prev, curr)
+	return prev, curr, true, false
+}
+
+func (m *syncMapStore) DetachSource(id string, source SourceRef) (Entry, bool) {
+	m.mu.Lock()
+	prev, next, detached, deleted := m.detachSourceLocked(id, source)
+	m.mu.Unlock()
+
+	if !detached {
+		return prev, false
+	}
+	if deleted {
+		if m.eventHandlers.OnDelete != nil {
+			m.eventHandlers.OnDelete(prev)
+		}
+		return prev, true
+	}
+	if m.eventHandlers.OnChange != nil {
+		m.eventHandlers.OnChange(prev, next)
+	}
+	return prev, true
+}
+
 func (m *syncMapStore) RemoveSource(source SourceRef) int {
 	var deleted []Entry
 	var changed []struct {
@@ -280,28 +320,19 @@ func (m *syncMapStore) RemoveSource(source SourceRef) int {
 				}
 			}
 			for key := range keys {
-				curr, exists := m.items[key]
-				if !exists {
-					continue
-				}
-				prev := cloneEntry(curr)
-				if !curr.RemoveSource(source) {
+				prev, next, detached, recordDeleted := m.detachSourceLocked(key, source)
+				if !detached {
 					continue
 				}
 				count++
-				if len(curr.Sources) == 0 {
-					delete(m.items, key)
-					m.unindex(key, prev)
+				if recordDeleted {
 					deleted = append(deleted, prev)
 					continue
 				}
-				curr.LastUpdate = time.Now()
-				m.items[key] = curr
-				m.reindex(key, &prev, curr)
 				changed = append(changed, struct {
 					prev Entry
 					next Entry
-				}{prev: prev, next: curr})
+				}{prev: prev, next: next})
 			}
 		}
 	}

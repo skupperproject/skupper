@@ -171,7 +171,7 @@ func (m *processManager) run(ctx context.Context) func() error {
 										slog.String("host", host),
 										slog.String("replaced_by", replacedBy),
 									)
-									m.stor.Delete(toDelete)
+									m.stor.DetachSource(toDelete, m.source)
 								}
 							}
 						}
@@ -181,7 +181,7 @@ func (m *processManager) run(ctx context.Context) func() error {
 								if ok {
 									continue
 								}
-								if _, deleted := m.stor.Delete(proc.Record.Identity()); deleted {
+								if _, detached := m.stor.DetachSource(proc.Record.Identity(), m.source); detached {
 									m.logger.Info("Deleting site server process with no connectors",
 										slog.String("id", proc.Record.Identity()),
 										slog.String("site_id", siteID),
