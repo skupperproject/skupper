@@ -292,12 +292,18 @@ jobs:
           name: Cluster East
           command: |
             set -x
+            IMAGE_TAG=$(make -s print-IMAGE_TAG) \
+            SKUPPER_ROUTER_IMAGE_TAG=$(make -s print-ROUTER_IMAGE_TAG) \
+            REGISTRY=$(make -s print-REGISTRY) \
             KUBECONFIG=~/kc.east ./scripts/kind-dev-cluster -n east \
               --images ociarchive
       - run:
           name: Cluster West
           command: |
             set -x
+            IMAGE_TAG=$(make -s print-IMAGE_TAG) \
+            SKUPPER_ROUTER_IMAGE_TAG=$(make -s print-ROUTER_IMAGE_TAG) \
+            REGISTRY=$(make -s print-REGISTRY) \
             KUBECONFIG=~/kc.west ./scripts/kind-dev-cluster -n west  \
               --images ociarchive
       - run:
