@@ -77,6 +77,7 @@ type Container struct {
 	MaxMemoryBytes int64
 	RestartCount   int
 	Running        bool
+	State          string
 	CreatedAt      time.Time
 	StartedAt      time.Time
 	ExitedAt       time.Time

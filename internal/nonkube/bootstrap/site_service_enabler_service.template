@@ -1,0 +1,12 @@
+[Unit]
+Description=Skupper site service enabler
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{.ScriptPath}}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy={{.WantedBy}}

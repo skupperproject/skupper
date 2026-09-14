@@ -43,6 +43,7 @@ func (c *CompatClient) ContainerList() ([]*container.Container, error) {
 			FileMounts: make([]container.FileMount, 0),
 			Ports:      make([]container.Port, 0),
 			Command:    []string{cMap["Command"].(string)},
+			State:      cMap["State"].(string),
 			Running:    cMap["State"].(string) == "running",
 			CreatedAt:  time.Unix(jsonNumberAsInt(cMap["Created"]), 0),
 		}
@@ -216,6 +217,7 @@ func FromInspectContainer(c *containers_compat.ContainerInspectOKBody) *containe
 	// State info
 	if c.State != nil {
 		ct.Running = c.State.Running
+		ct.State = c.State.Status
 		startedAt, _ := time.Parse(time.RFC3339, c.State.StartedAt)
 		exitedAt, _ := time.Parse(time.RFC3339, c.State.FinishedAt)
 		ct.StartedAt = startedAt

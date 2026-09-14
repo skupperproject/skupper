@@ -22,17 +22,17 @@ func Uninstall(platform string) error {
 
 	containerName := fmt.Sprintf("%s-skupper-controller", currentUser.Username)
 
-	isContainerAlreadyRunningInPodman := IsContainerRunning(containerName, types.PlatformPodman)
+	foundInPodman, podmanState := FindContainer(containerName, types.PlatformPodman)
 
-	if isContainerAlreadyRunningInPodman && platform == "docker" {
-		fmt.Printf("Warning: The system controller container %q is already running in Podman but the selected platform is Docker.\n", containerName)
+	if foundInPodman && platform == "docker" {
+		fmt.Printf("Warning: The system controller container %q is already present in Podman (state: %s) but the selected platform is Docker.\n", containerName, podmanState)
 		return nil
 	}
 
-	isContainerAlreadyRunningInDocker := IsContainerRunning(containerName, types.PlatformDocker)
+	foundInDocker, dockerState := FindContainer(containerName, types.PlatformDocker)
 
-	if isContainerAlreadyRunningInDocker && platform == "podman" {
-		fmt.Printf("Warning: The system controller container %q is already running in Docker but the selected platform is Podman.\n", containerName)
+	if foundInDocker && platform == "podman" {
+		fmt.Printf("Warning: The system controller container %q is already present in Docker (state: %s) but the selected platform is Podman.\n", containerName, dockerState)
 		return nil
 	}
 
@@ -71,6 +71,10 @@ func Uninstall(platform string) error {
 	}
 
 	systemdService.Remove()
+
+	if err := newSiteServiceEnablerInstaller().Remove(); err != nil {
+		return fmt.Errorf("failed to remove skupper site service enabler: %w", err)
+	}
 
 	fmt.Printf("Platform %s infrastructure for Skupper is now uninstalled\n", platform)
 
