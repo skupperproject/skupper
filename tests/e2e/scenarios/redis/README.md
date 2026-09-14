@@ -100,10 +100,10 @@ kubeconfig: "{{ kubeconfig_1 }}"
 namespace_name: redis-west
 
 # West CRs
-site: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/west-crs/site-west.yaml"
-connector: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/west-crs/connector-west.yaml"
-listener: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/west-crs/listener-west.yaml"
-redis: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/west-crs/redis-west.yaml"
+site: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/west-crs/site-west.yaml"
+connector: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/west-crs/connector-west.yaml"
+listener: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/west-crs/listener-west.yaml"
+redis: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/west-crs/redis-west.yaml"
 ```
 
 #### East Cluster (host_vars/east.yml)
@@ -117,10 +117,10 @@ kubeconfig: "{{ kubeconfig_2 }}"
 namespace_name: redis-east
 
 # East CRs
-site: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/east-crs/site-east.yaml"
-connector: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/east-crs/connector-east.yaml"
-listener: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/east-crs/listener-east.yaml"
-redis: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/east-crs/redis-east.yaml"
+site: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/east-crs/site-east.yaml"
+connector: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/east-crs/connector-east.yaml"
+listener: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/east-crs/listener-east.yaml"
+redis: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/east-crs/redis-east.yaml"
 ```
 
 #### North Cluster (host_vars/north.yml)
@@ -134,10 +134,10 @@ kubeconfig: "{{ kubeconfig_3 }}"
 namespace_name: redis-north
 
 # North CRs
-site: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/north-crs/site-north.yaml"
-connector: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/north-crs/connector-north.yaml"
-listener: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/north-crs/listener-north.yaml"
-redis: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/v2/north-crs/redis-north.yaml"
+site: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/north-crs/site-north.yaml"
+connector: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/north-crs/connector-north.yaml"
+listener: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/north-crs/listener-north.yaml"
+redis: "https://raw.githubusercontent.com/skupperproject/skupper-example-redis/refs/heads/main/north-crs/redis-north.yaml"
 ```
 
 ### Other Key Variables
