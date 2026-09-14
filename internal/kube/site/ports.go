@@ -1,9 +1,22 @@
 package site
 
 import (
+	"fmt"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
+
+// validateExposedHost checks that a host can be used as the name of the
+// Service through which it is exposed in the namespace.
+func validateExposedHost(host string) error {
+	if errs := validation.IsDNS1035Label(host); len(errs) > 0 {
+		return fmt.Errorf("Invalid host %q: %s", host, strings.Join(errs, "; "))
+	}
+	return nil
+}
 
 type Port struct {
 	Name       string

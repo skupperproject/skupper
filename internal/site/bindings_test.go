@@ -964,12 +964,14 @@ type TestBindingEventHandler struct {
 	connector events
 }
 
-func (h *TestBindingEventHandler) ListenerUpdated(listener *skupperv2alpha1.Listener) {
+func (h *TestBindingEventHandler) ListenerUpdated(listener *skupperv2alpha1.Listener) error {
 	h.listener.updated(listener.Name)
+	return nil
 }
 
-func (h *TestBindingEventHandler) ListenerDeleted(listener *skupperv2alpha1.Listener) {
+func (h *TestBindingEventHandler) ListenerDeleted(listener *skupperv2alpha1.Listener) error {
 	h.listener.deleted(listener.Name)
+	return nil
 }
 
 func (h *TestBindingEventHandler) ConnectorUpdated(connector *skupperv2alpha1.Connector) bool {

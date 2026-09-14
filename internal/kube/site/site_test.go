@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"maps"
+	"strings"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/kube/certificates"
@@ -19,6 +20,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -403,13 +405,13 @@ func TestSite_CheckListener(t *testing.T) {
 						RoutingKey: "backend",
 						Port:       8080,
 						Type:       "tcp",
-						Host:       "1.2.3.4",
+						Host:       "backend",
 					},
 				},
 				svcExists:       false,
 				leadListenersIn: map[string]string{},
 				leadListenersOut: map[string]string{
-					"listener1": "1.2.3.4/8080",
+					"listener1": "backend/8080",
 				},
 			},
 			skupperObjects: []runtime.Object{
@@ -771,6 +773,72 @@ func TestSite_CheckListener(t *testing.T) {
 			}
 		})
 	}
+}
+
+// a host that cannot be used as the name of the service exposing it must be
+// reported through the status of the listener, not just logged
+func TestSite_CheckListenerWithInvalidHost(t *testing.T) {
+	listener := &skupperv2alpha1.Listener{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "listener1",
+			Namespace: "test",
+		},
+		Spec: skupperv2alpha1.ListenerSpec{
+			RoutingKey: "backend",
+			Port:       8080,
+			Type:       "tcp",
+			Host:       "{name}",
+		},
+	}
+	s, err := newSiteMocks("test", nil, []runtime.Object{listener.DeepCopy()}, "", false)
+	assert.Assert(t, err)
+	s.initialised = true
+	assert.Assert(t, createRouterConfigMock(s))
+
+	assert.Assert(t, s.CheckListener(listener.Name, listener, false))
+
+	condition := meta.FindStatusCondition(listener.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
+	assert.Assert(t, condition != nil)
+	assert.Equal(t, condition.Status, metav1.ConditionFalse)
+	assert.Assert(t, strings.Contains(listener.Status.Message, "Invalid host"), listener.Status.Message)
+	assert.Equal(t, listener.Status.StatusType, skupperv2alpha1.StatusError)
+
+	// no service should have been created for the invalid host
+	_, err = s.clients.GetKubeClient().CoreV1().Services("test").Get(context.Background(), listener.Spec.Host, metav1.GetOptions{})
+	assert.Assert(t, errors.IsNotFound(err))
+}
+
+func TestSite_CheckMultiKeyListenerWithInvalidHost(t *testing.T) {
+	mkl := &skupperv2alpha1.MultiKeyListener{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "backend-tcp",
+			Namespace: "test",
+		},
+		Spec: skupperv2alpha1.MultiKeyListenerSpec{
+			Port: 8080,
+			Host: "{name}",
+			Strategy: skupperv2alpha1.MultiKeyListenerStrategy{
+				Weighted: &skupperv2alpha1.WeightedStrategySpec{
+					RoutingKeys: map[string]uint{"east-backend": 80},
+				},
+			},
+		},
+	}
+	s, err := newSiteMocks("test", nil, []runtime.Object{mkl.DeepCopy()}, "", false)
+	assert.Assert(t, err)
+	s.initialised = true
+	assert.Assert(t, createRouterConfigMock(s))
+
+	assert.Assert(t, s.CheckMultiKeyListener(mkl.Name, mkl))
+
+	condition := meta.FindStatusCondition(mkl.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
+	assert.Assert(t, condition != nil)
+	assert.Equal(t, condition.Status, metav1.ConditionFalse)
+	assert.Assert(t, strings.Contains(mkl.Status.Message, "Invalid host"), mkl.Status.Message)
+	assert.Equal(t, mkl.Status.StatusType, skupperv2alpha1.StatusError)
+
+	_, err = s.clients.GetKubeClient().CoreV1().Services("test").Get(context.Background(), mkl.Spec.Host, metav1.GetOptions{})
+	assert.Assert(t, errors.IsNotFound(err))
 }
 
 func TestSite_CheckConnector(t *testing.T) {

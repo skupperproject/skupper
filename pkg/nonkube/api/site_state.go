@@ -284,7 +284,7 @@ func (s *SiteState) bindings(sslProfileBasePath string) *site.Bindings {
 	}
 	for name, listener := range s.Listeners {
 		listener.SetConfigured(nil)
-		_ = b.UpdateListener(name, listener)
+		_, _ = b.UpdateListener(name, listener)
 	}
 	for name, mkl := range s.MultiKeyListeners {
 		mkl.SetConfigured(nil)
