@@ -385,11 +385,7 @@ func (s *StatusSync) notify() {
 }
 
 func (s *StatusSync) purge(source store.SourceRef) int {
-	matching := s.records.Index(store.SourceIndex, store.Entry{Metadata: store.Metadata{Source: source}})
-	for _, record := range matching {
-		s.records.Delete(record.Record.Identity())
-	}
-	return len(matching)
+	return s.records.RemoveSource(source)
 }
 
 func (s *StatusSync) handleDiscovery(source eventsource.Info) {

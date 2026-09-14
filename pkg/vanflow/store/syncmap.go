@@ -32,6 +32,8 @@ type SyncMapStoreConfig struct {
 func NewSyncMapStore(cfg SyncMapStoreConfig) Interface {
 	if cfg.Indexers == nil {
 		cfg.Indexers = defaultIndexers()
+	} else if cfg.Indexers[SourceIndex] == nil {
+		cfg.Indexers[SourceIndex] = SourceIndexer
 	}
 	return &syncMapStore{
 		indexers:      cfg.Indexers,
@@ -42,30 +44,48 @@ func NewSyncMapStore(cfg SyncMapStoreConfig) Interface {
 	}
 }
 
+func cloneEntry(entry Entry) Entry {
+	entry.Sources = append([]SourceRef(nil), entry.Sources...)
+	return entry
+}
+
 func (m *syncMapStore) Add(record vanflow.Record, source SourceRef) bool {
+	var entry Entry
+	var added bool
+	var prev Entry
+	var sourceAdded bool
 
-	entry, ok := func() (Entry, bool) {
-		key := record.Identity()
+	key := record.Identity()
+	entry = Entry{
+		Metadata: newMetadata(source),
+		Record:   record,
+	}
 
-		entry := Entry{
-			Metadata: Metadata{LastUpdate: time.Now(), Source: source},
-			Record:   record,
+	m.mu.Lock()
+	if curr, exists := m.items[key]; exists {
+		entry = curr
+		prev = cloneEntry(curr)
+		if curr.AddSource(source) {
+			curr.LastUpdate = time.Now()
+			m.items[key] = curr
+			m.reindex(key, &prev, curr)
+			entry = curr
+			sourceAdded = true
 		}
-
-		m.mu.Lock()
-		defer m.mu.Unlock()
-		if _, exists := m.items[key]; exists {
-			return entry, false
-		}
+	} else {
 		m.items[key] = entry
 		m.reindex(key, nil, entry)
-		return entry, true
-	}()
+		added = true
+	}
+	m.mu.Unlock()
 
-	if ok && m.eventHandlers.OnAdd != nil {
+	if added && m.eventHandlers.OnAdd != nil {
 		m.eventHandlers.OnAdd(entry)
 	}
-	return ok
+	if sourceAdded && m.eventHandlers.OnChange != nil {
+		m.eventHandlers.OnChange(prev, entry)
+	}
+	return added
 }
 
 func (m *syncMapStore) Update(record vanflow.Record) bool {
@@ -154,10 +174,19 @@ func (m *syncMapStore) Patch(record vanflow.Record, source SourceRef) {
 			}
 		}
 		if !changed {
+			prev = cloneEntry(curr)
+			if curr.AddSource(source) {
+				next = curr
+				next.LastUpdate = time.Now()
+				m.items[key] = next
+				m.reindex(key, &prev, next)
+				return prev, next, ok, nil
+			}
 			return prev, next, noChange, nil
 		}
 
-		prev = curr
+		prev = cloneEntry(curr)
+		curr.AddSource(source)
 		next = curr
 		patched, err := encoding.Decode(currAttrs)
 		next.Record = patched.(vanflow.Record)
@@ -229,6 +258,97 @@ func (m *syncMapStore) IndexValues(index string) []string {
 		values = append(values, val)
 	}
 	return values
+}
+
+func (m *syncMapStore) detachSourceLocked(key string, source SourceRef) (prev Entry, next Entry, detached bool, deleted bool) {
+	curr, exists := m.items[key]
+	if !exists {
+		return prev, next, false, false
+	}
+	prev = cloneEntry(curr)
+	if !curr.RemoveSource(source) {
+		return prev, next, false, false
+	}
+	if len(curr.Sources) == 0 {
+		delete(m.items, key)
+		m.unindex(key, prev)
+		return prev, next, true, true
+	}
+	curr.LastUpdate = time.Now()
+	m.items[key] = curr
+	m.reindex(key, &prev, curr)
+	return prev, curr, true, false
+}
+
+func (m *syncMapStore) DetachSource(id string, source SourceRef) (Entry, bool) {
+	m.mu.Lock()
+	prev, next, detached, deleted := m.detachSourceLocked(id, source)
+	m.mu.Unlock()
+
+	if !detached {
+		return prev, false
+	}
+	if deleted {
+		if m.eventHandlers.OnDelete != nil {
+			m.eventHandlers.OnDelete(prev)
+		}
+		return prev, true
+	}
+	if m.eventHandlers.OnChange != nil {
+		m.eventHandlers.OnChange(prev, next)
+	}
+	return prev, true
+}
+
+func (m *syncMapStore) RemoveSource(source SourceRef) int {
+	var deleted []Entry
+	var changed []struct {
+		prev Entry
+		next Entry
+	}
+	count := 0
+
+	m.mu.Lock()
+	indexer := m.indexers[SourceIndex]
+	if indexer != nil {
+		idx := m.indices[SourceIndex]
+		if idx != nil {
+			keys := make(keySet)
+			for _, indexVal := range indexer(Entry{Metadata: Metadata{Sources: []SourceRef{source}}}) {
+				for key := range idx[indexVal] {
+					keys.Add(key)
+				}
+			}
+			for key := range keys {
+				prev, next, detached, recordDeleted := m.detachSourceLocked(key, source)
+				if !detached {
+					continue
+				}
+				count++
+				if recordDeleted {
+					deleted = append(deleted, prev)
+					continue
+				}
+				changed = append(changed, struct {
+					prev Entry
+					next Entry
+				}{prev: prev, next: next})
+			}
+		}
+	}
+	m.mu.Unlock()
+
+	for _, entry := range deleted {
+		if m.eventHandlers.OnDelete != nil {
+			m.eventHandlers.OnDelete(entry)
+		}
+	}
+	for _, update := range changed {
+		if m.eventHandlers.OnChange != nil {
+			m.eventHandlers.OnChange(update.prev, update.next)
+		}
+	}
+	return count
 }
 
 func (m *syncMapStore) Replace(items []Entry) {
@@ -308,8 +428,16 @@ const (
 	TypeIndex   = "ByType"
 )
 
+func sourceIndexKey(source SourceRef) string {
+	return fmt.Sprintf("%s/%s", source.Version, source.ID)
+}
+
 func SourceIndexer(e Entry) []string {
-	return []string{fmt.Sprintf("%s/%s", e.Source.Version, e.Metadata.Source.ID)}
+	keys := make([]string, 0, len(e.Sources))
+	for _, source := range e.Sources {
+		keys = append(keys, sourceIndexKey(source))
+	}
+	return keys
 }
 func TypeIndexer(e Entry) []string {
 	return []string{e.Record.GetTypeMeta().String()}
