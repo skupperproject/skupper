@@ -222,6 +222,9 @@ generate-network-observer-devel:
 		--set extraArgs={"-cors-allow-all"} \
 		--set skipManagementLabels=true > skupper-network-observer-devel.yaml
 
+print-%:
+	@echo $($*)
+
 clean:
 	rm -rf skupper controller kube-adaptor \
 		network-observer generate-doc \
