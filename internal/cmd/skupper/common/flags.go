@@ -266,6 +266,11 @@ type CommandVersionFlags struct {
 type CommandDebugFlags struct {
 }
 
+type CommandDebugCertFlags struct {
+	Output string
+	File   string
+}
+
 type CommandConnSweeperFlags struct {
 	IdleThreshold int
 	Execute       bool
