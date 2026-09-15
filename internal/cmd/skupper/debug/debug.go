@@ -19,6 +19,7 @@ func NewCmdDebug() *cobra.Command {
 	}
 	platform := common.Platform(config.GetPlatform())
 	cmd.AddCommand(CmdDebugDumpFactory(platform))
+	cmd.AddCommand(CmdDebugCertFactory(platform))
 	cmd.AddCommand(CmdDebugSweepFactory(platform))
 
 	return cmd
@@ -55,6 +56,38 @@ skupper debug sweep --port 8080 --port 9090 --idle-threshold 14400 --execute`,
 	cmd.Flags().BoolVar(&cmdFlags.Execute, "execute", false, "Close the idle connections found; without this flag they are only listed")
 	cmd.Flags().BoolVar(&cmdFlags.ListPorts, "list-ports", false, "List each port in use with its inbound and outbound connection counts, instead of sweeping")
 	cmd.Flags().IntSliceVar(&cmdFlags.Ports, "port", nil, "Only consider connections on this port; repeat the flag for several ports (default: all ports)")
+
+	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
+	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
+
+	return cmd
+}
+
+func CmdDebugCertFactory(configuredPlatform common.Platform) *cobra.Command {
+	kubeCommand := kube.NewCmdDebugCert()
+	nonKubeCommand := nonkube.NewCmdDebugCert()
+
+	cmdDesc := common.SkupperCmdDescription{
+		Use:   "cert [name]",
+		Short: "Inspect X.509 certificates in use by Skupper",
+		Long: `Decode and display key fields of X.509 certificates managed by Skupper,
+including subject, issuer, validity period, SANs, and public key information.
+
+Without a name, all certificates in the namespace are listed. With a name,
+detailed information for that certificate is shown.`,
+		Example: `skupper debug cert
+skupper debug cert skupper-local-server
+skupper debug cert --file /path/to/tls.crt
+skupper debug cert -o yaml`,
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdDesc, kubeCommand, nonKubeCommand)
+
+	cmdFlags := common.CommandDebugCertFlags{}
+	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
+	cmd.Flags().StringVar(&cmdFlags.File, "file", "", "Inspect a local PEM-encoded certificate file")
 
 	kubeCommand.CobraCmd = cmd
 	kubeCommand.Flags = &cmdFlags
