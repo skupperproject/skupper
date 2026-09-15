@@ -4,6 +4,7 @@ package kubecontrollertest
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"strings"
 	"testing"
 	"time"
@@ -68,6 +69,8 @@ func TestSiteWithListener(t *testing.T) {
 	assert.Assert(t, strings.Contains(routerConfigData, "listener/mylistener"))
 }
 
+// TestListenerWithoutSite tries to make a Listener when no site has been defined.
+// If Skupper does not throw an appropriate error, the test fails.
 func TestListenerWithoutSite(t *testing.T) {
 	tc := setup(t)
 	namespace := "listener-no-site"
@@ -98,13 +101,10 @@ func TestListenerWithoutSite(t *testing.T) {
 	)
 }
 
+// TestTwoListeners makes two Listeners on a Site. It waits for both to show up,
+// then separately waits for the names of both listeners to show up in the Router
+// configmap. If either of those don't happen within the timeout, the test fails.
 func TestTwoListeners(t *testing.T) {
-
-	// In this test we wait for the Services corresponding to both Listeners to show up,
-	// and also separately wait for the names of both listeners to show up in the Router configmap.
-	// (Don't assume that the Config is ready just because the Services are.)
-	// If either of those don't happen within the timeout, the test fails.
-
 	tc := setup(t)
 	namespace := "multiple-listeners"
 	tc.createNamespace(namespace)
@@ -165,11 +165,11 @@ func TestTwoListeners(t *testing.T) {
 	assert.Equal(t, svcB.Labels["internal.skupper.io/listener"], "listener-b")
 }
 
+// TestListenerCreateDeleteStorm repeatedly creates and then deletes the same
+// Listener, as rapidly as possible, making sure to end up with a creation having
+// been the last command. It confirms that we do end up with a Listener,
+// its associated Service, and a reference to it in the Router Config.
 func TestListenerCreateDeleteStorm(t *testing.T) {
-	// What will happen if we rapidly create and then delete
-	// a Listener, with a create being the last thing we do?
-	// It should end up with a Listener, its Service,
-	// and a reference to it in the Router Config.
 	tc := setup(t)
 	namespace := "listener-storm"
 	tc.createNamespace(namespace)
@@ -239,4 +239,160 @@ func TestListenerCreateDeleteStorm(t *testing.T) {
 	routerConfig, err := tc.clients.GetKubeClient().CoreV1().ConfigMaps(namespace).Get(ctx, "skupper-router", metav1.GetOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, strings.Contains(routerConfig.Data[types.TransportConfigFile], "listener/"+listenerName))
+}
+
+// TestIdenticalListenerFailover checks that when two Listeners are identical
+// except for their names, only the first one is used, but if the first one
+// then goes away, the second one takes over.
+// Do this without assuming that the first Listener called for will necessarily
+// be the one that gets the binding.
+func TestIdenticalListenerFailover(t *testing.T) {
+	tc := setup(t)
+	namespace := "identical-listener-failover"
+	tc.createNamespace(namespace)
+
+	ctx := context.Background()
+
+	_, err := tc.clients.GetSkupperClient().SkupperV2alpha1().Sites(namespace).Create(ctx, fixtures.Site("mysite", namespace), metav1.CreateOptions{})
+	assert.NilError(t, err)
+
+	// Make Listeners A and B
+	a := listenerWithHostPort("listener-a", namespace, "shared-svc", 8080)
+	a.Spec.RoutingKey = "shared-key"
+	b := listenerWithHostPort("listener-b", namespace, "shared-svc", 8080)
+	b.Spec.RoutingKey = "shared-key"
+
+	_, err = tc.clients.GetSkupperClient().SkupperV2alpha1().Listeners(namespace).Create(ctx, a, metav1.CreateOptions{})
+	assert.NilError(t, err)
+	_, err = tc.clients.GetSkupperClient().SkupperV2alpha1().Listeners(namespace).Create(ctx, b, metav1.CreateOptions{})
+	assert.NilError(t, err)
+
+	// Don't assume that it must be Listener A that is the owner of the Service,
+	// and Listener B that got the "already exists" error.
+	// Figure out explicitly who was the winner and who was the loser.
+	var owner, standby string
+	waitFor(t, 30*time.Second, 250*time.Millisecond, func() (bool, error) {
+
+		// Get both Listeners so we can look at their status messages.
+		la, err := tc.clients.GetSkupperClient().SkupperV2alpha1().Listeners(namespace).Get(ctx, "listener-a", metav1.GetOptions{})
+		if done, err := retryOnNotFound(err); !done {
+			return false, err
+		}
+		lb, err := tc.clients.GetSkupperClient().SkupperV2alpha1().Listeners(namespace).Get(ctx, "listener-b", metav1.GetOptions{})
+		if done, err := retryOnNotFound(err); !done {
+			return false, err
+		}
+
+		// Get the Service and the Router Config so we can
+		// see which Listener got the binding.
+		svc, err := tc.clients.GetKubeClient().CoreV1().Services(namespace).Get(ctx, "shared-svc", metav1.GetOptions{})
+		if done, err := retryOnNotFound(err); !done {
+			return false, err
+		}
+		routerConfig, err := tc.clients.GetKubeClient().CoreV1().ConfigMaps(namespace).Get(ctx, "skupper-router", metav1.GetOptions{})
+		if done, err := retryOnNotFound(err); !done {
+			return false, err
+		}
+		cfg := routerConfig.Data[types.TransportConfigFile]
+		svcOwner := svc.Labels["internal.skupper.io/listener"]
+
+		a_is_the_loser := la.Status.StatusType == skupperv2alpha1.StatusError && strings.Contains(la.Status.Message, "already exists")
+		b_is_the_loser := lb.Status.StatusType == skupperv2alpha1.StatusError && strings.Contains(lb.Status.Message, "already exists")
+
+		// The owner is whoever the Service and Router Config both point at.
+		// And also the non-owner must be the one with the conflict Error.
+		switch {
+		case svcOwner == "listener-a" && strings.Contains(cfg, "listener/listener-a") &&
+			!strings.Contains(cfg, "listener/listener-b") && b_is_the_loser && !a_is_the_loser:
+			owner, standby = "listener-a", "listener-b"
+			return true, nil
+		case svcOwner == "listener-b" && strings.Contains(cfg, "listener/listener-b") &&
+			!strings.Contains(cfg, "listener/listener-a") && a_is_the_loser && !b_is_the_loser:
+			owner, standby = "listener-b", "listener-a"
+			return true, nil
+		default:
+			return false, nil
+		}
+	})
+
+	// Now we know which Listener actually got the binding.
+	t.Logf("initial owner=%s standby=%s", owner, standby)
+
+	// Delete the owning Listener, and then
+	// wait to see the Not Found error.
+	err = tc.clients.GetSkupperClient().SkupperV2alpha1().Listeners(namespace).Delete(ctx, owner, metav1.DeleteOptions{})
+	assert.NilError(t, err)
+
+	waitFor(t, 30*time.Second, 250*time.Millisecond, func() (bool, error) {
+		_, err := tc.clients.GetSkupperClient().SkupperV2alpha1().Listeners(namespace).Get(ctx, owner, metav1.GetOptions{})
+		if errors.IsNotFound(err) {
+			return true, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		return false, nil
+	})
+	t.Logf("deleted owner=%s", owner)
+
+	var remaining *skupperv2alpha1.Listener
+	waitFor(t, 60*time.Second, 250*time.Millisecond, func() (bool, error) {
+		var err error
+		remaining, err = tc.clients.GetSkupperClient().SkupperV2alpha1().Listeners(namespace).Get(ctx, standby, metav1.GetOptions{})
+		if done, err := retryOnNotFound(err); !done {
+			// This should never happen. It was already there. But just in case.
+			return false, err
+		}
+
+		// This is the leftover error from when this Listener was
+		// the loser and got the "Already Exists" error.
+		// This might take quite a while (like 25 seconds)
+		// to clear.
+		if remaining.Status.StatusType == skupperv2alpha1.StatusError &&
+			strings.Contains(remaining.Status.Message, "already exists") {
+			return false, nil
+		}
+
+		// Keep waiting until we get the Service,
+		// and it shows the standby Listener name as its Listener.
+		svc, err := tc.clients.GetKubeClient().CoreV1().Services(namespace).Get(ctx, "shared-svc", metav1.GetOptions{})
+		if done, err := retryOnNotFound(err); !done {
+			return false, err
+		}
+		if svc.Labels["internal.skupper.io/listener"] != standby {
+			return false, nil
+		}
+
+		// Keep waiting until we get the Router Config, and it
+		// contains the name of what was the standby Listener,
+		// and no longer contains the name of the original winning Listener.
+		routerConfig, err := tc.clients.GetKubeClient().CoreV1().ConfigMaps(namespace).Get(ctx, "skupper-router", metav1.GetOptions{})
+		if done, err := retryOnNotFound(err); !done {
+			return false, err
+		}
+		cfg := routerConfig.Data[types.TransportConfigFile]
+		return strings.Contains(cfg, "listener/"+standby) &&
+			!strings.Contains(cfg, "listener/"+owner), nil
+	})
+	t.Logf("failover complete: %s status=%q message=%q", standby, remaining.Status.StatusType, remaining.Status.Message)
+
+	// Final state: the former standby is now active.
+	// Pending/Not Matched is an OK state, because there is no Connector.
+	assert.Assert(t, remaining.Status.StatusType != skupperv2alpha1.StatusError ||
+		!strings.Contains(remaining.Status.Message, "already exists"))
+	configured := meta.FindStatusCondition(remaining.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
+	assert.Assert(t, configured != nil)
+	assert.Equal(t, configured.Status, metav1.ConditionTrue)
+
+	svc, err := tc.clients.GetKubeClient().CoreV1().Services(namespace).Get(ctx, "shared-svc", metav1.GetOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, svc.Labels["internal.skupper.io/listener"], standby)
+	assert.Equal(t, len(svc.Spec.Ports), 1)
+	assert.Equal(t, svc.Spec.Ports[0].Port, int32(8080))
+
+	routerConfig, err := tc.clients.GetKubeClient().CoreV1().ConfigMaps(namespace).Get(ctx, "skupper-router", metav1.GetOptions{})
+	assert.NilError(t, err)
+	cfg := routerConfig.Data[types.TransportConfigFile]
+	assert.Assert(t, strings.Contains(cfg, "listener/"+standby))
+	assert.Assert(t, !strings.Contains(cfg, "listener/"+owner))
 }
