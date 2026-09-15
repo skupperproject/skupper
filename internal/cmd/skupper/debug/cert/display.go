@@ -25,6 +25,8 @@ type Info struct {
 	NotAfter           string   `json:"notAfter"`
 	DNSNames           []string `json:"dnsNames,omitempty"`
 	IPAddresses        []string `json:"ipAddresses,omitempty"`
+	EmailAddresses     []string `json:"emailAddresses,omitempty"`
+	URIs               []string `json:"uris,omitempty"`
 	IsCA               bool     `json:"isCA"`
 	PublicKeyAlgorithm string   `json:"publicKeyAlgorithm"`
 	PublicKeySize      int      `json:"publicKeySize"`
@@ -55,6 +57,10 @@ func certToInfo(name string, cert *x509.Certificate) *Info {
 	for i, ip := range cert.IPAddresses {
 		ips[i] = ip.String()
 	}
+	uris := make([]string, len(cert.URIs))
+	for i, uri := range cert.URIs {
+		uris[i] = uri.String()
+	}
 	return &Info{
 		Name:               name,
 		Subject:            formatName(cert.Subject),
@@ -64,6 +70,8 @@ func certToInfo(name string, cert *x509.Certificate) *Info {
 		NotAfter:           cert.NotAfter.Format(time.RFC3339),
 		DNSNames:           cert.DNSNames,
 		IPAddresses:        ips,
+		EmailAddresses:     cert.EmailAddresses,
+		URIs:               uris,
 		IsCA:               cert.IsCA,
 		PublicKeyAlgorithm: algo,
 		PublicKeySize:      size,
@@ -93,6 +101,8 @@ func formatSANs(info *Info) string {
 	var parts []string
 	parts = append(parts, info.DNSNames...)
 	parts = append(parts, info.IPAddresses...)
+	parts = append(parts, info.EmailAddresses...)
+	parts = append(parts, info.URIs...)
 	if len(parts) == 0 {
 		return ""
 	}
@@ -126,7 +136,7 @@ func displayDetail(info Info) {
 	fmt.Printf("Not Before\t: %s\n", info.NotBefore)
 	fmt.Printf("Not After\t: %s\n", info.NotAfter)
 	fmt.Printf("Is CA\t\t: %t\n", info.IsCA)
-	fmt.Printf("DNS Names\t: %s\n", formatSANs(&info))
+	fmt.Printf("SANs\t\t: %s\n", formatSANs(&info))
 	if info.PublicKeySize > 0 {
 		fmt.Printf("Public Key\t: %s (%d bits)\n", info.PublicKeyAlgorithm, info.PublicKeySize)
 	} else {

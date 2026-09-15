@@ -15,12 +15,12 @@ import (
 
 func TestCmdDebugCert_ValidateInput(t *testing.T) {
 	type test struct {
-		name          string
-		args          []string
-		flags         common.CommandDebugCertFlags
-		k8sObjects    []runtime.Object
+		name           string
+		args           []string
+		flags          common.CommandDebugCertFlags
+		k8sObjects     []runtime.Object
 		skupperObjects []runtime.Object
-		expectedError string
+		expectedError  string
 	}
 
 	testTable := []test{

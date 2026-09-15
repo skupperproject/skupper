@@ -118,7 +118,8 @@ func (cmd *CmdDebugCert) collectCerts() ([]certdisplay.Info, error) {
 				continue
 			}
 			name := entry.Name()
-			if seen[name] {
+			displayName := cp.prefix + name
+			if seen[displayName] {
 				continue
 			}
 			certFile := filepath.Join(dir, name, "tls.crt")
@@ -126,14 +127,11 @@ func (cmd *CmdDebugCert) collectCerts() ([]certdisplay.Info, error) {
 			if err != nil {
 				continue
 			}
-			info, err := certdisplay.ParseCertificate(name, data)
+			info, err := certdisplay.ParseCertificate(displayName, data)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse certificate %s: %w", name, err)
+				return nil, fmt.Errorf("failed to parse certificate %s: %w", displayName, err)
 			}
-			if cp.prefix != "" {
-				info.Name = cp.prefix + name
-			}
-			seen[name] = true
+			seen[displayName] = true
 			infos = append(infos, *info)
 		}
 	}
