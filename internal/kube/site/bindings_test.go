@@ -719,4 +719,3 @@ func tcpListenerPort(t *testing.T, config qdr.BridgeConfig, name string) int {
 	assert.NilError(t, err)
 	return port
 }
-
