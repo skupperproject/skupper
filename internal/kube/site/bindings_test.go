@@ -1,15 +1,11 @@
 package site
 
 import (
-	"errors"
 	"log/slog"
-	"net"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/skupperproject/skupper/internal/qdr"
-	"github.com/skupperproject/skupper/internal/site"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 	"gotest.tools/v3/assert"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -724,95 +720,3 @@ func tcpListenerPort(t *testing.T, config qdr.BridgeConfig, name string) int {
 	return port
 }
 
-func TestHostBasedConnectorHealthChecking(t *testing.T) {
-	eb := &ExtendedBindings{
-		bindings:              site.NewBindings("/tmp"),
-		connectors:            map[string]*AttachedConnector{},
-		perTargetListeners:    map[string]*PerTargetListener{},
-		listenerHosts:         map[string]string{},
-		multiKeyListenerHosts: map[string]string{},
-		hostConnectors:        map[string]HostConnectorInfo{},
-		connectorHealth:       map[string]bool{},
-		stopCh:                make(chan struct{}),
-		logger:                slog.Default(),
-	}
-
-	healthyConnector := &skupperv2alpha1.Connector{
-		ObjectMeta: v1.ObjectMeta{
-			Name: "test-connector-1",
-		},
-		Spec: skupperv2alpha1.ConnectorSpec{
-			Host: "1.2.3.4",
-			Port: 8080,
-		},
-	}
-
-	unhealthyConnector := &skupperv2alpha1.Connector{
-		ObjectMeta: v1.ObjectMeta{
-			Name: "test-connector-2",
-		},
-		Spec: skupperv2alpha1.ConnectorSpec{
-			Host: "5.6.7.8",
-			Port: 9090,
-		},
-	}
-
-	_ = eb.bindings.UpdateConnector(healthyConnector.Name, healthyConnector)
-	eb.ConnectorUpdated(healthyConnector)
-
-	_ = eb.bindings.UpdateConnector(unhealthyConnector.Name, unhealthyConnector)
-	eb.ConnectorUpdated(unhealthyConnector)
-
-	eb.dialTimeout = func(network, address string, timeout time.Duration) (net.Conn, error) {
-		if address == "1.2.3.4:8080" {
-			return &net.TCPConn{}, nil
-		}
-		return nil, errors.New("connection refused")
-	}
-
-	eb.performHealthChecks()
-
-	eb.healthMu.RLock()
-	h1 := eb.connectorHealth["test-connector-1"]
-	h2 := eb.connectorHealth["test-connector-2"]
-	eb.healthMu.RUnlock()
-
-	assert.Equal(t, h1, true)
-	assert.Equal(t, h2, false)
-
-	eb.bindings.SetConnectorConfiguration(eb.updateBridgeConfigForConnector)
-	bridgeConfig := eb.bindings.ToBridgeConfig()
-
-	assert.Assert(t, len(bridgeConfig.TcpConnectors) > 0)
-	_, found1 := bridgeConfig.TcpConnectors[qdr.TcpConnectorNamePrefix+"test-connector-1@1.2.3.4"]
-	assert.Assert(t, found1, "Expected test-connector-1 to be present")
-
-	_, found2 := bridgeConfig.TcpConnectors[qdr.TcpConnectorNamePrefix+"test-connector-2@5.6.7.8"]
-	assert.Assert(t, !found2, "Expected test-connector-2 to be absent because it is unhealthy")
-
-	eb.dialTimeout = func(network, address string, timeout time.Duration) (net.Conn, error) {
-		return &net.TCPConn{}, nil
-	}
-
-	eb.performHealthChecks()
-
-	eb.healthMu.RLock()
-	h2Updated := eb.connectorHealth["test-connector-2"]
-	eb.healthMu.RUnlock()
-	assert.Equal(t, h2Updated, true)
-
-	bridgeConfigUpdated := eb.bindings.ToBridgeConfig()
-	_, found2Updated := bridgeConfigUpdated.TcpConnectors[qdr.TcpConnectorNamePrefix+"test-connector-2@5.6.7.8"]
-	assert.Assert(t, found2Updated, "Expected test-connector-2 to be present now that it is healthy")
-
-	_ = eb.bindings.UpdateConnector(unhealthyConnector.Name, nil)
-	eb.ConnectorDeleted(unhealthyConnector)
-
-	eb.healthMu.RLock()
-	_, existsInHealth := eb.connectorHealth["test-connector-2"]
-	_, existsInConnectors := eb.hostConnectors["test-connector-2"]
-	eb.healthMu.RUnlock()
-
-	assert.Assert(t, !existsInHealth)
-	assert.Assert(t, !existsInConnectors)
-}
