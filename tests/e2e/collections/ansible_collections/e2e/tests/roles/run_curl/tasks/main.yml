@@ -16,12 +16,21 @@
         name: curl
       spec:
         restartPolicy: Never
+        securityContext:
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         containers:
           - name: curl
             image: "{{ run_curl_image }}"
             command:
               - /bin/sleep
               - "3600"
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                  - ALL
   register: pod_deploy
   until: pod_deploy is success
   retries: "{{ run_curl_retries }}"
