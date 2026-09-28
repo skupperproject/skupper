@@ -2,32 +2,34 @@
   hosts: all
   roles:
     - e2e.tests.skupper_test_images
+  vars:
+    test_identifier: "HelloWorld"
   tasks:
-    - name: Main task block
+    - name: "[ {{ test_identifier }} ] - Main task block"
       block:
-        - name: Environment shakeout
+        - name: "[ {{ test_identifier }} - Setup ] Environment shakeout"
           ansible.builtin.include_role:
             name: e2e.tests.env_shakeout
 
-        - name: Generating the namespaces
+        - name: "[ {{ test_identifier }} - Setup ] Generating the namespaces"
           ansible.builtin.include_role:
             name: e2e.tests.generate_namespaces
 
-        - name: Create Skupper resources for west site
+        - name: "[ {{ test_identifier }} - Setup ] Create Skupper resources for west site"
           include_tasks: skupper-sites.yml
           vars:
             site_name: west
           when:
             - "'west' in inventory_hostname"
 
-        - name: Create Skupper resources for east site
+        - name: "[ {{ test_identifier }} - Setup ] Create Skupper resources for east site"
           include_tasks: skupper-sites.yml
           vars:
             site_name: east
           when:
             - "'east' in inventory_hostname"
 
-        - name: Issue a Skupper access token from west namespace
+        - name: "[ {{ test_identifier }} - Setup ] Issue a Skupper access token from west namespace"
           skupper.v2.token:
             namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
             name: west-grant
@@ -37,7 +39,7 @@
           when:
             - "'west' in inventory_hostname"
 
-        - name: Apply token to east site
+        - name: "[ {{ test_identifier }} - Setup ] Apply token to east site"
           skupper.v2.resource:
             def: "{{ hostvars['west']['west']['token'] }}"
             namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
@@ -45,14 +47,14 @@
           when:
             - "'east' in inventory_hostname"
 
-        - name: Testing the connectivity between the sites
+        - name: "[ {{ test_identifier }} - RunTest ] Testing the connectivity between the sites"
           ansible.builtin.include_role:
             name: e2e.tests.run_curl
           when:
             - "'west' in inventory_hostname"
 
       always:
-        - name: Deleting the namespaces
+        - name: "[ {{ test_identifier }} - Teardown ] Deleting the namespaces"
           kubernetes.core.k8s:
             state: absent
             api_version: v1
