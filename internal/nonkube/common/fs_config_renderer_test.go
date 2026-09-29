@@ -2,8 +2,10 @@ package common
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/skupperproject/skupper/api/types"
@@ -335,4 +337,176 @@ func fakeSiteState() *api.SiteState {
 		},
 		ConfigMaps: make(map[string]*corev1.ConfigMap),
 	}
+}
+
+func renderSiteState(t *testing.T, ss *api.SiteState) string {
+	t.Helper()
+	ss.CreateLinkAccessesCertificates()
+	ss.CreateBridgeCertificates()
+	customOutputPath, err := os.MkdirTemp("", "fs-config-renderer-proxy-*")
+	assert.Assert(t, err)
+	t.Cleanup(func() { os.RemoveAll(customOutputPath) })
+	fsConfigRenderer := new(FileSystemConfigurationRenderer)
+	fsConfigRenderer.customOutputPath = customOutputPath
+	assert.Assert(t, fsConfigRenderer.Render(ss))
+	return fsConfigRenderer.GetOutputPath(ss)
+}
+
+func readRouterConfig(t *testing.T, outputPath string) []json.RawMessage {
+	t.Helper()
+	data, err := os.ReadFile(path.Join(outputPath, string(api.RouterConfigPath), "skrouterd.json"))
+	assert.Assert(t, err)
+	var elements []json.RawMessage
+	assert.Assert(t, json.Unmarshal(data, &elements))
+	return elements
+}
+
+func findProxyProfiles(t *testing.T, elements []json.RawMessage) []map[string]interface{} {
+	t.Helper()
+	var profiles []map[string]interface{}
+	for _, elem := range elements {
+		var tuple []json.RawMessage
+		if json.Unmarshal(elem, &tuple) != nil || len(tuple) != 2 {
+			continue
+		}
+		var typeName string
+		if json.Unmarshal(tuple[0], &typeName) != nil {
+			continue
+		}
+		if typeName == "proxyProfile" {
+			var obj map[string]interface{}
+			assert.Assert(t, json.Unmarshal(tuple[1], &obj))
+			profiles = append(profiles, obj)
+		}
+	}
+	return profiles
+}
+
+func findConnectorProxyProfile(t *testing.T, elements []json.RawMessage, connectorName string) string {
+	t.Helper()
+	for _, elem := range elements {
+		var tuple []json.RawMessage
+		if json.Unmarshal(elem, &tuple) != nil || len(tuple) != 2 {
+			continue
+		}
+		var typeName string
+		if json.Unmarshal(tuple[0], &typeName) != nil {
+			continue
+		}
+		if typeName == "connector" {
+			var obj map[string]interface{}
+			assert.Assert(t, json.Unmarshal(tuple[1], &obj))
+			if obj["name"] == connectorName {
+				if pp, ok := obj["proxyProfile"]; ok {
+					return pp.(string)
+				}
+				return ""
+			}
+		}
+	}
+	return ""
+}
+
+func fakeSiteStateWithProxy(proxySecretName string, authenticated bool) *api.SiteState {
+	ss := fakeSiteState()
+	ss.Links["link-one"].Spec.Settings = map[string]string{
+		"proxy-configuration": proxySecretName,
+	}
+	proxySecret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: proxySecretName,
+		},
+		Type: "kubernetes.io/basic-auth",
+		Data: map[string][]byte{
+			"host": []byte("proxy.example.com"),
+			"port": []byte("3128"),
+		},
+	}
+	if authenticated {
+		proxySecret.Data["username"] = []byte("proxyuser")
+		proxySecret.Data["password"] = []byte("proxypass")
+	}
+	ss.Secrets[proxySecretName] = proxySecret
+	return ss
+}
+
+func TestRender_AuthenticatedProxy(t *testing.T) {
+	ss := fakeSiteStateWithProxy("my-proxy-config", true)
+	outputPath := renderSiteState(t, ss)
+
+	passwordFile := path.Join(outputPath, string(api.ProxyProfilesPath), "my-proxy-config", "password.txt")
+	fi, err := os.Stat(passwordFile)
+	assert.Assert(t, err, "password.txt should exist")
+	assert.Equal(t, fi.Mode().Perm(), os.FileMode(0600))
+
+	content, err := os.ReadFile(passwordFile)
+	assert.Assert(t, err)
+	assert.Equal(t, string(content), "proxypass")
+
+	elements := readRouterConfig(t, outputPath)
+	profiles := findProxyProfiles(t, elements)
+	assert.Equal(t, len(profiles), 1)
+	assert.Equal(t, profiles[0]["name"], "my-proxy-config")
+	assert.Equal(t, profiles[0]["host"], "proxy.example.com")
+	assert.Equal(t, profiles[0]["port"], "3128")
+	assert.Equal(t, profiles[0]["username"], "proxyuser")
+	password, ok := profiles[0]["password"].(string)
+	assert.Assert(t, ok, "password field should be a string")
+	assert.Assert(t, strings.HasPrefix(password, "file:"), "password should start with file: prefix, got: %s", password)
+	assert.Assert(t, strings.HasSuffix(password, "/my-proxy-config/password.txt"), "password should end with proxy name/password.txt, got: %s", password)
+
+	connectorProxy := findConnectorProxyProfile(t, elements, "link-one")
+	assert.Equal(t, connectorProxy, "my-proxy-config")
+}
+
+func TestRender_UnauthenticatedProxy(t *testing.T) {
+	ss := fakeSiteStateWithProxy("unauth-proxy", false)
+	outputPath := renderSiteState(t, ss)
+
+	passwordFile := path.Join(outputPath, string(api.ProxyProfilesPath), "unauth-proxy", "password.txt")
+	_, err := os.Stat(passwordFile)
+	assert.Assert(t, os.IsNotExist(err), "password.txt should not exist for unauthenticated proxy")
+
+	elements := readRouterConfig(t, outputPath)
+	profiles := findProxyProfiles(t, elements)
+	assert.Equal(t, len(profiles), 1)
+	assert.Equal(t, profiles[0]["name"], "unauth-proxy")
+	assert.Equal(t, profiles[0]["host"], "proxy.example.com")
+	assert.Equal(t, profiles[0]["port"], "3128")
+	_, hasUsername := profiles[0]["username"]
+	assert.Assert(t, !hasUsername, "username should not be present for unauthenticated proxy")
+	_, hasPassword := profiles[0]["password"]
+	assert.Assert(t, !hasPassword, "password should not be present for unauthenticated proxy")
+}
+
+func TestRender_MissingProxySecret(t *testing.T) {
+	ss := fakeSiteState()
+	ss.Links["link-one"].Spec.Settings = map[string]string{
+		"proxy-configuration": "nonexistent-proxy",
+	}
+	outputPath := renderSiteState(t, ss)
+
+	elements := readRouterConfig(t, outputPath)
+	profiles := findProxyProfiles(t, elements)
+	assert.Equal(t, len(profiles), 0, "no ProxyProfile should be generated for missing Secret")
+}
+
+func TestRender_NoProxyConfigured(t *testing.T) {
+	ss := fakeSiteState()
+	outputPath := renderSiteState(t, ss)
+
+	proxyDir := path.Join(outputPath, string(api.ProxyProfilesPath))
+	_, err := os.Stat(proxyDir)
+	if err == nil {
+		entries, _ := os.ReadDir(proxyDir)
+		assert.Equal(t, len(entries), 0, "no proxy directories should exist")
+	}
+
+	elements := readRouterConfig(t, outputPath)
+	profiles := findProxyProfiles(t, elements)
+	assert.Equal(t, len(profiles), 0, "no ProxyProfile should be generated")
 }

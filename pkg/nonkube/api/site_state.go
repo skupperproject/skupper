@@ -264,11 +264,56 @@ func (s *SiteState) linkAccessMap() site.RouterAccessMap {
 	}
 	return linkAccessMap
 }
+func SecretDataValue(secret *corev1.Secret, key string) []byte {
+	if v, ok := secret.Data[key]; ok && len(v) > 0 {
+		return v
+	}
+	if v, ok := secret.StringData[key]; ok && len(v) > 0 {
+		return []byte(v)
+	}
+	return nil
+}
+
+func (s *SiteState) getProxyConfig(link *v2alpha1.Link, basePath string) *site.ProxyConfig {
+	proxySecretName := link.Spec.GetProxyConfiguration()
+	if proxySecretName == "" {
+		return nil
+	}
+
+	secret, ok := s.Secrets[proxySecretName]
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Warning: proxy Secret %q not found for Link %q\n",
+			proxySecretName, link.Name)
+		return nil
+	}
+
+	if secret.Type != "kubernetes.io/basic-auth" {
+		fmt.Fprintf(os.Stderr, "Warning: Secret %q is not type kubernetes.io/basic-auth\n",
+			proxySecretName)
+		return nil
+	}
+
+	host := string(SecretDataValue(secret, "host"))
+	port := string(SecretDataValue(secret, "port"))
+	if host == "" || port == "" {
+		fmt.Fprintf(os.Stderr, "Warning: proxy Secret %q missing required host or port\n",
+			proxySecretName)
+		return nil
+	}
+
+	return &site.ProxyConfig{
+		Host:        host,
+		Port:        port,
+		User:        string(SecretDataValue(secret, "username")),
+		ProfilePath: path.Join(basePath, string(ProxyProfilesPath)),
+	}
+}
+
 func (s *SiteState) linkMap(sslProfileBasePath string) site.LinkMap {
 	linkMap := site.LinkMap{}
 	for name, link := range s.Links {
-		// TODO: proxy profile config ?
-		siteLink := site.NewLink(name, path.Join(sslProfileBasePath, string(CertificatesPath)), &site.ProxyConfig{})
+		proxyConfig := s.getProxyConfig(link, sslProfileBasePath)
+		siteLink := site.NewLink(name, path.Join(sslProfileBasePath, string(CertificatesPath)), proxyConfig)
 		link.SetConfigured(nil)
 		siteLink.Update(link)
 		linkMap[name] = siteLink
