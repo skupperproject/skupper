@@ -136,6 +136,11 @@ func (s *SiteStateRenderer) prepareContainers() error {
 				Destination: "/etc/skupper-router/runtime/certs",
 				Options:     []string{"z"},
 			},
+			{
+				Source:      path.Join("{{.NamespacesPath}}", "{{.Namespace}}", string(api.ProxyProfilesPath)),
+				Destination: "/etc/skupper-router/runtime/proxies",
+				Options:     []string{"z"},
+			},
 		},
 		RestartPolicy: "always",
 		// TODO handle resource utilization with container sites
