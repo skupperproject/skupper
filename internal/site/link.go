@@ -68,7 +68,7 @@ func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	}
 	current.AddConnector(connector)
 	current.AddSslProfile(qdr.ConfigureSslProfile(sslProfileName, l.sslProfilePath, true))
-	if proxyProfileName != "" {
+	if proxyProfileName != "" && l.proxyConfig != nil {
 		current.AddProxyProfile(qdr.ConfigureProxyProfile(proxyProfileName, l.proxyConfig.Host, l.proxyConfig.Port, l.proxyConfig.User, l.proxyConfig.ProfilePath))
 		if prevProxyProfileName != "" && prevProxyProfileName != proxyProfileName {
 			current.RemoveProxyProfile(prevProxyProfileName)
