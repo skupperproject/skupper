@@ -28,6 +28,7 @@
               - "3600"
             securityContext:
               allowPrivilegeEscalation: false
+              runAsUser: 65534
               capabilities:
                 drop:
                   - ALL
