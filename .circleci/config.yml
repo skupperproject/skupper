@@ -131,7 +131,6 @@ workflows:
           <<: *run_for_numeric_tags
       - build-oci-images:
           <<: *run_for_numeric_tags
-          image_tag: << pipeline.git.tag >>
       - publish-oci-images:
           <<: *run_for_numeric_tags
           <<: *v2_release_requires
@@ -200,7 +199,6 @@ workflows:
       - test:
           <<: *run_for_all_branches
       - build-oci-images:
-          image_tag: v2-dev
           <<: *run_for_all_branches
       - e2e:
           <<: *run_for_all_branches
@@ -470,8 +468,6 @@ jobs:
   build-oci-images:
     executor: local_cluster_test_executor
     parameters:
-      image_tag:
-        type: string
       registry:
         type: string
         default: "quay.io/skupper"
@@ -479,13 +475,12 @@ jobs:
       - skopeo-install
       - checkout
       - run: docker buildx create --use --name skupper-buildx
-      - run: make multiarch-oci IMAGE_TAG=<< parameters.image_tag >> REGISTRY=<< parameters.registry >>
+      - run: make multiarch-oci REGISTRY=<< parameters.registry >>
       - run:
           name: Inspect images
           command: |
             mkdir -p oci-digests
             make describe-multiarch-oci \
-              IMAGE_TAG=<< parameters.image_tag >> \
               REGISTRY=<< parameters.registry >> \
               | tee ./oci-digests/digests.yaml
       - persist_to_workspace:
