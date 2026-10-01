@@ -87,7 +87,7 @@ func TestCreateSiteRouterAccess(t *testing.T) {
 			},
 			isBundle:           false,
 			expectRouterAccess: false,
-			expectedPort:      99999,
+			expectedPort:       99999,
 		},
 		{
 			name:                   "Bundle mode creates RouterAccess with default ports",
