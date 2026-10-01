@@ -53,6 +53,19 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	if err = common.CreateRouterAccess(s.siteState); err != nil {
 		return err
 	}
+
+	// Create Site RouterAccess if linkAccess is enabled so static links can be generated.
+	// For bundles, RouterAccess should preferably be provided explicitly in the input.
+	if s.siteState.Site.Spec.LinkAccess != "" && s.siteState.Site.Spec.LinkAccess != "none" {
+		if !s.siteState.HasLinkAccess() {
+			logger := common.NewLogger()
+			logger.Warn("Site has linkAccess enabled but no RouterAccess was provided; generating one automatically. For bundles, add a RouterAccess resource to the bundle input explicitly.")
+		}
+		if err = common.EnableLinkAccess(s.siteState); err != nil {
+			return err
+		}
+	}
+
 	s.siteState.CreateLinkAccessesCertificates()
 	s.siteState.CreateBridgeCertificates()
 	// rendering non-kube configuration files and certificates
