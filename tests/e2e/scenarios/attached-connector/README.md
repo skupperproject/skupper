@@ -35,7 +35,7 @@ iperf3-attached/
 │       └── iperf3-workload.yml # Workload site variables
 ├── resources/                  # Kubernetes and Skupper resource definitions
 │   ├── iperf3-client/          # Client site resources
-│   │   ├── iperf3-consumer.yaml # iPerf3 client job
+│   │   ├── iperf3-consumer.yaml.j2 # iPerf3 client job template
 │   │   ├── listener.yml        # Skupper listener definition
 │   │   └── site.yml            # Skupper site definition
 │   ├── iperf3-hub/             # Hub site resources
