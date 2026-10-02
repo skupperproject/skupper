@@ -107,6 +107,12 @@ func (c *FileSystemConfigurationRenderer) Render(siteState *api.SiteState) error
 		return fmt.Errorf("unable to create router config: %v", err)
 	}
 
+	// Creating proxy profile password files
+	err = c.createProxyProfiles(siteState)
+	if err != nil {
+		return fmt.Errorf("unable to create proxy profiles: %v", err)
+	}
+
 	// Creating the certificates
 	err = c.createTlsCertificates(siteState)
 	if err != nil {
@@ -470,6 +476,44 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 			return err
 		}
 	}
+	return nil
+}
+
+func (c *FileSystemConfigurationRenderer) createProxyProfiles(siteState *api.SiteState) error {
+	logger := NewLogger()
+	outputPath := c.GetOutputPath(siteState)
+
+	for _, link := range siteState.Links {
+		proxySecretName := link.Spec.GetProxyConfiguration()
+		if proxySecretName == "" {
+			continue
+		}
+
+		secret, ok := siteState.Secrets[proxySecretName]
+		if !ok {
+			continue
+		}
+
+		username := api.SecretDataValue(secret, "username")
+		password := api.SecretDataValue(secret, "password")
+		if len(username) == 0 || len(password) == 0 {
+			continue
+		}
+
+		proxyDir := path.Join(outputPath, string(api.ProxyProfilesPath), proxySecretName)
+		err := os.MkdirAll(proxyDir, 0755)
+		if err != nil {
+			return fmt.Errorf("unable to create proxy profile directory %s: %v", proxyDir, err)
+		}
+
+		passwordFile := path.Join(proxyDir, "password.txt")
+		logger.Debug("writing proxy password", slog.String("path", passwordFile))
+		err = os.WriteFile(passwordFile, password, 0600)
+		if err != nil {
+			return fmt.Errorf("error writing proxy password file %s: %v", passwordFile, err)
+		}
+	}
+
 	return nil
 }
 
