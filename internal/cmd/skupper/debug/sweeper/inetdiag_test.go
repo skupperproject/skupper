@@ -7,20 +7,20 @@ import (
 
 // diagOutput is a capture of inetDiagScript against the same two sockets as
 // ssOutput
-const diagOutput = `127.0.0.1:8080 127.0.0.1:39068 5022 2020
-127.0.0.1:39068 127.0.0.1:8080 2020 5022
+const diagOutput = `127.0.0.1:8080 127.0.0.1:39068 5022 2020 ESTAB
+127.0.0.1:39068 127.0.0.1:8080 2020 5022 ESTAB
 `
 
 func TestSocketsFromDiagOutput(t *testing.T) {
 	byPeer, byLocal := socketsFromDiagOutput([]byte(diagOutput))
 
 	wantByPeer := map[string]socketInfo{
-		"127.0.0.1:39068": {LastRcvMs: 5022, LastSndMs: 2020},
-		"127.0.0.1:8080":  {LastRcvMs: 2020, LastSndMs: 5022},
+		"127.0.0.1:39068": {State: "ESTAB", LastRcvMs: 5022, LastSndMs: 2020},
+		"127.0.0.1:8080":  {State: "ESTAB", LastRcvMs: 2020, LastSndMs: 5022},
 	}
 	wantByLocal := map[string]socketInfo{
-		"127.0.0.1:8080":  {LastRcvMs: 5022, LastSndMs: 2020},
-		"127.0.0.1:39068": {LastRcvMs: 2020, LastSndMs: 5022},
+		"127.0.0.1:8080":  {State: "ESTAB", LastRcvMs: 5022, LastSndMs: 2020},
+		"127.0.0.1:39068": {State: "ESTAB", LastRcvMs: 2020, LastSndMs: 5022},
 	}
 	if !reflect.DeepEqual(byPeer, wantByPeer) {
 		t.Errorf("byPeer = %+v, want %+v", byPeer, wantByPeer)
@@ -31,17 +31,17 @@ func TestSocketsFromDiagOutput(t *testing.T) {
 }
 
 func TestSocketsFromDiagOutputSkipsUnparseableLines(t *testing.T) {
-	// Anything that is not four fields of the expected shape is dropped.
+	// Anything that is not five fields of the expected shape is dropped.
 	const out = `127.0.0.1:8080 127.0.0.1:41002 9119
-127.0.0.1:8080 127.0.0.1:41004 9119 592 extra
-127.0.0.1:8080 127.0.0.1:41006 nine 592
-127.0.0.1:8080 127.0.0.1:41008 9119 five-ninety-two
+127.0.0.1:8080 127.0.0.1:41004 9119 592 extra ESTAB
+127.0.0.1:8080 127.0.0.1:41006 nine 592 ESTAB
+127.0.0.1:8080 127.0.0.1:41008 9119 five-ninety-two ESTAB
 
-127.0.0.1:8080 127.0.0.1:41010 9119 592
+127.0.0.1:8080 127.0.0.1:41010 9119 592 ESTAB
 `
 	byPeer, byLocal := socketsFromDiagOutput([]byte(out))
 
-	want := map[string]socketInfo{"127.0.0.1:41010": {LastRcvMs: 9119, LastSndMs: 592}}
+	want := map[string]socketInfo{"127.0.0.1:41010": {State: "ESTAB", LastRcvMs: 9119, LastSndMs: 592}}
 	if !reflect.DeepEqual(byPeer, want) {
 		t.Errorf("byPeer = %+v, want %+v", byPeer, want)
 	}
@@ -81,6 +81,9 @@ func TestSSAndDiagParsersAgree(t *testing.T) {
 			if !ok {
 				t.Errorf("%s: diag is missing key %s that ss reported", m.name, key)
 				continue
+			}
+			if got.State != want.State {
+				t.Errorf("%s[%s]: state ss = %q, diag = %q", m.name, key, want.State, got.State)
 			}
 			if abs(got.LastRcvMs-want.LastRcvMs) > toleranceMs || abs(got.LastSndMs-want.LastSndMs) > toleranceMs {
 				t.Errorf("%s[%s]: ss = %+v, diag = %+v (differ by more than %d ms)", m.name, key, want, got, toleranceMs)

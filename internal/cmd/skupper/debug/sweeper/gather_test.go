@@ -19,8 +19,8 @@ ESTAB 12     0          127.0.0.1:39068    127.0.0.1:8080
 
 // The server socket is the one local to :8080; the client socket is its peer.
 var (
-	wantListener = socketInfo{LastRcvMs: 5006, LastSndMs: 2004}
-	wantClient   = socketInfo{LastRcvMs: 2004, LastSndMs: 5006}
+	wantListener = socketInfo{State: "ESTAB", LastRcvMs: 5006, LastSndMs: 2004}
+	wantClient   = socketInfo{State: "ESTAB", LastRcvMs: 2004, LastSndMs: 5006}
 )
 
 func TestSocketsFromSS(t *testing.T) {
@@ -92,7 +92,7 @@ ESTAB 0      0          127.0.0.1:8080     127.0.0.1:49714
 	if _, ok := byPeer["127.0.0.1:49704"]; ok {
 		t.Error("recorded a socket that had no detail line; it would report 0 ms idle")
 	}
-	if got, want := byPeer["127.0.0.1:49714"], (socketInfo{LastRcvMs: 200, LastSndMs: 100}); got != want {
+	if got, want := byPeer["127.0.0.1:49714"], (socketInfo{State: "ESTAB", LastRcvMs: 200, LastSndMs: 100}); got != want {
 		t.Errorf("byPeer[49714] = %+v, want %+v", got, want)
 	}
 	if len(byLocal) != 1 {
