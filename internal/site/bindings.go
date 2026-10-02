@@ -1,7 +1,11 @@
 package site
 
 import (
+	"net"
 	"reflect"
+	"strconv"
+	"sync"
+	"time"
 
 	"github.com/skupperproject/skupper/internal/qdr"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -10,6 +14,21 @@ import (
 type ListenerConfiguration func(siteId string, listener *skupperv2alpha1.Listener, config *qdr.BridgeConfig)
 type ConnectorConfiguration func(siteId string, connector *skupperv2alpha1.Connector, config *qdr.BridgeConfig)
 type MultiKeyListenerConfiguration func(siteId string, mkl *skupperv2alpha1.MultiKeyListener, config *qdr.BridgeConfig)
+
+type HostConnectorInfo struct {
+	Name string
+	Host string
+	Port int
+}
+
+type ConnectorHealthChange struct {
+	Name    string
+	Host    string
+	Port    int
+	Healthy bool
+}
+
+type HealthChangeCallback func(changed []ConnectorHealthChange)
 
 type BindingEventHandler interface {
 	ListenerUpdated(listener *skupperv2alpha1.Listener)
@@ -35,6 +54,13 @@ type Bindings struct {
 		connector        ConnectorConfiguration
 		multiKeyListener MultiKeyListenerConfiguration
 	}
+
+	hostConnectors  map[string]HostConnectorInfo
+	connectorHealth map[string]bool
+	healthMu        sync.RWMutex
+	stopCh          chan struct{}
+	dialTimeout     func(network, address string, timeout time.Duration) (net.Conn, error)
+	onHealthChange  HealthChangeCallback
 }
 
 func NewBindings(profilePath string) *Bindings {
@@ -43,9 +69,12 @@ func NewBindings(profilePath string) *Bindings {
 		connectors:        map[string]*skupperv2alpha1.Connector{},
 		listeners:         map[string]*skupperv2alpha1.Listener{},
 		multiKeyListeners: map[string]*skupperv2alpha1.MultiKeyListener{},
+		hostConnectors:    map[string]HostConnectorInfo{},
+		connectorHealth:   map[string]bool{},
+		dialTimeout:       net.DialTimeout,
 	}
 	bindings.configure.listener = UpdateBridgeConfigForListener
-	bindings.configure.connector = UpdateBridgeConfigForConnector
+	bindings.configure.connector = bindings.UpdateBridgeConfigForConnector
 	bindings.configure.multiKeyListener = UpdateBridgeConfigForMultiKeyListener
 	return bindings
 }
@@ -122,11 +151,35 @@ func (b *Bindings) GetConnector(name string) *skupperv2alpha1.Connector {
 	return nil
 }
 
+func (b *Bindings) ConnectorNames() []string {
+	names := make([]string, 0, len(b.connectors))
+	for name := range b.connectors {
+		names = append(names, name)
+	}
+	return names
+}
+
 func (b *Bindings) GetListener(name string) *skupperv2alpha1.Listener {
 	if existing, ok := b.listeners[name]; ok {
 		return existing
 	}
 	return nil
+}
+
+func (b *Bindings) ListenerNames() []string {
+	names := make([]string, 0, len(b.listeners))
+	for name := range b.listeners {
+		names = append(names, name)
+	}
+	return names
+}
+
+func (b *Bindings) MultiKeyListenerNames() []string {
+	names := make([]string, 0, len(b.multiKeyListeners))
+	for name := range b.multiKeyListeners {
+		names = append(names, name)
+	}
+	return names
 }
 
 func (b *Bindings) UpdateConnector(name string, connector *skupperv2alpha1.Connector) qdr.ConfigUpdate {
@@ -140,6 +193,35 @@ func (b *Bindings) updateConnector(connector *skupperv2alpha1.Connector) qdr.Con
 	name := connector.ObjectMeta.Name
 	existing, ok := b.connectors[name]
 	b.connectors[name] = connector // always update pointer, even if spec has not changed
+
+	if connector.Spec.Host != "" && connector.Spec.Port != 0 {
+		b.healthMu.Lock()
+		if b.hostConnectors == nil {
+			b.hostConnectors = map[string]HostConnectorInfo{}
+		}
+		if b.connectorHealth == nil {
+			b.connectorHealth = map[string]bool{}
+		}
+		b.hostConnectors[name] = HostConnectorInfo{
+			Name: name,
+			Host: connector.Spec.Host,
+			Port: connector.Spec.Port,
+		}
+		if _, exists := b.connectorHealth[name]; !exists {
+			b.connectorHealth[name] = true
+		}
+		b.healthMu.Unlock()
+	} else {
+		b.healthMu.Lock()
+		if b.hostConnectors != nil {
+			delete(b.hostConnectors, name)
+		}
+		if b.connectorHealth != nil {
+			delete(b.connectorHealth, name)
+		}
+		b.healthMu.Unlock()
+	}
+
 	if ok && reflect.DeepEqual(existing.Spec, connector.Spec) {
 		return nil
 	}
@@ -152,6 +234,14 @@ func (b *Bindings) updateConnector(connector *skupperv2alpha1.Connector) qdr.Con
 func (b *Bindings) deleteConnector(name string) qdr.ConfigUpdate {
 	if existing, ok := b.connectors[name]; ok {
 		delete(b.connectors, name)
+		b.healthMu.Lock()
+		if b.hostConnectors != nil {
+			delete(b.hostConnectors, name)
+		}
+		if b.connectorHealth != nil {
+			delete(b.connectorHealth, name)
+		}
+		b.healthMu.Unlock()
 		if b.handler != nil {
 			b.handler.ConnectorDeleted(existing)
 		}
@@ -320,4 +410,135 @@ func (b *Bindings) Apply(config *qdr.RouterConfig) bool {
 	config.UpdateBridgeConfig(b.ToBridgeConfig())
 	config.RemoveUnreferencedSslProfiles()
 	return true //TODO: can optimise by indicating if no change was required
+}
+
+func (b *Bindings) UpdateBridgeConfigForConnector(siteId string, connector *skupperv2alpha1.Connector, config *qdr.BridgeConfig) {
+	if connector.Spec.Host != "" {
+		if b.IsConnectorHealthy(connector.Name) {
+			UpdateBridgeConfigForConnector(siteId, connector, config)
+		}
+	}
+}
+
+func (b *Bindings) SetHealthChangeCallback(cb HealthChangeCallback) {
+	b.onHealthChange = cb
+}
+
+func (b *Bindings) IsConnectorHealthy(name string) bool {
+	if b == nil {
+		return true
+	}
+	b.healthMu.RLock()
+	defer b.healthMu.RUnlock()
+	if b.connectorHealth == nil {
+		return true
+	}
+	if healthy, ok := b.connectorHealth[name]; ok {
+		return healthy
+	}
+	return true
+}
+
+func (b *Bindings) StartHealthCheckLoop(interval time.Duration) {
+	b.healthMu.Lock()
+	if b.stopCh != nil {
+		b.healthMu.Unlock()
+		return
+	}
+	b.stopCh = make(chan struct{})
+	stopCh := b.stopCh
+	b.healthMu.Unlock()
+
+	if interval <= 0 {
+		interval = 5 * time.Second
+	}
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			b.PerformHealthChecks()
+			select {
+			case <-ticker.C:
+			case <-stopCh:
+				return
+			}
+		}
+	}()
+}
+
+func (b *Bindings) Stop() {
+	b.healthMu.Lock()
+	defer b.healthMu.Unlock()
+	if b.stopCh != nil {
+		select {
+		case <-b.stopCh:
+		default:
+			close(b.stopCh)
+		}
+		b.stopCh = nil
+	}
+}
+
+func (b *Bindings) PerformHealthChecks() []ConnectorHealthChange {
+	b.healthMu.RLock()
+	var connectorsToCheck []HostConnectorInfo
+	for _, info := range b.hostConnectors {
+		connectorsToCheck = append(connectorsToCheck, info)
+	}
+	b.healthMu.RUnlock()
+
+	if len(connectorsToCheck) == 0 {
+		return nil
+	}
+
+	resultsChan := make(chan ConnectorHealthChange, len(connectorsToCheck))
+	var wg sync.WaitGroup
+	for _, info := range connectorsToCheck {
+		wg.Add(1)
+		go func(inf HostConnectorInfo) {
+			defer wg.Done()
+			healthy := b.checkTarget(inf.Host, inf.Port)
+			resultsChan <- ConnectorHealthChange{
+				Name:    inf.Name,
+				Host:    inf.Host,
+				Port:    inf.Port,
+				Healthy: healthy,
+			}
+		}(info)
+	}
+	wg.Wait()
+	close(resultsChan)
+
+	var changedConnectors []ConnectorHealthChange
+
+	b.healthMu.Lock()
+	for res := range resultsChan {
+		if _, exists := b.hostConnectors[res.Name]; !exists {
+			continue
+		}
+		prevHealthy, ok := b.connectorHealth[res.Name]
+		if !ok || prevHealthy != res.Healthy {
+			b.connectorHealth[res.Name] = res.Healthy
+			changedConnectors = append(changedConnectors, res)
+		}
+	}
+	b.healthMu.Unlock()
+
+	if len(changedConnectors) > 0 && b.onHealthChange != nil {
+		b.onHealthChange(changedConnectors)
+	}
+
+	return changedConnectors
+}
+
+func (b *Bindings) checkTarget(host string, port int) bool {
+	address := net.JoinHostPort(host, strconv.Itoa(port))
+	conn, err := b.dialTimeout("tcp", address, 2*time.Second)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }
