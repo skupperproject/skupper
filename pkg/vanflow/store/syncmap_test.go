@@ -23,10 +23,11 @@ func TestSyncMapStoreDelete(t *testing.T) {
 	r0 := vanflow.LogRecord{BaseRecord: vanflow.NewBase("0", time.Now()), LogText: ptrTo("txt")}
 	initialState := Entry{
 		Record: r0,
-		Metadata: Metadata{
-			Source:     source,
-			LastUpdate: time.Now().Add(-1 * time.Minute),
-		},
+		Metadata: func() Metadata {
+			m := metadata(source)
+			m.LastUpdate = time.Now().Add(-1 * time.Minute)
+			return m
+		}(),
 	}
 	stor.(*syncMapStore).Replace([]Entry{initialState})
 
@@ -67,7 +68,7 @@ func TestSyncMapStoreAdd(t *testing.T) {
 	actual := stor.List()
 	expected := make([]Entry, len(recordsToAdd))
 	for i := range recordsToAdd {
-		expected[i] = Entry{Record: recordsToAdd[i], Metadata: Metadata{Source: source}}
+		expected[i] = Entry{Record: recordsToAdd[i], Metadata: metadata(source)}
 	}
 
 	if !cmp.Equal(actual, expected, ignoreLastUpdateAndOrder...) {
@@ -95,10 +96,11 @@ func TestSyncMapStoreUpdate(t *testing.T) {
 
 	initialState := Entry{
 		Record: r0,
-		Metadata: Metadata{
-			Source:     source,
-			LastUpdate: time.Now().Add(-1 * time.Minute),
-		},
+		Metadata: func() Metadata {
+			m := metadata(source)
+			m.LastUpdate = time.Now().Add(-1 * time.Minute)
+			return m
+		}(),
 	}
 	stor.(*syncMapStore).Replace([]Entry{initialState})
 
@@ -119,8 +121,8 @@ func TestSyncMapStoreUpdate(t *testing.T) {
 	}
 
 	expectedChanges := []Entry{
-		initialState, // prev
-		{Record: r0, Metadata: Metadata{Source: source}}, // next
+		initialState,                             // prev
+		{Record: r0, Metadata: metadata(source)}, // next
 	}
 	if !cmp.Equal(updateEvents, expectedChanges, ignoreLastUpdateAndOrder...) {
 		t.Errorf("entries from OnChange handler do not match expected: %s", cmp.Diff(updateEvents, expectedChanges, ignoreLastUpdateAndOrder...))
@@ -144,10 +146,11 @@ func TestSyncMapStorePatch(t *testing.T) {
 
 	initialState := Entry{
 		Record: r0,
-		Metadata: Metadata{
-			Source:     source,
-			LastUpdate: time.Now().Add(-1 * time.Minute),
-		},
+		Metadata: func() Metadata {
+			m := metadata(source)
+			m.LastUpdate = time.Now().Add(-1 * time.Minute)
+			return m
+		}(),
 	}
 	stor.(*syncMapStore).Replace([]Entry{initialState})
 
@@ -159,22 +162,22 @@ func TestSyncMapStorePatch(t *testing.T) {
 
 	actual := stor.List()
 	expected := []Entry{
-		{Record: r0Expected, Metadata: Metadata{Source: source}},
-		{Record: r1, Metadata: Metadata{Source: source}},
+		{Record: r0Expected, Metadata: metadata(source)},
+		{Record: r1, Metadata: metadata(source)},
 	}
 	if !cmp.Equal(actual, expected, ignoreLastUpdateAndOrder...) {
 		t.Errorf("store contents do not match expected: %s", cmp.Diff(actual, expected, ignoreLastUpdateAndOrder...))
 	}
 
 	expectedAdds := []Entry{
-		{Record: r1, Metadata: Metadata{Source: source}},
+		{Record: r1, Metadata: metadata(source)},
 	}
 	if !cmp.Equal(addEvents, expectedAdds, ignoreLastUpdateAndOrder...) {
 		t.Errorf("entries from OnAdd handler do not match expected: %s", cmp.Diff(addEvents, expectedAdds, ignoreLastUpdateAndOrder...))
 	}
 	expectedChanges := []Entry{
-		{Record: r0, Metadata: Metadata{Source: source}},         // prev
-		{Record: r0Expected, Metadata: Metadata{Source: source}}, // next
+		{Record: r0, Metadata: metadata(source)},         // prev
+		{Record: r0Expected, Metadata: metadata(source)}, // next
 	}
 	if !cmp.Equal(updateEvents, expectedChanges, ignoreLastUpdateAndOrder...) {
 		t.Errorf("entries from OnChange handler do not match expected: %s", cmp.Diff(updateEvents, expectedChanges, ignoreLastUpdateAndOrder...))
@@ -188,7 +191,7 @@ func TestSyncMapStoreIndex(t *testing.T) {
 		source := SourceRef{ID: fmt.Sprint(i)}
 		for c := 0; c < 128; c++ {
 			initialState = append(initialState, Entry{
-				Metadata: Metadata{Source: source},
+				Metadata: metadata(source),
 				Record:   vanflow.LogRecord{BaseRecord: vanflow.NewBase(fmt.Sprintf("%d-%d", i, c))},
 			})
 		}
@@ -196,7 +199,7 @@ func TestSyncMapStoreIndex(t *testing.T) {
 
 	stor.(*syncMapStore).Replace(initialState)
 
-	items := stor.Index(SourceIndex, Entry{Metadata: Metadata{Source: SourceRef{ID: "dne"}}})
+	items := stor.Index(SourceIndex, Entry{Metadata: Metadata{Sources: []SourceRef{{ID: "dne"}}}})
 	if expected, actual := 0, len(items); expected != actual {
 		t.Errorf("expected %d entries for source 'dne' but got %d", expected, actual)
 	}
@@ -206,12 +209,12 @@ func TestSyncMapStoreIndex(t *testing.T) {
 		t.Errorf("expected type index to return all log records: %s", cmp.Diff(expected, actual, ignoreLastUpdateAndOrder...))
 	}
 
-	items = stor.Index("IndexDoesNotExist", Entry{Metadata: Metadata{Source: SourceRef{ID: "1"}}})
+	items = stor.Index("IndexDoesNotExist", Entry{Metadata: Metadata{Sources: []SourceRef{{ID: "1"}}}})
 	if expected, actual := 0, len(items); expected != actual {
 		t.Errorf("expected %d entries for source '1' but got %d", expected, actual)
 	}
 
-	items = stor.Index(SourceIndex, Entry{Metadata: Metadata{Source: SourceRef{ID: "7"}}})
+	items = stor.Index(SourceIndex, Entry{Metadata: Metadata{Sources: []SourceRef{{ID: "7"}}}})
 	if expected, actual := 128, len(items); expected != actual {
 		t.Errorf("expected %d entries for source '7' but got %d", expected, actual)
 	}
@@ -221,11 +224,156 @@ func TestSyncMapStoreIndex(t *testing.T) {
 		t.Fatalf("expected delete to succeed")
 	}
 
-	items = stor.Index(SourceIndex, Entry{Metadata: Metadata{Source: SourceRef{ID: "7"}}})
+	items = stor.Index(SourceIndex, Entry{Metadata: Metadata{Sources: []SourceRef{{ID: "7"}}}})
 	if expected, actual := 127, len(items); expected != actual {
 		t.Errorf("expected %d entries for source '7' after deleting one but got %d", expected, actual)
 	}
 
+}
+
+func metadata(source SourceRef) Metadata {
+	return Metadata{Sources: []SourceRef{source}}
+}
+
+func TestMetadataSourceMutationDoesNotAffectCallerCopy(t *testing.T) {
+	sourceA := SourceRef{ID: "router-a", Version: "0"}
+	sourceB := SourceRef{ID: "router-b", Version: "0"}
+	meta := Metadata{Sources: []SourceRef{sourceA, sourceB}}
+	callerCopy := meta
+
+	if !meta.RemoveSource(sourceA) {
+		t.Fatal("expected RemoveSource to succeed")
+	}
+	if len(callerCopy.Sources) != 2 {
+		t.Fatalf("RemoveSource mutated caller copy: %#v", callerCopy.Sources)
+	}
+
+	if !meta.AddSource(sourceA) {
+		t.Fatal("expected AddSource to succeed")
+	}
+	if len(callerCopy.Sources) != 2 {
+		t.Fatalf("AddSource mutated caller copy: %#v", callerCopy.Sources)
+	}
+}
+
+func TestSyncMapStoreAddSourceUpdatesIndexAndCallbacks(t *testing.T) {
+	sourceA := SourceRef{ID: "router-a", Version: "0"}
+	sourceB := SourceRef{ID: "router-b", Version: "0"}
+	site := vanflow.SiteRecord{BaseRecord: vanflow.NewBase("site-id")}
+
+	var changes []Entry
+	storWithHandlers := NewSyncMapStore(SyncMapStoreConfig{Handlers: EventHandlerFuncs{
+		OnChange: func(prev, next Entry) { changes = append(changes, prev, next) },
+	}})
+	storWithHandlers.Add(site, sourceA)
+	storWithHandlers.Add(site, sourceB)
+
+	if items := storWithHandlers.Index(SourceIndex, Entry{Metadata: Metadata{Sources: []SourceRef{sourceA}}}); len(items) != 1 {
+		t.Fatalf("expected source A index to contain site record, got %d entries", len(items))
+	}
+	if items := storWithHandlers.Index(SourceIndex, Entry{Metadata: Metadata{Sources: []SourceRef{sourceB}}}); len(items) != 1 {
+		t.Fatalf("expected source B index to contain site record, got %d entries", len(items))
+	}
+
+	expectedPrev := Entry{
+		Record:   site,
+		Metadata: Metadata{Sources: []SourceRef{sourceA}},
+	}
+	expectedNext := Entry{
+		Record:   site,
+		Metadata: Metadata{Sources: []SourceRef{sourceA, sourceB}},
+	}
+	if len(changes) != 2 {
+		t.Fatalf("expected one OnChange callback, got %d entries", len(changes))
+	}
+	if !cmp.Equal(changes[0], expectedPrev, ignoreLastUpdateAndOrder...) {
+		t.Fatalf("OnChange prev mismatch: %s", cmp.Diff(changes[0], expectedPrev, ignoreLastUpdateAndOrder...))
+	}
+	if !cmp.Equal(changes[1], expectedNext, ignoreLastUpdateAndOrder...) {
+		t.Fatalf("OnChange next mismatch: %s", cmp.Diff(changes[1], expectedNext, ignoreLastUpdateAndOrder...))
+	}
+
+	if removed := storWithHandlers.RemoveSource(sourceA); removed != 1 {
+		t.Fatalf("expected 1 record updated, got %d", removed)
+	}
+	if items := storWithHandlers.Index(SourceIndex, Entry{Metadata: Metadata{Sources: []SourceRef{sourceA}}}); len(items) != 0 {
+		t.Fatalf("expected source A index to be empty after removal, got %d entries", len(items))
+	}
+	if items := storWithHandlers.Index(SourceIndex, Entry{Metadata: Metadata{Sources: []SourceRef{sourceB}}}); len(items) != 1 {
+		t.Fatalf("expected source B index to still contain site record, got %d entries", len(items))
+	}
+}
+
+func TestSyncMapStoreRemoveSourceWithoutSourceIndexer(t *testing.T) {
+	stor := NewSyncMapStore(SyncMapStoreConfig{
+		Indexers: map[string]Indexer{TypeIndex: TypeIndexer},
+	})
+	source := SourceRef{ID: "router-a", Version: "0"}
+	record := vanflow.LogRecord{BaseRecord: vanflow.NewBase("0")}
+	stor.Add(record, source)
+
+	if removed := stor.RemoveSource(source); removed != 1 {
+		t.Fatalf("expected RemoveSource to work without explicit SourceIndex, got %d", removed)
+	}
+	if _, ok := stor.Get("0"); ok {
+		t.Fatal("record should be deleted after removing its only source")
+	}
+}
+
+func TestSyncMapStoreDetachSourceKeepsRecordForOtherSources(t *testing.T) {
+	stor := NewSyncMapStore(SyncMapStoreConfig{})
+	sourceA := SourceRef{ID: "router-a", Version: "0"}
+	sourceB := SourceRef{ID: "router-b", Version: "0"}
+	site := vanflow.SiteRecord{BaseRecord: vanflow.NewBase("site-id")}
+
+	stor.Add(site, sourceA)
+	stor.Patch(site, sourceB)
+
+	if _, detached := stor.DetachSource("site-id", sourceA); !detached {
+		t.Fatal("expected DetachSource to detach source A")
+	}
+	entry, ok := stor.Get("site-id")
+	if !ok {
+		t.Fatal("site record should still exist")
+	}
+	if len(entry.Sources) != 1 || entry.Sources[0] != sourceB {
+		t.Fatalf("expected source B to remain, got %#v", entry.Sources)
+	}
+
+	if _, detached := stor.DetachSource("site-id", sourceB); !detached {
+		t.Fatal("expected DetachSource to detach source B")
+	}
+	if _, ok := stor.Get("site-id"); ok {
+		t.Fatal("site record should be deleted after last source detached")
+	}
+}
+
+func TestSyncMapStoreRemoveSourceKeepsRecordForOtherSources(t *testing.T) {
+	stor := NewSyncMapStore(SyncMapStoreConfig{})
+	sourceA := SourceRef{ID: "router-a", Version: "0"}
+	sourceB := SourceRef{ID: "router-b", Version: "0"}
+	site := vanflow.SiteRecord{BaseRecord: vanflow.NewBase("site-id")}
+
+	stor.Add(site, sourceA)
+	stor.Patch(site, sourceB)
+
+	if removed := stor.RemoveSource(sourceA); removed != 1 {
+		t.Fatalf("expected 1 record updated, got %d", removed)
+	}
+	entry, ok := stor.Get("site-id")
+	if !ok {
+		t.Fatal("site record should still exist")
+	}
+	if len(entry.Metadata.Sources) != 1 || entry.Metadata.Sources[0] != sourceB {
+		t.Fatalf("expected source B to remain, got %#v", entry.Metadata.Sources)
+	}
+
+	if removed := stor.RemoveSource(sourceB); removed != 1 {
+		t.Fatalf("expected final removal to update 1 record, got %d", removed)
+	}
+	if _, ok := stor.Get("site-id"); ok {
+		t.Fatal("site record should be deleted after last source removed")
+	}
 }
 
 func ptrTo[T any](e T) *T {

@@ -136,7 +136,7 @@ podman-push-source: podman-build-source
 
 ## Print fully qualified image names by arch
 describe-multiarch-oci:
-	@scripts/oci-index-archive-info.sh amd64 arm64
+	@IMAGE_TAG="$(IMAGE_TAG)" scripts/oci-index-archive-info.sh amd64 arm64
 
 oci-archives:
 	mkdir -p oci-archives

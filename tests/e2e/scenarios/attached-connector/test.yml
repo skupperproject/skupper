@@ -148,10 +148,17 @@
           delay: "{{ resource_delay_value * RESOURCE_DELAY_MULTIPLIER }}"
           when: "'iperf3-hub' in inventory_hostname"
 
+        - name: "[ {{ test_identifier }} ] - Templating the iperf-test job"
+          template:
+            src: "{{ playbook_dir }}/resources/iperf3-client/iperf3-consumer.yaml.j2"
+            dest: "/tmp/iperf3-consumer.yaml"
+          when:
+            - "'iperf3-client' in inventory_hostname"
+
         - name: "[ {{ test_identifier }} ] - Creating a JOB to test the connection"
           kubernetes.core.k8s:
             state: present
-            src: "{{ playbook_dir }}/resources/iperf3-client/iperf3-consumer.yaml"
+            src: "/tmp/iperf3-consumer.yaml"
             kubeconfig: "{{ kubeconfig }}"
             namespace: "{{ namespace_name }}"
           when:

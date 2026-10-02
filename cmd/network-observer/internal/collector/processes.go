@@ -155,7 +155,7 @@ func (m *processManager) run(ctx context.Context) func() error {
 								)
 								for _, procID := range procIDs {
 									if procEntry, ok := m.stor.Get(procID); ok {
-										if procEntry.Source == m.source {
+										if procEntry.HasSource(m.source) {
 											toDelete = procID
 										} else {
 											replacedBy = procID
@@ -171,17 +171,17 @@ func (m *processManager) run(ctx context.Context) func() error {
 										slog.String("host", host),
 										slog.String("replaced_by", replacedBy),
 									)
-									m.stor.Delete(toDelete)
+									m.stor.DetachSource(toDelete, m.source)
 								}
 							}
 						}
 						for _, proc := range processes {
-							if proc.Source == m.source {
+							if proc.HasSource(m.source) {
 								_, ok := actualProcessHosts[proc.Record.Identity()]
 								if ok {
 									continue
 								}
-								if _, deleted := m.stor.Delete(proc.Record.Identity()); deleted {
+								if _, detached := m.stor.DetachSource(proc.Record.Identity(), m.source); detached {
 									m.logger.Info("Deleting site server process with no connectors",
 										slog.String("id", proc.Record.Identity()),
 										slog.String("site_id", siteID),
