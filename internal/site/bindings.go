@@ -1,6 +1,7 @@
 package site
 
 import (
+	"errors"
 	"reflect"
 
 	"github.com/skupperproject/skupper/internal/qdr"
@@ -12,8 +13,8 @@ type ConnectorConfiguration func(siteId string, connector *skupperv2alpha1.Conne
 type MultiKeyListenerConfiguration func(siteId string, mkl *skupperv2alpha1.MultiKeyListener, config *qdr.BridgeConfig)
 
 type BindingEventHandler interface {
-	ListenerUpdated(listener *skupperv2alpha1.Listener)
-	ListenerDeleted(listener *skupperv2alpha1.Listener)
+	ListenerUpdated(listener *skupperv2alpha1.Listener) error
+	ListenerDeleted(listener *skupperv2alpha1.Listener) error
 	ConnectorUpdated(connector *skupperv2alpha1.Connector) bool
 	ConnectorDeleted(connector *skupperv2alpha1.Connector)
 }
@@ -78,14 +79,18 @@ func (b *Bindings) SetConnectorConfiguration(configuration ConnectorConfiguratio
 	b.configure.connector = configuration
 }
 
-func (b *Bindings) SetBindingEventHandler(handler BindingEventHandler) {
+func (b *Bindings) SetBindingEventHandler(handler BindingEventHandler) error {
 	b.handler = handler
+	var errs []error
 	for _, c := range b.connectors {
 		b.handler.ConnectorUpdated(c)
 	}
 	for _, l := range b.listeners {
-		b.handler.ListenerUpdated(l)
+		if err := b.handler.ListenerUpdated(l); err != nil {
+			errs = append(errs, err)
+		}
 	}
+	return errors.Join(errs...)
 }
 
 func (b *Bindings) Map(cf ConnectorFunction, lf ListenerFunction) {
@@ -160,36 +165,38 @@ func (b *Bindings) deleteConnector(name string) qdr.ConfigUpdate {
 	return nil
 }
 
-func (b *Bindings) UpdateListener(name string, listener *skupperv2alpha1.Listener) qdr.ConfigUpdate {
+func (b *Bindings) UpdateListener(name string, listener *skupperv2alpha1.Listener) (qdr.ConfigUpdate, error) {
 	if listener == nil {
 		return b.deleteListener(name)
 	}
 	return b.updateListener(listener)
 }
 
-func (b *Bindings) updateListener(latest *skupperv2alpha1.Listener) qdr.ConfigUpdate {
+func (b *Bindings) updateListener(latest *skupperv2alpha1.Listener) (qdr.ConfigUpdate, error) {
 	name := latest.ObjectMeta.Name
 	existing, ok := b.listeners[name]
 	b.listeners[name] = latest
 
 	if !ok || !reflect.DeepEqual(existing.Spec, latest.Spec) {
+		var err error
 		if b.handler != nil {
-			b.handler.ListenerUpdated(latest)
+			err = b.handler.ListenerUpdated(latest)
 		}
-		return b
+		return b, err
 	}
-	return nil
+	return nil, nil
 }
 
-func (b *Bindings) deleteListener(name string) qdr.ConfigUpdate {
+func (b *Bindings) deleteListener(name string) (qdr.ConfigUpdate, error) {
 	if existing, ok := b.listeners[name]; ok {
 		delete(b.listeners, name)
+		var err error
 		if b.handler != nil {
-			b.handler.ListenerDeleted(existing)
+			err = b.handler.ListenerDeleted(existing)
 		}
-		return b
+		return b, err
 	}
-	return nil
+	return nil, nil
 }
 
 func (b *Bindings) GetMultiKeyListener(name string) *skupperv2alpha1.MultiKeyListener {
