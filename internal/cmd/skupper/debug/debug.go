@@ -56,7 +56,6 @@ skupper debug conn --output json --list-ports`,
 	}
 
 	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdDesc, kubeCommand, nonKubeCommand)
-	cmd.Hidden = true
 	cmd.Aliases = []string{"sweep"}
 
 	var cmdFlags common.CommandConnSweeperFlags
