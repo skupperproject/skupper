@@ -26,6 +26,7 @@ type ExtendedBindings struct {
 	controller            *watchers.EventProcessor
 	site                  *Site
 	logger                *slog.Logger
+	lastListenerExposeErr map[string]error // latest error for each Listener name
 }
 
 func NewExtendedBindings(controller *watchers.EventProcessor, profilePath string) *ExtendedBindings {
@@ -35,6 +36,7 @@ func NewExtendedBindings(controller *watchers.EventProcessor, profilePath string
 		perTargetListeners:    map[string]*PerTargetListener{},
 		listenerHosts:         map[string]string{},
 		multiKeyListenerHosts: map[string]string{},
+		lastListenerExposeErr: map[string]error{},
 		controller:            controller,
 		logger: slog.New(slog.Default().Handler()).With(
 			slog.String("component", "kube.site.attached_connector"),
@@ -106,6 +108,10 @@ func (a *ExtendedBindings) ConnectorDeleted(connector *skupperv2alpha1.Connector
 }
 
 func (a *ExtendedBindings) ListenerUpdated(listener *skupperv2alpha1.Listener) {
+	if a.lastListenerExposeErr == nil {
+		a.lastListenerExposeErr = map[string]error{}
+	}
+
 	allocatedRouterPort, err := a.mapping.GetPortForKey(listener.Name)
 	if err != nil {
 		bindings_logger.Error("Unable to get port for listener",
@@ -113,6 +119,7 @@ func (a *ExtendedBindings) ListenerUpdated(listener *skupperv2alpha1.Listener) {
 			slog.String("name", listener.Name),
 			slog.Any("error", err),
 		)
+		a.lastListenerExposeErr[listener.Name] = err
 		return
 	}
 	port := Port{
@@ -127,12 +134,15 @@ func (a *ExtendedBindings) ListenerUpdated(listener *skupperv2alpha1.Listener) {
 				slog.String("namespace", listener.Namespace),
 				slog.String("name", listener.Name),
 				slog.Any("error", err))
-		} else {
-			bindings_logger.Info("Exposed listener",
-				slog.String("namespace", listener.Namespace),
-				slog.String("name", listener.Name))
+			a.lastListenerExposeErr[listener.Name] = err
+			return
 		}
+		bindings_logger.Info("Exposed listener",
+			slog.String("namespace", listener.Namespace),
+			slog.String("name", listener.Name))
 	}
+	// Don't leave a stale error sitting around.
+	delete(a.lastListenerExposeErr, listener.Name)
 }
 
 func (a *ExtendedBindings) GetExposedPortSet(host string) *ExposedPortSet {
@@ -311,7 +321,6 @@ func (b *ExtendedBindings) UpdateListener(name string, listener *skupperv2alpha1
 			if err := existing.unexposeAll(b.mapping, b.exposed, b.context); err != nil {
 				errs = append(errs, err)
 			}
-
 			updateConfig = true
 		}
 	}
@@ -324,16 +333,23 @@ func (b *ExtendedBindings) UpdateListener(name string, listener *skupperv2alpha1
 			}
 		}
 		b.listenerHosts[name] = listener.Spec.Host
+	} else {
+		// This listener is gone. Don't leave its error sitting around.
+		delete(b.lastListenerExposeErr, name)
 	}
 	if b.bindings.UpdateListener(name, listener) != nil {
 		updateConfig = true
+	}
+	if err, ok := b.lastListenerExposeErr[name]; ok {
+		// Send the right listener's error back to the caller.
+		errs = append(errs, err)
+		delete(b.lastListenerExposeErr, name)
 	}
 	if !updateConfig {
 		return nil, errors.Join(errs...)
 	}
 	return b, errors.Join(errs...)
 }
-
 func (b *ExtendedBindings) UpdateMultiKeyListener(name string, mkl *skupperv2alpha1.MultiKeyListener) (qdr.ConfigUpdate, error) {
 	var errs []error
 	updateConfig := false

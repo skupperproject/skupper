@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/fixtures"
 	kubeqdr "github.com/skupperproject/skupper/internal/kube/qdr"
 	"gotest.tools/v3/assert"
