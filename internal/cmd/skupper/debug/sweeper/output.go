@@ -49,22 +49,44 @@ func decisionReport(d Decision) ConnReport {
 	}
 }
 
-func decisionsToReports(decisions []Decision) []ConnReport {
-	reports := make([]ConnReport, 0, len(decisions))
-	for _, d := range decisions {
-		reports = append(reports, decisionReport(d))
+func connectionReports(snap Snapshot, idleThreshold time.Duration) []ConnReport {
+	reports := make([]ConnReport, 0, len(snap.TCPConns))
+	for _, c := range snap.TCPConns {
+		r := ConnReport{
+			Identity:   c.Identity,
+			Host:       c.Host,
+			Dir:        c.Dir,
+			Port:       c.Port,
+			State:      c.State,
+			Uptime:     fmtSeconds(c.UptimeSeconds),
+			RoutingKey: c.RoutingKey,
+			Resource:   c.Resource,
+			Kind:       c.Kind,
+		}
+		if sock, ok := matchSocket(c, snap); ok {
+			if r.State == "" {
+				r.State = sock.State
+			}
+			idle := time.Duration(min(sock.LastRcvMs, sock.LastSndMs)) * time.Millisecond
+			r.Idle = fmtDuration(idle.Round(time.Second))
+			if idle >= idleThreshold {
+				r.Reason = fmt.Sprintf("idle for %s", idle.Round(time.Second))
+			} else {
+				r.Reason = "active"
+			}
+		} else if r.Reason == "" {
+			r.Reason = "no matching socket"
+		}
+		reports = append(reports, r)
 	}
 	return reports
 }
 
-func printDecisions(w io.Writer, decisions []Decision, output string) error {
-	if NormalizeOutput(output) == OutputJSON {
-		return WriteJSON(w, decisionsToReports(decisions))
-	}
-	for _, d := range decisions {
-		if _, err := fmt.Fprintf(w, "  id=%-6s  host=%-25s  dir=%s  port=%-5d  state=%-10s  uptime=%-10s  routing-key=%-16s  resource=%-24s  reason=%s\n",
-			d.Conn.Identity, d.Conn.Host, d.Conn.Dir, d.Conn.Port, emptyDash(d.Conn.State),
-			fmtSeconds(d.Conn.UptimeSeconds), emptyDash(d.Conn.RoutingKey), emptyDash(d.Conn.Resource), d.Reason); err != nil {
+func printReports(w io.Writer, reports []ConnReport) error {
+	for _, r := range reports {
+		if _, err := fmt.Fprintf(w, "  id=%-6s  host=%-25s  dir=%s  port=%-5d  state=%-10s  idle=%-10s  uptime=%-10s  routing-key=%-16s  resource=%-24s  reason=%s\n",
+			r.Identity, r.Host, r.Dir, r.Port, emptyDash(r.State), emptyDash(r.Idle),
+			emptyDash(r.Uptime), emptyDash(r.RoutingKey), emptyDash(r.Resource), emptyDash(r.Reason)); err != nil {
 			return err
 		}
 	}

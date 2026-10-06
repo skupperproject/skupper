@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestNormalizeStates(t *testing.T) {
@@ -125,26 +126,36 @@ func TestFilterByRoutingKeys(t *testing.T) {
 	}
 }
 
-func TestPrintDecisionsJSON(t *testing.T) {
+func TestConnectionReportsMarksActiveAndIdle(t *testing.T) {
 	uptime := 120
-	decisions := []Decision{{
-		Conn: connInfo{
-			Identity: "7", Host: "10.0.0.9:41002", Dir: "in", Port: 1024,
-			State: "ESTAB", UptimeSeconds: &uptime, RoutingKey: "echo:8080",
-			Resource: "listener/frontend", Kind: "listener",
+	snap := Snapshot{
+		TCPConns: []connInfo{
+			{Identity: "1", Dir: "in", Host: "10.0.0.9:41002", LocalSocket: "10.0.0.2:1024", Port: 1024, State: "ESTAB", UptimeSeconds: &uptime, RoutingKey: "echo:8080", Resource: "listener/frontend"},
+			{Identity: "2", Dir: "in", Host: "10.0.0.9:41004", LocalSocket: "10.0.0.2:1024", Port: 1024, State: "ESTAB", UptimeSeconds: &uptime, RoutingKey: "echo:8080", Resource: "listener/frontend"},
 		},
-		Reason: "idle for 4h0m0s",
-	}}
+		Sockets: map[string]socketInfo{
+			"10.0.0.9:41002": {State: "ESTAB", LastRcvMs: 500, LastSndMs: 500},
+			"10.0.0.9:41004": {State: "ESTAB", LastRcvMs: 10_000, LastSndMs: 10_000},
+		},
+	}
+	reports := connectionReports(snap, 2*time.Second)
+	if len(reports) != 2 {
+		t.Fatalf("got %d reports, want 2", len(reports))
+	}
+	if reports[0].Reason != "active" || reports[0].Idle != "1s" {
+		t.Errorf("active report = %+v, want reason=active idle=1s", reports[0])
+	}
+	if reports[1].Reason != "idle for 10s" {
+		t.Errorf("idle report = %+v, want reason idle for 10s", reports[1])
+	}
+
 	var buf bytes.Buffer
-	if err := printDecisions(&buf, decisions, OutputJSON); err != nil {
+	if err := printReports(&buf, reports); err != nil {
 		t.Fatal(err)
 	}
-	var reports []ConnReport
-	if err := json.Unmarshal(buf.Bytes(), &reports); err != nil {
-		t.Fatalf("invalid JSON: %v\n%s", err, buf.String())
-	}
-	if len(reports) != 1 || reports[0].Identity != "7" || reports[0].RoutingKey != "echo:8080" {
-		t.Errorf("reports = %+v", reports)
+	out := buf.String()
+	if !bytes.Contains(buf.Bytes(), []byte("reason=active")) || !bytes.Contains(buf.Bytes(), []byte("reason=idle for 10s")) {
+		t.Errorf("printReports missing expected reasons:\n%s", out)
 	}
 }
 

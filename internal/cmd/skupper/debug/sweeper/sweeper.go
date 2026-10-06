@@ -91,17 +91,11 @@ func Run(cfg Config) (Result, error) {
 		}
 	}
 
-	toKill := Evaluate(snap, time.Duration(cfg.IdleThresholdSecs)*time.Second)
+	idleThreshold := time.Duration(cfg.IdleThresholdSecs) * time.Second
+	toKill := Evaluate(snap, idleThreshold)
+	reports := connectionReports(snap, idleThreshold)
 	if !jsonMode {
 		logf("total:%d  idle-orphan:%d", len(snap.TCPConns), len(toKill))
-	}
-
-	if len(toKill) == 0 {
-		if jsonMode {
-			return Result{Total: len(snap.TCPConns), Reports: []ConnReport{}}, nil
-		}
-		logf("No idle/orphaned connections found.")
-		return Result{Total: len(snap.TCPConns)}, nil
 	}
 
 	if !cfg.Execute {
@@ -109,14 +103,20 @@ func Run(cfg Config) (Result, error) {
 			return Result{
 				Total:   len(snap.TCPConns),
 				Skipped: len(toKill),
-				Reports: decisionsToReports(toKill),
+				Reports: reports,
 			}, nil
 		}
-		logf("Found %d idle connection(s) — re-run with --execute to close them:", len(toKill))
-		if err := printDecisions(os.Stdout, toKill, cfg.Output); err != nil {
+		if len(snap.TCPConns) == 0 {
+			logf("No TCP adaptor connections found.")
+			return Result{}, nil
+		}
+		if err := printReports(os.Stdout, reports); err != nil {
 			return Result{}, err
 		}
-		return Result{Total: len(snap.TCPConns), Skipped: len(toKill)}, nil
+		if len(toKill) > 0 {
+			logf("Found %d idle connection(s) — re-run with --execute to close them.", len(toKill))
+		}
+		return Result{Total: len(snap.TCPConns), Skipped: len(toKill), Reports: reports}, nil
 	}
 
 	if !jsonMode {
