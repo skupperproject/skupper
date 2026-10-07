@@ -84,6 +84,9 @@ for other Kubernetes flavors, loadbalancer is the default.`
 
 	FlagDescUninstallForce = "all existing sites (active or not) will be deleted"
 
+	FlagNameUpgrade = "upgrade"
+	FlagDescUpgrade = "replace the running system controller container with the images specified in the environment variables or the current image by default"
+
 	FlagNameHA = "enable-ha"
 	FlagDescHA = "Configure the site for high availability (EnableHA). EnableHA sites have two active routers"
 
@@ -292,4 +295,5 @@ type CommandSystemDeleteFlags struct {
 
 type CommandSystemInstallFlags struct {
 	ReloadType string
+	Upgrade    bool
 }

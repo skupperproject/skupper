@@ -17,8 +17,10 @@ type CmdSystemInstall struct {
 	CobraCmd      *cobra.Command
 	Namespace     string
 	SystemInstall func(string, string) error
+	SystemUpgrade func(string, string) error
 	Flags         *common.CommandSystemInstallFlags
 	reloadType    string
+	upgrade       bool
 }
 
 func NewCmdSystemInstall() *CmdSystemInstall {
@@ -30,6 +32,7 @@ func NewCmdSystemInstall() *CmdSystemInstall {
 
 func (cmd *CmdSystemInstall) NewClient(cobraCommand *cobra.Command, args []string) {
 	cmd.SystemInstall = bootstrap.Install
+	cmd.SystemUpgrade = bootstrap.Upgrade
 }
 
 func (cmd *CmdSystemInstall) ValidateInput(args []string) error {
@@ -59,15 +62,21 @@ func (cmd *CmdSystemInstall) InputToOptions() {
 	if cmd.Flags != nil && cmd.Flags.ReloadType != "" {
 		cmd.reloadType = cmd.Flags.ReloadType
 	}
+	if cmd.Flags != nil {
+		cmd.upgrade = cmd.Flags.Upgrade
+	}
 }
 
 func (cmd *CmdSystemInstall) Run() error {
-	err := cmd.SystemInstall(string(config.GetPlatform()), cmd.reloadType)
-
-	if err != nil {
-		return fmt.Errorf("failed to configure the environment : %s", err)
+	var err error
+	if cmd.upgrade {
+		err = cmd.SystemUpgrade(string(config.GetPlatform()), cmd.reloadType)
+	} else {
+		err = cmd.SystemInstall(string(config.GetPlatform()), cmd.reloadType)
 	}
-
+	if err != nil {
+		return fmt.Errorf("failed to configure the environment: %s", err)
+	}
 	return nil
 }
 
