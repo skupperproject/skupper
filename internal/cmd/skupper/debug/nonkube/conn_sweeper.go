@@ -48,9 +48,18 @@ func (cmd *CmdConnSweeper) ValidateInput(args []string) error {
 	if err := sweeper.ValidatePorts(cmd.Flags.Ports); err != nil {
 		validationErrors = append(validationErrors, err)
 	}
+	if _, err := sweeper.NormalizeStates(cmd.Flags.States); err != nil {
+		validationErrors = append(validationErrors, err)
+	}
+	if err := sweeper.ValidateOutput(cmd.Flags.Output); err != nil {
+		validationErrors = append(validationErrors, err)
+	}
 	if cmd.Flags.ListPorts {
 		if cmd.Flags.Execute {
 			validationErrors = append(validationErrors, fmt.Errorf("--execute cannot be used with --list-ports: listing ports never closes connections"))
+		}
+		if len(cmd.Flags.States) > 0 {
+			validationErrors = append(validationErrors, fmt.Errorf("--state cannot be used with --list-ports: port listing does not query kernel sockets"))
 		}
 		return errors.Join(validationErrors...)
 	}
@@ -104,22 +113,29 @@ func (cmd *CmdConnSweeper) Run() error {
 	if cmd.url == "" || cmd.skmanage == "" {
 		return fmt.Errorf("could not determine router management address for namespace %q", cmd.namespace)
 	}
+	jsonMode := sweeper.NormalizeOutput(cmd.Flags.Output) == sweeper.OutputJSON
 	if cmd.exec != nil {
-		fmt.Printf("running against %s container %s-skupper-router\n", cmd.platform, cmd.namespace)
+		msg := fmt.Sprintf("running against %s container %s-skupper-router\n", cmd.platform, cmd.namespace)
+		if jsonMode {
+			fmt.Fprint(os.Stderr, msg)
+		} else {
+			fmt.Print(msg)
+		}
 	}
 	if cmd.Flags.ListPorts {
 		stats, err := sweeper.ListPorts(sweeper.Config{
 			URL:               cmd.url,
 			Skmanage:          cmd.skmanage,
 			Ports:             cmd.Flags.Ports,
+			RoutingKeys:       cmd.Flags.RoutingKeys,
+			Output:            cmd.Flags.Output,
 			Exec:              cmd.exec,
 			SkmanageExtraArgs: cmd.sslArgs,
 		})
 		if err != nil {
 			return err
 		}
-		sweeper.PrintPortStats(os.Stdout, stats, cmd.Flags.Ports)
-		return nil
+		return sweeper.PrintPortStatsToStdout(stats, cmd.Flags.Ports, cmd.Flags.Output)
 	}
 
 	res, err := sweeper.Run(sweeper.Config{
@@ -128,11 +144,23 @@ func (cmd *CmdConnSweeper) Run() error {
 		IdleThresholdSecs: cmd.Flags.IdleThreshold,
 		Execute:           cmd.Flags.Execute,
 		Ports:             cmd.Flags.Ports,
+		States:            cmd.Flags.States,
+		RoutingKeys:       cmd.Flags.RoutingKeys,
+		Output:            cmd.Flags.Output,
 		Exec:              cmd.exec,
 		SkmanageExtraArgs: cmd.sslArgs,
 	})
 	if err != nil {
 		return err
+	}
+	if jsonMode {
+		reports := res.Reports
+		if reports == nil {
+			reports = []sweeper.ConnReport{}
+		}
+		if err := sweeper.WriteJSON(os.Stdout, reports); err != nil {
+			return err
+		}
 	}
 	if res.Failed > 0 {
 		return fmt.Errorf("%d idle connection(s) failed to close (%d closed)", res.Failed, res.Killed)

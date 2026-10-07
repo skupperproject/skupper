@@ -74,7 +74,9 @@ func TestSortedStatsTiesBreakOnPort(t *testing.T) {
 
 func TestPrintPortStatsEmpty(t *testing.T) {
 	var buf bytes.Buffer
-	PrintPortStats(&buf, nil, nil)
+	if err := PrintPortStats(&buf, nil, nil); err != nil {
+		t.Fatal(err)
+	}
 	if got, want := buf.String(), "No TCP adaptor connections found.\n"; got != want {
 		t.Errorf("PrintPortStats() = %q, want %q", got, want)
 	}
@@ -82,9 +84,26 @@ func TestPrintPortStatsEmpty(t *testing.T) {
 	// A --port selection that matched nothing must not read like an unfiltered
 	// empty router.
 	buf.Reset()
-	PrintPortStats(&buf, nil, []int{8080, 9090})
+	if err := PrintPortStats(&buf, nil, []int{8080, 9090}); err != nil {
+		t.Fatal(err)
+	}
 	if got, want := buf.String(), "No connections found on port 8080, 9090.\n"; got != want {
 		t.Errorf("PrintPortStats() = %q, want %q", got, want)
+	}
+}
+
+func TestPrintPortStatsIncludesCorrelationColumns(t *testing.T) {
+	var buf bytes.Buffer
+	if err := PrintPortStats(&buf, []PortStat{
+		{Port: 8080, In: 2, Out: 2, RoutingKey: "echo:8080", Resource: "listener/frontend"},
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	for _, want := range []string{"ROUTING-KEY", "RESOURCE", "echo:8080", "listener/frontend"} {
+		if !bytes.Contains(buf.Bytes(), []byte(want)) {
+			t.Errorf("PrintPortStats() missing %q in:\n%s", want, out)
+		}
 	}
 }
 
