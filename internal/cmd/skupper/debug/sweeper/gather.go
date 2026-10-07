@@ -63,6 +63,9 @@ type Snapshot struct {
 	// used to correlate connection ports to routing keys and CR names.
 	Listeners  []tcpEndpointInfo
 	Connectors []tcpEndpointInfo
+	// ListenerAddresses hold MultiKeyListener routing keys, keyed to a
+	// parent tcpListener name (multiAddress/<cr-name>).
+	ListenerAddresses []listenerAddressInfo
 }
 
 // Execer runs a command (argv) and returns its stdout. LocalExec runs on
@@ -114,6 +117,14 @@ func Gather(execFn Execer, skmanageBin, url string, requireEndpointInfo bool, ex
 		}
 	} else {
 		snap.Connectors = connectors
+	}
+	addresses, err := gatherListenerAddresses(execFn, skmanageBin, url, extraArgs...)
+	if err != nil {
+		if requireEndpointInfo {
+			return Snapshot{}, err
+		}
+	} else {
+		snap.ListenerAddresses = addresses
 	}
 	enrichSnapshot(&snap)
 	return snap, nil

@@ -43,19 +43,27 @@ func ListPorts(cfg Config) ([]PortStat, error) {
 	if err != nil {
 		return nil, err
 	}
+	requireEndpoints := len(cfg.RoutingKeys) > 0
 	listeners, err := gatherTcpEndpoints(cfg.Exec, cfg.Skmanage, cfg.URL, TcpListenerType, cfg.SkmanageExtraArgs...)
 	if err != nil {
-		if len(cfg.RoutingKeys) > 0 {
+		if requireEndpoints {
 			return nil, err
 		}
 		listeners = nil
 	}
 	connectors, err := gatherTcpEndpoints(cfg.Exec, cfg.Skmanage, cfg.URL, TcpConnectorType, cfg.SkmanageExtraArgs...)
 	if err != nil {
-		if len(cfg.RoutingKeys) > 0 {
+		if requireEndpoints {
 			return nil, err
 		}
 		connectors = nil
+	}
+	addresses, err := gatherListenerAddresses(cfg.Exec, cfg.Skmanage, cfg.URL, cfg.SkmanageExtraArgs...)
+	if err != nil {
+		if requireEndpoints {
+			return nil, err
+		}
+		addresses = nil
 	}
 
 	for i := range conns {
@@ -63,14 +71,14 @@ func ListPorts(cfg Config) ([]PortStat, error) {
 			conns[i].Port = port
 		}
 	}
-	tmp := Snapshot{TCPConns: conns, Listeners: listeners, Connectors: connectors}
+	tmp := Snapshot{TCPConns: conns, Listeners: listeners, Connectors: connectors, ListenerAddresses: addresses}
 	enrichSnapshot(&tmp)
 	conns = tmp.TCPConns
 	conns = FilterByPorts(conns, cfg.Ports)
 	conns = FilterByRoutingKeys(conns, cfg.RoutingKeys)
 
 	stats := summarizePorts(conns)
-	enrichPortStats(stats, listeners, connectors)
+	enrichPortStats(stats, listeners, connectors, addresses)
 	return stats, nil
 }
 

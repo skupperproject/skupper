@@ -110,6 +110,45 @@ func TestEnrichSnapshotAmbiguousPort(t *testing.T) {
 	}
 }
 
+func TestEnrichSnapshotMultiKeyListener(t *testing.T) {
+	snap := Snapshot{
+		TCPConns: []connInfo{
+			{Identity: "1", Dir: "in", Host: "10.0.0.9:41002", LocalSocket: "10.0.0.2:1024"},
+		},
+		Listeners: []tcpEndpointInfo{
+			// MultiKeyListener tcpListeners have empty Address; keys live on listenerAddress.
+			{Name: "multiAddress/tcp-go-echo", Port: "1024", Address: ""},
+		},
+		ListenerAddresses: []listenerAddressInfo{
+			{Name: "tcp-go-echo/backend", Address: "backend", Listener: "multiAddress/tcp-go-echo"},
+			{Name: "tcp-go-echo/other", Address: "other", Listener: "multiAddress/tcp-go-echo"},
+		},
+	}
+	enrichSnapshot(&snap)
+
+	c := snap.TCPConns[0]
+	if c.Kind != "multikeylistener" {
+		t.Errorf("kind = %q, want multikeylistener", c.Kind)
+	}
+	if c.Resource != "multikeylistener/tcp-go-echo" {
+		t.Errorf("resource = %q, want multikeylistener/tcp-go-echo", c.Resource)
+	}
+	if c.RoutingKey != "backend,other" {
+		t.Errorf("routingKey = %q, want backend,other", c.RoutingKey)
+	}
+
+	got := FilterByRoutingKeys([]connInfo{c}, []string{"backend"})
+	if len(got) != 1 {
+		t.Errorf("FilterByRoutingKeys(backend) matched %d, want 1", len(got))
+	}
+
+	stats := []PortStat{{Port: 1024, In: 1}}
+	enrichPortStats(stats, snap.Listeners, nil, snap.ListenerAddresses)
+	if stats[0].Resource != "multikeylistener/tcp-go-echo" || stats[0].RoutingKey != "backend,other" || stats[0].Kind != "multikeylistener" {
+		t.Errorf("port stat enrichment = %+v", stats[0])
+	}
+}
+
 func TestFilterByRoutingKeys(t *testing.T) {
 	conns := []connInfo{
 		{Identity: "1", RoutingKey: "echo:8080"},
