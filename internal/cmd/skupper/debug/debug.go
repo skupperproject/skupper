@@ -19,6 +19,7 @@ func NewCmdDebug() *cobra.Command {
 	}
 	platform := common.Platform(config.GetPlatform())
 	cmd.AddCommand(CmdDebugDumpFactory(platform))
+	cmd.AddCommand(CmdDebugCertFactory(platform))
 	cmd.AddCommand(CmdDebugConnFactory(platform))
 
 	return cmd
@@ -79,6 +80,38 @@ skupper debug conn --output json --list-ports`,
 // CmdDebugSweepFactory is retained for callers that still reference the old name.
 func CmdDebugSweepFactory(configuredPlatform common.Platform) *cobra.Command {
 	return CmdDebugConnFactory(configuredPlatform)
+}
+
+func CmdDebugCertFactory(configuredPlatform common.Platform) *cobra.Command {
+	kubeCommand := kube.NewCmdDebugCert()
+	nonKubeCommand := nonkube.NewCmdDebugCert()
+
+	cmdDesc := common.SkupperCmdDescription{
+		Use:   "cert-inspect [name]",
+		Short: "Inspect X.509 certificates in use by Skupper",
+		Long: `Decode and display key fields of X.509 certificates managed by Skupper,
+including subject, issuer, validity period, SANs, and public key information.
+
+Without a name, all certificates in the namespace are listed. With a name,
+detailed information for that certificate is shown.`,
+		Example: `skupper debug cert-inspect
+skupper debug cert-inspect skupper-local-server
+skupper debug cert-inspect --file /path/to/tls.crt
+skupper debug cert-inspect -o yaml`,
+	}
+
+	cmd := common.ConfigureCobraCommand(configuredPlatform, cmdDesc, kubeCommand, nonKubeCommand)
+
+	cmdFlags := common.CommandDebugCertFlags{}
+	cmd.Flags().StringVarP(&cmdFlags.Output, common.FlagNameOutput, "o", "", common.FlagDescOutput)
+	cmd.Flags().StringVar(&cmdFlags.File, "file", "", "Inspect a local PEM-encoded certificate file")
+
+	kubeCommand.CobraCmd = cmd
+	kubeCommand.Flags = &cmdFlags
+	nonKubeCommand.CobraCmd = cmd
+	nonKubeCommand.Flags = &cmdFlags
+
+	return cmd
 }
 
 func CmdDebugDumpFactory(configuredPlatform common.Platform) *cobra.Command {

@@ -24,6 +24,14 @@ func TestCmdLinkFactory(t *testing.T) {
 			expectedFlagsWithDefaultValue: map[string]interface{}{},
 			command:                       CmdDebugDumpFactory(common.PlatformKubernetes),
 		},
+		{
+			name: "CmdDebugCertFactory",
+			expectedFlagsWithDefaultValue: map[string]interface{}{
+				"output": "",
+				"file":   "",
+			},
+			command: CmdDebugCertFactory(common.PlatformKubernetes),
+		},
 	}
 
 	for _, test := range testTable {
