@@ -45,6 +45,7 @@ func TestCmdSystemFactory(t *testing.T) {
 			name: "CmdSystemInstallFactory",
 			expectedFlagsWithDefaultValue: map[string]interface{}{
 				common.FlagNameReloadType: "manual",
+				common.FlagNameUpgrade:    "false",
 			},
 			command: CmdSystemInstallFactory(common.PlatformKubernetes),
 		},
