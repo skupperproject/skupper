@@ -12,7 +12,7 @@ import (
 
 type CheckDrift func(string) (bool, error)
 
-func Upgrade(platform string, reloadType string) error {
+func Upgrade(platform string) error {
 	controllerDrifted, reloadType, err := CheckControllerImageDrift()
 	if err != nil {
 		return fmt.Errorf("upgrade: controller check: %w", err)

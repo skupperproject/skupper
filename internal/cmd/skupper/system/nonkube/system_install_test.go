@@ -18,6 +18,7 @@ func TestCmdSystemInstall_ValidateInput(t *testing.T) {
 		args          []string
 		platform      string
 		reloadType    string
+		upgrade       bool
 		expectedError string
 	}
 
@@ -39,6 +40,19 @@ func TestCmdSystemInstall_ValidateInput(t *testing.T) {
 			platform:      "podman",
 			expectedError: "reload type is not valid: value both not allowed. It should be one of this options: [manual auto]",
 		},
+		{
+			name:          "reload type cannot be specified with upgrade",
+			reloadType:    "manual",
+			upgrade:       true,
+			platform:      "podman",
+			expectedError: "--reload-type cannot be specified with --upgrade",
+		},
+		{
+			name:          "upgrade without reload type is allowed",
+			upgrade:       true,
+			platform:      "podman",
+			expectedError: "",
+		},
 	}
 
 	for _, test := range testTable {
@@ -50,6 +64,7 @@ func TestCmdSystemInstall_ValidateInput(t *testing.T) {
 
 			command := &CmdSystemInstall{Flags: &cmd.CommandSystemInstallFlags{}}
 			command.Flags.ReloadType = test.reloadType
+			command.Flags.Upgrade = test.upgrade
 
 			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
@@ -141,7 +156,7 @@ func mockCmdSystemInstall(platform string, reloadType string) error { return nil
 func mockCmdSystemInstallSocketEnablementFails(platform string, reloadType string) error {
 	return fmt.Errorf("systemd failed to enable podman socket")
 }
-func mockCmdSystemUpgrade(platform string, reloadType string) error { return nil }
-func mockCmdSystemUpgradeFails(platform string, reloadType string) error {
+func mockCmdSystemUpgrade(platform string) error { return nil }
+func mockCmdSystemUpgradeFails(platform string) error {
 	return fmt.Errorf("upgrade failed")
 }
