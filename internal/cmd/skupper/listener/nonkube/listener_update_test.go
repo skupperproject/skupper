@@ -173,6 +173,12 @@ func TestCmdListenerUpdate_ValidateInput(t *testing.T) {
 }
 
 func TestCmdListenerUpdate_Run(t *testing.T) {
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+
 	type test struct {
 		name                string
 		namespace           string
