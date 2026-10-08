@@ -39,7 +39,7 @@ func TestUpgradeRoutersWith_RebootsDriftedNamespace(t *testing.T) {
 func TestUpgradeRoutersWith_SkipsNonDriftedNamespace(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", tmp)
-	_ = os.MkdirAll(filepath.Join(tmp, "skupper", "namespaces", "uptodate"), 0755)
+	_ = os.MkdirAll(filepath.Join(tmp, "skupper", "namespaces", "up-to-date"), 0755)
 
 	bootstrapCalled := false
 

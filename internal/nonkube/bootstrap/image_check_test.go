@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -44,4 +45,16 @@ func TestAnyRouterDrifted_CheckError(t *testing.T) {
 		return false, os.ErrPermission
 	})
 	assert.ErrorContains(t, err, "router check for")
+}
+
+func TestAnyRouterDrifted_InspectErrorPropagates(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", tmp)
+	_ = os.MkdirAll(filepath.Join(tmp, "skupper", "namespaces", "ns1"), 0755)
+
+	inspectErr := fmt.Errorf("connection refused")
+	_, err := anyRouterDriftedWith(func(string) (bool, error) {
+		return false, inspectErr
+	})
+	assert.ErrorContains(t, err, "connection refused")
 }
