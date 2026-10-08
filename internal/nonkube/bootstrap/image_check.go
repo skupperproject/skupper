@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"fmt"
 	"os/user"
+	"strings"
 
 	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/images"
@@ -18,7 +19,13 @@ func CheckRouterImageDrift(namespace string) (bool, error) {
 
 	containerName := namespace + "-skupper-router"
 	c, err := cli.ContainerInspect(containerName)
-	if err != nil || c == nil {
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return false, nil
+		}
+		return false, err
+	}
+	if c == nil {
 		return false, nil
 	}
 
