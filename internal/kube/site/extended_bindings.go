@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -40,8 +41,10 @@ func NewExtendedBindings(controller *watchers.EventProcessor, profilePath string
 			slog.String("component", "kube.site.attached_connector"),
 		),
 	}
+	eb.bindings.SetHealthChangeCallback(eb.onConnectorHealthChanged)
 	eb.bindings.SetListenerConfiguration(eb.updateBridgeConfigForListener)
 	eb.bindings.SetMultiKeyListenerConfiguration(eb.updateBridgeConfigForMultiKeyListener)
+	eb.bindings.StartHealthCheckLoop(5 * time.Second)
 	return eb
 }
 
@@ -63,6 +66,7 @@ func (a *ExtendedBindings) init(context BindingContext, config *qdr.RouterConfig
 }
 
 func (a *ExtendedBindings) cleanup() {
+	a.bindings.Stop()
 	for _, s := range a.selectors {
 		s.Close()
 	}
@@ -167,7 +171,13 @@ func (a *ExtendedBindings) ListenerDeleted(listener *skupperv2alpha1.Listener) {
 
 func (a *ExtendedBindings) updateBridgeConfigForConnector(siteId string, connector *skupperv2alpha1.Connector, config *qdr.BridgeConfig) {
 	if connector.Spec.Host != "" {
-		site.UpdateBridgeConfigForConnector(siteId, connector, config)
+		if a.bindings.IsConnectorHealthy(connector.Name) {
+			site.UpdateBridgeConfigForConnector(siteId, connector, config)
+		} else {
+			a.logger.Info("Not adding connector bridge config because host is unhealthy",
+				slog.String("name", connector.Name),
+				slog.String("host", connector.Spec.Host))
+		}
 	} else if connector.Spec.Selector != "" {
 		if selector, ok := a.selectors[connector.Name]; ok {
 			for _, pod := range selector.List() {
@@ -611,4 +621,25 @@ func (b *ExtendedBindings) networkUpdated(network []skupperv2alpha1.SiteRecord) 
 
 func (a *ExtendedBindings) isHostExposed(host string) bool {
 	return a.exposed.isExposed(host)
+}
+
+func (a *ExtendedBindings) onConnectorHealthChanged(changedConnectors []site.ConnectorHealthChange) {
+	if a.site != nil {
+		a.logger.Info("Connector health status changed, updating router config", slog.Any("connectors", changedConnectors))
+		if err := a.site.updateRouterConfig(a); err != nil {
+			a.logger.Error("Failed to update router config on health check change", slog.Any("error", err))
+		}
+		for _, res := range changedConnectors {
+			connector := a.bindings.GetConnector(res.Name)
+			if connector != nil {
+				var err error
+				if !res.Healthy {
+					err = fmt.Errorf("Target host %s:%d is not reachable", res.Host, res.Port)
+				}
+				if statusErr := a.site.updateConnectorConfiguredStatus(connector, err); statusErr != nil {
+					a.logger.Error("Failed to update connector status", slog.String("connector", res.Name), slog.Any("error", statusErr))
+				}
+			}
+		}
+	}
 }
