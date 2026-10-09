@@ -17,8 +17,10 @@ type CmdSystemInstall struct {
 	CobraCmd      *cobra.Command
 	Namespace     string
 	SystemInstall func(string, string) error
+	SystemUpgrade func(string) error
 	Flags         *common.CommandSystemInstallFlags
 	reloadType    string
+	upgrade       bool
 }
 
 func NewCmdSystemInstall() *CmdSystemInstall {
@@ -30,6 +32,7 @@ func NewCmdSystemInstall() *CmdSystemInstall {
 
 func (cmd *CmdSystemInstall) NewClient(cobraCommand *cobra.Command, args []string) {
 	cmd.SystemInstall = bootstrap.Install
+	cmd.SystemUpgrade = bootstrap.Upgrade
 }
 
 func (cmd *CmdSystemInstall) ValidateInput(args []string) error {
@@ -45,7 +48,17 @@ func (cmd *CmdSystemInstall) ValidateInput(args []string) error {
 		validationErrors = append(validationErrors, fmt.Errorf("the selected platform is not supported by this command. There is nothing to install"))
 	}
 
-	if cmd.Flags != nil && cmd.Flags.ReloadType != "" {
+	if cmd.Flags != nil && cmd.Flags.Upgrade {
+		reloadTypeSpecified := false
+		if cmd.CobraCmd != nil && cmd.CobraCmd.Flags().Changed(common.FlagNameReloadType) {
+			reloadTypeSpecified = true
+		} else if cmd.CobraCmd == nil && cmd.Flags.ReloadType != "" {
+			reloadTypeSpecified = true
+		}
+		if reloadTypeSpecified {
+			validationErrors = append(validationErrors, fmt.Errorf("--%s cannot be specified with --%s", common.FlagNameReloadType, common.FlagNameUpgrade))
+		}
+	} else if cmd.Flags != nil && cmd.Flags.ReloadType != "" {
 		ok, err := reloadTypeValidator.Evaluate(cmd.Flags.ReloadType)
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("reload type is not valid: %s", err))
@@ -59,15 +72,21 @@ func (cmd *CmdSystemInstall) InputToOptions() {
 	if cmd.Flags != nil && cmd.Flags.ReloadType != "" {
 		cmd.reloadType = cmd.Flags.ReloadType
 	}
+	if cmd.Flags != nil {
+		cmd.upgrade = cmd.Flags.Upgrade
+	}
 }
 
 func (cmd *CmdSystemInstall) Run() error {
-	err := cmd.SystemInstall(string(config.GetPlatform()), cmd.reloadType)
-
-	if err != nil {
-		return fmt.Errorf("failed to configure the environment : %s", err)
+	var err error
+	if cmd.upgrade {
+		err = cmd.SystemUpgrade(string(config.GetPlatform()))
+	} else {
+		err = cmd.SystemInstall(string(config.GetPlatform()), cmd.reloadType)
 	}
-
+	if err != nil {
+		return fmt.Errorf("failed to configure the environment: %s", err)
+	}
 	return nil
 }
 

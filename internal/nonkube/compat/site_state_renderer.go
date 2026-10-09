@@ -194,6 +194,9 @@ func (s *SiteStateRenderer) cleanupExistingNamespace(siteState *api.SiteState) e
 	s.stoppedContainers = map[string]string{}
 	for _, stopContainer := range containers {
 		if siteId, ok := stopContainer.Labels[types.SiteId]; ok && siteId == siteState.SiteId {
+			if !stopContainer.Running {
+				continue
+			}
 			err = s.cli.ContainerStop(stopContainer.Name)
 			if err != nil {
 				return fmt.Errorf("failed to stop container: %v", err)

@@ -239,7 +239,7 @@ func (t *Tarball) extract(tgzReader io.Reader, outputPath string) error {
 				}
 			}
 		case tar.TypeReg:
-			file, err := os.OpenFile(targetFilePath, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			file, err := os.OpenFile(targetFilePath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, os.FileMode(header.Mode))
 			if err != nil {
 				return err
 			}
