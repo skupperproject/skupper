@@ -38,7 +38,7 @@ func Upgrade(platform string) error {
 	if routersDrifted {
 		routerBackups, backupContainerNames, err = backupRouterContainers(CheckRouterImageDrift)
 		if err != nil {
-			return fmt.Errorf("upgrade: failed to back up router containers: %w", err)
+			return restore("failed to back up router containers", err, routerBackups, nil, "")
 		}
 	}
 
@@ -47,7 +47,7 @@ func Upgrade(platform string) error {
 	if controllerDrifted {
 		controllerBackup, controllerBackupName, err = backupController()
 		if err != nil {
-			return fmt.Errorf("upgrade: failed to back up controller: %w", err)
+			return restore("failed to back up controller", err, routerBackups, controllerBackup, controllerBackupName)
 		}
 
 		backupContainerNames = append(backupContainerNames, controllerBackupName)
@@ -119,10 +119,16 @@ func backupRouterContainers(checkDrift CheckRouterDrift) (map[string]*container.
 			}
 		}
 		if err := cli.ContainerStop(containerName); err != nil {
-			return nil, nil, fmt.Errorf("namespace %q: failed to stop router container: %w", ns, err)
+			return backups, backupContainerNames, fmt.Errorf("namespace %q: failed to stop router container: %w", ns, err)
 		}
 		if err := cli.ContainerRename(containerName, backupName); err != nil {
-			return nil, nil, fmt.Errorf("namespace %q: failed to rename router container to backup: %w", ns, err)
+			// The container was stopped but rename failed; restart it so it is
+			// not left dead under its original name and unreachable by restore.
+			if startErr := cli.ContainerStart(containerName); startErr != nil {
+				slog.Error("upgrade: failed to restart router container after rename failure",
+					slog.String("namespace", ns), slog.Any("error", startErr))
+			}
+			return backups, backupContainerNames, fmt.Errorf("namespace %q: failed to rename router container to backup: %w", ns, err)
 		}
 		backups[ns] = c
 		backupContainerNames = append(backupContainerNames, backupName)
@@ -185,6 +191,12 @@ func backupController() (*container.Container, string, error) {
 		return nil, "", fmt.Errorf("failed to stop controller container: %w", err)
 	}
 	if err := cli.ContainerRename(containerName, backupName); err != nil {
+		// The controller was stopped but rename failed; restart it so it is
+		// not left dead under its original name and unreachable by restore.
+		if startErr := cli.ContainerStart(containerName); startErr != nil {
+			slog.Error("upgrade: failed to restart controller container after rename failure",
+				slog.Any("error", startErr))
+		}
 		return nil, "", fmt.Errorf("failed to rename controller container to backup: %w", err)
 	}
 
@@ -203,6 +215,14 @@ func restoreController(backupName string) error {
 		return fmt.Errorf("failed to create container client: %w", err)
 	}
 
+	// Remove the partially created controller if Install created it before
+	// failing, so the rename below does not hit a name collision.
+	if existing, inspectErr := cli.ContainerInspect(originalName); inspectErr == nil && existing != nil {
+		_ = cli.ContainerStop(originalName)
+		if removeErr := cli.ContainerRemove(originalName); removeErr != nil {
+			return fmt.Errorf("failed to remove partially created controller container: %w", removeErr)
+		}
+	}
 	if err := cli.ContainerRename(backupName, originalName); err != nil {
 		return fmt.Errorf("failed to rename backup controller back to %q: %w", originalName, err)
 	}
