@@ -171,7 +171,7 @@ func (a *ExtendedBindings) ListenerDeleted(listener *skupperv2alpha1.Listener) {
 
 func (a *ExtendedBindings) updateBridgeConfigForConnector(siteId string, connector *skupperv2alpha1.Connector, config *qdr.BridgeConfig) {
 	if connector.Spec.Host != "" {
-		if a.bindings.IsConnectorHealthy(connector.Name) {
+		if !connector.Spec.IsHealthCheckEnabled() || a.bindings.IsConnectorHealthy(connector.Name) {
 			site.UpdateBridgeConfigForConnector(siteId, connector, config)
 		} else {
 			a.logger.Info("Not adding connector bridge config because host is unhealthy",

@@ -16,9 +16,10 @@ type ConnectorConfiguration func(siteId string, connector *skupperv2alpha1.Conne
 type MultiKeyListenerConfiguration func(siteId string, mkl *skupperv2alpha1.MultiKeyListener, config *qdr.BridgeConfig)
 
 type HostConnectorInfo struct {
-	Name string
-	Host string
-	Port int
+	Name     string
+	Host     string
+	Port     int
+	Interval time.Duration
 }
 
 type ConnectorHealthChange struct {
@@ -194,7 +195,7 @@ func (b *Bindings) updateConnector(connector *skupperv2alpha1.Connector) qdr.Con
 	existing, ok := b.connectors[name]
 	b.connectors[name] = connector // always update pointer, even if spec has not changed
 
-	if connector.Spec.Host != "" && connector.Spec.Port != 0 {
+	if connector.Spec.Host != "" && connector.Spec.Port != 0 && connector.Spec.IsHealthCheckEnabled() {
 		b.healthMu.Lock()
 		if b.hostConnectors == nil {
 			b.hostConnectors = map[string]HostConnectorInfo{}
@@ -203,12 +204,13 @@ func (b *Bindings) updateConnector(connector *skupperv2alpha1.Connector) qdr.Con
 			b.connectorHealth = map[string]bool{}
 		}
 		b.hostConnectors[name] = HostConnectorInfo{
-			Name: name,
-			Host: connector.Spec.Host,
-			Port: connector.Spec.Port,
+			Name:     name,
+			Host:     connector.Spec.Host,
+			Port:     connector.Spec.Port,
+			Interval: connector.Spec.GetHealthCheckInterval(),
 		}
 		if _, exists := b.connectorHealth[name]; !exists {
-			b.connectorHealth[name] = true
+			b.connectorHealth[name] = false
 		}
 		b.healthMu.Unlock()
 	} else {
@@ -414,7 +416,7 @@ func (b *Bindings) Apply(config *qdr.RouterConfig) bool {
 
 func (b *Bindings) UpdateBridgeConfigForConnector(siteId string, connector *skupperv2alpha1.Connector, config *qdr.BridgeConfig) {
 	if connector.Spec.Host != "" {
-		if b.IsConnectorHealthy(connector.Name) {
+		if !connector.Spec.IsHealthCheckEnabled() || b.IsConnectorHealthy(connector.Name) {
 			UpdateBridgeConfigForConnector(siteId, connector, config)
 		}
 	}
@@ -499,7 +501,7 @@ func (b *Bindings) PerformHealthChecks() []ConnectorHealthChange {
 		wg.Add(1)
 		go func(inf HostConnectorInfo) {
 			defer wg.Done()
-			healthy := b.checkTarget(inf.Host, inf.Port)
+			healthy := b.checkTarget(inf.Host, inf.Port, inf.Interval)
 			resultsChan <- ConnectorHealthChange{
 				Name:    inf.Name,
 				Host:    inf.Host,
@@ -533,9 +535,9 @@ func (b *Bindings) PerformHealthChecks() []ConnectorHealthChange {
 	return changedConnectors
 }
 
-func (b *Bindings) checkTarget(host string, port int) bool {
+func (b *Bindings) checkTarget(host string, port int, interval time.Duration) bool {
 	address := net.JoinHostPort(host, strconv.Itoa(port))
-	conn, err := b.dialTimeout("tcp", address, 2*time.Second)
+	conn, err := b.dialTimeout("tcp", address, interval)
 	if err != nil {
 		return false
 	}
