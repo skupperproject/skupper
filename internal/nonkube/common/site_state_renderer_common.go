@@ -76,14 +76,23 @@ func EnableLinkAccess(siteState *api.SiteState) error {
 		return nil
 	}
 
-	interRouterPort, edgePort, err := utils.AllocateRouterAccessPorts()
-	if err != nil {
-		return fmt.Errorf("failed to allocate ports for RouterAccess: %w", err)
-	}
-
-	sanByDefault, err := utils.GetSansByDefault()
-	if err != nil {
-		return fmt.Errorf("Error getting SANs by default: %s", err)
+	// Bundles are installed on a different host, so use default ports instead of
+	// allocating free ports from the machine generating the bundle.
+	// Likewise, do not embed the generating host's SANs; prefer an explicit
+	// RouterAccess in the bundle input for target host configuration.
+	interRouterPort := 55671
+	edgePort := 45671
+	var sanByDefault []string
+	if !siteState.IsBundle() {
+		var err error
+		interRouterPort, edgePort, err = utils.AllocateRouterAccessPorts()
+		if err != nil {
+			return fmt.Errorf("failed to allocate ports for RouterAccess: %w", err)
+		}
+		sanByDefault, err = utils.GetSansByDefault()
+		if err != nil {
+			return fmt.Errorf("Error getting SANs by default: %s", err)
+		}
 	}
 
 	siteState.RouterAccesses[routerAccessName] = &v2alpha1.RouterAccess{

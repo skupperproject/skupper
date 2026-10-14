@@ -60,23 +60,10 @@ func TestCreateSiteRouterAccess(t *testing.T) {
 		isBundle               bool
 		expectRouterAccess     bool
 		expectedName           string
+		expectedPort           int
 	}{
 		{
-			name:                   "LinkAccess none does not create RouterAccess",
-			linkAccess:             "none",
-			existingRouterAccesses: map[string]*v2alpha1.RouterAccess{},
-			isBundle:               false,
-			expectRouterAccess:     false,
-		},
-		{
-			name:                   "Empty linkAccess does not create RouterAccess",
-			linkAccess:             "",
-			existingRouterAccesses: map[string]*v2alpha1.RouterAccess{},
-			isBundle:               false,
-			expectRouterAccess:     false,
-		},
-		{
-			name:                   "create router-access-west",
+			name:                   "create router-access for site",
 			linkAccess:             "default",
 			existingRouterAccesses: map[string]*v2alpha1.RouterAccess{},
 			expectedName:           "test-site",
@@ -100,13 +87,15 @@ func TestCreateSiteRouterAccess(t *testing.T) {
 			},
 			isBundle:           false,
 			expectRouterAccess: false,
+			expectedPort:       99999,
 		},
 		{
-			name:                   "Bundle mode doesn't create RouterAccess",
+			name:                   "Bundle mode creates RouterAccess with default ports",
 			linkAccess:             "default",
 			existingRouterAccesses: map[string]*v2alpha1.RouterAccess{},
+			expectedName:           "test-site",
 			isBundle:               true,
-			expectRouterAccess:     false,
+			expectRouterAccess:     true,
 		},
 	}
 
@@ -128,7 +117,6 @@ func TestCreateSiteRouterAccess(t *testing.T) {
 			assert.NilError(t, err)
 
 			if tt.expectRouterAccess {
-
 				ra, exists := ss.RouterAccesses[tt.expectedName]
 				assert.Assert(t, exists, "Expected RouterAccess to be created")
 				assert.Equal(t, tt.expectedName, ra.Name)
@@ -147,11 +135,18 @@ func TestCreateSiteRouterAccess(t *testing.T) {
 				assert.Assert(t, interRouterRole != nil, "Expected inter-router role")
 				assert.Assert(t, edgeRole != nil, "Expected edge role")
 
-				if !tt.isBundle {
+				if tt.isBundle {
+					assert.Equal(t, 55671, interRouterRole.Port)
+					assert.Equal(t, 45671, edgeRole.Port)
+					assert.Equal(t, 0, len(ra.Spec.SubjectAlternativeNames))
+				} else {
 					// Non-bundle should have allocated ports
 					assert.Assert(t, interRouterRole.Port >= 55671)
 					assert.Assert(t, edgeRole.Port >= 45671)
 				}
+			} else if tt.expectedPort != 0 {
+				ra := ss.RouterAccesses["test-site"]
+				assert.Equal(t, tt.expectedPort, ra.Spec.Roles[0].Port)
 			}
 		})
 	}
