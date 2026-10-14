@@ -1,16 +1,23 @@
 package nonkube
 
 import (
+	"os"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 )
 
 func TestNonKubeCmdSiteCreate_ValidateInput(t *testing.T) {
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
 	type test struct {
 		name              string
 		namespace         string
@@ -144,6 +151,12 @@ func TestNonKubeCmdSiteCreate_InputToOptions(t *testing.T) {
 }
 
 func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
+
 	type test struct {
 		name              string
 		siteName          string
@@ -171,7 +184,6 @@ func TestNonKubeCmdSiteCreate_Run(t *testing.T) {
 		command.siteName = test.siteName
 		command.linkAccessEnabled = test.linkAccessEnabled
 		command.siteHandler = fs.NewSiteHandler(command.namespace)
-		defer command.siteHandler.Delete("my-site")
 		t.Run(test.name, func(t *testing.T) {
 
 			err := command.Run()
