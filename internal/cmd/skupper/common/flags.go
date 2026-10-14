@@ -276,6 +276,9 @@ type CommandConnSweeperFlags struct {
 	Execute       bool
 	ListPorts     bool
 	Ports         []int
+	States        []string
+	RoutingKeys   []string
+	Output        string
 }
 
 type CommandSystemUninstallFlags struct {

@@ -3,8 +3,9 @@ package sweeper
 import "strings"
 
 // killAll force-closes each flagged connection by setting adminStatus=deleted
-// via skmanage.
-func killAll(execFn Execer, skmanageBin, url string, extraArgs []string, decisions []Decision) (killed, failed int) {
+// via skmanage. When output is json, results accumulate in reports instead of
+// being printed line-by-line.
+func killAll(execFn Execer, skmanageBin, url string, extraArgs []string, decisions []Decision, output string) (killed, failed int, reports []ConnReport) {
 	for _, d := range decisions {
 		_, err := runSkmanage(execFn, skmanageBin, url, extraArgs,
 			"UPDATE",
@@ -13,9 +14,7 @@ func killAll(execFn Execer, skmanageBin, url string, extraArgs []string, decisio
 			"adminStatus=deleted",
 		)
 		if err == nil {
-			logf("  id=%s  host=%s  dir=%s  uptime=%s  reason=%s  → killed",
-				d.Conn.Identity, d.Conn.Host, d.Conn.Dir,
-				fmtSeconds(d.Conn.UptimeSeconds), d.Reason)
+			printKillResult(nil, d, "killed", "", output, &reports)
 			killed++
 			continue
 		}
@@ -24,16 +23,14 @@ func killAll(execFn Execer, skmanageBin, url string, extraArgs []string, decisio
 		_, readErr := runSkmanage(execFn, skmanageBin, url, extraArgs,
 			"READ", "--type="+ConnType, "--identity="+d.Conn.Identity)
 		if readErr != nil && isNotFound(readErr) {
-			logf("  id=%s  host=%s  dir=%s  reason=%s  → already closed",
-				d.Conn.Identity, d.Conn.Host, d.Conn.Dir, d.Reason)
+			printKillResult(nil, d, "already closed", "", output, &reports)
 			killed++
 			continue
 		}
-		logf("  id=%s  host=%s  dir=%s  reason=%s  → failed: %s",
-			d.Conn.Identity, d.Conn.Host, d.Conn.Dir, d.Reason, err.Error())
+		printKillResult(nil, d, "failed", err.Error(), output, &reports)
 		failed++
 	}
-	return killed, failed
+	return killed, failed, reports
 }
 
 // isNotFound reports whether a skmanage READ error indicates the connection no
