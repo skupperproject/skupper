@@ -493,6 +493,48 @@ func TestRender_MissingProxySecret(t *testing.T) {
 	elements := readRouterConfig(t, outputPath)
 	profiles := findProxyProfiles(t, elements)
 	assert.Equal(t, len(profiles), 0, "no ProxyProfile should be generated for missing Secret")
+
+	connectorProxy := findConnectorProxyProfile(t, elements, "link-one")
+	assert.Equal(t, connectorProxy, "", "connector should have no proxy profile reference for missing Secret")
+}
+
+func TestRender_ProxyUsernameWithoutPassword(t *testing.T) {
+	ss := fakeSiteState()
+	proxySecretName := "partial-auth-proxy"
+	ss.Links["link-one"].Spec.Settings = map[string]string{
+		"proxy-configuration": proxySecretName,
+	}
+	ss.Secrets[proxySecretName] = &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: proxySecretName,
+		},
+		Type: "kubernetes.io/basic-auth",
+		Data: map[string][]byte{
+			"host":     []byte("proxy.example.com"),
+			"port":     []byte("3128"),
+			"username": []byte("proxyuser"),
+		},
+	}
+	outputPath := renderSiteState(t, ss)
+
+	passwordFile := path.Join(outputPath, string(api.ProxyProfilesPath), proxySecretName, "password.txt")
+	_, err := os.Stat(passwordFile)
+	assert.Assert(t, os.IsNotExist(err), "password.txt should not exist when password is missing")
+
+	elements := readRouterConfig(t, outputPath)
+	profiles := findProxyProfiles(t, elements)
+	assert.Equal(t, len(profiles), 1)
+	assert.Equal(t, profiles[0]["name"], proxySecretName)
+	assert.Equal(t, profiles[0]["host"], "proxy.example.com")
+	assert.Equal(t, profiles[0]["port"], "3128")
+	_, hasUsername := profiles[0]["username"]
+	assert.Assert(t, !hasUsername, "username should not be present when password is missing")
+	_, hasPassword := profiles[0]["password"]
+	assert.Assert(t, !hasPassword, "password should not be present when password is missing")
 }
 
 func TestRender_NoProxyConfigured(t *testing.T) {

@@ -265,11 +265,11 @@ func (s *SiteState) linkAccessMap() site.RouterAccessMap {
 	return linkAccessMap
 }
 func SecretDataValue(secret *corev1.Secret, key string) []byte {
+	if v, ok := secret.StringData[key]; ok {
+		return []byte(v)
+	}
 	if v, ok := secret.Data[key]; ok && len(v) > 0 {
 		return v
-	}
-	if v, ok := secret.StringData[key]; ok && len(v) > 0 {
-		return []byte(v)
 	}
 	return nil
 }
@@ -301,10 +301,18 @@ func (s *SiteState) getProxyConfig(link *v2alpha1.Link, basePath string) *site.P
 		return nil
 	}
 
+	username := string(SecretDataValue(secret, "username"))
+	password := string(SecretDataValue(secret, "password"))
+	if username != "" && password == "" {
+		fmt.Fprintf(os.Stderr, "Warning: proxy Secret %q has username but no password\n",
+			proxySecretName)
+		username = ""
+	}
+
 	return &site.ProxyConfig{
 		Host:        host,
 		Port:        port,
-		User:        string(SecretDataValue(secret, "username")),
+		User:        username,
 		ProfilePath: path.Join(basePath, string(ProxyProfilesPath)),
 	}
 }
