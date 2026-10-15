@@ -57,10 +57,9 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	s.siteState.CreateBridgeCertificates()
 	// rendering non-kube configuration files and certificates
 	s.configRenderer = &common.FileSystemConfigurationRenderer{
-		SslProfileBasePath:   "{{.SslProfileBasePath}}",
-		ProxyProfileBasePath: "{{.SslProfileBasePath}}",
-		Platform:             string(s.Platform),
-		Bundle:               true,
+		SslProfileBasePath: "{{.SslProfileBasePath}}",
+		Platform:           string(s.Platform),
+		Bundle:             true,
 	}
 	err = s.configRenderer.Render(s.siteState)
 	if err != nil {
@@ -122,6 +121,11 @@ func (s *SiteStateRenderer) prepareContainers() error {
 			{
 				Source:      path.Join("{{.NamespacesPath}}", "{{.Namespace}}", string(api.CertificatesPath)),
 				Destination: "/etc/skupper-router/runtime/certs",
+				Options:     []string{"z"},
+			},
+			{
+				Source:      path.Join("{{.NamespacesPath}}", "{{.Namespace}}", string(api.ProxyProfilesPath)),
+				Destination: "/etc/skupper-router/runtime/proxies",
 				Options:     []string{"z"},
 			},
 		},
