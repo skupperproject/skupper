@@ -70,7 +70,7 @@ func (s *SystemAdaptorHandler) Start(stopCh <-chan struct{}) {
 		s.logger.Warn("Cannot build bindings at start, will retry", slog.Any("error", err))
 	} else {
 		s.bindings = bindings
-		bindings.StartHealthCheckLoop(5 * time.Second)
+		bindings.StartHealthCheckLoop(site.HealthCheckLoopInterval)
 	}
 
 	go s.processRouterConfig(stopCh)
@@ -133,7 +133,7 @@ func (s *SystemAdaptorHandler) processRouterConfig(stopCh <-chan struct{}) {
 					s.logger.Debug("Bindings not yet available, will retry", slog.Any("error", err))
 				} else {
 					s.bindings = bindings
-					bindings.StartHealthCheckLoop(5 * time.Second)
+					bindings.StartHealthCheckLoop(site.HealthCheckLoopInterval)
 				}
 			} else {
 				s.reconcileBindings()

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -44,7 +43,7 @@ func NewExtendedBindings(controller *watchers.EventProcessor, profilePath string
 	eb.bindings.SetHealthChangeCallback(eb.onConnectorHealthChanged)
 	eb.bindings.SetListenerConfiguration(eb.updateBridgeConfigForListener)
 	eb.bindings.SetMultiKeyListenerConfiguration(eb.updateBridgeConfigForMultiKeyListener)
-	eb.bindings.StartHealthCheckLoop(5 * time.Second)
+	eb.bindings.StartHealthCheckLoop(site.HealthCheckLoopInterval)
 	return eb
 }
 

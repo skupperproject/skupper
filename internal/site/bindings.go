@@ -1,6 +1,7 @@
 package site
 
 import (
+	"log/slog"
 	"net"
 	"reflect"
 	"strconv"
@@ -9,6 +10,11 @@ import (
 
 	"github.com/skupperproject/skupper/internal/qdr"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+)
+
+const (
+	HealthCheckLoopInterval = 5 * time.Second
+	maxHealthCheckTimeout   = HealthCheckLoopInterval - time.Second
 )
 
 type ListenerConfiguration func(siteId string, listener *skupperv2alpha1.Listener, config *qdr.BridgeConfig)
@@ -196,6 +202,15 @@ func (b *Bindings) updateConnector(connector *skupperv2alpha1.Connector) qdr.Con
 	b.connectors[name] = connector // always update pointer, even if spec has not changed
 
 	if connector.Spec.Host != "" && connector.Spec.Port != 0 && connector.Spec.IsHealthCheckEnabled() {
+		timeout := connector.Spec.GetHealthCheckInterval()
+		if timeout > maxHealthCheckTimeout {
+			slog.Error("Connector health-check-interval exceeds the maximum allowed, using the maximum instead",
+				slog.String("component", "site.bindings"),
+				slog.String("connector", name),
+				slog.Duration("configured", timeout),
+				slog.Duration("used", maxHealthCheckTimeout))
+			timeout = maxHealthCheckTimeout
+		}
 		b.healthMu.Lock()
 		if b.hostConnectors == nil {
 			b.hostConnectors = map[string]HostConnectorInfo{}
@@ -207,7 +222,7 @@ func (b *Bindings) updateConnector(connector *skupperv2alpha1.Connector) qdr.Con
 			Name:     name,
 			Host:     connector.Spec.Host,
 			Port:     connector.Spec.Port,
-			Interval: connector.Spec.GetHealthCheckInterval(),
+			Interval: timeout,
 		}
 		if _, exists := b.connectorHealth[name]; !exists {
 			b.connectorHealth[name] = false
@@ -452,7 +467,7 @@ func (b *Bindings) StartHealthCheckLoop(interval time.Duration) {
 	b.healthMu.Unlock()
 
 	if interval <= 0 {
-		interval = 5 * time.Second
+		interval = HealthCheckLoopInterval
 	}
 
 	go func() {
