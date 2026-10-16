@@ -1,7 +1,7 @@
 # OCI image that packages the Skupper source tree for reproducible downstream builds.
 # Not intended to be run; publish to quay.io/skupper/skupper-source:<version> and
 # consume via build context / additional build contexts instead of git clone.
-ARG GO_IMAGE_BASE_TAG=1.25
+ARG GO_IMAGE_BASE_TAG=1.26
 FROM golang:${GO_IMAGE_BASE_TAG} AS vendor
 
 WORKDIR /go/src/app
