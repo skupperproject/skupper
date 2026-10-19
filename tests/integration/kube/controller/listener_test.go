@@ -13,6 +13,7 @@ import (
 	kubeqdr "github.com/skupperproject/skupper/internal/kube/qdr"
 	"gotest.tools/v3/assert"
 	"k8s.io/apimachinery/pkg/api/meta"
+        "github.com/skupperproject/skupper/api/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"

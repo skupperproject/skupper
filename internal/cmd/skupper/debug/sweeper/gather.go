@@ -17,7 +17,8 @@ const (
 )
 
 // connInfo is the router's view of a single connection, as returned by
-// `skmanage QUERY --type=io.skupper.router.connection`.
+// `skmanage QUERY --type=io.skupper.router.connection`, plus fields filled
+// in after gathering (port, socket state, listener/connector correlation).
 type connInfo struct {
 	Identity  string `json:"identity"`
 	Container string `json:"container"`
@@ -28,11 +29,20 @@ type connInfo struct {
 	LocalSocket   string `json:"localSocket"`
 	Dir           string `json:"dir"`
 	UptimeSeconds *int   `json:"uptimeSeconds"`
+
+	// Filled after Gather — not present on the raw skmanage connection record.
+	Port       int    `json:"port,omitempty"`
+	State      string `json:"state,omitempty"`
+	RoutingKey string `json:"routingKey,omitempty"`
+	Resource   string `json:"resource,omitempty"`
+	Kind       string `json:"kind,omitempty"` // "listener" or "connector"
 }
 
-// socketInfo is the kernel's view of a TCP socket, as reported by `ss -tin`.
-// LastRcvMs/LastSndMs come from the kernel's TCP_INFO.
+// socketInfo is the kernel's view of a TCP socket, as reported by `ss -tin`
+// or the inetdiag fallback. LastRcvMs/LastSndMs come from TCP_INFO; State is
+// the ss-style TCP state name (ESTAB, FIN-WAIT-2, …).
 type socketInfo struct {
+	State     string
 	LastRcvMs int
 	LastSndMs int
 }
@@ -49,6 +59,13 @@ type Snapshot struct {
 	// matching an 'out' connection's LocalSocket ('out' peers all share the
 	// backend's address, so only the local side is unique).
 	SocketsByLocal map[string]socketInfo
+	// Listeners/Connectors are tcpListener/tcpConnector bridge endpoints,
+	// used to correlate connection ports to routing keys and CR names.
+	Listeners  []tcpEndpointInfo
+	Connectors []tcpEndpointInfo
+	// ListenerAddresses hold MultiKeyListener routing keys, keyed to a
+	// parent tcpListener name (multiAddress/<cr-name>).
+	ListenerAddresses []listenerAddressInfo
 }
 
 // Execer runs a command (argv) and returns its stdout. LocalExec runs on
@@ -62,9 +79,13 @@ func LocalExec(argv []string) ([]byte, error) {
 
 // Gather queries the router for its TCP adaptor connections and cross
 // references them with kernel socket state. Discards non-TCP-adaptor connections.
+// It also queries tcpListener/tcpConnector entities for port→resource correlation.
+// When requireEndpointInfo is false, endpoint query failures leave enrichment
+// empty rather than aborting. When true (e.g. --routing-key is set), those
+// failures are returned so callers do not silently filter to an empty result.
 // extraArgs are appended to the skmanage invocation (e.g. --ssl-certificate
 // options when the management endpoint is amqps).
-func Gather(execFn Execer, skmanageBin, url string, extraArgs ...string) (Snapshot, error) {
+func Gather(execFn Execer, skmanageBin, url string, requireEndpointInfo bool, extraArgs ...string) (Snapshot, error) {
 	tcpConns, err := gatherConns(execFn, skmanageBin, url, extraArgs...)
 	if err != nil {
 		return Snapshot{}, err
@@ -74,12 +95,39 @@ func Gather(execFn Execer, skmanageBin, url string, extraArgs ...string) (Snapsh
 	if err != nil {
 		return Snapshot{}, err
 	}
-	return Snapshot{
+
+	snap := Snapshot{
 		Now:            time.Now(),
 		TCPConns:       tcpConns,
 		Sockets:        byPeer,
 		SocketsByLocal: byLocal,
-	}, nil
+	}
+	listeners, err := gatherTcpEndpoints(execFn, skmanageBin, url, TcpListenerType, extraArgs...)
+	if err != nil {
+		if requireEndpointInfo {
+			return Snapshot{}, err
+		}
+	} else {
+		snap.Listeners = listeners
+	}
+	connectors, err := gatherTcpEndpoints(execFn, skmanageBin, url, TcpConnectorType, extraArgs...)
+	if err != nil {
+		if requireEndpointInfo {
+			return Snapshot{}, err
+		}
+	} else {
+		snap.Connectors = connectors
+	}
+	addresses, err := gatherListenerAddresses(execFn, skmanageBin, url, extraArgs...)
+	if err != nil {
+		if requireEndpointInfo {
+			return Snapshot{}, err
+		}
+	} else {
+		snap.ListenerAddresses = addresses
+	}
+	enrichSnapshot(&snap)
+	return snap, nil
 }
 
 // gatherConns queries the router for its connections, keeping only the TCP
@@ -144,56 +192,58 @@ func ssListedSockets(out []byte) bool {
 		if line == "" || line[0] == ' ' || line[0] == '\t' {
 			continue
 		}
-		if _, _, ok := ssSocketRow(line); ok {
+		if _, _, _, ok := ssSocketRow(line); ok {
 			return true
 		}
 	}
 	return false
 }
 
-// socketsFromSS builds two {lastrcv, lastsnd} maps — one keyed by peer
+// socketsFromSS builds two {state, lastrcv, lastsnd} maps — one keyed by peer
 // address, one by local address — by pairing each socket's header line in
 // `ss -tin` output with its following detail line.
 func socketsFromSS(out []byte) (byPeer, byLocal map[string]socketInfo) {
 	byPeer = map[string]socketInfo{}
 	byLocal = map[string]socketInfo{}
 
-	var pendingLocal, pendingPeer string
+	var pendingState, pendingLocal, pendingPeer string
 	for _, line := range strings.Split(string(out), "\n") {
 		if line == "" {
 			continue
 		}
 		if line[0] != ' ' && line[0] != '\t' {
-			pendingLocal, pendingPeer = "", ""
-			local, peer, ok := ssSocketRow(line)
+			pendingState, pendingLocal, pendingPeer = "", "", ""
+			state, local, peer, ok := ssSocketRow(line)
 			if !ok {
 				continue
 			}
-			pendingLocal, pendingPeer = local, peer
+			pendingState, pendingLocal, pendingPeer = state, local, peer
 			continue
 		}
 		if pendingPeer == "" {
 			continue
 		}
 		sock := socketInfo{
+			State:     pendingState,
 			LastRcvMs: extractMsField(line, "lastrcv:"),
 			LastSndMs: extractMsField(line, "lastsnd:"),
 		}
 		byPeer[pendingPeer] = sock
 		byLocal[pendingLocal] = sock
-		pendingLocal, pendingPeer = "", ""
+		pendingState, pendingLocal, pendingPeer = "", "", ""
 	}
 	return byPeer, byLocal
 }
 
-// ssSocketRow pulls the local and peer addresses out of an `ss` socket row,
-// reporting ok=false for the column header and any line too short to be one.
-func ssSocketRow(line string) (local, peer string, ok bool) {
+// ssSocketRow pulls the TCP state and local/peer addresses out of an `ss`
+// socket row, reporting ok=false for the column header and any line too short
+// to be one.
+func ssSocketRow(line string) (state, local, peer string, ok bool) {
 	fields := strings.Fields(line)
 	if len(fields) < 5 || fields[0] == "State" {
-		return "", "", false
+		return "", "", "", false
 	}
-	return fields[3], fields[4], true
+	return fields[0], fields[3], fields[4], true
 }
 
 // extractMsField returns the integer following "key:" in line (e.g. key

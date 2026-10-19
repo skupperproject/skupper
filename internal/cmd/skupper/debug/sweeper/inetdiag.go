@@ -11,7 +11,7 @@ import (
 // only use what the router image provides.
 //
 //
-//	<local ip:port> <peer ip:port> <lastrcv ms> <lastsnd ms>
+//	<local ip:port> <peer ip:port> <lastrcv ms> <lastsnd ms> <state>
 //
 // TODO: IPv4 only; extend for IPv6.
 
@@ -25,7 +25,16 @@ NLMSG_DONE = 3
 NLMSG_ERROR = 2
 INET_DIAG_INFO = 2
 
-TCP_STATES = (1 << 1) | (1 << 4) | (1 << 5) | (1 << 8) | (1 << 9) | (1 << 11)
+# Every TCP state accepted by --state (ss / KnownTCPStates), not only the
+# subset ss -t dumps by default.
+TCP_STATES = (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4) | (1 << 5) | (1 << 6) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10) | (1 << 11)
+
+# Kernel TCP state -> ss -tin name (iproute2 sstate_name).
+STATE_NAMES = {
+    1: "ESTAB", 2: "SYN-SENT", 3: "SYN-RECV", 4: "FIN-WAIT-1",
+    5: "FIN-WAIT-2", 6: "TIME-WAIT", 7: "UNCONN", 8: "CLOSE-WAIT",
+    9: "LAST-ACK", 10: "LISTEN", 11: "CLOSING",
+}
 
 s = socket.socket(socket.AF_NETLINK, socket.SOCK_RAW, NETLINK_SOCK_DIAG)
 # inet_diag_req_v2: family, protocol, ext (request tcp_info), pad,
@@ -52,8 +61,9 @@ while not done:
                 sys.exit(1)
             done = True
             break
-        # inet_diag_msg: sport/dport are big-endian at +4/+6, src at +8,
-        # dst at +24 (IPv4 uses the first 4 of 16 address bytes)
+        # inet_diag_msg: idiag_state at +1, sport/dport big-endian at +4/+6,
+        # src at +8, dst at +24 (IPv4 uses the first 4 of 16 address bytes)
+        state = data[off + 17]
         sport, dport = struct.unpack_from(">HH", data, off + 20)
         src = socket.inet_ntoa(data[off + 24:off + 28])
         dst = socket.inet_ntoa(data[off + 40:off + 44])
@@ -68,7 +78,9 @@ while not done:
                 lastsnd = struct.unpack_from("=I", data, aoff + 4 + 44)[0]
                 lastrcv = struct.unpack_from("=I", data, aoff + 4 + 52)[0]
             aoff += (alen + 3) & ~3
-        print("%s:%d %s:%d %d %d" % (src, sport, dst, dport, lastrcv, lastsnd))
+        print("%s:%d %s:%d %d %d %s" % (
+            src, sport, dst, dport, lastrcv, lastsnd,
+            STATE_NAMES.get(state, "UNKNOWN")))
         off += (ln + 3) & ~3
 `
 
@@ -79,7 +91,7 @@ func socketsFromDiagOutput(out []byte) (byPeer, byLocal map[string]socketInfo) {
 	byLocal = map[string]socketInfo{}
 	for _, line := range strings.Split(string(out), "\n") {
 		f := strings.Fields(line)
-		if len(f) != 4 {
+		if len(f) != 5 {
 			continue
 		}
 		rcv, err1 := strconv.Atoi(f[2])
@@ -87,7 +99,7 @@ func socketsFromDiagOutput(out []byte) (byPeer, byLocal map[string]socketInfo) {
 		if err1 != nil || err2 != nil {
 			continue
 		}
-		sock := socketInfo{LastRcvMs: rcv, LastSndMs: snd}
+		sock := socketInfo{State: f[4], LastRcvMs: rcv, LastSndMs: snd}
 		byLocal[f[0]] = sock
 		byPeer[f[1]] = sock
 	}
