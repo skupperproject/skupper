@@ -78,8 +78,8 @@ func EnableLinkAccess(siteState *api.SiteState) error {
 
 	// Bundles are installed on a different host, so use default ports instead of
 	// allocating free ports from the machine generating the bundle.
-	// Likewise, do not embed the generating host's SANs; prefer an explicit
-	// RouterAccess in the bundle input for target host configuration.
+	// Prefer an explicit RouterAccess in the bundle input for target host config;
+	// when generating automatically, include a minimal SAN so certificates are usable.
 	interRouterPort := 55671
 	edgePort := 45671
 	var sanByDefault []string
@@ -93,6 +93,8 @@ func EnableLinkAccess(siteState *api.SiteState) error {
 		if err != nil {
 			return fmt.Errorf("Error getting SANs by default: %s", err)
 		}
+	} else {
+		sanByDefault = []string{"127.0.0.1"}
 	}
 
 	siteState.RouterAccesses[routerAccessName] = &v2alpha1.RouterAccess{
