@@ -26,7 +26,7 @@ func TestParseVersion(t *testing.T) {
 	}
 	for _, test := range tests {
 		if actual := ParseVersion(test.input); !reflect.DeepEqual(actual, test.expected) {
-			t.Errorf("Expected %q for %s, got %q", test.expected, test.input, actual)
+			t.Errorf("Expected %v for %s, got %v", test.expected, test.input, actual)
 		}
 	}
 }
