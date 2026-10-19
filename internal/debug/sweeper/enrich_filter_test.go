@@ -165,6 +165,46 @@ func TestFilterByRoutingKeys(t *testing.T) {
 	}
 }
 
+func TestNormalizeKinds(t *testing.T) {
+	got, err := NormalizeKinds([]string{"Listener", "multi-key-listener", "CONNECTOR"})
+	if err != nil {
+		t.Fatalf("NormalizeKinds returned %v", err)
+	}
+	want := []string{"listener", "multikeylistener", "connector"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("NormalizeKinds() = %v, want %v", got, want)
+	}
+	if _, err := NormalizeKinds([]string{"pod"}); err == nil {
+		t.Error("NormalizeKinds accepted an unknown kind")
+	}
+}
+
+func TestFilterByKinds(t *testing.T) {
+	conns := []connInfo{
+		{Identity: "1", Kind: "listener"},
+		{Identity: "2", Kind: "connector"},
+		{Identity: "3", Kind: "multikeylistener"},
+		{Identity: "4"},
+	}
+	got := FilterByKinds(conns, []string{"listener", "multikeylistener"})
+	if len(got) != 2 || got[0].Identity != "1" || got[1].Identity != "3" {
+		t.Errorf("FilterByKinds = %+v, want 1 and 3", got)
+	}
+	if got := FilterByKinds(conns, nil); len(got) != len(conns) {
+		t.Errorf("FilterByKinds(nil) matched %d, want %d", len(got), len(conns))
+	}
+
+	stats := []PortStat{
+		{Port: 1, Kind: "listener"},
+		{Port: 2, Kind: "listener,connector"},
+		{Port: 3, Kind: "connector"},
+	}
+	gotStats := FilterPortStatsByKinds(stats, []string{"listener"})
+	if len(gotStats) != 2 || gotStats[0].Port != 1 || gotStats[1].Port != 2 {
+		t.Errorf("FilterPortStatsByKinds = %+v, want ports 1 and 2", gotStats)
+	}
+}
+
 func TestConnectionReportsMarksActiveAndIdle(t *testing.T) {
 	uptime := 120
 	snap := Snapshot{

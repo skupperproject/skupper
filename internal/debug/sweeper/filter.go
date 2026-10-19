@@ -24,6 +24,15 @@ var KnownTCPStates = map[string]string{
 	"ESTABLISHED": "ESTAB",
 }
 
+// KnownResourceKinds are the correlated Skupper resource kinds accepted by --kind.
+var KnownResourceKinds = map[string]string{
+	"listener":           "listener",
+	"connector":          "connector",
+	"multikeylistener":   "multikeylistener",
+	"multi-key-listener": "multikeylistener",
+	"multikey":           "multikeylistener",
+}
+
 const (
 	OutputText = "text"
 	OutputJSON = "json"
@@ -82,6 +91,29 @@ func expandCommaList(values []string) []string {
 	return out
 }
 
+// NormalizeKinds canonicalizes user-supplied resource kind names.
+func NormalizeKinds(kinds []string) ([]string, error) {
+	if len(kinds) == 0 {
+		return nil, nil
+	}
+	var out []string
+	var errs []error
+	seen := map[string]bool{}
+	for _, raw := range expandCommaList(kinds) {
+		canon, ok := KnownResourceKinds[strings.ToLower(raw)]
+		if !ok {
+			errs = append(errs, fmt.Errorf("unknown resource kind %q (expected listener, connector, or multikeylistener)", raw))
+			continue
+		}
+		if seen[canon] {
+			continue
+		}
+		seen[canon] = true
+		out = append(out, canon)
+	}
+	return out, errors.Join(errs...)
+}
+
 // FilterByRoutingKeys keeps connections whose enriched RoutingKey is one of
 // the wanted keys. An empty list leaves conns untouched. Connections with no
 // routing key are dropped when a filter is active.
@@ -96,19 +128,60 @@ func FilterByRoutingKeys(conns []connInfo, keys []string) []connInfo {
 	}
 	var matched []connInfo
 	for _, c := range conns {
-		if routingKeyMatches(c.RoutingKey, wanted) {
+		if csvFieldMatches(c.RoutingKey, wanted) {
 			matched = append(matched, c)
 		}
 	}
 	return matched
 }
 
-func routingKeyMatches(routingKey string, wanted map[string]bool) bool {
-	if routingKey == "" {
+// FilterByKinds keeps connections whose enriched Kind is one of the wanted
+// kinds. An empty list leaves conns untouched. Connections with no kind are
+// dropped when a filter is active. Comma-joined kinds (e.g. from --list-ports
+// when listener and connector share a port) match if any part is wanted.
+func FilterByKinds(conns []connInfo, kinds []string) []connInfo {
+	kinds = expandCommaList(kinds)
+	if len(kinds) == 0 {
+		return conns
+	}
+	wanted := make(map[string]bool, len(kinds))
+	for _, k := range kinds {
+		wanted[k] = true
+	}
+	var matched []connInfo
+	for _, c := range conns {
+		if csvFieldMatches(c.Kind, wanted) {
+			matched = append(matched, c)
+		}
+	}
+	return matched
+}
+
+// FilterPortStatsByKinds keeps port stats whose Kind matches any wanted kind.
+func FilterPortStatsByKinds(stats []PortStat, kinds []string) []PortStat {
+	kinds = expandCommaList(kinds)
+	if len(kinds) == 0 {
+		return stats
+	}
+	wanted := make(map[string]bool, len(kinds))
+	for _, k := range kinds {
+		wanted[k] = true
+	}
+	var matched []PortStat
+	for _, p := range stats {
+		if csvFieldMatches(p.Kind, wanted) {
+			matched = append(matched, p)
+		}
+	}
+	return matched
+}
+
+func csvFieldMatches(field string, wanted map[string]bool) bool {
+	if field == "" {
 		return false
 	}
-	for _, part := range strings.Split(routingKey, ",") {
-		if wanted[part] {
+	for _, part := range strings.Split(field, ",") {
+		if wanted[strings.TrimSpace(part)] {
 			return true
 		}
 	}

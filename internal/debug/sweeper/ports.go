@@ -27,8 +27,8 @@ type PortStat struct {
 func (p PortStat) Total() int { return p.In + p.Out }
 
 // ListPorts summarizes the router's TCP adaptor connections by port,
-// restricted to cfg.Ports / RoutingKeys when set. State filtering is not
-// applied here because list-ports does not query kernel sockets.
+// restricted to cfg.Ports / RoutingKeys / Kinds when set. State filtering is
+// not applied here because list-ports does not query kernel sockets.
 func ListPorts(cfg Config) ([]PortStat, error) {
 	if cfg.Exec == nil {
 		cfg.Exec = LocalExec
@@ -36,6 +36,11 @@ func ListPorts(cfg Config) ([]PortStat, error) {
 	if err := ValidatePorts(cfg.Ports); err != nil {
 		return nil, err
 	}
+	kinds, err := NormalizeKinds(cfg.Kinds)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Kinds = kinds
 	if err := ValidateOutput(cfg.Output); err != nil {
 		return nil, err
 	}
@@ -43,7 +48,7 @@ func ListPorts(cfg Config) ([]PortStat, error) {
 	if err != nil {
 		return nil, err
 	}
-	requireEndpoints := len(cfg.RoutingKeys) > 0
+	requireEndpoints := len(cfg.RoutingKeys) > 0 || len(cfg.Kinds) > 0
 	listeners, err := gatherTcpEndpoints(cfg.Exec, cfg.Skmanage, cfg.URL, TcpListenerType, cfg.SkmanageExtraArgs...)
 	if err != nil {
 		if requireEndpoints {
@@ -76,9 +81,11 @@ func ListPorts(cfg Config) ([]PortStat, error) {
 	conns = tmp.TCPConns
 	conns = FilterByPorts(conns, cfg.Ports)
 	conns = FilterByRoutingKeys(conns, cfg.RoutingKeys)
+	conns = FilterByKinds(conns, cfg.Kinds)
 
 	stats := summarizePorts(conns)
 	enrichPortStats(stats, listeners, connectors, addresses)
+	stats = FilterPortStatsByKinds(stats, cfg.Kinds)
 	return stats, nil
 }
 
@@ -207,12 +214,12 @@ func PrintPortStatsOutput(w io.Writer, stats []PortStat, filter []int, output st
 		return err
 	}
 	tw := tabwriter.NewWriter(w, 8, 8, 1, '\t', tabwriter.TabIndent)
-	if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\n", "PORT", "IN", "OUT", "TOTAL", "ROUTING-KEY", "RESOURCE"); err != nil {
+	if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", "PORT", "IN", "OUT", "TOTAL", "KIND", "ROUTING-KEY", "RESOURCE"); err != nil {
 		return err
 	}
 	for _, p := range stats {
-		if _, err := fmt.Fprintf(tw, "%d\t%d\t%d\t%d\t%s\t%s\n",
-			p.Port, p.In, p.Out, p.Total(), emptyDash(p.RoutingKey), emptyDash(p.Resource)); err != nil {
+		if _, err := fmt.Fprintf(tw, "%d\t%d\t%d\t%d\t%s\t%s\t%s\n",
+			p.Port, p.In, p.Out, p.Total(), emptyDash(p.Kind), emptyDash(p.RoutingKey), emptyDash(p.Resource)); err != nil {
 			return err
 		}
 	}

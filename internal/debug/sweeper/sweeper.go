@@ -29,6 +29,9 @@ type Config struct {
 	// RoutingKeys limits to connections whose correlated routing key matches.
 	// Empty means any routing key.
 	RoutingKeys []string
+	// Kinds limits to connections correlated to these resource kinds
+	// (listener, connector, multikeylistener). Empty means any kind.
+	Kinds []string
 	// Output is "text" (default) or "json".
 	Output string
 	// Exec runs skmanage and the socket query.
@@ -68,20 +71,26 @@ func Run(cfg Config) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	kinds, err := NormalizeKinds(cfg.Kinds)
+	if err != nil {
+		return Result{}, err
+	}
 	if err := ValidateOutput(cfg.Output); err != nil {
 		return Result{}, err
 	}
 	cfg.Output = NormalizeOutput(cfg.Output)
 	cfg.States = states
+	cfg.Kinds = kinds
 	jsonMode := cfg.Output == OutputJSON
 
-	snap, err := Gather(cfg.Exec, cfg.Skmanage, cfg.URL, len(cfg.RoutingKeys) > 0, cfg.SkmanageExtraArgs...)
+	requireEndpoints := len(cfg.RoutingKeys) > 0 || len(cfg.Kinds) > 0
+	snap, err := Gather(cfg.Exec, cfg.Skmanage, cfg.URL, requireEndpoints, cfg.SkmanageExtraArgs...)
 	if err != nil {
 		return Result{}, err
 	}
 
 	snap.TCPConns = applyFilters(snap, cfg)
-	if len(cfg.Ports) > 0 || len(cfg.States) > 0 || len(cfg.RoutingKeys) > 0 {
+	if len(cfg.Ports) > 0 || len(cfg.States) > 0 || len(cfg.RoutingKeys) > 0 || len(cfg.Kinds) > 0 {
 		if len(snap.TCPConns) == 0 {
 			if jsonMode {
 				return Result{Reports: []ConnReport{}}, nil
@@ -141,6 +150,10 @@ func applyFilters(snap Snapshot, cfg Config) []connInfo {
 		conns = FilterByRoutingKeys(conns, cfg.RoutingKeys)
 		snap.TCPConns = conns
 	}
+	if len(cfg.Kinds) > 0 {
+		conns = FilterByKinds(conns, cfg.Kinds)
+		snap.TCPConns = conns
+	}
 	if len(cfg.States) > 0 {
 		conns = FilterByStates(snap, cfg.States)
 	}
@@ -157,6 +170,9 @@ func filterEmptyMessage(cfg Config) string {
 	}
 	if len(cfg.RoutingKeys) > 0 {
 		parts = append(parts, "routing-key "+joinQuoted(cfg.RoutingKeys))
+	}
+	if len(cfg.Kinds) > 0 {
+		parts = append(parts, "kind "+joinQuoted(cfg.Kinds))
 	}
 	if len(parts) == 0 {
 		return "No connections found."
