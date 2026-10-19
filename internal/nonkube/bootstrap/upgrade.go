@@ -278,7 +278,7 @@ func anyRouterDriftedWith(checkDrift CheckDrift) (bool, error) {
 	namespacesPath := api.GetDefaultOutputNamespacesPath()
 	entries, err := os.ReadDir(namespacesPath)
 	if err != nil {
-		return false, fmt.Errorf("anyRouterDrifted: failed to read namespaces directory: %w", err)
+		return false, nil
 	}
 	for _, entry := range entries {
 		if !entry.IsDir() {
