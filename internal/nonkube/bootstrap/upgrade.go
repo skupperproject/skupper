@@ -9,6 +9,7 @@ import (
 
 	"github.com/skupperproject/skupper/api/types"
 	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
+	"github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/pkg/container"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 )
@@ -33,10 +34,9 @@ func Upgrade(platform string) error {
 		return nil
 	}
 
-	var backupContainerNames []string
 	var routerBackups map[string]*container.Container
 	if routersDrifted {
-		routerBackups, backupContainerNames, err = backupRouterContainers(CheckRouterImageDrift)
+		routerBackups, err = backupRouterContainers(CheckRouterImageDrift)
 		if err != nil {
 			return restore("failed to back up router containers", err, routerBackups, nil, "")
 		}
@@ -49,8 +49,6 @@ func Upgrade(platform string) error {
 		if err != nil {
 			return restore("failed to back up controller", err, routerBackups, controllerBackup, controllerBackupName)
 		}
-
-		backupContainerNames = append(backupContainerNames, controllerBackupName)
 	}
 
 	if routersDrifted {
@@ -65,7 +63,7 @@ func Upgrade(platform string) error {
 		}
 	}
 
-	removeBackupContainers(backupContainerNames)
+	removeBackupContainers(routerBackups, controllerBackupName)
 	return nil
 }
 
@@ -82,20 +80,14 @@ func restore(cause string, origErr error, routerBackups map[string]*container.Co
 	return fmt.Errorf("upgrade: %s: %w", cause, origErr)
 }
 
-func backupRouterContainers(checkDrift CheckRouterDrift) (map[string]*container.Container, []string, error) {
+func backupRouterContainers(checkDrift CheckRouterDrift) (map[string]*container.Container, error) {
 	namespacesPath := api.GetDefaultOutputNamespacesPath()
 	entries, err := os.ReadDir(namespacesPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read namespaces directory: %w", err)
-	}
-
-	cli, err := internalclient.NewCompatClient(internalclient.GetDefaultContainerEndpoint(), "")
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create container client: %w", err)
+		return nil, fmt.Errorf("failed to read namespaces directory: %w", err)
 	}
 
 	backups := make(map[string]*container.Container)
-	var backupContainerNames []string
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
@@ -105,6 +97,12 @@ func backupRouterContainers(checkDrift CheckRouterDrift) (map[string]*container.
 		if err != nil || !drifted {
 			continue
 		}
+
+		cli, err := namespaceClient(ns)
+		if err != nil {
+			return nil, err
+		}
+
 		containerName := ns + "-skupper-router"
 		backupName := fmt.Sprintf("%s-backup", containerName)
 		c, err := cli.ContainerInspect(containerName)
@@ -115,42 +113,61 @@ func backupRouterContainers(checkDrift CheckRouterDrift) (map[string]*container.
 		if old, inspectErr := cli.ContainerInspect(backupName); inspectErr == nil && old != nil {
 			_ = cli.ContainerStop(backupName)
 			if removeErr := cli.ContainerRemove(backupName); removeErr != nil {
-				return nil, nil, fmt.Errorf("namespace %q: failed to remove stale backup container: %w", ns, removeErr)
+				return backups, fmt.Errorf("namespace %q: failed to remove stale backup container: %w", ns, removeErr)
 			}
 		}
-		if err := cli.ContainerStop(containerName); err != nil {
-			return backups, backupContainerNames, fmt.Errorf("namespace %q: failed to stop router container: %w", ns, err)
+
+		if c.Running {
+			if err := cli.ContainerStop(containerName); err != nil {
+				return backups, fmt.Errorf("namespace %q: failed to stop router container: %w", ns, err)
+			}
 		}
+
 		if err := cli.ContainerRename(containerName, backupName); err != nil {
-			// The container was stopped but rename failed; restart it so it is
-			// not left dead under its original name and unreachable by restore.
 			if startErr := cli.ContainerStart(containerName); startErr != nil {
 				slog.Error("upgrade: failed to restart router container after rename failure",
 					slog.String("namespace", ns), slog.Any("error", startErr))
 			}
-			return backups, backupContainerNames, fmt.Errorf("namespace %q: failed to rename router container to backup: %w", ns, err)
+			return backups, fmt.Errorf("namespace %q: failed to rename router container to backup: %w", ns, err)
 		}
 		backups[ns] = c
-		backupContainerNames = append(backupContainerNames, backupName)
 	}
-	return backups, backupContainerNames, nil
+	return backups, nil
+}
+
+func namespaceClient(namespace string) (*internalclient.CompatClient, error) {
+	endpoint, err := common.GetEndpointFromNamespacePlatform(namespace)
+	if err != nil {
+		return nil, fmt.Errorf("namespace %q: failed to obtain the endpoint from the namespace platform: %w", namespace, err)
+	}
+	cli, err := internalclient.NewCompatClient(endpoint, "")
+	if err != nil {
+		return nil, fmt.Errorf("namespace %q: failed to create container client: %w", namespace, err)
+	}
+	return cli, nil
+}
+
+func controllerClient(containerName string) (*internalclient.CompatClient, error) {
+	cli, err := internalclient.NewCompatClient(getEndpointForController(containerName), "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create container client: %w", err)
+	}
+	return cli, nil
 }
 
 func restoreRouterContainers(backups map[string]*container.Container) error {
 	if len(backups) == 0 {
 		return nil
 	}
-	cli, err := internalclient.NewCompatClient(internalclient.GetDefaultContainerEndpoint(), "")
-	if err != nil {
-		return fmt.Errorf("failed to create container client: %w", err)
-	}
 	var errs []error
 	for ns := range backups {
 		containerName := ns + "-skupper-router"
 		backupName := fmt.Sprintf("%s-backup", containerName)
-		// Remove the upgraded container if it exists (Bootstrap may have
-		// created it before the overall upgrade failed), so the rename below
-		// does not hit a UNIQUE constraint on the container name.
+		cli, err := namespaceClient(ns)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
 		if existing, inspectErr := cli.ContainerInspect(containerName); inspectErr == nil && existing != nil {
 			_ = cli.ContainerStop(containerName)
 			if removeErr := cli.ContainerRemove(containerName); removeErr != nil {
@@ -177,9 +194,9 @@ func backupController() (*container.Container, string, error) {
 	containerName := fmt.Sprintf("%s-skupper-controller", currentUser.Username)
 	backupName := fmt.Sprintf("%s-backup", containerName)
 
-	cli, err := internalclient.NewCompatClient(internalclient.GetDefaultContainerEndpoint(), "")
+	cli, err := controllerClient(containerName)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to create container client: %w", err)
+		return nil, "", err
 	}
 
 	c, err := cli.ContainerInspect(containerName)
@@ -191,8 +208,6 @@ func backupController() (*container.Container, string, error) {
 		return nil, "", fmt.Errorf("failed to stop controller container: %w", err)
 	}
 	if err := cli.ContainerRename(containerName, backupName); err != nil {
-		// The controller was stopped but rename failed; restart it so it is
-		// not left dead under its original name and unreachable by restore.
 		if startErr := cli.ContainerStart(containerName); startErr != nil {
 			slog.Error("upgrade: failed to restart controller container after rename failure",
 				slog.Any("error", startErr))
@@ -210,13 +225,11 @@ func restoreController(backupName string) error {
 	}
 	originalName := fmt.Sprintf("%s-skupper-controller", currentUser.Username)
 
-	cli, err := internalclient.NewCompatClient(internalclient.GetDefaultContainerEndpoint(), "")
+	cli, err := controllerClient(backupName)
 	if err != nil {
-		return fmt.Errorf("failed to create container client: %w", err)
+		return err
 	}
 
-	// Remove the partially created controller if Install created it before
-	// failing, so the rename below does not hit a name collision.
 	if existing, inspectErr := cli.ContainerInspect(originalName); inspectErr == nil && existing != nil {
 		_ = cli.ContainerStop(originalName)
 		if removeErr := cli.ContainerRemove(originalName); removeErr != nil {
@@ -233,22 +246,32 @@ func restoreController(backupName string) error {
 	return nil
 }
 
-func removeBackupContainers(backupNames []string) {
-	if len(backupNames) == 0 {
+func removeBackupContainers(routerBackups map[string]*container.Container, controllerBackupName string) {
+	for ns := range routerBackups {
+		cli, err := namespaceClient(ns)
+		if err != nil {
+			slog.Warn("upgrade: failed to create client to remove backup container", slog.Any("error", err))
+			continue
+		}
+		removeBackupContainer(cli, ns+"-skupper-router-backup")
+	}
+
+	if controllerBackupName == "" {
 		return
 	}
-	cli, err := internalclient.NewCompatClient(internalclient.GetDefaultContainerEndpoint(), "")
+	cli, err := controllerClient(controllerBackupName)
 	if err != nil {
 		slog.Warn("upgrade: failed to create client to remove backup container", slog.Any("error", err))
 		return
 	}
-	for _, name := range backupNames {
-		if err := cli.ContainerRemove(name); err != nil {
-			slog.Error("upgrade: failed to remove backup container",
-				slog.String("name", name), slog.Any("error", err))
-		}
-	}
+	removeBackupContainer(cli, controllerBackupName)
+}
 
+func removeBackupContainer(cli *internalclient.CompatClient, name string) {
+	if err := cli.ContainerRemove(name); err != nil {
+		slog.Error("upgrade: failed to remove backup container",
+			slog.String("name", name), slog.Any("error", err))
+	}
 }
 
 func anyRouterDriftedWith(checkDrift CheckDrift) (bool, error) {
