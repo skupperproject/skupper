@@ -92,14 +92,20 @@ func expandCommaList(values []string) []string {
 }
 
 // NormalizeKinds canonicalizes user-supplied resource kind names.
+// A nil/empty slice means no kind filter. A nonempty slice that expands to
+// no values (e.g. --kind ",") is rejected so Run cannot treat it as unrestricted.
 func NormalizeKinds(kinds []string) ([]string, error) {
 	if len(kinds) == 0 {
 		return nil, nil
 	}
+	expanded := expandCommaList(kinds)
+	if len(expanded) == 0 {
+		return nil, fmt.Errorf("kind filter is empty (expected listener, connector, or multikeylistener)")
+	}
 	var out []string
 	var errs []error
 	seen := map[string]bool{}
-	for _, raw := range expandCommaList(kinds) {
+	for _, raw := range expanded {
 		canon, ok := KnownResourceKinds[strings.ToLower(raw)]
 		if !ok {
 			errs = append(errs, fmt.Errorf("unknown resource kind %q (expected listener, connector, or multikeylistener)", raw))

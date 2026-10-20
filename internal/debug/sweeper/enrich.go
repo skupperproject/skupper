@@ -199,8 +199,10 @@ func formatRoutingKeys(refs []endpointRef) string {
 
 // enrichPortStats attaches listener/connector correlation to port summary
 // rows. When both an inbound listener and outbound connector share a port,
-// both kinds' routing keys are joined.
-func enrichPortStats(stats []PortStat, listeners, connectors []tcpEndpointInfo, addresses []listenerAddressInfo) {
+// both kinds' routing keys are joined. When kinds is nonempty, only matching
+// endpoint refs contribute metadata so --list-ports --kind stays consistent
+// with the filtered connection counts.
+func enrichPortStats(stats []PortStat, listeners, connectors []tcpEndpointInfo, addresses []listenerAddressInfo, kinds []string) {
 	addressesByListener := indexListenerAddresses(addresses)
 	listenersByPort := indexListenersByPort(listeners, addressesByListener)
 	connectorsByPort := indexEndpointsByPort(connectors, "connector", connectorNamePrefix)
@@ -210,14 +212,43 @@ func enrichPortStats(stats []PortStat, listeners, connectors []tcpEndpointInfo, 
 		var refs []endpointRef
 		refs = append(refs, listenersByPort[p.Port]...)
 		refs = append(refs, connectorsByPort[p.Port]...)
+		refs = filterEndpointRefsByKinds(refs, kinds)
 		if len(refs) == 0 {
 			continue
 		}
-		p.Kind = refs[0].Kind
-		if len(listenersByPort[p.Port]) > 0 && len(connectorsByPort[p.Port]) > 0 {
-			p.Kind = refs[0].Kind + ",connector"
-		}
+		p.Kind = formatKinds(refs)
 		p.Resource = formatResource(refs)
 		p.RoutingKey = formatRoutingKeys(refs)
 	}
+}
+
+func filterEndpointRefsByKinds(refs []endpointRef, kinds []string) []endpointRef {
+	kinds = expandCommaList(kinds)
+	if len(kinds) == 0 {
+		return refs
+	}
+	wanted := make(map[string]bool, len(kinds))
+	for _, k := range kinds {
+		wanted[k] = true
+	}
+	var matched []endpointRef
+	for _, r := range refs {
+		if wanted[r.Kind] {
+			matched = append(matched, r)
+		}
+	}
+	return matched
+}
+
+func formatKinds(refs []endpointRef) string {
+	seen := map[string]bool{}
+	var kinds []string
+	for _, r := range refs {
+		if r.Kind == "" || seen[r.Kind] {
+			continue
+		}
+		seen[r.Kind] = true
+		kinds = append(kinds, r.Kind)
+	}
+	return strings.Join(kinds, ",")
 }

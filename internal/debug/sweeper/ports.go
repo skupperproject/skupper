@@ -84,8 +84,7 @@ func ListPorts(cfg Config) ([]PortStat, error) {
 	conns = FilterByKinds(conns, cfg.Kinds)
 
 	stats := summarizePorts(conns)
-	enrichPortStats(stats, listeners, connectors, addresses)
-	stats = FilterPortStatsByKinds(stats, cfg.Kinds)
+	enrichPortStats(stats, listeners, connectors, addresses, cfg.Kinds)
 	return stats, nil
 }
 

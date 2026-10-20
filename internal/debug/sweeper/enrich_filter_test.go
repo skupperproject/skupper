@@ -143,7 +143,7 @@ func TestEnrichSnapshotMultiKeyListener(t *testing.T) {
 	}
 
 	stats := []PortStat{{Port: 1024, In: 1}}
-	enrichPortStats(stats, snap.Listeners, nil, snap.ListenerAddresses)
+	enrichPortStats(stats, snap.Listeners, nil, snap.ListenerAddresses, nil)
 	if stats[0].Resource != "multikeylistener/tcp-go-echo" || stats[0].RoutingKey != "backend,other" || stats[0].Kind != "multikeylistener" {
 		t.Errorf("port stat enrichment = %+v", stats[0])
 	}
@@ -177,6 +177,9 @@ func TestNormalizeKinds(t *testing.T) {
 	if _, err := NormalizeKinds([]string{"pod"}); err == nil {
 		t.Error("NormalizeKinds accepted an unknown kind")
 	}
+	if _, err := NormalizeKinds([]string{",", "  "}); err == nil {
+		t.Error("NormalizeKinds accepted an empty kind filter")
+	}
 }
 
 func TestFilterByKinds(t *testing.T) {
@@ -202,6 +205,22 @@ func TestFilterByKinds(t *testing.T) {
 	gotStats := FilterPortStatsByKinds(stats, []string{"listener"})
 	if len(gotStats) != 2 || gotStats[0].Port != 1 || gotStats[1].Port != 2 {
 		t.Errorf("FilterPortStatsByKinds = %+v, want ports 1 and 2", gotStats)
+	}
+}
+
+func TestEnrichPortStatsRespectsKindFilter(t *testing.T) {
+	stats := []PortStat{{Port: 1024, In: 0, Out: 2}}
+	listeners := []tcpEndpointInfo{{Name: "listener/frontend", Port: "1024", Address: "echo:in"}}
+	connectors := []tcpEndpointInfo{{Name: "connector/backend", Port: "1024", Address: "echo:out"}}
+	enrichPortStats(stats, listeners, connectors, nil, []string{"connector"})
+	if stats[0].Kind != "connector" {
+		t.Errorf("kind = %q, want connector", stats[0].Kind)
+	}
+	if stats[0].Resource != "connector/backend" {
+		t.Errorf("resource = %q, want connector/backend", stats[0].Resource)
+	}
+	if stats[0].RoutingKey != "echo:out" {
+		t.Errorf("routingKey = %q, want echo:out", stats[0].RoutingKey)
 	}
 }
 
