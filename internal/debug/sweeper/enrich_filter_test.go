@@ -108,6 +108,33 @@ func TestEnrichSnapshotAmbiguousPort(t *testing.T) {
 	if snap.TCPConns[0].RoutingKey != "key-a,key-b" {
 		t.Errorf("routingKey = %q, want key-a,key-b", snap.TCPConns[0].RoutingKey)
 	}
+	if snap.TCPConns[0].Kind != "listener" {
+		t.Errorf("kind = %q, want listener", snap.TCPConns[0].Kind)
+	}
+}
+
+func TestEnrichSnapshotPreservesMultipleKinds(t *testing.T) {
+	snap := Snapshot{
+		TCPConns: []connInfo{
+			{Identity: "1", Dir: "in", Host: "10.0.0.9:41002", LocalSocket: "10.0.0.2:1024"},
+		},
+		Listeners: []tcpEndpointInfo{
+			{Name: "listener/frontend", Port: "1024", Address: "echo:in"},
+			{Name: "multiAddress/tcp-go-echo", Port: "1024", Address: ""},
+		},
+		ListenerAddresses: []listenerAddressInfo{
+			{Name: "tcp-go-echo/backend", Address: "backend", Listener: "multiAddress/tcp-go-echo"},
+		},
+	}
+	enrichSnapshot(&snap)
+	c := snap.TCPConns[0]
+	if c.Kind != "listener,multikeylistener" {
+		t.Errorf("kind = %q, want listener,multikeylistener", c.Kind)
+	}
+	got := FilterByKinds([]connInfo{c}, []string{"multikeylistener"})
+	if len(got) != 1 {
+		t.Errorf("FilterByKinds(multikeylistener) matched %d, want 1", len(got))
+	}
 }
 
 func TestEnrichSnapshotMultiKeyListener(t *testing.T) {

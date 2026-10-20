@@ -92,7 +92,9 @@ func enrichSnapshot(snap *Snapshot) {
 		if len(refs) == 0 {
 			continue
 		}
-		c.Kind = refs[0].Kind
+		// Keep every correlated kind so --kind can match any of them when
+		// multiple endpoint types share a port (e.g. listener + multikeylistener).
+		c.Kind = formatKinds(refs)
 		c.Resource = formatResource(refs)
 		c.RoutingKey = formatRoutingKeys(refs)
 	}
