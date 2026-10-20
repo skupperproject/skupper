@@ -489,7 +489,6 @@ func (b *Bindings) StartHealthCheckLoop(interval time.Duration) {
 	}()
 }
 
-
 func (b *Bindings) Stop() {
 	b.healthMu.Lock()
 	stopCh := b.stopCh
