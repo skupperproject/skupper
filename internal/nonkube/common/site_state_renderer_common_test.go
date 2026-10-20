@@ -138,7 +138,8 @@ func TestCreateSiteRouterAccess(t *testing.T) {
 				if tt.isBundle {
 					assert.Equal(t, 55671, interRouterRole.Port)
 					assert.Equal(t, 45671, edgeRole.Port)
-					assert.DeepEqual(t, []string{"127.0.0.1"}, ra.Spec.SubjectAlternativeNames)
+					assert.Equal(t, "0.0.0.0", ra.Spec.BindHost)
+					assert.DeepEqual(t, []string{"127.0.0.1", "localhost", "0.0.0.0", "::"}, ra.Spec.SubjectAlternativeNames)
 				} else {
 					// Non-bundle should have allocated ports
 					assert.Assert(t, interRouterRole.Port >= 55671)
