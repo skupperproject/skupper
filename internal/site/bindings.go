@@ -66,6 +66,7 @@ type Bindings struct {
 	connectorHealth map[string]bool
 	healthMu        sync.RWMutex
 	stopCh          chan struct{}
+	healthDone      chan struct{}
 	dialTimeout     func(network, address string, timeout time.Duration) (net.Conn, error)
 	onHealthChange  HealthChangeCallback
 }
@@ -464,6 +465,8 @@ func (b *Bindings) StartHealthCheckLoop(interval time.Duration) {
 	}
 	b.stopCh = make(chan struct{})
 	stopCh := b.stopCh
+	b.healthDone = make(chan struct{})
+	healthDone := b.healthDone
 	b.healthMu.Unlock()
 
 	if interval <= 0 {
@@ -471,6 +474,7 @@ func (b *Bindings) StartHealthCheckLoop(interval time.Duration) {
 	}
 
 	go func() {
+		defer close(healthDone)
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 
@@ -485,16 +489,25 @@ func (b *Bindings) StartHealthCheckLoop(interval time.Duration) {
 	}()
 }
 
+
 func (b *Bindings) Stop() {
 	b.healthMu.Lock()
-	defer b.healthMu.Unlock()
-	if b.stopCh != nil {
+	stopCh := b.stopCh
+	healthDone := b.healthDone
+	b.stopCh = nil
+	b.healthMu.Unlock()
+
+	if stopCh != nil {
 		select {
-		case <-b.stopCh:
+		case <-stopCh:
 		default:
-			close(b.stopCh)
+			close(stopCh)
 		}
-		b.stopCh = nil
+	}
+
+	// waits for any in-flight health check to complete
+	if healthDone != nil {
+		<-healthDone
 	}
 }
 
