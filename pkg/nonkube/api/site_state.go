@@ -282,13 +282,13 @@ func (s *SiteState) getProxyConfig(link *v2alpha1.Link, basePath string) *site.P
 
 	secret, ok := s.Secrets[proxySecretName]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "Warning: proxy Secret %q not found for Link %q\n",
+		fmt.Fprintf(os.Stderr, "Warning: proxy Secret %q not found for Link %q, the link will be configured without a proxy\n",
 			proxySecretName, link.Name)
 		return nil
 	}
 
 	if secret.Type != "kubernetes.io/basic-auth" {
-		fmt.Fprintf(os.Stderr, "Warning: Secret %q is not type kubernetes.io/basic-auth\n",
+		fmt.Fprintf(os.Stderr, "Warning: Secret %q is not type kubernetes.io/basic-auth, the link will be configured without a proxy\n",
 			proxySecretName)
 		return nil
 	}
@@ -296,7 +296,7 @@ func (s *SiteState) getProxyConfig(link *v2alpha1.Link, basePath string) *site.P
 	host := string(SecretDataValue(secret, "host"))
 	port := string(SecretDataValue(secret, "port"))
 	if host == "" || port == "" {
-		fmt.Fprintf(os.Stderr, "Warning: proxy Secret %q missing required host or port\n",
+		fmt.Fprintf(os.Stderr, "Warning: proxy Secret %q missing required host or port, the link will be configured without a proxy\n",
 			proxySecretName)
 		return nil
 	}
