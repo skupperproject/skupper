@@ -40,6 +40,11 @@ func (s *SystemAdaptor) syncWithRouter(desired *qdr.RouterConfig) error {
 		return err
 	}
 
+	if err := qdr.SyncProxyProfilesToRouter(s.agentPool, desired.ProxyProfiles); err != nil {
+		s.logger.Error("SYSTEM_ADAPTOR: sync proxy profiles to router failed", slog.Any("error", err), slog.Any("namespace", s.namespace))
+		return err
+	}
+
 	if err := qdr.SyncBridgeConfig(s.agentPool, &desired.Bridges); err != nil {
 		s.logger.Error("SYSTEM_ADAPTOR: sync bridge config failed", slog.Any("error", err), slog.Any("namespace", s.namespace))
 		return err
