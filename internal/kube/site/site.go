@@ -258,7 +258,12 @@ func (s *Site) reconcile(siteDef *skupperv2alpha1.Site, inRecovery bool) error {
 		// complete write from the fully recovered state.
 		s.initialised = !inRecovery
 		s.currentGroups = s.groups()
-		s.bindings.init(s, routerConfig)
+		if err := s.bindings.init(s, routerConfig); err != nil {
+			s.logger.Error("Error exposing existing listeners",
+				slog.String("namespace", siteDef.Namespace),
+				slog.String("name", siteDef.Name),
+				slog.Any("error", err))
+		}
 		s.setBindingsConfiguredStatus(nil)
 		s.checkSecuredAccess()
 	} else if len(s.currentGroups) != len(s.groups()) {
@@ -1227,8 +1232,8 @@ func (s *Site) CheckListener(name string, listener *skupperv2alpha1.Listener, sv
 		return stderrors.Join(err1, s.updateRouterConfig(update))
 	}
 	if update == nil {
-		if tlsErr != nil {
-			return s.updateListenerStatus(listener, tlsErr)
+		if err := stderrors.Join(tlsErr, err1); err != nil {
+			return s.updateListenerStatus(listener, err)
 		}
 		return nil
 	}
@@ -1245,7 +1250,10 @@ func (s *Site) CheckMultiKeyListener(name string, mkl *skupperv2alpha1.MultiKeyL
 	}
 	update, err1 := s.bindings.UpdateMultiKeyListener(name, mkl)
 	if update == nil {
-		return nil
+		if mkl == nil || err1 == nil {
+			return err1
+		}
+		return s.updateMultiKeyListenerStatus(mkl, err1)
 	}
 	err2 := s.updateRouterConfig(update)
 	if mkl == nil {
@@ -1266,7 +1274,9 @@ func (s *Site) updateMultiKeyListenerStatus(mkl *skupperv2alpha1.MultiKeyListene
 
 func (s *Site) setBindingsConfiguredStatus(err error) {
 	lf := func(listener *skupperv2alpha1.Listener) *skupperv2alpha1.Listener {
-		configuredErr := stderrors.Join(err, s.missingTlsCredentialsErr(listener.Spec.TlsCredentials))
+		// a listener whose host cannot be exposed as a service is not configured,
+		// regardless of the state of the site as a whole
+		configuredErr := stderrors.Join(err, s.missingTlsCredentialsErr(listener.Spec.TlsCredentials), validateExposedHost(listener.Spec.Host))
 		if listener.SetConfigured(configuredErr) {
 			updated, err := s.clients.GetSkupperClient().SkupperV2alpha1().Listeners(listener.ObjectMeta.Namespace).UpdateStatus(context.TODO(), listener, metav1.UpdateOptions{})
 			if err == nil {
