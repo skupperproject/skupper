@@ -34,6 +34,25 @@ func Upgrade(platform string) error {
 		return nil
 	}
 
+	// the system controller takes care of updating the routers if the reload type is auto.
+	// this avoids permission issues deleting namespace resources created by the system controller with the CLI.
+	if reloadType == types.SystemReloadTypeAuto {
+		var controllerBackup *container.Container
+		var controllerBackupName string
+
+		controllerBackup, controllerBackupName, err = backupController()
+		if err != nil {
+			return restore("failed to back up controller", err, nil, controllerBackup, controllerBackupName)
+		}
+
+		if installErr := Install(platform, reloadType); installErr != nil {
+			return restore("controller install failed", installErr, nil, controllerBackup, controllerBackupName)
+		}
+
+		removeBackupContainers(nil, controllerBackupName)
+		return nil
+	}
+
 	var routerBackups map[string]*container.Container
 	if routersDrifted {
 		routerBackups, err = backupRouterContainers(CheckRouterImageDrift)
