@@ -35,7 +35,7 @@ type connInfo struct {
 	State      string `json:"state,omitempty"`
 	RoutingKey string `json:"routingKey,omitempty"`
 	Resource   string `json:"resource,omitempty"`
-	Kind       string `json:"kind,omitempty"` // "listener" or "connector"
+	Kind       string `json:"kind,omitempty"` // listener, connector, or multikeylistener
 }
 
 // socketInfo is the kernel's view of a TCP socket, as reported by `ss -tin`
@@ -81,8 +81,8 @@ func LocalExec(argv []string) ([]byte, error) {
 // references them with kernel socket state. Discards non-TCP-adaptor connections.
 // It also queries tcpListener/tcpConnector entities for port→resource correlation.
 // When requireEndpointInfo is false, endpoint query failures leave enrichment
-// empty rather than aborting. When true (e.g. --routing-key is set), those
-// failures are returned so callers do not silently filter to an empty result.
+// empty rather than aborting. When true (e.g. --routing-key or --kind is set),
+// those failures are returned so callers do not silently filter to an empty result.
 // extraArgs are appended to the skmanage invocation (e.g. --ssl-certificate
 // options when the management endpoint is amqps).
 func Gather(execFn Execer, skmanageBin, url string, requireEndpointInfo bool, extraArgs ...string) (Snapshot, error) {
