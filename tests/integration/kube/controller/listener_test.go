@@ -9,11 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/skupperproject/skupper/api/types"
 	"github.com/skupperproject/skupper/internal/fixtures"
 	kubeqdr "github.com/skupperproject/skupper/internal/kube/qdr"
 	"gotest.tools/v3/assert"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
-        "github.com/skupperproject/skupper/api/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
@@ -396,4 +397,191 @@ func TestIdenticalListenerFailover(t *testing.T) {
 	cfg := routerConfig.Data[types.TransportConfigFile]
 	assert.Assert(t, strings.Contains(cfg, "listener/"+standby))
 	assert.Assert(t, !strings.Contains(cfg, "listener/"+owner))
+}
+
+// TestListenerSpecUpdatesAreResolved changes Listener Spec fields one at a time
+// and checks that each change is reflected in the Service or router config.
+func TestListenerSpecUpdatesAreResolved(t *testing.T) {
+	tc := setup(t)
+	namespace := "listener-spec-updates"
+	tc.createNamespace(namespace)
+	ctx := context.Background()
+
+	// Create a Site so the controller has a place to run and make
+	// the router configuration.
+	// The Listener will be run on this site.
+	_, err := tc.clients.GetSkupperClient().SkupperV2alpha1().Sites(namespace).Create(
+		ctx, fixtures.Site("mysite", namespace), metav1.CreateOptions{})
+	assert.NilError(t, err)
+
+	// Make a couple of Secrets.
+	// In this test we will switch the Listener's TlsCredentials field
+	// from one to the other and make sure the router config
+	// gets the right secret name.
+	createTLSSecret(t, tc, namespace, "secret-a")
+	createTLSSecret(t, tc, namespace, "secret-b")
+
+	// Build the initial Listener.
+	// Control the starting spec for it.
+	listener := listenerWithHostPort("mylistener", namespace, "svc-a", 8080)
+	listener.Spec.RoutingKey = "key-a"
+	listener.Spec.TlsCredentials = "secret-a"
+	listener.Spec.Type = "tcp"
+
+	_, err = tc.clients.GetSkupperClient().SkupperV2alpha1().Listeners(namespace).Create(
+		ctx, listener, metav1.CreateOptions{})
+	assert.NilError(t, err)
+
+	// Now wait until the controller has reconciled the starting Spec.
+	// We want to see:
+	//   1. A K8S Service named "svc-a" with port 8080
+	//      (the Listener's Host + Port become a Service).
+	//   2. Router config that mentions the listener, the routing key,
+	//      and the TLS secret name.
+	waitFor(t, 30*time.Second, 250*time.Millisecond, func() (bool, error) {
+		svc, err := tc.clients.GetKubeClient().CoreV1().Services(namespace).Get(
+			ctx, "svc-a", metav1.GetOptions{})
+		if done, err := retryOnNotFound(err); !done {
+			return false, err
+		}
+		if len(svc.Spec.Ports) != 1 || svc.Spec.Ports[0].Port != 8080 {
+			return false, nil
+		}
+		cfg, err := routerConfigText(tc, namespace, ctx)
+		if done, err := retryOnNotFound(err); !done {
+			return false, err
+		}
+		return strings.Contains(cfg, "listener/mylistener") &&
+			strings.Contains(cfg, "key-a") &&
+			strings.Contains(cfg, "secret-a"), nil
+	})
+
+	// --- Change 1: Port 8080 -> 9090 ---
+	// This should cause the controller to rewrite
+	// the corresponding Service port.
+	updateListenerSpec(t, tc, namespace, "mylistener", func(l *skupperv2alpha1.Listener) {
+		l.Spec.Port = 9090
+	})
+	waitFor(t, 30*time.Second, 250*time.Millisecond, func() (bool, error) {
+		svc, err := tc.clients.GetKubeClient().CoreV1().Services(namespace).Get(
+			ctx, "svc-a", metav1.GetOptions{})
+		if done, err := retryOnNotFound(err); !done {
+			return false, err
+		}
+		return len(svc.Spec.Ports) == 1 && svc.Spec.Ports[0].Port == 9090, nil
+	})
+
+	// --- Change 2: RoutingKey key-a -> key-b ---
+	// The new key should eventually show up in the router config.
+	updateListenerSpec(t, tc, namespace, "mylistener", func(l *skupperv2alpha1.Listener) {
+		l.Spec.RoutingKey = "key-b"
+	})
+	waitFor(t, 30*time.Second, 250*time.Millisecond, func() (bool, error) {
+		cfg, err := routerConfigText(tc, namespace, ctx)
+		if done, err := retryOnNotFound(err); !done {
+			return false, err
+		}
+		return strings.Contains(cfg, "key-b"), nil
+	})
+
+	// --- Change 3: TlsCredentials secret-a -> secret-b ---
+	// This should also show up eventually in the router config.
+	updateListenerSpec(t, tc, namespace, "mylistener", func(l *skupperv2alpha1.Listener) {
+		l.Spec.TlsCredentials = "secret-b"
+	})
+	waitFor(t, 30*time.Second, 250*time.Millisecond, func() (bool, error) {
+		cfg, err := routerConfigText(tc, namespace, ctx)
+		if done, err := retryOnNotFound(err); !done {
+			return false, err
+		}
+		return strings.Contains(cfg, "secret-b"), nil
+	})
+
+	// --- Change 4: Host svc-a -> svc-b ---
+	// Changing the Host should get rid of the old
+	// Service and make a new one.
+	// Make sure that *both* of those things happen.
+	updateListenerSpec(t, tc, namespace, "mylistener", func(l *skupperv2alpha1.Listener) {
+		l.Spec.Host = "svc-b"
+	})
+	waitFor(t, 30*time.Second, 250*time.Millisecond, func() (bool, error) {
+		_, err := tc.clients.GetKubeClient().CoreV1().Services(namespace).Get(
+			ctx, "svc-b", metav1.GetOptions{})
+		if done, err := retryOnNotFound(err); !done {
+			return false, err
+		}
+		_, err = tc.clients.GetKubeClient().CoreV1().Services(namespace).Get(
+			ctx, "svc-a", metav1.GetOptions{})
+		if errors.IsNotFound(err) {
+			return true, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		// svc-a still exists; keep waiting.
+		return false, nil
+	})
+
+	// Final assertions: after all updates the new Service should now carry
+	// the most recent Port value and listener label.
+	// The router config should still have the listener identity plus
+	// the latest routing key and TLS secret.
+	svc, err := tc.clients.GetKubeClient().CoreV1().Services(namespace).Get(
+		ctx, "svc-b", metav1.GetOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, len(svc.Spec.Ports), 1)
+	assert.Equal(t, svc.Spec.Ports[0].Port, int32(9090))
+	assert.Equal(t, svc.Labels["internal.skupper.io/listener"], "mylistener")
+
+	cfg, err := routerConfigText(tc, namespace, ctx)
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(cfg, "listener/mylistener"))
+	assert.Assert(t, strings.Contains(cfg, "key-b"))
+	assert.Assert(t, strings.Contains(cfg, "secret-b"))
+}
+
+// updateListenerSpec fetches the named Listener, applies the given
+// change, and writes it back.
+// The Controller should eventually catch up with this change.
+// So if you call this, you will need to use a waitFor afterwards.
+func updateListenerSpec(t *testing.T, tc *testContext, namespace, name string, change func(*skupperv2alpha1.Listener)) {
+	t.Helper()
+	ctx := context.Background()
+	l, err := tc.clients.GetSkupperClient().SkupperV2alpha1().Listeners(namespace).Get(
+		ctx, name, metav1.GetOptions{})
+	assert.NilError(t, err)
+	change(l)
+	_, err = tc.clients.GetSkupperClient().SkupperV2alpha1().Listeners(namespace).Update(
+		ctx, l, metav1.UpdateOptions{})
+	assert.NilError(t, err)
+}
+
+// routerConfigText reads the skupper-router ConfigMap and returns
+// just its configuration text.
+func routerConfigText(tc *testContext, namespace string, ctx context.Context) (string, error) {
+	routerConfig, err := tc.clients.GetKubeClient().CoreV1().ConfigMaps(namespace).Get(
+		ctx, "skupper-router", metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return kubeqdr.GetRouterConfigData(routerConfig)
+}
+
+// createTLSSecret creates a minimal TLS Secret with dummy certificate
+// and key data. The test only needs the Secret to exist so Controller
+// can reference it by name; the contents will never be validated.
+func createTLSSecret(t *testing.T, tc *testContext, namespace, name string) {
+	t.Helper()
+	_, err := tc.clients.GetKubeClient().CoreV1().Secrets(namespace).Create(
+		context.Background(),
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+			Type:       corev1.SecretTypeTLS,
+			Data: map[string][]byte{
+				corev1.TLSCertKey:       []byte("dummy-cert"),
+				corev1.TLSPrivateKeyKey: []byte("dummy-key"),
+			},
+		},
+		metav1.CreateOptions{})
+	assert.NilError(t, err)
 }
