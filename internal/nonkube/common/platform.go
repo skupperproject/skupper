@@ -5,6 +5,8 @@ import (
 	"os"
 	"path"
 
+	"github.com/skupperproject/skupper/api/types"
+	internalclient "github.com/skupperproject/skupper/internal/nonkube/client/compat"
 	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"sigs.k8s.io/yaml"
 )
@@ -35,4 +37,13 @@ func (s *NamespacePlatformLoader) Load(namespace string) (string, error) {
 		return "", fmt.Errorf("failed to unmarshal platform config file for namespace %s: %w", namespace, err)
 	}
 	return s.Platform, nil
+}
+
+func GetEndpointFromNamespacePlatform(namespace string) (string, error) {
+	platformLoader := NamespacePlatformLoader{}
+	nsPlatform, err := platformLoader.Load(namespace)
+	if err != nil {
+		return "", fmt.Errorf("failed to load platform for namespace %q: %w", namespace, err)
+	}
+	return internalclient.GetContainerEndpointFromPlatform(types.Platform(nsPlatform)), nil
 }
