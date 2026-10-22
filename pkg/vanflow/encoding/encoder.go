@@ -98,6 +98,9 @@ func (e pointerEncoder) encode(v reflect.Value) (interface{}, error) {
 	if v.IsNil() {
 		return nil, ErrAttributeNotSet
 	}
+	if _, ok := e.sub.(rawFieldEncoder); ok {
+		return v.Elem().Interface(), nil
+	}
 	return e.sub.encode(v.Elem())
 }
 
