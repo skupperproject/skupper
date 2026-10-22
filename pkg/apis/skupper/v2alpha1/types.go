@@ -3,6 +3,7 @@ package v2alpha1
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -506,6 +507,27 @@ type ConnectorSpec struct {
 	ExposePodsByName    bool              `json:"exposePodsByName,omitempty"`
 	IncludeNotReadyPods bool              `json:"includeNotReadyPods,omitempty"`
 	Settings            map[string]string `json:"settings,omitempty"`
+}
+
+func (s *ConnectorSpec) IsHealthCheckEnabled() bool {
+	if s.Settings != nil {
+		if val, ok := s.Settings["enable-health-check"]; ok {
+			b, err := strconv.ParseBool(val)
+			return err == nil && b
+		}
+	}
+	return false
+}
+
+func (s *ConnectorSpec) GetHealthCheckInterval() time.Duration {
+	if s.Settings != nil {
+		if val, ok := s.Settings["health-check-interval"]; ok && val != "" {
+			if selectedInterval, err := time.ParseDuration(val); err == nil && selectedInterval > 0 {
+				return selectedInterval
+			}
+		}
+	}
+	return 2 * time.Second
 }
 
 type PodDetails struct {
