@@ -536,8 +536,15 @@ func TestListenerSpecUpdatesAreResolved(t *testing.T) {
 	cfg, err := routerConfigText(tc, namespace, ctx)
 	assert.NilError(t, err)
 	assert.Assert(t, strings.Contains(cfg, "listener/mylistener"))
+
+	// Do both positive and negative checks.
 	assert.Assert(t, strings.Contains(cfg, "key-b"))
+	assert.Assert(t, !strings.Contains(cfg, "key-a"),
+		"old routing key key-a should no longer appear in router config")
+
 	assert.Assert(t, strings.Contains(cfg, "secret-b"))
+	assert.Assert(t, !strings.Contains(cfg, "secret-a"),
+		"old TLS secret secret-a should no longer appear in router config")
 }
 
 // updateListenerSpec fetches the named Listener, applies the given
