@@ -5,7 +5,7 @@ GOOS ?= linux
 GOARCH ?= amd64
 
 REGISTRY := quay.io/skupper
-IMAGE_TAG := 2.2.3
+IMAGE_TAG := 2.2.4
 SOURCE_IMAGE := skupper-source
 ROUTER_IMAGE_TAG := 3.5.3
 PLATFORMS ?= linux/amd64,linux/arm64
