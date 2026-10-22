@@ -5,6 +5,7 @@ package views
 import (
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/api"
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/collector"
@@ -121,8 +122,8 @@ func defaultFlowAggregate(id string) api.FlowAggregateRecord {
 	}
 }
 func NewListenerSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.ListenerRecord {
-	provider := NewListenerProvider(graph)
 	return func(entries []store.Entry) []api.ListenerRecord {
+		provider := NewListenerProvider(graph)
 		results := make([]api.ListenerRecord, 0, len(entries))
 		for _, e := range entries {
 			record, ok := e.Record.(vanflow.ListenerRecord)
@@ -136,6 +137,7 @@ func NewListenerSliceProvider(graph collector.Graph) func(entries []store.Entry)
 }
 
 func NewListenerProvider(graph collector.Graph) func(vanflow.ListenerRecord) api.ListenerRecord {
+	routingKeyCounts := map[string]map[string]int{}
 	return func(record vanflow.ListenerRecord) api.ListenerRecord {
 		out := defaultListener(record.ID)
 		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
@@ -157,18 +159,30 @@ func NewListenerProvider(graph collector.Graph) func(vanflow.ListenerRecord) api
 		}
 
 		node := graph.Listener(record.ID)
-		if out.RoutingModel == api.MultiKey && record.Name != nil {
-			routingKeys := map[string]struct{}{}
-			for _, listener := range node.Parent().Listeners() {
-				sibling, ok := listener.GetRecord()
-				if !ok || sibling.StrategyName == nil || sibling.Name == nil || *sibling.Name != *record.Name || sibling.Address == nil {
-					continue
+		if parent := node.Parent(); out.RoutingModel == api.MultiKey && record.Name != nil && parent.IsKnown() {
+			counts, cached := routingKeyCounts[parent.ID()]
+			if !cached {
+				routingKeys := map[string]map[string]struct{}{}
+				for _, listener := range parent.Listeners() {
+					sibling, ok := listener.GetRecord()
+					if !ok || sibling.StrategyName == nil || sibling.Name == nil || sibling.Address == nil {
+						continue
+					}
+					if sibling.EndTime != nil && sibling.EndTime.After(time.Unix(0, 0)) {
+						continue
+					}
+					if routingKeys[*sibling.Name] == nil {
+						routingKeys[*sibling.Name] = map[string]struct{}{}
+					}
+					routingKeys[*sibling.Name][*sibling.Address] = struct{}{}
 				}
-				routingKeys[*sibling.Address] = struct{}{}
+				counts = map[string]int{}
+				for name, keys := range routingKeys {
+					counts[name] = len(keys)
+				}
+				routingKeyCounts[parent.ID()] = counts
 			}
-			if len(routingKeys) > 0 {
-				out.RoutingKeyCount = len(routingKeys)
-			}
+			out.RoutingKeyCount = counts[*record.Name]
 		}
 		if addressID := node.Address().ID(); addressID != "" {
 			out.ServiceId = &addressID
