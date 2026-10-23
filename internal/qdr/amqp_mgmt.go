@@ -1315,7 +1315,7 @@ func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference, checkCertFil
 				return err
 			}
 
-			if proxyProfile.Password != "" {
+			if proxyProfile != nil && proxyProfile.Password != "" {
 				_, err := os.Stat(strings.TrimPrefix(proxyProfile.Password, "file:"))
 				if err != nil {
 					return err
