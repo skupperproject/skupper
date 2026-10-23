@@ -481,7 +481,7 @@ func TestListenerSpecUpdatesAreResolved(t *testing.T) {
 		if done, err := retryOnNotFound(err); !done {
 			return false, err
 		}
-		return strings.Contains(cfg, "key-b"), nil
+                return strings.Contains(cfg, "key-b") && !strings.Contains(cfg, "key-a"), nil
 	})
 
 	// --- Change 3: TlsCredentials secret-a -> secret-b ---
@@ -494,7 +494,7 @@ func TestListenerSpecUpdatesAreResolved(t *testing.T) {
 		if done, err := retryOnNotFound(err); !done {
 			return false, err
 		}
-		return strings.Contains(cfg, "secret-b"), nil
+                return strings.Contains(cfg, "secret-b") && ! strings.Contains(cfg, "secret-a"), nil
 	})
 
 	// --- Change 4: Host svc-a -> svc-b ---
