@@ -109,6 +109,46 @@ func TestMarshal(t *testing.T) {
 				uint32(1): "test",
 			},
 		}, {
+			Name:  "scalar zeros omitted",
+			Input: tAllAttributeTypes{},
+			ExpectedAttrs: map[any]any{
+				uint32(0): recordTypeAllAttributeTypes,
+			},
+		}, {
+			Name: "explicit scalar zeros",
+			Input: tAllAttributeTypes{
+				Sp:   ptrTo(""),
+				U32p: ptrTo(uint32(0)),
+				I64p: ptrTo(int64(0)),
+			},
+			ExpectedAttrs: map[any]any{
+				uint32(0): recordTypeAllAttributeTypes,
+				uint32(2): "",
+				uint32(4): uint32(0),
+				uint32(8): int64(0),
+			},
+		}, {
+			Name: "zero listener strategy value",
+			Input: vanflow.ListenerRecord{
+				BaseRecord:    vanflow.NewBase("listener"),
+				StrategyValue: ptrTo(uint64(0)),
+			},
+			ExpectedAttrs: map[any]any{
+				uint32(0):  uint32(4),
+				uint32(1):  "listener",
+				uint32(69): uint64(0),
+			},
+		}, {
+			Name: "custom encoder omits zero time",
+			Input: vanflow.SiteRecord{BaseRecord: vanflow.BaseRecord{
+				ID:        "test",
+				StartTime: ptrTo(vanflow.Time{}),
+			}},
+			ExpectedAttrs: map[any]any{
+				uint32(0): uint32(0),
+				uint32(1): "test",
+			},
+		}, {
 			Name: "full site",
 			Input: vanflow.SiteRecord{
 				Location: ptrTo("loc"),
