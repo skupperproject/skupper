@@ -85,7 +85,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 
 	// Create Site RouterAccess if linkAccess is enabled
 	if s.siteState.Site.Spec.LinkAccess != "" && s.siteState.Site.Spec.LinkAccess != "none" {
-		if err = common.EnableLinkAccess(s.siteState); err != nil {
+		if err = common.EnableLinkAccess(s.siteState, currentSiteState); err != nil {
 			return err
 		}
 	}

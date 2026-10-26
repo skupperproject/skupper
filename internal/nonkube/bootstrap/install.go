@@ -96,6 +96,10 @@ func Install(platform string, reloadType string) error {
 		"SKUPPER_SYSTEM_RELOAD_TYPE": reloadType,
 	}
 
+	if routerImage := os.Getenv(images.RouterImageEnvKey); routerImage != "" {
+		env[images.RouterImageEnvKey] = routerImage
+	}
+
 	//To mount a volume as a bind, the host path must be specified in the Name field
 	//instead of the Source field. If the values Name/Destination are empty, volumes will be ignored, not mounted,
 	//and the system-controller container will fail to start.

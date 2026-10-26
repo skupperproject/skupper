@@ -126,7 +126,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	}
 
 	if s.siteState.Site.Spec.LinkAccess != "" && s.siteState.Site.Spec.LinkAccess != "none" {
-		if err = common.EnableLinkAccess(s.siteState); err != nil {
+		if err = common.EnableLinkAccess(s.siteState, currentSiteState); err != nil {
 			return err
 		}
 	}
@@ -194,6 +194,9 @@ func (s *SiteStateRenderer) cleanupExistingNamespace(siteState *api.SiteState) e
 	s.stoppedContainers = map[string]string{}
 	for _, stopContainer := range containers {
 		if siteId, ok := stopContainer.Labels[types.SiteId]; ok && siteId == siteState.SiteId {
+			if !stopContainer.Running {
+				continue
+			}
 			err = s.cli.ContainerStop(stopContainer.Name)
 			if err != nil {
 				return fmt.Errorf("failed to stop container: %v", err)
@@ -408,7 +411,7 @@ func (s *SiteStateRenderer) Refresh(loadedSiteState *api.SiteState) error {
 	}
 
 	if s.siteState.Site.Spec.LinkAccess != "" && s.siteState.Site.Spec.LinkAccess != "none" {
-		if err = common.EnableLinkAccess(s.siteState); err != nil {
+		if err = common.EnableLinkAccess(s.siteState, currentSiteState); err != nil {
 			return err
 		}
 	}
