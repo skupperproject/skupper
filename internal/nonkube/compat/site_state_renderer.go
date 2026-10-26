@@ -126,7 +126,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	}
 
 	if s.siteState.Site.Spec.LinkAccess != "" && s.siteState.Site.Spec.LinkAccess != "none" {
-		if err = common.EnableLinkAccess(s.siteState); err != nil {
+		if err = common.EnableLinkAccess(s.siteState, currentSiteState); err != nil {
 			return err
 		}
 	}
@@ -411,7 +411,7 @@ func (s *SiteStateRenderer) Refresh(loadedSiteState *api.SiteState) error {
 	}
 
 	if s.siteState.Site.Spec.LinkAccess != "" && s.siteState.Site.Spec.LinkAccess != "none" {
-		if err = common.EnableLinkAccess(s.siteState); err != nil {
+		if err = common.EnableLinkAccess(s.siteState, currentSiteState); err != nil {
 			return err
 		}
 	}
