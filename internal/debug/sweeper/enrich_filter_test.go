@@ -108,6 +108,33 @@ func TestEnrichSnapshotAmbiguousPort(t *testing.T) {
 	if snap.TCPConns[0].RoutingKey != "key-a,key-b" {
 		t.Errorf("routingKey = %q, want key-a,key-b", snap.TCPConns[0].RoutingKey)
 	}
+	if snap.TCPConns[0].Kind != "listener" {
+		t.Errorf("kind = %q, want listener", snap.TCPConns[0].Kind)
+	}
+}
+
+func TestEnrichSnapshotPreservesMultipleKinds(t *testing.T) {
+	snap := Snapshot{
+		TCPConns: []connInfo{
+			{Identity: "1", Dir: "in", Host: "10.0.0.9:41002", LocalSocket: "10.0.0.2:1024"},
+		},
+		Listeners: []tcpEndpointInfo{
+			{Name: "listener/frontend", Port: "1024", Address: "echo:in"},
+			{Name: "multiAddress/tcp-go-echo", Port: "1024", Address: ""},
+		},
+		ListenerAddresses: []listenerAddressInfo{
+			{Name: "tcp-go-echo/backend", Address: "backend", Listener: "multiAddress/tcp-go-echo"},
+		},
+	}
+	enrichSnapshot(&snap)
+	c := snap.TCPConns[0]
+	if c.Kind != "listener,multikeylistener" {
+		t.Errorf("kind = %q, want listener,multikeylistener", c.Kind)
+	}
+	got := FilterByKinds([]connInfo{c}, []string{"multikeylistener"})
+	if len(got) != 1 {
+		t.Errorf("FilterByKinds(multikeylistener) matched %d, want 1", len(got))
+	}
 }
 
 func TestEnrichSnapshotMultiKeyListener(t *testing.T) {
@@ -143,7 +170,7 @@ func TestEnrichSnapshotMultiKeyListener(t *testing.T) {
 	}
 
 	stats := []PortStat{{Port: 1024, In: 1}}
-	enrichPortStats(stats, snap.Listeners, nil, snap.ListenerAddresses)
+	enrichPortStats(stats, snap.Listeners, nil, snap.ListenerAddresses, nil)
 	if stats[0].Resource != "multikeylistener/tcp-go-echo" || stats[0].RoutingKey != "backend,other" || stats[0].Kind != "multikeylistener" {
 		t.Errorf("port stat enrichment = %+v", stats[0])
 	}
@@ -162,6 +189,65 @@ func TestFilterByRoutingKeys(t *testing.T) {
 	}
 	if got := FilterByRoutingKeys(conns, nil); len(got) != len(conns) {
 		t.Errorf("FilterByRoutingKeys(nil) matched %d, want %d", len(got), len(conns))
+	}
+}
+
+func TestNormalizeKinds(t *testing.T) {
+	got, err := NormalizeKinds([]string{"Listener", "multi-key-listener", "CONNECTOR"})
+	if err != nil {
+		t.Fatalf("NormalizeKinds returned %v", err)
+	}
+	want := []string{"listener", "multikeylistener", "connector"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("NormalizeKinds() = %v, want %v", got, want)
+	}
+	if _, err := NormalizeKinds([]string{"pod"}); err == nil {
+		t.Error("NormalizeKinds accepted an unknown kind")
+	}
+	if _, err := NormalizeKinds([]string{",", "  "}); err == nil {
+		t.Error("NormalizeKinds accepted an empty kind filter")
+	}
+}
+
+func TestFilterByKinds(t *testing.T) {
+	conns := []connInfo{
+		{Identity: "1", Kind: "listener"},
+		{Identity: "2", Kind: "connector"},
+		{Identity: "3", Kind: "multikeylistener"},
+		{Identity: "4"},
+	}
+	got := FilterByKinds(conns, []string{"listener", "multikeylistener"})
+	if len(got) != 2 || got[0].Identity != "1" || got[1].Identity != "3" {
+		t.Errorf("FilterByKinds = %+v, want 1 and 3", got)
+	}
+	if got := FilterByKinds(conns, nil); len(got) != len(conns) {
+		t.Errorf("FilterByKinds(nil) matched %d, want %d", len(got), len(conns))
+	}
+
+	stats := []PortStat{
+		{Port: 1, Kind: "listener"},
+		{Port: 2, Kind: "listener,connector"},
+		{Port: 3, Kind: "connector"},
+	}
+	gotStats := FilterPortStatsByKinds(stats, []string{"listener"})
+	if len(gotStats) != 2 || gotStats[0].Port != 1 || gotStats[1].Port != 2 {
+		t.Errorf("FilterPortStatsByKinds = %+v, want ports 1 and 2", gotStats)
+	}
+}
+
+func TestEnrichPortStatsRespectsKindFilter(t *testing.T) {
+	stats := []PortStat{{Port: 1024, In: 0, Out: 2}}
+	listeners := []tcpEndpointInfo{{Name: "listener/frontend", Port: "1024", Address: "echo:in"}}
+	connectors := []tcpEndpointInfo{{Name: "connector/backend", Port: "1024", Address: "echo:out"}}
+	enrichPortStats(stats, listeners, connectors, nil, []string{"connector"})
+	if stats[0].Kind != "connector" {
+		t.Errorf("kind = %q, want connector", stats[0].Kind)
+	}
+	if stats[0].Resource != "connector/backend" {
+		t.Errorf("resource = %q, want connector/backend", stats[0].Resource)
+	}
+	if stats[0].RoutingKey != "echo:out" {
+		t.Errorf("routingKey = %q, want echo:out", stats[0].RoutingKey)
 	}
 }
 

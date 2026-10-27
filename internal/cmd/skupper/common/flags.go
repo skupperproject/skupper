@@ -281,6 +281,7 @@ type CommandConnSweeperFlags struct {
 	Ports         []int
 	States        []string
 	RoutingKeys   []string
+	Kinds         []string
 	Output        string
 }
 

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/debug/sweeper"
+	"github.com/skupperproject/skupper/internal/debug/sweeper"
 	"github.com/skupperproject/skupper/internal/nonkube/client/runtime"
 	nonkubecommon "github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/internal/utils/validator"
@@ -49,6 +49,9 @@ func (cmd *CmdConnSweeper) ValidateInput(args []string) error {
 		validationErrors = append(validationErrors, err)
 	}
 	if _, err := sweeper.NormalizeStates(cmd.Flags.States); err != nil {
+		validationErrors = append(validationErrors, err)
+	}
+	if _, err := sweeper.NormalizeKinds(cmd.Flags.Kinds); err != nil {
 		validationErrors = append(validationErrors, err)
 	}
 	if err := sweeper.ValidateOutput(cmd.Flags.Output); err != nil {
@@ -128,6 +131,7 @@ func (cmd *CmdConnSweeper) Run() error {
 			Skmanage:          cmd.skmanage,
 			Ports:             cmd.Flags.Ports,
 			RoutingKeys:       cmd.Flags.RoutingKeys,
+			Kinds:             cmd.Flags.Kinds,
 			Output:            cmd.Flags.Output,
 			Exec:              cmd.exec,
 			SkmanageExtraArgs: cmd.sslArgs,
@@ -146,6 +150,7 @@ func (cmd *CmdConnSweeper) Run() error {
 		Ports:             cmd.Flags.Ports,
 		States:            cmd.Flags.States,
 		RoutingKeys:       cmd.Flags.RoutingKeys,
+		Kinds:             cmd.Flags.Kinds,
 		Output:            cmd.Flags.Output,
 		Exec:              cmd.exec,
 		SkmanageExtraArgs: cmd.sslArgs,

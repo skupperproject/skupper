@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
-	"github.com/skupperproject/skupper/internal/cmd/skupper/debug/sweeper"
+	"github.com/skupperproject/skupper/internal/debug/sweeper"
 	"github.com/skupperproject/skupper/internal/kube/client"
 	"github.com/skupperproject/skupper/internal/utils/validator"
 	"github.com/spf13/cobra"
@@ -86,6 +86,9 @@ func (cmd *CmdConnSweeper) ValidateInput(args []string) error {
 	if _, err := sweeper.NormalizeStates(cmd.Flags.States); err != nil {
 		validationErrors = append(validationErrors, err)
 	}
+	if _, err := sweeper.NormalizeKinds(cmd.Flags.Kinds); err != nil {
+		validationErrors = append(validationErrors, err)
+	}
 	if err := sweeper.ValidateOutput(cmd.Flags.Output); err != nil {
 		validationErrors = append(validationErrors, err)
 	}
@@ -142,6 +145,7 @@ func (cmd *CmdConnSweeper) Run() error {
 			Ports:             cmd.Flags.Ports,
 			States:            cmd.Flags.States,
 			RoutingKeys:       cmd.Flags.RoutingKeys,
+			Kinds:             cmd.Flags.Kinds,
 			Output:            cmd.Flags.Output,
 			Exec:              cmd.podExecer(podName),
 		})
@@ -192,6 +196,7 @@ func (cmd *CmdConnSweeper) listPorts(podNames []string) error {
 			Skmanage:    sweeper.DefaultSkmanage,
 			Ports:       cmd.Flags.Ports,
 			RoutingKeys: cmd.Flags.RoutingKeys,
+			Kinds:       cmd.Flags.Kinds,
 			Output:      cmd.Flags.Output,
 			Exec:        cmd.podExecer(podName),
 		})
