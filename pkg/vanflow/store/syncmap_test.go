@@ -183,6 +183,43 @@ func TestSyncMapStorePatch(t *testing.T) {
 		t.Errorf("entries from OnChange handler do not match expected: %s", cmp.Diff(updateEvents, expectedChanges, ignoreLastUpdateAndOrder...))
 	}
 }
+
+func TestSyncMapStorePatchZeroStrategyValue(t *testing.T) {
+	for _, initialValue := range []uint64{0, 7} {
+		t.Run(fmt.Sprint(initialValue), func(t *testing.T) {
+			stor := NewSyncMapStore(SyncMapStoreConfig{})
+			source := SourceRef{ID: "test", Version: "0"}
+			expected := vanflow.ListenerRecord{
+				BaseRecord:    vanflow.NewBase("listener"),
+				StrategyName:  ptrTo("priority"),
+				StrategyValue: ptrTo(initialValue),
+			}
+			stor.Patch(expected, source)
+			for i, step := range []struct {
+				patch vanflow.ListenerRecord
+				value uint64
+				count uint64
+			}{
+				{patch: vanflow.ListenerRecord{FlowCountL4: ptrTo(uint64(1))}, value: initialValue, count: 1},
+				{patch: vanflow.ListenerRecord{StrategyValue: ptrTo(uint64(0))}, value: 0, count: 1},
+				{patch: vanflow.ListenerRecord{FlowCountL4: ptrTo(uint64(2))}, value: 0, count: 2},
+			} {
+				step.patch.BaseRecord = expected.BaseRecord
+				stor.Patch(step.patch, source)
+				expected.StrategyValue = ptrTo(step.value)
+				expected.FlowCountL4 = ptrTo(step.count)
+				actual, ok := stor.Get("listener")
+				if !ok {
+					t.Fatal("listener not in store")
+				}
+				if diff := cmp.Diff(expected, actual.Record); diff != "" {
+					t.Errorf("step %d: record mismatch (-want +got):\n%s", i, diff)
+				}
+			}
+		})
+	}
+}
+
 func TestSyncMapStoreIndex(t *testing.T) {
 	stor := NewSyncMapStore(SyncMapStoreConfig{})
 

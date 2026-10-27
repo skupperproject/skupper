@@ -184,6 +184,19 @@ func GetDefaultContainerEndpoint() string {
 	}
 }
 
+func GetContainerEndpointFromPlatform(platform types.Platform) string {
+	if api.IsRunningInContainer() {
+		if platform == types.PlatformDocker {
+			return "unix:///var/run/docker.sock"
+		}
+		return "unix:///var/run/podman.sock"
+	}
+	if platform == types.PlatformDocker {
+		return "unix:///run/docker.sock"
+	}
+	return fmt.Sprintf("unix://%s/podman/podman.sock", GetRuntimeDir())
+}
+
 func GetRuntimeDir() string {
 	if getUid() == 0 {
 		return "/run"

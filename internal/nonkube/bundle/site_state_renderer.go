@@ -59,7 +59,7 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 	if s.siteState.Site.Spec.LinkAccess != "" && s.siteState.Site.Spec.LinkAccess != "none" {
 		if !s.siteState.HasLinkAccess() {
 			fmt.Println("Warning: Site has linkAccess enabled but no RouterAccess was provided; generating a default one. If a more specific bindHost or SAN list is needed, provide your own RouterAccess in the bundle input.")
-			if err = common.EnableLinkAccess(s.siteState); err != nil {
+			if err = common.EnableLinkAccess(s.siteState, nil); err != nil {
 				return err
 			}
 		}

@@ -79,6 +79,45 @@ func (e LinkRoleType) Valid() bool {
 	}
 }
 
+// Defines values for ListenerRoutingModelType.
+const (
+	MultiKey  ListenerRoutingModelType = "multi-key"
+	SingleKey ListenerRoutingModelType = "single-key"
+)
+
+// Valid indicates whether the value is a known member of the ListenerRoutingModelType enum.
+func (e ListenerRoutingModelType) Valid() bool {
+	switch e {
+	case MultiKey:
+		return true
+	case SingleKey:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListenerStrategyType.
+const (
+	NotApplicable ListenerStrategyType = "not-applicable"
+	Priority      ListenerStrategyType = "priority"
+	Weighted      ListenerStrategyType = "weighted"
+)
+
+// Valid indicates whether the value is a known member of the ListenerStrategyType enum.
+func (e ListenerStrategyType) Valid() bool {
+	switch e {
+	case NotApplicable:
+		return true
+	case Priority:
+		return true
+	case Weighted:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for OperStatusType.
 const (
 	Down OperStatusType = "down"
@@ -395,17 +434,23 @@ type ListenerRecord struct {
 	EndTime uint64 `json:"endTime"`
 
 	// Identity The unique identifier for the record.
-	Identity   string  `json:"identity"`
-	Name       string  `json:"name"`
-	Protocol   string  `json:"protocol"`
-	RouterId   string  `json:"routerId"`
-	RoutingKey string  `json:"routingKey"`
-	ServiceId  *string `json:"serviceId,omitempty"`
-	SiteId     string  `json:"siteId"`
-	SiteName   string  `json:"siteName"`
+	Identity   string `json:"identity"`
+	Name       string `json:"name"`
+	Protocol   string `json:"protocol"`
+	RouterId   string `json:"routerId"`
+	RoutingKey string `json:"routingKey"`
+
+	// RoutingKeyCount Total number of known routing keys for the listener
+	RoutingKeyCount int                      `json:"routingKeyCount"`
+	RoutingModel    ListenerRoutingModelType `json:"routingModel"`
+	ServiceId       *string                  `json:"serviceId,omitempty"`
+	SiteId          string                   `json:"siteId"`
+	SiteName        string                   `json:"siteName"`
 
 	// StartTime The creation time in microseconds of the record in Unix timestamp format. The value 0 means that the record is not terminated
-	StartTime uint64 `json:"startTime"`
+	StartTime     uint64               `json:"startTime"`
+	Strategy      ListenerStrategyType `json:"strategy"`
+	StrategyValue *uint64              `json:"strategyValue,omitempty"`
 }
 
 // ListenerResponse defines model for ListenerResponse.
@@ -614,9 +659,10 @@ type ServiceRecord struct {
 	Identity string `json:"identity"`
 
 	// IsBound true when there are both listeners and connectors configured
-	IsBound       bool   `json:"isBound"`
-	ListenerCount int    `json:"listenerCount"`
-	Name          string `json:"name"`
+	IsBound               bool   `json:"isBound"`
+	ListenerCount         int    `json:"listenerCount"`
+	MultiKeyListenerCount int    `json:"multiKeyListenerCount"`
+	Name                  string `json:"name"`
 
 	// ObservedApplicationProtocols Array of the observed application level protocols
 	ObservedApplicationProtocols []string `json:"observedApplicationProtocols"`
@@ -696,6 +742,12 @@ type FlowAggregatePairType string
 
 // LinkRoleType The class of skupper link
 type LinkRoleType string
+
+// ListenerRoutingModelType defines model for listenerRoutingModelType.
+type ListenerRoutingModelType string
+
+// ListenerStrategyType defines model for listenerStrategyType.
+type ListenerStrategyType string
 
 // OperStatusType defines model for operStatusType.
 type OperStatusType string

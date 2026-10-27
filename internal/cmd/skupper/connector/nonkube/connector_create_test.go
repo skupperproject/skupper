@@ -1,11 +1,13 @@
 package nonkube
 
 import (
+	"os"
 	"testing"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/testutils"
 	"github.com/skupperproject/skupper/internal/nonkube/client/fs"
+	"github.com/skupperproject/skupper/pkg/nonkube/api"
 	"github.com/spf13/cobra"
 
 	"gotest.tools/v3/assert"
@@ -13,6 +15,11 @@ import (
 )
 
 func TestNonKubeCmdConnectorCreate_ValidateInput(t *testing.T) {
+	if os.Getuid() == 0 {
+		api.DefaultRootDataHome = t.TempDir()
+	} else {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+	}
 	type test struct {
 		name              string
 		namespace         string
@@ -284,16 +291,21 @@ func TestNonKubeCmdConnectorCreate_Run(t *testing.T) {
 	}
 
 	for _, test := range testTable {
-		command := &CmdConnectorCreate{}
-
-		command.connectorName = test.connectorName
-		command.port = test.connectorPort
-		command.host = test.host
-		command.connectorType = test.connectorType
-		command.namespace = test.namespace
-		command.connectorHandler = fs.NewConnectorHandler(command.namespace)
-		defer command.connectorHandler.Delete("test1")
 		t.Run(test.name, func(t *testing.T) {
+			if os.Getuid() == 0 {
+				api.DefaultRootDataHome = t.TempDir()
+			} else {
+				t.Setenv("XDG_DATA_HOME", t.TempDir())
+			}
+
+			command := &CmdConnectorCreate{}
+
+			command.connectorName = test.connectorName
+			command.port = test.connectorPort
+			command.host = test.host
+			command.connectorType = test.connectorType
+			command.namespace = test.namespace
+			command.connectorHandler = fs.NewConnectorHandler(command.namespace)
 
 			err := command.Run()
 			if err != nil {

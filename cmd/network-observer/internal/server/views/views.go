@@ -5,6 +5,7 @@ package views
 import (
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/api"
 	"github.com/skupperproject/skupper/cmd/network-observer/internal/collector"
@@ -121,8 +122,8 @@ func defaultFlowAggregate(id string) api.FlowAggregateRecord {
 	}
 }
 func NewListenerSliceProvider(graph collector.Graph) func(entries []store.Entry) []api.ListenerRecord {
-	provider := NewListenerProvider(graph)
 	return func(entries []store.Entry) []api.ListenerRecord {
+		provider := NewListenerProvider(graph)
 		results := make([]api.ListenerRecord, 0, len(entries))
 		for _, e := range entries {
 			record, ok := e.Record.(vanflow.ListenerRecord)
@@ -136,6 +137,7 @@ func NewListenerSliceProvider(graph collector.Graph) func(entries []store.Entry)
 }
 
 func NewListenerProvider(graph collector.Graph) func(vanflow.ListenerRecord) api.ListenerRecord {
+	routingKeyCounts := map[string]map[string]int{}
 	return func(record vanflow.ListenerRecord) api.ListenerRecord {
 		out := defaultListener(record.ID)
 		out.StartTime, out.EndTime = vanflowTimes(record.BaseRecord)
@@ -145,8 +147,43 @@ func NewListenerProvider(graph collector.Graph) func(vanflow.ListenerRecord) api
 		setOpt(&out.DestHost, record.DestHost)
 		setOpt(&out.DestPort, record.DestPort)
 		setOpt(&out.RoutingKey, record.Address)
+		if record.StrategyName != nil {
+			out.RoutingModel = api.MultiKey
+			switch {
+			case strings.EqualFold(*record.StrategyName, "priority"):
+				out.Strategy = api.Priority
+			case strings.EqualFold(*record.StrategyName, "weighted"):
+				out.Strategy = api.Weighted
+			}
+			out.StrategyValue = record.StrategyValue
+		}
 
 		node := graph.Listener(record.ID)
+		if parent := node.Parent(); out.RoutingModel == api.MultiKey && record.Name != nil && parent.IsKnown() {
+			counts, cached := routingKeyCounts[parent.ID()]
+			if !cached {
+				routingKeys := map[string]map[string]struct{}{}
+				for _, listener := range parent.Listeners() {
+					sibling, ok := listener.GetRecord()
+					if !ok || sibling.StrategyName == nil || sibling.Name == nil || sibling.Address == nil {
+						continue
+					}
+					if sibling.EndTime != nil && sibling.EndTime.After(time.Unix(0, 0)) {
+						continue
+					}
+					if routingKeys[*sibling.Name] == nil {
+						routingKeys[*sibling.Name] = map[string]struct{}{}
+					}
+					routingKeys[*sibling.Name][*sibling.Address] = struct{}{}
+				}
+				counts = map[string]int{}
+				for name, keys := range routingKeys {
+					counts[name] = len(keys)
+				}
+				routingKeyCounts[parent.ID()] = counts
+			}
+			out.RoutingKeyCount = counts[*record.Name]
+		}
 		if addressID := node.Address().ID(); addressID != "" {
 			out.ServiceId = &addressID
 		}
@@ -160,15 +197,18 @@ func NewListenerProvider(graph collector.Graph) func(vanflow.ListenerRecord) api
 
 func defaultListener(id string) api.ListenerRecord {
 	return api.ListenerRecord{
-		Identity:   id,
-		Name:       unknownStr,
-		RouterId:   unknownStr,
-		Protocol:   unknownStr,
-		RoutingKey: unknownStr,
-		DestHost:   unknownStr,
-		DestPort:   unknownStr,
-		SiteId:     unknownStr,
-		SiteName:   unknownStr,
+		Identity:        id,
+		Name:            unknownStr,
+		RouterId:        unknownStr,
+		Protocol:        unknownStr,
+		RoutingKey:      unknownStr,
+		DestHost:        unknownStr,
+		DestPort:        unknownStr,
+		SiteId:          unknownStr,
+		SiteName:        unknownStr,
+		Strategy:        api.NotApplicable,
+		RoutingModel:    api.SingleKey,
+		RoutingKeyCount: 1,
 	}
 }
 
@@ -545,7 +585,14 @@ func NewServiceProvider(stor store.Interface, graph collector.Graph) func(collec
 	}
 	return func(record collector.AddressRecord) api.ServiceRecord {
 		node := graph.Address(record.ID).RoutingKey()
-		listenerCt := len(node.Listeners())
+		listeners := node.Listeners()
+		listenerCt := len(listeners)
+		multiKeyListenerCt := 0
+		for _, listener := range listeners {
+			if listenerRecord, ok := listener.GetRecord(); ok && listenerRecord.StrategyName != nil {
+				multiKeyListenerCt++
+			}
+		}
 		connectorCt := len(node.Connectors())
 
 		protocols := make([]string, 0, 2)
@@ -559,6 +606,7 @@ func NewServiceProvider(stor store.Interface, graph collector.Graph) func(collec
 			ObservedApplicationProtocols: protocols,
 			Name:                         record.Name,
 			ListenerCount:                listenerCt,
+			MultiKeyListenerCount:        multiKeyListenerCt,
 			HasListener:                  listenerCt > 0,
 			ConnectorCount:               connectorCt,
 			IsBound:                      listenerCt > 0 && connectorCt > 0,

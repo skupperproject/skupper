@@ -18,6 +18,7 @@ func TestCmdSystemInstall_ValidateInput(t *testing.T) {
 		args          []string
 		platform      string
 		reloadType    string
+		upgrade       bool
 		expectedError string
 	}
 
@@ -39,6 +40,19 @@ func TestCmdSystemInstall_ValidateInput(t *testing.T) {
 			platform:      "podman",
 			expectedError: "reload type is not valid: value both not allowed. It should be one of this options: [manual auto]",
 		},
+		{
+			name:          "reload type cannot be specified with upgrade",
+			reloadType:    "manual",
+			upgrade:       true,
+			platform:      "podman",
+			expectedError: "--reload-type cannot be specified with --upgrade",
+		},
+		{
+			name:          "upgrade without reload type is allowed",
+			upgrade:       true,
+			platform:      "podman",
+			expectedError: "",
+		},
 	}
 
 	for _, test := range testTable {
@@ -50,36 +64,67 @@ func TestCmdSystemInstall_ValidateInput(t *testing.T) {
 
 			command := &CmdSystemInstall{Flags: &cmd.CommandSystemInstallFlags{}}
 			command.Flags.ReloadType = test.reloadType
+			command.Flags.Upgrade = test.upgrade
 
 			testutils.CheckValidateInput(t, command, test.expectedError, test.args)
 		})
 	}
 }
 
+func TestCmdSystemInstall_InputToOptions(t *testing.T) {
+	t.Run("upgrade flag is propagated", func(t *testing.T) {
+		command := &CmdSystemInstall{
+			Flags: &cmd.CommandSystemInstallFlags{Upgrade: true},
+		}
+		command.InputToOptions()
+		assert.Check(t, command.upgrade == true)
+	})
+
+	t.Run("upgrade flag defaults to false", func(t *testing.T) {
+		command := &CmdSystemInstall{
+			Flags: &cmd.CommandSystemInstallFlags{},
+		}
+		command.InputToOptions()
+		assert.Check(t, command.upgrade == false)
+	})
+}
+
 func TestCmdSystemInstall_Run(t *testing.T) {
 	type test struct {
-		name                  string
-		socketEnablementFails bool
-		errorMessage          string
+		name         string
+		upgrade      bool
+		installFails bool
+		upgradeFails bool
+		errorMessage string
 	}
 
 	testTable := []test{
 		{
-			name:                  "runs ok",
-			socketEnablementFails: false,
-			errorMessage:          "",
+			name:         "install runs ok",
+			errorMessage: "",
 		},
 		{
-			name:                  "socket enablement fails",
-			socketEnablementFails: true,
-			errorMessage:          "failed to configure the environment : systemd failed to enable podman socket",
+			name:         "install fails",
+			installFails: true,
+			errorMessage: "failed to configure the environment: systemd failed to enable podman socket",
+		},
+		{
+			name:         "upgrade runs ok",
+			upgrade:      true,
+			errorMessage: "",
+		},
+		{
+			name:         "upgrade fails",
+			upgrade:      true,
+			upgradeFails: true,
+			errorMessage: "failed to configure the environment: upgrade failed",
 		},
 	}
 
 	for _, test := range testTable {
-		command := newCmdSystemInstallWithMocks(test.socketEnablementFails)
-
 		t.Run(test.name, func(t *testing.T) {
+			command := newCmdSystemInstallWithMocks(test.installFails, test.upgradeFails)
+			command.upgrade = test.upgrade
 
 			err := command.Run()
 			if err != nil {
@@ -93,20 +138,25 @@ func TestCmdSystemInstall_Run(t *testing.T) {
 
 // --- helper methods
 
-func newCmdSystemInstallWithMocks(podmanSocketEnablementFails bool) *CmdSystemInstall {
-
+func newCmdSystemInstallWithMocks(installFails bool, upgradeFails bool) *CmdSystemInstall {
 	cmdMock := &CmdSystemInstall{
 		SystemInstall: mockCmdSystemInstall,
+		SystemUpgrade: mockCmdSystemUpgrade,
 	}
-
-	if podmanSocketEnablementFails {
+	if installFails {
 		cmdMock.SystemInstall = mockCmdSystemInstallSocketEnablementFails
 	}
-
+	if upgradeFails {
+		cmdMock.SystemUpgrade = mockCmdSystemUpgradeFails
+	}
 	return cmdMock
 }
 
 func mockCmdSystemInstall(platform string, reloadType string) error { return nil }
 func mockCmdSystemInstallSocketEnablementFails(platform string, reloadType string) error {
 	return fmt.Errorf("systemd failed to enable podman socket")
+}
+func mockCmdSystemUpgrade(platform string) error { return nil }
+func mockCmdSystemUpgradeFails(platform string) error {
+	return fmt.Errorf("upgrade failed")
 }

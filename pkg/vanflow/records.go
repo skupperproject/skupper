@@ -115,16 +115,18 @@ func (r ControllerRecord) GetTypeMeta() TypeMeta {
 
 type ListenerRecord struct {
 	BaseRecord
-	Parent      *string `vflow:"2"`
-	Name        *string `vflow:"30"`
-	DestHost    *string `vflow:"15"`
-	Protocol    *string `vflow:"16"`
-	DestPort    *string `vflow:"18"`
-	Address     *string `vflow:"19"`
-	FlowCountL4 *uint64 `vflow:"40"`
-	FlowCountL7 *uint64 `vflow:"41"`
-	FlowRateL4  *uint64 `vflow:"42"`
-	FlowRateL7  *uint64 `vflow:"43"`
+	Parent        *string `vflow:"2"`
+	Name          *string `vflow:"30"`
+	DestHost      *string `vflow:"15"`
+	Protocol      *string `vflow:"16"`
+	DestPort      *string `vflow:"18"`
+	Address       *string `vflow:"19"`
+	FlowCountL4   *uint64 `vflow:"40"`
+	FlowCountL7   *uint64 `vflow:"41"`
+	FlowRateL4    *uint64 `vflow:"42"`
+	FlowRateL7    *uint64 `vflow:"43"`
+	StrategyName  *string `vflow:"68"`
+	StrategyValue *uint64 `vflow:"69"`
 }
 
 func (r ListenerRecord) GetTypeMeta() TypeMeta {

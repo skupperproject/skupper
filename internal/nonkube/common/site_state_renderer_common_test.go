@@ -113,7 +113,7 @@ func TestCreateSiteRouterAccess(t *testing.T) {
 			}
 			ss.RouterAccesses = tt.existingRouterAccesses
 
-			err := EnableLinkAccess(ss)
+			err := EnableLinkAccess(ss, nil)
 			assert.NilError(t, err)
 
 			if tt.expectRouterAccess {
@@ -151,4 +151,32 @@ func TestCreateSiteRouterAccess(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEnableLinkAccessReusesPreviousPorts(t *testing.T) {
+	newSiteState := func() *api.SiteState {
+		ss := api.NewSiteState(false)
+		ss.Site = &v2alpha1.Site{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-site", Namespace: "test-namespace"},
+			Spec:       v2alpha1.SiteSpec{LinkAccess: "default"},
+		}
+		return ss
+	}
+	previous := newSiteState()
+	previous.RouterAccesses["test-site"] = &v2alpha1.RouterAccess{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-site"},
+		Spec: v2alpha1.RouterAccessSpec{
+			Roles: []v2alpha1.RouterAccessRole{
+				{Name: "inter-router", Port: 55671},
+				{Name: "edge", Port: 45671},
+			},
+		},
+	}
+
+	ss := newSiteState()
+	assert.NilError(t, EnableLinkAccess(ss, previous))
+	ra := ss.RouterAccesses["test-site"]
+	assert.Assert(t, ra != nil)
+	assert.Equal(t, ra.FindRole("inter-router").Port, 55671)
+	assert.Equal(t, ra.FindRole("edge").Port, 45671)
 }

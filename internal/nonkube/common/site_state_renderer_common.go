@@ -68,7 +68,7 @@ func copySiteStateMap[T any](m map[string]T) map[string]T {
 	return newMap
 }
 
-func EnableLinkAccess(siteState *api.SiteState) error {
+func EnableLinkAccess(siteState *api.SiteState, previousSiteState *api.SiteState) error {
 
 	routerAccessName := siteState.Site.Name
 
@@ -84,19 +84,23 @@ func EnableLinkAccess(siteState *api.SiteState) error {
 	edgePort := 45671
 	var sanByDefault []string
 	var bindHost string
-	if !siteState.IsBundle() {
-		var err error
-		interRouterPort, edgePort, err = utils.AllocateRouterAccessPorts()
-		if err != nil {
-			return fmt.Errorf("failed to allocate ports for RouterAccess: %w", err)
+	if siteState.IsBundle() {
+		bindHost = "0.0.0.0"
+		sanByDefault = []string{"127.0.0.1", "localhost", "0.0.0.0", "::"}
+	} else {
+		interRouterPort, edgePort = previousRouterAccessPorts(previousSiteState, routerAccessName)
+		if interRouterPort == 0 || edgePort == 0 {
+			var err error
+			interRouterPort, edgePort, err = utils.AllocateRouterAccessPorts()
+			if err != nil {
+				return fmt.Errorf("failed to allocate ports for RouterAccess: %w", err)
+			}
 		}
+		var err error
 		sanByDefault, err = utils.GetSansByDefault()
 		if err != nil {
 			return fmt.Errorf("Error getting SANs by default: %s", err)
 		}
-	} else {
-		bindHost = "0.0.0.0"
-		sanByDefault = []string{"127.0.0.1", "localhost", "0.0.0.0", "::"}
 	}
 
 	siteState.RouterAccesses[routerAccessName] = &v2alpha1.RouterAccess{
@@ -125,6 +129,23 @@ func EnableLinkAccess(siteState *api.SiteState) error {
 	}
 
 	return nil
+}
+
+func previousRouterAccessPorts(previousSiteState *api.SiteState, routerName string) (interRouterPort int, edgePort int) {
+	if previousSiteState == nil {
+		return 0, 0
+	}
+	previous, ok := previousSiteState.RouterAccesses[routerName]
+	if !ok || previous == nil {
+		return 0, 0
+	}
+	if role := previous.FindRole("inter-router"); role != nil {
+		interRouterPort = role.Port
+	}
+	if role := previous.FindRole("edge"); role != nil {
+		edgePort = role.Port
+	}
+	return interRouterPort, edgePort
 }
 
 func CreateRouterAccess(siteState *api.SiteState) error {

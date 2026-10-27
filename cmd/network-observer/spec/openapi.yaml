@@ -901,6 +901,17 @@ components:
               type: string
             buildVersion:
               type: string
+    listenerStrategyType:
+      type: string
+      enum:
+        - not-applicable
+        - priority
+        - weighted
+    listenerRoutingModelType:
+      type: string
+      enum:
+        - single-key
+        - multi-key
     ListenerRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
@@ -914,6 +925,9 @@ components:
             - routingKey
             - siteId
             - siteName
+            - strategy
+            - routingModel
+            - routingKeyCount
           properties:
             routerId:
               type: string
@@ -933,6 +947,16 @@ components:
               type: string
             siteName:
               type: string
+            strategy:
+              $ref: '#/components/schemas/listenerStrategyType'
+            strategyValue:
+              type: integer
+              format: uint64
+            routingModel:
+              $ref: '#/components/schemas/listenerRoutingModelType'
+            routingKeyCount:
+              type: integer
+              description: Total number of known routing keys for the listener
     ConnectorRecord:
       allOf:
         - $ref: '#/components/schemas/baseRecord'
@@ -981,6 +1005,7 @@ components:
             - protocol
             - observedApplicationProtocols
             - listenerCount
+            - multiKeyListenerCount
             - connectorCount
             - isBound
             - hasListener
@@ -995,6 +1020,8 @@ components:
               items:
                 type: string
             listenerCount:
+              type: integer
+            multiKeyListenerCount:
               type: integer
             connectorCount:
               type: integer

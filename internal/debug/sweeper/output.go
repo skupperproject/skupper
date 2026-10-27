@@ -84,9 +84,9 @@ func connectionReports(snap Snapshot, idleThreshold time.Duration) []ConnReport 
 
 func printReports(w io.Writer, reports []ConnReport) error {
 	for _, r := range reports {
-		if _, err := fmt.Fprintf(w, "  id=%-6s  host=%-25s  dir=%s  port=%-5d  state=%-10s  idle=%-10s  uptime=%-10s  routing-key=%-16s  resource=%-24s  reason=%s\n",
+		if _, err := fmt.Fprintf(w, "  id=%-6s  host=%-25s  dir=%s  port=%-5d  state=%-10s  idle=%-10s  uptime=%-10s  kind=%-18s  routing-key=%-16s  resource=%-24s  reason=%s\n",
 			r.Identity, r.Host, r.Dir, r.Port, emptyDash(r.State), emptyDash(r.Idle),
-			emptyDash(r.Uptime), emptyDash(r.RoutingKey), emptyDash(r.Resource), emptyDash(r.Reason)); err != nil {
+			emptyDash(r.Uptime), emptyDash(r.Kind), emptyDash(r.RoutingKey), emptyDash(r.Resource), emptyDash(r.Reason)); err != nil {
 			return err
 		}
 	}
@@ -105,8 +105,8 @@ func printKillResult(w io.Writer, d Decision, action, errMsg string, output stri
 	}
 	switch action {
 	case "killed":
-		logf("  id=%s  host=%s  dir=%s  port=%d  routing-key=%s  resource=%s  uptime=%s  reason=%s  → killed",
-			d.Conn.Identity, d.Conn.Host, d.Conn.Dir, d.Conn.Port, emptyDash(d.Conn.RoutingKey), emptyDash(d.Conn.Resource),
+		logf("  id=%s  host=%s  dir=%s  port=%d  kind=%s  routing-key=%s  resource=%s  uptime=%s  reason=%s  → killed",
+			d.Conn.Identity, d.Conn.Host, d.Conn.Dir, d.Conn.Port, emptyDash(d.Conn.Kind), emptyDash(d.Conn.RoutingKey), emptyDash(d.Conn.Resource),
 			fmtSeconds(d.Conn.UptimeSeconds), d.Reason)
 	case "already closed":
 		logf("  id=%s  host=%s  dir=%s  reason=%s  → already closed",
