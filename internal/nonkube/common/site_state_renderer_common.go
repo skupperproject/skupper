@@ -76,18 +76,31 @@ func EnableLinkAccess(siteState *api.SiteState, previousSiteState *api.SiteState
 		return nil
 	}
 
-	interRouterPort, edgePort := previousRouterAccessPorts(previousSiteState, routerAccessName)
-	if interRouterPort == 0 || edgePort == 0 {
-		var err error
-		interRouterPort, edgePort, err = utils.AllocateRouterAccessPorts()
-		if err != nil {
-			return fmt.Errorf("failed to allocate ports for RouterAccess: %w", err)
+	// Bundles are installed on a different host, so use default ports instead of
+	// allocating free ports from the machine generating the bundle.
+	// Prefer an explicit RouterAccess in the bundle input for a specific ingress
+	// host/IP; when generating automatically, use a generic bindHost and SAN list.
+	interRouterPort := 55671
+	edgePort := 45671
+	var sanByDefault []string
+	var bindHost string
+	if siteState.IsBundle() {
+		bindHost = "0.0.0.0"
+		sanByDefault = []string{"127.0.0.1", "localhost", "0.0.0.0", "::"}
+	} else {
+		interRouterPort, edgePort = previousRouterAccessPorts(previousSiteState, routerAccessName)
+		if interRouterPort == 0 || edgePort == 0 {
+			var err error
+			interRouterPort, edgePort, err = utils.AllocateRouterAccessPorts()
+			if err != nil {
+				return fmt.Errorf("failed to allocate ports for RouterAccess: %w", err)
+			}
 		}
-	}
-
-	sanByDefault, err := utils.GetSansByDefault()
-	if err != nil {
-		return fmt.Errorf("Error getting SANs by default: %s", err)
+		var err error
+		sanByDefault, err = utils.GetSansByDefault()
+		if err != nil {
+			return fmt.Errorf("Error getting SANs by default: %s", err)
+		}
 	}
 
 	siteState.RouterAccesses[routerAccessName] = &v2alpha1.RouterAccess{
@@ -110,6 +123,7 @@ func EnableLinkAccess(siteState *api.SiteState, previousSiteState *api.SiteState
 					Port: edgePort,
 				},
 			},
+			BindHost:                bindHost,
 			SubjectAlternativeNames: sanByDefault,
 		},
 	}
