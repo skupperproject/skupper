@@ -399,8 +399,6 @@ func TestIdenticalListenerFailover(t *testing.T) {
 	assert.Assert(t, !strings.Contains(cfg, "listener/"+owner))
 }
 
-// TestListenerSpecUpdatesAreResolved changes Listener Spec fields one at a time
-// and checks that each change is reflected in the Service or router config.
 func TestListenerSpecUpdatesAreResolved(t *testing.T) {
 	tc := setup(t)
 	namespace := "listener-spec-updates"
@@ -481,7 +479,7 @@ func TestListenerSpecUpdatesAreResolved(t *testing.T) {
 		if done, err := retryOnNotFound(err); !done {
 			return false, err
 		}
-                return strings.Contains(cfg, "key-b") && !strings.Contains(cfg, "key-a"), nil
+		return strings.Contains(cfg, "key-b") && !strings.Contains(cfg, "key-a"), nil
 	})
 
 	// --- Change 3: TlsCredentials secret-a -> secret-b ---
@@ -494,7 +492,7 @@ func TestListenerSpecUpdatesAreResolved(t *testing.T) {
 		if done, err := retryOnNotFound(err); !done {
 			return false, err
 		}
-                return strings.Contains(cfg, "secret-b") && ! strings.Contains(cfg, "secret-a"), nil
+		return strings.Contains(cfg, "secret-b") && !strings.Contains(cfg, "secret-a"), nil
 	})
 
 	// --- Change 4: Host svc-a -> svc-b ---
@@ -547,10 +545,6 @@ func TestListenerSpecUpdatesAreResolved(t *testing.T) {
 		"old TLS secret secret-a should no longer appear in router config")
 }
 
-// updateListenerSpec fetches the named Listener, applies the given
-// change, and writes it back.
-// The Controller should eventually catch up with this change.
-// So if you call this, you will need to use a waitFor afterwards.
 func updateListenerSpec(t *testing.T, tc *testContext, namespace, name string, change func(*skupperv2alpha1.Listener)) {
 	t.Helper()
 	ctx := context.Background()
@@ -563,8 +557,6 @@ func updateListenerSpec(t *testing.T, tc *testContext, namespace, name string, c
 	assert.NilError(t, err)
 }
 
-// routerConfigText reads the skupper-router ConfigMap and returns
-// just its configuration text.
 func routerConfigText(tc *testContext, namespace string, ctx context.Context) (string, error) {
 	routerConfig, err := tc.clients.GetKubeClient().CoreV1().ConfigMaps(namespace).Get(
 		ctx, "skupper-router", metav1.GetOptions{})
@@ -574,9 +566,6 @@ func routerConfigText(tc *testContext, namespace string, ctx context.Context) (s
 	return kubeqdr.GetRouterConfigData(routerConfig)
 }
 
-// createTLSSecret creates a minimal TLS Secret with dummy certificate
-// and key data. The test only needs the Secret to exist so Controller
-// can reference it by name; the contents will never be validated.
 func createTLSSecret(t *testing.T, tc *testContext, namespace, name string) {
 	t.Helper()
 	_, err := tc.clients.GetKubeClient().CoreV1().Secrets(namespace).Create(
