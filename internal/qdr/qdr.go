@@ -1244,8 +1244,6 @@ func ConnectorsDifference(actual map[string]Connector, desired *RouterConfig, ig
 		if ok && v1.IsLinkConnector() && !v1.Equivalent(actualValue) {
 			result.Deleted = append(result.Deleted, v1)
 			result.Added = append(result.Added, v1)
-			result.AddedSslProfiles[v1.SslProfile] = desired.SslProfiles[v1.SslProfile]
-			result.AddedProxyProfiles[v1.ProxyProfile] = desired.ProxyProfiles[v1.ProxyProfile]
 		}
 	}
 	for key, v1 := range actual {
@@ -1282,8 +1280,7 @@ func (desired Connector) Equivalent(actual Connector) bool {
 		desired.Host == actual.Host &&
 		desired.Port == actual.Port &&
 		normaliseCost(desired.Cost) == normaliseCost(actual.Cost) &&
-		desired.SslProfile == actual.SslProfile &&
-		desired.ProxyProfile == actual.ProxyProfile
+		desired.SslProfile == actual.SslProfile
 }
 
 type ListenerDifference struct {
