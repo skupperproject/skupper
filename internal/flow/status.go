@@ -54,6 +54,10 @@ type StatusSync struct {
 
 	// publishRetry is how long to wait before retrying after a failed publish.
 	publishRetry time.Duration
+	// lastPublishFailed forces another publish attempt after a failed write,
+	// even if the built status still equals prev (ambiguous apiserver errors
+	// or A→B→A record changes could otherwise skip the retry).
+	lastPublishFailed bool
 }
 
 type StatusSyncClient interface {
@@ -185,7 +189,7 @@ func (s *StatusSync) Run(ctx context.Context) {
 
 func (s *StatusSync) buildAndPublish(prev network.NetworkStatusInfo) (network.NetworkStatusInfo, error) {
 	next := s.build()
-	if cmp.Equal(prev, next) {
+	if cmp.Equal(prev, next) && !s.lastPublishFailed {
 		s.logger.Debug("no change since last publish")
 		return prev, nil
 	}
@@ -193,8 +197,10 @@ func (s *StatusSync) buildAndPublish(prev network.NetworkStatusInfo) (network.Ne
 	if err := s.publish(next); err != nil {
 		// Do not advance prev: otherwise the next call sees "no change" and
 		// never retries the failed write (see #2608).
+		s.lastPublishFailed = true
 		return prev, err
 	}
+	s.lastPublishFailed = false
 	return next, nil
 }
 

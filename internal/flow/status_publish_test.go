@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ import (
 // flakyStatusClient fails the first N Update calls, then succeeds.
 // Mimics a transient apiserver error that RetryOnConflict does not retry.
 type flakyStatusClient struct {
+	mu            sync.Mutex
 	cm            *corev1.ConfigMap
 	failRemaining atomic.Int32
 	updateCalls   atomic.Int32
@@ -32,6 +34,8 @@ func (f *flakyStatusClient) Logger() *slog.Logger {
 }
 
 func (f *flakyStatusClient) Get(ctx context.Context) (*corev1.ConfigMap, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	return f.cm.DeepCopy(), nil
 }
 
@@ -40,8 +44,19 @@ func (f *flakyStatusClient) Update(ctx context.Context, latest *corev1.ConfigMap
 	if f.failRemaining.Add(-1) >= 0 {
 		return fmt.Errorf("simulated apiserver timeout on update #%d", n)
 	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.cm = latest.DeepCopy()
 	return nil
+}
+
+func (f *flakyStatusClient) networkStatus() string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.cm == nil || f.cm.Data == nil {
+		return ""
+	}
+	return f.cm.Data["NetworkStatus"]
 }
 
 func newFlakyStatusSync(t *testing.T, failFirst int32) (*StatusSync, *flakyStatusClient) {
@@ -71,16 +86,18 @@ func TestPublishFailureKeepsPrev(t *testing.T) {
 	prev := network.NetworkStatusInfo{}
 	returned, err := ss.buildAndPublish(prev)
 	assert.ErrorContains(t, err, "simulated apiserver timeout")
-	assert.Assert(t, client.cm.Data["NetworkStatus"] == "")
+	assert.Equal(t, client.networkStatus(), "")
 	assert.DeepEqual(t, returned, prev) // must not advance prev on error
+	assert.Assert(t, ss.lastPublishFailed)
 
 	next, err := ss.buildAndPublish(returned)
 	assert.NilError(t, err)
 	assert.Equal(t, client.updateCalls.Load(), int32(2))
-	assert.Assert(t, client.cm.Data["NetworkStatus"] != "")
+	assert.Assert(t, client.networkStatus() != "")
+	assert.Assert(t, !ss.lastPublishFailed)
 
 	var written network.NetworkStatusInfo
-	assert.NilError(t, json.Unmarshal([]byte(client.cm.Data["NetworkStatus"]), &written))
+	assert.NilError(t, json.Unmarshal([]byte(client.networkStatus()), &written))
 	assert.Equal(t, len(written.SiteStatus), 1)
 	assert.Equal(t, written.SiteStatus[0].Site.Identity, "site-a")
 	assert.Equal(t, len(next.SiteStatus), 1)
@@ -102,7 +119,7 @@ func TestPublishFailureIsRetriedByRun(t *testing.T) {
 	ss.notify()
 
 	poll.WaitOn(t, func(log poll.LogT) poll.Result {
-		if client.cm.Data["NetworkStatus"] == "" {
+		if client.networkStatus() == "" {
 			return poll.Continue("waiting for retry to write NetworkStatus (updates=%d)", client.updateCalls.Load())
 		}
 		return poll.Success()
