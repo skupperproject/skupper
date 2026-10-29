@@ -51,6 +51,9 @@ type StatusSync struct {
 	purgeQueue chan store.SourceRef
 	limit      rate.Limit
 	burst      int
+
+	// publishRetry is how long to wait before retrying after a failed publish.
+	publishRetry time.Duration
 }
 
 type StatusSyncClient interface {
@@ -80,6 +83,7 @@ func NewStatusSync(factory session.ContainerFactory, localSources map[string][]s
 		hasNext:       make(chan struct{}, 1),
 		limit:         rate.Every(time.Second),
 		burst:         1,
+		publishRetry:  2 * time.Second,
 
 		logger: logger,
 	}
@@ -128,6 +132,12 @@ func (s *StatusSync) Run(ctx context.Context) {
 		prev, err = s.buildAndPublish(prev)
 		if err != nil {
 			s.logger.Error("could not update network status info", slog.Any("error", err))
+			// Keep prev unchanged (buildAndPublish returns the old prev on
+			// error) and schedule a retry so a transient failure cannot leave
+			// network status stuck until the next record change.
+			if later == nil {
+				later = time.After(s.publishRetry)
+			}
 		}
 	}
 	var limiter *rate.Limiter
@@ -180,7 +190,12 @@ func (s *StatusSync) buildAndPublish(prev network.NetworkStatusInfo) (network.Ne
 		return prev, nil
 	}
 	s.logger.Info("updating network status info", slog.String("configmap", s.configMapName))
-	return next, s.publish(next)
+	if err := s.publish(next); err != nil {
+		// Do not advance prev: otherwise the next call sees "no change" and
+		// never retries the failed write (see #2608).
+		return prev, err
+	}
+	return next, nil
 }
 
 func (s *StatusSync) build() network.NetworkStatusInfo {
