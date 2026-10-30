@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -13,10 +14,10 @@ func TestCollectorHandler(t *testing.T) {
 	stopCh := make(chan struct{})
 
 	ch := NewCollectorLifecycleHandler("sample-namespace")
-	fakeStart := func() {
+	fakeStart := func(ctx context.Context) {
 		close(started)
 		go func() {
-			<-ch.ctx.Done()
+			<-ctx.Done()
 			close(done)
 		}()
 	}

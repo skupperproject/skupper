@@ -65,6 +65,10 @@ func siteCollector(ctx context.Context, namespace string) error {
 	if err := client.Add(cm, true); err != nil {
 		return err
 	}
+	// Remove the status ConfigMap only once this collector has fully stopped,
+	// including on setup errors below. The caller serializes generations on
+	// this function returning, so a later collector never sees this delete.
+	defer func() { _ = client.Delete(cm.Name, true) }()
 
 	address, err := runtime.GetLocalRouterAddress(namespace)
 	if err != nil {
@@ -84,11 +88,13 @@ func siteCollector(ctx context.Context, namespace string) error {
 		namespace: namespace,
 	}
 	statusSync := flow.NewStatusSync(factory, nil, statusSyncClient, types.NetworkStatusConfigMapName)
-	go statusSync.Run(ctx)
+	runDone := make(chan struct{})
 	go func() {
-		<-ctx.Done()
-		_ = client.Delete(cm.Name, true)
+		defer close(runDone)
+		statusSync.Run(ctx)
 	}()
+	<-ctx.Done()
+	<-runDone
 	return nil
 }
 
@@ -101,6 +107,9 @@ func getLocalTLSConfig(namespace string) (*tls.Config, error) {
 	return config, err
 }
 
+// StartCollector runs the site collector for namespace. It blocks until ctx
+// is canceled and the collector has stopped and removed its status
+// ConfigMap, or until setup fails.
 func StartCollector(ctx context.Context, namespace string) error {
 	slog.Info("COLLECTOR: Starting site collection", slog.String("namespace", namespace))
 	if err := siteCollector(ctx, namespace); err != nil {

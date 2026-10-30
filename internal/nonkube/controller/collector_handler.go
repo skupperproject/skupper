@@ -25,7 +25,11 @@ type CollectorLifecycleHandler struct {
 	logger      *slog.Logger
 	running     bool
 	mux         sync.Mutex
-	startMethod func()
+	startMethod func(ctx context.Context)
+	// lastDone is closed once the most recently started generation has
+	// returned from startMethod. The next generation waits on it so that two
+	// collectors never overlap on the shared status ConfigMap.
+	lastDone <-chan struct{}
 }
 
 func (c *CollectorLifecycleHandler) Start(stopCh <-chan struct{}) {
@@ -40,17 +44,32 @@ func (c *CollectorLifecycleHandler) Start(stopCh <-chan struct{}) {
 	if c.startMethod == nil {
 		c.startMethod = c.startCollectorLite
 	}
-	go c.startMethod()
-	go c.handleShutdown(stopCh)
+	// Capture ctx by value before releasing the lock. Goroutines must not
+	// read c.ctx through the struct pointer after the lock is dropped: a
+	// subsequent Start() call writes a new c.ctx under the lock, which would
+	// race with the goroutine reading the old value via c.ctx.Done().
+	ctx := c.ctx
+	start := c.startMethod
+	prev := c.lastDone
+	done := make(chan struct{})
+	c.lastDone = done
+	go func() {
+		defer close(done)
+		if prev != nil {
+			<-prev
+		}
+		start(ctx)
+	}()
+	go c.handleShutdown(ctx, stopCh)
 }
 
-func (c *CollectorLifecycleHandler) handleShutdown(stopCh <-chan struct{}) {
+func (c *CollectorLifecycleHandler) handleShutdown(ctx context.Context, stopCh <-chan struct{}) {
 	const stopMsg = "Stopping collector lifecycle handler"
 	select {
 	case <-stopCh:
 		c.logger.Info(stopMsg)
 		c.Stop()
-	case <-c.ctx.Done():
+	case <-ctx.Done():
 		c.logger.Info(stopMsg)
 	}
 }
@@ -72,9 +91,13 @@ func (c *CollectorLifecycleHandler) Id() string {
 	return "collector.handler"
 }
 
-func (c *CollectorLifecycleHandler) startCollectorLite() {
+func (c *CollectorLifecycleHandler) startCollectorLite(ctx context.Context) {
+	if err := ctx.Err(); err != nil {
+		c.logger.Info("Skipping stale collector startup", slog.Any("reason", err))
+		return
+	}
 	c.logger.Info("Starting collector lite")
-	err := flow.StartCollector(c.ctx, c.namespace)
+	err := flow.StartCollector(ctx, c.namespace)
 	if err != nil {
 		c.logger.Error("error starting collector", slog.Any("error", err.Error()))
 		return
