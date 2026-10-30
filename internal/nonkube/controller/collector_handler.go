@@ -25,7 +25,7 @@ type CollectorLifecycleHandler struct {
 	logger      *slog.Logger
 	running     bool
 	mux         sync.Mutex
-	startMethod func()
+	startMethod func(ctx context.Context)
 }
 
 func (c *CollectorLifecycleHandler) Start(stopCh <-chan struct{}) {
@@ -40,17 +40,18 @@ func (c *CollectorLifecycleHandler) Start(stopCh <-chan struct{}) {
 	if c.startMethod == nil {
 		c.startMethod = c.startCollectorLite
 	}
-	go c.startMethod()
-	go c.handleShutdown(stopCh)
+	ctx := c.ctx
+	go c.startMethod(ctx)
+	go c.handleShutdown(ctx, stopCh)
 }
 
-func (c *CollectorLifecycleHandler) handleShutdown(stopCh <-chan struct{}) {
+func (c *CollectorLifecycleHandler) handleShutdown(ctx context.Context, stopCh <-chan struct{}) {
 	const stopMsg = "Stopping collector lifecycle handler"
 	select {
 	case <-stopCh:
 		c.logger.Info(stopMsg)
 		c.Stop()
-	case <-c.ctx.Done():
+	case <-ctx.Done():
 		c.logger.Info(stopMsg)
 	}
 }
@@ -72,9 +73,9 @@ func (c *CollectorLifecycleHandler) Id() string {
 	return "collector.handler"
 }
 
-func (c *CollectorLifecycleHandler) startCollectorLite() {
+func (c *CollectorLifecycleHandler) startCollectorLite(ctx context.Context) {
 	c.logger.Info("Starting collector lite")
-	err := flow.StartCollector(c.ctx, c.namespace)
+	err := flow.StartCollector(ctx, c.namespace)
 	if err != nil {
 		c.logger.Error("error starting collector", slog.Any("error", err.Error()))
 		return
