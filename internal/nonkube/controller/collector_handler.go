@@ -26,6 +26,10 @@ type CollectorLifecycleHandler struct {
 	running     bool
 	mux         sync.Mutex
 	startMethod func(ctx context.Context)
+	// lastDone is closed once the most recently started generation has
+	// returned from startMethod. The next generation waits on it so that two
+	// collectors never overlap on the shared status ConfigMap.
+	lastDone <-chan struct{}
 }
 
 func (c *CollectorLifecycleHandler) Start(stopCh <-chan struct{}) {
@@ -45,7 +49,17 @@ func (c *CollectorLifecycleHandler) Start(stopCh <-chan struct{}) {
 	// subsequent Start() call writes a new c.ctx under the lock, which would
 	// race with the goroutine reading the old value via c.ctx.Done().
 	ctx := c.ctx
-	go c.startMethod(ctx)
+	start := c.startMethod
+	prev := c.lastDone
+	done := make(chan struct{})
+	c.lastDone = done
+	go func() {
+		defer close(done)
+		if prev != nil {
+			<-prev
+		}
+		start(ctx)
+	}()
 	go c.handleShutdown(ctx, stopCh)
 }
 
