@@ -40,6 +40,10 @@ func (c *CollectorLifecycleHandler) Start(stopCh <-chan struct{}) {
 	if c.startMethod == nil {
 		c.startMethod = c.startCollectorLite
 	}
+	// Capture ctx by value before releasing the lock. Goroutines must not
+	// read c.ctx through the struct pointer after the lock is dropped: a
+	// subsequent Start() call writes a new c.ctx under the lock, which would
+	// race with the goroutine reading the old value via c.ctx.Done().
 	ctx := c.ctx
 	go c.startMethod(ctx)
 	go c.handleShutdown(ctx, stopCh)
@@ -74,6 +78,10 @@ func (c *CollectorLifecycleHandler) Id() string {
 }
 
 func (c *CollectorLifecycleHandler) startCollectorLite(ctx context.Context) {
+	if err := ctx.Err(); err != nil {
+		c.logger.Info("Skipping stale collector startup", slog.Any("reason", err))
+		return
+	}
 	c.logger.Info("Starting collector lite")
 	err := flow.StartCollector(ctx, c.namespace)
 	if err != nil {
