@@ -264,6 +264,7 @@ func (s *SiteState) linkAccessMap() site.RouterAccessMap {
 	}
 	return linkAccessMap
 }
+
 // SecretDataValue returns the value for key from a Secret, checking StringData before Data.
 func SecretDataValue(secret *corev1.Secret, key string) []byte {
 	if v, ok := secret.StringData[key]; ok {
