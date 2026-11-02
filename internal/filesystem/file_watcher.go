@@ -179,7 +179,12 @@ func (w *FileWatcher) processEvents(stopCh <-chan struct{}) {
 			case event.Has(fsnotify.Remove):
 				// Forget the scanned entry so a subsequent re-creation of this
 				// path is not suppressed.
-				w.dropStaleScanned(event.Name)
+				if w.dropStaleScanned(event.Name) {
+					// Stale Remove: it describes the file replaced before the
+					// scan. The scan already dispatched OnCreate for the
+					// replacement, so OnRemove would undo it.
+					handlers = nil
+				}
 				for _, handler := range handlers {
 					w.logger.Info("OnRemove", slog.String("name", event.Name))
 					//go handler.OnRemove(event.Name)
@@ -265,21 +270,22 @@ func (w *FileWatcher) consumeScanned(name string) bool {
 }
 
 // dropStaleScanned forgets the scan record for name unless name still refers
-// to the file the scan recorded. A Remove queued before the scan describes the
-// file that was replaced, not the one the scan reported, so it must not discard
-// the record of the replacement (its Create would otherwise dispatch a second
-// OnCreate). As in consumeScanned, scannedLock is not held
-// across the Lstat call.
-func (w *FileWatcher) dropStaleScanned(name string) {
+// to the file the scan recorded, and reports whether the record was kept. A
+// Remove queued before the scan describes the file that was replaced, not the
+// one the scan reported, so it must neither discard the record of the
+// replacement (its Create would dispatch a second OnCreate) nor be dispatched
+// as OnRemove. As in consumeScanned, scannedLock is not held across the Lstat
+// call.
+func (w *FileWatcher) dropStaleScanned(name string) bool {
 	w.scannedLock.Lock()
 	scanned, ok := w.scannedPaths[name]
 	w.scannedLock.Unlock()
 	if !ok {
-		return
+		return false
 	}
 	if scanned != nil {
 		if current, err := os.Lstat(name); err == nil && os.SameFile(scanned, current) {
-			return
+			return true
 		}
 	}
 	w.scannedLock.Lock()
@@ -288,6 +294,7 @@ func (w *FileWatcher) dropStaleScanned(name string) {
 	if latest, ok := w.scannedPaths[name]; ok && latest == scanned {
 		delete(w.scannedPaths, name)
 	}
+	return false
 }
 
 // forgetScanned drops the scan records for path and its direct children, so
