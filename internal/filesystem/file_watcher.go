@@ -396,14 +396,24 @@ func (w *FileWatcher) addAndScan(path string, isDir bool, handlers []FSChangeHan
 		}
 		for _, entry := range pathEntries {
 			name := filepath.Join(path, entry.Name())
+			info, err := entry.Info()
+			if errors.Is(err, os.ErrNotExist) {
+				// The entry vanished after ReadDir. Skip it: the scan must not
+				// dispatch OnCreate for it, and the inotify events (Create
+				// followed by Remove) are reported as usual.
+				continue
+			}
 			existing = append(existing, name)
-			// A nil info (entry vanished) is tracked but never suppresses a
-			// Create; see consumeScanned.
-			infos[name], _ = entry.Info()
+			// Any other error leaves a nil info, which is tracked but never
+			// suppresses a Create; see consumeScanned.
+			infos[name] = info
 		}
 	} else {
-		existing = append(existing, path)
-		infos[path], _ = os.Lstat(path)
+		info, err := os.Lstat(path)
+		if !errors.Is(err, os.ErrNotExist) {
+			existing = append(existing, path)
+			infos[path] = info
+		}
 	}
 	for _, name := range existing {
 		for _, handler := range handlers {

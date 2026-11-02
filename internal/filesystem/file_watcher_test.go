@@ -566,6 +566,26 @@ func TestFileWatcherScanIgnoresFilteredFiles(t *testing.T) {
 	assert.Assert(t, ok)
 }
 
+// TestFileWatcherScanSkipsVanishedFile verifies that a file removed between
+// watcher.Add() and the scan is not reported by the scan nor tracked, so it
+// cannot cause a spurious OnCreate.
+func TestFileWatcherScanSkipsVanishedFile(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a.txt")
+	assert.Assert(t, os.WriteFile(file, []byte("x"), 0600))
+
+	w, err := NewWatcher()
+	assert.Assert(t, err)
+	defer w.watcher.Close()
+	w.afterWatchAdd = func() { assert.Assert(t, os.Remove(file)) }
+
+	handler := newCounterHandler(func(string) bool { return true })
+	existing, err := w.addAndScan(file, false, []FSChangeHandler{handler})
+	assert.Assert(t, err)
+	assert.Equal(t, 0, len(existing))
+	assert.Equal(t, 0, len(w.scannedPaths))
+}
+
 // TestFileWatcherAtomicReplaceNotSuppressed verifies that renaming a scanned
 // file away and then replacing it (atomic write) delivers an OnCreate for the
 // replacement instead of having it swallowed by a stale scan entry.
