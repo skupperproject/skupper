@@ -77,6 +77,8 @@ type FileWatcher struct {
 	afterWatchAdd func()
 }
 
+// NewWatcher creates a FileWatcher backed by a new fsnotify watcher. Call
+// Start to begin processing events.
 func NewWatcher(attrs ...slog.Attr) (*FileWatcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -130,6 +132,9 @@ func (w *FileWatcher) Start(stopCh <-chan struct{}) {
 	go w.dispatchTriggers(stopCh)
 }
 
+// processEvents consumes fsnotify events and dispatches them to the matching
+// handlers until stopCh is closed. Create events already reported by the
+// initial directory scan are suppressed (see consumeScanned).
 func (w *FileWatcher) processEvents(stopCh <-chan struct{}) {
 	for {
 		select {
@@ -249,7 +254,9 @@ func (w *FileWatcher) consumeScanned(name string) bool {
 	w.scannedLock.Unlock()
 
 	if !ok || scanned == nil {
-		return ok
+		// No scan-time identity (entry.Info() failed): we cannot prove the
+		// Create refers to the scanned file, so do not suppress it.
+		return false
 	}
 	current, err := os.Lstat(name)
 	if err != nil {
@@ -390,7 +397,8 @@ func (w *FileWatcher) addAndScan(path string, isDir bool, handlers []FSChangeHan
 		for _, entry := range pathEntries {
 			name := filepath.Join(path, entry.Name())
 			existing = append(existing, name)
-			// A nil info (entry vanished) is still tracked; see consumeScanned.
+			// A nil info (entry vanished) is tracked but never suppresses a
+			// Create; see consumeScanned.
 			infos[name], _ = entry.Info()
 		}
 	} else {
@@ -408,6 +416,9 @@ func (w *FileWatcher) addAndScan(path string, isDir bool, handlers []FSChangeHan
 	return existing, nil
 }
 
+// manageWatchers registers fsnotify watches for newly monitored paths using
+// addAndScan, dispatching OnCreate for the files found and OnBasePathAdded for
+// each path, and removes watches for paths that are no longer monitored.
 func (w *FileWatcher) manageWatchers(stopCh <-chan struct{}) {
 	w.watcherLock.Lock()
 	defer w.watcherLock.Unlock()

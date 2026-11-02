@@ -460,6 +460,7 @@ func TestFileWatcher_AddDuringShutdown(t *testing.T) {
 		t.Fatal("Add blocked after shutdown: deadlock on w.refresh")
 	}
 }
+
 // TestFileWatcherNoDuplicateCreateDuringScan creates a file after watcher.Add()
 // and before the directory scan, so that it is both listed by the scan and
 // reported by fsnotify. OnCreate must be dispatched exactly once.
@@ -509,6 +510,8 @@ func requireSentinelProcessed(t *testing.T, dir string, handler *counterHandler)
 	}))
 }
 
+// TestFileWatcherConsumeScanned verifies consumeScanned suppresses a Create
+// only for the scanned file identity and never when the identity is unknown.
 func TestFileWatcherConsumeScanned(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "a.txt")
@@ -534,6 +537,11 @@ func TestFileWatcherConsumeScanned(t *testing.T) {
 	assert.Assert(t, os.WriteFile(tmp, []byte("new"), 0600))
 	assert.Assert(t, os.Rename(tmp, file))
 	assert.Assert(t, !w.consumeScanned(file), "replaced file must not be suppressed")
+	assert.Equal(t, 0, len(w.scannedPaths))
+
+	// an entry without a scan-time identity cannot be proven a duplicate
+	w.scannedPaths[file] = nil
+	assert.Assert(t, !w.consumeScanned(file), "nil identity must not be suppressed")
 	assert.Equal(t, 0, len(w.scannedPaths))
 }
 
