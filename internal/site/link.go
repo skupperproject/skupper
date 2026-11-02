@@ -38,6 +38,7 @@ func (l *Link) UpdateProxyConfig(proxyConfig *ProxyConfig) bool {
 	return true
 }
 
+// Apply configures a router connector, SSL profile, and optional proxy profile for this link.
 func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	if l.definition == nil {
 		return false

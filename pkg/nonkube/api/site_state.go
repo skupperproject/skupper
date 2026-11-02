@@ -264,6 +264,7 @@ func (s *SiteState) linkAccessMap() site.RouterAccessMap {
 	}
 	return linkAccessMap
 }
+// SecretDataValue returns the value for key from a Secret, checking StringData before Data.
 func SecretDataValue(secret *corev1.Secret, key string) []byte {
 	if v, ok := secret.StringData[key]; ok {
 		return []byte(v)
@@ -274,6 +275,7 @@ func SecretDataValue(secret *corev1.Secret, key string) []byte {
 	return nil
 }
 
+// getProxyConfig extracts HTTP proxy configuration from the Secret referenced by a Link.
 func (s *SiteState) getProxyConfig(link *v2alpha1.Link, basePath string) *site.ProxyConfig {
 	proxySecretName := link.Spec.GetProxyConfiguration()
 	if proxySecretName == "" {

@@ -58,6 +58,7 @@ func (s *SiteStateValidator) Validate(desiredState, currentState *api.SiteState)
 	return nil
 }
 
+// validateSite checks site name, namespace, and mutually exclusive options like edge and HA.
 func (s *SiteStateValidator) validateSite(site *v2alpha1.Site) error {
 	namespace := site.Namespace
 	if namespace != "" {
@@ -97,6 +98,7 @@ func (s *SiteStateValidator) validateRouterAccesses(routerAccesses map[string]*v
 	return nil
 }
 
+// validateLinks checks that each Link references valid TLS and proxy secrets.
 func (s *SiteStateValidator) validateLinks(links map[string]*v2alpha1.Link, secrets map[string]*corev1.Secret) error {
 	if links == nil || len(links) == 0 {
 		return nil

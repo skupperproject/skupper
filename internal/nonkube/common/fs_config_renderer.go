@@ -479,6 +479,7 @@ func (c *FileSystemConfigurationRenderer) createTlsCertificates(siteState *api.S
 	return nil
 }
 
+// createProxyProfiles writes password files for authenticated HTTP proxy profiles referenced by links.
 func (c *FileSystemConfigurationRenderer) createProxyProfiles(siteState *api.SiteState) error {
 	logger := NewLogger()
 	outputPath := c.GetOutputPath(siteState)
