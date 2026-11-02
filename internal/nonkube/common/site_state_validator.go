@@ -116,6 +116,9 @@ func (s *SiteStateValidator) validateLinks(links map[string]*v2alpha1.Link, secr
 		}
 		proxySecretName := link.Spec.GetProxyConfiguration()
 		if proxySecretName != "" {
+			if err := ValidateName(proxySecretName); err != nil {
+				return fmt.Errorf("invalid link %q - invalid proxy secret name: %w", linkName, err)
+			}
 			if _, ok := secrets[proxySecretName]; !ok {
 				return fmt.Errorf("invalid link %q - proxy secret %q not found", linkName, proxySecretName)
 			}
