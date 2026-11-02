@@ -179,9 +179,7 @@ func (w *FileWatcher) processEvents(stopCh <-chan struct{}) {
 			case event.Has(fsnotify.Remove):
 				// Forget the scanned entry so a subsequent re-creation of this
 				// path is not suppressed.
-				w.scannedLock.Lock()
-				delete(w.scannedPaths, event.Name)
-				w.scannedLock.Unlock()
+				w.dropStaleScanned(event.Name)
 				for _, handler := range handlers {
 					w.logger.Info("OnRemove", slog.String("name", event.Name))
 					//go handler.OnRemove(event.Name)
@@ -264,6 +262,47 @@ func (w *FileWatcher) consumeScanned(name string) bool {
 		return true
 	}
 	return os.SameFile(scanned, current)
+}
+
+// dropStaleScanned forgets the scan record for name unless name still refers
+// to the file the scan recorded. A Remove queued before the scan describes the
+// file that was replaced, not the one the scan reported, so it must not discard
+// the record of the replacement (its Create would otherwise dispatch a second
+// OnCreate). As in consumeScanned, scannedLock is not held
+// across the Lstat call.
+func (w *FileWatcher) dropStaleScanned(name string) {
+	w.scannedLock.Lock()
+	scanned, ok := w.scannedPaths[name]
+	w.scannedLock.Unlock()
+	if !ok {
+		return
+	}
+	if scanned != nil {
+		if current, err := os.Lstat(name); err == nil && os.SameFile(scanned, current) {
+			return
+		}
+	}
+	w.scannedLock.Lock()
+	defer w.scannedLock.Unlock()
+	// only delete the record examined above, not one added meanwhile
+	if latest, ok := w.scannedPaths[name]; ok && latest == scanned {
+		delete(w.scannedPaths, name)
+	}
+}
+
+// forgetScanned drops the scan records for path and its direct children, so
+// records of a watched path that no longer exists do not accumulate across
+// repeated removal and re-creation of the path.
+func (w *FileWatcher) forgetScanned(path string) {
+	path = filepath.Clean(path)
+	w.scannedLock.Lock()
+	defer w.scannedLock.Unlock()
+	for name := range w.scannedPaths {
+		cleanName := filepath.Clean(name)
+		if cleanName == path || filepath.Dir(cleanName) == path {
+			delete(w.scannedPaths, name)
+		}
+	}
 }
 
 // resync re-emits OnCreate for the files currently present under each watched
@@ -453,6 +492,7 @@ func (w *FileWatcher) manageWatchers(stopCh <-chan struct{}) {
 				w.logger.Debug("Monitored path removed",
 					slog.String("path", path))
 			}
+			w.forgetScanned(path)
 			continue
 		}
 		if slices.Contains(w.watcher.WatchList(), path) {

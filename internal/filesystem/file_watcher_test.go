@@ -586,6 +586,97 @@ func TestFileWatcherScanSkipsVanishedFile(t *testing.T) {
 	assert.Equal(t, 0, len(w.scannedPaths))
 }
 
+// TestFileWatcherForgetScanned verifies that scan records of a removed watched
+// path and its children are dropped, while unrelated records are kept.
+func TestFileWatcherForgetScanned(t *testing.T) {
+	w, err := NewWatcher()
+	assert.Assert(t, err)
+	defer w.watcher.Close()
+
+	dir := filepath.Join(t.TempDir(), "watched")
+	other := filepath.Join(t.TempDir(), "other")
+	w.scannedPaths[dir] = nil
+	w.scannedPaths[filepath.Join(dir, "a.txt")] = nil
+	w.scannedPaths[filepath.Join(dir, "b.txt")] = nil
+	w.scannedPaths[filepath.Join(other, "c.txt")] = nil
+	// keys that are not in clean form must be removed too
+	w.scannedPaths[dir+"/./d.txt"] = nil
+
+	w.forgetScanned(dir + "/")
+	assert.Equal(t, 1, len(w.scannedPaths))
+	_, ok := w.scannedPaths[filepath.Join(other, "c.txt")]
+	assert.Assert(t, ok)
+}
+
+// TestFileWatcherDropStaleScanned verifies that a Remove for a path
+// only discards the scan record when the path no longer holds the scanned file.
+func TestFileWatcherDropStaleScanned(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a.txt")
+	assert.Assert(t, os.WriteFile(file, []byte("x"), 0600))
+	info, err := os.Lstat(file)
+	assert.Assert(t, err)
+
+	w, err := NewWatcher()
+	assert.Assert(t, err)
+	defer w.watcher.Close()
+
+	// still the scanned file: a stale event must keep the record
+	w.scannedPaths[file] = info
+	w.dropStaleScanned(file)
+	assert.Equal(t, 1, len(w.scannedPaths))
+
+	// replaced by a different file: record is dropped
+	tmp := filepath.Join(dir, "a.tmp")
+	assert.Assert(t, os.WriteFile(tmp, []byte("new"), 0600))
+	assert.Assert(t, os.Rename(tmp, file))
+	w.dropStaleScanned(file)
+	assert.Equal(t, 0, len(w.scannedPaths))
+
+	// gone: record is dropped
+	info, err = os.Lstat(file)
+	assert.Assert(t, err)
+	w.scannedPaths[file] = info
+	assert.Assert(t, os.Remove(file))
+	w.dropStaleScanned(file)
+	assert.Equal(t, 0, len(w.scannedPaths))
+
+	// unknown identity: record is dropped
+	w.scannedPaths[file] = nil
+	w.dropStaleScanned(file)
+	assert.Equal(t, 0, len(w.scannedPaths))
+}
+
+// TestFileWatcherRemoveRecreateDuringScan removes and recreates a file between
+// watcher.Add() and the scan. The scan reports the replacement once; the queued
+// Remove and Create events must not produce a second OnCreate.
+func TestFileWatcherRemoveRecreateDuringScan(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a.txt")
+	assert.Assert(t, os.WriteFile(file, []byte("old"), 0600))
+
+	handler := newCounterHandler(func(name string) bool { return filepath.Dir(name) == dir })
+	w, err := NewWatcher(slog.String("owner", "test.watcher"))
+	assert.Assert(t, err)
+	w.afterWatchAdd = func() {
+		assert.Assert(t, os.Remove(file))
+		assert.Assert(t, os.WriteFile(file, []byte("new"), 0600))
+	}
+	w.Add(dir, handler)
+	stop := make(chan struct{})
+	defer close(stop)
+	w.Start(stop)
+
+	assert.Assert(t, utils.RetryError(time.Millisecond*50, 100, func() error {
+		if c := handler.GetCreatedCount(file); c < 1 {
+			return fmt.Errorf("expected an OnCreate for %q, got %d", file, c)
+		}
+		return nil
+	}))
+	requireSentinelProcessed(t, dir, handler)
+	assert.Equal(t, 1, handler.GetCreatedCount(file), "OnCreate must be dispatched once")
+}
+
 // TestFileWatcherAtomicReplaceNotSuppressed verifies that renaming a scanned
 // file away and then replacing it (atomic write) delivers an OnCreate for the
 // replacement instead of having it swallowed by a stale scan entry.
