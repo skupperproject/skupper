@@ -800,7 +800,7 @@ func TestSite_CheckListenerWithInvalidHost(t *testing.T) {
 	condition := meta.FindStatusCondition(listener.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
 	assert.Assert(t, condition != nil)
 	assert.Equal(t, condition.Status, metav1.ConditionFalse)
-	assert.Assert(t, strings.Contains(listener.Status.Message, "Invalid host"), listener.Status.Message)
+	assert.Assert(t, strings.Contains(listener.Status.Message, "invalid host"), listener.Status.Message)
 	assert.Equal(t, listener.Status.StatusType, skupperv2alpha1.StatusError)
 
 	// no service should have been created for the invalid host
@@ -834,7 +834,7 @@ func TestSite_CheckMultiKeyListenerWithInvalidHost(t *testing.T) {
 	condition := meta.FindStatusCondition(mkl.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
 	assert.Assert(t, condition != nil)
 	assert.Equal(t, condition.Status, metav1.ConditionFalse)
-	assert.Assert(t, strings.Contains(mkl.Status.Message, "Invalid host"), mkl.Status.Message)
+	assert.Assert(t, strings.Contains(mkl.Status.Message, "invalid host"), mkl.Status.Message)
 	assert.Equal(t, mkl.Status.StatusType, skupperv2alpha1.StatusError)
 
 	_, err = s.clients.GetKubeClient().CoreV1().Services("test").Get(context.Background(), mkl.Spec.Host, metav1.GetOptions{})

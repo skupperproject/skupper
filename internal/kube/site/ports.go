@@ -9,11 +9,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
-// validateExposedHost checks that a host can be used as the name of the
-// Service through which it is exposed in the namespace.
+// validateExposedHost reports whether host is a valid Kubernetes Service name
+// (a DNS-1035 label). This check is only appropriate for Kubernetes sites;
+// because non-kube sites might use an FQDN or IP address.
 func validateExposedHost(host string) error {
 	if errs := validation.IsDNS1035Label(host); len(errs) > 0 {
-		return fmt.Errorf("Invalid host %q: %s", host, strings.Join(errs, "; "))
+		return fmt.Errorf("invalid host %q: %s", host, strings.Join(errs, "; "))
 	}
 	return nil
 }
