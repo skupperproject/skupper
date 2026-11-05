@@ -345,6 +345,7 @@ func TestCertificateWatchDelivery(t *testing.T) {
 	definitions := client.GetSkupperClient().SkupperV2alpha1().Certificates("test")
 	p := watchers.NewEventProcessor("cert-test", client)
 	m := NewCertificateManager(p)
+	m.SetControllerContext(fakeContext().control("test"))
 	m.Watch(metav1.NamespaceAll)
 	watchContext, stop := context.WithCancel(ctx)
 	defer stop()

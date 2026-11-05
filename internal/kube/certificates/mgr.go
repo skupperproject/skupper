@@ -50,7 +50,7 @@ func (m *CertificateManagerImpl) SetControllerContext(context ControllerContext)
 
 func (m *CertificateManagerImpl) Watch(namespace string) {
 	m.certificateWatcher = m.processor.WatchCertificates(namespace, m.certificateChanged)
-	m.secretWatcher = m.processor.WatchAllSecrets(namespace, m.secretChanged)
+	m.secretWatcher = m.processor.WatchAllSecrets(namespace, watchers.FilterByNamespace(m.isControlled, m.secretChanged))
 }
 
 func (m *CertificateManagerImpl) certificateChanged(key string, observed *skupperv2alpha1.Certificate) error {
