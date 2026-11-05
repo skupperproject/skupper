@@ -139,7 +139,7 @@ func TestScopeIssuance(t *testing.T) {
 	assert.NilError(t, err)
 	expired, err := certs.GenerateSecret("leaf", "server", hosts, -time.Hour, ca)
 	assert.NilError(t, err)
-	for _, state := range []string{"absent", "missing PEM", "malformed PEM", "missing key", "malformed key", "mismatched key", "expired", "subject changed", "hosts changed", "valid without issuer", "older Ready generation", "deleting Certificate", "deleting Secret"} {
+	for _, state := range []string{"absent", "missing PEM", "malformed PEM", "missing key", "malformed key", "mismatched key", "expired", "subject changed", "hosts changed", "duplicate hosts", "empty hosts", "padded hosts", "valid without issuer", "older Ready generation", "deleting Certificate", "deleting Secret"} {
 		t.Run(state, func(t *testing.T) {
 			c := certificate("leaf", "test", "ca", "server", hosts, false, true, nil, nil)
 			c.Generation = 2
@@ -167,6 +167,15 @@ func TestScopeIssuance(t *testing.T) {
 				c.Spec.Subject = "new-server"
 			case "hosts changed":
 				c.Spec.Hosts = []string{"different.example", "10.2.3.4", "2001:db8::9"}
+			case "duplicate hosts":
+				c.Spec.Hosts = []string{"server.example", "10.1.2.3", "2001:db8::7", "server.example"}
+				renew = false
+			case "empty hosts":
+				c.Spec.Hosts = []string{"", "server.example", "10.1.2.3", "2001:db8::7", " \t"}
+				renew = false
+			case "padded hosts":
+				c.Spec.Hosts = []string{" server.example ", "\t10.1.2.3", "2001:db8::7\n"}
+				renew = false
 			case "valid without issuer":
 				c.Spec.Ca = "missing"
 				renew = false

@@ -289,13 +289,19 @@ func secretRenewalReason(certificate *skupperv2alpha1.Certificate, secret *corev
 	for _, ip := range cert.IPAddresses {
 		validFor[ip.String()] = true
 	}
-	if len(certificate.Spec.Hosts) != len(validFor) {
-		return "hosts-changed"
-	}
+	wanted := map[string]bool{}
 	for _, host := range certificate.Spec.Hosts {
+		host = strings.TrimSpace(host)
+		if host == "" {
+			continue
+		}
 		if !validFor[host] {
 			return "hosts-changed"
 		}
+		wanted[host] = true
+	}
+	if len(wanted) != len(validFor) {
+		return "hosts-changed"
 	}
 	return ""
 }
