@@ -460,3 +460,200 @@ func TestFileWatcher_AddDuringShutdown(t *testing.T) {
 		t.Fatal("Add blocked after shutdown: deadlock on w.refresh")
 	}
 }
+
+// TestFileWatcherNoDuplicateCreateDuringScan creates a file after watcher.Add()
+// and before the directory scan, so that it is both listed by the scan and
+// reported by fsnotify. OnCreate must be dispatched exactly once.
+func TestFileWatcherNoDuplicateCreateDuringScan(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "raced.txt")
+	handler := newCounterHandler(func(name string) bool { return strings.HasSuffix(name, ".txt") })
+
+	w, err := NewWatcher(slog.String("owner", "test.watcher"))
+	assert.Assert(t, err)
+	w.afterWatchAdd = func() {
+		f, err := os.Create(file)
+		assert.Check(t, err)
+		assert.Check(t, f.Close())
+	}
+	w.Add(dir, handler)
+	stop := make(chan struct{})
+	defer close(stop)
+	w.Start(stop)
+
+	assert.Assert(t, utils.RetryError(time.Millisecond*50, 100, func() error {
+		if c := handler.GetCreatedCount(file); c < 1 {
+			return fmt.Errorf("expected OnCreate for %q, got %d", file, c)
+		}
+		return nil
+	}))
+	requireSentinelProcessed(t, dir, handler)
+	assert.Equal(t, 1, handler.GetCreatedCount(file))
+}
+
+// requireSentinelProcessed creates a file after the one under test and waits
+// for its OnCreate. fsnotify delivers events in order and processEvents
+// handles them sequentially, so once the sentinel has been dispatched any
+// duplicate for an earlier file would already have been dispatched too. This
+// lets a test assert that something did not happen without sleeping.
+func requireSentinelProcessed(t *testing.T, dir string, handler *counterHandler) {
+	t.Helper()
+	sentinel := filepath.Join(dir, "sentinel.txt")
+	f, err := os.Create(sentinel)
+	assert.Assert(t, err)
+	assert.Assert(t, f.Close())
+	assert.Assert(t, utils.RetryError(time.Millisecond*50, 100, func() error {
+		if c := handler.GetCreatedCount(sentinel); c != 1 {
+			return fmt.Errorf("expected OnCreate for sentinel %q, got %d", sentinel, c)
+		}
+		return nil
+	}))
+}
+
+// TestFileWatcherConsumeScanned verifies consumeScanned suppresses a Create
+// only for the scanned file identity and never when the identity is unknown.
+func TestFileWatcherConsumeScanned(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a.txt")
+	f, err := os.Create(file)
+	assert.Assert(t, err)
+	assert.Assert(t, f.Close())
+	info, err := os.Lstat(file)
+	assert.Assert(t, err)
+
+	w, err := NewWatcher()
+	assert.Assert(t, err)
+	defer w.watcher.Close()
+
+	w.scannedPaths[file] = info
+	assert.Assert(t, w.consumeScanned(file), "same file must be suppressed")
+	assert.Assert(t, !w.consumeScanned(file), "entry must be consumed once")
+	assert.Assert(t, !w.consumeScanned("unknown"))
+	assert.Equal(t, 0, len(w.scannedPaths))
+
+	// a different file at the same path is a genuine Create
+	w.scannedPaths[file] = info
+	tmp := filepath.Join(dir, "a.tmp")
+	assert.Assert(t, os.WriteFile(tmp, []byte("new"), 0600))
+	assert.Assert(t, os.Rename(tmp, file))
+	assert.Assert(t, !w.consumeScanned(file), "replaced file must not be suppressed")
+	assert.Equal(t, 0, len(w.scannedPaths))
+
+	// an entry without a scan-time identity cannot be proven a duplicate
+	w.scannedPaths[file] = nil
+	assert.Assert(t, !w.consumeScanned(file), "nil identity must not be suppressed")
+	assert.Equal(t, 0, len(w.scannedPaths))
+}
+
+// TestFileWatcherScanSkipsVanishedFile verifies that a file removed between
+// watcher.Add() and the scan is not reported by the scan nor tracked, so it
+// cannot cause a spurious OnCreate.
+func TestFileWatcherScanSkipsVanishedFile(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a.txt")
+	assert.Assert(t, os.WriteFile(file, []byte("x"), 0600))
+
+	w, err := NewWatcher()
+	assert.Assert(t, err)
+	defer w.watcher.Close()
+	w.afterWatchAdd = func() { assert.Assert(t, os.Remove(file)) }
+
+	handler := newCounterHandler(func(string) bool { return true })
+	existing, err := w.addAndScan(file, false, []FSChangeHandler{handler})
+	assert.Assert(t, err)
+	assert.Equal(t, 0, len(existing))
+	assert.Equal(t, 0, len(w.scannedPaths))
+}
+
+// TestFileWatcherForgetScanned verifies that scan records of a removed watched
+// path and its children are dropped, while unrelated records are kept.
+func TestFileWatcherForgetScanned(t *testing.T) {
+	w, err := NewWatcher()
+	assert.Assert(t, err)
+	defer w.watcher.Close()
+
+	dir := filepath.Join(t.TempDir(), "watched")
+	other := filepath.Join(t.TempDir(), "other")
+	w.scannedPaths[dir] = nil
+	w.scannedPaths[filepath.Join(dir, "a.txt")] = nil
+	w.scannedPaths[filepath.Join(dir, "b.txt")] = nil
+	w.scannedPaths[filepath.Join(other, "c.txt")] = nil
+	// keys that are not in clean form must be removed too
+	w.scannedPaths[dir+"/./d.txt"] = nil
+
+	w.forgetScanned(dir + "/")
+	assert.Equal(t, 1, len(w.scannedPaths))
+	_, ok := w.scannedPaths[filepath.Join(other, "c.txt")]
+	assert.Assert(t, ok)
+}
+
+// TestFileWatcherRemoveRecreateDuringScan removes and recreates a file between
+// watcher.Add() and the scan. The scan reports the replacement once; the queued
+// Remove and Create events must neither produce a second OnCreate nor an
+// OnRemove that would undo the replacement.
+func TestFileWatcherRemoveRecreateDuringScan(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a.txt")
+	assert.Assert(t, os.WriteFile(file, []byte("old"), 0600))
+
+	handler := newCounterHandler(func(name string) bool { return filepath.Dir(name) == dir })
+	w, err := NewWatcher(slog.String("owner", "test.watcher"))
+	assert.Assert(t, err)
+	w.afterWatchAdd = func() {
+		assert.Assert(t, os.Remove(file))
+		assert.Assert(t, os.WriteFile(file, []byte("new"), 0600))
+	}
+	w.Add(dir, handler)
+	stop := make(chan struct{})
+	defer close(stop)
+	w.Start(stop)
+
+	assert.Assert(t, utils.RetryError(time.Millisecond*50, 100, func() error {
+		if c := handler.GetCreatedCount(file); c < 1 {
+			return fmt.Errorf("expected an OnCreate for %q, got %d", file, c)
+		}
+		return nil
+	}))
+	requireSentinelProcessed(t, dir, handler)
+	assert.Equal(t, 1, handler.GetCreatedCount(file), "OnCreate must be dispatched once")
+	assert.Equal(t, 0, handler.GetRemovedCount(file), "stale Remove must not dispatch OnRemove")
+}
+
+// TestFileWatcherAtomicReplaceNotSuppressed verifies that renaming a scanned
+// file away and then replacing it (atomic write) delivers an OnCreate for the
+// replacement instead of having it swallowed by a stale scan entry.
+func TestFileWatcherAtomicReplaceNotSuppressed(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "target.txt")
+	f, err := os.Create(file)
+	assert.Assert(t, err)
+	assert.Assert(t, f.Close())
+
+	handler := newCounterHandler(func(name string) bool { return name == file })
+	w, err := NewWatcher(slog.String("owner", "test.watcher"))
+	assert.Assert(t, err)
+	w.Add(dir, handler)
+	stop := make(chan struct{})
+	defer close(stop)
+	w.Start(stop)
+
+	// initial scan dispatches one OnCreate
+	assert.Assert(t, utils.RetryError(time.Millisecond*50, 100, func() error {
+		if c := handler.GetCreatedCount(file); c != 1 {
+			return fmt.Errorf("expected 1 OnCreate for %q, got %d", file, c)
+		}
+		return nil
+	}))
+
+	// atomic replace: rename away, then rename in
+	tmp := filepath.Join(dir, "target.tmp")
+	assert.Assert(t, os.Rename(file, tmp))
+	assert.Assert(t, os.Rename(tmp, file))
+
+	assert.Assert(t, utils.RetryError(time.Millisecond*50, 100, func() error {
+		if c := handler.GetCreatedCount(file); c != 2 {
+			return fmt.Errorf("expected 2 OnCreate for %q, got %d", file, c)
+		}
+		return nil
+	}))
+}
