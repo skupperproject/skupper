@@ -84,7 +84,6 @@ func (s *SystemAdaptor) syncSslProfileCredentialsToDisk(profiles map[string]qdr.
 
 }
 
-
 func (s *SystemAdaptor) addSslPathToProfileCredentials(profiles map[string]qdr.SslProfile) map[string]qdr.SslProfile {
 
 	completedProfiles := make(map[string]qdr.SslProfile)
