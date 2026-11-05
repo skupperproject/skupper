@@ -139,7 +139,7 @@ func TestScopeIssuance(t *testing.T) {
 	assert.NilError(t, err)
 	expired, err := certs.GenerateSecret("leaf", "server", hosts, -time.Hour, ca)
 	assert.NilError(t, err)
-	for _, state := range []string{"absent", "missing PEM", "malformed PEM", "expired", "subject changed", "hosts changed", "valid without issuer", "older Ready generation", "deleting Certificate", "deleting Secret"} {
+	for _, state := range []string{"absent", "missing PEM", "malformed PEM", "missing key", "malformed key", "mismatched key", "expired", "subject changed", "hosts changed", "valid without issuer", "older Ready generation", "deleting Certificate", "deleting Secret"} {
 		t.Run(state, func(t *testing.T) {
 			c := certificate("leaf", "test", "ca", "server", hosts, false, true, nil, nil)
 			c.Generation = 2
@@ -155,6 +155,12 @@ func TestScopeIssuance(t *testing.T) {
 				delete(s.Data, "tls.crt")
 			case "malformed PEM":
 				s.Data["tls.crt"] = []byte("not PEM")
+			case "missing key":
+				delete(s.Data, "tls.key")
+			case "malformed key":
+				s.Data["tls.key"] = []byte("not PEM")
+			case "mismatched key":
+				s.Data["tls.key"] = otherCA.Data["tls.key"]
 			case "expired":
 				s.Data = expired.DeepCopy().Data
 			case "subject changed":

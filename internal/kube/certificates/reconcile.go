@@ -2,6 +2,7 @@ package certificates
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"reflect"
@@ -269,6 +270,9 @@ func secretRenewalReason(certificate *skupperv2alpha1.Certificate, secret *corev
 	cert, err := certs.DecodeCertificate(secret.Data["tls.crt"])
 	if err != nil {
 		return "invalid-certificate"
+	}
+	if _, err := tls.X509KeyPair(secret.Data["tls.crt"], secret.Data["tls.key"]); err != nil {
+		return "invalid-key-pair"
 	}
 	if now.After(cert.NotAfter) {
 		return "expired"
