@@ -38,6 +38,7 @@ func (l *Link) UpdateProxyConfig(proxyConfig *ProxyConfig) bool {
 	return true
 }
 
+// Apply configures a router connector, SSL profile, and optional proxy profile for this link.
 func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	if l.definition == nil {
 		return false
@@ -57,18 +58,22 @@ func (l *Link) Apply(current *qdr.RouterConfig) bool {
 	if cost < 1 {
 		cost = 1
 	}
+	effectiveProxyProfile := ""
+	if proxyProfileName != "" && l.proxyConfig != nil {
+		effectiveProxyProfile = proxyProfileName
+	}
 	connector := qdr.Connector{
 		Name:         l.name,
 		Cost:         cost,
 		SslProfile:   sslProfileName,
-		ProxyProfile: proxyProfileName,
+		ProxyProfile: effectiveProxyProfile,
 		Role:         role,
 		Host:         endpoint.Host,
 		Port:         endpoint.Port,
 	}
 	current.AddConnector(connector)
 	current.AddSslProfile(qdr.ConfigureSslProfile(sslProfileName, l.sslProfilePath, true))
-	if proxyProfileName != "" {
+	if effectiveProxyProfile != "" {
 		current.AddProxyProfile(qdr.ConfigureProxyProfile(proxyProfileName, l.proxyConfig.Host, l.proxyConfig.Port, l.proxyConfig.User, l.proxyConfig.ProfilePath))
 		if prevProxyProfileName != "" && prevProxyProfileName != proxyProfileName {
 			current.RemoveProxyProfile(prevProxyProfileName)

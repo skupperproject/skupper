@@ -159,13 +159,22 @@ func TestAddProxyProfile(t *testing.T) {
 	})
 	assert.Equal(t, config.ProxyProfiles["myprofile"].Host, "192.168.0.1")
 
-	config.AddProxyProfile(ConfigureProxyProfile("another", "192.168.1.1", "8080", "user1", "password1"))
+	config.AddProxyProfile(ConfigureProxyProfile("another", "192.168.1.1", "8080", "user1", "/opt/proxies"))
 	assert.Equal(t, config.ProxyProfiles["another"].Host, "192.168.1.1")
 	assert.Equal(t, config.ProxyProfiles["another"].Port, "8080")
+	assert.Equal(t, config.ProxyProfiles["another"].Username, "user1")
+	assert.Equal(t, config.ProxyProfiles["another"].Password, "file:/opt/proxies/another/password.txt")
 
-	config.AddProxyProfile(ConfigureProxyProfile("third", "192.168.2.1", "9090", "user2", "password2"))
+	config.AddProxyProfile(ConfigureProxyProfile("third", "192.168.2.1", "9090", "user2", "/opt/proxies"))
 	assert.Equal(t, config.ProxyProfiles["third"].Host, "192.168.2.1")
 	assert.Equal(t, config.ProxyProfiles["third"].Port, "9090")
+	assert.Equal(t, config.ProxyProfiles["third"].Username, "user2")
+	assert.Equal(t, config.ProxyProfiles["third"].Password, "file:/opt/proxies/third/password.txt")
+
+	config.AddProxyProfile(ConfigureProxyProfile("noauth", "192.168.3.1", "1080", "", ""))
+	assert.Equal(t, config.ProxyProfiles["noauth"].Host, "192.168.3.1")
+	assert.Equal(t, config.ProxyProfiles["noauth"].Username, "")
+	assert.Equal(t, config.ProxyProfiles["noauth"].Password, "")
 }
 
 func TestAddAddress(t *testing.T) {

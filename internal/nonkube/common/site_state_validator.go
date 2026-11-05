@@ -58,6 +58,7 @@ func (s *SiteStateValidator) Validate(desiredState, currentState *api.SiteState)
 	return nil
 }
 
+// validateSite checks site name, namespace, and mutually exclusive options like edge and HA.
 func (s *SiteStateValidator) validateSite(site *v2alpha1.Site) error {
 	namespace := site.Namespace
 	if namespace != "" {
@@ -97,6 +98,7 @@ func (s *SiteStateValidator) validateRouterAccesses(routerAccesses map[string]*v
 	return nil
 }
 
+// validateLinks checks that each Link references valid TLS and proxy secrets.
 func (s *SiteStateValidator) validateLinks(links map[string]*v2alpha1.Link, secrets map[string]*corev1.Secret) error {
 	if links == nil || len(links) == 0 {
 		return nil
@@ -111,6 +113,15 @@ func (s *SiteStateValidator) validateLinks(links map[string]*v2alpha1.Link, secr
 		secretName := link.Spec.TlsCredentials
 		if _, ok := secrets[secretName]; !ok {
 			return fmt.Errorf("invalid link %q - secret %q not found", linkName, secretName)
+		}
+		proxySecretName := link.Spec.GetProxyConfiguration()
+		if proxySecretName != "" {
+			if err := ValidateName(proxySecretName); err != nil {
+				return fmt.Errorf("invalid link %q - invalid proxy secret name: %w", linkName, err)
+			}
+			if _, ok := secrets[proxySecretName]; !ok {
+				return fmt.Errorf("invalid link %q - proxy secret %q not found", linkName, proxySecretName)
+			}
 		}
 	}
 	return nil

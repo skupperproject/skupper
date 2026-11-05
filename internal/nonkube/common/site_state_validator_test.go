@@ -359,6 +359,19 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 			errorContains: "is already mapped for host",
 		},
 		{
+			info: "invalid-link-proxy-secret-not-found",
+			siteState: customize(func(siteState *api.SiteState) {
+				for _, link := range siteState.Links {
+					link.Spec.Settings = map[string]string{
+						"proxy-configuration": "nonexistent-proxy",
+					}
+					break
+				}
+			}),
+			valid:         false,
+			errorContains: "proxy secret \"nonexistent-proxy\" not found",
+		},
+		{
 			info:      "valid-site-state",
 			siteState: fakeSiteState(),
 			valid:     true,

@@ -1309,13 +1309,13 @@ func (a *Agent) UpdateConnectorConfig(changes *ConnectorDifference, checkCertFil
 			}
 		}
 
-		if len(added.ProxyProfile) > 0 {
+		if checkCertFilesExist && len(added.ProxyProfile) > 0 {
 			proxyProfile, err := a.GetProxyProfileByName(added.ProxyProfile)
 			if err != nil {
 				return err
 			}
 
-			if proxyProfile.Password != "" {
+			if proxyProfile != nil && proxyProfile.Password != "" {
 				_, err := os.Stat(strings.TrimPrefix(proxyProfile.Password, "file:"))
 				if err != nil {
 					return err
