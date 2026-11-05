@@ -156,9 +156,9 @@ func planCertificate(s certificateSnapshot) certificatePlan {
 	}
 	var issuance *issuanceInputs
 	if secretAction == createSecret || secretAction == renewSecret {
-		issuance = &issuanceInputs{subject: c.Spec.Subject}
+		issuance = &issuanceInputs{subject: c.Spec.Subject, hosts: c.Spec.Hosts}
 		if !c.Spec.Signing {
-			issuance.hosts, issuance.lifetime, issuance.ca = c.Spec.Hosts, time.Hour*24*365*5, s.ca.DeepCopy()
+			issuance.lifetime, issuance.ca = time.Hour*24*365*5, s.ca.DeepCopy()
 			if issuance.ca == nil {
 				validationErr = fmt.Errorf("CA %q not found", c.Namespace+"/"+c.Spec.Ca)
 			}

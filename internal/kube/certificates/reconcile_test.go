@@ -248,6 +248,38 @@ func TestScopeIssuance(t *testing.T) {
 	}
 }
 
+func TestSigningCertificateHosts(t *testing.T) {
+	for _, existing := range []bool{false, true} {
+		t.Run(fmt.Sprintf("existing=%t", existing), func(t *testing.T) {
+			c := caCertificate("ca", "test", "skupper test CA", nil, nil)
+			c.Spec.Hosts = []string{"issuer.example", "10.1.2.3"}
+			var objects []runtime.Object
+			if existing {
+				s := fixtureCASecret(t, "ca", "test")
+				s.Annotations = map[string]string{"internal.skupper.io/controlled": "true"}
+				objects = append(objects, s)
+			}
+			client, err := fakeclient.NewFakeClient("test", objects, []runtime.Object{c}, "")
+			assert.NilError(t, err)
+			m := newScopeTest(t, client)
+			assert.NilError(t, m.Handle(watchers.ResourceChange{Key: c.Key()}))
+			kube := client.GetKubeClient().(*kubefake.Clientset)
+			s, err := kube.CoreV1().Secrets("test").Get(context.Background(), "ca", metav1.GetOptions{})
+			assert.NilError(t, err)
+			decoded, err := certs.DecodeCertificate(s.Data["tls.crt"])
+			assert.NilError(t, err)
+			assert.Assert(t, decoded.IsCA)
+			assert.NilError(t, decoded.CheckSignatureFrom(decoded))
+			assert.DeepEqual(t, decoded.DNSNames, []string{"issuer.example", "10.1.2.3"})
+			assert.DeepEqual(t, decoded.IPAddresses, []net.IP{net.ParseIP("10.1.2.3").To4()})
+			m.observe(c.Key())
+			kube.ClearActions()
+			assert.NilError(t, m.Handle(watchers.ResourceChange{Key: c.Key()}))
+			assert.Equal(t, len(kube.Actions()), 0, "observed signing certificate must not be renewed again")
+		})
+	}
+}
+
 func TestSecretEventRouting(t *testing.T) {
 	ctx := context.Background()
 	ca := fixtureCASecret(t, "ca", "test")
