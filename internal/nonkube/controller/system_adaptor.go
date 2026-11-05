@@ -5,8 +5,10 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/skupperproject/skupper/internal/nonkube/client/runtime"
+	"github.com/skupperproject/skupper/internal/nonkube/common"
 	"github.com/skupperproject/skupper/internal/qdr"
 )
 
@@ -40,7 +42,7 @@ func (s *SystemAdaptor) syncWithRouter(desired *qdr.RouterConfig) error {
 		return err
 	}
 
-	if err := qdr.SyncProxyProfilesToRouter(s.agentPool, desired.ProxyProfiles); err != nil {
+	if err := qdr.SyncProxyProfilesToRouter(s.agentPool, s.addContainerPathToProxyProfiles(desired.ProxyProfiles)); err != nil {
 		s.logger.Error("SYSTEM_ADAPTOR: sync proxy profiles to router failed", slog.Any("error", err), slog.Any("namespace", s.namespace))
 		return err
 	}
@@ -82,6 +84,17 @@ func (s *SystemAdaptor) syncSslProfileCredentialsToDisk(profiles map[string]qdr.
 
 	return nil
 
+}
+
+func (s *SystemAdaptor) addContainerPathToProxyProfiles(profiles map[string]qdr.ProxyProfile) map[string]qdr.ProxyProfile {
+	completed := make(map[string]qdr.ProxyProfile)
+	for name, profile := range profiles {
+		if profile.Password != "" {
+			profile.Password = strings.ReplaceAll(profile.Password, common.DefaultSslProfileBasePath, "/etc/skupper-router")
+		}
+		completed[name] = profile
+	}
+	return completed
 }
 
 func (s *SystemAdaptor) addSslPathToProfileCredentials(profiles map[string]qdr.SslProfile) map[string]qdr.SslProfile {
