@@ -139,7 +139,8 @@ func (s *SiteStateRenderer) Render(loadedSiteState *api.SiteState, reload bool) 
 		platform = types.PlatformDocker
 	}
 	s.configRenderer = &common.FileSystemConfigurationRenderer{
-		Platform: string(platform),
+		SslProfileBasePath: "/etc/skupper-router",
+		Platform:           string(platform),
 	}
 	err = s.configRenderer.Render(s.siteState)
 	if err != nil {
@@ -430,7 +431,8 @@ func (s *SiteStateRenderer) Refresh(loadedSiteState *api.SiteState) error {
 		platform = types.PlatformDocker
 	}
 	s.configRenderer = &common.FileSystemConfigurationRenderer{
-		Platform: string(platform),
+		SslProfileBasePath: "/etc/skupper-router",
+		Platform:           string(platform),
 	}
 	err = s.configRenderer.Render(s.siteState)
 	if err != nil {
