@@ -75,7 +75,6 @@ type KubeClient struct {
 	Namespace string
 	Kube      kubernetes.Interface
 	Route     openshiftroute.Interface
-	//RouteClient     *routev1client.RouteV1Client
 	OCApps    openshiftapps.Interface
 	Rest      *restclient.Config
 	Dynamic   dynamic.Interface

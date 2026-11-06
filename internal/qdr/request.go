@@ -36,12 +36,6 @@ type RequestServer struct {
 	handler RequestResponse
 }
 
-func NewRequestServer(address string, handler RequestResponse, pool *AgentPool) *RequestServer {
-	return &RequestServer{
-		pool, address, handler,
-	}
-}
-
 func (s *RequestServer) Run(ctx context.Context) error {
 	agent, err := s.pool.Get()
 	if err != nil {

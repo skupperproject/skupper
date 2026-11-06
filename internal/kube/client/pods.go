@@ -18,27 +18,11 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-
-	"github.com/skupperproject/skupper/internal/utils"
 )
-
-func IsPodReady(pod *corev1.Pod) bool {
-	for _, c := range pod.Status.Conditions {
-		if c.Type == corev1.PodReady {
-			return c.Status == corev1.ConditionTrue
-		}
-	}
-	return false
-}
-
-func IsPodRunning(pod *corev1.Pod) bool {
-	return pod.Status.Phase == corev1.PodRunning
-}
 
 func getPods(selector string, namespace string, cli kubernetes.Interface) ([]corev1.Pod, error) {
 	options := metav1.ListOptions{LabelSelector: selector}
@@ -47,30 +31,6 @@ func getPods(selector string, namespace string, cli kubernetes.Interface) ([]cor
 		return nil, err
 	}
 	return podList.Items, err
-}
-
-func WaitForPodsSelectorStatus(namespace string, clientset kubernetes.Interface, selector string, status corev1.PodPhase, timeout time.Duration, interval time.Duration) ([]corev1.Pod, error) {
-	var pods []corev1.Pod
-	var pod corev1.Pod
-	var err error
-
-	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
-	defer cancel()
-	err = utils.RetryWithContext(ctx, interval, func() (bool, error) {
-		pods, err = getPods(selector, namespace, clientset)
-		if err != nil {
-			// pod does not exist yet
-			return false, nil
-		}
-		for _, pod = range pods {
-			if pod.Status.Phase != status {
-				return false, nil
-			}
-		}
-		return true, nil
-	})
-
-	return pods, err
 }
 
 func GetPodContainerLogs(podName string, containerName string, namespace string, clientset kubernetes.Interface) (string, error) {

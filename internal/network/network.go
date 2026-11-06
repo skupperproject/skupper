@@ -8,10 +8,6 @@ import (
 	"github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
 )
 
-const MINIMUM_VERSION string = "1.5.0"
-const MINIMUM_PODMAN_VERSION string = "1.6.0"
-const MINIMUM_VERSION_MESSAGE string = "Version incompatibility:\n \tDetected that the skupper version installed in the namespace is version %s. The CLI requires at least version %s. To update the installation, please follow the instructions found here: https://skupper.io/install/index.html"
-
 type SkupperStatus struct {
 	NetworkStatus *NetworkStatusInfo
 }
