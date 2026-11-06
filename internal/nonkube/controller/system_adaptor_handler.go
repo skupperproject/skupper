@@ -102,7 +102,11 @@ func (s *SystemAdaptorHandler) buildBindings() (*site.Bindings, error) {
 	bindings := site.NewBindings(profilePath)
 	bindings.SetSiteId(siteState.SiteId)
 	for name, connector := range siteState.Connectors {
-		_ = bindings.UpdateConnector(name, connector)
+		_, err = bindings.UpdateConnector(name, connector)
+		if err != nil {
+			log.Printf("error updating listener %s: %v", name, err)
+		}
+
 	}
 	for name, listener := range siteState.Listeners {
 		_ = bindings.UpdateListener(name, listener)
@@ -182,12 +186,19 @@ func (s *SystemAdaptorHandler) reconcileBindings() {
 	seenListeners := make(map[string]struct{}, len(siteState.Listeners))
 	for name, listener := range siteState.Listeners {
 		seenListeners[name] = struct{}{}
-		_ = s.bindings.UpdateListener(name, listener)
+		_, err = s.bindings.UpdateListener(name, listener)
+		if err != nil {
+			log.Printf("error updating listener %s: %v", name, err)
+		}
+
 	}
 
 	for _, name := range s.bindings.ListenerNames() {
 		if _, ok := seenListeners[name]; !ok {
-			_ = s.bindings.UpdateListener(name, nil)
+			_, err = s.bindings.UpdateListener(name, nil)
+			if err != nil {
+				log.Printf("error updating listener %s: %v", name, err)
+			}
 		}
 	}
 

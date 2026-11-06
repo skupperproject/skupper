@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -140,6 +142,13 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
 		}
 	}
 
+	// Kubernetes-only host validation (DNS-1035)
+	if cmd.Flags != nil && cmd.Flags.Host != "" {
+		if err := validateExposedHost(cmd.Flags.Host); err != nil {
+			validationErrors = append(validationErrors, err)
+		}
+	}
+
 	return errors.Join(validationErrors...)
 }
 
@@ -234,5 +243,18 @@ func (cmd *CmdListenerCreate) WaitUntil() error {
 	}
 
 	fmt.Printf("Listener %q is %s.\n", cmd.name, cmd.status)
+	return nil
+}
+
+// validateExposedHost reports whether host is a valid Kubernetes Service name
+// (a DNS-1035 label). This check is only appropriate for Kubernetes sites;
+// system (non-kube) sites may use an FQDN or IP address.
+func validateExposedHost(host string) error {
+	if host == "" {
+		return nil // empty host is allowed (defaults to the listener name)
+	}
+	if errs := validation.IsDNS1035Label(host); len(errs) > 0 {
+		return fmt.Errorf("invalid host %q: %s", host, strings.Join(errs, "; "))
+	}
 	return nil
 }

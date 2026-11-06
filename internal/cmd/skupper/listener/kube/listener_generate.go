@@ -102,6 +102,13 @@ func (cmd *CmdListenerGenerate) ValidateInput(args []string) error {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
 	}
+
+	// Kubernetes-only host validation (DNS-1035)
+	if cmd.Flags != nil && cmd.Flags.Host != "" {
+		if err := validateExposedHost(cmd.Flags.Host); err != nil {
+			validationErrors = append(validationErrors, err)
+		}
+	}
 	return errors.Join(validationErrors...)
 }
 
