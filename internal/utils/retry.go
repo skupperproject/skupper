@@ -83,27 +83,6 @@ type Result struct {
 	Error error
 }
 
-// RetryWithContext retries f every interval until the specified context times out.
-func RetryWithContext(ctx context.Context, interval time.Duration, f ConditionFunc) error {
-	tick := time.NewTicker(interval)
-	defer tick.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return context.DeadlineExceeded
-		case <-tick.C:
-			r, err := f()
-			if err != nil {
-				return err
-			}
-			if r {
-				return nil
-			}
-		}
-	}
-}
-
 // RetryErrorWithContext will retry as long the checked function is returning an error and the context does not time out
 func RetryErrorWithContext(ctx context.Context, interval time.Duration, f CheckedFunc) error {
 	tick := time.NewTicker(interval)

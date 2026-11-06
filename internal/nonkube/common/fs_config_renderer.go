@@ -46,9 +46,8 @@ var (
 type InputPathType string
 
 const (
-	InputPathResources InputPathType = "resources"
-	InputPathCerts     InputPathType = "certs"
-	InputPathIssuers   InputPathType = "issuers"
+	InputPathCerts   InputPathType = "certs"
+	InputPathIssuers InputPathType = "issuers"
 )
 
 const (
@@ -62,10 +61,6 @@ type FileSystemConfigurationRenderer struct {
 	Platform           string
 	Bundle             bool
 	customOutputPath   string
-}
-
-func NewFileSystemConfigurationRenderer(outputPath string) *FileSystemConfigurationRenderer {
-	return &FileSystemConfigurationRenderer{}
 }
 
 // Render simply renders the given site state as configuration files.

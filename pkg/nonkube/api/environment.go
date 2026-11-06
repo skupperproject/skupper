@@ -14,7 +14,6 @@ type InternalPathProvider func(namespace string, internalPath InternalPath) stri
 const (
 	InputIssuersPath      InternalPath = "input/issuers"
 	InputCertificatesPath InternalPath = "input/certs"
-	InputProxyProfilePath InternalPath = "input/proxies"
 	InputSiteStatePath    InternalPath = "input/resources"
 	RouterConfigPath      InternalPath = "runtime/router"
 	CertificatesPath      InternalPath = "runtime/certs"

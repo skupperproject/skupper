@@ -10,10 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"slices"
-
-	amqp "github.com/interconnectedcloud/go-amqp"
-	"github.com/skupperproject/skupper/api/types"
+	"github.com/interconnectedcloud/go-amqp"
 	"github.com/skupperproject/skupper/internal/config"
 )
 
@@ -555,30 +552,6 @@ func queryAllAgents(typename string, agents []string) []Query {
 	return queries
 }
 
-func queryAllTypes(typenames []string, agent string) []Query {
-	queries := make([]Query, len(typenames))
-	for i, t := range typenames {
-		queries[i].typename = t
-		queries[i].attributes = []string{}
-		queries[i].agent = agent
-	}
-	return queries
-}
-
-func queryAllAgentsForAllTypes(typenames []string, agents []string) []Query {
-	queries := make([]Query, len(agents)*len(typenames))
-	i := 0
-	for _, t := range typenames {
-		for _, a := range agents {
-			queries[i].typename = t
-			queries[i].attributes = []string{}
-			queries[i].agent = a
-			i++
-		}
-	}
-	return queries
-}
-
 func (a *Agent) BatchQuery(queries []Query) ([][]Record, error) {
 	fmt.Printf("BatchQuery(%v)\n", queries)
 	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
@@ -692,24 +665,6 @@ func getAddressesFor(routers []Router) []string {
 	return agents
 }
 
-func getBridgeServerAddressesFor(routers []Router) []string {
-	agents := make([]string, len(routers))
-	for i, r := range routers {
-		agents[i] = r.Id + "/bridge-server/$management"
-	}
-	return agents
-}
-
-func GetRoutersForSite(routers []Router, siteId string) []Router {
-	list := []Router{}
-	for _, r := range routers {
-		if r.Site.Id == siteId {
-			list = append(list, r)
-		}
-	}
-	return list
-}
-
 func (a *Agent) GetAllRouters() ([]Router, error) {
 	nodes, err := a.GetInteriorNodes()
 	if err != nil {
@@ -802,15 +757,6 @@ func (a *Agent) getConnectedTo(routers []Router) error {
 		}
 	}
 	return nil
-}
-
-func getBridgeTypes() []string {
-	return []string{
-		"io.skupper.router.tcpConnector",
-		"io.skupper.router.tcpListener",
-		"io.skupper.router.httpConnector",
-		"io.skupper.router.httpListener",
-	}
 }
 
 type TcpEndpointFilter func(*TcpEndpoint) bool
@@ -1035,8 +981,7 @@ func (a *Agent) GetBridges(routers []Router) ([]BridgeConfig, error) {
 }
 
 const (
-	DirectionIn  string = "in"
-	DirectionOut string = "out"
+	DirectionIn string = "in"
 )
 
 type TcpConnection struct {
@@ -1448,10 +1393,6 @@ func isGateway(routerId string) bool {
 	return strings.HasPrefix(routerId, "skupper-gateway-")
 }
 
-func GetSiteNameForGateway(gateway *Router) string {
-	return strings.TrimPrefix(gateway.Id, "skupper-gateway-")
-}
-
 func (a *Agent) CreateSslProfile(profile SslProfile) error {
 
 	result, err := a.GetSslProfileByName(profile.Name)
@@ -1542,30 +1483,4 @@ func (a *Agent) ReloadProxyProfile(name string) error {
 	}
 
 	return nil
-}
-
-func ConnectedSitesInfo(selfId string, routers []Router) types.TransportConnectedSites {
-	var connectedSites types.TransportConnectedSites
-	var self *Router
-	for _, r := range routers {
-		if r.Site.Id == selfId {
-			self = &r
-			break
-		}
-	}
-	if self == nil {
-		return connectedSites
-	}
-	for _, r := range routers {
-		if r.Edge && len(r.ConnectedTo) > 1 {
-			connectedSites.Warnings = append(connectedSites.Warnings, "There are edge uplinks to distinct networks, please verify topology (connected counts may not be accurate).")
-		}
-		if slices.Contains(r.ConnectedTo, self.Id) {
-			connectedSites.Direct += 1
-		}
-	}
-	connectedSites.Total = len(routers) - 1
-	connectedSites.Direct += len(self.ConnectedTo)
-	connectedSites.Indirect = connectedSites.Total - connectedSites.Direct
-	return connectedSites
 }

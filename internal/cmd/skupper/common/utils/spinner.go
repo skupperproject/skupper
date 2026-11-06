@@ -8,26 +8,6 @@ import (
 	"github.com/skupperproject/skupper/internal/utils"
 )
 
-func NewSpinner(message string, maxRetries int, function func() error) error {
-
-	spin := spinner.New(spinner.CharSets[9], 100*time.Millisecond, spinner.WithHiddenCursor(false))
-	defer spin.Stop()
-	spin.Prefix = message
-	spin.FinalMSG = message + "\n"
-
-	spin.Start()
-
-	err := utils.RetryError(time.Second, maxRetries, function)
-
-	spin.Stop()
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func NewSpinnerWithTimeout(message string, timeoutInSeconds int, function func() error) error {
 
 	retryProfile := GetConfiguredRetryProfile()

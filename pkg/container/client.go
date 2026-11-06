@@ -11,8 +11,7 @@ import (
 )
 
 const (
-	AppName              = "skupper-v2"
-	ContainerNetworkName = "skupper"
+	AppName = "skupper-v2"
 )
 
 type Client interface {
