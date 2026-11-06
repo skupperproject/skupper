@@ -311,11 +311,19 @@ func node(name string) *corev1.Node {
 
 type stubErrResourceChangeHandler struct {
 	CallCount int
+	failUntil int
+	onCall    func(ResourceChange)
 }
 
 func (s *stubErrResourceChangeHandler) Handle(e ResourceChange) error {
 	s.CallCount++
-	return fmt.Errorf("Handler failed %d", s.CallCount)
+	if s.onCall != nil {
+		s.onCall(e)
+	}
+	if s.CallCount <= s.failUntil {
+		return fmt.Errorf("Handler failed %d", s.CallCount)
+	}
+	return nil
 }
 
 func (stubErrResourceChangeHandler) Describe(e ResourceChange) string {
@@ -329,7 +337,7 @@ func TestProcessRequeueLimit(t *testing.T) {
 	client, _ := fakeclient.NewFakeClient("test", nil, nil, "")
 	processor := NewEventProcessor("tester", client)
 	processor.queue = workqueue.NewNamedRateLimitingQueue(workqueue.NewItemFastSlowRateLimiter(0, time.Microsecond, 10), "testing")
-	stubHandler := stubErrResourceChangeHandler{}
+	stubHandler := stubErrResourceChangeHandler{failUntil: 6}
 	eventsIn := processor.newEventHandler(&stubHandler)
 	eventsIn.AddFunc(node("test"))
 	callCount := 0 // set upper bound on how long test will run
@@ -338,6 +346,35 @@ func TestProcessRequeueLimit(t *testing.T) {
 		callCount++
 	}
 	assert.Equal(t, stubHandler.CallCount, 6, "Should Requeue 5 times + 1 for the initial event")
+}
+
+func TestScopeQueueCoalescing(t *testing.T) {
+	client, err := fakeclient.NewFakeClient("test", nil, nil, "")
+	assert.NilError(t, err)
+	p := NewEventProcessor("coalescing", client)
+	defer p.Stop()
+	h := &stubErrResourceChangeHandler{}
+	h.onCall = func(e ResourceChange) {
+		if h.CallCount == 1 {
+			p.Enqueue(h, e.Key)
+			p.Enqueue(h, e.Key)
+			assert.Equal(t, p.queue.Len(), 0, "in-flight scope must not run concurrently")
+		}
+	}
+	p.Enqueue(h, "scope")
+	p.Enqueue(h, "scope")
+	p.Enqueue(h, "scope")
+	assert.Equal(t, p.queue.Len(), 1)
+	p.TestProcess()
+	assert.Equal(t, p.queue.Len(), 1, "dirty in-flight scope must run again after Done")
+	p.TestProcessAll()
+	assert.Equal(t, h.CallCount, 2)
+	other := &stubErrResourceChangeHandler{}
+	p.Enqueue(h, "scope")
+	p.Enqueue(other, "scope")
+	p.TestProcessAll()
+	assert.Equal(t, h.CallCount, 3)
+	assert.Equal(t, other.CallCount, 1, "different handlers must not coalesce")
 }
 
 type callbackResult[T any] struct {
