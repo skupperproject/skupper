@@ -556,6 +556,17 @@ func (s *Site) checkRole(ctxt context.Context) error {
 			APIGroups: []string{"coordination.k8s.io"},
 			Resources: []string{"leases"},
 		},
+		//needed for the connector health check
+		{
+			Verbs:     []string{"get", "list", "watch"},
+			APIGroups: []string{"skupper.io"},
+			Resources: []string{"connectors"},
+		},
+		{
+			Verbs:     []string{"update"},
+			APIGroups: []string{"skupper.io"},
+			Resources: []string{"connectors/status"},
+		},
 	}
 	desired := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
@@ -1071,9 +1082,8 @@ func (s *Site) updateConnectorConfiguredStatusWithSelectedPods(connector *skuppe
 			slog.String("namespace", connector.Namespace),
 			slog.String("name", connector.Name))
 		err = fmt.Errorf("No pods match selector")
-	} else {
-
 	}
+
 	if connector.SetConfigured(err) || connector.SetSelectedPods(selected) {
 		return s.updateConnectorStatus(connector)
 	}
