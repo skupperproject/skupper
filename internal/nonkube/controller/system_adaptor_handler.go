@@ -102,14 +102,13 @@ func (s *SystemAdaptorHandler) buildBindings() (*site.Bindings, error) {
 	bindings := site.NewBindings(profilePath)
 	bindings.SetSiteId(siteState.SiteId)
 	for name, connector := range siteState.Connectors {
-		_, err = bindings.UpdateConnector(name, connector)
-		if err != nil {
-			log.Printf("error updating listener %s: %v", name, err)
-		}
-
+		_ = bindings.UpdateConnector(name, connector)
 	}
 	for name, listener := range siteState.Listeners {
-		_ = bindings.UpdateListener(name, listener)
+		_, err = bindings.UpdateListener(name, listener)
+		if err != nil {
+			s.logger.Error("Error updating listener", slog.String("name", name), slog.Any("error", err))
+		}
 	}
 	for name, mkl := range siteState.MultiKeyListeners {
 		bindings.UpdateMultiKeyListener(name, mkl)
@@ -188,7 +187,7 @@ func (s *SystemAdaptorHandler) reconcileBindings() {
 		seenListeners[name] = struct{}{}
 		_, err = s.bindings.UpdateListener(name, listener)
 		if err != nil {
-			log.Printf("error updating listener %s: %v", name, err)
+			slog.Error("error updating listener", "name", name, "error", err)
 		}
 
 	}
@@ -197,7 +196,7 @@ func (s *SystemAdaptorHandler) reconcileBindings() {
 		if _, ok := seenListeners[name]; !ok {
 			_, err = s.bindings.UpdateListener(name, nil)
 			if err != nil {
-				log.Printf("error updating listener %s: %v", name, err)
+				slog.Error("error updating listener", "name", name, "error", err)
 			}
 		}
 	}

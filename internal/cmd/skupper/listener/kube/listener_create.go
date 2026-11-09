@@ -142,11 +142,13 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
 		}
 	}
 
-	// Kubernetes-only host validation (DNS-1035)
+	// Kubernetes-only host validation (DNS-1035). The host defaults to the listener name.
+	host := cmd.name
 	if cmd.Flags != nil && cmd.Flags.Host != "" {
-		if err := validateExposedHost(cmd.Flags.Host); err != nil {
-			validationErrors = append(validationErrors, err)
-		}
+		host = cmd.Flags.Host
+	}
+	if err := validateExposedHost(host); err != nil {
+		validationErrors = append(validationErrors, err)
 	}
 
 	return errors.Join(validationErrors...)
