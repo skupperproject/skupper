@@ -66,7 +66,7 @@ type certificateActionResult struct {
 	outcome                       actionOutcome
 	duration                      time.Duration
 	reason                        string
-	readyCondition                *metav1.Condition
+	conditions                    []metav1.Condition
 	err                           error
 }
 
@@ -246,12 +246,12 @@ func (m *CertificateManagerImpl) execute(plan certificatePlan) ([]certificateAct
 		case reconcileStatus:
 			c := action.certificate.DeepCopy()
 			if c.SetReady(errors.Join(executionErr, action.validationErr)) {
-				_, result.err = m.processor.GetSkupperClient().SkupperV2alpha1().Certificates(c.Namespace).UpdateStatus(ctx, c, metav1.UpdateOptions{})
+				c, result.err = m.processor.GetSkupperClient().SkupperV2alpha1().Certificates(c.Namespace).UpdateStatus(ctx, c, metav1.UpdateOptions{})
 			} else {
 				result.outcome = actionUnchanged
 			}
 			if result.err == nil {
-				result.readyCondition = meta.FindStatusCondition(c.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_READY)
+				result.conditions = append([]metav1.Condition(nil), c.Status.Conditions...)
 			}
 		}
 		if result.err != nil {

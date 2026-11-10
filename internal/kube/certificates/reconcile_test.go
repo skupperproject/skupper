@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -198,7 +199,30 @@ func TestScopeIssuance(t *testing.T) {
 			client, err := fakeclient.NewFakeClient("test", objects, []runtime.Object{c}, "")
 			assert.NilError(t, err)
 			m := newScopeTest(t, client)
+			var logs bytes.Buffer
+			m.logger = slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			assert.NilError(t, m.Handle(watchers.ResourceChange{Key: "test/leaf"}))
+			if state == "expired" || state == "hosts changed" {
+				decoder := json.NewDecoder(&logs)
+				var action, status, summary map[string]interface{}
+				assert.NilError(t, decoder.Decode(&action))
+				assert.NilError(t, decoder.Decode(&status))
+				assert.NilError(t, decoder.Decode(&summary))
+				assert.Assert(t, !decoder.More())
+				assert.Equal(t, action["action"], "update")
+				assert.Equal(t, action["operation"], "renew")
+				assert.Equal(t, action["reason"], strings.ReplaceAll(state, " ", "-"))
+				assert.Equal(t, action["level"], "INFO")
+				assert.Equal(t, status["action"], "status")
+				assert.Equal(t, status["outcome"], "unchanged")
+				assert.Equal(t, status["level"], "DEBUG")
+				assert.Equal(t, summary["actions"], float64(2))
+				assert.Equal(t, summary["unchanged_actions"], float64(1))
+				assert.Equal(t, summary["failed_actions"], float64(0))
+				assert.Equal(t, summary["outcome"], "succeeded")
+				assert.Assert(t, !strings.Contains(logs.String(), "PRIVATE KEY"))
+				assert.Assert(t, !strings.Contains(logs.String(), "server.example"))
+			}
 			actual, err := client.GetKubeClient().CoreV1().Secrets("test").Get(context.Background(), "leaf", metav1.GetOptions{})
 			assert.NilError(t, err)
 			if s == nil {
@@ -748,32 +772,51 @@ func TestActionOutcomes(t *testing.T) {
 			for decoder.More() {
 				var entry map[string]interface{}
 				assert.NilError(t, decoder.Decode(&entry))
+				assert.Equal(t, entry["component"], "kube.certificates.manager")
+				assert.Equal(t, entry["scope"], "Certificate")
+				assert.Equal(t, entry["key"], "test/ca")
 				if entry["action"] != nil {
-					messages := map[string]map[string]string{
-						"create-secret":          {"succeeded": "Created Secret for Certificate", "failed": "Failed to create Secret for Certificate"},
-						"renew-secret":           {"succeeded": "Renewed Secret for Certificate", "failed": "Failed to renew Secret for Certificate"},
-						"update-secret-metadata": {"succeeded": "Updated Certificate Secret metadata", "failed": "Failed to update Certificate Secret metadata"},
-						"reconcile-status":       {"succeeded": "Updated Certificate status", "failed": "Failed to update Certificate status", "unchanged": "Certificate status unchanged"},
+					level := "INFO"
+					if entry["outcome"] == "failed" {
+						level = "ERROR"
+						assert.Assert(t, entry["error"] != nil)
+					} else if entry["outcome"] == "unchanged" {
+						level = "DEBUG"
 					}
-					assert.Equal(t, entry["msg"], messages[entry["action"].(string)][entry["outcome"].(string)])
+					assert.Equal(t, entry["level"], level)
+					assert.Assert(t, strings.Contains(entry["msg"].(string), "test/ca"))
 					assert.Equal(t, entry["namespace"], "test")
 					assert.Equal(t, entry["name"], "ca")
 					assert.Assert(t, entry["duration"].(float64) >= 0)
-					if entry["action"] == "reconcile-status" && !tc.statusFail {
-						assert.Equal(t, entry["ready"], !tc.resourceFail)
-						reason, message := "Ready", "OK"
-						if tc.resourceFail {
-							reason, message = "Error", resourceErr.Error()
+					if entry["action"] == "status" {
+						assert.Equal(t, entry["kind"], "Certificate")
+						if !tc.statusFail {
+							conditions := entry["conditions"].([]interface{})
+							assert.Equal(t, len(conditions), len(updated.Status.Conditions))
+							for i, actual := range updated.Status.Conditions {
+								assert.DeepEqual(t, conditions[i], interface{}(map[string]interface{}{
+									"type": actual.Type, "status": string(actual.Status), "reason": actual.Reason,
+									"message": actual.Message, "observed_generation": float64(actual.ObservedGeneration),
+								}))
+							}
+						} else {
+							assert.Assert(t, entry["conditions"] == nil, "failed status must not claim conditions")
+							assert.Assert(t, !strings.Contains(entry["msg"].(string), "Ready="))
 						}
-						assert.Equal(t, entry["condition_reason"], reason)
-						assert.Equal(t, entry["condition_message"], message)
 					} else {
-						_, reported := entry["ready"]
-						assert.Assert(t, !reported, "only confirmed status results report Ready")
+						assert.Equal(t, entry["kind"], "Secret")
+						assert.Assert(t, entry["conditions"] == nil)
 					}
 					outcomes = append(outcomes, entry)
 				}
 				if entry["msg"] == "Reconciled certificate scope" {
+					assert.Equal(t, entry["level"], "DEBUG")
+					assert.Equal(t, entry["phase"], "execute")
+					unchanged := 0
+					if tc.statusUnchanged {
+						unchanged = 1
+					}
+					assert.Equal(t, entry["unchanged_actions"], float64(unchanged))
 					actionCount = int(entry["actions"].(float64))
 					failedActions := 0
 					for _, failed := range []bool{tc.resourceFail, tc.statusFail} {
@@ -802,12 +845,12 @@ func TestActionOutcomes(t *testing.T) {
 				}
 				assert.Equal(t, writes, expectedWrites)
 				assert.Equal(t, len(outcomes), 2)
-				kind := "create-secret"
+				kind := "create"
 				if tc.existing {
-					kind = "update-secret-metadata"
+					kind = "update"
 				}
 				if tc.renew {
-					kind = "renew-secret"
+					assert.Equal(t, outcomes[0]["operation"], "renew")
 					assert.Equal(t, outcomes[0]["reason"], "subject-changed")
 				}
 				assert.Equal(t, outcomes[0]["action"], kind)
@@ -821,7 +864,7 @@ func TestActionOutcomes(t *testing.T) {
 					}
 					assert.Equal(t, outcomes[i]["outcome"], outcome)
 				}
-				assert.Equal(t, outcomes[len(outcomes)-1]["action"], "reconcile-status")
+				assert.Equal(t, outcomes[len(outcomes)-1]["action"], "status")
 			}
 			// Recovery is explicit, not driven by a status event or queue timer.
 			// Observe any successful partial write before attempting the scope again.
@@ -870,18 +913,19 @@ func TestValidationDoesNotRetry(t *testing.T) {
 			assert.Equal(t, len(kube.Actions()), 0, "validation must not mutate the user Secret")
 			var entry map[string]interface{}
 			assert.NilError(t, json.NewDecoder(&logs).Decode(&entry))
-			assert.Equal(t, entry["action"], "reconcile-status")
+			assert.Equal(t, entry["action"], "status")
 			if state == "status failure" {
-				_, reported := entry["ready"]
+				_, reported := entry["conditions"]
 				assert.Assert(t, !reported, "failed writes must not claim the proposed condition was recorded")
 				assert.Assert(t, errors.Is(err, statusErr))
 				assert.Error(t, err, statusErr.Error(), "only the API error should request retry")
 				return
 			}
 			assert.NilError(t, err, "successfully reported validation must not request retry")
-			assert.Equal(t, entry["ready"], false)
-			assert.Equal(t, entry["condition_reason"], "Error")
-			assert.Equal(t, entry["condition_message"], validationMessage)
+			conditionLog := entry["conditions"].([]interface{})[0].(map[string]interface{})
+			assert.Equal(t, conditionLog["status"], "False")
+			assert.Equal(t, conditionLog["reason"], "Error")
+			assert.Equal(t, conditionLog["message"], validationMessage)
 			if state == "already reported" {
 				assert.Equal(t, len(skupper.Actions()), 0)
 			}
@@ -968,7 +1012,8 @@ func TestOwnerCleanupAwaitsObservation(t *testing.T) {
 	assert.NilError(t, m.Handle(watchers.ResourceChange{Key: "test/ca"}))
 	var entry map[string]interface{}
 	assert.NilError(t, json.NewDecoder(&logs).Decode(&entry))
-	assert.Equal(t, entry["action"], "cleanup-certificate")
+	assert.Equal(t, entry["action"], "update")
+	assert.Equal(t, entry["kind"], "Certificate")
 	assert.Equal(t, entry["reason"], "owner-contributions-changed")
 	assert.Equal(t, len(kube.Actions()), 0, "cleanup must not issue a Secret from the stale Certificate")
 	actions := skupper.Actions()
@@ -989,6 +1034,75 @@ func TestOwnerCleanupAwaitsObservation(t *testing.T) {
 	decoded, err := certs.DecodeCertificate(issued.Data["tls.crt"])
 	assert.NilError(t, err)
 	assert.Equal(t, len(decoded.DNSNames), 0)
+}
+
+func TestScopeEarlyExitLogging(t *testing.T) {
+	for _, key := range []string{"invalid/key/format", "uncontrolled/ca", "test/absent"} {
+		t.Run(key, func(t *testing.T) {
+			client, err := fakeclient.NewFakeClient("test", nil, nil, "")
+			assert.NilError(t, err)
+			m := newScopeTest(t, client)
+			m.SetControllerContext(fakeContext().control("test"))
+			var logs bytes.Buffer
+			m.logger = slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			kube := client.GetKubeClient().(*kubefake.Clientset)
+			sk := client.GetSkupperClient().(*skupperfake.Clientset)
+			kube.ClearActions()
+			sk.ClearActions()
+			err = m.Handle(watchers.ResourceChange{Key: key})
+			phase, outcome := "key", "succeeded"
+			if key == "invalid/key/format" {
+				assert.Assert(t, err != nil)
+				outcome = "failed"
+			} else {
+				assert.NilError(t, err)
+				if key == "test/absent" {
+					phase = "execute"
+				}
+			}
+			decoder := json.NewDecoder(&logs)
+			var summary map[string]interface{}
+			assert.NilError(t, decoder.Decode(&summary))
+			assert.Assert(t, !decoder.More(), "exactly one final summary")
+			assert.Equal(t, summary["level"], "DEBUG")
+			assert.Equal(t, summary["component"], "kube.certificates.manager")
+			assert.Equal(t, summary["scope"], "Certificate")
+			assert.Equal(t, summary["key"], key)
+			assert.Equal(t, summary["phase"], phase)
+			assert.Equal(t, summary["outcome"], outcome)
+			for _, count := range []string{"actions", "failed_actions", "unchanged_actions"} {
+				assert.Equal(t, summary[count], float64(0))
+			}
+			assert.Equal(t, len(kube.Actions()), 0)
+			assert.Equal(t, len(sk.Actions()), 0)
+		})
+	}
+}
+
+func TestStatusLoggingUsesConfirmedConditions(t *testing.T) {
+	c := caCertificate("ca", "test", "skupper test CA", nil, nil)
+	s := fixtureCASecret(t, "ca", "test")
+	client, err := fakeclient.NewFakeClient("test", []runtime.Object{s}, []runtime.Object{c}, "")
+	assert.NilError(t, err)
+	m := newScopeTest(t, client)
+	var logs bytes.Buffer
+	m.logger = slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	client.GetSkupperClient().(*skupperfake.Clientset).PrependReactor("update", "certificates", func(a clienttesting.Action) (bool, runtime.Object, error) {
+		// Model an API response that differs from the submitted Ready=True.
+		confirmed := a.(clienttesting.UpdateAction).GetObject().(*skupperv2alpha1.Certificate).DeepCopy()
+		confirmed.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionUnknown,
+			Reason: "Pending", Message: "Awaiting confirmation", ObservedGeneration: 7}}
+		return true, confirmed, nil
+	})
+	assert.NilError(t, m.Handle(watchers.ResourceChange{Key: "test/ca"}))
+	var status map[string]interface{}
+	assert.NilError(t, json.NewDecoder(&logs).Decode(&status))
+	assert.Equal(t, status["action"], "status")
+	assert.Equal(t, status["outcome"], "succeeded")
+	assert.Equal(t, status["msg"], "Updated Certificate test/ca status: Ready=Unknown (Pending)")
+	assert.DeepEqual(t, status["conditions"], interface{}([]interface{}{map[string]interface{}{
+		"type": "Ready", "status": "Unknown", "reason": "Pending", "message": "Awaiting confirmation", "observed_generation": float64(7),
+	}}))
 }
 
 func TestCertificatePlan(t *testing.T) {

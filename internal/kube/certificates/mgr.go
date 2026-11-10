@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"strings"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -43,7 +44,7 @@ type CertificateManagerImpl struct {
 }
 
 func NewCertificateManager(processor *watchers.EventProcessor) *CertificateManagerImpl {
-	return &CertificateManagerImpl{processor: processor, logger: slog.Default().With("component", "kube.certificates.manager"), authored: map[string]*skupperv2alpha1.Certificate{}}
+	return &CertificateManagerImpl{processor: processor, logger: slog.Default(), authored: map[string]*skupperv2alpha1.Certificate{}}
 }
 
 func (m *CertificateManagerImpl) SetControllerContext(context ControllerContext) { m.context = context }
@@ -88,65 +89,98 @@ func (m *CertificateManagerImpl) Describe(event watchers.ResourceChange) string 
 }
 
 // Handle Certificate Scope
-func (m *CertificateManagerImpl) Handle(event watchers.ResourceChange) error {
+func (m *CertificateManagerImpl) Handle(event watchers.ResourceChange) (err error) {
+	phase := "key"
+	var results []certificateActionResult
+	defer func() { m.logResults(event.Key, phase, results, err) }()
 	namespace, _, err := cache.SplitMetaNamespaceKey(event.Key)
 	if err != nil || !m.isControlled(namespace) {
 		return err
 	}
+	phase = "snapshot"
 	snapshot, err := m.snapshot(event.Key)
 	if err != nil {
 		return err
 	}
+	phase = "plan"
 	plan := planCertificate(snapshot)
-	results, err := m.execute(plan)
-	m.logResults(event.Key, results, err)
+	phase = "execute"
+	results, err = m.execute(plan)
 	return err
 }
 
-func (m *CertificateManagerImpl) logResults(key string, results []certificateActionResult, err error) {
-	failedActions := 0
+func (m *CertificateManagerImpl) logResults(key, phase string, results []certificateActionResult, err error) {
+	logger := m.logger.With("component", "kube.certificates.manager", "scope", "Certificate", "key", key)
+	failedActions, unchangedActions := 0, 0
 	for _, result := range results {
 		level := slog.LevelInfo
 		if result.outcome == actionUnchanged {
 			level = slog.LevelDebug
+			unchangedActions++
 		} else if result.err != nil {
 			level = slog.LevelError
 			failedActions++
 		}
-		attributes := []any{"key", key,
-			"action", result.action, "resource", result.resourceKind, "namespace", result.namespace, "name", result.name,
-			"outcome", result.outcome, "duration", result.duration, "reason", result.reason, "error", result.err}
-		if condition := result.readyCondition; condition != nil {
-			attributes = append(attributes, "ready", condition.Status == metav1.ConditionTrue,
-				"condition_reason", condition.Reason, "condition_message", condition.Message)
+		action := "update"
+		if result.action == createSecret {
+			action = "create"
+		} else if result.action == reconcileStatus {
+			action = "status"
 		}
-		m.logger.Log(context.Background(), level, result.logMessage(), attributes...)
+		attributes := []any{"action", action, "kind", result.resourceKind, "namespace", result.namespace, "name", result.name,
+			"outcome", result.outcome, "duration", result.duration}
+		if result.action == renewSecret {
+			attributes = append(attributes, "operation", "renew")
+		}
+		if result.reason != "" {
+			attributes = append(attributes, "reason", result.reason)
+		}
+		if result.err != nil {
+			attributes = append(attributes, "error", result.err)
+		}
+		if result.action == reconcileStatus && result.err == nil {
+			conditions := make([]map[string]any, 0, len(result.conditions))
+			for _, c := range result.conditions {
+				conditions = append(conditions, map[string]any{"type": c.Type, "status": c.Status,
+					"reason": c.Reason, "message": c.Message, "observed_generation": c.ObservedGeneration})
+			}
+			attributes = append(attributes, "conditions", conditions)
+		}
+		logger.Log(context.Background(), level, result.logMessage(key), attributes...)
 	}
-	level := slog.LevelDebug
 	outcome := actionSucceeded
 	if err != nil {
-		level = slog.LevelError
 		outcome = actionFailed
 	}
-	m.logger.Log(context.Background(), level, "Reconciled certificate scope", "key", key,
-		"actions", len(results), "failed_actions", failedActions, "outcome", outcome)
+	attributes := []any{"phase", phase, "actions", len(results), "failed_actions", failedActions,
+		"unchanged_actions", unchangedActions, "outcome", outcome}
+	if err != nil && phase != "execute" {
+		attributes = append(attributes, "error", err)
+	}
+	logger.Debug("Reconciled certificate scope", attributes...)
 }
 
-func (r certificateActionResult) logMessage() string {
+func (r certificateActionResult) logMessage(key string) string {
+	target := r.namespace + "/" + r.name
 	var operation, completed string
 	switch r.action {
 	case createSecret:
-		operation, completed = "create Secret for Certificate", "Created Secret for Certificate"
-	case renewSecret:
-		operation, completed = "renew Secret for Certificate", "Renewed Secret for Certificate"
-	case updateMetadata:
-		operation, completed = "update Certificate Secret metadata", "Updated Certificate Secret metadata"
+		operation, completed = "create Secret "+target+" for Certificate "+key, "Created Secret "+target+" for Certificate "+key
+	case renewSecret, updateMetadata:
+		operation, completed = "update Secret "+target+" for Certificate "+key, "Updated Secret "+target+" for Certificate "+key
 	case cleanupCertificate:
-		operation, completed = "update Certificate owner contributions", "Updated Certificate owner contributions"
+		operation, completed = "update Certificate "+target+" owner contributions", "Updated Certificate "+target+" owner contributions"
 	case reconcileStatus:
-		operation, completed = "update Certificate status", "Updated Certificate status"
+		operation, completed = "update Certificate "+target+" status", "Updated Certificate "+target+" status"
 		if r.outcome == actionUnchanged {
-			return "Certificate status unchanged"
+			completed = "Certificate " + target + " status unchanged"
+		}
+		if r.err == nil && len(r.conditions) != 0 {
+			var conditions []string
+			for _, c := range r.conditions {
+				conditions = append(conditions, fmt.Sprintf("%s=%s (%s)", c.Type, c.Status, c.Reason))
+			}
+			completed += ": " + strings.Join(conditions, ", ")
 		}
 	}
 	if r.outcome == actionFailed {
