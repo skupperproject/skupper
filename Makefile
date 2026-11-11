@@ -5,9 +5,9 @@ GOOS ?= linux
 GOARCH ?= amd64
 
 REGISTRY := quay.io/skupper
-IMAGE_TAG := 2.2.4
+IMAGE_TAG := 2.2.5
 SOURCE_IMAGE := skupper-source
-ROUTER_IMAGE_TAG := 3.5.3
+ROUTER_IMAGE_TAG := 3.5.4
 PLATFORMS ?= linux/amd64,linux/arm64
 CONTAINERFILES := Dockerfile.cli Dockerfile.kube-adaptor Dockerfile.controller Dockerfile.network-observer Dockerfile.system-controller
 GO_IMAGE_BASE_TAG := 1.26

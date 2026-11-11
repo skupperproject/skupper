@@ -7,7 +7,7 @@ if [ "$#" -ne 2 ]; then
 fi
 
 
-VERSION="2.2.4"
+VERSION="2.2.5"
 APP_VERSION="$1"
 ROUTER_VERSION="$2"
 
