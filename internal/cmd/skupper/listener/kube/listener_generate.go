@@ -40,6 +40,8 @@ func (cmd *CmdListenerGenerate) NewClient(cobraCommand *cobra.Command, args []st
 	cmd.namespace = cobraCommand.Flag("namespace").Value.String()
 }
 
+// ValidateInput checks that command-line args and flags are OK for making 
+// a K8S Listener Manifest.  It validates the routing key, name and port.
 func (cmd *CmdListenerGenerate) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()

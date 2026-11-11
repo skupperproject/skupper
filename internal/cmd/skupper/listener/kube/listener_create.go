@@ -55,6 +55,10 @@ func (cmd *CmdListenerCreate) NewClient(cobraCommand *cobra.Command, args []stri
 	cmd.KubeClient = cli.Kube
 }
 
+// ValidateInput makes sure that the args and flags are OK for creating
+// a K8S Listener. It also makes sure that everything is ready for a 
+// Listener to be created, like the CRD and secrets, and makes sure that
+// the host name and port are valid.
 func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
