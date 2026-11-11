@@ -105,7 +105,10 @@ func (s *SystemAdaptorHandler) buildBindings() (*site.Bindings, error) {
 		_ = bindings.UpdateConnector(name, connector)
 	}
 	for name, listener := range siteState.Listeners {
-		_ = bindings.UpdateListener(name, listener)
+		_, err = bindings.UpdateListener(name, listener)
+		if err != nil {
+			s.logger.Error("Error updating listener", slog.String("name", name), slog.Any("error", err))
+		}
 	}
 	for name, mkl := range siteState.MultiKeyListeners {
 		bindings.UpdateMultiKeyListener(name, mkl)
@@ -182,12 +185,19 @@ func (s *SystemAdaptorHandler) reconcileBindings() {
 	seenListeners := make(map[string]struct{}, len(siteState.Listeners))
 	for name, listener := range siteState.Listeners {
 		seenListeners[name] = struct{}{}
-		_ = s.bindings.UpdateListener(name, listener)
+		_, err = s.bindings.UpdateListener(name, listener)
+		if err != nil {
+			slog.Error("error updating listener", "name", name, "error", err)
+		}
+
 	}
 
 	for _, name := range s.bindings.ListenerNames() {
 		if _, ok := seenListeners[name]; !ok {
-			_ = s.bindings.UpdateListener(name, nil)
+			_, err = s.bindings.UpdateListener(name, nil)
+			if err != nil {
+				slog.Error("error updating listener", "name", name, "error", err)
+			}
 		}
 	}
 

@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common"
 	"github.com/skupperproject/skupper/internal/cmd/skupper/common/utils"
@@ -53,6 +55,10 @@ func (cmd *CmdListenerCreate) NewClient(cobraCommand *cobra.Command, args []stri
 	cmd.KubeClient = cli.Kube
 }
 
+// ValidateInput makes sure that the args and flags are OK for creating
+// a K8S Listener. It also makes sure that everything is ready for a 
+// Listener to be created, like the CRD and secrets, and makes sure that
+// the host name and port are valid.
 func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
@@ -138,6 +144,15 @@ func (cmd *CmdListenerCreate) ValidateInput(args []string) error {
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("status is not valid: %s", err))
 		}
+	}
+
+	// Kubernetes-only host validation (DNS-1035). The host defaults to the listener name.
+	host := cmd.name
+	if cmd.Flags != nil && cmd.Flags.Host != "" {
+		host = cmd.Flags.Host
+	}
+	if err := validateExposedHost(host); err != nil {
+		validationErrors = append(validationErrors, err)
 	}
 
 	return errors.Join(validationErrors...)
@@ -234,5 +249,18 @@ func (cmd *CmdListenerCreate) WaitUntil() error {
 	}
 
 	fmt.Printf("Listener %q is %s.\n", cmd.name, cmd.status)
+	return nil
+}
+
+// validateExposedHost reports whether host is a valid Kubernetes Service name
+// (a DNS-1035 label). This check is only appropriate for Kubernetes sites;
+// system (non-kube) sites may use an FQDN or IP address.
+func validateExposedHost(host string) error {
+	if host == "" {
+		return nil // empty host is allowed (defaults to the listener name)
+	}
+	if errs := validation.IsDNS1035Label(host); len(errs) > 0 {
+		return fmt.Errorf("invalid host %q: %s", host, strings.Join(errs, "; "))
+	}
 	return nil
 }

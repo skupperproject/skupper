@@ -1,9 +1,23 @@
 package site
 
 import (
+	"fmt"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
+
+// validateExposedHost reports whether host is a valid Kubernetes Service name
+// (a DNS-1035 label). This check is only appropriate for Kubernetes sites;
+// because non-kube sites might use an FQDN or IP address.
+func validateExposedHost(host string) error {
+	if errs := validation.IsDNS1035Label(host); len(errs) > 0 {
+		return fmt.Errorf("invalid host %q: %s", host, strings.Join(errs, "; "))
+	}
+	return nil
+}
 
 type Port struct {
 	Name       string

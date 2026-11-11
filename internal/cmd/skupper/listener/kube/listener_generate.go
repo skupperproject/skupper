@@ -40,6 +40,8 @@ func (cmd *CmdListenerGenerate) NewClient(cobraCommand *cobra.Command, args []st
 	cmd.namespace = cobraCommand.Flag("namespace").Value.String()
 }
 
+// ValidateInput checks that command-line args and flags are OK for making 
+// a K8S Listener Manifest.  It validates the routing key, name and port.
 func (cmd *CmdListenerGenerate) ValidateInput(args []string) error {
 	var validationErrors []error
 	resourceStringValidator := validator.NewResourceStringValidator()
@@ -101,6 +103,15 @@ func (cmd *CmdListenerGenerate) ValidateInput(args []string) error {
 		if !ok {
 			validationErrors = append(validationErrors, fmt.Errorf("output type is not valid: %s", err))
 		}
+	}
+
+	// Kubernetes-only host validation (DNS-1035). The host defaults to the listener name.
+	host := cmd.name
+	if cmd.Flags != nil && cmd.Flags.Host != "" {
+		host = cmd.Flags.Host
+	}
+	if err := validateExposedHost(host); err != nil {
+		validationErrors = append(validationErrors, err)
 	}
 	return errors.Join(validationErrors...)
 }
