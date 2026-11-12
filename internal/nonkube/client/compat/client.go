@@ -40,11 +40,6 @@ type IdGetter func() int
 
 var getUid IdGetter = os.Getuid
 
-var (
-	ContainerEnginePodman ContainerEngine = "podman"
-	ContainerEngineDocker ContainerEngine = "docker"
-)
-
 type CompatClient struct {
 	RestClient runtime.ClientTransport
 	engine     ContainerEngine

@@ -1,7 +1,6 @@
 package qdr
 
 import (
-	"flag"
 	"reflect"
 	"testing"
 
@@ -9,8 +8,6 @@ import (
 
 	"gotest.tools/v3/assert"
 )
-
-var clusterRun = flag.Bool("use-cluster", false, "run tests against a configured cluster")
 
 func TestQDR(t *testing.T) {
 

@@ -26,10 +26,6 @@ const (
 )
 
 const (
-	SiteConfigNameKey string = "name"
-)
-
-const (
 	ENV_PLATFORM = "SKUPPER_PLATFORM"
 )
 
@@ -49,9 +45,3 @@ func (p Platform) IsKubernetes() bool {
 func (p Platform) IsContainerEngine() bool {
 	return p == PlatformDocker || p == PlatformPodman
 }
-
-// Assembly constants
-const (
-	EdgeRole        string = "edge"
-	InterRouterRole string = "inter-router"
-)

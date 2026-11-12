@@ -26,14 +26,12 @@ const (
 	CliImageEnvKey                string = "SKUPPER_CLI_IMAGE"
 	SystemControllerImageEnvKey   string = "SKUPPER_SYSTEM_CONTROLLER_IMAGE"
 	PrometheusServerImageEnvKey   string = "PROMETHEUS_SERVER_IMAGE"
-	NginxImageEnvKey              string = "NGINX_IMAGE"
 	OauthProxyImageEnvKey         string = "OAUTH_PROXY_IMAGE"
 	RouterPullPolicyEnvKey        string = "SKUPPER_ROUTER_IMAGE_PULL_POLICY"
 	KubeAdaptorPullPolicyEnvKey   string = "SKUPPER_KUBE_ADAPTOR_IMAGE_PULL_POLICY"
 	OauthProxyPullPolicyEnvKey    string = "OAUTH_PROXY_IMAGE_PULL_POLICY"
 	SkupperImageRegistryEnvKey    string = "SKUPPER_IMAGE_REGISTRY"
 	PrometheusImageRegistryEnvKey string = "PROMETHEUS_IMAGE_REGISTRY"
-	NginxImageRegistryEnvKey      string = "NGINX_IMAGE_REGISTRY"
 	OauthProxyRegistryEnvKey      string = "OAUTH_PROXY_IMAGE_REGISTRY"
 )
 
@@ -65,19 +63,6 @@ func GetRouterImageDetails() types.ImageDetails {
 		Name:       GetRouterImageName(),
 		PullPolicy: GetRouterImagePullPolicy(),
 	}
-}
-
-func AddRouterImageOverrideToEnv(env []corev1.EnvVar) []corev1.EnvVar {
-	result := env
-	image := os.Getenv(RouterImageEnvKey)
-	if image != "" {
-		result = append(result, corev1.EnvVar{Name: RouterImageEnvKey, Value: image})
-	}
-	policy := os.Getenv(RouterPullPolicyEnvKey)
-	if policy != "" {
-		result = append(result, corev1.EnvVar{Name: RouterPullPolicyEnvKey, Value: policy})
-	}
-	return result
 }
 
 func GetControllerImageName() string {

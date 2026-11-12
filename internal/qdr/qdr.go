@@ -149,8 +149,6 @@ func (r *RouterConfig) IsEdge() bool {
 	return r.Metadata.Mode == ModeEdge
 }
 
-const SSL_PROFILE_PATH = "/etc/skupper-router-certs"
-
 func ConfigureSslProfile(name string, path string, clientAuth bool) SslProfile {
 	profile := SslProfile{
 		Name:       name,
@@ -663,9 +661,7 @@ func (c *Connector) SetMaxSessionFrames(value int) {
 type Distribution string
 
 const (
-	DistributionBalanced  Distribution = "balanced"
-	DistributionMulticast              = "multicast"
-	DistributionClosest                = "closest"
+	DistributionMulticast = "multicast"
 )
 
 type Address struct {
@@ -766,18 +762,6 @@ func convert(from interface{}, to interface{}) error {
 		return err
 	}
 	return nil
-}
-
-func RouterConfigEquals(actual, desired string) bool {
-	actualConfig, err := UnmarshalRouterConfig(actual)
-	if err != nil {
-		return false
-	}
-	desiredConfig, err := UnmarshalRouterConfig(desired)
-	if err != nil {
-		return false
-	}
-	return reflect.DeepEqual(actualConfig, desiredConfig)
 }
 
 func UnmarshalRouterConfig(config string) (RouterConfig, error) {
@@ -1337,49 +1321,6 @@ func (a *ListenerDifference) Empty() bool {
 func disableMutualTLS(l *Listener) {
 	l.SaslMechanisms = ""
 	l.AuthenticatePeer = false
-}
-
-func InteriorListener(options types.RouterOptions) Listener {
-	l := Listener{
-		Name:             "interior-listener",
-		Role:             RoleInterRouter,
-		Port:             types.InterRouterListenerPort,
-		SslProfile:       types.InterRouterProfile, // The skupper-internal profile needs to be filtered by the config-sync sidecar, in order to avoid deleting automesh connectors
-		SaslMechanisms:   "EXTERNAL",
-		AuthenticatePeer: true,
-		MaxFrameSize:     options.MaxFrameSize,
-		MaxSessionFrames: options.MaxSessionFrames,
-	}
-	if options.DisableMutualTLS {
-		disableMutualTLS(&l)
-	}
-	return l
-}
-
-func EdgeListener(options types.RouterOptions) Listener {
-	l := Listener{
-		Name:             "edge-listener",
-		Role:             RoleEdge,
-		Port:             types.EdgeListenerPort,
-		SslProfile:       types.InterRouterProfile,
-		SaslMechanisms:   "EXTERNAL",
-		AuthenticatePeer: true,
-		MaxFrameSize:     options.MaxFrameSize,
-		MaxSessionFrames: options.MaxSessionFrames,
-	}
-	if options.DisableMutualTLS {
-		disableMutualTLS(&l)
-	}
-	return l
-}
-
-func GetInterRouterOrEdgeConnection(host string, connections []Connection) *Connection {
-	for _, c := range connections {
-		if (c.Role == "inter-router" || c.Role == "edge") && c.Host == host {
-			return &c
-		}
-	}
-	return nil
 }
 
 type ConfigUpdate interface {
