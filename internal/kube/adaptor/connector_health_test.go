@@ -1,13 +1,10 @@
 package adaptor
 
 import (
-	"context"
-	"fmt"
 	"net"
 	"testing"
 
 	"gotest.tools/v3/assert"
-	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -39,7 +36,7 @@ func newTestConnectorHealth(t *testing.T, onChange func(), connectors ...*skuppe
 	}
 	client, err := fakeclient.NewFakeClient("test", nil, objects, "")
 	assert.NilError(t, err)
-	h := newConnectorHealth(client, watchers.NewEventProcessor("test", client), "test", onChange)
+	h := newConnectorHealth(watchers.NewEventProcessor("test", client), "test", onChange)
 	h.bindings.SetHealthChangeCallback(h.healthChanged)
 	for _, connector := range connectors {
 		assert.NilError(t, h.connectorEvent("test/"+connector.Name, connector))
@@ -169,83 +166,4 @@ func TestConnectorHealth_DeletedConnectorIsNotFiltered(t *testing.T) {
 	assert.NilError(t, h.connectorEvent("test/backend", nil))
 
 	assert.Assert(t, isKept(h, tcpName))
-}
-
-func configuredCondition(t *testing.T, h *ConnectorHealth, name string) *v1.Condition {
-	t.Helper()
-	connector, err := h.clients.GetSkupperClient().SkupperV2alpha1().Connectors("test").Get(context.TODO(), name, v1.GetOptions{})
-	assert.NilError(t, err)
-	return meta.FindStatusCondition(connector.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_CONFIGURED)
-}
-
-func TestConnectorHealth_StatusIsWrittenOnlyByLeader(t *testing.T) {
-	listener := listenLocal(t, "127.0.0.1:0")
-	address := listener.Addr().String()
-	port := listener.Addr().(*net.TCPAddr).Port
-	notReachable := fmt.Sprintf("Target host 127.0.0.1:%d is not reachable", port)
-	h := newTestConnectorHealth(t, nil, healthConnector("backend", "127.0.0.1", port, healthCheckEnabled))
-
-	h.bindings.PerformHealthChecks()
-	assert.NilError(t, listener.Close())
-	h.bindings.PerformHealthChecks()
-	assert.Assert(t, configuredCondition(t, h, "backend") == nil, "non-leader must not write status")
-
-	h.becomeLeader()
-	condition := configuredCondition(t, h, "backend")
-	assert.Assert(t, condition != nil, "new leader must reconcile unreachable connectors")
-	assert.Equal(t, condition.Status, v1.ConditionFalse)
-	assert.Equal(t, condition.Message, notReachable)
-
-	listener = listenLocal(t, address)
-	h.bindings.PerformHealthChecks()
-	assert.Equal(t, configuredCondition(t, h, "backend").Status, v1.ConditionTrue)
-
-	assert.NilError(t, listener.Close())
-	h.bindings.PerformHealthChecks()
-	assert.Equal(t, configuredCondition(t, h, "backend").Message, notReachable)
-
-	h.leader.Store(false)
-	listenLocal(t, address)
-	h.bindings.PerformHealthChecks()
-	assert.Equal(t, configuredCondition(t, h, "backend").Message, notReachable, "non-leader must not clear status")
-}
-
-func TestConnectorHealth_LeaderReassertsStatusOverwrittenByController(t *testing.T) {
-	listener := listenLocal(t, "127.0.0.1:0")
-	port := listener.Addr().(*net.TCPAddr).Port
-	connector := healthConnector("backend", "127.0.0.1", port, healthCheckEnabled)
-	h := newTestConnectorHealth(t, nil, connector)
-	h.leader.Store(true)
-	h.bindings.PerformHealthChecks()
-	assert.NilError(t, listener.Close())
-	h.bindings.PerformHealthChecks()
-	assert.Equal(t, configuredCondition(t, h, "backend").Status, v1.ConditionFalse)
-
-	stored, err := h.clients.GetSkupperClient().SkupperV2alpha1().Connectors("test").Get(context.TODO(), "backend", v1.GetOptions{})
-	assert.NilError(t, err)
-	assert.Assert(t, stored.SetConfigured(nil))
-	_, err = h.clients.GetSkupperClient().SkupperV2alpha1().Connectors("test").UpdateStatus(context.TODO(), stored, v1.UpdateOptions{})
-	assert.NilError(t, err)
-	assert.Equal(t, configuredCondition(t, h, "backend").Status, v1.ConditionTrue)
-
-	assert.NilError(t, h.connectorEvent("test/backend", stored))
-
-	assert.Equal(t, configuredCondition(t, h, "backend").Status, v1.ConditionFalse)
-}
-
-func TestConnectorHealth_CreatedWhileUnreachableSetsStatus(t *testing.T) {
-	closed := listenLocal(t, "127.0.0.1:0")
-	port := closed.Addr().(*net.TCPAddr).Port
-	assert.NilError(t, closed.Close())
-
-	notReachable := fmt.Sprintf("Target host 127.0.0.1:%d is not reachable", port)
-	connector := healthConnector("backend", "127.0.0.1", port, healthCheckEnabled)
-	h := newTestConnectorHealth(t, nil, connector)
-	h.leader.Store(true)
-
-	h.bindings.PerformHealthChecks()
-	condition := configuredCondition(t, h, "backend")
-	assert.Assert(t, condition != nil, "first probe failure must write status")
-	assert.Equal(t, condition.Status, v1.ConditionFalse)
-	assert.Equal(t, condition.Message, notReachable)
 }

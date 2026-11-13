@@ -49,7 +49,7 @@ func NewConfigSync(cli internalclient.Clients, namespace string, path string, ro
 		routerConfigMap: routerConfigMap,
 		logger:          slog.New(slog.Default().Handler()).With(slog.String("component", "kube.adaptor.configSync")),
 	}
-	configSync.health = newConnectorHealth(cli, controller, namespace, func() { configSync.recheckProfile("") })
+	configSync.health = newConnectorHealth(controller, namespace, func() { configSync.recheckProfile("") })
 	configSync.profileSyncer = secrets.NewSync(
 		sslSecretsWatcher(namespace, controller),
 		configSync.recheckProfile,
@@ -82,7 +82,7 @@ func (c *ConfigSync) Start(stopCh <-chan struct{}) error {
 	if err := c.recoverTracking(); err != nil {
 		c.logger.Error("CONFIG_SYNC: Error recovering tracked ssl profiles", slog.Any("error", err))
 	}
-	c.health.start(stopCh)
+	c.health.start()
 	c.controller.Start(stopCh)
 	return nil
 }

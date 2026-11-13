@@ -562,11 +562,6 @@ func (s *Site) checkRole(ctxt context.Context) error {
 			APIGroups: []string{"skupper.io"},
 			Resources: []string{"connectors"},
 		},
-		{
-			Verbs:     []string{"update"},
-			APIGroups: []string{"skupper.io"},
-			Resources: []string{"connectors/status"},
-		},
 	}
 	desired := &rbacv1.Role{
 		TypeMeta: metav1.TypeMeta{
