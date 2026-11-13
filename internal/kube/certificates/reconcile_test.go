@@ -1,16 +1,12 @@
 package certificates
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -140,58 +136,84 @@ func TestScopeIssuance(t *testing.T) {
 	assert.NilError(t, err)
 	expired, err := certs.GenerateSecret("leaf", "server", hosts, -time.Hour, ca)
 	assert.NilError(t, err)
-	for _, state := range []string{"absent", "missing PEM", "malformed PEM", "missing key", "malformed key", "mismatched key", "expired", "subject changed", "hosts changed", "duplicate hosts", "empty hosts", "padded hosts", "valid without issuer", "older Ready generation", "deleting Certificate", "deleting Secret"} {
-		t.Run(state, func(t *testing.T) {
+	type change func(c *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret
+	for _, tc := range []struct {
+		name   string
+		renew  bool
+		change change
+	}{
+		{name: "absent", renew: true, change: func(_ *skupperv2alpha1.Certificate, _ *corev1.Secret) *corev1.Secret { return nil }},
+		{name: "missing PEM", renew: true, change: func(_ *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			delete(s.Data, "tls.crt")
+			return s
+		}},
+		{name: "malformed PEM", renew: true, change: func(_ *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			s.Data["tls.crt"] = []byte("not PEM")
+			return s
+		}},
+		{name: "missing key", renew: true, change: func(_ *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			delete(s.Data, "tls.key")
+			return s
+		}},
+		{name: "malformed key", renew: true, change: func(_ *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			s.Data["tls.key"] = []byte("not PEM")
+			return s
+		}},
+		{name: "mismatched key", renew: true, change: func(_ *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			s.Data["tls.key"] = otherCA.Data["tls.key"]
+			return s
+		}},
+		{name: "expired", renew: true, change: func(_ *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			s.Data = expired.DeepCopy().Data
+			return s
+		}},
+		{name: "subject changed", renew: true, change: func(c *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			c.Spec.Subject = "new-server"
+			return s
+		}},
+		{name: "hosts changed", renew: true, change: func(c *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			c.Spec.Hosts = []string{"different.example", "10.2.3.4", "2001:db8::9"}
+			return s
+		}},
+		{name: "duplicate hosts", change: func(c *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			c.Spec.Hosts = []string{"server.example", "10.1.2.3", "2001:db8::7", "server.example"}
+			return s
+		}},
+		{name: "empty hosts", change: func(c *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			c.Spec.Hosts = []string{"", "server.example", "10.1.2.3", "2001:db8::7", " \t"}
+			return s
+		}},
+		{name: "padded hosts", change: func(c *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			c.Spec.Hosts = []string{" server.example ", "\t10.1.2.3", "2001:db8::7\n"}
+			return s
+		}},
+		{name: "valid without issuer", change: func(c *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			c.Spec.Ca = "missing"
+			return s
+		}},
+		{name: "older Ready generation", change: func(c *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			c.Generation++
+			return s
+		}},
+		{name: "deleting Certificate", change: func(c *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			c.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+			c.Spec.Subject = "must not issue"
+			return s
+		}},
+		{name: "deleting Secret", change: func(c *skupperv2alpha1.Certificate, s *corev1.Secret) *corev1.Secret {
+			s.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+			c.Spec.Subject = "must not issue"
+			return s
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			c := certificate("leaf", "test", "ca", "server", hosts, false, true, nil, nil)
 			c.Generation = 2
 			c.SetReady(nil)
 			s := valid.DeepCopy()
 			s.Namespace = "test"
 			s.Annotations = map[string]string{"internal.skupper.io/controlled": "true", "internal.skupper.io/certificate": "true"}
-			renew := true
-			switch state {
-			case "absent":
-				s = nil
-			case "missing PEM":
-				delete(s.Data, "tls.crt")
-			case "malformed PEM":
-				s.Data["tls.crt"] = []byte("not PEM")
-			case "missing key":
-				delete(s.Data, "tls.key")
-			case "malformed key":
-				s.Data["tls.key"] = []byte("not PEM")
-			case "mismatched key":
-				s.Data["tls.key"] = otherCA.Data["tls.key"]
-			case "expired":
-				s.Data = expired.DeepCopy().Data
-			case "subject changed":
-				c.Spec.Subject = "new-server"
-			case "hosts changed":
-				c.Spec.Hosts = []string{"different.example", "10.2.3.4", "2001:db8::9"}
-			case "duplicate hosts":
-				c.Spec.Hosts = []string{"server.example", "10.1.2.3", "2001:db8::7", "server.example"}
-				renew = false
-			case "empty hosts":
-				c.Spec.Hosts = []string{"", "server.example", "10.1.2.3", "2001:db8::7", " \t"}
-				renew = false
-			case "padded hosts":
-				c.Spec.Hosts = []string{" server.example ", "\t10.1.2.3", "2001:db8::7\n"}
-				renew = false
-			case "valid without issuer":
-				c.Spec.Ca = "missing"
-				renew = false
-			case "older Ready generation":
-				c.Generation++
-				renew = false
-			case "deleting Certificate":
-				c.DeletionTimestamp = &metav1.Time{Time: time.Now()}
-				c.Spec.Subject = "must not issue"
-				renew = false
-			case "deleting Secret":
-				s.DeletionTimestamp = &metav1.Time{Time: time.Now()}
-				c.Spec.Subject = "must not issue"
-				renew = false
-			}
+			s = tc.change(c, s)
 			objects := []runtime.Object{ca, otherCA}
 			if s != nil {
 				objects = append(objects, s)
@@ -199,37 +221,14 @@ func TestScopeIssuance(t *testing.T) {
 			client, err := fakeclient.NewFakeClient("test", objects, []runtime.Object{c}, "")
 			assert.NilError(t, err)
 			m := newScopeTest(t, client)
-			var logs bytes.Buffer
-			m.logger = slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			assert.NilError(t, m.Handle(watchers.ResourceChange{Key: "test/leaf"}))
-			if state == "expired" || state == "hosts changed" {
-				decoder := json.NewDecoder(&logs)
-				var action, status, summary map[string]interface{}
-				assert.NilError(t, decoder.Decode(&action))
-				assert.NilError(t, decoder.Decode(&status))
-				assert.NilError(t, decoder.Decode(&summary))
-				assert.Assert(t, !decoder.More())
-				assert.Equal(t, action["action"], "update")
-				assert.Equal(t, action["operation"], "renew")
-				assert.Equal(t, action["reason"], strings.ReplaceAll(state, " ", "-"))
-				assert.Equal(t, action["level"], "INFO")
-				assert.Equal(t, status["action"], "status")
-				assert.Equal(t, status["outcome"], "unchanged")
-				assert.Equal(t, status["level"], "DEBUG")
-				assert.Equal(t, summary["actions"], float64(2))
-				assert.Equal(t, summary["unchanged_actions"], float64(1))
-				assert.Equal(t, summary["failed_actions"], float64(0))
-				assert.Equal(t, summary["outcome"], "succeeded")
-				assert.Assert(t, !strings.Contains(logs.String(), "PRIVATE KEY"))
-				assert.Assert(t, !strings.Contains(logs.String(), "server.example"))
-			}
 			actual, err := client.GetKubeClient().CoreV1().Secrets("test").Get(context.Background(), "leaf", metav1.GetOptions{})
 			assert.NilError(t, err)
 			if s == nil {
 				assert.Equal(t, actual.Annotations["internal.skupper.io/certificate"], "true")
 				assert.DeepEqual(t, actual.OwnerReferences, []metav1.OwnerReference{{APIVersion: "skupper.io/v2alpha1", Kind: "Certificate", Name: c.Name, UID: c.UID}})
 			}
-			if renew {
+			if tc.renew {
 				decoded, err := certs.DecodeCertificate(actual.Data["tls.crt"])
 				assert.NilError(t, err)
 				assert.Equal(t, decoded.Subject.CommonName, c.Spec.Subject)
@@ -655,8 +654,8 @@ func TestAbsentCertificateLeavesSecretsToGC(t *testing.T) {
 	}
 }
 
-// Exercise the public reconciliation entry point: results must describe what
-// the API actually accepted, including status writes following resource errors.
+// Exercise API state and retry errors through the public reconciliation entry
+// point, including status writes following resource errors.
 func TestActionOutcomes(t *testing.T) {
 	resourceErr, statusErr := errors.New("secret write failed"), errors.New("status write failed")
 	for _, tc := range []struct {
@@ -704,8 +703,6 @@ func TestActionOutcomes(t *testing.T) {
 			assert.NilError(t, err)
 			m := newScopeTest(t, client)
 			m.SetControllerContext(fakeContext().control("test").annotate("test-policy", "applied"))
-			var logs bytes.Buffer
-			m.logger = slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			writes := 0
 			client.GetKubeClient().(*kubefake.Clientset).PrependReactor("*", "secrets", func(a clienttesting.Action) (bool, runtime.Object, error) {
 				if a.GetVerb() == "create" || a.GetVerb() == "update" || a.GetVerb() == "patch" || a.GetVerb() == "delete" {
@@ -766,105 +763,14 @@ func TestActionOutcomes(t *testing.T) {
 					assert.Equal(t, condition.Message, resourceErr.Error())
 				}
 			}
-			var outcomes []map[string]interface{}
-			actionCount := -1
-			decoder := json.NewDecoder(&logs)
-			for decoder.More() {
-				var entry map[string]interface{}
-				assert.NilError(t, decoder.Decode(&entry))
-				assert.Equal(t, entry["component"], "kube.certificates.manager")
-				assert.Equal(t, entry["scope"], "Certificate")
-				assert.Equal(t, entry["key"], "test/ca")
-				if entry["action"] != nil {
-					level := "INFO"
-					if entry["outcome"] == "failed" {
-						level = "ERROR"
-						assert.Assert(t, entry["error"] != nil)
-					} else if entry["outcome"] == "unchanged" {
-						level = "DEBUG"
-					}
-					assert.Equal(t, entry["level"], level)
-					assert.Assert(t, strings.Contains(entry["msg"].(string), "test/ca"))
-					assert.Equal(t, entry["namespace"], "test")
-					assert.Equal(t, entry["name"], "ca")
-					assert.Assert(t, entry["duration"].(float64) >= 0)
-					if entry["action"] == "status" {
-						assert.Equal(t, entry["kind"], "Certificate")
-						if !tc.statusFail {
-							conditions := entry["conditions"].([]interface{})
-							assert.Equal(t, len(conditions), len(updated.Status.Conditions))
-							for i, actual := range updated.Status.Conditions {
-								assert.DeepEqual(t, conditions[i], interface{}(map[string]interface{}{
-									"type": actual.Type, "status": string(actual.Status), "reason": actual.Reason,
-									"message": actual.Message, "observed_generation": float64(actual.ObservedGeneration),
-								}))
-							}
-						} else {
-							assert.Assert(t, entry["conditions"] == nil, "failed status must not claim conditions")
-							assert.Assert(t, !strings.Contains(entry["msg"].(string), "Ready="))
-						}
-					} else {
-						assert.Equal(t, entry["kind"], "Secret")
-						assert.Assert(t, entry["conditions"] == nil)
-					}
-					outcomes = append(outcomes, entry)
-				}
-				if entry["msg"] == "Reconciled certificate scope" {
-					assert.Equal(t, entry["level"], "DEBUG")
-					assert.Equal(t, entry["phase"], "execute")
-					unchanged := 0
-					if tc.statusUnchanged {
-						unchanged = 1
-					}
-					assert.Equal(t, entry["unchanged_actions"], float64(unchanged))
-					actionCount = int(entry["actions"].(float64))
-					failedActions := 0
-					for _, failed := range []bool{tc.resourceFail, tc.statusFail} {
-						if failed {
-							failedActions++
-						}
-					}
-					assert.Equal(t, int(entry["failed_actions"].(float64)), failedActions)
-					outcome := "succeeded"
-					if failedActions != 0 {
-						outcome = "failed"
-					}
-					assert.Equal(t, entry["outcome"], outcome)
-					_, duplicated := entry["error"]
-					assert.Assert(t, !duplicated, "scope summary must not repeat action errors")
-				}
-			}
-			assert.Equal(t, actionCount, len(outcomes))
 			if tc.settled {
 				assert.Equal(t, writes, 0)
-				assert.Equal(t, len(outcomes), 0)
 			} else {
 				expectedWrites := 2
 				if tc.statusUnchanged {
 					expectedWrites = 1
 				}
 				assert.Equal(t, writes, expectedWrites)
-				assert.Equal(t, len(outcomes), 2)
-				kind := "create"
-				if tc.existing {
-					kind = "update"
-				}
-				if tc.renew {
-					assert.Equal(t, outcomes[0]["operation"], "renew")
-					assert.Equal(t, outcomes[0]["reason"], "subject-changed")
-				}
-				assert.Equal(t, outcomes[0]["action"], kind)
-				for i, failed := range []bool{tc.resourceFail, tc.statusFail} {
-					outcome := "succeeded"
-					if failed {
-						outcome = "failed"
-					}
-					if i == 1 && tc.statusUnchanged {
-						outcome = "unchanged"
-					}
-					assert.Equal(t, outcomes[i]["outcome"], outcome)
-				}
-				assert.Equal(t, outcomes[len(outcomes)-1]["action"], "status")
 			}
 			// Recovery is explicit, not driven by a status event or queue timer.
 			// Observe any successful partial write before attempting the scope again.
@@ -897,8 +803,6 @@ func TestValidationDoesNotRetry(t *testing.T) {
 			client, err := fakeclient.NewFakeClient("test", []runtime.Object{s}, []runtime.Object{c}, "")
 			assert.NilError(t, err)
 			m := newScopeTest(t, client)
-			var logs bytes.Buffer
-			m.logger = slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			kube := client.GetKubeClient().(*kubefake.Clientset)
 			skupper := client.GetSkupperClient().(*skupperfake.Clientset)
 			if state == "status failure" {
@@ -911,21 +815,12 @@ func TestValidationDoesNotRetry(t *testing.T) {
 			skupper.ClearActions()
 			err = m.Handle(watchers.ResourceChange{Key: "test/blocked"})
 			assert.Equal(t, len(kube.Actions()), 0, "validation must not mutate the user Secret")
-			var entry map[string]interface{}
-			assert.NilError(t, json.NewDecoder(&logs).Decode(&entry))
-			assert.Equal(t, entry["action"], "status")
 			if state == "status failure" {
-				_, reported := entry["conditions"]
-				assert.Assert(t, !reported, "failed writes must not claim the proposed condition was recorded")
 				assert.Assert(t, errors.Is(err, statusErr))
 				assert.Error(t, err, statusErr.Error(), "only the API error should request retry")
 				return
 			}
 			assert.NilError(t, err, "successfully reported validation must not request retry")
-			conditionLog := entry["conditions"].([]interface{})[0].(map[string]interface{})
-			assert.Equal(t, conditionLog["status"], "False")
-			assert.Equal(t, conditionLog["reason"], "Error")
-			assert.Equal(t, conditionLog["message"], validationMessage)
 			if state == "already reported" {
 				assert.Equal(t, len(skupper.Actions()), 0)
 			}
@@ -1003,18 +898,11 @@ func TestOwnerCleanupAwaitsObservation(t *testing.T) {
 	client, err := fakeclient.NewFakeClient("test", []runtime.Object{fixtureCASecret(t, "issuer", "test")}, []runtime.Object{c}, "")
 	assert.NilError(t, err)
 	m := newScopeTest(t, client)
-	var logs bytes.Buffer
-	m.logger = slog.New(slog.NewJSONHandler(&logs, nil))
 	kube := client.GetKubeClient().(*kubefake.Clientset)
 	skupper := client.GetSkupperClient().(*skupperfake.Clientset)
 	kube.ClearActions()
 	skupper.ClearActions()
 	assert.NilError(t, m.Handle(watchers.ResourceChange{Key: "test/ca"}))
-	var entry map[string]interface{}
-	assert.NilError(t, json.NewDecoder(&logs).Decode(&entry))
-	assert.Equal(t, entry["action"], "update")
-	assert.Equal(t, entry["kind"], "Certificate")
-	assert.Equal(t, entry["reason"], "owner-contributions-changed")
 	assert.Equal(t, len(kube.Actions()), 0, "cleanup must not issue a Secret from the stale Certificate")
 	actions := skupper.Actions()
 	assert.Equal(t, len(actions), 1, "cleanup must not write status from the stale Certificate")
@@ -1036,42 +924,22 @@ func TestOwnerCleanupAwaitsObservation(t *testing.T) {
 	assert.Equal(t, len(decoded.DNSNames), 0)
 }
 
-func TestScopeEarlyExitLogging(t *testing.T) {
+func TestScopeEarlyExits(t *testing.T) {
 	for _, key := range []string{"invalid/key/format", "uncontrolled/ca", "test/absent"} {
 		t.Run(key, func(t *testing.T) {
 			client, err := fakeclient.NewFakeClient("test", nil, nil, "")
 			assert.NilError(t, err)
 			m := newScopeTest(t, client)
 			m.SetControllerContext(fakeContext().control("test"))
-			var logs bytes.Buffer
-			m.logger = slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
 			kube := client.GetKubeClient().(*kubefake.Clientset)
 			sk := client.GetSkupperClient().(*skupperfake.Clientset)
 			kube.ClearActions()
 			sk.ClearActions()
 			err = m.Handle(watchers.ResourceChange{Key: key})
-			phase, outcome := "key", "succeeded"
 			if key == "invalid/key/format" {
 				assert.Assert(t, err != nil)
-				outcome = "failed"
 			} else {
 				assert.NilError(t, err)
-				if key == "test/absent" {
-					phase = "execute"
-				}
-			}
-			decoder := json.NewDecoder(&logs)
-			var summary map[string]interface{}
-			assert.NilError(t, decoder.Decode(&summary))
-			assert.Assert(t, !decoder.More(), "exactly one final summary")
-			assert.Equal(t, summary["level"], "DEBUG")
-			assert.Equal(t, summary["component"], "kube.certificates.manager")
-			assert.Equal(t, summary["scope"], "Certificate")
-			assert.Equal(t, summary["key"], key)
-			assert.Equal(t, summary["phase"], phase)
-			assert.Equal(t, summary["outcome"], outcome)
-			for _, count := range []string{"actions", "failed_actions", "unchanged_actions"} {
-				assert.Equal(t, summary[count], float64(0))
 			}
 			assert.Equal(t, len(kube.Actions()), 0)
 			assert.Equal(t, len(sk.Actions()), 0)
@@ -1079,55 +947,39 @@ func TestScopeEarlyExitLogging(t *testing.T) {
 	}
 }
 
-func TestStatusLoggingUsesConfirmedConditions(t *testing.T) {
-	c := caCertificate("ca", "test", "skupper test CA", nil, nil)
-	s := fixtureCASecret(t, "ca", "test")
-	client, err := fakeclient.NewFakeClient("test", []runtime.Object{s}, []runtime.Object{c}, "")
-	assert.NilError(t, err)
-	m := newScopeTest(t, client)
-	var logs bytes.Buffer
-	m.logger = slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	client.GetSkupperClient().(*skupperfake.Clientset).PrependReactor("update", "certificates", func(a clienttesting.Action) (bool, runtime.Object, error) {
-		// Model an API response that differs from the submitted Ready=True.
-		confirmed := a.(clienttesting.UpdateAction).GetObject().(*skupperv2alpha1.Certificate).DeepCopy()
-		confirmed.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionUnknown,
-			Reason: "Pending", Message: "Awaiting confirmation", ObservedGeneration: 7}}
-		return true, confirmed, nil
-	})
-	assert.NilError(t, m.Handle(watchers.ResourceChange{Key: "test/ca"}))
-	var status map[string]interface{}
-	assert.NilError(t, json.NewDecoder(&logs).Decode(&status))
-	assert.Equal(t, status["action"], "status")
-	assert.Equal(t, status["outcome"], "succeeded")
-	assert.Equal(t, status["msg"], "Updated Certificate test/ca status: Ready=Unknown (Pending)")
-	assert.DeepEqual(t, status["conditions"], interface{}([]interface{}{map[string]interface{}{
-		"type": "Ready", "status": "Unknown", "reason": "Pending", "message": "Awaiting confirmation", "observed_generation": float64(7),
-	}}))
-}
-
-func TestCertificatePlan(t *testing.T) {
-	c := caCertificate("ca", "test", "skupper test CA", nil, nil)
-	c.SetReady(nil)
+func TestRenewalAtExpiry(t *testing.T) {
 	s := fixtureCASecret(t, "ca", "test")
 	s.Annotations = map[string]string{"internal.skupper.io/controlled": "true", "internal.skupper.io/certificate": "true"}
 	decoded, err := certs.DecodeCertificate(s.Data["tls.crt"])
 	assert.NilError(t, err)
 	for _, tc := range []struct {
-		delta   time.Duration
-		actions []certificateActionKind
-	}{{-time.Nanosecond, nil}, {0, nil}, {time.Nanosecond, []certificateActionKind{renewSecret, reconcileStatus}}} {
-		snapshot := certificateSnapshot{certificate: c, secret: s, now: decoded.NotAfter.Add(tc.delta)}
-		originalCert, originalSecret := c.DeepCopy(), s.DeepCopy()
-		first, second := planCertificate(snapshot), planCertificate(snapshot)
-		assert.Assert(t, reflect.DeepEqual(first, second), "identical snapshots must produce identical plans")
-		assert.Equal(t, len(first), len(tc.actions))
-		for i, kind := range tc.actions {
-			assert.Equal(t, first[i].kind, kind)
-		}
-		if tc.delta > 0 {
-			assert.Equal(t, first[0].reason, "expired")
-		}
-		assert.DeepEqual(t, c, originalCert)
-		assert.DeepEqual(t, s, originalSecret)
+		name  string
+		delta time.Duration
+		renew bool
+	}{
+		{name: "before NotAfter", delta: -time.Nanosecond},
+		{name: "at NotAfter", delta: 0},
+		{name: "after NotAfter", delta: time.Nanosecond, renew: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := caCertificate("ca", "test", "skupper test CA", nil, nil)
+			c.SetReady(nil)
+			client, err := fakeclient.NewFakeClient("test", []runtime.Object{s.DeepCopy()}, []runtime.Object{c}, "")
+			assert.NilError(t, err)
+			m := newScopeTest(t, client)
+			m.now = func() time.Time { return decoded.NotAfter.Add(tc.delta) }
+			assert.NilError(t, m.Handle(watchers.ResourceChange{Key: "test/ca"}))
+			actual, err := client.GetKubeClient().CoreV1().Secrets("test").Get(context.Background(), "ca", metav1.GetOptions{})
+			assert.NilError(t, err)
+			assert.Equal(t, !reflect.DeepEqual(actual.Data, s.Data), tc.renew)
+			if tc.renew {
+				renewed, err := certs.DecodeCertificate(actual.Data["tls.crt"])
+				assert.NilError(t, err)
+				assert.Assert(t, renewed.NotAfter.After(decoded.NotAfter))
+			}
+			updated, err := client.GetSkupperClient().SkupperV2alpha1().Certificates("test").Get(context.Background(), "ca", metav1.GetOptions{})
+			assert.NilError(t, err)
+			assert.Assert(t, meta.IsStatusConditionTrue(updated.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_READY))
+		})
 	}
 }

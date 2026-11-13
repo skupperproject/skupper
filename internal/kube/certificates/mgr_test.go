@@ -3,6 +3,7 @@ package certificates
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -278,12 +279,25 @@ func (c *FakeContext) SetAnnotations(namespace string, name string, kind string,
 	return changed
 }
 
+var fixtureCAs = struct {
+	sync.Mutex
+	byName map[string]*corev1.Secret
+}{byName: map[string]*corev1.Secret{}}
+
+// fixtureCASecret returns a copy of a CA generated once per name for the
+// package.
 func fixtureCASecret(t *testing.T, name, namespace string) *corev1.Secret {
 	t.Helper()
-	secret, err := certs.GenerateSecret(name, "skupper test CA", nil, time.Hour*8, nil)
-	if err != nil {
-		t.Error(err)
+	fixtureCAs.Lock()
+	defer fixtureCAs.Unlock()
+	ca, ok := fixtureCAs.byName[name]
+	if !ok {
+		var err error
+		ca, err = certs.GenerateSecret(name, "skupper test CA", nil, time.Hour*8, nil)
+		assert.NilError(t, err)
+		fixtureCAs.byName[name] = ca
 	}
+	secret := ca.DeepCopy()
 	secret.Namespace = namespace
 	return secret
 }

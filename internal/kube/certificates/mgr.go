@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -41,10 +42,12 @@ type CertificateManagerImpl struct {
 	// Authoring-only write-through view. A nil entry requires a live refresh;
 	// an absent entry uses the informer. Reconciliation never reads this map.
 	authored map[string]*skupperv2alpha1.Certificate
+	// tests inject a fake clock.
+	now func() time.Time
 }
 
 func NewCertificateManager(processor *watchers.EventProcessor) *CertificateManagerImpl {
-	return &CertificateManagerImpl{processor: processor, logger: slog.Default(), authored: map[string]*skupperv2alpha1.Certificate{}}
+	return &CertificateManagerImpl{processor: processor, logger: slog.Default(), authored: map[string]*skupperv2alpha1.Certificate{}, now: time.Now}
 }
 
 func (m *CertificateManagerImpl) SetControllerContext(context ControllerContext) { m.context = context }

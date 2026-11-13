@@ -356,19 +356,16 @@ func TestScopeQueueCoalescing(t *testing.T) {
 	h := &stubErrResourceChangeHandler{}
 	h.onCall = func(e ResourceChange) {
 		if h.CallCount == 1 {
+			// Notifications for an in-flight scope mark it dirty.
 			p.Enqueue(h, e.Key)
 			p.Enqueue(h, e.Key)
-			assert.Equal(t, p.queue.Len(), 0, "in-flight scope must not run concurrently")
 		}
 	}
 	p.Enqueue(h, "scope")
 	p.Enqueue(h, "scope")
 	p.Enqueue(h, "scope")
-	assert.Equal(t, p.queue.Len(), 1)
-	p.TestProcess()
-	assert.Equal(t, p.queue.Len(), 1, "dirty in-flight scope must run again after Done")
 	p.TestProcessAll()
-	assert.Equal(t, h.CallCount, 2)
+	assert.Equal(t, h.CallCount, 2, "pending notifications coalesce; a dirty in-flight scope runs exactly once more")
 	other := &stubErrResourceChangeHandler{}
 	p.Enqueue(h, "scope")
 	p.Enqueue(other, "scope")

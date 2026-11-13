@@ -71,7 +71,7 @@ type certificateActionResult struct {
 }
 
 func (m *CertificateManagerImpl) snapshot(key string) (certificateSnapshot, error) {
-	s := certificateSnapshot{now: time.Now()}
+	s := certificateSnapshot{now: m.now()}
 	certificate, err := m.certificateWatcher.Get(key)
 	if err != nil {
 		return s, err
