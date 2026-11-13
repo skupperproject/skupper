@@ -65,7 +65,7 @@ func decodeDataElement(in []byte, name string) ([]byte, error) {
 }
 
 func getCAFromSecret(secret *corev1.Secret) (*CertificateAuthority, error) {
-	if secret == nil || secret.Data == nil {
+	if secret == nil {
 		return nil, nil
 	}
 

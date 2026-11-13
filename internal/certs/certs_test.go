@@ -81,9 +81,20 @@ func TestGenerateSecret(t *testing.T) {
 		Type: corev1.SecretTypeOpaque,
 	}
 
-	_, err = GenerateSecret("test-secret", ca_cn, []string{"134.565.56.77"}, 0, caSecret)
-	errorText := err.Error()
-	assert.Equal(t, errorText, "error reading CA Certificate from Secret \"emptyCASecret\": failed to read PEM encoded data from \"tls.crt\"")
+	for _, tc := range []struct {
+		name string
+		data map[string][]byte
+	}{
+		{name: "empty map", data: map[string][]byte{}},
+		{name: "nil data", data: nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			caSecret.Data = tc.data
+			result, err := GenerateSecret("test-secret", ca_cn, nil, 0, caSecret)
+			assert.Error(t, err, "error reading CA Certificate from Secret \"emptyCASecret\": failed to read PEM encoded data from \"tls.crt\"")
+			assert.Assert(t, result == nil)
+		})
+	}
 }
 
 // TestGH2284 exercises the ability to generate and parse x509 certificates
