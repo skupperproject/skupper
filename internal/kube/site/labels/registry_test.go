@@ -14,6 +14,36 @@ type Update struct {
 	config *corev1.ConfigMap
 }
 
+func TestPolicySnapshot(t *testing.T) {
+	live := NewLabelsAndAnnotations("controller")
+	local := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "local",
+		Labels:      map[string]string{"skupper.io/label-template": "true", "priority": "local"},
+		Annotations: map[string]string{"selected": "original"}},
+		Data: map[string]string{"kind": "Secret", "labelSelector": "role=server"}}
+	assert.NilError(t, live.Update("test/local", local))
+	for _, name := range []string{"z", "a"} {
+		cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Namespace: "controller", Name: name,
+			Labels: map[string]string{"skupper.io/label-template": "true", "priority": name}}, Data: map[string]string{"kind": "Secret"}}
+		assert.NilError(t, live.Update("controller/"+name, cm))
+	}
+	frozen := live.Snapshot("test")
+	local.Annotations["selected"] = "changed"
+	local.Data["labelSelector"] = "role=client"
+	assert.NilError(t, live.Update("test/local", local))
+	assert.NilError(t, live.Update("controller/z", nil))
+	for i := 0; i < 20; i++ {
+		values := map[string]string{"role": "server"}
+		frozen.SetLabels("test", "leaf", "Secret", values)
+		assert.Equal(t, values["priority"], "z", "controller policy overrides local; template name breaks ties")
+		annotations := map[string]string{"role": "server"}
+		frozen.SetAnnotations("test", "leaf", "Secret", annotations)
+		assert.Equal(t, annotations["selected"], "original")
+		unmatched := map[string]string{"role": "client"}
+		frozen.SetAnnotations("test", "leaf", "Secret", unmatched)
+		assert.Equal(t, unmatched["selected"], "")
+	}
+}
+
 func TestLabels(t *testing.T) {
 	type Expectation struct {
 		namespace   string

@@ -2,6 +2,7 @@ package labels
 
 import (
 	"log/slog"
+	"slices"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -27,6 +28,27 @@ func NewLabelsAndAnnotations(controllerNamespace string) *LabelsAndAnnotations {
 			slog.String("component", "kube.site.labels.registry"),
 		),
 	}
+}
+
+// Snapshot copies the namespace and controller-wide policy inputs without
+// evaluating them. The returned registry is independent of subsequent updates.
+func (l *LabelsAndAnnotations) Snapshot(namespace string) *LabelsAndAnnotations {
+	result := NewLabelsAndAnnotations(l.controllerNamespace)
+	for _, ns := range []string{namespace, l.controllerNamespace} {
+		if registry, ok := l.namespaces[ns]; ok {
+			copied := newRegistry(l.log)
+			for key, entry := range registry.config {
+				clone := *entry
+				clone.cm = entry.cm.DeepCopy()
+				if entry.selector != nil {
+					clone.selector = entry.selector.DeepCopySelector()
+				}
+				copied.config[key] = &clone
+			}
+			result.namespaces[ns] = copied
+		}
+	}
+	return result
 }
 
 func (l *LabelsAndAnnotations) Update(key string, cm *corev1.ConfigMap) error {
@@ -167,7 +189,14 @@ func (r *Registry) setAnnotations(name string, kind string, target map[string]st
 
 func (r *Registry) filter(name string, kind string, target map[string]string, labels map[string]string, annotations map[string]string, requireIncludePods bool) bool {
 	changed := false
-	for _, entry := range r.config {
+	// Conflicting templates in one namespace must have a stable precedence.
+	keys := make([]string, 0, len(r.config))
+	for key := range r.config {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	for _, key := range keys {
+		entry := r.config[key]
 		if entry.invalid {
 			continue
 		}

@@ -103,3 +103,85 @@ Some controller scoped inputs are common to all scopes: namespace control,
 labels and annotation policy, grants server configurations. These are packaged
 as controller context and are snapshotted along with scope input. Changes to
 controller context may trigger dependent scopes.
+
+## Logging
+
+The logging step at the end of each scope handler should follow a consistent
+set of logging practices and fields. Handlers should avoid logging statements
+outside of this dedicated step. In general, the logging step should reflect at
+INFO (and above) the results of the actions the scope handler took. It should
+answer the questions: **What did the handler do and why? Which resources were
+involved? What may need attention?**. At the DEBUG level handlers include a
+final diagnostic summary answering for developers **When did a specific scope
+handler run? How many actions did it run? How many failed? Did it no-op?**.
+
+* **Log Level:** INFO for successful writes, ERROR for failed attempts, DEBUG
+  for diagnostic summaries. A "settled" pass logs nothing at INFO or above.
+* **Fields:**
+
+Fields that are always present on scope handler logs.
+
+    * `component` an existing skupper standard loosely correlated with go
+      package name.
+    * `scope` e.g. Certificate, Site, etc. Required.
+    * `key` The queue key. Required.
+    * `outcome`: succeeded, failed, unchanged for actions. succeeded or failed
+      for summaries.
+
+Fields set on action logs.
+
+    * `kind` target resource kind.
+    * `namespace` target resource namespace. (when applicable)
+    * `name` target resource name.
+    * `action` create, update, delete, status.
+    * `operation` optional domain operation e.g. "renew" for Certificate Secret
+    * `reason` optional domain action reason e.g. "hosts-changed"
+    * `duration` action execution time
+    * `error` diagnostic on failure.
+    * `conditions` confirmed written status conditions when action=status.
+
+Fields on summaries
+
+    * `phase` Last phase reached (in case of early exit): key, snapshot, plan,
+      execute
+    * `actions` count of actions executed
+    * `failed_actions` count of actions with a failed result
+    * `unchanged_actions` count of actions with an unchanged result
+
+Examples:
+
+New Certificate: Create Secret, Update Status, Summarize
+```
+INFO msg="Created Secret east/api-tls for Certificate east/api-tls"
+    component=kube.certificates.manager scope=Certificate key=east/api-tls
+    kind=Secret namespace=east name=api-tls action=create outcome=succeeded duration=12ms
+INFO msg="Updated Certificate east/api-tls status: Ready=True (Ready)"
+    component=kube.certificates.manager scope=Certificate key=east/api-tls
+    kind=Certificate namespace=east name=api-tls action=status outcome=succeeded duration=3ms
+    conditions="[map[message:OK observed_generation:1 reason:Ready status:True type:Ready]]"
+DEBUG msg="Reconciled certificate scope"
+    component=kube.certificates.manager scope=Certificate key=east/api-tls phase=execute
+    actions=2 failed_actions=0 unchanged_actions=0 outcome=succeeded
+```
+
+Settled Certificate: nothing needs changed
+```
+DEBUG msg="Reconciled certificate scope"
+    component=kube.certificates.manager scope=Certificate key=east/api-tls
+    phase=execute actions=0 failed_actions=0 unchanged_actions=0 outcome=succeeded
+```
+
+Expired certificate: renew Secret; keep existing Ready status
+```
+INFO msg="Updated Secret east/api-tls for Certificate east/api-tls"
+    component=kube.certificates.manager scope=Certificate key=east/api-tls
+    kind=Secret namespace=east name=api-tls
+    action=update operation=renew reason=expired outcome=succeeded duration=15ms
+DEBUG msg="Certificate east/api-tls status unchanged: Ready=True (Ready)"
+    component=kube.certificates.manager scope=Certificate key=east/api-tls
+    kind=Certificate namespace=east name=api-tls action=status outcome=unchanged duration=0ms
+    conditions="[map[message:OK observed_generation:1 reason:Ready status:True type:Ready]]"
+DEBUG msg="Reconciled certificate scope"
+    component=kube.certificates.manager scope=Certificate key=east/api-tls phase=execute
+    actions=2 failed_actions=0 unchanged_actions=1 outcome=succeeded
+```

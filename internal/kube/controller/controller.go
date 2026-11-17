@@ -176,6 +176,10 @@ func (c *Controller) IsControlled(namespace string) bool {
 	return c.namespaces.isControlled(namespace)
 }
 
+func (c *Controller) SnapshotMetadata(namespace string) *labels.LabelsAndAnnotations {
+	return c.labelling.Snapshot(namespace)
+}
+
 func (c *Controller) SetLabels(namespace string, name string, kind string, labels map[string]string) bool {
 	return c.labelling.SetLabels(namespace, name, kind, labels)
 }
@@ -258,7 +262,6 @@ func (c *Controller) init(stopCh <-chan struct{}) error {
 		c.labelling.Update(config.Namespace+"/"+config.Name, config)
 		labellingCount++
 	}
-	c.certMgr.Recover()
 	c.accessRecovery.Recover()
 	// get observed services prior to restoring listeners
 	for _, svc := range c.serviceWatcher.List() {
