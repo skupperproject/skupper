@@ -1,6 +1,7 @@
 package site
 
 import (
+	"errors"
 	"log/slog"
 	"net"
 	"reflect"
@@ -38,8 +39,8 @@ type ConnectorHealthChange struct {
 type HealthChangeCallback func(changed []ConnectorHealthChange)
 
 type BindingEventHandler interface {
-	ListenerUpdated(listener *skupperv2alpha1.Listener)
-	ListenerDeleted(listener *skupperv2alpha1.Listener)
+	ListenerUpdated(listener *skupperv2alpha1.Listener) error
+	ListenerDeleted(listener *skupperv2alpha1.Listener) error
 	ConnectorUpdated(connector *skupperv2alpha1.Connector) bool
 	ConnectorDeleted(connector *skupperv2alpha1.Connector)
 }
@@ -69,6 +70,7 @@ type Bindings struct {
 	healthDone      chan struct{}
 	dialTimeout     func(network, address string, timeout time.Duration) (net.Conn, error)
 	onHealthChange  HealthChangeCallback
+	failedListeners map[string]struct{}
 }
 
 func NewBindings(profilePath string) *Bindings {
@@ -80,6 +82,7 @@ func NewBindings(profilePath string) *Bindings {
 		hostConnectors:    map[string]HostConnectorInfo{},
 		connectorHealth:   map[string]bool{},
 		dialTimeout:       net.DialTimeout,
+		failedListeners:   map[string]struct{}{},
 	}
 	bindings.configure.listener = UpdateBridgeConfigForListener
 	bindings.configure.connector = bindings.UpdateBridgeConfigForConnector
@@ -115,14 +118,18 @@ func (b *Bindings) SetConnectorConfiguration(configuration ConnectorConfiguratio
 	b.configure.connector = configuration
 }
 
-func (b *Bindings) SetBindingEventHandler(handler BindingEventHandler) {
+func (b *Bindings) SetBindingEventHandler(handler BindingEventHandler) error {
 	b.handler = handler
+	var errs []error
 	for _, c := range b.connectors {
 		b.handler.ConnectorUpdated(c)
 	}
 	for _, l := range b.listeners {
-		b.handler.ListenerUpdated(l)
+		if err := b.handler.ListenerUpdated(l); err != nil {
+			errs = append(errs, err)
+		}
 	}
+	return errors.Join(errs...)
 }
 
 func (b *Bindings) Map(cf ConnectorFunction, lf ListenerFunction) {
@@ -268,36 +275,55 @@ func (b *Bindings) deleteConnector(name string) qdr.ConfigUpdate {
 	return nil
 }
 
-func (b *Bindings) UpdateListener(name string, listener *skupperv2alpha1.Listener) qdr.ConfigUpdate {
+func (b *Bindings) UpdateListener(name string, listener *skupperv2alpha1.Listener) (qdr.ConfigUpdate, error) {
 	if listener == nil {
 		return b.deleteListener(name)
 	}
 	return b.updateListener(listener)
 }
 
-func (b *Bindings) updateListener(latest *skupperv2alpha1.Listener) qdr.ConfigUpdate {
+// updateListener stores the latest listener and notifies the handler when the
+// spec has changed or when a previous handler call for this name failed.
+// On a successful handler call it clears the failure.
+// A failed call is recorded so it will get retried.
+func (b *Bindings) updateListener(latest *skupperv2alpha1.Listener) (qdr.ConfigUpdate, error) {
 	name := latest.ObjectMeta.Name
 	existing, ok := b.listeners[name]
 	b.listeners[name] = latest
 
-	if !ok || !reflect.DeepEqual(existing.Spec, latest.Spec) {
+	specChanged := !ok || !reflect.DeepEqual(existing.Spec, latest.Spec)
+	_, previouslyFailed := b.failedListeners[name]
+
+	if specChanged || previouslyFailed {
+		var err error
 		if b.handler != nil {
-			b.handler.ListenerUpdated(latest)
+			err = b.handler.ListenerUpdated(latest)
 		}
-		return b
+		if err != nil {
+			b.failedListeners[name] = struct{}{}
+			return b, err
+		}
+		delete(b.failedListeners, name)
+		return b, nil
 	}
-	return nil
+	return nil, nil
 }
 
-func (b *Bindings) deleteListener(name string) qdr.ConfigUpdate {
+// deleteListener removes a listener from the bindings map and notifies the handler.
+// Returns a ConfigUpdate and an error if the handler reports one.
+// It also clears any handler failure that was recorded.
+func (b *Bindings) deleteListener(name string) (qdr.ConfigUpdate, error) {
 	if existing, ok := b.listeners[name]; ok {
 		delete(b.listeners, name)
+		delete(b.failedListeners, name)
+		var err error
 		if b.handler != nil {
-			b.handler.ListenerDeleted(existing)
+			err = b.handler.ListenerDeleted(existing)
 		}
-		return b
+		return b, err
 	}
-	return nil
+	delete(b.failedListeners, name)
+	return nil, nil
 }
 
 func (b *Bindings) GetMultiKeyListener(name string) *skupperv2alpha1.MultiKeyListener {
