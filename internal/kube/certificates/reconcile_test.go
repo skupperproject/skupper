@@ -892,6 +892,60 @@ func TestOwnerContributionPruning(t *testing.T) {
 	assert.DeepEqual(t, actual.Status, c.Status)
 }
 
+func TestAccessAuthorRetainsContributionsAfterOwnerGC(t *testing.T) {
+	// HA-style shared Certificate: two SecuredAccess owners with asymmetric,
+	// overlapping contributions. Kubernetes GC then drops the deleted owner's ref.
+	survivor := metav1.OwnerReference{APIVersion: "skupper.io/v2alpha1", Kind: "SecuredAccess", Name: "edge-a", UID: "survivor-uid"}
+	deleted := metav1.OwnerReference{APIVersion: "skupper.io/v2alpha1", Kind: "SecuredAccess", Name: "edge-b", UID: "deleted-uid"}
+	for _, authored := range []bool{true, false} {
+		t.Run(fmt.Sprintf("secured-access-certificate=%v", authored), func(t *testing.T) {
+			c := certificate("leaf", "test", "issuer", "server", nil, false, true, nil, nil)
+			managedWithOwnerHosts(t, c, survivor, "a.example", "shared.example")
+			managedWithOwnerHosts(t, c, deleted, "b.example", "shared.example", "b2.example")
+			if authored {
+				c.Annotations[SecuredAccessCertificateAnnotation] = "true"
+			}
+			client, err := fakeclient.NewFakeClient("test", []runtime.Object{fixtureCASecret(t, "issuer", "test")}, []runtime.Object{c}, "")
+			assert.NilError(t, err)
+			m := newScopeTest(t, client)
+			definitions := client.GetSkupperClient().SkupperV2alpha1().Certificates("test")
+			secrets := client.GetKubeClient().CoreV1().Secrets("test")
+			assert.NilError(t, m.Handle(watchers.ResourceChange{Key: c.Key()}))
+			m.observe(c.Key())
+			assert.NilError(t, m.Handle(watchers.ResourceChange{Key: c.Key()}))
+			before, err := secrets.Get(context.Background(), "leaf", metav1.GetOptions{})
+			assert.NilError(t, err)
+			current, err := definitions.Get(context.Background(), "leaf", metav1.GetOptions{})
+			assert.NilError(t, err)
+			current.OwnerReferences = []metav1.OwnerReference{survivor}
+			_, err = definitions.Update(context.Background(), current, metav1.UpdateOptions{})
+			assert.NilError(t, err)
+			for i := 0; i < 3; i++ {
+				m.observe(c.Key())
+				assert.NilError(t, m.Handle(watchers.ResourceChange{Key: c.Key()}))
+			}
+			actual, err := definitions.Get(context.Background(), "leaf", metav1.GetOptions{})
+			assert.NilError(t, err)
+			assert.DeepEqual(t, actual.OwnerReferences, []metav1.OwnerReference{survivor})
+			assert.Equal(t, actual.Annotations[CertificateHostsAnnotationPrefix+"survivor-uid"], "a.example,shared.example")
+			after, err := secrets.Get(context.Background(), "leaf", metav1.GetOptions{})
+			assert.NilError(t, err)
+			if authored {
+				// The SecuredAccess aggregate scope, not realization, retires the
+				// deleted Access's contribution; realization leaves it and the Secret alone.
+				assert.DeepEqual(t, actual.Spec, c.Spec)
+				assert.DeepEqual(t, actual.Annotations, c.Annotations)
+				assert.DeepEqual(t, after, before)
+				return
+			}
+			_, retained := actual.Annotations[CertificateHostsAnnotationPrefix+"deleted-uid"]
+			assert.Assert(t, !retained, "legacy realization prunes the GC'd owner's contribution")
+			assert.DeepEqual(t, actual.Spec.Hosts, []string{"a.example", "shared.example"})
+			assert.Equal(t, after.Annotations["internal.skupper.io/hosts"], "a.example,shared.example")
+		})
+	}
+}
+
 func TestOwnerCleanupAwaitsObservation(t *testing.T) {
 	c := managedWithOwnerHosts(t, certificate("ca", "test", "issuer", "server", []string{"obsolete.example"}, false, true, nil, nil), metav1.OwnerReference{UID: "gone"}, "obsolete.example")
 	c.OwnerReferences = nil
