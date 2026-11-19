@@ -164,6 +164,7 @@ func setStatusCondition(conditions *[]v1.Condition, newCondition v1.Condition) (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // Site defines the location and configuration of a skupper site
+// +kubebuilder:validation:XValidation:rule="(has(oldSelf.spec) && has(oldSelf.spec.mode)) == (has(self.spec) && has(self.spec.mode)) && (!has(oldSelf.spec) || !has(oldSelf.spec.mode) || self.spec.mode == oldSelf.spec.mode)",message="spec.mode is immutable"
 type Site struct {
 	v1.TypeMeta   `json:",inline"`
 	v1.ObjectMeta `json:"metadata,omitempty"`
@@ -194,13 +195,43 @@ type SiteList struct {
 	Items       []Site `json:"items"`
 }
 
+type SiteMode string
+
+const (
+	SiteModeDedicated          SiteMode = "dedicated"
+	SiteModeDedicatedEdge      SiteMode = "dedicatedEdge"
+	SiteModeTransit            SiteMode = "transit"
+	SiteModeClusterShared      SiteMode = "clusterShared"
+	SiteModeClusterSharedSmall SiteMode = "clusterSharedSmall"
+	SiteModeGuest              SiteMode = "guest"
+)
+
+// +kubebuilder:validation:XValidation:rule="!has(self.edge) || !self.edge || !has(self.mode) || self.mode == 'dedicatedEdge'",message="spec.edge cannot be true when spec.mode is set to a value other than 'dedicatedEdge'"
 type SiteSpec struct {
-	ServiceAccount string            `json:"serviceAccount,omitempty"`
-	LinkAccess     string            `json:"linkAccess,omitempty"`
-	DefaultIssuer  string            `json:"defaultIssuer,omitempty"`
-	Edge           bool              `json:"edge,omitempty"`
-	HA             bool              `json:"ha,omitempty"`
-	Settings       map[string]string `json:"settings,omitempty"`
+	ServiceAccount string `json:"serviceAccount,omitempty"`
+	LinkAccess     string `json:"linkAccess,omitempty"`
+	DefaultIssuer  string `json:"defaultIssuer,omitempty"`
+	// Deprecated: use Mode set to SiteModeDedicatedEdge instead.
+	Edge bool `json:"edge,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum=dedicated;dedicatedEdge;transit;clusterShared;clusterSharedSmall;guest
+	Mode     *SiteMode         `json:"mode,omitempty"`
+	HA       bool              `json:"ha,omitempty"`
+	Settings map[string]string `json:"settings,omitempty"`
+}
+
+func (s *SiteSpec) GetMode() SiteMode {
+	if s.Mode != nil && *s.Mode != "" {
+		return *s.Mode
+	}
+	if s.Edge {
+		return SiteModeDedicatedEdge
+	}
+	return SiteModeDedicated
+}
+
+func (s *SiteSpec) IsEdge() bool {
+	return s.GetMode() == SiteModeDedicatedEdge
 }
 
 func (s *SiteSpec) GetServiceAccount() string {

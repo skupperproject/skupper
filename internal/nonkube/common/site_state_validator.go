@@ -69,7 +69,7 @@ func (s *SiteStateValidator) validateSite(site *v2alpha1.Site) error {
 	if err := ValidateName(site.Name); err != nil {
 		return fmt.Errorf("invalid site name: %w", err)
 	}
-	if site.Spec.Edge && site.Spec.HA {
+	if site.Spec.IsEdge() && site.Spec.HA {
 		return fmt.Errorf("invalid site %q: edge sites cannot have HA enabled", site.Name)
 	}
 	return nil

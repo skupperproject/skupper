@@ -159,6 +159,8 @@ func (cmd *CmdSiteUpdate) Run() error {
 		},
 		Spec: v2alpha1.SiteSpec{
 			LinkAccess: updatedLinkAccessType,
+			Edge:       currentSite.Spec.Edge,
+			Mode:       currentSite.Spec.Mode,
 			HA:         updatedHA,
 		},
 		Status: currentSite.Status,

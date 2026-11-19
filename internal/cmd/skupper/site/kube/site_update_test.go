@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -458,6 +459,37 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("preserves mode and edge on update", func(t *testing.T) {
+		mode := v2alpha1.SiteModeDedicatedEdge
+		command := &CmdSiteUpdate{
+			Namespace:      "test",
+			siteName:       "my-site",
+			linkAccessType: "default",
+		}
+		fakeSkupperClient, err := fakeclient.NewFakeClient(command.Namespace, nil, []runtime.Object{
+			&v2alpha1.Site{
+				ObjectMeta: v1.ObjectMeta{
+					Name:      "my-site",
+					Namespace: "test",
+				},
+				Spec: v2alpha1.SiteSpec{
+					Edge: true,
+					Mode: &mode,
+				},
+			},
+		}, "")
+		assert.Assert(t, err)
+		command.Client = fakeSkupperClient.GetSkupperClient().SkupperV2alpha1()
+
+		assert.NilError(t, command.Run())
+
+		updated, err := command.Client.Sites(command.Namespace).Get(context.TODO(), "my-site", v1.GetOptions{})
+		assert.NilError(t, err)
+		assert.Assert(t, updated.Spec.Mode != nil)
+		assert.Equal(t, *updated.Spec.Mode, v2alpha1.SiteModeDedicatedEdge)
+		assert.Equal(t, updated.Spec.Edge, true)
+	})
 }
 
 func TestCmdSiteUpdate_WaitUntil(t *testing.T) {
