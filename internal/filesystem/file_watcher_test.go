@@ -471,11 +471,12 @@ func TestFileWatcherNoDuplicateCreateDuringScan(t *testing.T) {
 
 	w, err := NewWatcher(slog.String("owner", "test.watcher"))
 	assert.Assert(t, err)
-	w.afterWatchAdd = func() {
+	testAfterWatchAdd = func() {
 		f, err := os.Create(file)
 		assert.Check(t, err)
 		assert.Check(t, f.Close())
 	}
+	t.Cleanup(func() { testAfterWatchAdd = nil })
 	w.Add(dir, handler)
 	stop := make(chan struct{})
 	defer close(stop)
@@ -556,7 +557,8 @@ func TestFileWatcherScanSkipsVanishedFile(t *testing.T) {
 	w, err := NewWatcher()
 	assert.Assert(t, err)
 	defer w.watcher.Close()
-	w.afterWatchAdd = func() { assert.Assert(t, os.Remove(file)) }
+	testAfterWatchAdd = func() { assert.Assert(t, os.Remove(file)) }
+	t.Cleanup(func() { testAfterWatchAdd = nil })
 
 	handler := newCounterHandler(func(string) bool { return true })
 	existing, err := w.addAndScan(file, false, []FSChangeHandler{handler})
@@ -599,10 +601,11 @@ func TestFileWatcherRemoveRecreateDuringScan(t *testing.T) {
 	handler := newCounterHandler(func(name string) bool { return filepath.Dir(name) == dir })
 	w, err := NewWatcher(slog.String("owner", "test.watcher"))
 	assert.Assert(t, err)
-	w.afterWatchAdd = func() {
+	testAfterWatchAdd = func() {
 		assert.Assert(t, os.Remove(file))
 		assert.Assert(t, os.WriteFile(file, []byte("new"), 0600))
 	}
+	t.Cleanup(func() { testAfterWatchAdd = nil })
 	w.Add(dir, handler)
 	stop := make(chan struct{})
 	defer close(stop)
