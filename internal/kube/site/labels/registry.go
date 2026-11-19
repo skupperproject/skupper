@@ -90,14 +90,22 @@ func (l *LabelsAndAnnotations) SetAnnotations(namespace string, name string, kin
 }
 
 func (l *LabelsAndAnnotations) SetObjectMetadata(namespace string, name string, kind string, meta *metav1.ObjectMeta) bool {
-	return l.setObjectMetadata(namespace, name, kind, meta, false)
+	return l.setObjectMetadata(namespace, name, kind, meta, false, nil)
 }
 
 func (l *LabelsAndAnnotations) SetPodObjectMetadata(namespace string, name string, kind string, meta *metav1.ObjectMeta) bool {
-	return l.setObjectMetadata(namespace, name, kind, meta, true)
+	return l.setObjectMetadata(namespace, name, kind, meta, true, nil)
 }
 
-func (l *LabelsAndAnnotations) setObjectMetadata(namespace string, name string, kind string, meta *metav1.ObjectMeta, requireIncludePods bool) bool {
+// ApplyObjectMetadata evaluates against full metadata, including chained labels,
+// and returns the policy's authored keys even when their values already match.
+func (l *LabelsAndAnnotations) ApplyObjectMetadata(namespace, name, kind string, meta *metav1.ObjectMeta) metav1.ObjectMeta {
+	applied := metav1.ObjectMeta{Labels: map[string]string{}, Annotations: map[string]string{}}
+	l.setObjectMetadata(namespace, name, kind, meta, false, &applied)
+	return applied
+}
+
+func (l *LabelsAndAnnotations) setObjectMetadata(namespace string, name string, kind string, meta *metav1.ObjectMeta, requireIncludePods bool, applied *metav1.ObjectMeta) bool {
 	if meta == nil {
 		return false
 	}
@@ -109,13 +117,13 @@ func (l *LabelsAndAnnotations) setObjectMetadata(namespace string, name string, 
 	}
 	changed := false
 	if registry, ok := l.namespaces[namespace]; ok {
-		if registry.filter(name, kind, meta.Labels, meta.Labels, meta.Annotations, requireIncludePods) {
+		if registry.filter(name, kind, meta.Labels, meta.Labels, meta.Annotations, requireIncludePods, applied) {
 			changed = true
 		}
 	}
 	if namespace != l.controllerNamespace {
 		if registry, ok := l.namespaces[l.controllerNamespace]; ok {
-			if registry.filter(name, kind, meta.Labels, meta.Labels, meta.Annotations, requireIncludePods) {
+			if registry.filter(name, kind, meta.Labels, meta.Labels, meta.Annotations, requireIncludePods, applied) {
 				changed = true
 			}
 		}
@@ -180,14 +188,14 @@ func (r *Registry) update(key string, cm *corev1.ConfigMap) error {
 }
 
 func (r *Registry) setLabels(name string, kind string, target map[string]string, labels map[string]string, requireIncludePods bool) bool {
-	return r.filter(name, kind, target, labels, nil, requireIncludePods)
+	return r.filter(name, kind, target, labels, nil, requireIncludePods, nil)
 }
 
 func (r *Registry) setAnnotations(name string, kind string, target map[string]string, annotations map[string]string, requireIncludePods bool) bool {
-	return r.filter(name, kind, target, nil, annotations, requireIncludePods)
+	return r.filter(name, kind, target, nil, annotations, requireIncludePods, nil)
 }
 
-func (r *Registry) filter(name string, kind string, target map[string]string, labels map[string]string, annotations map[string]string, requireIncludePods bool) bool {
+func (r *Registry) filter(name string, kind string, target map[string]string, labels map[string]string, annotations map[string]string, requireIncludePods bool, applied *metav1.ObjectMeta) bool {
 	changed := false
 	// Conflicting templates in one namespace must have a stable precedence.
 	keys := make([]string, 0, len(r.config))
@@ -221,6 +229,9 @@ func (r *Registry) filter(name string, kind string, target map[string]string, la
 				if isExcluded(k, excludes) {
 					continue
 				}
+				if applied != nil {
+					applied.Labels[k] = v
+				}
 				if v2, ok := labels[k]; !ok || v != v2 {
 					labels[k] = v
 					changed = true
@@ -231,6 +242,9 @@ func (r *Registry) filter(name string, kind string, target map[string]string, la
 			for k, v := range cm.ObjectMeta.Annotations {
 				if isExcluded(k, excludes) {
 					continue
+				}
+				if applied != nil {
+					applied.Annotations[k] = v
 				}
 				if v2, ok := annotations[k]; !ok || v != v2 {
 					annotations[k] = v
