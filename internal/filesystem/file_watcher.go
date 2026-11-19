@@ -49,8 +49,6 @@ type FileWatcher struct {
 	scannedPaths map[string]os.FileInfo
 }
 
-var testAfterWatchAdd func()
-
 func NewWatcher(attrs ...slog.Attr) (*FileWatcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -356,9 +354,6 @@ func (w *FileWatcher) addAndScan(path string, isDir bool, handlers []FSChangeHan
 			slog.String("path", path),
 			slog.String("error", err.Error()))
 		return nil, err
-	}
-	if testAfterWatchAdd != nil {
-		testAfterWatchAdd()
 	}
 	var existing []string
 	infos := map[string]os.FileInfo{}
