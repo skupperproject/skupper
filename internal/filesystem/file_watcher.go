@@ -34,17 +34,19 @@ type eventTrigger struct {
 // recommended to watch directories over files (you can add filters
 // to limit the scope of files to be observed by your handler).
 type FileWatcher struct {
-	runningLock sync.Mutex
-	handlerLock sync.RWMutex
-	watcherLock sync.Mutex
-	logger      *slog.Logger
-	started     bool
-	resyncing   atomic.Bool
-	watcher     *fsnotify.Watcher
-	errCh       chan error
-	refresh     chan bool
-	triggerCh   chan eventTrigger
-	handlerMap  map[string][]FSChangeHandler
+	runningLock  sync.Mutex
+	handlerLock  sync.RWMutex
+	watcherLock  sync.Mutex
+	scannedLock  sync.Mutex
+	logger       *slog.Logger
+	started      bool
+	resyncing    atomic.Bool
+	watcher      *fsnotify.Watcher
+	errCh        chan error
+	refresh      chan bool
+	triggerCh    chan eventTrigger
+	handlerMap   map[string][]FSChangeHandler
+	scannedPaths map[string]os.FileInfo
 }
 
 func NewWatcher(attrs ...slog.Attr) (*FileWatcher, error) {
@@ -61,11 +63,12 @@ func NewWatcher(attrs ...slog.Attr) (*FileWatcher, error) {
 		// The watcher's own error channel. Kept as a field so tests can
 		// substitute a channel they control, since fsnotify closes this one
 		// from a goroutine that shutdown does not synchronize with.
-		errCh:      watcher.Errors,
-		logger:     logger,
-		refresh:    make(chan bool),
-		triggerCh:  make(chan eventTrigger),
-		handlerMap: map[string][]FSChangeHandler{},
+		errCh:        watcher.Errors,
+		logger:       logger,
+		refresh:      make(chan bool),
+		triggerCh:    make(chan eventTrigger),
+		handlerMap:   map[string][]FSChangeHandler{},
+		scannedPaths: map[string]os.FileInfo{},
 	}, nil
 }
 
@@ -106,8 +109,12 @@ func (w *FileWatcher) processEvents(stopCh <-chan struct{}) {
 			handlers := w.filterHandlers(event.Name)
 			switch {
 			case event.Has(fsnotify.Create):
+				if w.consumeScanned(event.Name) {
+					w.logger.Debug("suppressing duplicate OnCreate from fsnotify (already scanned)",
+						slog.String("name", event.Name))
+					break
+				}
 				for _, handler := range handlers {
-					//go handler.OnCreate(event.Name)
 					w.logger.Info("OnCreate", slog.String("name", event.Name))
 					select {
 					case w.triggerCh <- eventTrigger{operation: handler.OnCreate, name: event.Name}:
@@ -118,14 +125,20 @@ func (w *FileWatcher) processEvents(stopCh <-chan struct{}) {
 			case event.Has(fsnotify.Write):
 				for _, handler := range handlers {
 					w.logger.Info("OnUpdate", slog.String("name", event.Name))
-					//go handler.OnUpdate(event.Name)
 					select {
 					case w.triggerCh <- eventTrigger{operation: handler.OnUpdate, name: event.Name}:
 					case <-stopCh:
 						return
 					}
 				}
+			case event.Has(fsnotify.Rename):
+				w.scannedLock.Lock()
+				delete(w.scannedPaths, event.Name)
+				w.scannedLock.Unlock()
 			case event.Has(fsnotify.Remove):
+				if w.dropStaleScanned(event.Name) {
+					handlers = nil
+				}
 				for _, handler := range handlers {
 					w.logger.Info("OnRemove", slog.String("name", event.Name))
 					//go handler.OnRemove(event.Name)
@@ -178,6 +191,61 @@ func (w *FileWatcher) setStarted(started bool) {
 	w.runningLock.Lock()
 	defer w.runningLock.Unlock()
 	w.started = started
+}
+
+// consumeScanned reports whether an fsnotify Create event for name duplicates
+// an OnCreate dispatched by the initial scan, removing the scan record.
+func (w *FileWatcher) consumeScanned(name string) bool {
+	w.scannedLock.Lock()
+	scanned, ok := w.scannedPaths[name]
+	if ok {
+		delete(w.scannedPaths, name)
+	}
+	w.scannedLock.Unlock()
+
+	if !ok || scanned == nil {
+		return false
+	}
+	current, err := os.Lstat(name)
+	if err != nil {
+		return errors.Is(err, os.ErrNotExist)
+	}
+	return os.SameFile(scanned, current)
+}
+
+// dropStaleScanned removes the scan record for name unless name still matches
+// the scanned file identity, returning true if the record was retained.
+func (w *FileWatcher) dropStaleScanned(name string) bool {
+	w.scannedLock.Lock()
+	scanned, ok := w.scannedPaths[name]
+	w.scannedLock.Unlock()
+	if !ok {
+		return false
+	}
+	if scanned != nil {
+		if current, err := os.Lstat(name); err == nil && os.SameFile(scanned, current) {
+			return true
+		}
+	}
+	w.scannedLock.Lock()
+	defer w.scannedLock.Unlock()
+	if latest, ok := w.scannedPaths[name]; ok && latest == scanned {
+		delete(w.scannedPaths, name)
+	}
+	return false
+}
+
+// forgetScanned removes scan records for path and its direct children.
+func (w *FileWatcher) forgetScanned(path string) {
+	path = filepath.Clean(path)
+	w.scannedLock.Lock()
+	defer w.scannedLock.Unlock()
+	for name := range w.scannedPaths {
+		cleanName := filepath.Clean(name)
+		if cleanName == path || filepath.Dir(cleanName) == path {
+			delete(w.scannedPaths, name)
+		}
+	}
 }
 
 // resync re-emits OnCreate for the files currently present under each watched
@@ -277,6 +345,53 @@ func (w *FileWatcher) monitorPaths(stopCh <-chan struct{}) {
 	}
 }
 
+// addAndScan registers path with fsnotify and records existing matching entries in scannedPaths.
+func (w *FileWatcher) addAndScan(path string, isDir bool, handlers []FSChangeHandler) ([]string, error) {
+	w.scannedLock.Lock()
+	defer w.scannedLock.Unlock()
+	if err := w.watcher.Add(path); err != nil {
+		w.logger.Error("error adding monitored path",
+			slog.String("path", path),
+			slog.String("error", err.Error()))
+		return nil, err
+	}
+	var existing []string
+	infos := map[string]os.FileInfo{}
+	if isDir {
+		pathEntries, err := os.ReadDir(path)
+		if err != nil {
+			w.logger.Error("error reading monitored path",
+				slog.String("path", path),
+				slog.String("error", err.Error()))
+			return nil, nil
+		}
+		for _, entry := range pathEntries {
+			name := filepath.Join(path, entry.Name())
+			info, err := entry.Info()
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			existing = append(existing, name)
+			infos[name] = info
+		}
+	} else {
+		info, err := os.Lstat(path)
+		if !errors.Is(err, os.ErrNotExist) {
+			existing = append(existing, path)
+			infos[path] = info
+		}
+	}
+	for _, name := range existing {
+		for _, handler := range handlers {
+			if handler.Filter(name) {
+				w.scannedPaths[name] = infos[name]
+				break
+			}
+		}
+	}
+	return existing, nil
+}
+
 func (w *FileWatcher) manageWatchers(stopCh <-chan struct{}) {
 	w.watcherLock.Lock()
 	defer w.watcherLock.Unlock()
@@ -301,6 +416,7 @@ func (w *FileWatcher) manageWatchers(stopCh <-chan struct{}) {
 				w.logger.Debug("Monitored path removed",
 					slog.String("path", path))
 			}
+			w.forgetScanned(path)
 			continue
 		}
 		if slices.Contains(w.watcher.WatchList(), path) {
@@ -308,26 +424,9 @@ func (w *FileWatcher) manageWatchers(stopCh <-chan struct{}) {
 		}
 		w.logger.Debug("Monitored path added",
 			slog.String("path", path))
-		if err = w.watcher.Add(path); err != nil {
-			w.logger.Error("error adding monitored path",
-				slog.String("path", path),
-				slog.String("error", err.Error()))
+		existingFilesAndDirectories, err := w.addAndScan(path, stat.IsDir(), handlers)
+		if err != nil {
 			continue
-		}
-		var existingFilesAndDirectories []string
-		if stat.IsDir() {
-			pathEntries, err := os.ReadDir(path)
-			if err != nil {
-				w.logger.Error("error reading monitored path",
-					slog.String("path", path),
-					slog.String("error", err.Error()))
-			}
-			for _, entry := range pathEntries {
-				entryName := filepath.Join(path, entry.Name())
-				existingFilesAndDirectories = append(existingFilesAndDirectories, entryName)
-			}
-		} else {
-			existingFilesAndDirectories = append(existingFilesAndDirectories, path)
 		}
 		for _, handler := range handlers {
 			select {
