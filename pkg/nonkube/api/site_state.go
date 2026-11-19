@@ -75,7 +75,7 @@ func (s *SiteState) IsBundle() bool {
 }
 
 func (s *SiteState) IsInterior() bool {
-	return !s.Site.Spec.Edge
+	return !s.Site.Spec.IsEdge()
 }
 
 func (s *SiteState) HasRouterAccess() bool {

@@ -16,6 +16,20 @@ import (
 
 func TestSiteState_IsInterior(t *testing.T) {
 	assert.Assert(t, fakeSiteState().IsInterior())
+
+	edgeState := fakeSiteState()
+	edgeState.Site.Spec.Edge = true
+	assert.Assert(t, !edgeState.IsInterior())
+
+	dedicatedEdge := v2alpha1.SiteModeDedicatedEdge
+	modeEdgeState := fakeSiteState()
+	modeEdgeState.Site.Spec.Mode = &dedicatedEdge
+	assert.Assert(t, !modeEdgeState.IsInterior())
+
+	dedicated := v2alpha1.SiteModeDedicated
+	modeDedicatedState := fakeSiteState()
+	modeDedicatedState.Site.Spec.Mode = &dedicated
+	assert.Assert(t, modeDedicatedState.IsInterior())
 }
 
 func TestSiteState_CreateBridgeCertificates(t *testing.T) {

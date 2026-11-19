@@ -36,9 +36,27 @@ func TestSiteStateValidator_Validate(t *testing.T) {
 			errorContains: "edge sites cannot have HA enabled",
 		},
 		{
+			info: "invalid-site-dedicated-edge-mode-with-ha",
+			siteState: customize(func(siteState *api.SiteState) {
+				mode := v2alpha1.SiteModeDedicatedEdge
+				siteState.Site.Spec.Mode = &mode
+				siteState.Site.Spec.HA = true
+			}),
+			valid:         false,
+			errorContains: "edge sites cannot have HA enabled",
+		},
+		{
 			info: "valid-site-edge-without-ha",
 			siteState: customize(func(siteState *api.SiteState) {
 				siteState.Site.Spec.Edge = true
+			}),
+			valid: true,
+		},
+		{
+			info: "valid-site-dedicated-edge-mode-without-ha",
+			siteState: customize(func(siteState *api.SiteState) {
+				mode := v2alpha1.SiteModeDedicatedEdge
+				siteState.Site.Spec.Mode = &mode
 			}),
 			valid: true,
 		},
