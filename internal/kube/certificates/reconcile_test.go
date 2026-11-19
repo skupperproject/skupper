@@ -24,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
@@ -45,8 +44,10 @@ func newScopeTest(t *testing.T, client internalclient.Clients) *scopeTest {
 	m := NewCertificateManager(p)
 	ci := cache.NewSharedIndexInformer(&cache.ListWatch{}, &skupperv2alpha1.Certificate{}, 0, cache.Indexers{})
 	si := cache.NewSharedIndexInformer(&cache.ListWatch{}, &corev1.Secret{}, 0, cache.Indexers{})
-	m.certificateWatcher = watchers.NewResourceWatcher(m.certificateChanged, skupperv2alpha1.SchemeGroupVersion, ci)
-	m.secretWatcher = watchers.NewResourceWatcher(m.secretChanged, corev1.SchemeGroupVersion, si)
+	m.BindCaches(
+		watchers.NewResourceWatcher[*skupperv2alpha1.Certificate](nil, skupperv2alpha1.SchemeGroupVersion, ci),
+		watchers.NewResourceWatcher[*corev1.Secret](nil, corev1.SchemeGroupVersion, si),
+	)
 	h := &scopeTest{m, t, ci.GetStore(), si.GetStore()}
 	cs, err := client.GetSkupperClient().SkupperV2alpha1().Certificates("").List(context.Background(), metav1.ListOptions{})
 	assert.NilError(t, err)
@@ -303,7 +304,7 @@ func TestSigningCertificateHosts(t *testing.T) {
 	}
 }
 
-func TestSecretEventRouting(t *testing.T) {
+func TestCAConsumerRealization(t *testing.T) {
 	ctx := context.Background()
 	ca := fixtureCASecret(t, "ca", "test")
 	ca.Annotations = map[string]string{"internal.skupper.io/controlled": "true"}
@@ -317,8 +318,9 @@ func TestSecretEventRouting(t *testing.T) {
 	client, err := fakeclient.NewFakeClient("test", []runtime.Object{ca}, []runtime.Object{parent, leaf, second, otherCA, otherNS, signing}, "")
 	assert.NilError(t, err)
 	m := newScopeTest(t, client)
-	assert.NilError(t, m.secretWatcher.Handle(watchers.ResourceChange{Key: "test/ca"}))
-	m.processor.TestProcessAll()
+	for _, c := range []*skupperv2alpha1.Certificate{parent, leaf, second} {
+		assert.NilError(t, m.Handle(watchers.ResourceChange{Key: c.Key()}))
+	}
 	for _, c := range []*skupperv2alpha1.Certificate{parent, leaf, second} {
 		actual, err := client.GetSkupperClient().SkupperV2alpha1().Certificates(c.Namespace).Get(ctx, c.Name, metav1.GetOptions{})
 		assert.NilError(t, err)
@@ -334,17 +336,16 @@ func TestSecretEventRouting(t *testing.T) {
 		assert.NilError(t, err)
 		assert.DeepEqual(t, actual.Status, c.Status)
 	}
-	// A Secret deletion observation routes the leaf scope even though it is not a CA.
+	// A missing leaf output is recreated from the current cache snapshot.
 	m.observe("test/leaf")
 	assert.NilError(t, client.GetKubeClient().CoreV1().Secrets("test").Delete(ctx, "leaf", metav1.DeleteOptions{}))
 	m.observe("test/leaf")
-	assert.NilError(t, m.secretWatcher.Handle(watchers.ResourceChange{Key: "test/leaf"}))
-	m.processor.TestProcessAll()
+	assert.NilError(t, m.Handle(watchers.ResourceChange{Key: "test/leaf"}))
 	_, err = client.GetKubeClient().CoreV1().Secrets("test").Get(ctx, "leaf", metav1.GetOptions{})
 	assert.NilError(t, err)
 }
 
-func TestCertificateEventRouting(t *testing.T) {
+func TestAuthoredStateAcknowledgment(t *testing.T) {
 	initial := fixtureCASecret(t, "ca", "test")
 	initial.Annotations = map[string]string{"internal.skupper.io/controlled": "true", "internal.skupper.io/certificate": "true"}
 	initial.OwnerReferences = []metav1.OwnerReference{{APIVersion: "skupper.io/v2alpha1", Kind: "Certificate", Name: "ca"}}
@@ -365,8 +366,10 @@ func TestCertificateEventRouting(t *testing.T) {
 				assert.NilError(t, api.Delete(context.Background(), "ca", metav1.DeleteOptions{}))
 			}
 			m.observe("test/ca")
-			assert.NilError(t, m.certificateWatcher.Handle(watchers.ResourceChange{Key: "test/ca"}))
-			m.processor.TestProcessAll()
+			observed, err := m.certificateWatcher.Get("test/ca")
+			assert.NilError(t, err)
+			m.ObserveAuthored("test/ca", observed)
+			assert.NilError(t, m.Handle(watchers.ResourceChange{Key: "test/ca"}))
 			s, err := client.GetKubeClient().CoreV1().Secrets("test").Get(context.Background(), "ca", metav1.GetOptions{})
 			if observation == "deleted" {
 				assert.NilError(t, err)
@@ -404,65 +407,6 @@ func TestCertificateEventRouting(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestCertificateWatchDelivery(t *testing.T) {
-	ctx := context.Background()
-	leaf := certificate("leaf", "test", "ca", "server", []string{"example.test", "10.1.2.3"}, false, true, nil, nil)
-	client, err := fakeclient.NewFakeClient("test", nil, []runtime.Object{leaf}, "")
-	assert.NilError(t, err)
-	secrets := client.GetKubeClient().CoreV1().Secrets("test")
-	definitions := client.GetSkupperClient().SkupperV2alpha1().Certificates("test")
-	p := watchers.NewEventProcessor("cert-test", client)
-	m := NewCertificateManager(p)
-	m.SetControllerContext(fakeContext().control("test"))
-	m.Watch(metav1.NamespaceAll)
-	watchContext, stop := context.WithCancel(ctx)
-	defer stop()
-	defer p.Stop()
-	p.StartWatchers(watchContext.Done())
-	syncContext, cancelSync := context.WithTimeout(ctx, 5*time.Second)
-	defer cancelSync()
-	assert.Assert(t, p.WaitForCacheSync(syncContext.Done()), "Certificate and Secret initial lists did not sync")
-	until := func(description string, check func() bool) {
-		t.Helper()
-		err := wait.PollUntilContextTimeout(ctx, 10*time.Millisecond, 5*time.Second, true, func(context.Context) (bool, error) {
-			p.TestProcessAll()
-			return check(), nil
-		})
-		if err != nil {
-			c, _ := definitions.Get(ctx, "leaf", metav1.GetOptions{})
-			s, secretErr := secrets.Get(ctx, "leaf", metav1.GetOptions{})
-			t.Fatalf("waiting for %s: %v; Certificate=%+v; Secret exists=%t, error=%v", description, err, c, s != nil, secretErr)
-		}
-	}
-	ready := func() bool {
-		c, err := definitions.Get(ctx, "leaf", metav1.GetOptions{})
-		return err == nil && meta.IsStatusConditionTrue(c.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_READY)
-	}
-	until("initial list to report missing CA", func() bool {
-		c, _ := definitions.Get(ctx, "leaf", metav1.GetOptions{})
-		condition := meta.FindStatusCondition(c.Status.Conditions, skupperv2alpha1.CONDITION_TYPE_READY)
-		return condition != nil && condition.Status == metav1.ConditionFalse && condition.Message == `CA "test/ca" not found`
-	})
-	// The CA arrives after startup and after the initial error. No Certificate
-	// update or recovery call is needed to wake its dependent scope.
-	_, err = secrets.Create(ctx, fixtureCASecret(t, "ca", "test"), metav1.CreateOptions{})
-	assert.NilError(t, err)
-	until("CA watch to issue leaf", ready)
-	before, err := secrets.Get(ctx, "leaf", metav1.GetOptions{})
-	assert.NilError(t, err)
-	decoded, err := certs.DecodeCertificate(before.Data["tls.crt"])
-	assert.NilError(t, err)
-	assert.Equal(t, decoded.Subject.CommonName, "server")
-	assert.NilError(t, decoded.VerifyHostname("example.test"))
-	assert.NilError(t, decoded.VerifyHostname("10.1.2.3"))
-	assert.DeepEqual(t, before.OwnerReferences, ownerReferences(leaf))
-	assert.NilError(t, secrets.Delete(ctx, "leaf", metav1.DeleteOptions{}))
-	until("Secret deletion watch to recreate leaf", func() bool {
-		s, err := secrets.Get(ctx, "leaf", metav1.GetOptions{})
-		return err == nil && !reflect.DeepEqual(s.Data, before.Data) && ready()
-	})
 }
 
 func TestEnsureCachedAuthoring(t *testing.T) {
@@ -504,7 +448,9 @@ func TestEnsureCachedAuthoring(t *testing.T) {
 	// Deliver an older queued observation after another successful write. The
 	// next call must refresh rather than treating that stale snapshot as current.
 	assert.NilError(t, ensure(m, []string{"b.example"}, alice))
-	assert.NilError(t, m.certificateWatcher.Handle(watchers.ResourceChange{Key: "test/leaf"}))
+	observed, err := m.certificateWatcher.Get("test/leaf")
+	assert.NilError(t, err)
+	m.ObserveAuthored("test/leaf", observed)
 	assert.NilError(t, ensure(m, []string{"a.example"}, alice))
 	assert.NilError(t, ensure(m, []string{"z.example"}, bob))
 	actual, err = sk.SkupperV2alpha1().Certificates("test").Get(ctx, "leaf", metav1.GetOptions{})
@@ -530,7 +476,7 @@ func TestEnsureCachedAuthoring(t *testing.T) {
 	// Deletion is another ambiguous notification. Do not retain a successful
 	// write forever: refresh and recreate instead of reporting a false no-op.
 	assert.NilError(t, sk.SkupperV2alpha1().Certificates("test").Delete(ctx, "leaf", metav1.DeleteOptions{}))
-	assert.NilError(t, m.certificateWatcher.Handle(watchers.ResourceChange{Key: "test/leaf"}))
+	m.ObserveAuthored("test/leaf", observed)
 	assert.NilError(t, ensure(m, []string{"c.example"}, alice))
 	actual, err = sk.SkupperV2alpha1().Certificates("test").Get(ctx, "leaf", metav1.GetOptions{})
 	assert.NilError(t, err)

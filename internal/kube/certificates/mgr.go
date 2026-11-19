@@ -52,12 +52,13 @@ func NewCertificateManager(processor *watchers.EventProcessor) *CertificateManag
 
 func (m *CertificateManagerImpl) SetControllerContext(context ControllerContext) { m.context = context }
 
-func (m *CertificateManagerImpl) Watch(namespace string) {
-	m.certificateWatcher = m.processor.WatchCertificates(namespace, m.certificateChanged)
-	m.secretWatcher = m.processor.WatchAllSecrets(namespace, watchers.FilterByNamespace(m.isControlled, m.secretChanged))
+func (m *CertificateManagerImpl) BindCaches(certificates *watchers.CertificateWatcher, secrets *watchers.SecretWatcher) {
+	m.certificateWatcher = certificates
+	m.secretWatcher = secrets
 }
 
-func (m *CertificateManagerImpl) certificateChanged(key string, observed *skupperv2alpha1.Certificate) error {
+// ObserveAuthored deprecated - remove with Ensure
+func (m *CertificateManagerImpl) ObserveAuthored(key string, observed *skupperv2alpha1.Certificate) {
 	if written, ok := m.authored[key]; ok {
 		if observed == nil || (written != nil && reflect.DeepEqual(written, observed)) {
 			delete(m.authored, key)
@@ -67,19 +68,6 @@ func (m *CertificateManagerImpl) certificateChanged(key string, observed *skuppe
 			m.authored[key] = nil
 		}
 	}
-	m.processor.Enqueue(m, key)
-	return nil
-}
-
-func (m *CertificateManagerImpl) secretChanged(key string, _ *corev1.Secret) error {
-	m.processor.Enqueue(m, key)
-	// TODO consider an informer index instead of full scan
-	for _, cert := range m.certificateWatcher.List() {
-		if !cert.Spec.Signing && cert.Namespace+"/"+cert.Spec.Ca == key {
-			m.processor.Enqueue(m, cert.Key())
-		}
-	}
-	return nil
 }
 
 func (m *CertificateManagerImpl) isControlled(namespace string) bool {

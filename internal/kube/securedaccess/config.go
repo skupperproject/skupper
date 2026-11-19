@@ -40,6 +40,16 @@ func (c *Config) isEnabled(accessType string) bool {
 	return false
 }
 
+func (c *Config) isValidAccessType(accessType string) bool {
+	switch accessType {
+	case ACCESS_TYPE_LOCAL, ACCESS_TYPE_NODEPORT, ACCESS_TYPE_LOADBALANCER, ACCESS_TYPE_ROUTE,
+		ACCESS_TYPE_INGRESS, ACCESS_TYPE_INGRESS_NGINX, ACCESS_TYPE_CONTOUR_HTTP_PROXY, ACCESS_TYPE_GATEWAY:
+		return c.isEnabled(accessType)
+	default:
+		return false
+	}
+}
+
 func (c *Config) Verify() error {
 	// check that the default access type is included in those enabled
 	if c.DefaultAccessType != "" && !c.isEnabled(c.DefaultAccessType) {
@@ -58,7 +68,7 @@ func (c *Config) Verify() error {
 
 func (c *Config) getDefaultAccessType(clients internalclient.Clients) string {
 	if c.DefaultAccessType == "" {
-		if clients.GetRouteClient() != nil && c.isEnabled(ACCESS_TYPE_ROUTE) {
+		if clients.GetRouteInterface() != nil && c.isEnabled(ACCESS_TYPE_ROUTE) {
 			return ACCESS_TYPE_ROUTE
 		}
 		if c.isEnabled(ACCESS_TYPE_LOADBALANCER) {

@@ -22,7 +22,99 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/cache"
 )
+
+func TestListenerAccessServiceCollision(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		siteFirst bool
+	}{
+		{name: "Site first", siteFirst: true},
+		{name: "Access first"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, err := newSiteMocks("test", nil, nil, "", false)
+			assert.NilError(t, err)
+			ctx := context.Background()
+			exposed := &ExposedPortSet{Host: "shared", Ports: map[string]Port{"listener": {Name: "listener", Port: 1234, TargetPort: 2345, Protocol: "TCP"}}}
+			if tc.siteFirst {
+				assert.NilError(t, s.Expose(exposed))
+			}
+			// Unstarted informers: observe copies API state into the Access caches.
+			services := cache.NewSharedIndexInformer(&cache.ListWatch{}, &corev1.Service{}, 0, cache.Indexers{})
+			accesses := cache.NewSharedIndexInformer(&cache.ListWatch{}, &skupperv2alpha1.SecuredAccess{}, 0, cache.Indexers{})
+			certificates := cache.NewSharedIndexInformer(&cache.ListWatch{}, &skupperv2alpha1.Certificate{}, 0, cache.Indexers{})
+			access := securedaccess.NewSecuredAccessManager(s.clients, &securedaccess.Config{EnabledAccessTypes: []string{"local"}}, nil)
+			access.BindCaches(&securedaccess.ResourceCaches{
+				Services:     watchers.NewResourceWatcher[*corev1.Service](nil, corev1.SchemeGroupVersion, services),
+				Accesses:     watchers.NewResourceWatcher[*skupperv2alpha1.SecuredAccess](nil, skupperv2alpha1.SchemeGroupVersion, accesses),
+				Certificates: watchers.NewResourceWatcher[*skupperv2alpha1.Certificate](nil, skupperv2alpha1.SchemeGroupVersion, certificates),
+			})
+			svcs := s.clients.GetKubeClient().CoreV1().Services("test")
+			definitions := s.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses("test")
+			observe := func() {
+				t.Helper()
+				svcList, err := svcs.List(ctx, metav1.ListOptions{})
+				assert.NilError(t, err)
+				var observed []interface{}
+				for i := range svcList.Items {
+					observed = append(observed, &svcList.Items[i])
+				}
+				assert.NilError(t, services.GetStore().Replace(observed, ""))
+				saList, err := definitions.List(ctx, metav1.ListOptions{})
+				assert.NilError(t, err)
+				observed = nil
+				for i := range saList.Items {
+					observed = append(observed, &saList.Items[i])
+				}
+				assert.NilError(t, accesses.GetStore().Replace(observed, ""))
+			}
+			reconcile := func() {
+				t.Helper()
+				for i := 0; i < 2; i++ {
+					observe()
+					assert.NilError(t, access.Handle(watchers.ResourceChange{Key: "test/shared"}))
+				}
+			}
+			_, err = definitions.Create(ctx, &skupperv2alpha1.SecuredAccess{
+				ObjectMeta: metav1.ObjectMeta{Name: "shared", Namespace: "test", UID: "access-uid"},
+				Spec: skupperv2alpha1.SecuredAccessSpec{AccessType: "local", Selector: map[string]string{"app": "backend"},
+					Ports: []skupperv2alpha1.SecuredAccessPort{{Name: "access", Port: 8080, TargetPort: 8181}}},
+			}, metav1.CreateOptions{})
+			assert.NilError(t, err)
+			reconcile()
+			sa, err := definitions.Get(ctx, "shared", metav1.GetOptions{})
+			assert.NilError(t, err)
+			if tc.siteFirst {
+				assert.Equal(t, sa.Status.Message, `Service "shared" has conflicting ownership`)
+			} else {
+				assert.Assert(t, sa.IsReady())
+			}
+			before, err := svcs.Get(ctx, "shared", metav1.GetOptions{})
+			assert.NilError(t, err)
+			if tc.siteFirst {
+				assert.Equal(t, before.OwnerReferences[0].Kind, "Site")
+				assert.Equal(t, before.Spec.Ports[0].Port, int32(1234))
+				assert.NilError(t, access.Delete("test", "shared"))
+				reconcile()
+			} else {
+				assert.Equal(t, before.OwnerReferences[0].Kind, "SecuredAccess")
+				assert.ErrorContains(t, s.Expose(exposed), "conflicting ownership")
+				assert.NilError(t, s.Unexpose("shared"))
+				// Even a copied generic listener marker cannot authorize deletion.
+				before.Labels["internal.skupper.io/listener"] = "listener"
+				before, err = svcs.Update(ctx, before, metav1.UpdateOptions{})
+				assert.NilError(t, err)
+				assert.NilError(t, s.Unexpose("shared"))
+				assert.NilError(t, s.CheckListenerService(before))
+			}
+			after, err := svcs.Get(ctx, "shared", metav1.GetOptions{})
+			assert.NilError(t, err)
+			assert.DeepEqual(t, after, before)
+		})
+	}
+}
 
 func TestListenerServiceLabelDrift(t *testing.T) {
 	for _, owner := range []string{"current Site", "stale Site", "Access", "mixed", "unowned"} {
@@ -1604,7 +1696,7 @@ func newSiteMocks(namespace string, k8sObjects []runtime.Object, skupperObjects 
 		errors:        make(map[string]string),
 		linkAccess:    make(map[string]*skupperv2alpha1.RouterAccess),
 		certs:         certificates.NewCertificateManager(controller),
-		access:        securedaccess.NewSecuredAccessManager(client, nil, &securedaccess.Config{DefaultAccessType: "loadbalancer"}, nil),
+		access:        securedaccess.NewSecuredAccessManager(client, &securedaccess.Config{DefaultAccessType: "loadbalancer"}, nil),
 		accessMapping: make(securedAccessMap),
 		routerPods:    make(map[string]*corev1.Pod),
 		sizes:         sizing.NewRegistry(),
