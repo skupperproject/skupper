@@ -1123,6 +1123,12 @@ func TestUpdate(t *testing.T) {
 	}
 	for _, tt := range testTable {
 		t.Run(tt.name, func(t *testing.T) {
+			// Unlike the API server, the fake client does not allocate identity.
+			for _, obj := range tt.skupperObjects {
+				if site, ok := obj.(*skupperv2alpha1.Site); ok && site.UID == "" {
+					site.UID = types.UID(site.Namespace + "-" + site.Name)
+				}
+			}
 			flags := &flag.FlagSet{}
 			for k, v := range tt.env {
 				t.Setenv(k, v)

@@ -24,6 +24,65 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+func TestListenerServiceLabelDrift(t *testing.T) {
+	for _, owner := range []string{"current Site", "stale Site", "Access", "mixed", "unowned"} {
+		t.Run(owner, func(t *testing.T) {
+			s, err := newSiteMocks("test", nil, nil, "", false)
+			assert.NilError(t, err)
+			ctx := context.Background()
+			exposed := &ExposedPortSet{Host: "drift", Ports: map[string]Port{"listener": {Name: "listener", Port: 8080, TargetPort: 8080, Protocol: "TCP"}}}
+			assert.NilError(t, s.Expose(exposed))
+			services := s.clients.GetKubeClient().CoreV1().Services("test")
+			before, err := services.Get(ctx, "drift", metav1.GetOptions{})
+			assert.NilError(t, err)
+			before.UID = "service-uid" // Fake API does not allocate identity.
+			delete(before.Labels, "internal.skupper.io/listener")
+			switch owner {
+			case "stale Site":
+				before.OwnerReferences[0].UID = "previous-site-uid"
+			case "Access":
+				before.OwnerReferences[0].Kind = "SecuredAccess"
+			case "mixed":
+				before.OwnerReferences = append(before.OwnerReferences, metav1.OwnerReference{APIVersion: "v1", Kind: "ConfigMap", Name: "foreign", UID: "foreign-uid"})
+			case "unowned":
+				before.OwnerReferences = nil
+			}
+			before, err = services.Update(ctx, before, metav1.UpdateOptions{})
+			assert.NilError(t, err)
+			// Label-less resources must not be discovered/deleted as stale
+			// listeners, even when the current Site owns them.
+			assert.NilError(t, s.CheckListenerService(before))
+			assert.NilError(t, s.Unexpose("drift"))
+			retained, err := services.Get(ctx, "drift", metav1.GetOptions{})
+			assert.NilError(t, err)
+			assert.DeepEqual(t, retained, before)
+			exposed.Ports["listener"] = Port{Name: "listener", Port: 8081, TargetPort: 8080, Protocol: "TCP"}
+			err = s.Expose(exposed)
+			if owner == "current Site" {
+				assert.NilError(t, err)
+				after, err := services.Get(ctx, "drift", metav1.GetOptions{})
+				assert.NilError(t, err)
+				assert.Equal(t, after.UID, before.UID)
+				assert.Equal(t, after.Labels["internal.skupper.io/listener"], "listener")
+				assert.Equal(t, after.Spec.Ports[0].Port, int32(8081))
+				assert.Equal(t, after.Spec.Ports[0].TargetPort.IntVal, int32(8080))
+				assert.DeepEqual(t, after.OwnerReferences, before.OwnerReferences)
+			} else {
+				assert.ErrorContains(t, err, "conflicting ownership")
+				// A copied label cannot authorize either deletion path.
+				before.Labels["internal.skupper.io/listener"] = "listener"
+				before, err = services.Update(ctx, before, metav1.UpdateOptions{})
+				assert.NilError(t, err)
+				assert.NilError(t, s.CheckListenerService(before))
+				assert.NilError(t, s.Unexpose("drift"))
+				after, err := services.Get(ctx, "drift", metav1.GetOptions{})
+				assert.NilError(t, err)
+				assert.DeepEqual(t, after, before)
+			}
+		})
+	}
+}
+
 func TestSite_Recover(t *testing.T) {
 	type args struct {
 		site *skupperv2alpha1.Site
