@@ -11,12 +11,45 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 )
+
+func TestTombstoneDeliveryReadsCurrentCache(t *testing.T) {
+	client, err := fakeclient.NewFakeClient("test", nil, nil, "")
+	assert.NilError(t, err)
+	for _, replacement := range []bool{false, true} {
+		t.Run(fmt.Sprintf("replacement=%t", replacement), func(t *testing.T) {
+			p := NewEventProcessor("tombstone", client)
+			defer p.Stop()
+			informer := cache.NewSharedIndexInformer(&cache.ListWatch{}, &corev1.Secret{}, 0, cache.Indexers{})
+			var observed []*corev1.Secret
+			w := NewResourceWatcher(func(key string, current *corev1.Secret) error {
+				assert.Equal(t, key, "test/secret")
+				observed = append(observed, current)
+				return nil
+			}, corev1.SchemeGroupVersion, informer)
+			old := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "secret", ResourceVersion: "1"}}
+			intake := p.newEventHandler(w)
+			intake.DeleteFunc(cache.DeletedFinalStateUnknown{Key: "test/secret", Obj: old})
+			// Repeated notifications coalesce by handler/key, not object identity.
+			intake.DeleteFunc(cache.DeletedFinalStateUnknown{Key: "test/secret"})
+			var current *corev1.Secret
+			if replacement {
+				current = old.DeepCopy()
+				current.ResourceVersion = "2"
+				assert.NilError(t, informer.GetStore().Add(current))
+			}
+			assert.Equal(t, len(observed), 0, "intake must not call consumers on informer goroutines")
+			p.TestProcessAll()
+			assert.DeepEqual(t, observed, []*corev1.Secret{current})
+		})
+	}
+}
 
 func TestNamespaceWatcher(t *testing.T) {
 	type get struct {
