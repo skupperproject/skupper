@@ -209,7 +209,7 @@ func (c *Controller) UID() string {
 }
 
 func (c *Controller) getDeploymentForPod(podName string, namespace string) (*appsv1.Deployment, error) {
-	re := regexp.MustCompile(`^(\S+)\-[a-z0-9]{9,10}\-[a-z0-9]{5}$`)
+	re := regexp.MustCompile(`^(\S+)\-[a-z0-9]+\-[a-z0-9]{5}$`)
 	matches := re.FindStringSubmatch(podName)
 	if len(matches) != 2 {
 		return nil, fmt.Errorf("Could not determine deployment name from %s", podName)
