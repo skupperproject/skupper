@@ -3,6 +3,7 @@ package grants
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -25,7 +26,8 @@ func enabled(controller *watchers.EventProcessor, currentNamespace string, watch
 	if config.AutoConfigure {
 		ac, err := newAutoConfigure(gc.securedAccessChanged, controller, currentNamespace, config)
 		if err != nil {
-			gc.logger.Error("Auto configuration of grant server failed", slog.Any("error", err))
+			gc.logger.Error("Auto configuration of grant server failed, will retry", slog.Any("error", err))
+			go ac.retryConfigure(controller, currentNamespace, time.Second, time.Minute, gc.logger)
 		}
 		gc.autoConfigure = ac
 	}
