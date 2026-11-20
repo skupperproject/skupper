@@ -3,7 +3,9 @@ package grants
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"reflect"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,6 +28,7 @@ func (s *AutoConfigure) getConfigurationFromPod(clients internalclient.Clients, 
 	if err != nil {
 		return err
 	}
+	s.ownerRefs = nil
 	for _, or := range pod.ObjectMeta.OwnerReferences {
 		s.ownerRefs = append(s.ownerRefs, metav1.OwnerReference{
 			Kind:       or.Kind,
@@ -43,8 +46,13 @@ func (s *AutoConfigure) ensureCert(clients internalclient.Clients, namespace str
 	existing, err := clients.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		_, err = clients.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Create(context.Background(), desired, metav1.CreateOptions{})
-		return err
-	} else if err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+		// another controller instance created it concurrently; reconcile against that copy
+		existing, err = clients.GetSkupperClient().SkupperV2alpha1().Certificates(namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
+	}
+	if err != nil {
 		return err
 	}
 	changed := false
@@ -67,8 +75,13 @@ func (s *AutoConfigure) ensureSecuredAccess(clients internalclient.Clients, name
 	existing, err := clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		_, err = clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Create(context.Background(), desired, metav1.CreateOptions{})
-		return err
-	} else if err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return err
+		}
+		// another controller instance created it concurrently; reconcile against that copy
+		existing, err = clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
+	}
+	if err != nil {
 		return err
 	}
 	changed := false
@@ -150,9 +163,24 @@ func newAutoConfigure(handler watchers.SecuredAccessHandler, eventProcessor *wat
 		//TODO: should setting TlsCredentialsSecret be allowed when auto configure is enabled?
 		ac.tlsCredentialsSecret = "skupper-grant-server"
 	}
-	if err := ac.configure(eventProcessor, currentNamespace); err != nil {
-		return nil, fmt.Errorf("Error creating resources for grant server: %s", err)
-	}
+	// watch first so the grant server URL is still picked up if configure fails here and succeeds on retry
 	eventProcessor.WatchSecuredAccessesWithOptions(watchers.SkupperResourceByName("skupper-grant-server"), currentNamespace, handler)
+	if err := ac.configure(eventProcessor, currentNamespace); err != nil {
+		return ac, fmt.Errorf("Error creating resources for grant server: %s", err)
+	}
 	return ac, nil
+}
+
+func (s *AutoConfigure) retryConfigure(clients internalclient.Clients, namespace string, initial time.Duration, max time.Duration, logger *slog.Logger) {
+	delay := initial
+	for {
+		time.Sleep(delay)
+		err := s.configure(clients, namespace)
+		if err == nil {
+			logger.Info("Auto configuration of grant server succeeded on retry")
+			return
+		}
+		logger.Error("Auto configuration of grant server failed, will retry", slog.Any("error", err), slog.Duration("delay", delay))
+		delay = min(delay*2, max)
+	}
 }

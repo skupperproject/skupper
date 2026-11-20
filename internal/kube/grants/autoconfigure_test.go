@@ -3,11 +3,15 @@ package grants
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8stesting "k8s.io/client-go/testing"
 
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
@@ -213,7 +217,8 @@ func Test_newAutoconfigure(t *testing.T) {
 				found = sa
 				return nil
 			}
-			_, err = newAutoConfigure(handler, controller, "test", config)
+			ac, err := newAutoConfigure(handler, controller, "test", config)
+			assert.Assert(t, ac != nil)
 			if tt.expectedError != "" {
 				assert.ErrorContains(t, err, tt.expectedError)
 			} else if err != nil {
@@ -266,5 +271,135 @@ func skupperClientError(verb string, resource string, err string) SkupperClientE
 		verb:     verb,
 		resource: resource,
 		err:      err,
+	}
+}
+
+// staleGetOnce makes the first get of a resource report NotFound even though it
+// exists, reproducing two controllers racing between get and create.
+func staleGetOnce(client internalclient.Clients, resource string) {
+	done := false
+	client.GetSkupperClient().SkupperV2alpha1().(*fakev2alpha1.FakeSkupperV2alpha1).PrependReactor("get", resource, func(action k8stesting.Action) (bool, runtime.Object, error) {
+		if done {
+			return false, nil, nil
+		}
+		done = true
+		return true, nil, k8serrors.NewNotFound(schema.GroupResource{Group: "skupper.io", Resource: resource}, action.(k8stesting.GetAction).GetName())
+	})
+}
+
+func Test_configureConcurrentCreate(t *testing.T) {
+	var tests = []struct {
+		name     string
+		resource string
+	}{
+		{
+			name:     "certificate created by another controller",
+			resource: "certificates",
+		},
+		{
+			name:     "securedaccess created by another controller",
+			resource: "securedaccesses",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			skupperObjects := []runtime.Object{
+				tf.cert("skupper-grant-server-ca", "test", "SkupperGrantServerCA", "", true, false, false, ref2),
+				tf.securedAccess("skupper-grant-server", "test", map[string]string{"foo": "bar"}, 1234, ref2),
+			}
+			client, err := fake.NewFakeClient("test", []runtime.Object{tf.pod("my-pod", "test", map[string]string{"foo": "bar"}, ref1)}, skupperObjects, "")
+			assert.Assert(t, err)
+			staleGetOnce(client, tt.resource)
+			ac := &AutoConfigure{
+				podname:              "my-pod",
+				port:                 1234,
+				tlsCredentialsSecret: "skupper-grant-server",
+			}
+			assert.Assert(t, ac.configure(client, "test"))
+
+			cert, err := client.GetSkupperClient().SkupperV2alpha1().Certificates("test").Get(context.Background(), "skupper-grant-server-ca", metav1.GetOptions{})
+			assert.Assert(t, err)
+			assert.DeepEqual(t, cert.ObjectMeta.OwnerReferences, ref1)
+			sa, err := client.GetSkupperClient().SkupperV2alpha1().SecuredAccesses("test").Get(context.Background(), "skupper-grant-server", metav1.GetOptions{})
+			assert.Assert(t, err)
+			assert.DeepEqual(t, sa.ObjectMeta.OwnerReferences, ref1)
+		})
+	}
+}
+
+func Test_configureIsRepeatable(t *testing.T) {
+	client, err := fake.NewFakeClient("test", []runtime.Object{tf.pod("my-pod", "test", map[string]string{"foo": "bar"}, ref1)}, nil, "")
+	assert.Assert(t, err)
+	ac := &AutoConfigure{
+		podname:              "my-pod",
+		port:                 1234,
+		tlsCredentialsSecret: "skupper-grant-server",
+	}
+	assert.Assert(t, ac.configure(client, "test"))
+	assert.Assert(t, ac.configure(client, "test"))
+	assert.DeepEqual(t, ac.ownerRefs, ref1)
+}
+
+func Test_retryConfigure(t *testing.T) {
+	var tests = []struct {
+		name     string
+		verb     string
+		resource string
+	}{
+		{
+			name:     "transient certificate create error",
+			verb:     "create",
+			resource: "certificates",
+		},
+		{
+			name:     "transient securedaccess create error",
+			verb:     "create",
+			resource: "securedaccesses",
+		},
+		{
+			name:     "transient certificate update conflict",
+			verb:     "update",
+			resource: "certificates",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var skupperObjects []runtime.Object
+			if tt.verb == "update" {
+				skupperObjects = []runtime.Object{tf.cert("skupper-grant-server-ca", "test", "SkupperGrantServerCA", "", true, false, false, ref2)}
+			}
+			client, err := fake.NewFakeClient("test", []runtime.Object{tf.pod("my-pod", "test", map[string]string{"foo": "bar"}, ref1)}, skupperObjects, "")
+			assert.Assert(t, err)
+			failures := 2
+			client.GetSkupperClient().SkupperV2alpha1().(*fakev2alpha1.FakeSkupperV2alpha1).PrependReactor(tt.verb, tt.resource, func(action k8stesting.Action) (bool, runtime.Object, error) {
+				if failures == 0 {
+					return false, nil, nil
+				}
+				failures--
+				return true, nil, errors.New("transient error")
+			})
+			ac := &AutoConfigure{
+				podname:              "my-pod",
+				port:                 1234,
+				tlsCredentialsSecret: "skupper-grant-server",
+			}
+			assert.ErrorContains(t, ac.configure(client, "test"), "transient error")
+
+			done := make(chan struct{})
+			go func() {
+				ac.retryConfigure(client, "test", time.Millisecond, 5*time.Millisecond, slog.Default())
+				close(done)
+			}()
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("retryConfigure did not succeed")
+			}
+			cert, err := client.GetSkupperClient().SkupperV2alpha1().Certificates("test").Get(context.Background(), "skupper-grant-server-ca", metav1.GetOptions{})
+			assert.Assert(t, err)
+			assert.DeepEqual(t, cert.ObjectMeta.OwnerReferences, ref1)
+			_, err = client.GetSkupperClient().SkupperV2alpha1().SecuredAccesses("test").Get(context.Background(), "skupper-grant-server", metav1.GetOptions{})
+			assert.Assert(t, err)
+		})
 	}
 }
