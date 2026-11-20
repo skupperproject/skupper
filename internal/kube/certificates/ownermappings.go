@@ -13,13 +13,17 @@ var (
 	exprAnnotationKeyCertHosts = regexp.MustCompile(`^internal\.skupper\.io/hosts-(?P<refid>.+)$`)
 )
 
-const (
-	annotationKeyPrefixCertHosts   = "internal.skupper.io/hosts-"
-	annotationKeySkupperControlled = "internal.skupper.io/controlled"
-)
+// SecuredAccessCertificateAnnotation delegates host-contribution authoring to
+// the SecuredAccess Certificate scope, including after GC removes Access owners.
+const SecuredAccessCertificateAnnotation = "internal.skupper.io/secured-access-certificate"
+
+// CertificateHostsAnnotationPrefix keys per-owner host contributions by owner UID.
+const CertificateHostsAnnotationPrefix = "internal.skupper.io/hosts-"
+
+const annotationKeySkupperControlled = "internal.skupper.io/controlled"
 
 func certificateHostsAnnotationKey(refid string) string {
-	return annotationKeyPrefixCertHosts + refid
+	return CertificateHostsAnnotationPrefix + refid
 }
 
 type ownerMapping struct {
