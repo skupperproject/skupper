@@ -200,6 +200,8 @@ func TestCertificatePolicyPreservesAuthority(t *testing.T) {
 
 	template = template.DeepCopy()
 	template.Annotations["decoration"] = "updated"
+	template.Annotations["internal.skupper.io/hosts-"+string(sa.UID)] = "wrong.example"
+	template.Annotations["internal.skupper.io/hosts-not-a-contributor"] = "injected.example"
 	assert.NilError(t, policy.Update("controller/certificate-authority", template))
 	h.settle(sa.Name)
 	updated, err := certs.Get(context.Background(), "shared", metav1.GetOptions{})
@@ -208,6 +210,22 @@ func TestCertificatePolicyPreservesAuthority(t *testing.T) {
 	assert.Equal(t, updated.Annotations["decoration"], "updated")
 	assert.Equal(t, updated.Annotations["internal.skupper.io/controlled"], "true")
 	assert.Equal(t, updated.Annotations["internal.skupper.io/secured-access-certificate"], "true")
+
+	// A stale generation reuses the last valid history, not policy input.
+	sa = h.status(sa.Name)
+	sa.Generation++
+	sa.Status.Conditions = nil
+	_, err = h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Update(context.Background(), sa, metav1.UpdateOptions{})
+	assert.NilError(t, err)
+	h.observe()
+	assert.NilError(t, h.runCertificates())
+	pending, err := certs.Get(context.Background(), "shared", metav1.GetOptions{})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, pending.Spec.Hosts, created.Spec.Hosts)
+	assert.Equal(t, pending.Annotations["internal.skupper.io/hosts-"+string(sa.UID)], "edge,edge.test")
+	_, injected := pending.Annotations["internal.skupper.io/hosts-not-a-contributor"]
+	assert.Assert(t, !injected)
+	assert.Equal(t, pending.Annotations["decoration"], "updated")
 
 	h = newHarness(t, h.clients)
 	h.m.context.(*testContext).policy = policy

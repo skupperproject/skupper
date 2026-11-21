@@ -201,7 +201,21 @@ func planAccessCertificate(s accessCertificateSnapshot) (*accessAction, error) {
 		desired.Spec.Hosts = append(desired.Spec.Hosts, host)
 	}
 	sort.Strings(desired.Spec.Hosts)
+	history := map[string]string{}
+	for key, value := range desired.Annotations {
+		if strings.HasPrefix(key, certificates.CertificateHostsAnnotationPrefix) {
+			history[key] = value
+		}
+	}
 	applyPolicy(s.policy, "Certificate", desired)
+	for key := range desired.Annotations {
+		if strings.HasPrefix(key, certificates.CertificateHostsAnnotationPrefix) {
+			delete(desired.Annotations, key)
+		}
+	}
+	for key, value := range history {
+		desired.Annotations[key] = value
+	}
 	desired.Annotations[skuppertypes.ControlledQualifier] = "true"
 	desired.Annotations[certificates.SecuredAccessCertificateAnnotation] = "true"
 	if reflect.DeepEqual(observed, desired) {
