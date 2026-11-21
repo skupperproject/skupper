@@ -21,7 +21,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -114,6 +117,32 @@ func TestListenerAccessServiceCollision(t *testing.T) {
 			assert.DeepEqual(t, after, before)
 		})
 	}
+}
+
+func TestStaleListenerServiceDeleteRetries(t *testing.T) {
+	s, err := newSiteMocks("test", nil, nil, "", false)
+	assert.NilError(t, err)
+	ctx := context.Background()
+	assert.NilError(t, s.Expose(&ExposedPortSet{Host: "stale", Ports: map[string]Port{"listener": {Name: "listener", Port: 8080, TargetPort: 8080, Protocol: "TCP"}}}))
+	services := s.clients.GetKubeClient().CoreV1().Services("test")
+	before, err := services.Get(ctx, "stale", metav1.GetOptions{})
+	assert.NilError(t, err)
+	denied := true
+	s.clients.GetKubeClient().(*k8sfake.Clientset).PrependReactor("delete", "services", func(k8stesting.Action) (bool, runtime.Object, error) {
+		if denied {
+			return true, nil, errors.NewConflict(schema.GroupResource{Resource: "services"}, "stale", nil)
+		}
+		return false, nil, nil
+	})
+	assert.Assert(t, errors.IsConflict(s.CheckListenerService(before)))
+	after, err := services.Get(ctx, "stale", metav1.GetOptions{})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, after, before)
+	denied = false
+	assert.NilError(t, s.CheckListenerService(after))
+	_, err = services.Get(ctx, "stale", metav1.GetOptions{})
+	assert.Assert(t, errors.IsNotFound(err))
+	assert.NilError(t, s.CheckListenerService(after))
 }
 
 func TestListenerServiceLabelDrift(t *testing.T) {

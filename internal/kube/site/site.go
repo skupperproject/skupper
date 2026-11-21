@@ -1154,6 +1154,7 @@ func (s *Site) CheckListenerService(svc *corev1.Service) error {
 				slog.String("name", svc.Name),
 				slog.String("reason", err.Error()),
 			)
+			return err
 		}
 		s.logger.Info("Deleted stale listener service",
 			slog.String("namespace", svc.Namespace),
