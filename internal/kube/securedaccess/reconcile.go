@@ -264,20 +264,21 @@ func applyMetadataValues(observed, builtins, policy map[string]string, fields *f
 
 // planOutput guards ownership before deriving a mutation. Metadata is evaluated
 // from the observed object so selectors chain, then compared in its final form.
-func (p *accessPlan) planOutput(s accessSnapshot, kind string, observed, desired runtime.Object) {
+func (p *accessPlan) planOutput(s accessSnapshot, kind string, observed, desired runtime.Object) bool {
 	dm, _ := meta.Accessor(desired)
 	if observed != nil && !reflect.ValueOf(observed).IsNil() {
 		om, _ := meta.Accessor(observed)
 		if uid := accessOwner(om, s.name); uid == "" || uid != s.access.UID {
 			p.validationErr = errors.Join(p.validationErr, fmt.Errorf("%s %q has conflicting ownership", kind, dm.GetName()))
-			return
+			return false
 		}
 		if om.GetDeletionTimestamp() != nil {
-			return
+			p.validationErr = errors.Join(p.validationErr, fmt.Errorf("%s %q is terminating", kind, dm.GetName()))
+			return false
 		}
 		if kind == "TLSRoute" {
 			p.planApply(s, kind, observed.(*unstructured.Unstructured), desired.(*unstructured.Unstructured))
-			return
+			return p.retryErr == nil
 		}
 		// Preserve external metadata and API identity; only built-ins and policy
 		// values belong to this writer. Removing a template retains old values,
@@ -310,7 +311,9 @@ func (p *accessPlan) planOutput(s accessSnapshot, kind string, observed, desired
 					o.Spec.Ports[i].NodePort = 0
 				}
 				o.Spec.HealthCheckNodePort = 0
-				o.Spec.ExternalTrafficPolicy = ""
+				if len(o.Spec.ExternalIPs) == 0 {
+					o.Spec.ExternalTrafficPolicy = ""
+				}
 			}
 			if o.Spec.Type != corev1.ServiceTypeLoadBalancer {
 				o.Spec.HealthCheckNodePort = 0
@@ -335,14 +338,15 @@ func (p *accessPlan) planOutput(s accessSnapshot, kind string, observed, desired
 		if !reflect.DeepEqual(observed, merged) {
 			p.actions = append(p.actions, accessAction{verb: "update", kind: kind, object: merged})
 		}
-		return
+		return true
 	}
 	if kind == "TLSRoute" {
 		p.planApply(s, kind, nil, desired.(*unstructured.Unstructured))
-		return
+		return p.retryErr == nil
 	}
 	applyPolicy(s.policy, kind, dm)
 	p.actions = append(p.actions, accessAction{verb: "create", kind: kind, object: desired})
+	return true
 }
 
 func (p *accessPlan) planApply(s accessSnapshot, kind string, observed, desired *unstructured.Unstructured) {
@@ -372,9 +376,15 @@ func planAccess(s accessSnapshot) accessPlan {
 			// existing exposure in place until fixed.
 			return p
 		}
+		if s.accessType == ACCESS_TYPE_GATEWAY && !s.gatewayAvailable {
+			p.validationErr = errors.Join(p.validationErr, errors.New("Gateway API (Gateway and TLSRoute) is unavailable; restart the controller after making both resources available"))
+			return p
+		}
 		svc := &corev1.Service{ObjectMeta: exposureMetadata(sa, sa.Name), Spec: corev1.ServiceSpec{Selector: sa.Spec.Selector, Type: serviceType(s.accessType)}}
 		updatePorts(&svc.Spec, sa.Spec.Ports)
-		p.planOutput(s, "Service", s.service, svc)
+		if !p.planOutput(s, "Service", s.service, svc) {
+			return p
+		}
 		// Endpoints requiring allocations/status wait for ordinary observations.
 		switch s.accessType {
 		case ACCESS_TYPE_LOCAL:
@@ -458,12 +468,6 @@ func planAccess(s accessSnapshot) accessPlan {
 		case ACCESS_TYPE_GATEWAY:
 			for _, port := range sa.Spec.Ports {
 				desiredNames["TLSRoute/"+sa.Name+"-"+port.Name] = true
-			}
-			// Nil caches mean startup discovery found no usable API (absent, denied or
-			// failed); watches are not re-registered without a restart.
-			if !s.gatewayAvailable {
-				p.validationErr = errors.Join(p.validationErr, errors.New("Gateway API (Gateway and TLSRoute) is unavailable; restart the controller after making both resources available"))
-				break
 			}
 			if s.gateway == nil || s.gateway.GetDeletionTimestamp() != nil {
 				p.validationErr = errors.Join(p.validationErr, errors.New("Gateway not yet available"))

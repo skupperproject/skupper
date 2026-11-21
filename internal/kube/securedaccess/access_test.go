@@ -245,6 +245,138 @@ func (h *scopeHarness) noWrites(name string) {
 	assert.Equal(h.t, len(h.mutations()), 0, "unexpected mutations: %v", h.mutations())
 }
 
+func TestRequiredServiceBlocksProvider(t *testing.T) {
+	ctx := context.Background()
+	for _, existing := range []bool{false, true} {
+		t.Run(map[bool]string{false: "missing", true: "foreign"}[existing], func(t *testing.T) {
+			h := newHarness(t, nil)
+			sa := testAccess("ingress")
+			var before *corev1.Service
+			if existing {
+				var err error
+				before, err = h.clients.Kube.CoreV1().Services("test").Create(ctx, &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: sa.Name, Namespace: sa.Namespace, UID: "foreign"}, Spec: corev1.ServiceSpec{Selector: map[string]string{"app": "foreign"}}}, metav1.CreateOptions{})
+				assert.NilError(t, err)
+			}
+			h.put(sa)
+			h.settle(sa.Name)
+			ingress, err := h.clients.Kube.NetworkingV1().Ingresses("test").Get(ctx, sa.Name, metav1.GetOptions{})
+			if existing {
+				assert.Assert(t, apierrors.IsNotFound(err), "must not expose a foreign backend")
+				assert.Assert(t, !h.status(sa.Name).IsReady())
+				actual, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, sa.Name, metav1.GetOptions{})
+				assert.NilError(t, err)
+				assert.DeepEqual(t, actual, before)
+				old := toIngress("old.example", sa)
+				old, err = h.clients.Kube.NetworkingV1().Ingresses("test").Create(ctx, old, metav1.CreateOptions{})
+				assert.NilError(t, err)
+				h.observe()
+				assert.NilError(t, h.run(sa.Key()))
+				unchanged, err := h.clients.Kube.NetworkingV1().Ingresses("test").Get(ctx, sa.Name, metav1.GetOptions{})
+				assert.NilError(t, err)
+				assert.DeepEqual(t, unchanged, old)
+			} else {
+				assert.NilError(t, err)
+				assert.Equal(t, ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name, sa.Name)
+				assert.Assert(t, h.status(sa.Name).IsReady())
+			}
+		})
+	}
+}
+
+func TestUnavailableGatewayPreservesExposure(t *testing.T) {
+	h := newHarness(t, nil)
+	ctx := context.Background()
+	sa := testAccess("loadbalancer")
+	h.put(sa)
+	h.settle(sa.Name)
+	before, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, sa.Name, metav1.GetOptions{})
+	assert.NilError(t, err)
+	sa = h.status(sa.Name)
+	sa.Spec.AccessType = "gateway"
+	_, err = h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Update(ctx, sa, metav1.UpdateOptions{})
+	assert.NilError(t, err)
+	h.observe()
+	h.m.watcher.TLSRoutes = nil
+	assert.NilError(t, h.run(sa.Key()))
+	after, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, sa.Name, metav1.GetOptions{})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, after, before)
+	assert.Assert(t, !h.status(sa.Name).IsReady())
+	assert.Assert(t, strings.Contains(h.status(sa.Name).Status.Message, "unavailable"))
+}
+
+func TestTerminatingRequiredOutputWithholdsEndpoints(t *testing.T) {
+	for _, kind := range []string{"Service", "Ingress"} {
+		t.Run(kind, func(t *testing.T) {
+			h := newHarness(t, nil)
+			ctx := context.Background()
+			sa := testAccess("ingress")
+			h.put(sa)
+			h.settle(sa.Name)
+			if kind == "Service" {
+				svc, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, sa.Name, metav1.GetOptions{})
+				assert.NilError(t, err)
+				svc.DeletionTimestamp = ptr.To(metav1.Now())
+				_, err = h.clients.Kube.CoreV1().Services("test").Update(ctx, svc, metav1.UpdateOptions{})
+				assert.NilError(t, err)
+			} else {
+				ing, err := h.clients.Kube.NetworkingV1().Ingresses("test").Get(ctx, sa.Name, metav1.GetOptions{})
+				assert.NilError(t, err)
+				ing.DeletionTimestamp = ptr.To(metav1.Now())
+				_, err = h.clients.Kube.NetworkingV1().Ingresses("test").Update(ctx, ing, metav1.UpdateOptions{})
+				assert.NilError(t, err)
+			}
+			h.observe()
+			h.clearActions()
+			assert.NilError(t, h.run(sa.Key()))
+			assert.Assert(t, !h.status(sa.Name).IsReady())
+			assert.Equal(t, len(h.status(sa.Name).Status.Endpoints), 0)
+			for _, recorder := range h.recorders() {
+				for _, action := range recorder.Actions() {
+					if action.GetVerb() != "get" && action.GetVerb() != "list" {
+						assert.Equal(t, action.GetResource().Resource, "securedaccesses", "only status may change while waiting for deletion")
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestClusterIPExternalTrafficPolicy(t *testing.T) {
+	for _, external := range []bool{false, true} {
+		t.Run(map[bool]string{false: "plain", true: "externalIPs"}[external], func(t *testing.T) {
+			h := newHarness(t, nil)
+			ctx := context.Background()
+			sa := testAccess("loadbalancer")
+			h.put(sa)
+			h.settle(sa.Name)
+			svc, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, sa.Name, metav1.GetOptions{})
+			assert.NilError(t, err)
+			svc.Spec.ExternalTrafficPolicy = corev1.ServiceExternalTrafficPolicyLocal
+			if external {
+				svc.Spec.ExternalIPs = []string{"192.0.2.12"}
+			}
+			_, err = h.clients.Kube.CoreV1().Services("test").Update(ctx, svc, metav1.UpdateOptions{})
+			assert.NilError(t, err)
+			sa = h.status(sa.Name)
+			sa.Spec.AccessType = "local"
+			_, err = h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Update(ctx, sa, metav1.UpdateOptions{})
+			assert.NilError(t, err)
+			h.settle(sa.Name)
+			after, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, sa.Name, metav1.GetOptions{})
+			assert.NilError(t, err)
+			assert.Equal(t, after.Spec.Type, corev1.ServiceTypeClusterIP)
+			assert.DeepEqual(t, after.Spec.ExternalIPs, svc.Spec.ExternalIPs)
+			if external {
+				assert.Equal(t, after.Spec.ExternalTrafficPolicy, corev1.ServiceExternalTrafficPolicyLocal)
+			} else {
+				assert.Equal(t, after.Spec.ExternalTrafficPolicy, corev1.ServiceExternalTrafficPolicy(""))
+			}
+			h.noWrites(sa.Name)
+		})
+	}
+}
+
 func TestScopeProviders(t *testing.T) {
 	for _, kind := range []string{"local", "nodeport", "loadbalancer", "route", "ingress", "ingress-nginx", "contour-http-proxy"} {
 		t.Run(kind, func(t *testing.T) {
