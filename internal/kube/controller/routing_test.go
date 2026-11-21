@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -67,11 +68,27 @@ func routingConfig(access *securedaccess.Config) *Config {
 	return &Config{Namespace: "controller", Name: "routing-test", GrantConfig: &grants.GrantConfig{}, SecuredAccessConfig: access}
 }
 
+var routingRevision atomic.Uint64
+
+func advanceRoutingVersions(clients internalclient.Clients) {
+	for _, fake := range []*k8stesting.Fake{&clients.GetSkupperClient().(*skupperfake.Clientset).Fake, &clients.GetKubeClient().(*k8sfake.Clientset).Fake} {
+		fake.PrependReactor("update", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			obj, err := meta.Accessor(action.(k8stesting.UpdateAction).GetObject())
+			if err != nil {
+				return true, nil, err
+			}
+			obj.SetResourceVersion(strconv.FormatUint(routingRevision.Add(1), 10))
+			return false, nil, nil
+		})
+	}
+}
+
 // Use production registration and real informers, with serial queue processing
 // on the test goroutine so assertions never race domain state. No manual cache
 // population, domain Handle calls or resource callback invocation.
 func routingController(t *testing.T, clients internalclient.Clients, access *securedaccess.Config, options ...watchers.EventProcessorCustomizer) (*Controller, func()) {
 	t.Helper()
+	advanceRoutingVersions(clients)
 	c, err := NewController(clients, routingConfig(access), options...)
 	assert.NilError(t, err)
 	stop := make(chan struct{})
@@ -132,6 +149,7 @@ func TestRoutingCertificateWatchDelivery(t *testing.T) {
 		}
 		merged := stored.(*skupperv2alpha1.Certificate).DeepCopy()
 		merged.Status = update.DeepCopy().Status
+		merged.ResourceVersion = update.ResourceVersion
 		err = skupper.Tracker().Update(action.GetResource(), merged, action.GetNamespace())
 		return true, merged, err
 	})
@@ -193,12 +211,18 @@ func TestRoutingCertificateWatchDelivery(t *testing.T) {
 	assert.NilError(t, err)
 	routingUntil(t, c, "external Certificate observation invalidates authored view", func() bool {
 		observed, _ := c.certificateWatcher.Get("test/shared")
-		return observed != nil && observed.Spec.Subject == "external"
+		secret, err := secrets.Get(ctx, "shared", metav1.GetOptions{})
+		if observed == nil || observed.Spec.Subject != "external" || err != nil {
+			return false
+		}
+		certificate, err := certs.DecodeCertificate(secret.Data["tls.crt"])
+		return err == nil && certificate.Subject.CommonName == "external"
 	})
-	assert.NilError(t, c.certMgr.Ensure("test", "shared", "ca", "ignored-shared-subject", []string{"bob.example"}, false, true, bob))
+	assert.NilError(t, c.certMgr.Ensure("test", "shared", "ca", "ignored-shared-subject", []string{"bob-new.example"}, false, true, bob))
 	shared, err = definitions.Get(ctx, "shared", metav1.GetOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, shared.Spec.Subject, "external", "authoring must not overwrite from stale write-through state")
+	assert.DeepEqual(t, shared.Spec.Hosts, []string{"alice.example", "bob-new.example"})
 }
 
 func TestRoutingAccessDependenciesAndRestart(t *testing.T) {
@@ -335,6 +359,7 @@ func TestRoutingLegacyRouterAccess(t *testing.T) {
 				return false, nil, nil
 			})
 			metrics := &routingMetrics{}
+			advanceRoutingVersions(clients)
 			c, err := NewController(clients, routingConfig(&securedaccess.Config{EnabledAccessTypes: []string{"local"}}), watchers.WithMetricsProvider(metrics))
 			assert.NilError(t, err)
 			stop := make(chan struct{})

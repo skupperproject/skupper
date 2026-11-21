@@ -2,6 +2,7 @@ package site
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"maps"
 	"testing"
@@ -15,6 +16,7 @@ import (
 	site1 "github.com/skupperproject/skupper/internal/site"
 	"github.com/skupperproject/skupper/internal/version"
 	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	skupperfake "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/fake"
 	"gotest.tools/v3/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -265,7 +267,21 @@ func TestSite_Recover(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s, err := newSiteMocks("test", tt.k8sObjects, tt.skupperObjects, tt.skupperErrorMessage, false)
 			assert.Assert(t, err)
-
+			if tt.name == "site fail CA" {
+				s, err = newSiteMocks("test", tt.k8sObjects, tt.skupperObjects, "", false)
+				assert.NilError(t, err)
+				s.access = securedaccess.NewSecuredAccessManager(s.clients, &securedaccess.Config{DefaultAccessType: "loadbalancer", EnabledAccessTypes: []string{"loadbalancer"}}, nil)
+				assert.NilError(t, createRouterConfigMock(s))
+				s.clients.GetSkupperClient().(*skupperfake.Clientset).PrependReactor("create", "certificates", func(action k8stesting.Action) (bool, runtime.Object, error) {
+					cert := action.(k8stesting.CreateAction).GetObject().(*skupperv2alpha1.Certificate)
+					if cert.Name == "skupper-site-ca" {
+						return true, nil, fmt.Errorf("site CA creation denied")
+					}
+					return false, nil, nil
+				})
+				assert.ErrorContains(t, s.StartRecovery(tt.args.site), "site CA creation denied")
+				return
+			}
 			if err := s.StartRecovery(tt.args.site); (err != nil) != tt.wantErr {
 				t.Errorf("Site.Reconcile() error = %v", err)
 			}
