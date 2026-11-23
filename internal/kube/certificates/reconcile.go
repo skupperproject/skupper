@@ -107,9 +107,11 @@ func planCertificate(s certificateSnapshot) certificatePlan {
 	if c.DeletionTimestamp != nil || (secret != nil && secret.DeletionTimestamp != nil) {
 		return nil
 	}
-	// check for deleted co-owner cleanup
+	// Legacy authors leave deleted co-owner cleanup to Certificate
+	// realization. SecuredAccess Certificate aggregate scope owns its own
+	// contributions.
 	owners := certificateToOwnerMapping(c)
-	if owners.IsControlled {
+	if owners.IsControlled && c.Annotations[SecuredAccessCertificateAnnotation] != "true" {
 		present := map[string]bool{}
 		for _, ref := range c.OwnerReferences {
 			present[string(ref.UID)] = true

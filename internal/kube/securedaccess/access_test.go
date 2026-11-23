@@ -4,3730 +4,1253 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"reflect"
+	"sort"
+	"strings"
 	"testing"
 
 	routev1 "github.com/openshift/api/route/v1"
 	internalclient "github.com/skupperproject/skupper/internal/kube/client"
 	fakeclient "github.com/skupperproject/skupper/internal/kube/client/fake"
+	"github.com/skupperproject/skupper/internal/kube/resource"
+	"github.com/skupperproject/skupper/internal/kube/site/labels"
 	"github.com/skupperproject/skupper/internal/kube/watchers"
-	skupperv2alpha1 "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	saapi "github.com/skupperproject/skupper/pkg/apis/skupper/v2alpha1"
+	skupperfake "github.com/skupperproject/skupper/pkg/generated/client/clientset/versioned/fake"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/dynamic"
-	fakedynamic "k8s.io/client-go/dynamic/fake"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/utils/ptr"
 )
 
-func TestSecuredAccessGeneral(t *testing.T) {
-	hundred := int32(100)
-	pathTypePrefix := networkingv1.PathTypePrefix
-	testTable := []struct {
-		name                 string
-		config               Config
-		definition           *skupperv2alpha1.SecuredAccess
-		k8sObjects           []runtime.Object
-		ssaRecorder          *ServerSideApplyRecorder
-		skupperObjects       []runtime.Object
-		expectedServices     []*corev1.Service
-		expectedRoutes       []*routev1.Route
-		expectedIngresses    []*networkingv1.Ingress
-		expectedProxies      []HttpProxy
-		expectedSSA          map[string]*unstructured.Unstructured
-		expectedCertificates []MockCertificate
-		expectedStatus       string
-		expectedEndpoints    []skupperv2alpha1.Endpoint
-		expectedError        string
-		defaultDomain        string
-		nodePorts            map[string]int32
-		labels               map[string]string
-		annotations          map[string]string
-	}{
-		{
-			name: "loadbalancer",
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_LOADBALANCER,
-					ACCESS_TYPE_ROUTE,
-					ACCESS_TYPE_LOCAL,
-				},
-			},
-			labels: map[string]string{
-				"foo": "bar",
-			},
-			annotations: map[string]string{
-				"abc": "123",
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_LOADBALANCER,
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "port1",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-						Labels: map[string]string{
-							"foo": "bar",
-						},
-						Annotations: map[string]string{
-							"abc": "123",
-						},
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Type: corev1.ServiceTypeLoadBalancer,
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-					Status: corev1.ServiceStatus{
-						LoadBalancer: corev1.LoadBalancerStatus{
-							Ingress: []corev1.LoadBalancerIngress{
-								{
-									Hostname: "my-ingress.my-cluster.org",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc", "mysvc.test", "my-ingress.my-cluster.org"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "OK",
-			expectedEndpoints: []skupperv2alpha1.Endpoint{
-				{
-					Name: "port1",
-					Port: "8080",
-					Host: "my-ingress.my-cluster.org",
-				},
-			},
-		},
-		{
-			name: "loadbalancer with IP",
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_LOADBALANCER,
-					ACCESS_TYPE_ROUTE,
-					ACCESS_TYPE_LOCAL,
-				},
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_LOADBALANCER,
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "port1",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-					},
-					Issuer: "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Type: corev1.ServiceTypeLoadBalancer,
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-					Status: corev1.ServiceStatus{
-						LoadBalancer: corev1.LoadBalancerStatus{
-							Ingress: []corev1.LoadBalancerIngress{
-								{
-									IP: "100.10.10.100",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "mysvc",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc", "mysvc.test", "100.10.10.100"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "OK",
-			expectedEndpoints: []skupperv2alpha1.Endpoint{
-				{
-					Name: "port1",
-					Port: "8080",
-					Host: "100.10.10.100",
-				},
-			},
-		},
-		{
-			name: "unresolved loadbalancer",
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_LOADBALANCER,
-					ACCESS_TYPE_ROUTE,
-					ACCESS_TYPE_LOCAL,
-				},
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_LOADBALANCER,
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "port1",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Type: corev1.ServiceTypeLoadBalancer,
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-					Status: corev1.ServiceStatus{
-						LoadBalancer: corev1.LoadBalancerStatus{
-							Ingress: []corev1.LoadBalancerIngress{
-								{},
-							},
-						},
-					},
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc", "mysvc.test"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "Pending",
-		},
-		{
-			name: "route",
-			labels: map[string]string{
-				"foo": "bar",
-			},
-			annotations: map[string]string{
-				"abc": "123",
-			},
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_LOADBALANCER,
-					ACCESS_TYPE_ROUTE,
-					ACCESS_TYPE_LOCAL,
-				},
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_ROUTE,
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "a",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-						{
-							Name:       "b",
-							Port:       9090,
-							TargetPort: 9191,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "a",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-							{
-								Name:       "b",
-								Port:       9090,
-								TargetPort: intstr.IntOrString{IntVal: int32(9191)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-				},
-			},
-			expectedRoutes: []*routev1.Route{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc-a",
-						Namespace: "test",
-						Labels: map[string]string{
-							"foo": "bar",
-						},
-						Annotations: map[string]string{
-							"abc": "123",
-						},
-					},
-					Spec: routev1.RouteSpec{
-						Host: "",
-						Port: &routev1.RoutePort{
-							TargetPort: intstr.FromString("a"),
-						},
-						To: routev1.RouteTargetReference{
-							Kind:   "Service",
-							Name:   "mysvc",
-							Weight: &hundred,
-						},
-						TLS: &routev1.TLSConfig{
-							Termination:                   routev1.TLSTerminationPassthrough,
-							InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
-						},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc-b",
-						Namespace: "test",
-						Labels: map[string]string{
-							"foo": "bar",
-						},
-						Annotations: map[string]string{
-							"abc": "123",
-						},
-					},
-					Spec: routev1.RouteSpec{
-						Host: "",
-						Port: &routev1.RoutePort{
-							TargetPort: intstr.FromString("b"),
-						},
-						To: routev1.RouteTargetReference{
-							Kind:   "Service",
-							Name:   "mysvc",
-							Weight: &hundred,
-						},
-						TLS: &routev1.TLSConfig{
-							Termination:                   routev1.TLSTerminationPassthrough,
-							InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
-						},
-					},
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc", "mysvc.test", "mysvc-a.test.mycluster.org", "mysvc-b.test.mycluster.org"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "OK",
-			expectedEndpoints: []skupperv2alpha1.Endpoint{
-				{
-					Name: "a",
-					Port: "443",
-					Host: "mysvc-a.test.mycluster.org",
-				},
-				{
-					Name: "b",
-					Port: "443",
-					Host: "mysvc-b.test.mycluster.org",
-				},
-			},
-			defaultDomain: "mycluster.org",
-		},
-		{
-			name: "route with user supplied domain",
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_LOADBALANCER,
-					ACCESS_TYPE_ROUTE,
-					ACCESS_TYPE_LOCAL,
-				},
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_ROUTE,
-					Settings: map[string]string{
-						"domain": "users.domain.org",
-					},
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "a",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-						{
-							Name:       "b",
-							Port:       9090,
-							TargetPort: 9191,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "a",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-							{
-								Name:       "b",
-								Port:       9090,
-								TargetPort: intstr.IntOrString{IntVal: int32(9191)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-				},
-			},
-			expectedRoutes: []*routev1.Route{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc-a",
-						Namespace: "test",
-					},
-					Spec: routev1.RouteSpec{
-						Host: "mysvc-a.test.users.domain.org",
-						Port: &routev1.RoutePort{
-							TargetPort: intstr.FromString("a"),
-						},
-						To: routev1.RouteTargetReference{
-							Kind:   "Service",
-							Name:   "mysvc",
-							Weight: &hundred,
-						},
-						TLS: &routev1.TLSConfig{
-							Termination:                   routev1.TLSTerminationPassthrough,
-							InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
-						},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc-b",
-						Namespace: "test",
-					},
-					Spec: routev1.RouteSpec{
-						Host: "mysvc-b.test.users.domain.org",
-						Port: &routev1.RoutePort{
-							TargetPort: intstr.FromString("b"),
-						},
-						To: routev1.RouteTargetReference{
-							Kind:   "Service",
-							Name:   "mysvc",
-							Weight: &hundred,
-						},
-						TLS: &routev1.TLSConfig{
-							Termination:                   routev1.TLSTerminationPassthrough,
-							InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyNone,
-						},
-					},
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc-a.test.users.domain.org", "mysvc-b.test.users.domain.org", "mysvc", "mysvc.test"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "OK",
-			expectedEndpoints: []skupperv2alpha1.Endpoint{
-				{
-					Name: "a",
-					Port: "443",
-					Host: "mysvc-a.test.users.domain.org",
-				},
-				{
-					Name: "b",
-					Port: "443",
-					Host: "mysvc-b.test.users.domain.org",
-				},
-			},
-		},
-		{
-			name: "ingress-nginx",
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_LOADBALANCER,
-					ACCESS_TYPE_INGRESS_NGINX,
-					ACCESS_TYPE_ROUTE,
-					ACCESS_TYPE_LOCAL,
-				},
-			},
-			labels: map[string]string{
-				"foo": "bar",
-			},
-			annotations: map[string]string{
-				"abc": "123",
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_INGRESS_NGINX,
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "a",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-						{
-							Name:       "b",
-							Port:       9090,
-							TargetPort: 9191,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "a",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-							{
-								Name:       "b",
-								Port:       9090,
-								TargetPort: intstr.IntOrString{IntVal: int32(9191)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-				},
-			},
-			expectedIngresses: []*networkingv1.Ingress{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-						Labels: map[string]string{
-							"foo": "bar",
-						},
-						Annotations: map[string]string{
-							"abc": "123",
-						},
-					},
-					Spec: networkingv1.IngressSpec{
-						Rules: []networkingv1.IngressRule{
-							{
-								Host: "a.test",
-								IngressRuleValue: networkingv1.IngressRuleValue{
-									HTTP: &networkingv1.HTTPIngressRuleValue{
-										Paths: []networkingv1.HTTPIngressPath{
-											{
-												Path:     "/",
-												PathType: &pathTypePrefix,
-												Backend: networkingv1.IngressBackend{
-													Service: &networkingv1.IngressServiceBackend{
-														Name: "mysvc",
-														Port: networkingv1.ServiceBackendPort{
-															Number: int32(8080),
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-							{
-								Host: "b.test",
-								IngressRuleValue: networkingv1.IngressRuleValue{
-									HTTP: &networkingv1.HTTPIngressRuleValue{
-										Paths: []networkingv1.HTTPIngressPath{
-											{
-												Path:     "/",
-												PathType: &pathTypePrefix,
-												Backend: networkingv1.IngressBackend{
-													Service: &networkingv1.IngressServiceBackend{
-														Name: "mysvc",
-														Port: networkingv1.ServiceBackendPort{
-															Number: int32(9090),
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-					Status: networkingv1.IngressStatus{
-						LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-							Ingress: []networkingv1.IngressLoadBalancerIngress{
-								{
-									Hostname: "my-ingress-gateway.net",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc", "mysvc.test", "a.test.my-ingress-gateway.net", "b.test.my-ingress-gateway.net"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "OK",
-			expectedEndpoints: []skupperv2alpha1.Endpoint{
-				{
-					Name: "a",
-					Port: "443",
-					Host: "a.test.my-ingress-gateway.net",
-				},
-				{
-					Name: "b",
-					Port: "443",
-					Host: "b.test.my-ingress-gateway.net",
-				},
-			},
-		},
-		{
-			name: "ingress-nginx with IP",
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_LOADBALANCER,
-					ACCESS_TYPE_INGRESS_NGINX,
-					ACCESS_TYPE_ROUTE,
-					ACCESS_TYPE_LOCAL,
-				},
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_INGRESS_NGINX,
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "a",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-						{
-							Name:       "b",
-							Port:       9090,
-							TargetPort: 9191,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "a",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-							{
-								Name:       "b",
-								Port:       9090,
-								TargetPort: intstr.IntOrString{IntVal: int32(9191)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-				},
-			},
-			expectedIngresses: []*networkingv1.Ingress{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: networkingv1.IngressSpec{
-						Rules: []networkingv1.IngressRule{
-							{
-								Host: "a.test",
-								IngressRuleValue: networkingv1.IngressRuleValue{
-									HTTP: &networkingv1.HTTPIngressRuleValue{
-										Paths: []networkingv1.HTTPIngressPath{
-											{
-												Path:     "/",
-												PathType: &pathTypePrefix,
-												Backend: networkingv1.IngressBackend{
-													Service: &networkingv1.IngressServiceBackend{
-														Name: "mysvc",
-														Port: networkingv1.ServiceBackendPort{
-															Number: int32(8080),
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-							{
-								Host: "b.test",
-								IngressRuleValue: networkingv1.IngressRuleValue{
-									HTTP: &networkingv1.HTTPIngressRuleValue{
-										Paths: []networkingv1.HTTPIngressPath{
-											{
-												Path:     "/",
-												PathType: &pathTypePrefix,
-												Backend: networkingv1.IngressBackend{
-													Service: &networkingv1.IngressServiceBackend{
-														Name: "mysvc",
-														Port: networkingv1.ServiceBackendPort{
-															Number: int32(9090),
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-					Status: networkingv1.IngressStatus{
-						LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-							Ingress: []networkingv1.IngressLoadBalancerIngress{
-								{
-									IP: "100.5.10.5",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc", "mysvc.test", "a.test.100.5.10.5.nip.io", "b.test.100.5.10.5.nip.io"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "OK",
-			expectedEndpoints: []skupperv2alpha1.Endpoint{
-				{
-					Name: "a",
-					Port: "443",
-					Host: "a.test.100.5.10.5.nip.io",
-				},
-				{
-					Name: "b",
-					Port: "443",
-					Host: "b.test.100.5.10.5.nip.io",
-				},
-			},
-		},
-		{
-			name: "unresolved ingress-nginx",
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_LOADBALANCER,
-					ACCESS_TYPE_INGRESS_NGINX,
-					ACCESS_TYPE_ROUTE,
-					ACCESS_TYPE_LOCAL,
-				},
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_INGRESS_NGINX,
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "a",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-						{
-							Name:       "b",
-							Port:       9090,
-							TargetPort: 9191,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "a",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-							{
-								Name:       "b",
-								Port:       9090,
-								TargetPort: intstr.IntOrString{IntVal: int32(9191)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-				},
-			},
-			expectedIngresses: []*networkingv1.Ingress{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: networkingv1.IngressSpec{
-						Rules: []networkingv1.IngressRule{
-							{
-								Host: "a.test",
-								IngressRuleValue: networkingv1.IngressRuleValue{
-									HTTP: &networkingv1.HTTPIngressRuleValue{
-										Paths: []networkingv1.HTTPIngressPath{
-											{
-												Path:     "/",
-												PathType: &pathTypePrefix,
-												Backend: networkingv1.IngressBackend{
-													Service: &networkingv1.IngressServiceBackend{
-														Name: "mysvc",
-														Port: networkingv1.ServiceBackendPort{
-															Number: int32(8080),
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-							{
-								Host: "b.test",
-								IngressRuleValue: networkingv1.IngressRuleValue{
-									HTTP: &networkingv1.HTTPIngressRuleValue{
-										Paths: []networkingv1.HTTPIngressPath{
-											{
-												Path:     "/",
-												PathType: &pathTypePrefix,
-												Backend: networkingv1.IngressBackend{
-													Service: &networkingv1.IngressServiceBackend{
-														Name: "mysvc",
-														Port: networkingv1.ServiceBackendPort{
-															Number: int32(9090),
-														},
-													},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-					Status: networkingv1.IngressStatus{
-						LoadBalancer: networkingv1.IngressLoadBalancerStatus{
-							Ingress: []networkingv1.IngressLoadBalancerIngress{
-								{},
-							},
-						},
-					},
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc", "mysvc.test"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "Pending",
-		},
-		{
-			name: "nodeport",
-			config: Config{
-				ClusterHost: "mycluster.com",
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_LOADBALANCER,
-					ACCESS_TYPE_NODEPORT,
-					ACCESS_TYPE_ROUTE,
-					ACCESS_TYPE_LOCAL,
-				},
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_NODEPORT,
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "port1",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Type: corev1.ServiceTypeNodePort,
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mycluster.com", "mysvc", "mysvc.test"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "OK",
-			expectedEndpoints: []skupperv2alpha1.Endpoint{
-				{
-					Name: "port1",
-					Host: "mycluster.com",
-					Port: "33333",
-				},
-			},
-			nodePorts: map[string]int32{
-				"port1": 33333,
-			},
-		},
-		{
-			name: "local",
-			config: Config{
-				ClusterHost: "mycluster.com",
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_LOADBALANCER,
-					ACCESS_TYPE_NODEPORT,
-					ACCESS_TYPE_ROUTE,
-					ACCESS_TYPE_LOCAL,
-				},
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_LOCAL,
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "port1",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-				},
-			},
-			expectedEndpoints: []skupperv2alpha1.Endpoint{
-				{
-					Name: "port1",
-					Port: "8080",
-					Host: "mysvc.test",
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc", "mysvc.test"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "OK",
-		},
-		{
-			name: "unsupported",
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_LOADBALANCER,
-					ACCESS_TYPE_ROUTE,
-					ACCESS_TYPE_LOCAL,
-				},
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: "surpriseme!",
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "port1",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedStatus: "unsupported access type",
-		},
-		{
-			name: "loadbalancer by default",
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_LOADBALANCER,
-					ACCESS_TYPE_ROUTE,
-					ACCESS_TYPE_LOCAL,
-				},
-				DefaultAccessType: ACCESS_TYPE_LOADBALANCER,
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "port1",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Type: corev1.ServiceTypeLoadBalancer,
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-					Status: corev1.ServiceStatus{
-						LoadBalancer: corev1.LoadBalancerStatus{
-							Ingress: []corev1.LoadBalancerIngress{
-								{
-									Hostname: "my-ingress.my-cluster.org",
-								},
-							},
-						},
-					},
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc", "mysvc.test", "my-ingress.my-cluster.org"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "OK",
-			expectedEndpoints: []skupperv2alpha1.Endpoint{
-				{
-					Name: "port1",
-					Port: "8080",
-					Host: "my-ingress.my-cluster.org",
-				},
-			},
-		},
-		{
-			name: "contour http-proxy",
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_LOADBALANCER,
-					ACCESS_TYPE_CONTOUR_HTTP_PROXY,
-					ACCESS_TYPE_LOCAL,
-				},
-				HttpProxyDomain: "gateway.acme.com",
-			},
-			labels: map[string]string{
-				"foo": "bar",
-			},
-			annotations: map[string]string{
-				"abc": "123",
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_CONTOUR_HTTP_PROXY,
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "a",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-						{
-							Name:       "b",
-							Port:       9090,
-							TargetPort: 9191,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "a",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-							{
-								Name:       "b",
-								Port:       9090,
-								TargetPort: intstr.IntOrString{IntVal: int32(9191)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-				},
-			},
-			expectedProxies: []HttpProxy{
-				{
-					Name:        "mysvc-a",
-					Host:        "mysvc-a.test.gateway.acme.com",
-					ServiceName: "mysvc",
-					ServicePort: 8080,
-				},
-				{
-					Name:        "mysvc-b",
-					Host:        "mysvc-b.test.gateway.acme.com",
-					ServiceName: "mysvc",
-					ServicePort: 9090,
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc", "mysvc.test", "mysvc-a.test.gateway.acme.com", "mysvc-b.test.gateway.acme.com"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "OK",
-			expectedEndpoints: []skupperv2alpha1.Endpoint{
-				{
-					Name: "a",
-					Port: "443",
-					Host: "mysvc-a.test.gateway.acme.com",
-				},
-				{
-					Name: "b",
-					Port: "443",
-					Host: "mysvc-b.test.gateway.acme.com",
-				},
-			},
-		},
-		{
-			name: "gateway",
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_GATEWAY,
-				},
-				GatewayClass:  "xyz",
-				GatewayDomain: "mygateway.net",
-				GatewayPort:   8443,
-			},
-			labels: map[string]string{
-				"foo": "bar",
-			},
-			annotations: map[string]string{
-				"abc": "123",
-			},
-			ssaRecorder: newServerSideApplyRecorder(),
-			expectedSSA: map[string]*unstructured.Unstructured{
-				"test/skupper": gateway("skupper", "test"),
-				"test/mysvc-a": tlsroute("mysvc-a", "test"),
-				"test/mysvc-b": tlsroute("mysvc-b", "test"),
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_GATEWAY,
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "a",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-						{
-							Name:       "b",
-							Port:       9090,
-							TargetPort: 9191,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "a",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-							{
-								Name:       "b",
-								Port:       9090,
-								TargetPort: intstr.IntOrString{IntVal: int32(9191)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc", "mysvc.test", "mysvc-a.test.mygateway.net", "mysvc-b.test.mygateway.net"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "OK",
-			expectedEndpoints: []skupperv2alpha1.Endpoint{
-				{
-					Name: "a",
-					Port: "8443",
-					Host: "mysvc-a.test.mygateway.net",
-				},
-				{
-					Name: "b",
-					Port: "8443",
-					Host: "mysvc-b.test.mygateway.net",
-				},
-			},
-		},
-		{
-			name: "gateway with auto resolved hostname",
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_GATEWAY,
-				},
-				GatewayClass: "xyz",
-				GatewayPort:  7443,
-			},
-			ssaRecorder: newServerSideApplyRecorder().setGatewayHostname("test/skupper", "autogateway.foo"),
-			expectedSSA: map[string]*unstructured.Unstructured{
-				"test/skupper": gateway("skupper", "test"),
-				"test/mysvc-a": tlsroute("mysvc-a", "test"),
-				"test/mysvc-b": tlsroute("mysvc-b", "test"),
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_GATEWAY,
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "a",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-						{
-							Name:       "b",
-							Port:       9090,
-							TargetPort: 9191,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "a",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-							{
-								Name:       "b",
-								Port:       9090,
-								TargetPort: intstr.IntOrString{IntVal: int32(9191)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc", "mysvc.test", "mysvc-a.test.autogateway.foo", "mysvc-b.test.autogateway.foo"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "OK",
-			expectedEndpoints: []skupperv2alpha1.Endpoint{
-				{
-					Name: "a",
-					Port: "7443",
-					Host: "mysvc-a.test.autogateway.foo",
-				},
-				{
-					Name: "b",
-					Port: "7443",
-					Host: "mysvc-b.test.autogateway.foo",
-				},
-			},
-		},
-		{
-			name: "gateway with auto resolved ip",
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_GATEWAY,
-				},
-				GatewayClass: "xyz",
-				GatewayPort:  7443,
-			},
-			ssaRecorder: newServerSideApplyRecorder().setGatewayIP("test/skupper", "10.1.1.10"),
-			expectedSSA: map[string]*unstructured.Unstructured{
-				"test/skupper": gateway("skupper", "test"),
-				"test/mysvc-a": tlsroute("mysvc-a", "test"),
-				"test/mysvc-b": tlsroute("mysvc-b", "test"),
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_GATEWAY,
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "a",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-						{
-							Name:       "b",
-							Port:       9090,
-							TargetPort: 9191,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "a",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-							{
-								Name:       "b",
-								Port:       9090,
-								TargetPort: intstr.IntOrString{IntVal: int32(9191)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc", "mysvc.test", "mysvc-a.test.10.1.1.10.nip.io", "mysvc-b.test.10.1.1.10.nip.io"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "OK",
-			expectedEndpoints: []skupperv2alpha1.Endpoint{
-				{
-					Name: "a",
-					Port: "7443",
-					Host: "mysvc-a.test.10.1.1.10.nip.io",
-				},
-				{
-					Name: "b",
-					Port: "7443",
-					Host: "mysvc-b.test.10.1.1.10.nip.io",
-				},
-			},
-		},
-		{
-			name: "unresolved gateway",
-			config: Config{
-				EnabledAccessTypes: []string{
-					ACCESS_TYPE_GATEWAY,
-				},
-				GatewayClass: "xyz",
-				GatewayPort:  7443,
-			},
-			ssaRecorder: newServerSideApplyRecorder(),
-			expectedSSA: map[string]*unstructured.Unstructured{
-				"test/skupper": gateway("skupper", "test"),
-			},
-			definition: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "mysvc",
-					Namespace: "test",
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_GATEWAY,
-					Selector: map[string]string{
-						"app": "foo",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "a",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-						{
-							Name:       "b",
-							Port:       9090,
-							TargetPort: 9191,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "my-cert",
-					Issuer:      "skupper-site-ca",
-				},
-			},
-			expectedServices: []*corev1.Service{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "mysvc",
-						Namespace: "test",
-					},
-					Spec: corev1.ServiceSpec{
-						Selector: map[string]string{
-							"app": "foo",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Name:       "a",
-								Port:       8080,
-								TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-							{
-								Name:       "b",
-								Port:       9090,
-								TargetPort: intstr.IntOrString{IntVal: int32(9191)},
-								Protocol:   corev1.Protocol("TCP"),
-							},
-						},
-					},
-				},
-			},
-			expectedCertificates: []MockCertificate{
-				{
-					namespace: "test",
-					name:      "my-cert",
-					ca:        "skupper-site-ca",
-					subject:   "mysvc",
-					hosts:     []string{"mysvc", "mysvc.test"},
-					client:    false,
-					server:    true,
-					refs:      nil,
-				},
-			},
-			expectedStatus: "Gateway base domain not yet resolved",
-		},
-	}
-	for _, tt := range testTable {
-		t.Run(tt.name, func(t *testing.T) {
-			client, err := fakeclient.NewFakeClient(tt.definition.Namespace, tt.k8sObjects, tt.skupperObjects, "")
-			if err != nil {
-				assert.Assert(t, err)
-			}
-			if tt.ssaRecorder != nil {
-				assert.Assert(t, tt.ssaRecorder.enable(client.GetDynamicClient()))
-			}
-			certs := newMockCertificateManager()
-			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: "test", labels: tt.labels, annotations: tt.annotations})
+type testContext struct {
+	policy   *labels.LabelsAndAnnotations
+	excluded string
+}
 
-			err = m.Ensure(tt.definition.Namespace, tt.definition.Name, tt.definition.Spec, nil, nil)
-			if tt.expectedError != "" {
-				assert.ErrorContains(t, err, tt.expectedError)
-			} else if err != nil {
-				t.Error(err)
-			} else {
-				sa, err := m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(tt.definition.Namespace).Get(context.Background(), tt.definition.Name, metav1.GetOptions{})
-				assert.Assert(t, err)
-				err = m.SecuredAccessChanged(fmt.Sprintf("%s/%s", sa.Namespace, sa.Name), sa)
-				for _, desired := range tt.expectedServices {
-					actual, err := m.clients.GetKubeClient().CoreV1().Services(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
-					assert.Assert(t, err)
-					assert.DeepEqual(t, desired.Spec.Selector, actual.Spec.Selector)
-					assert.Equal(t, len(desired.Spec.Ports), len(actual.Spec.Ports))
-					for _, port := range desired.Spec.Ports {
-						assert.Assert(t, cmp.Contains(actual.Spec.Ports, port))
-					}
-					assert.DeepEqual(t, desired.Spec.Type, actual.Spec.Type)
-					if !reflect.DeepEqual(desired.Status, actual.Status) {
-						actual.Status = desired.Status
-						actual, err = m.clients.GetKubeClient().CoreV1().Services(desired.Namespace).UpdateStatus(context.Background(), actual, metav1.UpdateOptions{})
-						assert.Assert(t, err)
-					}
-					if tt.nodePorts != nil {
-						var updatedPorts []corev1.ServicePort
-						for _, port := range actual.Spec.Ports {
-							if nodePort, ok := tt.nodePorts[port.Name]; ok {
-								port.NodePort = nodePort
-							}
-							updatedPorts = append(updatedPorts, port)
-						}
-						if !reflect.DeepEqual(updatedPorts, actual.Spec.Ports) {
-							actual.Spec.Ports = updatedPorts
-							actual, err = m.clients.GetKubeClient().CoreV1().Services(desired.Namespace).Update(context.Background(), actual, metav1.UpdateOptions{})
-							assert.Assert(t, err)
-						}
-					}
-					for k, v := range desired.ObjectMeta.Labels {
-						assert.Assert(t, actual.ObjectMeta.Labels != nil)
-						assert.Equal(t, actual.ObjectMeta.Labels[k], v)
-					}
-					for k, v := range desired.ObjectMeta.Annotations {
-						assert.Assert(t, actual.ObjectMeta.Annotations != nil)
-						assert.Equal(t, actual.ObjectMeta.Annotations[k], v)
-					}
-					err = m.CheckService(serviceKey(actual), actual)
-					assert.Assert(t, err)
-				}
-				for _, desired := range tt.expectedRoutes {
-					actual, err := m.clients.GetRouteClient().Routes(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
-					assert.Assert(t, err)
-					assert.DeepEqual(t, desired.Spec, actual.Spec)
-					for k, v := range desired.ObjectMeta.Labels {
-						assert.Assert(t, actual.ObjectMeta.Labels != nil)
-						assert.Equal(t, actual.ObjectMeta.Labels[k], v)
-					}
-					for k, v := range desired.ObjectMeta.Annotations {
-						assert.Assert(t, actual.ObjectMeta.Annotations != nil)
-						assert.Equal(t, actual.ObjectMeta.Annotations[k], v)
-					}
-					host := actual.Spec.Host
-					if host == "" {
-						host = fmt.Sprintf("%s.%s.%s", actual.Name, actual.Namespace, tt.defaultDomain)
-					}
-					actual.Status.Ingress = append(actual.Status.Ingress, routev1.RouteIngress{Host: host})
-					actual, err = m.clients.GetRouteClient().Routes(desired.Namespace).UpdateStatus(context.Background(), actual, metav1.UpdateOptions{})
-					assert.Assert(t, err)
-					err = m.CheckRoute(actual.Namespace+"/"+actual.Name, actual)
-					assert.Assert(t, err)
-				}
-				for _, desired := range tt.expectedIngresses {
-					actual, err := m.clients.GetKubeClient().NetworkingV1().Ingresses(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
-					assert.Assert(t, err)
-					assert.Equal(t, len(desired.Spec.Rules), len(actual.Spec.Rules))
-					for _, rule := range desired.Spec.Rules {
-						assert.Assert(t, cmp.Contains(actual.Spec.Rules, rule))
-					}
-					for k, v := range desired.ObjectMeta.Labels {
-						assert.Assert(t, actual.ObjectMeta.Labels != nil)
-						assert.Equal(t, actual.ObjectMeta.Labels[k], v)
-					}
-					for k, v := range desired.ObjectMeta.Annotations {
-						assert.Assert(t, actual.ObjectMeta.Annotations != nil)
-						assert.Equal(t, actual.ObjectMeta.Annotations[k], v)
-					}
-					if !reflect.DeepEqual(desired.Status, actual.Status) {
-						actual.Status = desired.Status
-						actual, err = m.clients.GetKubeClient().NetworkingV1().Ingresses(desired.Namespace).UpdateStatus(context.Background(), actual, metav1.UpdateOptions{})
-						assert.Assert(t, err)
-					}
-					err = m.CheckIngress(actual.Namespace+"/"+actual.Name, actual)
-					assert.Assert(t, err)
-				}
-				for _, desired := range tt.expectedProxies {
-					obj, err := m.clients.GetDynamicClient().Resource(httpProxyResource).Namespace(tt.definition.Namespace).Get(context.TODO(), desired.Name, metav1.GetOptions{})
-					assert.Assert(t, err)
-					actual := HttpProxy{
-						Name: desired.Name,
-					}
-					err = actual.readFromContourProxy(obj)
-					assert.Assert(t, err)
-					assert.Equal(t, desired, actual)
-					err = m.CheckHttpProxy(obj.GetNamespace()+"/"+obj.GetName(), obj)
-					assert.Assert(t, err)
-				}
-				if len(tt.expectedSSA) > 0 {
-					assert.Equal(t, len(tt.expectedSSA), len(tt.ssaRecorder.objects))
-					for key, desired := range tt.expectedSSA {
-						actual, ok := tt.ssaRecorder.objects[key]
-						assert.Assert(t, ok, "No ssa object found for "+key)
-						assert.Equal(t, desired.GetName(), actual.GetName())
-						assert.Equal(t, desired.GetNamespace(), actual.GetNamespace())
-						assert.Equal(t, desired.GroupVersionKind(), actual.GroupVersionKind())
-						if actual.GroupVersionKind().Kind == "TLSRoute" {
-							m.CheckTlsRoute(actual.GetNamespace()+"/"+actual.GetName(), actual)
-						}
-					}
-				}
-				certs.checkCertificates(t, tt.expectedCertificates)
-				//retrieve securedaccess again and verify status
-				sa, err = m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(tt.definition.Namespace).Get(context.Background(), tt.definition.Name, metav1.GetOptions{})
-				assert.Assert(t, err)
-				assert.Equal(t, tt.expectedStatus, sa.Status.Message)
-				for _, endpoint := range tt.expectedEndpoints {
-					assert.Assert(t, cmp.Contains(sa.Status.Endpoints, endpoint))
-				}
-				assert.Equal(t, len(tt.expectedEndpoints), len(sa.Status.Endpoints), "wrong number of endpoints")
-			}
-		})
+func (c *testContext) IsControlled(ns string) bool { return ns != c.excluded }
+func (c *testContext) Namespace() string           { return "controller" }
+func (c *testContext) SnapshotMetadata(ns string) *labels.LabelsAndAnnotations {
+	return c.policy.Snapshot(ns)
+}
+func (c *testContext) SetLabels(ns, name, kind string, ls map[string]string) bool {
+	return c.policy.SetLabels(ns, name, kind, ls)
+}
+func (c *testContext) SetAnnotations(ns, name, kind string, as map[string]string) bool {
+	return c.policy.SetAnnotations(ns, name, kind, as)
+}
+
+func testAccess(kind string) *saapi.SecuredAccess {
+	return &saapi.SecuredAccess{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "edge", UID: "access-uid", Generation: 1},
+		Spec: saapi.SecuredAccessSpec{AccessType: kind, Selector: map[string]string{"app": "backend"},
+			Ports: []saapi.SecuredAccessPort{{Name: "alpha", Port: 8080, TargetPort: 8181}, {Name: "beta", Port: 9090, TargetPort: 9191}}},
+	}
+}
+func testConfig() Config {
+	return Config{
+		EnabledAccessTypes: []string{"local", "nodeport", "loadbalancer", "route", "ingress", "ingress-nginx", "contour-http-proxy", "gateway"},
+		ClusterHost:        "cluster.example", IngressDomain: "ingress.example", HttpProxyDomain: "proxy.example",
+		GatewayClass: "test-gateway", GatewayDomain: "gateway.example", GatewayPort: 7443,
 	}
 }
 
-func TestSecuredAccessManagerEnsure(t *testing.T) {
-	type args struct {
-		namespace   string
-		name        string
-		spec        skupperv2alpha1.SecuredAccessSpec
-		annotations map[string]string
-		refs        []metav1.OwnerReference
-	}
-
-	testTable := []struct {
-		name           string
-		args           []args
-		k8sObjects     []runtime.Object
-		skupperObjects []runtime.Object
-		errors         []ClientError
-		skupperError   string
-		expectedErrors []string
-	}{
-		{
-			name: "no existing secureAccess",
-			args: []args{
-				{
-					namespace: "test",
-					name:      "skupper",
-					spec: skupperv2alpha1.SecuredAccessSpec{
-						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv2alpha1.SecuredAccessPort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: 8081,
-								Protocol:   "TCP",
-							},
-						},
-						Certificate: "skupper",
-						Issuer:      "skupper-site-ca",
-					},
-					annotations: map[string]string{
-						"internal.skupper.io/controlled":   "true",
-						"internal.skupper.io/routeraccess": "name",
-					},
-					refs: []metav1.OwnerReference{
-						{
-							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v2alpha1",
-							Name:       "ownerRef",
-							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "changed spec",
-			args: []args{
-				{
-					namespace: "test",
-					name:      "skupper",
-					spec: skupperv2alpha1.SecuredAccessSpec{
-						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv2alpha1.SecuredAccessPort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: 8081,
-								Protocol:   "TCP",
-							},
-						},
-						Certificate: "skupper",
-						Issuer:      "skupper-site-ca",
-					},
-					annotations: map[string]string{
-						"internal.skupper.io/controlled":   "true",
-						"internal.skupper.io/routeraccess": "name",
-					},
-					refs: []metav1.OwnerReference{
-						{
-							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v2alpha1",
-							Name:       "ownerRef",
-							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-						},
-					},
-				},
-				{
-					namespace: "test",
-					name:      "skupper",
-					spec: skupperv2alpha1.SecuredAccessSpec{
-						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv2alpha1.SecuredAccessPort{
-							{
-								Name:       "port1",
-								Port:       9090,
-								TargetPort: 9091,
-								Protocol:   "TCP",
-							},
-						},
-						Certificate: "skupper",
-						Issuer:      "skupper-site-ca",
-					},
-					annotations: map[string]string{
-						"internal.skupper.io/controlled":   "true",
-						"internal.skupper.io/routeraccess": "name",
-					},
-					refs: []metav1.OwnerReference{
-						{
-							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v2alpha1",
-							Name:       "ownerRef",
-							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "changed owners",
-			args: []args{
-				{
-					namespace: "test",
-					name:      "skupper",
-					spec: skupperv2alpha1.SecuredAccessSpec{
-						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv2alpha1.SecuredAccessPort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: 8081,
-								Protocol:   "TCP",
-							},
-						},
-						Certificate: "skupper",
-						Issuer:      "skupper-site-ca",
-					},
-					annotations: map[string]string{
-						"internal.skupper.io/controlled":   "true",
-						"internal.skupper.io/routeraccess": "name",
-					},
-					refs: []metav1.OwnerReference{
-						{
-							Kind:       "Site",
-							APIVersion: "skupper.io/v2alpha1",
-							Name:       "ownerRef",
-							UID:        "ffffffdf-403b-4e4a-83a8-97d3d459adb6",
-						},
-						{
-							Kind:       "Site",
-							APIVersion: "skupper.io/v2alpha1",
-							Name:       "ownerRef",
-							UID:        "eeeeeeee-403b-4e4a-83a8-97d3d459adb6",
-						},
-					},
-				},
-				{
-					namespace: "test",
-					name:      "skupper",
-					spec: skupperv2alpha1.SecuredAccessSpec{
-						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv2alpha1.SecuredAccessPort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: 8081,
-								Protocol:   "TCP",
-							},
-						},
-						Certificate: "skupper",
-						Issuer:      "skupper-site-ca",
-					},
-					annotations: map[string]string{
-						"internal.skupper.io/controlled":   "true",
-						"internal.skupper.io/routeraccess": "name",
-					},
-					refs: []metav1.OwnerReference{
-						{
-							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v2alpha1",
-							Name:       "ownerRef",
-							UID:        "000000df-403b-4e4a-83a8-97d3d459adb6",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "changed annotations",
-			args: []args{
-				{
-					namespace: "test",
-					name:      "skupper",
-					spec: skupperv2alpha1.SecuredAccessSpec{
-						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv2alpha1.SecuredAccessPort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: 8081,
-								Protocol:   "TCP",
-							},
-						},
-						Certificate: "skupper",
-						Issuer:      "skupper-site-ca",
-					},
-					annotations: map[string]string{
-						"internal.skupper.io/controlled":   "true",
-						"internal.skupper.io/routeraccess": "name",
-					},
-					refs: []metav1.OwnerReference{
-						{
-							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v2alpha1",
-							Name:       "ownerRef",
-							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-						},
-					},
-				},
-				{
-					namespace: "test",
-					name:      "skupper",
-					spec: skupperv2alpha1.SecuredAccessSpec{
-						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv2alpha1.SecuredAccessPort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: 8081,
-								Protocol:   "TCP",
-							},
-						},
-						Certificate: "skupper",
-						Issuer:      "skupper-site-ca",
-					},
-					annotations: map[string]string{
-						"internal.skupper.io/controlled":   "true",
-						"internal.skupper.io/routeraccess": "name",
-						"foo":                              "bar",
-					},
-					refs: []metav1.OwnerReference{
-						{
-							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v2alpha1",
-							Name:       "ownerRef",
-							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "no change",
-			args: []args{
-				{
-					namespace: "test",
-					name:      "skupper",
-					spec: skupperv2alpha1.SecuredAccessSpec{
-						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv2alpha1.SecuredAccessPort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: 8081,
-								Protocol:   "TCP",
-							},
-						},
-						Certificate: "skupper",
-						Issuer:      "skupper-site-ca",
-					},
-					annotations: map[string]string{
-						"internal.skupper.io/controlled":   "true",
-						"internal.skupper.io/routeraccess": "name",
-					},
-					refs: []metav1.OwnerReference{
-						{
-							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v2alpha1",
-							Name:       "ownerRef",
-							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-						},
-					},
-				},
-				{
-					namespace: "test",
-					name:      "skupper",
-					spec: skupperv2alpha1.SecuredAccessSpec{
-						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv2alpha1.SecuredAccessPort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: 8081,
-								Protocol:   "TCP",
-							},
-						},
-						Certificate: "skupper",
-						Issuer:      "skupper-site-ca",
-					},
-					annotations: map[string]string{
-						"internal.skupper.io/controlled":   "true",
-						"internal.skupper.io/routeraccess": "name",
-					},
-					refs: []metav1.OwnerReference{
-						{
-							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v2alpha1",
-							Name:       "ownerRef",
-							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "error on create",
-			args: []args{
-				{
-					namespace: "test",
-					name:      "skupper",
-					spec: skupperv2alpha1.SecuredAccessSpec{
-						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv2alpha1.SecuredAccessPort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: 8081,
-								Protocol:   "TCP",
-							},
-						},
-						Certificate: "skupper",
-						Issuer:      "skupper-site-ca",
-					},
-					annotations: map[string]string{
-						"internal.skupper.io/controlled":   "true",
-						"internal.skupper.io/routeraccess": "name",
-					},
-					refs: []metav1.OwnerReference{
-						{
-							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v2alpha1",
-							Name:       "ownerRef",
-							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-						},
-					},
-				},
-			},
-			skupperError: "create is blocked",
-			expectedErrors: []string{
-				"create is blocked",
-			},
-		},
-		{
-			name: "error on update",
-			args: []args{
-				{
-					namespace: "test",
-					name:      "skupper",
-					spec: skupperv2alpha1.SecuredAccessSpec{
-						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv2alpha1.SecuredAccessPort{
-							{
-								Name:       "port1",
-								Port:       8080,
-								TargetPort: 8081,
-								Protocol:   "TCP",
-							},
-						},
-						Certificate: "skupper",
-						Issuer:      "skupper-site-ca",
-					},
-					annotations: map[string]string{
-						"internal.skupper.io/controlled":   "true",
-						"internal.skupper.io/routeraccess": "name",
-					},
-					refs: []metav1.OwnerReference{
-						{
-							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v2alpha1",
-							Name:       "ownerRef",
-							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-						},
-					},
-				},
-				{
-					namespace: "test",
-					name:      "skupper",
-					spec: skupperv2alpha1.SecuredAccessSpec{
-						AccessType: ACCESS_TYPE_LOADBALANCER,
-						Ports: []skupperv2alpha1.SecuredAccessPort{
-							{
-								Name:       "port1",
-								Port:       8086,
-								TargetPort: 8081,
-								Protocol:   "TCP",
-							},
-						},
-						Certificate: "skupper",
-						Issuer:      "skupper-site-ca",
-					},
-					annotations: map[string]string{
-						"internal.skupper.io/controlled":   "true",
-						"internal.skupper.io/routeraccess": "name",
-					},
-					refs: []metav1.OwnerReference{
-						{
-							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v2alpha1",
-							Name:       "ownerRef",
-							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-						},
-					},
-				},
-			},
-			errors: []ClientError{
-				SkupperClientError("update", "*", "update is blocked"),
-			},
-			expectedErrors: []string{
-				"",
-				"update is blocked",
-			},
-		},
-	}
-	for _, tt := range testTable {
-		t.Run(tt.name, func(t *testing.T) {
-			m, err := newSecureAccessManagerMocks("test", tt.k8sObjects, tt.skupperObjects, tt.skupperError)
-			assert.Assert(t, err)
-
-			for _, e := range tt.errors {
-				e.Prepend(m.clients)
-			}
-
-			for i, args := range tt.args {
-				err = m.Ensure(args.namespace, args.name, args.spec, args.annotations, args.refs)
-				if len(tt.expectedErrors) > i && tt.expectedErrors[i] != "" {
-					assert.ErrorContains(t, err, tt.expectedErrors[i])
-				} else if err != nil {
-					t.Error(err)
-				} else {
-					// retrieve SecuredAccess instance from API and verify it matches expectations
-					actual, err := m.clients.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(args.namespace).Get(context.Background(), args.name, metav1.GetOptions{})
-					if err != nil {
-						t.Error(err)
-					} else {
-						assert.DeepEqual(t, actual.Spec, args.spec)
-						for key, value := range args.annotations {
-							assert.Equal(t, actual.Annotations[key], value)
-						}
-						assert.DeepEqual(t, actual.OwnerReferences, args.refs)
-					}
-				}
-			}
-		})
-	}
+type scopeHarness struct {
+	t       *testing.T
+	m       *SecuredAccessManager
+	clients *internalclient.KubeClient
+	stores  map[string]cache.Store
 }
 
-func TestSecuredAccessDeleted(t *testing.T) {
-	type recreate struct {
-		namespace string
-		name      string
-		spec      skupperv2alpha1.SecuredAccessSpec
-	}
-	testTable := []struct {
-		name                 string
-		config               Config
-		k8sObjects           []runtime.Object
-		skupperObjects       []runtime.Object
-		errors               []ClientError
-		recreate             []recreate
-		expectedServices     []*corev1.Service
-		expectedRoutes       []*routev1.Route
-		expectedIngresses    []*networkingv1.Ingress
-		expectedProxies      []ExpectedHttpProxy
-		expectedCertificates []MockCertificate
-		expectedStatuses     []*skupperv2alpha1.SecuredAccess
-	}{
-		{
-			name: "simple",
-			config: Config{
-				EnabledAccessTypes: []string{"loadbalancer"},
-			},
-			k8sObjects: []runtime.Object{
-				addLoadbalancerIP(service("mysvc", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts()), "10.1.1.10"),
-			},
-			skupperObjects: []runtime.Object{
-				securedAccess("mysvc", "test", selector(), securedAccessPorts()),
-			},
-			recreate: []recreate{
-				{
-					namespace: "test",
-					name:      "mysvc",
-					spec:      securedAccess("mysvc", "test", selector(), securedAccessPorts()).Spec,
-				},
-			},
-			expectedServices: []*corev1.Service{
-				service("mysvc", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts()),
-			},
-			expectedStatuses: []*skupperv2alpha1.SecuredAccess{
-				status("mysvc", "test", "OK", endpoint("a", "8080", "10.1.1.10"), endpoint("b", "9090", "10.1.1.10")),
-			},
-		},
-	}
-	for _, tt := range testTable {
-		t.Run(tt.name, func(t *testing.T) {
-			client, err := fakeclient.NewFakeClient("test", tt.k8sObjects, tt.skupperObjects, "")
-			if err != nil {
-				assert.Assert(t, err)
-			}
-			for _, e := range tt.errors {
-				e.Prepend(client)
-			}
-			certs := newMockCertificateManager()
-			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: "test"})
-			w := NewSecuredAccessResourceWatcher(m)
-			controller := watchers.NewEventProcessor("Controller", client)
-			w.WatchResources(controller, metav1.NamespaceAll)
-			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv2alpha1.SecuredAccess) error { return nil })
-			stopCh := make(chan struct{})
-			controller.StartWatchers(stopCh)
-			controller.WaitForCacheSync(stopCh)
-			w.Recover()
-			for i := 0; i < len(tt.k8sObjects)+len(tt.skupperObjects); i++ {
-				controller.TestProcess()
-			}
-
-			for _, def := range tt.recreate {
-				controller.TestProcess() //assume we have an event from the status update of each resource to recreate; need to process that before deleting
-				err := client.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(def.namespace).Delete(context.Background(), def.name, metav1.DeleteOptions{})
-				assert.Assert(t, err)
-				controller.TestProcess()
-				err = m.Ensure(def.namespace, def.name, def.spec, nil, nil)
-				assert.Assert(t, err)
-				controller.TestProcess()
-			}
-
-			for _, desired := range tt.expectedServices {
-				actual, err := client.GetKubeClient().CoreV1().Services(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
-				assert.Assert(t, err)
-				assert.DeepEqual(t, desired.Spec.Selector, actual.Spec.Selector)
-				for _, port := range desired.Spec.Ports {
-					assert.Assert(t, cmp.Contains(actual.Spec.Ports, port))
-				}
-				assert.Equal(t, len(desired.Spec.Ports), len(actual.Spec.Ports))
-				assert.DeepEqual(t, desired.Spec.Type, actual.Spec.Type)
-				if !reflect.DeepEqual(desired.Status, actual.Status) {
-					actual.Status = desired.Status
-					actual, err = client.GetKubeClient().CoreV1().Services(desired.Namespace).UpdateStatus(context.Background(), actual, metav1.UpdateOptions{})
-					assert.Assert(t, err)
-				}
-			}
-			services, err := client.GetKubeClient().CoreV1().Services(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-			assert.Assert(t, err)
-			assert.Equal(t, len(tt.expectedServices), len(services.Items), "wrong number of services")
-			for _, desired := range tt.expectedRoutes {
-				actual, err := client.GetRouteClient().Routes(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
-				assert.Assert(t, err)
-				assert.DeepEqual(t, desired.Spec, actual.Spec)
-			}
-			routes, err := client.GetRouteClient().Routes(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-			assert.Assert(t, err)
-			assert.Equal(t, len(tt.expectedRoutes), len(routes.Items), "wrong number of routes")
-			for _, desired := range tt.expectedIngresses {
-				actual, err := client.GetKubeClient().NetworkingV1().Ingresses(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
-				assert.Assert(t, err)
-				for _, rule := range desired.Spec.Rules {
-					assert.Assert(t, cmp.Contains(actual.Spec.Rules, rule))
-				}
-				assert.Equal(t, len(desired.Spec.Rules), len(actual.Spec.Rules))
-			}
-			ingresses, err := client.GetKubeClient().NetworkingV1().Ingresses(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-			assert.Assert(t, err)
-			assert.Equal(t, len(tt.expectedIngresses), len(ingresses.Items), "wrong number of ingresses")
-			for _, desired := range tt.expectedProxies {
-				obj, err := client.GetDynamicClient().Resource(httpProxyResource).Namespace(desired.namespace).Get(context.TODO(), desired.Name, metav1.GetOptions{})
-				assert.Assert(t, err)
-				actual := ExpectedHttpProxy{}
-				actual.Name = desired.Name
-				actual.namespace = desired.namespace
-				err = actual.readFromContourProxy(obj)
-				assert.Assert(t, err)
-				assert.Equal(t, desired, actual)
-			}
-			proxies, err := client.GetDynamicClient().Resource(httpProxyResource).Namespace(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-			assert.Assert(t, err)
-			assert.Equal(t, len(tt.expectedProxies), len(proxies.Items), "wrong number of proxies")
-			certs.checkCertificates(t, tt.expectedCertificates)
-			for _, desired := range tt.expectedStatuses {
-				actual, err := client.GetSkupperClient().SkupperV2alpha1().SecuredAccesses(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
-				assert.Assert(t, err)
-				assert.Equal(t, desired.Status.Message, actual.Status.Message)
-				assert.Equal(t, len(desired.Status.Endpoints), len(actual.Status.Endpoints))
-				for _, endpoint := range desired.Status.Endpoints {
-					assert.Assert(t, cmp.Contains(actual.Status.Endpoints, endpoint))
-				}
-			}
-		})
-	}
+func testWatcher[T runtime.Object](kind string, stores map[string]cache.Store) *watchers.ResourceWatcher[T] {
+	informer := cache.NewSharedIndexInformer(&cache.ListWatch{}, nil, 0, cache.Indexers{})
+	stores[kind] = informer.GetStore()
+	return watchers.NewResourceWatcher[T](nil, schema.GroupVersion{}, informer)
 }
-
-func TestSecuredAccessManagerChangeDelete(t *testing.T) {
-	type args struct {
-		namespace   string
-		name        string
-		spec        *skupperv2alpha1.SecuredAccessSpec
-		annotations *map[string]string
-		refs        *[]metav1.OwnerReference
-	}
-
-	testTable := []struct {
-		name                string
-		args                args
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		current             *skupperv2alpha1.SecuredAccess
-	}{
-		{
-			name: "no existing secureAccess",
-			args: args{
-				namespace: "test",
-				name:      "skupper",
-				spec: &skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_LOADBALANCER,
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "port1",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "skupper",
-					Issuer:      "skupper-site-ca",
-				},
-				annotations: &map[string]string{
-					"internal.skupper.io/controlled":   "true",
-					"internal.skupper.io/routeraccess": "name",
-				},
-				refs: &[]metav1.OwnerReference{
-					{
-						Kind:       "SecuredAccess",
-						APIVersion: "skupper.io/v2alpha1",
-						Name:       "ownerRef",
-						UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-					},
-				},
-			},
-			current: &skupperv2alpha1.SecuredAccess{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "skupper.io/v2alpha1",
-					Kind:       "SecuredAccess",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "skupper",
-					Namespace: "test",
-					OwnerReferences: []metav1.OwnerReference{
-						{
-							Kind:       "SecuredAccess",
-							APIVersion: "skupper.io/v2alpha1",
-							Name:       "ownerRef",
-							UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-						},
-					},
-					Annotations: map[string]string{
-						"internal.skupper.io/controlled":   "true",
-						"internal.skupper.io/routeraccess": "name",
-					},
-				},
-				Spec: skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_LOCAL,
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "port1",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "skupper",
-					Issuer:      "",
-				},
-			},
-		},
-	}
-
-	for _, tt := range testTable {
-		t.Run(tt.name, func(t *testing.T) {
-			m, err := newSecureAccessManagerMocks("test", tt.k8sObjects, tt.skupperObjects, tt.skupperErrorMessage)
-			assert.Assert(t, err)
-
-			if err := m.Ensure(tt.args.namespace, tt.args.name, *tt.args.spec, *tt.args.annotations, *tt.args.refs); err != nil {
-				t.Errorf("SecuredAccessManager.Ensure() error = %v", err)
-			}
-			// change Access Type
-			if err = m.SecuredAccessChanged("test/skupper", tt.current); err != nil {
-				t.Errorf("SecuredAccessManager.SecuredAccessChanged error = %v", err)
-			}
-			// expect one service and one definition
-			if len(m.definitions) != 1 {
-				t.Errorf("SecuredAccessManager.Ensure() expected one definition")
-			}
-			if len(m.services) != 1 {
-				t.Errorf("SecuredAccessManager.Ensure() expected one service")
-			}
-			// delete secured access
-			if err = m.SecuredAccessDeleted("test/skupper"); err != nil {
-				t.Errorf("SecuredAccessManager.SecuredAccessDeleted() failed delete error= %v", err)
-			}
-			// expect no services or definitions
-			if len(m.definitions) != 0 {
-				t.Errorf("SecuredAccessManager.SecuredAccessDeleted() expected no definition")
-			}
-			hosts := getHosts(tt.current)
-			if len(hosts) != 2 {
-				t.Errorf("SecuredAccessManager.getHosts() expected %d", len(hosts))
-			}
-		})
-	}
-}
-
-func TestSecuredAccessManagerCheckService(t *testing.T) {
-	type args struct {
-		namespace   string
-		name        string
-		spec        *skupperv2alpha1.SecuredAccessSpec
-		annotations *map[string]string
-		refs        *[]metav1.OwnerReference
-	}
-
-	testTable := []struct {
-		name                string
-		args                args
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-		svc                 *corev1.Service
-		expectErr           bool
-	}{
-		{
-			name: "no existing service",
-			args: args{
-				namespace: "test",
-				name:      "skupper",
-				spec: &skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_LOADBALANCER,
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "port1",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "skupper",
-					Issuer:      "skupper-site-ca",
-				},
-				annotations: &map[string]string{
-					"internal.skupper.io/controlled":   "true",
-					"internal.skupper.io/routeraccess": "name",
-				},
-				refs: &[]metav1.OwnerReference{
-					{
-						Kind:       "SecuredAccess",
-						APIVersion: "skupper.io/v2alpha1",
-						Name:       "ownerRef",
-						UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-					},
-				},
-			},
-			expectErr: false,
-		},
-		{
-			name: "existing service",
-			args: args{
-				namespace: "test",
-				name:      "skupper",
-				spec: &skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_LOADBALANCER,
-					Selector: map[string]string{
-						"skupper.io/component": "router",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "port1",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "skupper",
-					Issuer:      "skupper-site-ca",
-				},
-				annotations: &map[string]string{
-					"internal.skupper.io/controlled": "true",
-				},
-				refs: &[]metav1.OwnerReference{
-					{
-						Kind:       "SecuredAccess",
-						APIVersion: "skupper.io/v2alpha1",
-						Name:       "ownerRef",
-						UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-					},
-				},
-			},
-			svc: &corev1.Service{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
-					Kind:       "Service",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "skupper",
-					Namespace: "test",
-					Labels: map[string]string{
-						"internal.skupper.io/secured-access": "true",
-					},
-					Annotations: map[string]string{
-						"internal.skupper.io/controlled": "true",
-					},
-				},
-				Spec: corev1.ServiceSpec{
-					Selector: map[string]string{
-						"skupper.io/component": "router",
-					},
-					Type: corev1.ServiceTypeLoadBalancer, //ACCESS_TYPE_ROUTE,
-					Ports: []corev1.ServicePort{
-						{
-							Name:       "port1",
-							Port:       8080,
-							TargetPort: intstr.IntOrString{IntVal: int32(8081)},
-							Protocol:   "TCP",
-						},
-					},
-				},
-			},
-			expectErr: false,
-		},
-		{
-			name: "service parameter change",
-			args: args{
-				namespace: "test",
-				name:      "skupper",
-				spec: &skupperv2alpha1.SecuredAccessSpec{
-					AccessType: ACCESS_TYPE_LOADBALANCER,
-					Selector: map[string]string{
-						"skupper.io/component": "router",
-					},
-					Ports: []skupperv2alpha1.SecuredAccessPort{
-						{
-							Name:       "port1",
-							Port:       8080,
-							TargetPort: 8081,
-							Protocol:   "TCP",
-						},
-					},
-					Certificate: "skupper",
-					Issuer:      "skupper-site-ca",
-				},
-				annotations: &map[string]string{
-					"internal.skupper.io/controlled": "true",
-				},
-				refs: &[]metav1.OwnerReference{
-					{
-						Kind:       "SecuredAccess",
-						APIVersion: "skupper.io/v2alpha1",
-						Name:       "ownerRef",
-						UID:        "8a96ffdf-403b-4e4a-83a8-97d3d459adb6",
-					},
-				},
-			},
-			svc: &corev1.Service{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
-					Kind:       "Service",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "skupper",
-					Namespace: "test",
-					Labels: map[string]string{
-						"internal.skupper.io/secured-access": "true",
-					},
-					Annotations: map[string]string{
-						"internal.skupper.io/controlled": "true",
-					},
-				},
-				Spec: corev1.ServiceSpec{
-					Selector: map[string]string{
-						"skupper.io/component": "controller",
-					},
-					Type: corev1.ServiceTypeClusterIP,
-					Ports: []corev1.ServicePort{
-						{
-							Name:       "port1",
-							Port:       8880,
-							TargetPort: intstr.IntOrString{IntVal: int32(8881)},
-							Protocol:   "TCP",
-						},
-					},
-				},
-			},
-			expectErr: true,
-		},
-	}
-
-	for _, tt := range testTable {
-		t.Run(tt.name, func(t *testing.T) {
-			m, err := newSecureAccessManagerMocks("test", tt.k8sObjects, tt.skupperObjects, tt.skupperErrorMessage)
-			assert.Assert(t, err)
-
-			if err := m.Ensure(tt.args.namespace, tt.args.name, *tt.args.spec, *tt.args.annotations, *tt.args.refs); err != nil {
-				t.Errorf("SecuredAccessManager.CheckServic() error = %v", err)
-			}
-
-			// check service
-			if err = m.CheckService("test/skupper", tt.svc); err != nil {
-				if tt.expectErr {
-					// expected error since service doesn't exist so create one
-					m.RecoverService(tt.svc)
-				} else {
-					t.Errorf("SecuredAccessManager.CheckService error = %v", err)
-				}
-			}
-			// expect one service and one definition
-			if len(m.definitions) != 1 {
-				t.Errorf("SecuredAccessManager.CheckService() expected one definition")
-			}
-			if len(m.services) != 1 {
-				t.Errorf("SecuredAccessManager.CheckService() expected one service")
-			}
-			// check values were modified
-			if tt.svc != nil {
-				skey := serviceKey(tt.svc)
-				if !reflect.DeepEqual(tt.svc.Spec.Selector, m.services[skey].Spec.Selector) {
-					t.Errorf("SecuredAccessManager.updateSelector() expected selector to be updated")
-				}
-				if tt.svc.Spec.Type != m.services[skey].Spec.Type {
-					t.Errorf("SecuredAccessManager.updateType() expected Type to be updated")
-				}
-			}
-		})
-	}
-}
-
-func TestSecuredAccessManagerRecoverRoute(t *testing.T) {
-	type args struct {
-		route *routev1.Route
-	}
-	testTable := []struct {
-		name                string
-		args                args
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-	}{
-		{
-			name: "good route",
-			args: args{
-				route: &routev1.Route{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: "v1",
-						Kind:       "Route",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "route",
-						Namespace: "test",
-					},
-					Spec: routev1.RouteSpec{
-						Path: "",
-						Host: "test/host",
-						Port: &routev1.RoutePort{
-							TargetPort: intstr.FromString("8080"),
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for _, tt := range testTable {
-		t.Run(tt.name, func(t *testing.T) {
-			m, err := newSecureAccessManagerMocks("test", tt.k8sObjects, tt.skupperObjects, tt.skupperErrorMessage)
-			assert.Assert(t, err)
-
-			m.RecoverRoute(tt.args.route)
-			if len(m.routes) != 1 {
-				t.Errorf("SecuredAccessManager.RecoverRoute() expect one route")
-			}
-		})
-	}
-}
-
-func TestSecuredAccessManagerRecoverIngress(t *testing.T) {
-	type args struct {
-		ingress *networkingv1.Ingress
-	}
-	testTable := []struct {
-		name                string
-		args                args
-		k8sObjects          []runtime.Object
-		skupperObjects      []runtime.Object
-		skupperErrorMessage string
-	}{
-		{
-			name: "ingress",
-			args: args{
-				ingress: &networkingv1.Ingress{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: "v1",
-						Kind:       "Ingress",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "route1",
-						Namespace: "test",
-					},
-				},
-			},
-		},
-	}
-
-	for _, tt := range testTable {
-		t.Run(tt.name, func(t *testing.T) {
-			m, err := newSecureAccessManagerMocks("test", tt.k8sObjects, tt.skupperObjects, tt.skupperErrorMessage)
-			assert.Assert(t, err)
-
-			m.RecoverIngress(tt.args.ingress)
-			if len(m.ingresses) != 1 {
-				t.Errorf("SecuredAccessManager.RecoverIngress() expect one route")
-			}
-		})
-	}
-}
-
-// --- helper methods
-func newSecureAccessManagerMocks(namespace string, k8sObjects []runtime.Object, skupperObjects []runtime.Object, fakeSkupperError string) (*SecuredAccessManager, error) {
-
-	client, err := fakeclient.NewFakeClient(namespace, k8sObjects, skupperObjects, fakeSkupperError)
-	if err != nil {
-		return nil, err
-	}
-
-	securedAccessManager := &SecuredAccessManager{
-		clients:     client,
-		definitions: make(map[string]*skupperv2alpha1.SecuredAccess),
-		services:    make(map[string]*corev1.Service),
-		routes:      make(map[string]*routev1.Route),
-		ingresses:   make(map[string]*networkingv1.Ingress),
-		//httpProxies: make(map[string]*unstructured.Unstructured),
-		certMgr: newMockCertificateManager(),
-	}
-	return securedAccessManager, nil
-}
-
-type MockCertificate struct {
-	namespace string
-	name      string
-	ca        string
-	subject   string
-	hosts     []string
-	client    bool
-	server    bool
-	refs      []metav1.OwnerReference
-}
-
-type MockCA struct {
-	namespace string
-	name      string
-	subject   string
-	refs      []metav1.OwnerReference
-}
-
-type MockCertificateManager struct {
-	cas    map[string]MockCA
-	certs  map[string]MockCertificate
-	errors []string
-}
-
-func newMockCertificateManager() *MockCertificateManager {
-	return &MockCertificateManager{
-		cas:   map[string]MockCA{},
-		certs: map[string]MockCertificate{},
-	}
-}
-
-func (m *MockCertificateManager) checkCertificates(t *testing.T, expected []MockCertificate) {
+func newHarness(t *testing.T, clients *internalclient.KubeClient) *scopeHarness {
 	t.Helper()
-	for _, desired := range expected {
-		key := desired.namespace + "/" + desired.name
-		assert.Equal(t, desired.namespace, m.certs[key].namespace)
-		assert.Equal(t, desired.name, m.certs[key].name)
-		assert.Equal(t, desired.subject, m.certs[key].subject)
-		for _, host := range desired.hosts {
-			assert.Assert(t, cmp.Contains(m.certs[key].hosts, host))
+	if clients == nil {
+		var err error
+		clients, err = fakeclient.NewFakeClient("test", nil, nil, "")
+		assert.NilError(t, err)
+	}
+	m := NewSecuredAccessManager(clients, ptrConfig(testConfig()), &testContext{policy: labels.NewLabelsAndAnnotations("controller")})
+	w := &ResourceCaches{}
+	m.BindCaches(w)
+	h := &scopeHarness{t: t, m: m, clients: clients, stores: map[string]cache.Store{}}
+	w.Services = testWatcher[*corev1.Service]("Service", h.stores)
+	w.Ingresses = testWatcher[*networkingv1.Ingress]("Ingress", h.stores)
+	w.Routes = testWatcher[*routev1.Route]("Route", h.stores)
+	w.Accesses = testWatcher[*saapi.SecuredAccess]("SecuredAccess", h.stores)
+	w.Certificates = testWatcher[*saapi.Certificate]("Certificate", h.stores)
+	w.HTTPProxies = testWatcher[*unstructured.Unstructured]("HTTPProxy", h.stores)
+	w.TLSRoutes = testWatcher[*unstructured.Unstructured]("TLSRoute", h.stores)
+	w.Gateways = testWatcher[*unstructured.Unstructured]("Gateway", h.stores)
+	return h
+}
+func ptrConfig(c Config) *Config { return &c }
+func (h *scopeHarness) observe() {
+	t := h.t
+	t.Helper()
+	ctx := context.Background()
+	for _, s := range h.stores {
+		for _, o := range s.List() {
+			assert.NilError(t, s.Delete(o))
 		}
-		assert.Equal(t, len(desired.hosts), len(m.certs[key].hosts), "wrong number of hosts in certificate")
+	}
+	sas, e := h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("").List(ctx, metav1.ListOptions{})
+	assert.NilError(t, e)
+	for i := range sas.Items {
+		assert.NilError(t, h.stores["SecuredAccess"].Add(sas.Items[i].DeepCopy()))
+	}
+	cs, e := h.clients.Skupper.SkupperV2alpha1().Certificates("").List(ctx, metav1.ListOptions{})
+	assert.NilError(t, e)
+	for i := range cs.Items {
+		assert.NilError(t, h.stores["Certificate"].Add(cs.Items[i].DeepCopy()))
+	}
+	svcs, e := h.clients.Kube.CoreV1().Services("").List(ctx, metav1.ListOptions{})
+	assert.NilError(t, e)
+	for i := range svcs.Items {
+		assert.NilError(t, h.stores["Service"].Add(svcs.Items[i].DeepCopy()))
+	}
+	is, e := h.clients.Kube.NetworkingV1().Ingresses("").List(ctx, metav1.ListOptions{})
+	assert.NilError(t, e)
+	for i := range is.Items {
+		assert.NilError(t, h.stores["Ingress"].Add(is.Items[i].DeepCopy()))
+	}
+	if h.clients.Route != nil {
+		rs, e := h.clients.Route.RouteV1().Routes("").List(ctx, metav1.ListOptions{})
+		assert.NilError(t, e)
+		for i := range rs.Items {
+			assert.NilError(t, h.stores["Route"].Add(rs.Items[i].DeepCopy()))
+		}
+	}
+	for kind, gvr := range map[string]schema.GroupVersionResource{"HTTPProxy": httpProxyResource, "TLSRoute": resource.TlsRouteResource(), "Gateway": resource.GatewayResource()} {
+		os, e := h.clients.Dynamic.Resource(gvr).Namespace("").List(ctx, metav1.ListOptions{})
+		if kind == "HTTPProxy" && apierrors.IsNotFound(e) {
+			continue
+		}
+		assert.NilError(t, e)
+		for i := range os.Items {
+			assert.NilError(t, h.stores[kind].Add(os.Items[i].DeepCopy()))
+		}
 	}
 }
-
-func (m *MockCertificateManager) popError() error {
-	if len(m.errors) > 0 {
-		n := len(m.errors) - 1
-		e := m.errors[n]
-		m.errors = m.errors[:n]
-		if e != "" {
-			return errors.New(e)
+func (h *scopeHarness) put(sa *saapi.SecuredAccess) {
+	h.t.Helper()
+	_, err := h.clients.Skupper.SkupperV2alpha1().SecuredAccesses(sa.Namespace).Create(context.Background(), sa, metav1.CreateOptions{})
+	assert.NilError(h.t, err)
+	h.observe()
+}
+func (h *scopeHarness) run(key string) error { return h.m.Handle(watchers.ResourceChange{Key: key}) }
+func (h *scopeHarness) runCertificates() error {
+	keys := map[string]bool{}
+	for _, sa := range h.m.watcher.Accesses.List() {
+		if target := CertificateTarget(sa); target != "" {
+			keys[sa.Namespace+"/"+target] = true
+		}
+	}
+	for _, c := range h.m.watcher.Certificates.List() {
+		keys[c.Namespace+"/"+c.Name] = true
+	}
+	var ordered []string
+	for key := range keys {
+		ordered = append(ordered, key)
+	}
+	sort.Strings(ordered)
+	for _, key := range ordered {
+		if err := h.m.certificates.Handle(watchers.ResourceChange{Key: key}); err != nil {
+			return err
 		}
 	}
 	return nil
 }
-
-func (m *MockCertificateManager) pushError(e string) {
-	m.errors = append(m.errors, e)
+func (h *scopeHarness) status(name string) *saapi.SecuredAccess {
+	h.t.Helper()
+	sa, e := h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Get(context.Background(), name, metav1.GetOptions{})
+	assert.NilError(h.t, e)
+	return sa
 }
 
-func (m *MockCertificateManager) EnsureCA(namespace string, name string, subject string, refs []metav1.OwnerReference) error {
-	m.cas[namespace+"/"+name] = MockCA{
-		namespace: namespace,
-		name:      name,
-		subject:   subject,
-		refs:      refs,
+// apiRecorder is implemented by every fake client in the harness.
+type apiRecorder interface {
+	Actions() []k8stesting.Action
+	ClearActions()
+}
+
+// recorders returns the harness's fake clients.
+func (h *scopeHarness) recorders() []apiRecorder {
+	var recorders []apiRecorder
+	for _, c := range []any{h.clients.Kube, h.clients.Skupper, h.clients.Dynamic, h.clients.Route} {
+		if r, ok := c.(apiRecorder); ok {
+			recorders = append(recorders, r)
+		}
 	}
-	return m.popError()
+	return recorders
 }
-
-func (m *MockCertificateManager) Ensure(namespace string, name string, ca string, subject string, hosts []string, client bool, server bool, refs []metav1.OwnerReference) error {
-	m.certs[namespace+"/"+name] = MockCertificate{
-		namespace: namespace,
-		name:      name,
-		ca:        ca,
-		subject:   subject,
-		hosts:     hosts,
-		client:    client,
-		server:    server,
-		refs:      refs,
-	}
-	return m.popError()
-}
-
-func gateway(name string, namespace string) *unstructured.Unstructured {
-	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "gateway.networking.k8s.io",
-		Version: "v1",
-		Kind:    "Gateway",
-	})
-	obj.SetName(name)
-	obj.SetNamespace(namespace)
-	return obj
-}
-
-func tlsroute(name string, namespace string) *unstructured.Unstructured {
-	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "gateway.networking.k8s.io",
-		Version: "v1alpha2",
-		Kind:    "TLSRoute",
-	})
-	obj.SetLabels(map[string]string{
-		"internal.skupper.io/secured-access": "true",
-	})
-	obj.SetAnnotations(map[string]string{
-		"internal.skupper.io/controlled": "true",
-	})
-	obj.SetName(name)
-	obj.SetNamespace(namespace)
-	return obj
-}
-
-type ServerSideApplyRecorder struct {
-	objects   map[string]*unstructured.Unstructured
-	modifiers map[string]func(*unstructured.Unstructured)
-	errors    map[string]string
-}
-
-func newServerSideApplyRecorder() *ServerSideApplyRecorder {
-	return &ServerSideApplyRecorder{
-		objects:   map[string]*unstructured.Unstructured{},
-		modifiers: map[string]func(*unstructured.Unstructured){},
-		errors:    map[string]string{},
+func (h *scopeHarness) clearActions() {
+	for _, r := range h.recorders() {
+		r.ClearActions()
 	}
 }
 
-func (recorder *ServerSideApplyRecorder) setGatewayIP(key string, ip string) *ServerSideApplyRecorder {
-	recorder.modifiers[key] = func(obj *unstructured.Unstructured) {
-		setGatewayAddress(obj, "IPAddress", ip)
-	}
-	return recorder
-}
-
-func (recorder *ServerSideApplyRecorder) setGatewayHostname(key string, hostname string) *ServerSideApplyRecorder {
-	recorder.modifiers[key] = func(obj *unstructured.Unstructured) {
-		setGatewayAddress(obj, "Hostname", hostname)
-	}
-	return recorder
-}
-
-func (recorder *ServerSideApplyRecorder) setError(key string, err string) *ServerSideApplyRecorder {
-	recorder.errors[key] = err
-	return recorder
-}
-
-func (recorder *ServerSideApplyRecorder) record(obj *unstructured.Unstructured) error {
-	key := obj.GetNamespace() + "/" + obj.GetName()
-	if err, ok := recorder.errors[key]; ok {
-		return errors.New(err)
-	}
-	recorder.objects[key] = obj
-	if modifier, ok := recorder.modifiers[key]; ok {
-		modifier(obj)
-	}
-	return nil
-}
-
-func (recorder *ServerSideApplyRecorder) enable(client dynamic.Interface) bool {
-	if fc, ok := client.(*fakedynamic.FakeDynamicClient); ok {
-		fc.PrependReactor(
-			"patch",
-			"*",
-			func(action k8stesting.Action) (bool, runtime.Object, error) {
-				pa := action.(k8stesting.PatchAction)
-				if pa.GetPatchType() != types.ApplyPatchType {
-					return false, nil, nil
-				}
-				obj := &unstructured.Unstructured{}
-				json.Unmarshal(pa.GetPatch(), obj)
-				obj.SetNamespace(pa.GetNamespace())
-				if err := recorder.record(obj); err != nil {
-					return true, nil, err
-				}
-				return true, obj, nil
-			},
-		)
-		return true
-	}
-	return false
-}
-
-func setGatewayAddress(obj *unstructured.Unstructured, typeName string, value string) *unstructured.Unstructured {
-	addresses := []interface{}{
-		map[string]interface{}{
-			"type":  typeName,
-			"value": value,
-		},
-	}
-	unstructured.SetNestedSlice(obj.UnstructuredContent(), addresses, "status", "addresses")
-	return obj
-}
-
-func serviceKey(svc *corev1.Service) string {
-	return fmt.Sprintf("%s/%s", svc.Namespace, svc.Name)
-}
-
-func TestRecreateOnDelete(t *testing.T) {
-	type Delete func(clients internalclient.Clients, manager *SecuredAccessManager) error
-	testTable := []struct {
-		name              string
-		config            Config
-		k8sObjects        []runtime.Object
-		skupperObjects    []runtime.Object
-		deletions         []Delete
-		expectedServices  []*corev1.Service
-		expectedRoutes    []*routev1.Route
-		expectedIngresses []*networkingv1.Ingress
-		expectedProxies   []ExpectedHttpProxy
-		expectedSSA       map[string]*unstructured.Unstructured
-	}{
-		{
-			name: "loadbalancer",
-			config: Config{
-				EnabledAccessTypes: []string{"loadbalancer"},
-			},
-			k8sObjects: []runtime.Object{
-				service("mysvc", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts()),
-			},
-			deletions: []Delete{
-				func(clients internalclient.Clients, manager *SecuredAccessManager) error {
-					if err := clients.GetKubeClient().CoreV1().Services("test").Delete(context.Background(), "mysvc", metav1.DeleteOptions{}); err != nil {
-						return err
-					}
-					if err := manager.CheckService("test/mysvc", nil); err != nil {
-						return err
-					}
-					return nil
-				},
-			},
-			skupperObjects: []runtime.Object{
-				securedAccess("mysvc", "test", selector(), securedAccessPorts()),
-			},
-			expectedServices: []*corev1.Service{
-				service("mysvc", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts()),
-			},
-		},
-		{
-			name: "redundant loadbalancer",
-			config: Config{
-				EnabledAccessTypes: []string{"loadbalancer"},
-			},
-			k8sObjects: []runtime.Object{
-				service("mysvc", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts()),
-				service("foo", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts()),
-			},
-			deletions: []Delete{
-				func(clients internalclient.Clients, manager *SecuredAccessManager) error {
-					if err := manager.CheckService("test/foo", service("foo", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts())); err != nil {
-						return err
-					}
-					if err := manager.CheckService("test/foo", nil); err != nil {
-						return err
-					}
-					return nil
-				},
-			},
-			skupperObjects: []runtime.Object{
-				securedAccess("mysvc", "test", selector(), securedAccessPorts()),
-			},
-			expectedServices: []*corev1.Service{
-				service("mysvc", "test", selector(), corev1.ServiceTypeLoadBalancer, servicePorts()),
-			},
-		},
-		{
-			name: "route",
-			config: Config{
-				EnabledAccessTypes: []string{"route"},
-			},
-			k8sObjects: []runtime.Object{
-				service("mysvc", "test", selector(), "", servicePorts()),
-				route("mysvc-a", "test", "mysvc", "a", ""),
-				route("mysvc-b", "test", "mysvc", "b", ""),
-			},
-			deletions: []Delete{
-				func(clients internalclient.Clients, manager *SecuredAccessManager) error {
-					if err := clients.GetRouteClient().Routes("test").Delete(context.Background(), "mysvc-a", metav1.DeleteOptions{}); err != nil {
-						return err
-					}
-					if err := manager.CheckRoute("test/mysvc-a", nil); err != nil {
-						return err
-					}
-					return nil
-				},
-			},
-			skupperObjects: []runtime.Object{
-				securedAccess("mysvc", "test", selector(), securedAccessPorts()),
-			},
-			expectedServices: []*corev1.Service{
-				service("mysvc", "test", selector(), "", servicePorts()),
-			},
-			expectedRoutes: []*routev1.Route{
-				route("mysvc-a", "test", "mysvc", "a", ""),
-				route("mysvc-b", "test", "mysvc", "b", ""),
-			},
-		},
-		{
-			name: "route",
-			config: Config{
-				EnabledAccessTypes: []string{"route"},
-			},
-			k8sObjects: []runtime.Object{
-				service("mysvc", "test", selector(), "", servicePorts()),
-				route("mysvc-a", "test", "mysvc", "a", ""),
-				route("mysvc-b", "test", "mysvc", "b", ""),
-				route("mysvc-c", "test", "mysvc", "c", ""),
-			},
-			deletions: []Delete{
-				func(clients internalclient.Clients, manager *SecuredAccessManager) error {
-					if err := manager.CheckRoute("test/mysvc-c", route("mysvc-c", "test", "mysvc", "c", "")); err != nil {
-						return err
-					}
-					if err := manager.CheckRoute("test/mysvc-c", nil); err != nil {
-						return err
-					}
-					return nil
-				},
-			},
-			skupperObjects: []runtime.Object{
-				securedAccess("mysvc", "test", selector(), securedAccessPorts()),
-			},
-			expectedServices: []*corev1.Service{
-				service("mysvc", "test", selector(), "", servicePorts()),
-			},
-			expectedRoutes: []*routev1.Route{
-				route("mysvc-a", "test", "mysvc", "a", ""),
-				route("mysvc-b", "test", "mysvc", "b", ""),
-			},
-		},
-		{
-			name: "ingress",
-			config: Config{
-				EnabledAccessTypes: []string{"ingress-nginx"},
-			},
-			k8sObjects: []runtime.Object{
-				service("mysvc", "test", selector(), "", servicePorts()),
-				ingress("mysvc", "test", ingressRule("a.test", "mysvc", 8080), ingressRule("b.test", "mysvc", 9090)),
-			},
-			deletions: []Delete{
-				func(clients internalclient.Clients, manager *SecuredAccessManager) error {
-					if err := clients.GetKubeClient().NetworkingV1().Ingresses("test").Delete(context.Background(), "mysvc", metav1.DeleteOptions{}); err != nil {
-						return err
-					}
-					if err := manager.CheckIngress("test/mysvc", nil); err != nil {
-						return err
-					}
-					return nil
-				},
-			},
-			skupperObjects: []runtime.Object{
-				securedAccess("mysvc", "test", selector(), securedAccessPorts()),
-			},
-			expectedServices: []*corev1.Service{
-				service("mysvc", "test", selector(), "", servicePorts()),
-			},
-			expectedIngresses: []*networkingv1.Ingress{
-				ingress("mysvc", "test", ingressRule("a.test", "mysvc", 8080), ingressRule("b.test", "mysvc", 9090)),
-			},
-		},
-		{
-			name: "redundant ingress",
-			config: Config{
-				EnabledAccessTypes: []string{"ingress-nginx"},
-			},
-			k8sObjects: []runtime.Object{
-				service("mysvc", "test", selector(), "", servicePorts()),
-				ingress("mysvc", "test", ingressRule("a.test", "mysvc", 8080), ingressRule("b.test", "mysvc", 9090)),
-				ingress("foo", "test", ingressRule("a.test", "foo", 8080), ingressRule("b.test", "foo", 9090)),
-			},
-			deletions: []Delete{
-				func(clients internalclient.Clients, manager *SecuredAccessManager) error {
-					if err := manager.CheckIngress("test/foo", ingress("foo", "test", ingressRule("a.test", "foo", 8080), ingressRule("b.test", "foo", 9090))); err != nil {
-						return err
-					}
-					if err := manager.CheckIngress("test/foo", nil); err != nil {
-						return err
-					}
-					return nil
-				},
-			},
-			skupperObjects: []runtime.Object{
-				securedAccess("mysvc", "test", selector(), securedAccessPorts()),
-			},
-			expectedServices: []*corev1.Service{
-				service("mysvc", "test", selector(), "", servicePorts()),
-			},
-			expectedIngresses: []*networkingv1.Ingress{
-				ingress("mysvc", "test", ingressRule("a.test", "mysvc", 8080), ingressRule("b.test", "mysvc", 9090)),
-			},
-		},
-		{
-			name: "http proxy",
-			config: Config{
-				EnabledAccessTypes: []string{"contour-http-proxy"},
-			},
-			k8sObjects: []runtime.Object{
-				service("mysvc", "test", selector(), "", servicePorts()),
-				httpProxy("mysvc-a", "test", "mysvc-a.test", "mysvc", 8080),
-				httpProxy("mysvc-b", "test", "mysvc-b.test", "mysvc", 9090),
-			},
-			deletions: []Delete{
-				func(clients internalclient.Clients, manager *SecuredAccessManager) error {
-					if err := clients.GetDynamicClient().Resource(httpProxyResource).Namespace("test").Delete(context.TODO(), "mysvc-b", metav1.DeleteOptions{}); err != nil {
-						return err
-					}
-					if err := manager.CheckHttpProxy("test/mysvc-b", nil); err != nil {
-						return err
-					}
-					return nil
-				},
-			},
-			skupperObjects: []runtime.Object{
-				securedAccess("mysvc", "test", selector(), securedAccessPorts()),
-			},
-			expectedServices: []*corev1.Service{
-				service("mysvc", "test", selector(), "", servicePorts()),
-			},
-			expectedProxies: []ExpectedHttpProxy{
-				expectedHttpProxy("mysvc-a", "test", "mysvc-a.test", "mysvc", 8080),
-				expectedHttpProxy("mysvc-b", "test", "mysvc-b.test", "mysvc", 9090),
-			},
-		},
-		{
-			name: "redundant http proxy",
-			config: Config{
-				EnabledAccessTypes: []string{"contour-http-proxy"},
-			},
-			k8sObjects: []runtime.Object{
-				service("mysvc", "test", selector(), "", servicePorts()),
-				httpProxy("mysvc-a", "test", "mysvc-a.test", "mysvc", 8080),
-				httpProxy("mysvc-b", "test", "mysvc-b.test", "mysvc", 9090),
-				httpProxy("foo-bar", "test", "whatever", "bar", 9090),
-			},
-			deletions: []Delete{
-				func(clients internalclient.Clients, manager *SecuredAccessManager) error {
-					if err := manager.CheckHttpProxy("test/foo-bar", httpProxy("foo-bar", "test", "whatever", "bar", 9090)); err != nil {
-						return err
-					}
-					if err := manager.CheckHttpProxy("test/foo-bar", nil); err != nil {
-						return err
-					}
-					return nil
-				},
-			},
-			skupperObjects: []runtime.Object{
-				securedAccess("mysvc", "test", selector(), securedAccessPorts()),
-			},
-			expectedServices: []*corev1.Service{
-				service("mysvc", "test", selector(), "", servicePorts()),
-			},
-			expectedProxies: []ExpectedHttpProxy{
-				expectedHttpProxy("mysvc-a", "test", "mysvc-a.test", "mysvc", 8080),
-				expectedHttpProxy("mysvc-b", "test", "mysvc-b.test", "mysvc", 9090),
-			},
-		},
-		{
-			name: "tls route",
-			config: Config{
-				EnabledAccessTypes: []string{"gateway"},
-				GatewayClass:       "contour",
-				GatewayDomain:      "mygateway.org",
-			},
-			k8sObjects: []runtime.Object{
-				service("mysvc", "test", selector(), "", servicePorts()),
-				tlsroute("mysvc-a", "test"),
-				tlsroute("mysvc-b", "test"),
-			},
-			deletions: []Delete{
-				func(clients internalclient.Clients, manager *SecuredAccessManager) error {
-					if err := manager.CheckTlsRoute("test/mysvc-a", nil); err != nil {
-						return err
-					}
-					return nil
-				},
-			},
-			skupperObjects: []runtime.Object{
-				securedAccess("mysvc", "test", selector(), securedAccessPorts()),
-			},
-			expectedServices: []*corev1.Service{
-				service("mysvc", "test", selector(), "", servicePorts()),
-			},
-			expectedSSA: map[string]*unstructured.Unstructured{
-				"test/skupper": gateway("skupper", "test"),
-				"test/mysvc-a": tlsroute("mysvc-a", "test"),
-				"test/mysvc-b": tlsroute("mysvc-b", "test"),
-			},
-		},
-		{
-			name: "redundant tls route",
-			config: Config{
-				EnabledAccessTypes: []string{"gateway"},
-				GatewayClass:       "contour",
-				GatewayDomain:      "mygateway.org",
-			},
-			k8sObjects: []runtime.Object{
-				service("mysvc", "test", selector(), "", servicePorts()),
-				tlsroute("mysvc-a", "test"),
-				tlsroute("mysvc-b", "test"),
-				tlsroute("mysvc-c", "test"),
-			},
-			deletions: []Delete{
-				func(clients internalclient.Clients, manager *SecuredAccessManager) error {
-					if err := manager.CheckTlsRoute("test/mysvc-c", tlsroute("mysvc-c", "test")); err != nil {
-						return err
-					}
-					if err := manager.CheckTlsRoute("test/mysvc-c", nil); err != nil {
-						return err
-					}
-					return nil
-				},
-			},
-			skupperObjects: []runtime.Object{
-				securedAccess("mysvc", "test", selector(), securedAccessPorts()),
-			},
-			expectedServices: []*corev1.Service{
-				service("mysvc", "test", selector(), "", servicePorts()),
-			},
-			expectedSSA: map[string]*unstructured.Unstructured{
-				"test/skupper": gateway("skupper", "test"),
-				"test/mysvc-a": tlsroute("mysvc-a", "test"),
-				"test/mysvc-b": tlsroute("mysvc-b", "test"),
-			},
-		},
-	}
-	for _, tt := range testTable {
-		t.Run(tt.name, func(t *testing.T) {
-			client, err := fakeclient.NewFakeClient("test", tt.k8sObjects, tt.skupperObjects, "")
-			if err != nil {
-				assert.Assert(t, err)
+// mutations returns the API writes recorded since the last clearActions.
+func (h *scopeHarness) mutations() []k8stesting.Action {
+	var writes []k8stesting.Action
+	for _, r := range h.recorders() {
+		for _, a := range r.Actions() {
+			if a.GetVerb() != "get" && a.GetVerb() != "list" && a.GetVerb() != "watch" {
+				writes = append(writes, a)
 			}
-			ssaRecorder := newServerSideApplyRecorder()
-			assert.Assert(t, ssaRecorder.enable(client.GetDynamicClient()))
-			certs := newMockCertificateManager()
-			m := NewSecuredAccessManager(client, certs, &tt.config, &FakeControllerContext{namespace: "test"})
-			w := NewSecuredAccessResourceWatcher(m)
-			controller := watchers.NewEventProcessor("Controller", client)
-			w.WatchResources(controller, metav1.NamespaceAll)
-			w.WatchSecuredAccesses(controller, metav1.NamespaceAll, func(string, *skupperv2alpha1.SecuredAccess) error { return nil })
-			stopCh := make(chan struct{})
-			controller.StartWatchers(stopCh)
-			controller.WaitForCacheSync(stopCh)
-			w.Recover()
+		}
+	}
+	return writes
+}
 
-			//delete:
-			for _, d := range tt.deletions {
-				assert.Assert(t, d(client, m))
-			}
+// settle runs the Access and Certificate scopes, observing their writes, until
+// a pass writes nothing.
+func (h *scopeHarness) settle(name string) {
+	h.t.Helper()
+	for i := 0; i < 5; i++ {
+		h.clearActions()
+		h.observe()
+		assert.NilError(h.t, h.run("test/"+name))
+		h.observe()
+		assert.NilError(h.t, h.runCertificates())
+		if len(h.mutations()) == 0 {
+			h.observe()
+			return
+		}
+	}
+	h.t.Fatalf("scopes for %s did not converge: %v", name, h.mutations())
+}
 
-			// check any expected resources are recreated:
-			for _, desired := range tt.expectedServices {
-				actual, err := client.GetKubeClient().CoreV1().Services(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
-				assert.Assert(t, err)
-				assert.DeepEqual(t, desired.Spec.Selector, actual.Spec.Selector)
-				for _, port := range desired.Spec.Ports {
-					assert.Assert(t, cmp.Contains(actual.Spec.Ports, port))
-				}
-				assert.Equal(t, len(desired.Spec.Ports), len(actual.Spec.Ports))
-				assert.DeepEqual(t, desired.Spec.Type, actual.Spec.Type)
-				if !reflect.DeepEqual(desired.Status, actual.Status) {
-					actual.Status = desired.Status
-					actual, err = client.GetKubeClient().CoreV1().Services(desired.Namespace).UpdateStatus(context.Background(), actual, metav1.UpdateOptions{})
-					assert.Assert(t, err)
-				}
+// noWrites asserts that settled Access and Certificate scopes issue no writes.
+func (h *scopeHarness) noWrites(name string) {
+	h.t.Helper()
+	h.clearActions()
+	assert.NilError(h.t, h.run("test/"+name))
+	assert.NilError(h.t, h.runCertificates())
+	assert.Equal(h.t, len(h.mutations()), 0, "unexpected mutations: %v", h.mutations())
+}
+
+func TestRequiredServiceBlocksProvider(t *testing.T) {
+	ctx := context.Background()
+	for _, existing := range []bool{false, true} {
+		t.Run(map[bool]string{false: "missing", true: "foreign"}[existing], func(t *testing.T) {
+			h := newHarness(t, nil)
+			sa := testAccess("ingress")
+			var before *corev1.Service
+			if existing {
+				var err error
+				before, err = h.clients.Kube.CoreV1().Services("test").Create(ctx, &corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: sa.Name, Namespace: sa.Namespace, UID: "foreign"}, Spec: corev1.ServiceSpec{Selector: map[string]string{"app": "foreign"}}}, metav1.CreateOptions{})
+				assert.NilError(t, err)
 			}
-			services, err := client.GetKubeClient().CoreV1().Services(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-			assert.Assert(t, err)
-			assert.Equal(t, len(tt.expectedServices), len(services.Items), "wrong number of services")
-			for _, desired := range tt.expectedRoutes {
-				actual, err := client.GetRouteClient().Routes(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
-				assert.Assert(t, err)
-				assert.DeepEqual(t, desired.Spec, actual.Spec)
+			h.put(sa)
+			h.settle(sa.Name)
+			ingress, err := h.clients.Kube.NetworkingV1().Ingresses("test").Get(ctx, sa.Name, metav1.GetOptions{})
+			if existing {
+				assert.Assert(t, apierrors.IsNotFound(err), "must not expose a foreign backend")
+				assert.Assert(t, !h.status(sa.Name).IsReady())
+				actual, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, sa.Name, metav1.GetOptions{})
+				assert.NilError(t, err)
+				assert.DeepEqual(t, actual, before)
+				old := toIngress("old.example", sa)
+				old, err = h.clients.Kube.NetworkingV1().Ingresses("test").Create(ctx, old, metav1.CreateOptions{})
+				assert.NilError(t, err)
+				h.observe()
+				assert.NilError(t, h.run(sa.Key()))
+				unchanged, err := h.clients.Kube.NetworkingV1().Ingresses("test").Get(ctx, sa.Name, metav1.GetOptions{})
+				assert.NilError(t, err)
+				assert.DeepEqual(t, unchanged, old)
+			} else {
+				assert.NilError(t, err)
+				assert.Equal(t, ingress.Spec.Rules[0].HTTP.Paths[0].Backend.Service.Name, sa.Name)
+				assert.Assert(t, h.status(sa.Name).IsReady())
 			}
-			routes, err := client.GetRouteClient().Routes(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-			assert.Assert(t, err)
-			assert.Equal(t, len(tt.expectedRoutes), len(routes.Items), "wrong number of routes")
-			for _, desired := range tt.expectedIngresses {
-				actual, err := client.GetKubeClient().NetworkingV1().Ingresses(desired.Namespace).Get(context.Background(), desired.Name, metav1.GetOptions{})
-				assert.Assert(t, err)
-				for _, rule := range desired.Spec.Rules {
-					assert.Assert(t, cmp.Contains(actual.Spec.Rules, rule))
-				}
-				assert.Equal(t, len(desired.Spec.Rules), len(actual.Spec.Rules))
+		})
+	}
+}
+
+func TestUnavailableGatewayPreservesExposure(t *testing.T) {
+	h := newHarness(t, nil)
+	ctx := context.Background()
+	sa := testAccess("loadbalancer")
+	h.put(sa)
+	h.settle(sa.Name)
+	before, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, sa.Name, metav1.GetOptions{})
+	assert.NilError(t, err)
+	sa = h.status(sa.Name)
+	sa.Spec.AccessType = "gateway"
+	_, err = h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Update(ctx, sa, metav1.UpdateOptions{})
+	assert.NilError(t, err)
+	h.observe()
+	h.m.watcher.TLSRoutes = nil
+	assert.NilError(t, h.run(sa.Key()))
+	after, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, sa.Name, metav1.GetOptions{})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, after, before)
+	assert.Assert(t, !h.status(sa.Name).IsReady())
+	assert.Assert(t, strings.Contains(h.status(sa.Name).Status.Message, "unavailable"))
+}
+
+func TestTerminatingRequiredOutputWithholdsEndpoints(t *testing.T) {
+	for _, kind := range []string{"Service", "Ingress"} {
+		t.Run(kind, func(t *testing.T) {
+			h := newHarness(t, nil)
+			ctx := context.Background()
+			sa := testAccess("ingress")
+			h.put(sa)
+			h.settle(sa.Name)
+			if kind == "Service" {
+				svc, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, sa.Name, metav1.GetOptions{})
+				assert.NilError(t, err)
+				svc.DeletionTimestamp = ptr.To(metav1.Now())
+				_, err = h.clients.Kube.CoreV1().Services("test").Update(ctx, svc, metav1.UpdateOptions{})
+				assert.NilError(t, err)
+			} else {
+				ing, err := h.clients.Kube.NetworkingV1().Ingresses("test").Get(ctx, sa.Name, metav1.GetOptions{})
+				assert.NilError(t, err)
+				ing.DeletionTimestamp = ptr.To(metav1.Now())
+				_, err = h.clients.Kube.NetworkingV1().Ingresses("test").Update(ctx, ing, metav1.UpdateOptions{})
+				assert.NilError(t, err)
 			}
-			ingresses, err := client.GetKubeClient().NetworkingV1().Ingresses(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{})
-			assert.Assert(t, err)
-			assert.Equal(t, len(tt.expectedIngresses), len(ingresses.Items), "wrong number of ingresses")
-			for _, desired := range tt.expectedProxies {
-				obj, err := client.GetDynamicClient().Resource(httpProxyResource).Namespace(desired.namespace).Get(context.TODO(), desired.Name, metav1.GetOptions{})
-				assert.Assert(t, err)
-				actual := ExpectedHttpProxy{}
-				actual.Name = desired.Name
-				actual.namespace = desired.namespace
-				actual.readFromContourProxy(obj)
-				assert.Equal(t, desired, actual)
-			}
-			proxies, err := client.GetDynamicClient().Resource(httpProxyResource).Namespace(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{})
-			assert.Assert(t, err)
-			assert.Equal(t, len(tt.expectedProxies), len(proxies.Items), "wrong number of proxies")
-			if len(tt.expectedSSA) > 0 {
-				assert.Equal(t, len(tt.expectedSSA), len(ssaRecorder.objects), "wrong number of objects in server side apply recorder")
-				for key, desired := range tt.expectedSSA {
-					actual, ok := ssaRecorder.objects[key]
-					assert.Assert(t, ok, "No ssa object found for "+key)
-					assert.Equal(t, desired.GetName(), actual.GetName())
-					assert.Equal(t, desired.GetNamespace(), actual.GetNamespace())
-					assert.Equal(t, desired.GroupVersionKind(), actual.GroupVersionKind())
+			h.observe()
+			h.clearActions()
+			assert.NilError(t, h.run(sa.Key()))
+			assert.Assert(t, !h.status(sa.Name).IsReady())
+			assert.Equal(t, len(h.status(sa.Name).Status.Endpoints), 0)
+			for _, recorder := range h.recorders() {
+				for _, action := range recorder.Actions() {
+					if action.GetVerb() != "get" && action.GetVerb() != "list" {
+						assert.Equal(t, action.GetResource().Resource, "securedaccesses", "only status may change while waiting for deletion")
+					}
 				}
 			}
 		})
 	}
 }
 
-type FakeControllerContext struct {
-	name        string
-	namespace   string
-	uid         string
-	labels      map[string]string
-	annotations map[string]string
+func TestClusterIPExternalTrafficPolicy(t *testing.T) {
+	for _, external := range []bool{false, true} {
+		t.Run(map[bool]string{false: "plain", true: "externalIPs"}[external], func(t *testing.T) {
+			h := newHarness(t, nil)
+			ctx := context.Background()
+			sa := testAccess("loadbalancer")
+			h.put(sa)
+			h.settle(sa.Name)
+			svc, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, sa.Name, metav1.GetOptions{})
+			assert.NilError(t, err)
+			svc.Spec.ExternalTrafficPolicy = corev1.ServiceExternalTrafficPolicyLocal
+			if external {
+				svc.Spec.ExternalIPs = []string{"192.0.2.12"}
+			}
+			_, err = h.clients.Kube.CoreV1().Services("test").Update(ctx, svc, metav1.UpdateOptions{})
+			assert.NilError(t, err)
+			sa = h.status(sa.Name)
+			sa.Spec.AccessType = "local"
+			_, err = h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Update(ctx, sa, metav1.UpdateOptions{})
+			assert.NilError(t, err)
+			h.settle(sa.Name)
+			after, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, sa.Name, metav1.GetOptions{})
+			assert.NilError(t, err)
+			assert.Equal(t, after.Spec.Type, corev1.ServiceTypeClusterIP)
+			assert.DeepEqual(t, after.Spec.ExternalIPs, svc.Spec.ExternalIPs)
+			if external {
+				assert.Equal(t, after.Spec.ExternalTrafficPolicy, corev1.ServiceExternalTrafficPolicyLocal)
+			} else {
+				assert.Equal(t, after.Spec.ExternalTrafficPolicy, corev1.ServiceExternalTrafficPolicy(""))
+			}
+			h.noWrites(sa.Name)
+		})
+	}
 }
 
-func (c *FakeControllerContext) IsControlled(namespace string) bool {
-	return true
+func TestScopeProviders(t *testing.T) {
+	for _, kind := range []string{"local", "nodeport", "loadbalancer", "route", "ingress", "ingress-nginx", "contour-http-proxy"} {
+		t.Run(kind, func(t *testing.T) {
+			h := newHarness(t, nil)
+			sa := testAccess(kind)
+			sa.Spec.Issuer = "issuer"
+			h.put(sa)
+			h.settle(sa.Name)
+			ctx := context.Background()
+			svc, e := h.clients.Kube.CoreV1().Services("test").Get(ctx, "edge", metav1.GetOptions{})
+			assert.NilError(t, e)
+			assert.DeepEqual(t, svc.Spec.Selector, sa.Spec.Selector)
+			assert.Equal(t, len(svc.Spec.Ports), 2)
+			assert.Equal(t, svc.Spec.Ports[0].TargetPort.IntVal, int32(8181))
+			var expected []saapi.Endpoint
+			switch kind {
+			case "nodeport":
+				svc.Spec.Ports[0].NodePort = 30123
+				svc, e = h.clients.Kube.CoreV1().Services("test").Update(ctx, svc, metav1.UpdateOptions{})
+				assert.NilError(t, e)
+				h.settle(sa.Name)
+				assert.Assert(t, !h.status(sa.Name).IsReady())
+				assert.Assert(t, h.status(sa.Name).Status.Endpoints == nil)
+				svc.Spec.Ports[1].NodePort = 30456
+				_, e = h.clients.Kube.CoreV1().Services("test").Update(ctx, svc, metav1.UpdateOptions{})
+				assert.NilError(t, e)
+				expected = []saapi.Endpoint{{Name: "alpha", Host: "cluster.example", Port: "30123"}, {Name: "beta", Host: "cluster.example", Port: "30456"}}
+			case "loadbalancer":
+				svc.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{{IP: "10.20.30.40", Hostname: "ignored.example"}, {Hostname: "lb.example"}}
+				_, e = h.clients.Kube.CoreV1().Services("test").UpdateStatus(ctx, svc, metav1.UpdateOptions{})
+				assert.NilError(t, e)
+				expected = []saapi.Endpoint{
+					{Name: "alpha", Host: "10.20.30.40", Port: "8080"}, {Name: "beta", Host: "10.20.30.40", Port: "9090"},
+					{Name: "alpha", Host: "lb.example", Port: "8080"}, {Name: "beta", Host: "lb.example", Port: "9090"},
+				}
+			case "route":
+				for _, port := range sa.Spec.Ports {
+					r, e := h.clients.Route.RouteV1().Routes("test").Get(ctx, "edge-"+port.Name, metav1.GetOptions{})
+					assert.NilError(t, e)
+					r.Status.Ingress = []routev1.RouteIngress{{Host: port.Name + ".route.example"}}
+					_, e = h.clients.Route.RouteV1().Routes("test").UpdateStatus(ctx, r, metav1.UpdateOptions{})
+					assert.NilError(t, e)
+					expected = append(expected, saapi.Endpoint{Name: port.Name, Host: port.Name + ".route.example", Port: "443"})
+				}
+			case "ingress", "ingress-nginx":
+				expected = []saapi.Endpoint{{Name: "alpha", Host: "alpha.test.ingress.example", Port: "443"}, {Name: "beta", Host: "beta.test.ingress.example", Port: "443"}}
+			case "contour-http-proxy":
+				expected = []saapi.Endpoint{{Name: "alpha", Host: "edge-alpha.test.proxy.example", Port: "443"}, {Name: "beta", Host: "edge-beta.test.proxy.example", Port: "443"}}
+			case "local":
+				expected = []saapi.Endpoint{{Name: "alpha", Host: "edge.test", Port: "8080"}, {Name: "beta", Host: "edge.test", Port: "9090"}}
+			}
+			h.settle(sa.Name)
+			assert.DeepEqual(t, h.status(sa.Name).Status.Endpoints, expected)
+			assert.Assert(t, h.status(sa.Name).IsReady())
+			h.noWrites(sa.Name)
+			// Restart uses only API observations, including allocated ports/status.
+			h = newHarness(t, h.clients)
+			h.observe()
+			h.noWrites(sa.Name)
+		})
+	}
 }
 
-func (c *FakeControllerContext) SetLabels(namespace string, name string, kind string, labels map[string]string) bool {
-	updated := false
-	for k, v := range c.labels {
-		if labels[k] != v {
-			labels[k] = v
-			updated = true
+func TestScopeRouteDomain(t *testing.T) {
+	ctx := context.Background()
+	h := newHarness(t, nil)
+	sa := testAccess("route")
+	sa.Spec.Settings = map[string]string{"domain": "users.example"}
+	h.put(sa)
+	h.settle(sa.Name)
+	routes := h.clients.Route.RouteV1().Routes("test")
+	created, err := routes.Get(ctx, "edge-alpha", metav1.GetOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, created.Spec.Host, "edge-alpha.test.users.example")
+	// The fake API does not allocate UIDs; seed one to detect replacement.
+	created.UID = "route-uid"
+	created, err = routes.Update(ctx, created, metav1.UpdateOptions{})
+	assert.NilError(t, err)
+	// A changed domain is repaired in place.
+	current := h.status(sa.Name)
+	current.Spec.Settings["domain"] = "other.example"
+	_, err = h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Update(ctx, current, metav1.UpdateOptions{})
+	assert.NilError(t, err)
+	h.settle(sa.Name)
+	updated, err := routes.Get(ctx, "edge-alpha", metav1.GetOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, updated.Spec.Host, "edge-alpha.test.other.example")
+	assert.Equal(t, updated.UID, created.UID)
+	// Without a domain, repairing drift keeps the existing host.
+	current = h.status(sa.Name)
+	current.Spec.Settings = nil
+	_, err = h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Update(ctx, current, metav1.UpdateOptions{})
+	assert.NilError(t, err)
+	h.settle(sa.Name)
+	drifted, err := routes.Get(ctx, "edge-alpha", metav1.GetOptions{})
+	assert.NilError(t, err)
+	drifted.Spec.TLS.Termination = routev1.TLSTerminationEdge
+	_, err = routes.Update(ctx, drifted, metav1.UpdateOptions{})
+	assert.NilError(t, err)
+	h.settle(sa.Name)
+	retained, err := routes.Get(ctx, "edge-alpha", metav1.GetOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, retained.Spec.TLS.Termination, routev1.TLSTerminationPassthrough)
+	assert.Equal(t, retained.Spec.Host, "edge-alpha.test.other.example")
+	h.noWrites(sa.Name)
+}
+
+func TestScopeEmptyAccessType(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		hasRoute bool
+	}{
+		{name: "route API available defaults to route", hasRoute: true},
+		{name: "route API absent defaults to loadbalancer"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			clients, err := fakeclient.NewFakeClient("test", nil, nil, "")
+			assert.NilError(t, err)
+			if !tc.hasRoute {
+				clients.Route = nil
+			}
+			h := newHarness(t, clients)
+			if !tc.hasRoute {
+				h.m.watcher.Routes = nil
+			}
+			sa := testAccess("")
+			h.put(sa)
+			h.settle(sa.Name)
+			svc, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, "edge", metav1.GetOptions{})
+			assert.NilError(t, err)
+			if tc.hasRoute {
+				_, err := h.clients.Route.RouteV1().Routes("test").Get(ctx, "edge-alpha", metav1.GetOptions{})
+				assert.NilError(t, err)
+				assert.Equal(t, svc.Spec.Type, corev1.ServiceTypeClusterIP)
+			} else {
+				assert.Equal(t, svc.Spec.Type, corev1.ServiceTypeLoadBalancer)
+			}
+			assert.Equal(t, h.status(sa.Name).Spec.AccessType, "", "defaulting must not rewrite the user's spec")
+		})
+	}
+}
+
+func TestUnsupportedAccessTypePreservesOutputs(t *testing.T) {
+	for _, provider := range []string{"loadbalancer", "ingress", "route", "contour-http-proxy"} {
+		for _, invalid := range []string{"unknown", "disabled", "Route API absent", "unknown enabled"} {
+			t.Run(provider+"/"+invalid, func(t *testing.T) {
+				ctx := context.Background()
+				h := newHarness(t, nil)
+				sa := testAccess(provider)
+				h.put(sa)
+				h.settle(sa.Name)
+				// Retain complete outputs, including allocations, status, external
+				// metadata and provider objects, not just the Service type.
+				outputs := func() map[string]runtime.Object {
+					result := map[string]runtime.Object{}
+					for kind, store := range h.stores {
+						if kind == "SecuredAccess" {
+							continue
+						}
+						for _, object := range store.List() {
+							result[kind+"/"+object.(metav1.Object).GetName()] = object.(runtime.Object).DeepCopyObject()
+						}
+					}
+					return result
+				}
+				before := outputs()
+				sa = h.status(sa.Name)
+				sa.Spec.AccessType = "not-an-access-type"
+				switch invalid {
+				case "disabled":
+					sa.Spec.AccessType = "local"
+					h.m.config.EnabledAccessTypes = []string{provider}
+				case "Route API absent":
+					sa.Spec.AccessType = "route"
+					h.m.watcher.Routes = nil
+				case "unknown enabled":
+					h.m.config.EnabledAccessTypes = append(h.m.config.EnabledAccessTypes, sa.Spec.AccessType)
+				}
+				// Other edited fields must not leak through the invalid type.
+				sa.Spec.Ports[0].Port = 12345
+				sa.Spec.Selector = map[string]string{"app": "changed"}
+				_, err := h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Update(ctx, sa, metav1.UpdateOptions{})
+				assert.NilError(t, err)
+				h.observe()
+				h.clearActions()
+				assert.NilError(t, h.run(sa.Key()))
+				for _, action := range h.mutations() {
+					assert.Equal(t, action.GetResource().Resource, "securedaccesses")
+					assert.Equal(t, action.GetSubresource(), "status")
+				}
+				h.observe()
+				assert.DeepEqual(t, outputs(), before)
+				assert.Equal(t, h.status(sa.Name).Status.Message, "unsupported access type")
+				assert.Assert(t, !h.status(sa.Name).IsReady())
+				// Restart reconstructs the same refusal, not cleanup/adoption.
+				config := h.m.config
+				h = newHarness(t, h.clients)
+				h.m.config = config
+				if invalid == "Route API absent" {
+					h.m.watcher.Routes = nil
+				}
+				h.observe()
+				h.noWrites(sa.Name)
+				assert.DeepEqual(t, outputs(), before)
+				// Correcting the type resumes normal desired-state reconciliation.
+				h = newHarness(t, h.clients)
+				sa = h.status(sa.Name)
+				sa.Spec.AccessType = provider
+				_, err = h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Update(ctx, sa, metav1.UpdateOptions{})
+				assert.NilError(t, err)
+				h.settle(sa.Name)
+				service, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, sa.Name, metav1.GetOptions{})
+				assert.NilError(t, err)
+				assert.Equal(t, service.Spec.Ports[0].Port, int32(12345))
+				assert.DeepEqual(t, service.Spec.Selector, sa.Spec.Selector)
+				// Deleting an invalid definition must still clean its owned outputs.
+				sa = h.status(sa.Name)
+				sa.Spec.AccessType = "not-an-access-type"
+				_, err = h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Update(ctx, sa, metav1.UpdateOptions{})
+				assert.NilError(t, err)
+				h.settle(sa.Name)
+				assert.NilError(t, h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Delete(ctx, sa.Name, metav1.DeleteOptions{}))
+				h = newHarness(t, h.clients)
+				h.settle(sa.Name)
+				assert.Equal(t, len(outputs()), 0)
+			})
 		}
 	}
-	return updated
 }
 
-func (c *FakeControllerContext) SetAnnotations(namespace string, name string, kind string, annotations map[string]string) bool {
-	updated := false
-	for k, v := range c.annotations {
-		if annotations[k] != v {
-			annotations[k] = v
-			updated = true
-		}
+func TestScopeFailuresRetryAndOwnership(t *testing.T) {
+	ctx := context.Background()
+	t.Run("Route API unavailable", func(t *testing.T) {
+		h := newHarness(t, nil)
+		h.m.watcher.Routes = nil
+		h.put(testAccess("route"))
+		h.settle("edge")
+		assert.Assert(t, !h.status("edge").IsReady())
+		assert.Equal(t, h.status("edge").Status.Message, "unsupported access type")
+		_, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, "edge", metav1.GetOptions{})
+		assert.Assert(t, apierrors.IsNotFound(err), "an initially unsupported Access must not create a Service")
+		h.noWrites("edge")
+	})
+	t.Run("execution failure survives successful status", func(t *testing.T) {
+		h := newHarness(t, nil)
+		h.put(testAccess("local"))
+		boom := errors.New("service write denied")
+		k := h.clients.Kube.(*k8sfake.Clientset)
+		k.PrependReactor("create", "services", func(k8stesting.Action) (bool, runtime.Object, error) { return true, nil, boom })
+		err := h.run("test/edge")
+		assert.Assert(t, errors.Is(err, boom))
+		assert.Assert(t, !h.status("edge").IsReady())
+		assert.Equal(t, h.status("edge").Status.Message, "service write denied")
+		k.ReactionChain = k.ReactionChain[1:]
+		h.settle("edge")
+		h.noWrites("edge")
+	})
+	extra := metav1.OwnerReference{APIVersion: "v1", Kind: "ConfigMap", Name: "backup", UID: "backup-uid"}
+	for _, owner := range []string{"Site", "unowned", "old-access", "extra-owner", "foreign-controller", "competing-access"} {
+		t.Run(owner, func(t *testing.T) {
+			h := newHarness(t, nil)
+			sa := testAccess("local")
+			h.put(sa)
+			svc := &corev1.Service{ObjectMeta: exposureMetadata(sa, sa.Name), Spec: corev1.ServiceSpec{Selector: map[string]string{"do": "not-touch"}}}
+			switch owner {
+			case "Site":
+				svc.OwnerReferences[0].Kind = "Site"
+			case "unowned":
+				svc.OwnerReferences = nil
+			case "old-access":
+				svc.OwnerReferences[0].UID = "old-uid"
+			case "extra-owner":
+				svc.OwnerReferences = append(svc.OwnerReferences, extra)
+			case "foreign-controller":
+				svc.OwnerReferences = append(svc.OwnerReferences, metav1.OwnerReference{APIVersion: "apps/v1", Kind: "Deployment", Name: "other", UID: "other-uid", Controller: ptr.To(true)})
+			case "competing-access":
+				svc.OwnerReferences = append(svc.OwnerReferences, ownerReferences(&saapi.SecuredAccess{ObjectMeta: metav1.ObjectMeta{Name: "other", UID: "other-uid"}})...)
+			}
+			_, e := h.clients.Kube.CoreV1().Services("test").Create(ctx, svc, metav1.CreateOptions{})
+			assert.NilError(t, e)
+			h.observe()
+			assert.NilError(t, h.run("test/edge"))
+			actual, e := h.clients.Kube.CoreV1().Services("test").Get(ctx, "edge", metav1.GetOptions{})
+			assert.NilError(t, e)
+			// Only a non-controller extra owner is managed, and the write keeps it.
+			if owner == "extra-owner" {
+				h.settle("edge")
+				assert.Assert(t, h.status("edge").IsReady())
+				assert.DeepEqual(t, actual.Spec.Selector, sa.Spec.Selector)
+				assert.DeepEqual(t, actual.OwnerReferences, svc.OwnerReferences)
+			} else {
+				assert.Assert(t, !h.status("edge").IsReady())
+				assert.DeepEqual(t, actual.Spec, svc.Spec)
+			}
+			assert.NilError(t, h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Delete(ctx, "edge", metav1.DeleteOptions{}))
+			h.observe()
+			assert.NilError(t, h.run("test/edge"))
+			_, e = h.clients.Kube.CoreV1().Services("test").Get(ctx, "edge", metav1.GetOptions{})
+			if owner == "old-access" || owner == "extra-owner" {
+				assert.Assert(t, apierrors.IsNotFound(e))
+			} else {
+				assert.NilError(t, e)
+			}
+		})
 	}
-	return updated
 }
 
-func (c *FakeControllerContext) Namespace() string {
-	return c.namespace
+func TestSharedCertificateRetargetAndRemoval(t *testing.T) {
+	h := newHarness(t, nil)
+	ctx := context.Background()
+	a := testAccess("local")
+	a.Spec.Issuer = "issuer"
+	a.Spec.Certificate = "shared"
+	b := a.DeepCopy()
+	b.Name = "other"
+	b.UID = "other-uid"
+	h.put(a)
+	h.put(b)
+	// Neither Access scope authors Certificate intent, even before observations
+	// advance. The one target scope then aggregates both requests in one write.
+	assert.NilError(t, h.run(a.Key()))
+	assert.NilError(t, h.run(b.Key()))
+	_, e := h.clients.Skupper.SkupperV2alpha1().Certificates("test").Get(ctx, "shared", metav1.GetOptions{})
+	assert.Assert(t, apierrors.IsNotFound(e))
+	h.settle(a.Name)
+	h.settle(b.Name)
+	h.noWrites(a.Name)
+	h.noWrites(b.Name)
+	c, e := h.clients.Skupper.SkupperV2alpha1().Certificates("test").Get(ctx, "shared", metav1.GetOptions{})
+	assert.NilError(t, e)
+	assert.Equal(t, c.Annotations["internal.skupper.io/secured-access-certificate"], "true")
+	assert.Equal(t, c.Spec.Subject, "edge")
+	assert.DeepEqual(t, c.Spec.Hosts, []string{"edge", "edge.test", "other", "other.test"})
+	assert.Equal(t, len(c.OwnerReferences), 2)
+	b = h.status(b.Name)
+	b.Spec.Certificate = "retarget"
+	_, e = h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Update(ctx, b, metav1.UpdateOptions{})
+	assert.NilError(t, e)
+	h.settle(b.Name)
+	c, e = h.clients.Skupper.SkupperV2alpha1().Certificates("test").Get(ctx, "shared", metav1.GetOptions{})
+	assert.NilError(t, e)
+	assert.DeepEqual(t, c.Spec.Hosts, []string{"edge", "edge.test"})
+	assert.Equal(t, len(c.OwnerReferences), 1)
+	retarget, e := h.clients.Skupper.SkupperV2alpha1().Certificates("test").Get(ctx, "retarget", metav1.GetOptions{})
+	assert.NilError(t, e)
+	assert.DeepEqual(t, retarget.OwnerReferences, ownerReferences(b))
+	assert.DeepEqual(t, retarget.Spec.Hosts, []string{"other", "other.test"})
+	assert.NilError(t, h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Delete(ctx, b.Name, metav1.DeleteOptions{}))
+	h = newHarness(t, h.clients)
+	h.observe()
+	assert.NilError(t, h.run("test/"+b.Name))
+	assert.NilError(t, h.runCertificates())
+	_, e = h.clients.Skupper.SkupperV2alpha1().Certificates("test").Get(ctx, "retarget", metav1.GetOptions{})
+	assert.Assert(t, apierrors.IsNotFound(e))
+	h.observe()
+	h.noWrites(a.Name)
+	a = h.status(a.Name)
+	a.Spec.Issuer = ""
+	_, e = h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Update(ctx, a, metav1.UpdateOptions{})
+	assert.NilError(t, e)
+	h.settle(a.Name)
+	c, e = h.clients.Skupper.SkupperV2alpha1().Certificates("test").Get(ctx, "shared", metav1.GetOptions{})
+	assert.Assert(t, apierrors.IsNotFound(e))
 }
 
-func (c *FakeControllerContext) Name() string {
-	return c.name
+func TestProviderRemoval(t *testing.T) {
+	h := newHarness(t, nil)
+	ctx := context.Background()
+	sa := testAccess("contour-http-proxy")
+	h.put(sa)
+	h.settle(sa.Name)
+	h.noWrites(sa.Name)
+	current := h.status(sa.Name)
+	current.Spec.Ports = current.Spec.Ports[:1]
+	_, err := h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Update(ctx, current, metav1.UpdateOptions{})
+	assert.NilError(t, err)
+	h.settle(sa.Name)
+	os, err := h.clients.Dynamic.Resource(httpProxyResource).Namespace("test").List(ctx, metav1.ListOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, len(os.Items), 1)
+	current = h.status(sa.Name)
+	current.Spec.AccessType = "local"
+	_, err = h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Update(ctx, current, metav1.UpdateOptions{})
+	assert.NilError(t, err)
+	h.settle(sa.Name)
+	os, err = h.clients.Dynamic.Resource(httpProxyResource).Namespace("test").List(ctx, metav1.ListOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, len(os.Items), 0)
+	// A surviving output is independently sufficient for deletion after restart.
+	assert.NilError(t, h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Delete(ctx, sa.Name, metav1.DeleteOptions{}))
+	h = newHarness(t, h.clients)
+	h.observe()
+	assert.NilError(t, h.run(sa.Key()))
+	svcs, err := h.clients.Kube.CoreV1().Services("test").List(ctx, metav1.ListOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, len(svcs.Items), 0)
 }
 
-func (c *FakeControllerContext) UID() string {
-	return c.uid
+func TestProviderNameCamping(t *testing.T) {
+	ctx := context.Background()
+	for _, provider := range []string{"route", "contour-http-proxy", "gateway"} {
+		t.Run(provider, func(t *testing.T) {
+			h := newHarness(t, nil)
+			sa := testAccess(provider)
+			sa.Spec.Ports = sa.Spec.Ports[:1]
+			h.put(sa)
+			var original runtime.Object
+			gvr := httpProxyResource
+			switch provider {
+			case "route":
+				route := desiredRouteForPort(sa, sa.Spec.Ports[0])
+				route.OwnerReferences = nil
+				_, err := h.clients.Route.RouteV1().Routes("test").Create(ctx, route, metav1.CreateOptions{})
+				assert.NilError(t, err)
+				original = route
+			case "contour-http-proxy", "gateway":
+				obj := desiredTLSRoute(sa, sa.Spec.Ports[0], "controller", "gateway.example")
+				if provider == "contour-http-proxy" {
+					obj.SetGroupVersionKind(httpProxyGVK)
+					obj.Object["spec"] = map[string]interface{}{}
+					proxy := desiredHttpProxies("test.proxy.example", sa)[0]
+					assert.NilError(t, proxy.writeToContourProxy(obj))
+				} else {
+					gvr = resource.TlsRouteResource()
+					_, err := h.clients.Dynamic.Resource(resource.GatewayResource()).Namespace("controller").Create(ctx, desiredGateway("controller", testConfig()), metav1.CreateOptions{})
+					assert.NilError(t, err)
+				}
+				obj.SetOwnerReferences(nil)
+				_, err := h.clients.Dynamic.Resource(gvr).Namespace("test").Create(ctx, obj, metav1.CreateOptions{})
+				assert.NilError(t, err)
+				original = obj
+			}
+			h.observe()
+			assert.NilError(t, h.run(sa.Key()))
+			assert.Assert(t, strings.Contains(h.status(sa.Name).Status.Message, "conflicting ownership"))
+			assert.NilError(t, h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Delete(ctx, sa.Name, metav1.DeleteOptions{}))
+			h = newHarness(t, h.clients)
+			h.observe()
+			assert.NilError(t, h.run(sa.Key()))
+			if provider == "route" {
+				actual, err := h.clients.Route.RouteV1().Routes("test").Get(ctx, "edge-alpha", metav1.GetOptions{})
+				assert.NilError(t, err)
+				assert.DeepEqual(t, actual, original)
+			} else {
+				actual, err := h.clients.Dynamic.Resource(gvr).Namespace("test").Get(ctx, "edge-alpha", metav1.GetOptions{})
+				assert.NilError(t, err)
+				assert.DeepEqual(t, actual, original)
+			}
+		})
+	}
+}
+
+// Names a-b + c and a + b-c both produce Route a-b-c; the UID match keeps the
+// second scope from rewriting or deleting the first scope's output.
+func TestCrossScopeOutputNameCollision(t *testing.T) {
+	ctx := context.Background()
+	h := newHarness(t, nil)
+	first, second := testAccess("route"), testAccess("route")
+	first.Name, first.UID, first.Spec.Ports = "a-b", "ab-uid", []saapi.SecuredAccessPort{{Name: "c", Port: 8080}}
+	second.Name, second.UID, second.Spec.Ports = "a", "a-uid", []saapi.SecuredAccessPort{{Name: "b-c", Port: 9090}}
+	h.put(first)
+	h.settle(first.Name)
+	h.put(second)
+	h.settle(second.Name)
+	assert.Assert(t, !strings.Contains(h.status(first.Name).Status.Message, "conflicting"))
+	assert.Assert(t, strings.Contains(h.status(second.Name).Status.Message, `Route "a-b-c" has conflicting ownership`))
+	assert.NilError(t, h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Delete(ctx, second.Name, metav1.DeleteOptions{}))
+	h.observe()
+	assert.NilError(t, h.run(second.Key()))
+	route, err := h.clients.Route.RouteV1().Routes("test").Get(ctx, "a-b-c", metav1.GetOptions{})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, route.OwnerReferences, ownerReferences(first))
+	assert.Equal(t, route.Spec.To.Name, first.Name)
+}
+
+func TestEnsureReplacementBeforeObservation(t *testing.T) {
+	h := newHarness(t, nil)
+	ctx := context.Background()
+	sa := testAccess("local")
+	first := []metav1.OwnerReference{{APIVersion: "skupper.io/v2alpha1", Kind: "Site", Name: "first", UID: "first-uid"}}
+	second := []metav1.OwnerReference{{APIVersion: "skupper.io/v2alpha1", Kind: "Site", Name: "second", UID: "second-uid"}}
+	assert.NilError(t, h.m.Ensure("test", "edge", sa.Spec, map[string]string{"a": "one"}, first))
+	sa.Spec.Ports = sa.Spec.Ports[:1]
+	assert.NilError(t, h.m.Ensure("test", "edge", sa.Spec, map[string]string{"b": "two"}, second))
+	actual, e := h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Get(ctx, "edge", metav1.GetOptions{})
+	assert.NilError(t, e)
+	assert.DeepEqual(t, actual.Spec, sa.Spec)
+	assert.DeepEqual(t, actual.OwnerReferences, second)
+	assert.Equal(t, actual.Annotations["a"], "one")
+	assert.Equal(t, actual.Annotations["b"], "two")
+	assert.NilError(t, h.m.Delete("test", "edge"))
+	assert.NilError(t, h.m.Delete("test", "edge"))
+}
+
+func TestAccessStatusWriteFailureRetries(t *testing.T) {
+	h := newHarness(t, nil)
+	sa := testAccess("local")
+	h.put(sa)
+	failure := errors.New("injected API failure")
+	h.clients.Skupper.(*skupperfake.Clientset).PrependReactor("update", "securedaccesses", func(a k8stesting.Action) (bool, runtime.Object, error) {
+		if a.GetSubresource() != "status" {
+			return false, nil, nil
+		}
+		return true, nil, failure
+	})
+	assert.Assert(t, errors.Is(h.run(sa.Key()), failure))
+}
+
+func TestAccessExecutionFailureModes(t *testing.T) {
+	ctx := context.Background()
+	accesses := func(h *scopeHarness) interface {
+		Update(context.Context, *saapi.SecuredAccess, metav1.UpdateOptions) (*saapi.SecuredAccess, error)
+	} {
+		return h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test")
+	}
+	addPort := func(h *scopeHarness) {
+		h.t.Helper()
+		current := h.status("edge")
+		current.Generation++
+		current.Spec.Ports = append(current.Spec.Ports, saapi.SecuredAccessPort{Name: "gamma", Port: 7070, TargetPort: 7171})
+		_, err := accesses(h).Update(ctx, current, metav1.UpdateOptions{})
+		assert.NilError(h.t, err)
+		h.observe()
+	}
+	local := []saapi.Endpoint{{Name: "alpha", Host: "edge.test", Port: "8080"}, {Name: "beta", Host: "edge.test", Port: "9090"}}
+	withGamma := append(append([]saapi.Endpoint(nil), local...), saapi.Endpoint{Name: "gamma", Host: "edge.test", Port: "7070"})
+	denied := apierrors.NewForbidden(schema.GroupResource{Resource: "services"}, "edge", errors.New("denied"))
+	failServiceUpdates := func(h *scopeHarness, err error) func() {
+		k := h.clients.Kube.(*k8sfake.Clientset)
+		k.PrependReactor("update", "services", func(k8stesting.Action) (bool, runtime.Object, error) { return true, nil, err })
+		return func() { k.ReactionChain = k.ReactionChain[1:] }
+	}
+
+	t.Run("stale create publishes no status", func(t *testing.T) {
+		h := newHarness(t, nil)
+		sa := testAccess("local")
+		h.put(sa)
+		// The Service exists on the server but not yet in the Service cache.
+		svc := &corev1.Service{ObjectMeta: exposureMetadata(sa, sa.Name), Spec: corev1.ServiceSpec{Selector: sa.Spec.Selector}}
+		updatePorts(&svc.Spec, sa.Spec.Ports)
+		_, err := h.clients.Kube.CoreV1().Services("test").Create(ctx, svc, metav1.CreateOptions{})
+		assert.NilError(t, err)
+		assert.Assert(t, apierrors.IsAlreadyExists(h.run("test/edge")))
+		assert.DeepEqual(t, h.status("edge").Status, saapi.SecuredAccessStatus{})
+		h.settle("edge")
+		assert.Assert(t, h.status("edge").IsReady())
+		assert.DeepEqual(t, h.status("edge").Status.Endpoints, local)
+	})
+	t.Run("stale update keeps prior status until retry", func(t *testing.T) {
+		h := newHarness(t, nil)
+		h.put(testAccess("local"))
+		h.settle("edge")
+		before := h.status("edge").Status
+		addPort(h)
+		restore := failServiceUpdates(h, apierrors.NewConflict(schema.GroupResource{Resource: "services"}, "edge", errors.New("stale")))
+		assert.Assert(t, apierrors.IsConflict(h.run("test/edge")))
+		assert.DeepEqual(t, h.status("edge").Status, before)
+		restore()
+		h.settle("edge")
+		after := h.status("edge")
+		assert.Assert(t, after.IsReady())
+		assert.Equal(t, after.Status.Conditions[0].ObservedGeneration, int64(2))
+		assert.DeepEqual(t, after.Status.Endpoints, withGamma)
+	})
+	t.Run("exposure update failure withdraws endpoints", func(t *testing.T) {
+		h := newHarness(t, nil)
+		h.put(testAccess("local"))
+		h.settle("edge")
+		addPort(h)
+		restore := failServiceUpdates(h, denied)
+		assert.Assert(t, apierrors.IsForbidden(h.run("test/edge")))
+		status := h.status("edge")
+		assert.Assert(t, !status.IsReady())
+		assert.Assert(t, len(status.Status.Endpoints) == 0, "failed exposure must not publish desired endpoints")
+		assert.Assert(t, strings.Contains(status.Status.Message, "denied"))
+		restore()
+		h.settle("edge")
+		assert.DeepEqual(t, h.status("edge").Status.Endpoints, withGamma)
+	})
+	t.Run("Access metadata failure keeps endpoints", func(t *testing.T) {
+		h := newHarness(t, nil)
+		h.put(testAccess("local"))
+		h.settle("edge")
+		s := h.clients.Skupper.(*skupperfake.Clientset)
+		s.PrependReactor("update", "securedaccesses", func(a k8stesting.Action) (bool, runtime.Object, error) {
+			if a.GetSubresource() != "" {
+				return false, nil, nil
+			}
+			return true, nil, denied
+		})
+		template := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "template", Namespace: "controller",
+			Labels: map[string]string{"skupper.io/label-template": "true", "policy": "updated"}}}
+		assert.NilError(t, h.m.context.(*testContext).policy.Update("controller/template", template))
+		assert.Assert(t, apierrors.IsForbidden(h.run("test/edge")))
+		svc, err := h.clients.Kube.CoreV1().Services("test").Get(ctx, "edge", metav1.GetOptions{})
+		assert.NilError(t, err)
+		assert.Equal(t, svc.Labels["policy"], "updated")
+		assert.Assert(t, h.status("edge").IsReady())
+		assert.DeepEqual(t, h.status("edge").Status.Endpoints, local)
+		s.ReactionChain = s.ReactionChain[1:]
+		h.settle("edge")
+		assert.Equal(t, h.status("edge").Labels["policy"], "updated")
+	})
+	t.Run("obsolete output cleanup failure keeps new endpoints", func(t *testing.T) {
+		h := newHarness(t, nil)
+		h.put(testAccess("contour-http-proxy"))
+		h.settle("edge")
+		current := h.status("edge")
+		current.Generation++
+		current.Spec.Ports = current.Spec.Ports[1:]
+		_, err := accesses(h).Update(ctx, current, metav1.UpdateOptions{})
+		assert.NilError(t, err)
+		h.observe()
+		d := h.clients.Dynamic.(*dynamicfake.FakeDynamicClient)
+		d.PrependReactor("delete", "httpproxies", func(k8stesting.Action) (bool, runtime.Object, error) { return true, nil, denied })
+		assert.Assert(t, apierrors.IsForbidden(h.run("test/edge")))
+		status := h.status("edge")
+		assert.Assert(t, status.IsReady())
+		assert.Equal(t, status.Status.Conditions[0].ObservedGeneration, int64(2))
+		assert.DeepEqual(t, status.Status.Endpoints, []saapi.Endpoint{{Name: "beta", Host: "edge-beta.test.proxy.example", Port: "443"}})
+		d.ReactionChain = d.ReactionChain[1:]
+		h.settle("edge")
+		proxies, err := h.clients.Dynamic.Resource(httpProxyResource).Namespace("test").List(ctx, metav1.ListOptions{})
+		assert.NilError(t, err)
+		assert.Equal(t, len(proxies.Items), 1)
+	})
+	t.Run("owned TLSRoute update is forced and pinned", func(t *testing.T) {
+		h := newHarness(t, nil)
+		_, err := h.clients.Dynamic.Resource(resource.GatewayResource()).Namespace("controller").Create(ctx, desiredGateway("controller", testConfig()), metav1.CreateOptions{})
+		assert.NilError(t, err)
+		sa := testAccess("gateway")
+		sa.Spec.Ports = sa.Spec.Ports[:1]
+		h.put(sa)
+		edited := desiredTLSRoute(sa, sa.Spec.Ports[0], "controller", "gateway.example")
+		edited.SetUID("route-uid")
+		edited.SetResourceVersion("41")
+		extra := metav1.OwnerReference{APIVersion: "v1", Kind: "ConfigMap", Name: "backup", UID: "backup-uid"}
+		edited.SetOwnerReferences(append(edited.GetOwnerReferences(), extra))
+		assert.NilError(t, unstructured.SetNestedStringSlice(edited.Object, []string{"edited.example"}, "spec", "hostnames"))
+		_, err = h.clients.Dynamic.Resource(resource.TlsRouteResource()).Namespace("test").Create(ctx, edited, metav1.CreateOptions{})
+		assert.NilError(t, err)
+		h.observe()
+		stale := apierrors.NewConflict(schema.GroupResource{Resource: "tlsroutes"}, "edge-alpha", errors.New("the object has been modified"))
+		calls := 0
+		requests, forced := recordApplies(h, func(request *unstructured.Unstructured) (runtime.Object, error) {
+			if calls++; calls == 1 {
+				return nil, stale
+			}
+			written := request.DeepCopy()
+			written.SetUID("route-uid")
+			written.SetResourceVersion("42")
+			return written, nil
+		})
+		assert.Assert(t, apierrors.IsConflict(h.run("test/edge")))
+		assert.DeepEqual(t, h.status("edge").Status, saapi.SecuredAccessStatus{})
+		h.observe()
+		assert.NilError(t, h.run("test/edge"))
+		assert.Assert(t, h.status("edge").IsReady())
+		assert.DeepEqual(t, *forced, []bool{true, true})
+		for _, request := range *requests {
+			assert.Equal(t, request.GetResourceVersion(), "41")
+			// Apply omits the extra owner, so SSA leaves it with its writer.
+			assert.DeepEqual(t, request.GetOwnerReferences(), ownerReferences(sa))
+			hosts, _, _ := unstructured.NestedStringSlice(request.Object, "spec", "hostnames")
+			assert.DeepEqual(t, hosts, []string{"edge-alpha.test.gateway.example"})
+		}
+	})
+	t.Run("TLSRoute create invalid", func(t *testing.T) {
+		h := newHarness(t, nil)
+		_, err := h.clients.Dynamic.Resource(resource.GatewayResource()).Namespace("controller").Create(ctx, desiredGateway("controller", testConfig()), metav1.CreateOptions{})
+		assert.NilError(t, err)
+		h.put(testAccess("gateway"))
+		invalid := apierrors.NewInvalid(schema.GroupKind{Group: "gateway.networking.k8s.io", Kind: "tlsroutes"}, "edge-alpha",
+			field.ErrorList{field.Invalid(field.NewPath("spec", "hostnames"), "edge", "rejected")})
+		h.clients.Dynamic.(*dynamicfake.FakeDynamicClient).PrependReactor("patch", "tlsroutes", func(k8stesting.Action) (bool, runtime.Object, error) { return true, nil, invalid })
+		assert.Assert(t, apierrors.IsInvalid(h.run("test/edge")))
+		status := h.status("edge").Status
+		assert.Assert(t, len(status.Endpoints) == 0)
+		assert.Assert(t, strings.Contains(status.Message, "spec.hostnames"))
+	})
+}
+
+func TestGatewayAvailability(t *testing.T) {
+	ctx := context.Background()
+	gatewayPatches := func(h *scopeHarness) (n int) {
+		for _, a := range h.mutations() {
+			if a.GetVerb() == "patch" {
+				n++
+			}
+		}
+		return n
+	}
+	t.Run("controller namespace without explicit control", func(t *testing.T) {
+		h := newHarness(t, nil)
+		h.m.context.(*testContext).excluded = "controller"
+		h.clearActions()
+		// The dynamic fake rejects Apply; the request itself is the evidence.
+		assert.Assert(t, h.m.gateway.Handle(watchers.ResourceChange{Key: "controller/skupper"}) != nil)
+		assert.Equal(t, gatewayPatches(h), 1)
+		h.clearActions()
+		assert.NilError(t, h.m.gateway.Handle(watchers.ResourceChange{Key: "other/skupper"}))
+		assert.Equal(t, len(h.mutations()), 0)
+	})
+	for _, missing := range []string{"Gateway", "TLSRoute"} {
+		t.Run(missing+" API unavailable", func(t *testing.T) {
+			h := newHarness(t, nil)
+			_, err := h.clients.Dynamic.Resource(resource.GatewayResource()).Namespace("controller").Create(ctx, desiredGateway("controller", testConfig()), metav1.CreateOptions{})
+			assert.NilError(t, err)
+			if missing == "Gateway" {
+				h.m.watcher.Gateways = nil
+			} else {
+				h.m.watcher.TLSRoutes = nil
+			}
+			h.put(testAccess("gateway"))
+			if missing == "Gateway" {
+				h.clearActions()
+				assert.NilError(t, h.m.gateway.Handle(watchers.ResourceChange{Key: "controller/skupper"}), "not a retried error")
+				assert.Equal(t, gatewayPatches(h), 0)
+			}
+			h.clearActions()
+			assert.NilError(t, h.run("test/edge"), "a missing API is status, not a retried error")
+			assert.Equal(t, gatewayPatches(h), 0, "no TLSRoute apply against a missing API")
+			status := h.status("edge")
+			assert.Assert(t, !status.IsReady())
+			assert.Equal(t, status.Status.Message, "Gateway API (Gateway and TLSRoute) is unavailable; restart the controller after making both resources available")
+			// Other access types are unaffected.
+			local := testAccess("local")
+			local.Name, local.UID = "plain", "plain-uid"
+			h.put(local)
+			h.settle("plain")
+			assert.Assert(t, h.status("plain").IsReady())
+		})
+	}
+}
+
+// recordApplies answers SSA patches with respond and records each request and
+// its Force option, which the dynamic fake drops from patch actions.
+func recordApplies(h *scopeHarness, respond func(*unstructured.Unstructured) (runtime.Object, error)) (*[]*unstructured.Unstructured, *[]bool) {
+	requests, forced := &[]*unstructured.Unstructured{}, &[]bool{}
+	h.clients.Dynamic.(*dynamicfake.FakeDynamicClient).PrependReactor("patch", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		patch := action.(k8stesting.PatchAction)
+		assert.Equal(h.t, patch.GetPatchType(), types.ApplyPatchType)
+		request := &unstructured.Unstructured{}
+		assert.NilError(h.t, json.Unmarshal(patch.GetPatch(), &request.Object))
+		*requests = append(*requests, request)
+		object, err := respond(request)
+		return true, object, err
+	})
+	h.clients.Dynamic = forceRecorder{h.clients.Dynamic, forced}
+	return requests, forced
+}
+
+type forceRecorder struct {
+	dynamic.Interface
+	forced *[]bool
+}
+type forceResource struct {
+	dynamic.NamespaceableResourceInterface
+	forced *[]bool
+}
+type forceNamespace struct {
+	dynamic.ResourceInterface
+	forced *[]bool
+}
+
+func (f forceRecorder) Resource(r schema.GroupVersionResource) dynamic.NamespaceableResourceInterface {
+	return forceResource{f.Interface.Resource(r), f.forced}
+}
+func (f forceResource) Namespace(ns string) dynamic.ResourceInterface {
+	return forceNamespace{f.NamespaceableResourceInterface.Namespace(ns), f.forced}
+}
+func (f forceNamespace) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, o metav1.PatchOptions, sub ...string) (*unstructured.Unstructured, error) {
+	*f.forced = append(*f.forced, ptr.Deref(o.Force, false))
+	return f.ResourceInterface.Patch(ctx, name, pt, data, o, sub...)
+}
+
+func TestGatewayReservedLocation(t *testing.T) {
+	t.Run("foreign gateway", func(t *testing.T) {
+		h := newHarness(t, nil)
+		gateway := desiredGateway("controller", testConfig())
+		gateway.SetUID("existing-gateway")
+		gateway.SetResourceVersion("17")
+		gateway.SetOwnerReferences([]metav1.OwnerReference{{APIVersion: "v1", Kind: "ConfigMap", Name: "foreign", UID: "foreign-uid"}})
+		// A different class and listener shape are drift, not adoption gates.
+		gateway.Object["spec"] = map[string]interface{}{"gatewayClassName": "old-class", "listeners": []interface{}{}}
+		_, err := h.clients.Dynamic.Resource(resource.GatewayResource()).Namespace("controller").Create(context.Background(), gateway, metav1.CreateOptions{})
+		assert.NilError(t, err)
+		h.put(testAccess("gateway"))
+		// Fake clients do not implement SSA. Check the request boundary; only the
+		// unforced TLSRoute create can still meet a real-shaped field conflict.
+		conflict := apierrors.NewApplyConflict([]metav1.StatusCause{{Type: metav1.CauseTypeFieldManagerConflict, Field: ".spec.hostnames"}}, "field conflict")
+		requests, forced := recordApplies(h, func(request *unstructured.Unstructured) (runtime.Object, error) {
+			if request.GetKind() == "Gateway" {
+				written := request.DeepCopy()
+				written.SetUID("existing-gateway")
+				written.SetResourceVersion("18")
+				return written, nil
+			}
+			return nil, conflict
+		})
+		h.observe()
+		assert.NilError(t, h.m.gateway.Handle(watchers.ResourceChange{Key: "controller/skupper"}))
+		assert.Equal(t, len(*requests), 1)
+		assert.Equal(t, (*requests)[0].GetResourceVersion(), "17")
+		assert.Equal(t, len((*requests)[0].GetOwnerReferences()), 0, "must not claim external owner references")
+		class, _, err := unstructured.NestedString((*requests)[0].Object, "spec", "gatewayClassName")
+		assert.NilError(t, err)
+		assert.Equal(t, class, testConfig().GatewayClass)
+		assert.Assert(t, apierrors.IsConflict(h.run("test/edge")))
+		assert.Equal(t, len(*requests), 2, "Access must reach TLSRoute apply regardless of Gateway history")
+		assert.Equal(t, (*requests)[1].GetKind(), "TLSRoute")
+		assert.DeepEqual(t, *forced, []bool{true, false})
+		assert.Assert(t, !h.status("edge").IsReady())
+		assert.Assert(t, strings.Contains(h.status("edge").Status.Message, "field conflict"))
+	})
+
+	for _, key := range []string{"controller/unrelated", "other/skupper"} {
+		t.Run(key, func(t *testing.T) {
+			h := newHarness(t, nil)
+			h.clearActions()
+			assert.NilError(t, h.m.gateway.Handle(watchers.ResourceChange{Key: key}))
+			assert.Equal(t, len(h.mutations()), 0)
+		})
+	}
+
+	t.Run("deletion in progress", func(t *testing.T) {
+		h := newHarness(t, nil)
+		gateway := desiredGateway("controller", testConfig())
+		now := metav1.Now()
+		gateway.SetDeletionTimestamp(&now)
+		_, err := h.clients.Dynamic.Resource(resource.GatewayResource()).Namespace("controller").Create(context.Background(), gateway, metav1.CreateOptions{})
+		assert.NilError(t, err)
+		h.put(testAccess("gateway"))
+		h.observe()
+		h.clearActions()
+		assert.NilError(t, h.m.gateway.Handle(watchers.ResourceChange{Key: "controller/skupper"}))
+		assert.Equal(t, len(h.mutations()), 0)
+		assert.NilError(t, h.run("test/edge"))
+		assert.Assert(t, !h.status("edge").IsReady())
+	})
+}
+
+func TestAggregateAndGatewayErrors(t *testing.T) {
+	ctx := context.Background()
+	h := newHarness(t, nil)
+	sa := testAccess("local")
+	sa.Spec.Issuer, sa.Spec.Certificate = "issuer", "shared"
+	h.put(sa)
+	certificates := h.clients.Skupper.SkupperV2alpha1().Certificates("test")
+	event := watchers.ResourceChange{Key: "test/shared"}
+	assert.NilError(t, h.m.certificates.Handle(event))
+	_, err := certificates.Get(ctx, "shared", metav1.GetOptions{})
+	assert.NilError(t, err)
+	h.observe()
+	assert.NilError(t, h.m.certificates.Handle(event))
+
+	assert.Assert(t, h.m.certificates.Handle(watchers.ResourceChange{Key: "bad/key/format"}) != nil)
+
+	// The dynamic fake cannot create via Apply; the failed request must return
+	// an error for retry, never report a successful realization.
+	assert.Assert(t, h.m.gateway.Handle(watchers.ResourceChange{Key: "controller/skupper"}) != nil)
+
+	assert.NilError(t, h.clients.Skupper.SkupperV2alpha1().SecuredAccesses("test").Delete(ctx, sa.Name, metav1.DeleteOptions{}))
+	h.observe()
+	assert.NilError(t, h.m.certificates.Handle(event))
+	_, err = certificates.Get(ctx, "shared", metav1.GetOptions{})
+	assert.Assert(t, apierrors.IsNotFound(err))
+
+	// A planning refusal has no API action but still returns its error.
+	h.put(sa)
+	foreign := &saapi.Certificate{ObjectMeta: metav1.ObjectMeta{Name: "shared", Namespace: "test"}}
+	_, err = certificates.Create(ctx, foreign, metav1.CreateOptions{})
+	assert.NilError(t, err)
+	h.observe()
+	assert.Assert(t, h.m.certificates.Handle(event) != nil)
 }

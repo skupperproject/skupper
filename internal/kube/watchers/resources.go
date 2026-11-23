@@ -136,6 +136,19 @@ func (w ResourceWatcher[T]) List() []T {
 	return results
 }
 
+// ListNamespace uses the namespace index; "" lists every namespace.
+func (w ResourceWatcher[T]) ListNamespace(namespace string) ([]T, error) {
+	if namespace == "" {
+		return w.List(), nil
+	}
+	list, err := w.informer.GetIndexer().ByIndex(cache.NamespaceIndex, namespace)
+	results := make([]T, len(list))
+	for i := range list {
+		results[i] = list[i].(T)
+	}
+	return results, err
+}
+
 func (w ResourceWatcher[T]) Start(stopCh <-chan struct{}) {
 	go w.informer.Run(stopCh)
 }

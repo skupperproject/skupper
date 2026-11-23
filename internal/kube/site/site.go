@@ -714,6 +714,9 @@ func (s *Site) Expose(exposed *ExposedPortSet) error {
 			slog.Any("error", err))
 		return err
 	} else {
+		if !s.ownsService(current) {
+			return fmt.Errorf("Service %q has conflicting ownership", exposed.Host)
+		}
 		updated := false
 		if updateSelectorFromMap(&current.Spec, getLabelsForRouter()) {
 			updated = true
@@ -773,8 +776,9 @@ func (s *Site) Unexpose(name string) error {
 				slog.Any("error", err))
 		}
 		return err
-	} else if isOwned(current) {
-		err = s.clients.GetKubeClient().CoreV1().Services(s.namespace).Delete(ctxt, name, metav1.DeleteOptions{})
+	} else if isListenerService(current) && s.ownsService(current) {
+		uid, rv := current.UID, current.ResourceVersion
+		err = s.clients.GetKubeClient().CoreV1().Services(s.namespace).Delete(ctxt, name, metav1.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &uid, ResourceVersion: &rv}})
 		if err != nil {
 			s.logger.Error("Error deleting service",
 				slog.String("service", name),
@@ -790,15 +794,14 @@ func (s *Site) Unexpose(name string) error {
 	return nil
 }
 
-func isOwned(service *corev1.Service) bool {
-	if service.ObjectMeta.Annotations == nil {
+// Ownership authorizes repair even when mutable listener metadata has drifted.
+// Discovery and deletion additionally require the listener markers.
+func (s *Site) ownsService(service *corev1.Service) bool {
+	if s.site == nil || len(service.OwnerReferences) != 1 {
 		return false
 	}
-	// assume that if annotation is set, irrespective of value, the service is owned by skupper
-	if _, ok := service.ObjectMeta.Annotations[types.ControlledQualifier]; !ok {
-		return false
-	}
-	return true
+	ref := service.OwnerReferences[0]
+	return ref.APIVersion == "skupper.io/v2alpha1" && ref.Kind == "Site" && ref.Name == s.name && ref.UID == s.site.UID && ref.UID != ""
 }
 
 func (s *Site) ownerReferences() []metav1.OwnerReference {
@@ -1143,13 +1146,15 @@ func isListenerService(svc *corev1.Service) bool {
 }
 
 func (s *Site) CheckListenerService(svc *corev1.Service) error {
-	if isListenerService(svc) && !s.bindings.isHostExposed(svc.Name) {
-		if err := s.clients.GetKubeClient().CoreV1().Services(s.namespace).Delete(context.Background(), svc.Name, metav1.DeleteOptions{}); err != nil && !errors.IsNotFound(err) {
+	if isListenerService(svc) && s.ownsService(svc) && !s.bindings.isHostExposed(svc.Name) {
+		uid, rv := svc.UID, svc.ResourceVersion
+		if err := s.clients.GetKubeClient().CoreV1().Services(s.namespace).Delete(context.Background(), svc.Name, metav1.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &uid, ResourceVersion: &rv}}); err != nil && !errors.IsNotFound(err) {
 			s.logger.Info("Could not delete stale listener service",
 				slog.String("namespace", svc.Namespace),
 				slog.String("name", svc.Name),
 				slog.String("reason", err.Error()),
 			)
+			return err
 		}
 		s.logger.Info("Deleted stale listener service",
 			slog.String("namespace", svc.Namespace),

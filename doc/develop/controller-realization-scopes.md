@@ -79,14 +79,41 @@ Secret resource. CA Secret. The current time.
 
 ## SecuredAccess Scope
 
-**Key:** SecuredAccess namespace + name. SecuredAccesses are evaluated on their own.
+**Key:** SecuredAccess namespace + name.
 
-**Inputs:** SecuredAccess spec, owner references. SecuredAccesses with matching
-namespace and spec.certificate. Same-name Service and provider resources
-(Route, Ingress, HTTPProxy, TLSRoute.) Certificates. Controller access type
-configurations, Gateway.
+**Inputs:** SecuredAccess spec, metadata and status. Same-name Service and
+provider resources (Route, Ingress, HTTPProxy, TLSRoute), including surviving
+outputs owned by the Access. The target Certificate and all SecuredAccesses
+targeting that Certificate. Controller access type configuration, provider API
+availability, shared Gateway and metadata policy.
 
-**Outputs:** Exposure Service and provider resources, Certificate.
+**Outputs:** Exposure Service and provider resources, SecuredAccess metadata
+and status, including resolved endpoints. This scope does not author Certificates.
+
+## SecuredAccess Certificate Scope
+
+**Key:** Certificate namespace + name.
+
+Multiple SecuredAccesses contribute to a single Certificate spec for Sites with
+HA enabled: a single serving certificate is issued for both access points and
+must contain host names for each. This scope writes the Certificate for one or
+more SecuredAccess.
+
+**Inputs:** SecuredAccess resources targeting the Certificate. The existing
+Certificate. Metadata policy.
+
+**Outputs:** The shared Certificate spec, ownership and metadata.
+
+**Preserves:** Combined hostnames and a stable subject when multiple
+SecuredAccess resources share a Certificate.
+
+## Gateway Scope
+
+**Key:** Controller namespace + shared Gateway name.
+
+**Inputs:** Gateway configuration, the existing Gateway and metadata policy.
+
+**Outputs:** The shared Gateway spec and metadata.
 
 ## AccessGrant
 
