@@ -281,7 +281,7 @@ func (c *EventProcessor) newEventHandler(handler ResourceChangeHandler) *cache.R
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			key, err := cache.MetaNamespaceKeyFunc(obj)
+			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 			if err != nil {
 				utilruntime.HandleError(err)
 			} else {
