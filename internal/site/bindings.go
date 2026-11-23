@@ -219,24 +219,20 @@ func (b *Bindings) updateConnector(connector *skupperv2alpha1.Connector) qdr.Con
 		if b.connectorHealth == nil {
 			b.connectorHealth = map[string]bool{}
 		}
+		if !ok || existing.Spec.Host != connector.Spec.Host || existing.Spec.Port != connector.Spec.Port || !existing.Spec.IsHealthCheckEnabled() {
+			delete(b.connectorHealth, name)
+		}
 		b.hostConnectors[name] = HostConnectorInfo{
 			Name:     name,
 			Host:     connector.Spec.Host,
 			Port:     connector.Spec.Port,
 			Interval: timeout,
 		}
-		if _, exists := b.connectorHealth[name]; !exists {
-			b.connectorHealth[name] = false
-		}
 		b.healthMu.Unlock()
 	} else {
 		b.healthMu.Lock()
-		if b.hostConnectors != nil {
-			delete(b.hostConnectors, name)
-		}
-		if b.connectorHealth != nil {
-			delete(b.connectorHealth, name)
-		}
+		delete(b.hostConnectors, name)
+		delete(b.connectorHealth, name)
 		b.healthMu.Unlock()
 	}
 
@@ -253,12 +249,8 @@ func (b *Bindings) deleteConnector(name string) qdr.ConfigUpdate {
 	if existing, ok := b.connectors[name]; ok {
 		delete(b.connectors, name)
 		b.healthMu.Lock()
-		if b.hostConnectors != nil {
-			delete(b.hostConnectors, name)
-		}
-		if b.connectorHealth != nil {
-			delete(b.connectorHealth, name)
-		}
+		delete(b.hostConnectors, name)
+		delete(b.connectorHealth, name)
 		b.healthMu.Unlock()
 		if b.handler != nil {
 			b.handler.ConnectorDeleted(existing)
@@ -444,17 +436,11 @@ func (b *Bindings) SetHealthChangeCallback(cb HealthChangeCallback) {
 
 func (b *Bindings) IsConnectorHealthy(name string) bool {
 	if b == nil {
-		return true
+		return false
 	}
 	b.healthMu.RLock()
 	defer b.healthMu.RUnlock()
-	if b.connectorHealth == nil {
-		return true
-	}
-	if healthy, ok := b.connectorHealth[name]; ok {
-		return healthy
-	}
-	return true
+	return b.connectorHealth[name]
 }
 
 func (b *Bindings) StartHealthCheckLoop(interval time.Duration) {
@@ -547,8 +533,8 @@ func (b *Bindings) PerformHealthChecks() []ConnectorHealthChange {
 		if _, exists := b.hostConnectors[res.Name]; !exists {
 			continue
 		}
-		prevHealthy, ok := b.connectorHealth[res.Name]
-		if !ok || prevHealthy != res.Healthy {
+		prevHealthy, probed := b.connectorHealth[res.Name]
+		if !probed || prevHealthy != res.Healthy {
 			b.connectorHealth[res.Name] = res.Healthy
 			changedConnectors = append(changedConnectors, res)
 		}

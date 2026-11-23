@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -25,6 +26,8 @@ type ConfigSync struct {
 	config          *watchers.ConfigMapWatcher
 	path            string
 	routerConfigMap string
+	health          *ConnectorHealth
+	syncMu          sync.Mutex
 	logger          *slog.Logger
 }
 
@@ -46,6 +49,7 @@ func NewConfigSync(cli internalclient.Clients, namespace string, path string, ro
 		routerConfigMap: routerConfigMap,
 		logger:          slog.New(slog.Default().Handler()).With(slog.String("component", "kube.adaptor.configSync")),
 	}
+	configSync.health = newConnectorHealth(controller, namespace, func() { configSync.recheckProfile("") })
 	configSync.profileSyncer = secrets.NewSync(
 		sslSecretsWatcher(namespace, controller),
 		configSync.recheckProfile,
@@ -78,11 +82,13 @@ func (c *ConfigSync) Start(stopCh <-chan struct{}) error {
 	if err := c.recoverTracking(); err != nil {
 		c.logger.Error("CONFIG_SYNC: Error recovering tracked ssl profiles", slog.Any("error", err))
 	}
+	c.health.start()
 	c.controller.Start(stopCh)
 	return nil
 }
 
 func (c *ConfigSync) Stop() {
+	c.health.stop()
 	c.controller.Stop()
 }
 
@@ -94,10 +100,13 @@ func (c *ConfigSync) configEvent(key string, configmap *corev1.ConfigMap) error 
 	if configmap == nil {
 		return nil
 	}
+	c.syncMu.Lock()
+	defer c.syncMu.Unlock()
 	desired, err := kubeqdr.GetRouterConfigFromConfigMap(configmap)
 	if err != nil {
 		return err
 	}
+	c.health.filter(&desired.Bridges)
 	if err := c.syncSslProfileCredentialsToDisk(desired.SslProfiles); err != nil {
 		return err
 	}
