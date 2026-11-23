@@ -47,6 +47,28 @@ import (
 type WaitFunction func(t *testing.T, clients internalclient.Clients) bool
 type ControllerFunction func(t *testing.T, controller *Controller) bool
 
+func TestControllerDeploymentIdentityWithVariableHash(t *testing.T) {
+	for _, hash := range []string{"bccd6f5c", "bbccd6f5c", "64d6774b44"} {
+		t.Run(hash, func(t *testing.T) {
+			t.Setenv("HOSTNAME", "skupper-controller-"+hash+"-7thwg")
+			config, err := BoundConfig(&flag.FlagSet{})
+			assert.NilError(t, err)
+			config.Namespace, config.Name = "test", ""
+			config.GrantConfig.Enabled = false
+			deployment := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{
+				Name: "skupper-controller", Namespace: "test", UID: "controller-uid",
+			}}
+			clients, err := fakeclient.NewFakeClient("test", []runtime.Object{deployment}, nil, "")
+			assert.NilError(t, err)
+			controller, err := NewController(clients, config)
+			assert.NilError(t, err)
+			t.Cleanup(controller.eventProcessor.Stop)
+			assert.Equal(t, controller.Name(), deployment.Name)
+			assert.Equal(t, controller.UID(), string(deployment.UID))
+		})
+	}
+}
+
 func TestGeneral(t *testing.T) {
 	fakeNetworkStatus := f.fakeNetworkStatusInfo("test")
 	testTable := []struct {
