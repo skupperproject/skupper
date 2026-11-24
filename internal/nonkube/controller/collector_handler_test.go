@@ -1,22 +1,25 @@
 package controller
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"gotest.tools/v3/assert"
 )
 
+// TestCollectorHandler checks the start, stop, restart and parent-stop
+// lifecycle of CollectorLifecycleHandler using a fake start method.
 func TestCollectorHandler(t *testing.T) {
 	started := make(chan struct{})
 	done := make(chan struct{})
 	stopCh := make(chan struct{})
 
 	ch := NewCollectorLifecycleHandler("sample-namespace")
-	fakeStart := func() {
+	fakeStart := func(ctx context.Context) {
 		close(started)
 		go func() {
-			<-ch.ctx.Done()
+			<-ctx.Done()
 			close(done)
 		}()
 	}
