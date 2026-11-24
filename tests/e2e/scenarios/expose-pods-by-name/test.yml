@@ -111,7 +111,7 @@
                 kubeconfig: "{{ kubeconfig }}"
                 namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
                 label_selectors:
-                  - internal.skupper.io/listener = true
+                  - internal.skupper.io/listener = backend
               register: svc_list
               until:
                 - svc_list.resources is defined
@@ -286,7 +286,7 @@
                 kubeconfig: "{{ kubeconfig }}"
                 namespace: "{{ namespace_prefix }}-{{ namespace_name }}"
                 label_selectors:
-                  - internal.skupper.io/listener = true
+                  - internal.skupper.io/listener = backend
               register: svc_list
               until:
                 - svc_list.resources is defined
