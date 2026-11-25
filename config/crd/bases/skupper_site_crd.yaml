@@ -18,9 +18,15 @@ spec:
             parent of all Skupper resources in its namespace. There can be only
             one active Site resource per namespace.
           type: object
+          x-kubernetes-validations:
+            - rule: "(has(oldSelf.spec) && has(oldSelf.spec.mode)) == (has(self.spec) && has(self.spec.mode)) && (!has(oldSelf.spec) || !has(oldSelf.spec.mode) || self.spec.mode == oldSelf.spec.mode)"
+              message: "spec.mode is immutable"
           properties:
             spec:
               type: object
+              x-kubernetes-validations:
+                - rule: "!has(self.edge) || !self.edge || !has(self.mode) || self.mode == 'dedicated'"
+                  message: "spec.edge cannot be true when spec.mode is set to a value other than 'dedicated'"
               properties:
                 serviceAccount:
                   description: |-
@@ -77,6 +83,20 @@ spec:
                     there is little benefit.
 
                     Currently, edge sites cannot also have HA enabled.
+                mode:
+                  type: string
+                  enum:
+                    - dedicated
+                    - transit
+                    - shared
+                  description: |-
+                    The operating mode of the site. Immutable once the site is created
+                    (including when unset on upgraded sites). If unset, interpreted
+                    internally as `dedicated`.
+
+                    - `dedicated`: Skupper sites dedicated to a single VAN.
+                    - `transit`: Transit-only interior sites used to build backbones for shared networks.
+                    - `shared`: Sites used to provide multi-VAN access to a shared network.
                 settings:
                   description: |-
                     Advanced. A map containing additional settings. Each map

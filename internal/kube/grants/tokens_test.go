@@ -117,9 +117,20 @@ func Test_NewTokenGenerator(t *testing.T) {
 
 	t.Run("Edge Site Fail", func(t *testing.T) {
 		site.Spec.Edge = true
+		site.Spec.Mode = nil
 		generator, err := NewTokenGenerator(site, client)
 		assert.ErrorContains(t, err, "Edge sites cannot accept incoming links from remote sites")
 		assert.Assert(t, generator == nil)
+	})
+
+	t.Run("Dedicated Mode Edge Site Fail", func(t *testing.T) {
+		mode := v2alpha1.SiteModeDedicated
+		site.Spec.Edge = true
+		site.Spec.Mode = &mode
+		generator, err := NewTokenGenerator(site, client)
+		assert.ErrorContains(t, err, "Edge sites cannot accept incoming links from remote sites")
+		assert.Assert(t, generator == nil)
+		site.Spec.Mode = nil
 	})
 
 	t.Run("No Endpoints Fail", func(t *testing.T) {

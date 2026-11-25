@@ -69,7 +69,7 @@ func (g *TokenGenerator) loadCA(name string) error {
 }
 
 func (g *TokenGenerator) setValidHostsFromSite(site *skupperv2alpha1.Site) error {
-	if site.Spec.Edge {
+	if site.Spec.IsEdge() {
 		return errors.New("Edge sites cannot accept incoming links from remote sites")
 	}
 	var hosts []string

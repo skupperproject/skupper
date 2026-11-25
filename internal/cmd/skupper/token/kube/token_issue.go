@@ -102,7 +102,7 @@ func (cmd *CmdTokenIssue) ValidateInput(args []string) error {
 			validationErrors = append(validationErrors, fmt.Errorf("there is no active skupper site in this namespace"))
 		} else {
 			for _, site := range siteList.Items {
-				if site.IsReady() && site.Spec.Edge {
+				if site.IsReady() && site.Spec.IsEdge() {
 					validationErrors = append(validationErrors, fmt.Errorf("Edge sites cannot accept incoming links from remote sites"))
 					return errors.Join(validationErrors...)
 				}

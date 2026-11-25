@@ -1101,6 +1101,8 @@ func TestSite_CheckLink(t *testing.T) {
 }
 
 func TestSite_verifySiteSpec(t *testing.T) {
+	dedicated := skupperv2alpha1.SiteModeDedicated
+
 	tests := []struct {
 		name    string
 		spec    skupperv2alpha1.SiteSpec
@@ -1115,12 +1117,25 @@ func TestSite_verifySiteSpec(t *testing.T) {
 			spec: skupperv2alpha1.SiteSpec{Edge: true},
 		},
 		{
+			name: "dedicated mode with edge without ha",
+			spec: skupperv2alpha1.SiteSpec{Mode: &dedicated, Edge: true},
+		},
+		{
 			name: "ha without edge",
 			spec: skupperv2alpha1.SiteSpec{HA: true},
 		},
 		{
+			name: "dedicated mode with ha",
+			spec: skupperv2alpha1.SiteSpec{Mode: &dedicated, HA: true},
+		},
+		{
 			name:    "edge with ha",
 			spec:    skupperv2alpha1.SiteSpec{Edge: true, HA: true},
+			wantErr: "Edge sites cannot have HA enabled",
+		},
+		{
+			name:    "dedicated mode with edge and ha",
+			spec:    skupperv2alpha1.SiteSpec{Mode: &dedicated, Edge: true, HA: true},
 			wantErr: "Edge sites cannot have HA enabled",
 		},
 	}
