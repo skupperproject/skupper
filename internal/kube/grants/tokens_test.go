@@ -123,9 +123,9 @@ func Test_NewTokenGenerator(t *testing.T) {
 		assert.Assert(t, generator == nil)
 	})
 
-	t.Run("DedicatedEdge Mode Site Fail", func(t *testing.T) {
-		mode := v2alpha1.SiteModeDedicatedEdge
-		site.Spec.Edge = false
+	t.Run("Dedicated Mode Edge Site Fail", func(t *testing.T) {
+		mode := v2alpha1.SiteModeDedicated
+		site.Spec.Edge = true
 		site.Spec.Mode = &mode
 		generator, err := NewTokenGenerator(site, client)
 		assert.ErrorContains(t, err, "Edge sites cannot accept incoming links from remote sites")

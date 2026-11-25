@@ -69,11 +69,8 @@ func TestSiteModeCRDValidation(t *testing.T) {
 
 		for _, mode := range []skupperv2alpha1.SiteMode{
 			skupperv2alpha1.SiteModeDedicated,
-			skupperv2alpha1.SiteModeDedicatedEdge,
 			skupperv2alpha1.SiteModeTransit,
-			skupperv2alpha1.SiteModeClusterShared,
-			skupperv2alpha1.SiteModeClusterSharedSmall,
-			skupperv2alpha1.SiteModeGuest,
+			skupperv2alpha1.SiteModeShared,
 		} {
 			created, err := sites.Create(ctx, &skupperv2alpha1.Site{
 				ObjectMeta: metav1.ObjectMeta{Name: "site-" + strings.ToLower(string(mode)), Namespace: ns},
@@ -98,26 +95,23 @@ func TestSiteModeCRDValidation(t *testing.T) {
 		sites := tc.clients.GetSkupperClient().SkupperV2alpha1().Sites(ns)
 
 		_, err := sites.Create(ctx, &skupperv2alpha1.Site{
-			ObjectMeta: metav1.ObjectMeta{Name: "legacy-edge", Namespace: ns},
+			ObjectMeta: metav1.ObjectMeta{Name: "unset-mode-edge", Namespace: ns},
 			Spec:       skupperv2alpha1.SiteSpec{Edge: true},
 		}, metav1.CreateOptions{})
 		assert.NilError(t, err)
 
 		_, err = sites.Create(ctx, &skupperv2alpha1.Site{
-			ObjectMeta: metav1.ObjectMeta{Name: "matching-edge", Namespace: ns},
+			ObjectMeta: metav1.ObjectMeta{Name: "dedicated-edge", Namespace: ns},
 			Spec: skupperv2alpha1.SiteSpec{
 				Edge: true,
-				Mode: modePtr(skupperv2alpha1.SiteModeDedicatedEdge),
+				Mode: modePtr(skupperv2alpha1.SiteModeDedicated),
 			},
 		}, metav1.CreateOptions{})
 		assert.NilError(t, err)
 
 		for _, mode := range []skupperv2alpha1.SiteMode{
-			skupperv2alpha1.SiteModeDedicated,
 			skupperv2alpha1.SiteModeTransit,
-			skupperv2alpha1.SiteModeClusterShared,
-			skupperv2alpha1.SiteModeClusterSharedSmall,
-			skupperv2alpha1.SiteModeGuest,
+			skupperv2alpha1.SiteModeShared,
 		} {
 			_, err := sites.Create(ctx, &skupperv2alpha1.Site{
 				ObjectMeta: metav1.ObjectMeta{Name: "conflict-" + strings.ToLower(string(mode)), Namespace: ns},
@@ -126,7 +120,7 @@ func TestSiteModeCRDValidation(t *testing.T) {
 					Mode: modePtr(mode),
 				},
 			}, metav1.CreateOptions{})
-			assert.ErrorContains(t, err, "spec.edge cannot be true when spec.mode is set to a value other than 'dedicatedEdge'")
+			assert.ErrorContains(t, err, "spec.edge cannot be true when spec.mode is set to a value other than 'dedicated'")
 		}
 	})
 
@@ -195,11 +189,21 @@ func TestSiteModeCRDValidation(t *testing.T) {
 		_, err = sites.Update(ctx, current, metav1.UpdateOptions{})
 		assert.ErrorContains(t, err, "spec.mode is immutable")
 
-		// Updating spec.edge to true on a dedicated site must be denied.
+		// Updating spec.edge to true on a dedicated site must succeed.
 		current, err = sites.Get(ctx, "set-mode", metav1.GetOptions{})
 		assert.NilError(t, err)
 		current.Spec.Edge = true
 		_, err = sites.Update(ctx, current, metav1.UpdateOptions{})
-		assert.ErrorContains(t, err, "spec.edge cannot be true when spec.mode is set to a value other than 'dedicatedEdge'")
+		assert.NilError(t, err)
+
+		// Updating spec.edge to true on a transit site must be denied.
+		transitSite, err := sites.Create(ctx, &skupperv2alpha1.Site{
+			ObjectMeta: metav1.ObjectMeta{Name: "transit-mode", Namespace: ns},
+			Spec:       skupperv2alpha1.SiteSpec{Mode: modePtr(skupperv2alpha1.SiteModeTransit)},
+		}, metav1.CreateOptions{})
+		assert.NilError(t, err)
+		transitSite.Spec.Edge = true
+		_, err = sites.Update(ctx, transitSite, metav1.UpdateOptions{})
+		assert.ErrorContains(t, err, "spec.edge cannot be true when spec.mode is set to a value other than 'dedicated'")
 	})
 }

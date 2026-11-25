@@ -461,7 +461,7 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 	}
 
 	t.Run("preserves mode and edge on update", func(t *testing.T) {
-		mode := v2alpha1.SiteModeDedicatedEdge
+		mode := v2alpha1.SiteModeDedicated
 		command := &CmdSiteUpdate{
 			Namespace:      "test",
 			siteName:       "my-site",
@@ -487,7 +487,7 @@ func TestCmdSiteUpdate_Run(t *testing.T) {
 		updated, err := command.Client.Sites(command.Namespace).Get(context.TODO(), "my-site", v1.GetOptions{})
 		assert.NilError(t, err)
 		assert.Assert(t, updated.Spec.Mode != nil)
-		assert.Equal(t, *updated.Spec.Mode, v2alpha1.SiteModeDedicatedEdge)
+		assert.Equal(t, *updated.Spec.Mode, v2alpha1.SiteModeDedicated)
 		assert.Equal(t, updated.Spec.Edge, true)
 	})
 }

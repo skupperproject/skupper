@@ -9,14 +9,19 @@ import (
 
 func TestConfigDigest_SiteMode(t *testing.T) {
 	dedicated := skupperv2alpha1.SiteModeDedicated
-	dedicatedEdge := skupperv2alpha1.SiteModeDedicatedEdge
+	transit := skupperv2alpha1.SiteModeTransit
+	shared := skupperv2alpha1.SiteModeShared
 
 	defaultDigest := configDigest(&skupperv2alpha1.SiteSpec{})
 	dedicatedDigest := configDigest(&skupperv2alpha1.SiteSpec{Mode: &dedicated})
-	legacyEdgeDigest := configDigest(&skupperv2alpha1.SiteSpec{Edge: true})
-	modeEdgeDigest := configDigest(&skupperv2alpha1.SiteSpec{Mode: &dedicatedEdge})
+	transitDigest := configDigest(&skupperv2alpha1.SiteSpec{Mode: &transit})
+	sharedDigest := configDigest(&skupperv2alpha1.SiteSpec{Mode: &shared})
+	edgeDigest := configDigest(&skupperv2alpha1.SiteSpec{Edge: true})
+	dedicatedEdgeDigest := configDigest(&skupperv2alpha1.SiteSpec{Edge: true, Mode: &dedicated})
 
 	assert.Equal(t, defaultDigest, dedicatedDigest)
-	assert.Equal(t, legacyEdgeDigest, modeEdgeDigest)
-	assert.Assert(t, defaultDigest != legacyEdgeDigest)
+	assert.Equal(t, defaultDigest, transitDigest)
+	assert.Equal(t, defaultDigest, sharedDigest)
+	assert.Equal(t, edgeDigest, dedicatedEdgeDigest)
+	assert.Assert(t, defaultDigest != edgeDigest)
 }

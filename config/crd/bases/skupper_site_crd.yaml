@@ -25,8 +25,8 @@ spec:
             spec:
               type: object
               x-kubernetes-validations:
-                - rule: "!has(self.edge) || !self.edge || !has(self.mode) || self.mode == 'dedicatedEdge'"
-                  message: "spec.edge cannot be true when spec.mode is set to a value other than 'dedicatedEdge'"
+                - rule: "!has(self.edge) || !self.edge || !has(self.mode) || self.mode == 'dedicated'"
+                  message: "spec.edge cannot be true when spec.mode is set to a value other than 'dedicated'"
               properties:
                 serviceAccount:
                   description: |-
@@ -75,8 +75,6 @@ spec:
                 edge:
                   type: boolean
                   description: |-
-                    Deprecated: use `spec.mode` set to `dedicatedEdge` instead.
-
                     Advanced. Configure the site to operate in edge mode. Edge
                     sites cannot accept links from remote sites.
 
@@ -89,22 +87,16 @@ spec:
                   type: string
                   enum:
                     - dedicated
-                    - dedicatedEdge
                     - transit
-                    - clusterShared
-                    - clusterSharedSmall
-                    - guest
+                    - shared
                   description: |-
                     The operating mode of the site. Immutable once the site is created
-                    (including when unset on upgraded sites). If unset and `spec.edge`
-                    is false, interpreted internally as `dedicated`.
+                    (including when unset on upgraded sites). If unset, interpreted
+                    internally as `dedicated`.
 
-                    - `dedicated`: Legacy Skupper sites used for networks dedicated to a single VAN.
-                    - `dedicatedEdge`: Legacy Skupper edge-site. This can be used in lieu of using `spec.edge` after it is deprecated and/or removed.
+                    - `dedicated`: Skupper sites dedicated to a single VAN.
                     - `transit`: Transit-only interior sites used to build backbones for shared networks.
-                    - `clusterShared`: DaemonSet sites used to provide cluster-wide, multi-VAN access to a network.
-                    - `clusterSharedSmall`: This is the same as `clusterShared` except the workload is a Deployment instead of a DaemonSet. This is useful for cases where performance is less important, and also for cases where multiple shared networks are available on a cluster.
-                    - `guest`: Namespace scoped edge site used for ephemeral access to one or more VANs on a shared network.
+                    - `shared`: Sites used to provide multi-VAN access to a shared network.
                 settings:
                   description: |-
                     Advanced. A map containing additional settings. Each map

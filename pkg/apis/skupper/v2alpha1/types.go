@@ -198,23 +198,19 @@ type SiteList struct {
 type SiteMode string
 
 const (
-	SiteModeDedicated          SiteMode = "dedicated"
-	SiteModeDedicatedEdge      SiteMode = "dedicatedEdge"
-	SiteModeTransit            SiteMode = "transit"
-	SiteModeClusterShared      SiteMode = "clusterShared"
-	SiteModeClusterSharedSmall SiteMode = "clusterSharedSmall"
-	SiteModeGuest              SiteMode = "guest"
+	SiteModeDedicated SiteMode = "dedicated"
+	SiteModeTransit   SiteMode = "transit"
+	SiteModeShared    SiteMode = "shared"
 )
 
-// +kubebuilder:validation:XValidation:rule="!has(self.edge) || !self.edge || !has(self.mode) || self.mode == 'dedicatedEdge'",message="spec.edge cannot be true when spec.mode is set to a value other than 'dedicatedEdge'"
+// +kubebuilder:validation:XValidation:rule="!has(self.edge) || !self.edge || !has(self.mode) || self.mode == 'dedicated'",message="spec.edge cannot be true when spec.mode is set to a value other than 'dedicated'"
 type SiteSpec struct {
 	ServiceAccount string `json:"serviceAccount,omitempty"`
 	LinkAccess     string `json:"linkAccess,omitempty"`
 	DefaultIssuer  string `json:"defaultIssuer,omitempty"`
-	// Deprecated: use Mode set to SiteModeDedicatedEdge instead.
-	Edge bool `json:"edge,omitempty"`
+	Edge           bool   `json:"edge,omitempty"`
 	// +optional
-	// +kubebuilder:validation:Enum=dedicated;dedicatedEdge;transit;clusterShared;clusterSharedSmall;guest
+	// +kubebuilder:validation:Enum=dedicated;transit;shared
 	Mode     *SiteMode         `json:"mode,omitempty"`
 	HA       bool              `json:"ha,omitempty"`
 	Settings map[string]string `json:"settings,omitempty"`
@@ -224,14 +220,11 @@ func (s *SiteSpec) GetMode() SiteMode {
 	if s.Mode != nil && *s.Mode != "" {
 		return *s.Mode
 	}
-	if s.Edge {
-		return SiteModeDedicatedEdge
-	}
 	return SiteModeDedicated
 }
 
 func (s *SiteSpec) IsEdge() bool {
-	return s.GetMode() == SiteModeDedicatedEdge
+	return s.Edge
 }
 
 func (s *SiteSpec) GetServiceAccount() string {

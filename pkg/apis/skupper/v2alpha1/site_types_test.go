@@ -30,9 +30,9 @@ func TestSiteSpec_GetModeAndIsEdge(t *testing.T) {
 			wantEdge: false,
 		},
 		{
-			name:     "unset mode and edge true maps to dedicatedEdge",
+			name:     "unset mode and edge true defaults to dedicated",
 			spec:     SiteSpec{Edge: true},
-			wantMode: SiteModeDedicatedEdge,
+			wantMode: SiteModeDedicated,
 			wantEdge: true,
 		},
 		{
@@ -42,9 +42,9 @@ func TestSiteSpec_GetModeAndIsEdge(t *testing.T) {
 			wantEdge: false,
 		},
 		{
-			name:     "empty mode pointer and edge true maps to dedicatedEdge",
+			name:     "empty mode pointer and edge true defaults to dedicated",
 			spec:     SiteSpec{Edge: true, Mode: siteModePtr("")},
-			wantMode: SiteModeDedicatedEdge,
+			wantMode: SiteModeDedicated,
 			wantEdge: true,
 		},
 		{
@@ -54,15 +54,9 @@ func TestSiteSpec_GetModeAndIsEdge(t *testing.T) {
 			wantEdge: false,
 		},
 		{
-			name:     "explicit dedicatedEdge",
-			spec:     SiteSpec{Mode: siteModePtr(SiteModeDedicatedEdge)},
-			wantMode: SiteModeDedicatedEdge,
-			wantEdge: true,
-		},
-		{
-			name:     "explicit dedicatedEdge with edge true",
-			spec:     SiteSpec{Edge: true, Mode: siteModePtr(SiteModeDedicatedEdge)},
-			wantMode: SiteModeDedicatedEdge,
+			name:     "explicit dedicated with edge true",
+			spec:     SiteSpec{Edge: true, Mode: siteModePtr(SiteModeDedicated)},
+			wantMode: SiteModeDedicated,
 			wantEdge: true,
 		},
 		{
@@ -72,21 +66,9 @@ func TestSiteSpec_GetModeAndIsEdge(t *testing.T) {
 			wantEdge: false,
 		},
 		{
-			name:     "explicit clusterShared",
-			spec:     SiteSpec{Mode: siteModePtr(SiteModeClusterShared)},
-			wantMode: SiteModeClusterShared,
-			wantEdge: false,
-		},
-		{
-			name:     "explicit clusterSharedSmall",
-			spec:     SiteSpec{Mode: siteModePtr(SiteModeClusterSharedSmall)},
-			wantMode: SiteModeClusterSharedSmall,
-			wantEdge: false,
-		},
-		{
-			name:     "explicit guest",
-			spec:     SiteSpec{Mode: siteModePtr(SiteModeGuest)},
-			wantMode: SiteModeGuest,
+			name:     "explicit shared",
+			spec:     SiteSpec{Mode: siteModePtr(SiteModeShared)},
+			wantMode: SiteModeShared,
 			wantEdge: false,
 		},
 	}
@@ -147,7 +129,7 @@ func TestSiteSpec_ModeJSON(t *testing.T) {
 	})
 
 	t.Run("set mode round-trips", func(t *testing.T) {
-		orig := SiteSpec{Mode: siteModePtr(SiteModeClusterSharedSmall)}
+		orig := SiteSpec{Mode: siteModePtr(SiteModeShared)}
 		data, err := json.Marshal(orig)
 		if err != nil {
 			t.Fatalf("marshal failed: %v", err)
@@ -156,8 +138,8 @@ func TestSiteSpec_ModeJSON(t *testing.T) {
 		if err := json.Unmarshal(data, &decoded); err != nil {
 			t.Fatalf("unmarshal failed: %v", err)
 		}
-		if decoded.Mode == nil || *decoded.Mode != SiteModeClusterSharedSmall {
-			t.Fatalf("expected %q, got %v", SiteModeClusterSharedSmall, decoded.Mode)
+		if decoded.Mode == nil || *decoded.Mode != SiteModeShared {
+			t.Fatalf("expected %q, got %v", SiteModeShared, decoded.Mode)
 		}
 	})
 }
@@ -191,14 +173,6 @@ func TestSiteCRD_ModeSchema(t *testing.T) {
 		t.Fatal("expected spec x-kubernetes-validations for spec.edge/spec.mode consistency")
 	}
 
-	edgeSchema, ok := specSchema.Properties["edge"]
-	if !ok {
-		t.Fatal("missing spec.edge schema")
-	}
-	if !strings.Contains(strings.ToLower(edgeSchema.Description), "deprecated") {
-		t.Errorf("expected spec.edge description to mention deprecation, got %q", edgeSchema.Description)
-	}
-
 	modeSchema, ok := specSchema.Properties["mode"]
 	if !ok {
 		t.Fatal("missing spec.mode schema")
@@ -209,6 +183,9 @@ func TestSiteCRD_ModeSchema(t *testing.T) {
 	if modeSchema.Default != nil {
 		t.Errorf("expected spec.mode to have no default, got %s", string(modeSchema.Default.Raw))
 	}
+	if !strings.Contains(modeSchema.Description, "Skupper sites dedicated to a single VAN") {
+		t.Errorf("expected spec.mode description to describe dedicated mode, got %q", modeSchema.Description)
+	}
 	for _, req := range specSchema.Required {
 		if req == "mode" {
 			t.Error("expected spec.mode to be optional")
@@ -217,11 +194,8 @@ func TestSiteCRD_ModeSchema(t *testing.T) {
 
 	wantEnum := []string{
 		string(SiteModeDedicated),
-		string(SiteModeDedicatedEdge),
 		string(SiteModeTransit),
-		string(SiteModeClusterShared),
-		string(SiteModeClusterSharedSmall),
-		string(SiteModeGuest),
+		string(SiteModeShared),
 	}
 	var gotEnum []string
 	for _, v := range modeSchema.Enum {

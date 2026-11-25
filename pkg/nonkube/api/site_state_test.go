@@ -21,15 +21,25 @@ func TestSiteState_IsInterior(t *testing.T) {
 	edgeState.Site.Spec.Edge = true
 	assert.Assert(t, !edgeState.IsInterior())
 
-	dedicatedEdge := v2alpha1.SiteModeDedicatedEdge
-	modeEdgeState := fakeSiteState()
-	modeEdgeState.Site.Spec.Mode = &dedicatedEdge
-	assert.Assert(t, !modeEdgeState.IsInterior())
-
 	dedicated := v2alpha1.SiteModeDedicated
+	modeDedicatedEdgeState := fakeSiteState()
+	modeDedicatedEdgeState.Site.Spec.Mode = &dedicated
+	modeDedicatedEdgeState.Site.Spec.Edge = true
+	assert.Assert(t, !modeDedicatedEdgeState.IsInterior())
+
 	modeDedicatedState := fakeSiteState()
 	modeDedicatedState.Site.Spec.Mode = &dedicated
 	assert.Assert(t, modeDedicatedState.IsInterior())
+
+	transit := v2alpha1.SiteModeTransit
+	modeTransitState := fakeSiteState()
+	modeTransitState.Site.Spec.Mode = &transit
+	assert.Assert(t, modeTransitState.IsInterior())
+
+	shared := v2alpha1.SiteModeShared
+	modeSharedState := fakeSiteState()
+	modeSharedState.Site.Spec.Mode = &shared
+	assert.Assert(t, modeSharedState.IsInterior())
 }
 
 func TestSiteState_CreateBridgeCertificates(t *testing.T) {
