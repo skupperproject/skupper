@@ -19,7 +19,7 @@ Note: If you are running the tests from the Makefile, this is not needed, as the
 
 ```
 tests/
-├── e2e/  
+├── e2e/
 ├── scenarios/                 # End-to-end tests directory
 │    ├── hello-world/          # Basic Skupper functionality test
 │    ├── attached-connector/   # Network performance test with attached connectors
@@ -163,6 +163,25 @@ make test-subset TESTS="test1,test2"
 # Run CI tests
 make ci-tests
 ```
+
+3. **Make variables**
+
+The following `make` variables are available:
+
+* `OPTIONS` will provide additional options to the `ansible-playbook` invocation.
+
+  `make e2e-tests OPTIONS="-v"`
+
+* `PYTHON` allows the `venv` to be created with a specific Python binary
+
+  `make create-venv PYTHON=python3.12`
+
+* `TEST_PREFIX` allows one to select a prefix to be added to the name of the tests' namespaces:
+
+  `make e2e-tests TEST_PREFIX=123`
+
+  By default, a random prefix is generated for each run.  The namespaces can be selected on Kubernetes
+  with the label `e2e.prefix`, allowing for easy removal of failed tests, for example.
 
 ### Example summary
 
