@@ -47,7 +47,7 @@ func NewExtendedBindings(controller *watchers.EventProcessor, profilePath string
 	return eb
 }
 
-func (a *ExtendedBindings) init(context BindingContext, config *qdr.RouterConfig) {
+func (a *ExtendedBindings) init(context BindingContext, config *qdr.RouterConfig) error {
 	a.context = context
 	if a.mapping == nil {
 		a.mapping = qdr.RecoverPortMapping(config)
@@ -58,10 +58,11 @@ func (a *ExtendedBindings) init(context BindingContext, config *qdr.RouterConfig
 	if a.selectors == nil {
 		a.selectors = map[string]TargetSelection{}
 	}
-	a.bindings.SetBindingEventHandler(a)
+	err := a.bindings.SetBindingEventHandler(a)
 	a.bindings.SetConnectorConfiguration(a.updateBridgeConfigForConnector)
 	a.bindings.SetListenerConfiguration(a.updateBridgeConfigForListener)
 	a.bindings.SetMultiKeyListenerConfiguration(a.updateBridgeConfigForMultiKeyListener)
+	return err
 }
 
 func (a *ExtendedBindings) cleanup() {
@@ -108,7 +109,14 @@ func (a *ExtendedBindings) ConnectorDeleted(connector *skupperv2alpha1.Connector
 	}
 }
 
-func (a *ExtendedBindings) ListenerUpdated(listener *skupperv2alpha1.Listener) {
+func (a *ExtendedBindings) ListenerUpdated(listener *skupperv2alpha1.Listener) error {
+	if err := validateExposedHost(listener.Spec.Host); err != nil {
+		bindings_logger.Error("Cannot expose listener",
+			slog.String("namespace", listener.Namespace),
+			slog.String("name", listener.Name),
+			slog.Any("error", err))
+		return err
+	}
 	allocatedRouterPort, err := a.mapping.GetPortForKey(listener.Name)
 	if err != nil {
 		bindings_logger.Error("Unable to get port for listener",
@@ -116,7 +124,7 @@ func (a *ExtendedBindings) ListenerUpdated(listener *skupperv2alpha1.Listener) {
 			slog.String("name", listener.Name),
 			slog.Any("error", err),
 		)
-		return
+		return err
 	}
 	port := Port{
 		Name:       listener.Name,
@@ -130,12 +138,13 @@ func (a *ExtendedBindings) ListenerUpdated(listener *skupperv2alpha1.Listener) {
 				slog.String("namespace", listener.Namespace),
 				slog.String("name", listener.Name),
 				slog.Any("error", err))
-		} else {
-			bindings_logger.Info("Exposed listener",
-				slog.String("namespace", listener.Namespace),
-				slog.String("name", listener.Name))
+			return err
 		}
+		bindings_logger.Info("Exposed listener",
+			slog.String("namespace", listener.Namespace),
+			slog.String("name", listener.Name))
 	}
+	return nil
 }
 
 func (a *ExtendedBindings) GetExposedPortSet(host string) *ExposedPortSet {
@@ -145,27 +154,31 @@ func (a *ExtendedBindings) GetExposedPortSet(host string) *ExposedPortSet {
 	return nil
 }
 
-func (a *ExtendedBindings) ListenerDeleted(listener *skupperv2alpha1.Listener) {
+func (a *ExtendedBindings) ListenerDeleted(listener *skupperv2alpha1.Listener) error {
 	if exposed := a.exposed.Unexpose(listener.Spec.Host, listener.Name); exposed != nil {
 		a.mapping.ReleasePortForKey(listener.Name)
 		if exposed.empty() {
 			if err := a.context.Unexpose(listener.Spec.Host); err != nil {
-				//TODO: write error to listener status
+				bindings_logger.Error("Error unexposing service after deleting listener",
+					slog.String("namespace", listener.Namespace),
+					slog.String("name", listener.Name),
+					slog.Any("error", err))
+				return err
 			}
 		} else {
 			if err := a.context.Expose(exposed); err != nil {
-				//TODO: write error to listener status
 				bindings_logger.Error("Error re-exposing service after deleting listener",
 					slog.String("namespace", listener.Namespace),
 					slog.String("name", listener.Name),
 					slog.Any("error", err))
-			} else {
-				bindings_logger.Info("Re-exposed service after deleting listener",
-					slog.String("namespace", listener.Namespace),
-					slog.String("name", listener.Name))
+				return err
 			}
+			bindings_logger.Info("Re-exposed service after deleting listener",
+				slog.String("namespace", listener.Namespace),
+				slog.String("name", listener.Name))
 		}
 	}
+	return nil
 }
 
 func (a *ExtendedBindings) updateBridgeConfigForConnector(siteId string, connector *skupperv2alpha1.Connector, config *qdr.BridgeConfig) {
@@ -226,7 +239,14 @@ func multiKeyListenerPortName(name string) string {
 	return "multiaddress-" + name
 }
 
-func (a *ExtendedBindings) multiKeyListenerUpdated(mkl *skupperv2alpha1.MultiKeyListener) {
+func (a *ExtendedBindings) multiKeyListenerUpdated(mkl *skupperv2alpha1.MultiKeyListener) error {
+	if err := validateExposedHost(mkl.Spec.Host); err != nil {
+		bindings_logger.Error("Cannot expose multikeylistener",
+			slog.String("namespace", mkl.Namespace),
+			slog.String("name", mkl.Name),
+			slog.Any("error", err))
+		return err
+	}
 	allocatedRouterPort, err := a.mapping.GetPortForKey(multiKeyListenerPortName(mkl.Name))
 	if err != nil {
 		bindings_logger.Error("Unable to get port for multikeylistener",
@@ -234,7 +254,7 @@ func (a *ExtendedBindings) multiKeyListenerUpdated(mkl *skupperv2alpha1.MultiKey
 			slog.String("name", mkl.Name),
 			slog.Any("error", err),
 		)
-		return
+		return err
 	}
 	port := Port{
 		Name:       multiKeyListenerPortName(mkl.Name),
@@ -248,19 +268,20 @@ func (a *ExtendedBindings) multiKeyListenerUpdated(mkl *skupperv2alpha1.MultiKey
 				slog.String("namespace", mkl.Namespace),
 				slog.String("name", mkl.Name),
 				slog.Any("error", err))
-			return
+			return err
 		}
 		bindings_logger.Info("Exposed multikeylistener",
 			slog.String("namespace", mkl.Namespace),
 			slog.String("name", mkl.Name))
 	}
+	return nil
 }
 
-func (a *ExtendedBindings) multiKeyListenerDeleted(mkl *skupperv2alpha1.MultiKeyListener) {
+func (a *ExtendedBindings) multiKeyListenerDeleted(mkl *skupperv2alpha1.MultiKeyListener) error {
 
 	exposed := a.exposed.Unexpose(mkl.Spec.Host, multiKeyListenerPortName(mkl.Name))
 	if exposed == nil {
-		return
+		return nil
 	}
 	a.mapping.ReleasePortForKey(multiKeyListenerPortName(mkl.Name))
 	if exposed.empty() {
@@ -269,19 +290,21 @@ func (a *ExtendedBindings) multiKeyListenerDeleted(mkl *skupperv2alpha1.MultiKey
 				slog.String("namespace", mkl.Namespace),
 				slog.String("name", mkl.Name),
 				slog.Any("error", err))
+			return err
 		}
-		return
+		return nil
 	}
 	if err := a.context.Expose(exposed); err != nil {
 		bindings_logger.Error("Error re-exposing service after deleting multikeylistener",
 			slog.String("namespace", mkl.Namespace),
 			slog.String("name", mkl.Name),
 			slog.Any("error", err))
-		return
+		return err
 	}
 	bindings_logger.Info("Re-exposed service after deleting multikeylistener",
 		slog.String("namespace", mkl.Namespace),
 		slog.String("name", mkl.Name))
+	return nil
 }
 
 func (b *ExtendedBindings) SetListenerConfiguration(configuration site.ListenerConfiguration) {
@@ -292,8 +315,8 @@ func (b *ExtendedBindings) SetConnectorConfiguration(configuration site.Connecto
 	b.bindings.SetConnectorConfiguration(configuration)
 }
 
-func (b *ExtendedBindings) SetBindingEventHandler(handler site.BindingEventHandler) {
-	b.bindings.SetBindingEventHandler(handler)
+func (b *ExtendedBindings) SetBindingEventHandler(handler site.BindingEventHandler) error {
+	return b.bindings.SetBindingEventHandler(handler)
 }
 
 func (b *ExtendedBindings) UpdateConnector(name string, connector *skupperv2alpha1.Connector) qdr.ConfigUpdate {
@@ -334,7 +357,11 @@ func (b *ExtendedBindings) UpdateListener(name string, listener *skupperv2alpha1
 		}
 		b.listenerHosts[name] = listener.Spec.Host
 	}
-	if b.bindings.UpdateListener(name, listener) != nil {
+	update, err := b.bindings.UpdateListener(name, listener)
+	if err != nil {
+		errs = append(errs, err)
+	}
+	if update != nil {
 		updateConfig = true
 	}
 	if !updateConfig {
@@ -357,13 +384,17 @@ func (b *ExtendedBindings) UpdateMultiKeyListener(name string, mkl *skupperv2alp
 			}
 		}
 		b.multiKeyListenerHosts[name] = mkl.Spec.Host
-		b.multiKeyListenerUpdated(mkl)
+		if err := b.multiKeyListenerUpdated(mkl); err != nil {
+			errs = append(errs, err)
+		}
 	} else {
 		// Deletion case
 		if previousHost, ok := b.multiKeyListenerHosts[name]; ok {
 			existingMkl := b.bindings.GetMultiKeyListener(name)
 			if existingMkl != nil {
-				b.multiKeyListenerDeleted(existingMkl)
+				if err := b.multiKeyListenerDeleted(existingMkl); err != nil {
+					errs = append(errs, err)
+				}
 			}
 			delete(b.multiKeyListenerHosts, name)
 			if exposed := b.exposed.Unexpose(previousHost, multiKeyListenerPortName(name)); exposed != nil && exposed.empty() {

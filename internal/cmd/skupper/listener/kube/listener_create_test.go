@@ -189,6 +189,14 @@ func TestCmdListenerCreate_ValidateInput(t *testing.T) {
 			flags:         common.CommandListenerCreateFlags{Timeout: time.Minute, Wait: "created"},
 			expectedError: "status is not valid: value created not allowed. It should be one of this options: [ready configured none]",
 		},
+		{
+			name: "invalid default host (name starts with digit)",
+			args: []string{"1listener", "8080"},
+			flags: common.CommandListenerCreateFlags{
+				Timeout: 1 * time.Minute,
+			},
+			expectedError: `invalid host "1listener": a DNS-1035 label must consist of lower case alphanumeric characters or '-', start with an alphabetic character, and end with an alphanumeric character (e.g. 'my-name',  or 'abc-123', regex used for validation is '[a-z]([-a-z0-9]*[a-z0-9])?')`,
+		},
 	}
 
 	for _, test := range testTable {
